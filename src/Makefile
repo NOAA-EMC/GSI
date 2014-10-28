@@ -275,7 +275,7 @@ clean:
 	get_derivatives2.f90 \
 	get_gefs_for_regional.f90 \
         get_nmmb_ensperts.f90 \
-        get_pseudo_ensperts.f90 \
+        get_pseudo_ensperts.F90 \
 	get_wrf_mass_ensperts_netcdf.F90 \
         get_wrf_nmm_ensperts.F90 \
 	get_semimp_mats.f90 \
@@ -374,8 +374,8 @@ clean:
         mod_wrfmass_to_a.f90 \
 	model_ad.F90 \
 	model_tl.F90 \
-	model2control.f90 \
-	model2ensctl.f90 \
+	control2model_ad.f90 \
+	ensctl2model_ad.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
@@ -423,9 +423,9 @@ clean:
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
 	read_obsdiags.F90 \
-	read_wrf_mass_files.f90 \
+	read_wrf_mass_files.F90 \
 	read_wrf_mass_guess.F90 \
-	read_wrf_nmm_files.f90 \
+	read_wrf_nmm_files.F90 \
 	read_wrf_nmm_guess.F90 \
 	regional_io.f90 \
 	reorg_metar_cloud.f90 \
@@ -447,8 +447,8 @@ clean:
 	smoothzrf.f90 \
 	sqrtmin.f90 \
 	ssmis_spatial_average_mod.f90 \
-	state2control.f90 \
-	state2ensctl.f90 \
+	control2state_ad.f90 \
+	ensctl2state_ad.f90 \
 	state_vectors.f90 \
 	statsco.f90 \
 	statsconv.f90 \

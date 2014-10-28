@@ -70,8 +70,6 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='HREF'
 
-    INTEGER(i_kind),PARAMETER ::  MXBF = 160000
-
     character(8) subset
     integer(i_kind)  :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb

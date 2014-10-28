@@ -145,7 +145,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) ch8,sstime
   real(r_kind) pred,crit1,tdiff,dist1,toff,t4dv
-  real(r_kind) disterr,disterrmax,dlon00,dlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
 
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: sfcpct
@@ -275,7 +275,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
            ksatid=nint(hdr(7))
 !          if not proper satellite read next bufr record
-           if (ksatid /= lsatid) cycle read_loop
+           if (ksatid /= lsatid) cycle read_subset
 
 !          Extract number of averaged FOVS
            ifov = hdr(9) ! number of averaged FOVS 
@@ -330,15 +330,16 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         if (hdr(1)< zero) hdr(1)=hdr(1)+r360
 
         dlon_earth = hdr(1)*deg2rad   !convert degrees to radians
-        dlat_earth = hdr(2)*deg2rad
-
+        dlat_earth = hdr(2)*deg2rad 
         if(regional)then
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
       

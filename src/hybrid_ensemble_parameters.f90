@@ -317,7 +317,6 @@ subroutine init_hybrid_ensemble_parameters
 !
 !$$$ end documentation block
   use constants, only: one
-  use constants, only: zero
   implicit none
 
   l_hyb_ens=.false.
@@ -347,9 +346,6 @@ subroutine init_hybrid_ensemble_parameters
   jcap_ens_test=0
   nlon_ens=0
   beta1_inv=one
-  beta1wgt=one
-  beta2wgt=zero
-  pwgt=zero
   grid_ratio_ens=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
@@ -363,11 +359,16 @@ subroutine init_hybrid_ensemble_parameters
 end subroutine init_hybrid_ensemble_parameters
 
 subroutine create_hybens_localization_parameters
+  use constants, only: one
+  use constants, only: zero
   implicit none
   
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
   allocate( betas_inv(grd_ens%nsig),betae_inv(grd_ens%nsig))
   allocate( beta1wgt(grd_ens%nsig),beta2wgt(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  beta1wgt=one
+  beta2wgt=zero
+  pwgt=zero
   
 end subroutine create_hybens_localization_parameters
 

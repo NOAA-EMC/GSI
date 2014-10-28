@@ -1,10 +1,10 @@
 module mpeu_util
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module mpeu_util
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
-!     date:	 2010-03-17
+! subprogram:    module mpeu_util
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:      2010-03-17
 !
 ! abstract: - utilities for runtime messaging, etc.
 !
@@ -54,13 +54,13 @@ module mpeu_util
       use kinds, only: DP => r_double   ! DOUBLE PRECISION kind
 #endif
       implicit none
-      private	! except
+      private    ! except
 
       public :: die, perr, warn, tell, assert_
       public :: luavail
       public :: stdin, stdout, stderr
       public :: strTemplate
-      public :: getarec			! (lu,line,ier[,nrec][,commchar])
+      public :: getarec                 ! (lu,line,ier[,nrec][,commchar])
       public :: GetTableSize,GetTable
       public :: GetIndex                ! get index in array given user entry
 
@@ -89,7 +89,7 @@ module mpeu_util
       die_vint_, &
       die_flt_, &
       die_dbl_, &
-      die2_,	&
+      die2_,    &
       die_; end interface
     interface perr; module procedure &
       perr_bul_, &
@@ -147,19 +147,19 @@ module mpeu_util
 
 
 ! !REVISION HISTORY:
-!	19Aug09 - Jing Guo <Jing.Guo@nasa.gov>
-!		- modified format, abort() message and interface, etc.
-!	19Feb09	- Jing Guo <Jing.Guo@nasa.gov>
-!		- Implemented for GSI to avoid the dependency on
-!		  GMAO_mpeu/.
-!		. Selected from mksi/satinfo_util.F90.
-!		. Added StrTemplate() from m_StrTemplate.F90.  Format
-!		  class is no limited to GrADS like.
-!		. Some new %-keywords are added (%i, %j, %k, %l).
-!		. Modified dropdead_() to use GSI abor1().
-!		
-! 	02May07	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       19Aug09 - Jing Guo <Jing.Guo@nasa.gov>
+!               - modified format, abort() message and interface, etc.
+!       19Feb09 - Jing Guo <Jing.Guo@nasa.gov>
+!               - Implemented for GSI to avoid the dependency on
+!                 GMAO_mpeu/.
+!               . Selected from mksi/satinfo_util.F90.
+!               . Added StrTemplate() from m_StrTemplate.F90.  Format
+!                 class is no limited to GrADS like.
+!               . Some new %-keywords are added (%i, %j, %k, %l).
+!               . Modified dropdead_() to use GSI abor1().
+!
+!       02May07 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname="mpeu_util"
@@ -194,34 +194,34 @@ module mpeu_util
 !-----------------------------------------------------------------------
 ! Use indexed sorting
 !
-!	...
-!	integer,intent(in) :: N
+!       ...
+!       integer,intent(in) :: N
 !       type Observations
 !         real:: prs,lon,lat
 !         integer:: kt,ks,kx
 !       end type Observations
-!	type(Observations), dimension(N), intent(inout) :: obs
+!       type(Observations), dimension(N), intent(inout) :: obs
 !
-!	integer, dimension(size(obs)) :: indx	! automatic array
+!       integer, dimension(size(obs)) :: indx      ! automatic array
 !
 !                       ! This tool allows incremental sorting.
 !                       ! An incremental sorting can only be done
 !                       ! with a stable-sorting algorithm, and
 !                       ! in a reversed sequence.
 !
-!	call IndexSet(indx)
-!	call IndexSort(indx(:),obs(:)%prs,descend=.true.)
-!	call IndexSort(indx(:),obs(:)%lon,descend=.false.)
-!	call IndexSort(indx(:),obs(:)%lat,descend=.false.)
-!	call IndexSort(indx(:),obs(:)%kt,descend=.false.)
-!	call IndexSort(indx(:),obs(:)%ks,descend=.false.)
-!	call IndexSort(indx(:),obs(:)%kx,descend=.false.)
+!       call IndexSet(indx)
+!       call IndexSort(indx(:),obs(:)%prs,descend=.true.)
+!       call IndexSort(indx(:),obs(:)%lon,descend=.false.)
+!       call IndexSort(indx(:),obs(:)%lat,descend=.false.)
+!       call IndexSort(indx(:),obs(:)%kt,descend=.false.)
+!       call IndexSort(indx(:),obs(:)%ks,descend=.false.)
+!       call IndexSort(indx(:),obs(:)%kx,descend=.false.)
 !
-!		! Sorting
-!	obs(1:N) = obs( indx(1:N) )
-!     	...
-!		! Unsorting (restore the original order)
-!	obs( (indx(1:N) ) = obs(1:N)
+!       ! Sorting
+!       obs(1:N) = obs( indx(1:N) )
+!       ...
+!       ! Unsorting (restore the original order)
+!       obs( (indx(1:N) ) = obs(1:N)
 !_______________________________________________________________________
 
 contains
@@ -288,15 +288,15 @@ subroutine stdout_open(prefix,rewind,stat,mask,comm)
 !!
 
 !! -- call stdout_open(prefix='stdout',rewind=.true.,mask=3,comm=mycomm,stat=ier)
-!!	rewind: default is append
-!!	mask:	apply only if (mask>=0 .and. (iPE && mask)) == 0
-!!		mask=-1, none
-!!		mask=0, all, default
-!!		mask=1, PE #0, 2, 4, 6, 8, every another PE
-!!		mask=2, PE #0, 1, 4, 5, etc.
-!!		mask=3, PE #0, 4, 8, 12, etc.
-!!		mask=4, PE #0:3, not #4:7
-!!		mask=12, PE #0:3, not #4:15
+!!      rewind: default is append
+!!      mask:   apply only if (mask>=0 .and. (iPE && mask)) == 0
+!!              mask=-1, none
+!!              mask=0, all, default
+!!              mask=1, PE #0, 2, 4, 6, 8, every another PE
+!!              mask=2, PE #0, 1, 4, 5, etc.
+!!              mask=3, PE #0, 4, 8, 12, etc.
+!!              mask=4, PE #0:3, not #4:7
+!!              mask=12, PE #0:3, not #4:15
 
 !! -- call stdout_close(stat=ier)
   implicit none
@@ -355,7 +355,7 @@ subroutine stdout_open__(prefix,rewind,stat,mask,comm)
     write(cmype_,'(i8.8)') mype
   endselect
 
-  position='append'	! this is default
+  position='append'      ! this is default
   if(present(rewind)) then
     if(rewind) position='rewind'
   endif
@@ -368,23 +368,23 @@ subroutine stdout_open__(prefix,rewind,stat,mask,comm)
   endif
 
   call close_if_(top_(),stat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'close_if_(STDOUT), STDOUT =',stdout)
-	  call perr(myname_,'close_if_(STDOUT), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+     call perr(myname_,'close_if_(STDOUT), STDOUT =',stdout)
+     call perr(myname_,'close_if_(STDOUT), iostat =',ier)
+     if(.not.present(stat)) call die(myname_)
+     stat=ier
+     return
+  endif
   call mprint(stdout,myname_,'switching STDOUT to file "'//trim(fname)//'"')
   call push_(fname)
   open(stdout,file=fname,position=position,iostat=ier,action='write')
-	if(ier/=0) then
-	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
-	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+    call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
 end subroutine stdout_open__
 
 subroutine stdout_close(stat)
@@ -398,28 +398,28 @@ subroutine stdout_close(stat)
   if(present(stat)) stat=0
   call mprint(stdout,myname_,'switching back to default STDOUT')
   close(stdout,iostat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'close(STDOUT), stdout =',stdout)
-	  call perr(myname_,'close(STDOUT), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'close(STDOUT), stdout =',stdout)
+    call perr(myname_,'close(STDOUT), iostat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
   call pop_(stat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'pop_(), stat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'pop_(), stat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
   call open_if_(top_(),stat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), STDOUT =',stdout)
-	  call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), STDOUT =',stdout)
+    call perr(myname_,'open_if_(STDOUT,"'//trim(top_())//'"), iostat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
 end subroutine stdout_close
 
 subroutine open_if_(fname,stat)
@@ -431,13 +431,13 @@ subroutine open_if_(fname,stat)
   if(present(stat)) stat=0
   if(fname=="") return
   open(stdout,file=fname,position='append',iostat=ier,action='write')
-	if(ier/=0) then
-	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
-	  call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+    call perr(myname_,'open(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
 end subroutine open_if_
 
 subroutine close_if_(fname,stat)
@@ -449,28 +449,28 @@ subroutine close_if_(fname,stat)
   if(present(stat)) stat=0
   if(fname=="") return
   close(stdout,iostat=ier)
-	if(ier/=0) then
-	  call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
-	  call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), iostat =',ier)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=ier
-	  return
-	endif
+  if(ier/=0) then
+    call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), STDOUT =',stdout)
+    call perr(myname_,'close(STDOUT,"'//trim(fname)//'"), iostat =',ier)
+    if(.not.present(stat)) call die(myname_)
+    stat=ier
+    return
+  endif
 end subroutine close_if_
 
 #ifdef _NEW_CODE_
 !! need to send outputs to variables.
 !! need to set return code (stat=).
-subroutine ls_(files)	! show information? or just inquire(exists(file))
+subroutine ls_(files)       ! show information? or just inquire(exists(file))
   call system("ls "//files)
 end subroutine ls_
-subroutine rm_(files)	! delete, open();close(status='delete')
+subroutine rm_(files)     ! delete, open();close(status='delete')
   call system("rm "//files)
 end subroutine rm_
 subroutine mkdir_(dir,mode,parents)
   call system("mkdir "//files)
 end subroutine mkdir_
-subroutine size_(file)	! faster access?
+subroutine size_(file)    ! faster access?
   call system("wc -c "//files)
 end subroutine size_
 #endif
@@ -522,19 +522,19 @@ subroutine mype_get_(mype,npes,who,comm)
   call MPI_comm_rank(mycomm,mype,ier)
     if(ier/=0) then
       write(stderr,'(3a)') &
-	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
+        trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
       if(stderr==stdout) return
       write(stdout,'(3a)') &
-	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
+        trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
       call dropdead_()
     endif
   call MPI_comm_size(mycomm,npes,ier)
     if(ier/=0) then
       write(stderr,'(3a)') &
-	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
+        trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
       if(stderr==stdout) return
       write(stdout,'(3a)') &
-	trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
+        trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_size(), ier= ',ier
       call dropdead_()
     endif
 #endif
@@ -555,16 +555,16 @@ function luavail_() result(lu)
   do while(ios==0.and.inuse)
     lu=lu+1
 
-	! Test #1, reserved units
+! Test #1, reserved units
 
     inuse = lu==stdout .or. lu==stdin .or. lu==stderr
 
 #ifdef sysSunOS
-	! Reserved units under SunOS
+! Reserved units under SunOS
     inuse = lu==100 .or. lu==101 .or. lu==102
 #endif
 
-	! Test #2, in-use
+! Test #2, in-use
 
     if(.not.inuse) inquire(unit=lu,opened=inuse,iostat=ios)
 
@@ -932,9 +932,9 @@ subroutine die_dbl_(who,what,val)
 end subroutine die_dbl_
 subroutine assert_(str,from,line)
   implicit none
-  character(len=*),intent(in) :: str	! a message of assert_()
-  character(len=*),intent(in) :: from	! where assert_() is invoked.
-  integer,         intent(in) :: line	! where assert_() is invoked.
+  character(len=*),intent(in) :: str    ! a message of assert_()
+  character(len=*),intent(in) :: from   ! where assert_() is invoked.
+  integer,         intent(in) :: line   ! where assert_() is invoked.
   character(len=*),parameter :: myname_='ASSERT_'
   call perr(myname_,'failed',str)
   call perr(myname_,'file =',from)
@@ -944,8 +944,8 @@ end subroutine assert_
 subroutine assert_GE_(m,n,who,str)
   implicit none
   integer,intent(in) :: m,n
-  character(len=*),intent(in) :: who	! where assert_GE_() is invoked.
-  character(len=*),intent(in) :: str	! a message of assert_GE_()
+  character(len=*),intent(in) :: who   ! where assert_GE_() is invoked.
+  character(len=*),intent(in) :: str   ! a message of assert_GE_()
   character(len=*),parameter :: myname_='ASSERT_GE_'
   if(.not.(m>=n)) then
     call perr(myname_,'test failed',str)
@@ -963,30 +963,30 @@ end subroutine assert_GE_
 !
 ! !DESCRIPTION:
 !
-!	A template resolver formatting a string with string, time, and
+!   A template resolver formatting a string with string, time, and
 !   dimensioin variables.  The format descriptors are similar to those
 !   used in the GrADS, with some extensions.
 !
-!	"${E}"	substitute environment variable ${E}
-!	"%y4"	substitute with a 4 digit year
-!	"%y2"	a 2 digit year
-!	"%m1"	a 1 or 2 digit month
-!	"%m2"	a 2 digit month
-!	"%mc"	a 3 letter month in lower cases
-!	"%Mc"	a 3 letter month with a leading letter in upper case
-!	"%MC"	a 3 letter month in upper cases
-!	"%d1"	a 1 or 2 digit day
-!	"%d2"	a 2 digit day
-!	"%h1"	a 1 or 2 digit hour
-!	"%h2"	a 2 digit hour
-!	"%h3"	a 3 digit hour (?)
-!	"%n2"	a 2 digit minute
-!	"%s"	a string variable
-!	"%i"	dims(1) of dims=(/im,jm,km,lm/)
-!	"%j"	dims(2) of dims=(/im,jm,km,lm/)
-!	"%k"	dims(3) of dims=(/im,jm,km,lm/)
-!	"%l"	dims(4) of dims=(/im,jm,km,lm/)
-!	"%%"	a "%"
+!       "${E}"  substitute environment variable ${E}
+!       "%y4"   substitute with a 4 digit year
+!       "%y2"   a 2 digit year
+!       "%m1"   a 1 or 2 digit month
+!       "%m2"   a 2 digit month
+!       "%mc"   a 3 letter month in lower cases
+!       "%Mc"   a 3 letter month with a leading letter in upper case
+!       "%MC"   a 3 letter month in upper cases
+!       "%d1"   a 1 or 2 digit day
+!       "%d2"   a 2 digit day
+!       "%h1"   a 1 or 2 digit hour
+!       "%h2"   a 2 digit hour
+!       "%h3"   a 3 digit hour (?)
+!       "%n2"   a 2 digit minute
+!       "%s"    a string variable
+!       "%i"    dims(1) of dims=(/im,jm,km,lm/)
+!       "%j"    dims(2) of dims=(/im,jm,km,lm/)
+!       "%k"    dims(3) of dims=(/im,jm,km,lm/)
+!       "%l"    dims(4) of dims=(/im,jm,km,lm/)
+!       "%%"    a "%"
 !
 ! !INTERFACE:
 
@@ -995,56 +995,56 @@ end subroutine assert_GE_
       !! use m_die,   only : die,perr
       implicit none
 
-      character(len=*),intent(out) :: str	! the output
+      character(len=*),intent(out) :: str       ! the output
 
-      character(len=*),intent(in ) :: tmpl	! a "format"
+      character(len=*),intent(in ) :: tmpl      ! a "format"
 
       integer,intent(in ),optional :: nymd
-			! yyyymmdd, substituting "%y4", "%y2", "%m1",
-			! "%m2", "%mc", "%Mc', and "%MC"
+                        ! yyyymmdd, substituting "%y4", "%y2", "%m1",
+                        ! "%m2", "%mc", "%Mc', and "%MC"
 
       integer,intent(in ),optional :: nhms
-			! hhmmss, substituting "%h1", "%h2", "%h3",
-			! and "%n2"
+                        ! hhmmss, substituting "%h1", "%h2", "%h3",
+                        ! and "%n2"
 
       integer,dimension(:),intent(in ),optional :: dims
-			! integers, substituing "%i", "%j", "%k", "%l"
+                        ! integers, substituing "%i", "%j", "%k", "%l"
 
       character(len=*),intent(in ),optional :: xid
-			! a string substituting a "%s".  Trailing
-			! spaces will be ignored
+                        ! a string substituting a "%s".  Trailing
+                        ! spaces will be ignored
 
       integer,intent(out),optional :: stat
-			! error code
+                        ! error code
 
 ! !REVISION HISTORY:
-! 	18Feb09	- Jing Guo <Jing.Guo@nasa.gov>
-!		- implemented for GSI to cut the m_StrTemplate
-!		  dependency on GMAO_mpeu.
-!		- Extended the "%-keyword" with "%i", "%j", "%k", and
-!		  "%l" to support dims=(/./) option.
-! 	19Dec06	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- Merged changes between 1.1.2.6 and 1.1.2.9 to 1.2,
-!		  including a fix at bug nymd==0 and environment
-!		  variable ($env or ${env}) support if getenv() is
-!		  available from the system.
-! 	01Jun99	- Jing Guo <guo@dao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       18Feb09 - Jing Guo <Jing.Guo@nasa.gov>
+!               - implemented for GSI to cut the m_StrTemplate
+!                 dependency on GMAO_mpeu.
+!               - Extended the "%-keyword" with "%i", "%j", "%k", and
+!                 "%l" to support dims=(/./) option.
+!       19Dec06 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - Merged changes between 1.1.2.6 and 1.1.2.9 to 1.2,
+!                 including a fix at bug nymd==0 and environment
+!                 variable ($env or ${env}) support if getenv() is
+!                 available from the system.
+!       01Jun99 - Jing Guo <guo@dao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::strTemplate'
 
-  character(len=3),parameter,dimension(12) :: mon_lc =	(/	&
-	'jan','feb','mar','apr','may','jun',	&
-	'jul','aug','sep','oct','nov','dec'	/)
+  character(len=3),parameter,dimension(12) :: mon_lc = (/              &
+       'jan','feb','mar','apr','may','jun',                            &
+       'jul','aug','sep','oct','nov','dec'/)
 
-  character(len=3),parameter,dimension(12) :: mon_wd =	(/	&
-	'Jan','Feb','Mar','Apr','May','Jun',	&
-	'Jul','Aug','Sep','Oct','Nov','Dec'	/)
+  character(len=3),parameter,dimension(12) :: mon_wd = (/     &
+       'Jan','Feb','Mar','Apr','May','Jun',                   &
+       'Jul','Aug','Sep','Oct','Nov','Dec'/)
 
-  character(len=3),parameter,dimension(12) :: mon_uc =	(/	&
-	'JAN','FEB','MAR','APR','MAY','JUN',	&
-	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
+  character(len=3),parameter,dimension(12) :: mon_uc = (/     &
+       'JAN','FEB','MAR','APR','MAY','JUN',                   &
+       'JUL','AUG','SEP','OCT','NOV','DEC'/)
 
 
   integer :: iy4,iy2,imo,idy
@@ -1057,18 +1057,18 @@ end subroutine assert_GE_
   character(len=1) :: c0,c1,c2
   character(len=8) :: sbuf
 !________________________________________
-	! Determine iyr, imo, and idy
+! Determine iyr, imo, and idy
   iy4=-1
   iy2=-1
   imo=-1
   idy=-1
   if(present(nymd)) then
-	if(nymd <= 0) then
-	  call perr(myname_,'nymd <= 0',nymd)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
-	endif
+    if(nymd <= 0) then
+        call perr(myname_,'nymd <= 0',nymd)
+        if(.not.present(stat)) call die(myname_)
+        stat=1
+        return
+    endif
 
     i=nymd
     iy4=i/10000
@@ -1079,26 +1079,26 @@ end subroutine assert_GE_
     idy=i
   endif
 !________________________________________
-	! Determine ihr and imn
+! Determine ihr and imn
   ihr=-1
   imn=-1
   if(present(nhms)) then
-	if(nhms < 0) then
-	  call perr(myname_,'nhms < 0',nhms)
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
-	endif
+    if(nhms < 0) then
+        call perr(myname_,'nhms < 0',nhms)
+        if(.not.present(stat)) call die(myname_)
+        stat=1
+        return
+    endif
 
     i=nhms
     ihr=i/10000
-      i=mod(i,10000)
+    i=mod(i,10000)
     imn=i/100
   endif
 !________________________________________
 
-  ln_tmpl=len_trim(tmpl)	! size of the format template
-  ln_str =len(str)		! size of the output string
+  ln_tmpl=len_trim(tmpl)        ! size of the format template
+  ln_str =len(str)              ! size of the output string
 !________________________________________
 
   if(present(stat)) stat=0
@@ -1108,9 +1108,9 @@ str=""
 i=0; istp=1
 k=1; kstp=1
 
-do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
+do while( i+istp <= ln_tmpl )   ! A loop over all tokens in (tmpl)
 
-  if(k>ln_Str) exit	! truncate the output here.
+  if(k>ln_Str) exit             ! truncate the output here.
 
   i=i+istp
   c0=tmpl(i:i)
@@ -1126,22 +1126,22 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
     endif
 
   case ("%")
-	!________________________________________
+!________________________________________
 
     c1=""
     i1=i+1
     if(i1 <= ln_Tmpl) c1=tmpl(i1:i1)
-	!________________________________________
+!________________________________________
 
     select case(c1)
 
     case("s")
       if(.not.present(xid)) then
-	write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "xid="'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
+        write(stderr,'(2a)') myname_,              &
+                   ': optional argument expected, "xid="'
+        if(.not.present(stat)) call die(myname_)
+        stat=1
+        return
       endif
 
       istp=2
@@ -1150,32 +1150,32 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
       k=m+1
       cycle
 
-    case("i":"l")	! from "i" to "l", (i,j,k,l)
+    case("i":"l")                      ! from "i" to "l", (i,j,k,l)
       if(.not.present(dims)) then
-	write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "dims=(/./)"'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
+        write(stderr,'(2a)') myname_,      &
+           ': optional argument expected, "dims=(/./)"'
+        if(.not.present(stat)) call die(myname_)
+        stat=1
+        return
       endif
 
-      m=ichar(c1)-ichar("i")+1	! m=1,2,3,4 for i,j,k,l
+      m=ichar(c1)-ichar("i")+1                    ! m=1,2,3,4 for i,j,k,l
 
       if(m>size(dims)) then
-	write(stderr,'(2a)') myname_,	&
-		': additional "dims=(/./)" element expected'
-	write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
-	write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=1
-	return
+        write(stderr,'(2a)') myname_,            &
+            ': additional "dims=(/./)" element expected'
+        write(stderr,'(2a,i4)') myname_,': size(dims) = ',size(dims)
+        write(stderr,'(2a,2a)') myname_,': %-keyword  = "%',c1,'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=1
+        return
       endif
-      	! If m<size(dims), any extra dims elements are ignored
+      ! If m<size(dims), any extra dims elements are ignored
 
       write(sbuf,'(i8)') dims(m)
-      sbuf=adjustl(sbuf)	! adjust left all digits
+      sbuf=adjustl(sbuf)           ! adjust left all digits
 
-      istp=2			! size of the "%" keyword
+      istp=2                       ! size of the "%" keyword
 
       m=min(k+len_trim(sbuf)-1,ln_str)
       str(k:m)=sbuf
@@ -1186,7 +1186,7 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
 
       istp=2
       str(k:k)=c1
-      k=k+1	! kstp=1
+      k=k+1              ! kstp=1
       cycle
 
     case default
@@ -1194,165 +1194,165 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
       c2=""
       i2=i+2
       if(i2 <= ln_Tmpl) c2=tmpl(i2:i2)
-	!________________________________________
+!________________________________________
 
       select case(c1//c2)
 
       case("y4","y2","m1","m2","mc","Mc","MC","d1","d2")
         if(.not.present(nymd)) then
-	  write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "nymd="'
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
+           write(stderr,'(2a)') myname_,        &
+                ': optional argument expected, "nymd="'
+          if(.not.present(stat)) call die(myname_)
+          stat=1
+          return
         endif
         istp=3
 
       case("h1","h2","h3","n2")
         if(.not.present(nhms)) then
-	  write(stderr,'(2a)') myname_,	&
-		': optional argument expected, "nhms="'
-	  if(.not.present(stat)) call die(myname_)
-	  stat=1
-	  return
+           write(stderr,'(2a)') myname_,          &
+              ': optional argument expected, "nhms="'
+           if(.not.present(stat)) call die(myname_)
+           stat=1
+           return
         endif
         istp=3
 
       case default
 
-        write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
+        write(stderr,'(4a)') myname_,     &
+            ': invalid template entry, "',trim(tmpl(i:)),'"'
         if(.not.present(stat)) call die(myname_)
         stat=2
         return
 
-      end select	  ! case(c1//c2)
-    end select		! case(c1)
-	!________________________________________
+      end select          ! case(c1//c2)
+    end select            ! case(c1)
+!________________________________________
 
     select case(c1)
 
     case("y")
       select case(c2)
       case("2")
-	write(sbuf,'(i2.2)') iy2
-	kstp=2
+        write(sbuf,'(i2.2)') iy2
+        kstp=2
       case("4")
-	write(sbuf,'(i4.4)') iy4
-	kstp=4
+        write(sbuf,'(i4.4)') iy4
+        kstp=4
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,                  &
+             ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case("m")
       select case(c2)
       case("1")
-	if(imo < 10) then
-	  write(sbuf,'(i1)') imo
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') imo
-	  kstp=2
-	endif
+        if(imo < 10) then
+          write(sbuf,'(i1)') imo
+          kstp=1
+        else
+          write(sbuf,'(i2)') imo
+          kstp=2
+        endif
       case("2")
-	write(sbuf,'(i2.2)') imo
-	kstp=2
+        write(sbuf,'(i2.2)') imo
+        kstp=2
       case("c")
-	sbuf=mon_lc(imo)
-	kstp=3
+        sbuf=mon_lc(imo)
+        kstp=3
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,           &
+           ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case("M")
       select case(c2)
       case("c")
-	sbuf=mon_wd(imo)
-	kstp=3
+        sbuf=mon_wd(imo)
+        kstp=3
       case("C")
-	sbuf=mon_uc(imo)
-	kstp=3
+        sbuf=mon_uc(imo)
+        kstp=3
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,          &
+          ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case("d")
       select case(c2)
       case("1")
-	if(idy < 10) then
-	  write(sbuf,'(i1)') idy
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') idy
-	  kstp=2
-	endif
+        if(idy < 10) then
+          write(sbuf,'(i1)') idy
+          kstp=1
+        else
+          write(sbuf,'(i2)') idy
+          kstp=2
+        endif
       case("2")
-	write(sbuf,'(i2.2)') idy
-	kstp=2
+        write(sbuf,'(i2.2)') idy
+        kstp=2
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,           &
+          ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case("h")
       select case(c2)
       case("1")
-	if(ihr < 10) then
-	  write(sbuf,'(i1)') ihr
-	  kstp=1
-	else
-	  write(sbuf,'(i2)') ihr
-	  kstp=2
-	endif
+        if(ihr < 10) then
+          write(sbuf,'(i1)') ihr
+          kstp=1
+        else
+          write(sbuf,'(i2)') ihr
+          kstp=2
+        endif
       case("2")
-	write(sbuf,'(i2.2)') ihr
-	kstp=2
+        write(sbuf,'(i2.2)') ihr
+        kstp=2
       case("3")
-	write(sbuf,'(i3.3)') ihr
-	kstp=3
+        write(sbuf,'(i3.3)') ihr
+        kstp=3
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,       &
+          ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case("n")
       select case(c2)
       case("2")
-	write(sbuf,'(i2.2)') imn
-	kstp=2
+        write(sbuf,'(i2.2)') imn
+        kstp=2
       case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
-	return
+        write(stderr,'(4a)') myname_,         &
+          ': invalid template entry, "',trim(tmpl(i:)),'"'
+        if(.not.present(stat)) call die(myname_)
+        stat=2
+        return
       end select
 
     case default
-	write(stderr,'(4a)') myname_,	&
-	  ': invalid template entry, "',trim(tmpl(i:)),'"'
-	if(.not.present(stat)) call die(myname_)
-	stat=2
+      write(stderr,'(4a)') myname_,            &
+           ': invalid template entry, "',trim(tmpl(i:)),'"'
+      if(.not.present(stat)) call die(myname_)
+      stat=2
       return
-    end select	! case(c1)
+    end select                ! case(c1)
 
     m=min(k+kstp-1,ln_Str)
     str(k:m)=sbuf
@@ -1364,7 +1364,7 @@ do while( i+istp <= ln_tmpl )	! A loop over all tokens in (tmpl)
     str(k:k)=tmpl(i:i)
     k=k+1
 
-  end select	! case(c0)
+  end select     ! case(c0)
 end do
 
 contains
@@ -1384,7 +1384,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
   logical :: bracket,more
   character(len=256) :: env
 
-  j=i+1		! skip "$"
+  j=i+1         ! skip "$"
   ier=0
 
   if(j>lnt) then
@@ -1395,8 +1395,8 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
   bracket = tmpl(j:j)=='{'
   if(bracket) j=j+1
 
-  	! There is at least one a letter (including "_") to start a
-	! variable name
+! There is at least one a letter (including "_") to start a
+! variable name
 
   select case(tmpl(j:j))
   case ("A":"Z","a":"z","_")
@@ -1414,9 +1414,9 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
     do while(more)
       select case(tmpl(j:j))
       case ("A":"Z","a":"z","_","0":"9")
-	je=j
+        je=j
         j=j+1
-      case ("}")	! End if "}" or eos
+      case ("}")           ! End if "}" or eos
         j=j+1
         exit
       case default
@@ -1433,7 +1433,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
       select case(tmpl(j:j))
       case ("A":"Z","a":"z","_","0":"9")
         je=j
-	j=j+1
+        j=j+1
       case default
         exit
       end select
@@ -1464,13 +1464,13 @@ end subroutine strTemplate
 
     subroutine set_(indx)
       implicit none
-      integer, dimension(:), intent(out) :: indx	! indices
+      integer, dimension(:), intent(out) :: indx          ! indices
 
 ! !REVISION HISTORY:
-!	15Mar00	- Jing Guo
-!		. Modified the interface, by removing the explicit size
-! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
-! 	04Jan99 - Jing Guo <guo@thunder> - revised prolog format
+!       15Mar00 - Jing Guo
+!             . Modified the interface, by removing the explicit size
+!       09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!       04Jan99 - Jing Guo <guo@thunder> - revised prolog format
 !EOP ___________________________________________________________________
 
   integer :: i
@@ -1498,11 +1498,11 @@ end subroutine set_
       logical, optional, intent(in)  :: descend
 
 ! !REVISION HISTORY:
-!	15Mar00	- Jing Guo
-!		. Modified the interface, by removing the explicit size
-!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
-! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
-! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!       15Mar00- Jing Guo
+!             . Modified the interface, by removing the explicit size
+!       02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+!       04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+!       09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   logical :: dsnd
@@ -1595,11 +1595,11 @@ end subroutine iSort_
       logical, optional, intent(in)  :: descend
 
 ! !REVISION HISTORY:
-!	15Mar00	- Jing Guo
-!		. Modified the interface, by removing the explicit size
-!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
-! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
-! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!       15Mar00 - Jing Guo
+!            . Modified the interface, by removing the explicit size
+!       02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+!       04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+!       09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   logical :: dsnd
@@ -1692,11 +1692,11 @@ end subroutine rSort_
       logical, optional, intent(in)  :: descend
 
 ! !REVISION HISTORY:
-!	15Mar00	- Jing Guo
-!		. Modified the interface, by removing the explicit size
-!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
-! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
-! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!       15Mar00 - Jing Guo
+!             . Modified the interface, by removing the explicit size
+!       02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+!       04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+!       09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   logical :: dsnd
@@ -1789,11 +1789,11 @@ end subroutine dSort_
       logical, optional, intent(in)  :: descend
 
 ! !REVISION HISTORY:
-!	15Mar00	- Jing Guo
-!		. Modified the interface, by removing the explicit size
-!	02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
-! 	04Jan99 - Jing Guo <guo@thunder> - revised the prolog
-! 	09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
+!       15Mar00 - Jing Guo
+!            . Modified the interface, by removing the explicit size
+!       02Feb99 - Jing Guo <guo@thunder> - Added if(present(stat)) ...
+!       04Jan99 - Jing Guo <guo@thunder> - revised the prolog
+!       09Sep97 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   logical :: dsnd

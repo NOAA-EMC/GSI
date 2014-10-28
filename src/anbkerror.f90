@@ -704,7 +704,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: indices, filter_all,ngauss,halo_update_reg
   use mpimod, only: mype,npe
-  use constants, only: zero
+  use constants, only: zero,zero_single
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
   use control_vectors, only: nrf,nrf_var,nrf_3d
@@ -736,6 +736,8 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   kps=indices%kps; kpe=indices%kpe
 
   mm1=mype+1
+
+  workb=zero_single
 
 !  transfer variables to ngauss copies
   kk=0

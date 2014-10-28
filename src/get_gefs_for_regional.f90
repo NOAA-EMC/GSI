@@ -36,11 +36,9 @@ subroutine get_gefs_for_regional
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
-  use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
-  use gsi_bundlemod, only: gsi_gridcreate
   use constants,only: zero,half,fv,rd_over_cp,one,h300
   use constants, only: rd,grav
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
@@ -62,7 +60,7 @@ subroutine get_gefs_for_regional
 
   type(sub2grid_info) grd_gfs,grd_mix
   type(spec_vars) sp_gfs
-  real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl
+  real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl,prsl1000
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
@@ -442,13 +440,15 @@ subroutine get_gefs_for_regional
      ! !ilook=29
      ! !jlook=41
      ilook=-1 ; jlook=-1
-     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl, &
+     allocate(prsl1000(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+     prsl1000=1000._r_kind*prsl
+     call compute_nmm_surfacep ( ges_z(:,:), zbarl,prsl1000, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
-     deallocate(tt,zbarl)
+     deallocate(tt,zbarl,prsl1000)
      psfc_out=.001_r_kind*psfc_out
      !   psfc_out=ges_ps(:,:)
-     !   write(0,*)' min,max ges_ps-psfc_out=',&
+     !   write(6,*)' min,max ges_ps-psfc_out=',&
      !        minval(ges_ps(:,:)-psfc_out),maxval(ges_ps(:,:)-psfc_out)
      !               pdiffmax=-huge(pdiffmax)
      !               pdiffmin= huge(pdiffmin)
@@ -459,16 +459,16 @@ subroutine get_gefs_for_regional
      !            pdiffmax=max(ges_ps(i,j)-psfc_out(i,j),pdiffmax)
      !            pdiffmin=min(ges_ps(i,j)-psfc_out(i,j),pdiffmin)
      !            if(ges_ps(i,j)<10._r_kind) &
-     !               write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+     !               write(6,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
      !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
      !            if(psfc_out(i,j)<10._r_kind) &
-     !               write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+     !               write(6,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
      !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
      !         end do
      !      end do
      !      call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
      !      call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-     !             if(mype==0) write(0,*)' min,max ges_ps - matt ps =',pdiffmin0,pdiffmax0
+     !             if(mype==0) write(6,*)' min,max ges_ps - matt ps =',pdiffmin0,pdiffmax0
 
      !                                                write(fname,'("matt_pbar_corrected")')
      !                                                call grads1a(psfc_out,1,mype,trim(fname))
@@ -568,16 +568,16 @@ subroutine get_gefs_for_regional
 !                 pdiffmax=max(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmax)
 !                 pdiffmin=min(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmin)
 !                  if(ges_ps(i,j)<10._r_kind) &
-!                     write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+!                     write(6,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
 !                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
 !                  if(p_eg_nmmb(i,j,n)<10._r_kind) &
-!                     write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+!                     write(6,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
 !                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
 !              end do
 !           end do
 !           call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
 !           call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!                   if(mype==0) write(0,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
+!                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
 
@@ -1129,9 +1129,9 @@ end subroutine get_gefs_for_regional
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!	write(0,*) 'size(TERRAIN_HGT_T):: ', size(TERRAIN_HGT_T,dim=1),size(TERRAIN_HGT_T,dim=2)
-!	write(0,*) 'what is JME here??? : ', JME
-!	write(0,*) 'JmE: ', JmE
+!	write(6,*) 'size(TERRAIN_HGT_T):: ', size(TERRAIN_HGT_T,dim=1),size(TERRAIN_HGT_T,dim=2)
+!	write(6,*) 'what is JME here??? : ', JME
+!	write(6,*) 'JmE: ', JmE
 
        DO J=1,JME
           DO I=1,IME
@@ -1147,14 +1147,14 @@ end subroutine get_gefs_for_regional
           ENDDO
        ENDDO
 
-!       write(0,*) 'terrain_hgt_t in surfacep compute ', IME,JME
+!       write(6,*) 'terrain_hgt_t in surfacep compute ', IME,JME
 !       do J=JME,1,min(-(JME-1)/20,-1)
-!          write(0,535) J,(TERRAIN_HGT_T(I,J),I=1,IME,max(1,(IME-1)/12))
+!          write(6,535) J,(TERRAIN_HGT_T(I,J),I=1,IME,max(1,(IME-1)/12))
 !       enddo
 
-!       write(0,*) 'z3d_in(3) at same points:'
+!       write(6,*) 'z3d_in(3) at same points:'
 !       do J=JME,1,min(-(JME-1)/20,-1)
-!          write(0,535) J,(Z3D_IN(I,J,3),I=1,IME,max(1,(IME-1)/12))
+!          write(6,535) J,(Z3D_IN(I,J,3),I=1,IME,max(1,(IME-1)/12))
 !       enddo
 ! 535	format(I4,' ::: ',18(f5.0,1x))
 
@@ -1170,7 +1170,7 @@ end subroutine get_gefs_for_regional
           I_loop: DO I=1,ImE
 
              IF (PSFC_IN(I,J) == 0._r_kind) THEN
-                write(0,*) 'QUITTING BECAUSE I,J, PSFC_IN: ', I,J,PSFC_IN(I,J)
+                write(6,*) 'QUITTING BECAUSE I,J, PSFC_IN: ', I,J,PSFC_IN(I,J)
 
                 STOP
              ENDIF
@@ -1181,12 +1181,12 @@ end subroutine get_gefs_for_regional
 
              IF (I == Ilook .AND. J == Jlook) THEN
 
-!	         write(0,*) ' TERRAIN_HGT_T: ', I,J, TERRAIN_HGT_T(I,J)
-                write(0,*) ' PSFC_IN, TOPO_IN: ', &
+!	         write(6,*) ' TERRAIN_HGT_T: ', I,J, TERRAIN_HGT_T(I,J)
+                write(6,*) ' PSFC_IN, TOPO_IN: ', &
                    I, J, PSFC_IN(I,J),TOPO_IN(I,J)
 
                 DO L=1,generic
-                   write(0,*) ' L,PRESS3D_IN, Z3D_IN: ', &
+                   write(6,*) ' L,PRESS3D_IN, Z3D_IN: ', &
                       I,J,L, PRESS3D_IN(I,J,L),Z3D_IN(I,J,L)
                 END DO
              ENDIF
@@ -1202,7 +1202,7 @@ end subroutine get_gefs_for_regional
                    BOT_INPUT_HGT=Z3D_IN(I,J,L)
  
                    IF (I == Ilook .and. J == Jlook) THEN
-                      write(0,*) 'BOT_INPUT_PRESS, BOT_INPUT_HGT NOW : ', &
+                      write(6,*) 'BOT_INPUT_PRESS, BOT_INPUT_HGT NOW : ', &
                          Ilook,Jlook, BOT_INPUT_PRESS, BOT_INPUT_HGT
                    ENDIF
 
@@ -1210,18 +1210,18 @@ end subroutine get_gefs_for_regional
              END DO	
 
              IF (I == Ilook .and. J == Jlook) THEN
-                write(0,*) 'enter this section, TERRAIN_HGT_T, BOT_INPUT_HGT: ', TERRAIN_HGT_T(I,J), BOT_INPUT_HGT
+                write(6,*) 'enter this section, TERRAIN_HGT_T, BOT_INPUT_HGT: ', TERRAIN_HGT_T(I,J), BOT_INPUT_HGT
              ENDIF
 
              IF (TERRAIN_HGT_T(I,J) == BOT_INPUT_HGT ) THEN
                 dum2d(I,J)=BOT_INPUT_PRESS
                 DEFINED_PSFC(I,J)=.TRUE.
                 IF (I == Ilook .and. J == Jlook) THEN
-                   write(0,*) 'TERRAIN_HGT_T == BOT_INPUT_HGT, set dum2d to: ', I,J, dum2d(I,J)
+                   write(6,*) 'TERRAIN_HGT_T == BOT_INPUT_HGT, set dum2d to: ', I,J, dum2d(I,J)
                 ENDIF
 
 	!        IF (BOT_INPUT_HGT /= 0._r_kind .and. (BOT_INPUT_HGT-INT(BOT_INPUT_HGT) /= 0._r_kind) ) THEN
-	!           write(0,*) 'with BOT_INPUT_HGT: ', BOT_INPUT_HGT, &
+	!           write(6,*) 'with BOT_INPUT_HGT: ', BOT_INPUT_HGT, &
         !              'set dum2d to bot_input_pres: ', I,J,dum2d(I,J)
         !        ENDIF
 
@@ -1233,7 +1233,7 @@ end subroutine get_gefs_for_regional
                    dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,2)) ) / &
                       (BOT_INPUT_HGT-Z3D_IN(i,j,2))
                    IF (I == Ilook .and. J == Jlook) THEN
-                      write(0,*) 'I,J,dlnpdz(a): ', I,J,dlnpdz
+                      write(6,*) 'I,J,dlnpdz(a): ', I,J,dlnpdz
                    ENDIF
 
                 ELSE
@@ -1245,8 +1245,8 @@ end subroutine get_gefs_for_regional
                          (BOT_INPUT_HGT-Z3D_IN(i,j,3))
 
                       IF (I == Ilook .and. J == Jlook) then
-                         write(0,*) 'p diff: ', BOT_INPUT_PRESS, PRESS3D_IN(i,j,3)
-                         write(0,*) 'z diff: ', BOT_INPUT_HGT, Z3D_IN(i,j,3)
+                         write(6,*) 'p diff: ', BOT_INPUT_PRESS, PRESS3D_IN(i,j,3)
+                         write(6,*) 'z diff: ', BOT_INPUT_HGT, Z3D_IN(i,j,3)
                       ENDIF
 	
                    ELSE
@@ -1271,7 +1271,7 @@ end subroutine get_gefs_for_regional
                 DEFINED_PSFC(I,J)=.TRUE.
 
                 IF (I == Ilook .and. J == Jlook) THEN
-	           write(0,*) 'here(b) set dum2d to: ', I,J, dum2d(I,J)
+	           write(6,*) 'here(b) set dum2d to: ', I,J, dum2d(I,J)
                 ENDIF
 
              ELSE ! target level bounded by input levels
@@ -1286,7 +1286,7 @@ end subroutine get_gefs_for_regional
                       dum2d(i,j)=exp(dum2d(i,j))
                       DEFINED_PSFC(I,J)=.TRUE.
                       IF (I == Ilook .and. J == Jlook) THEN
-	                 write(0,*) 'here(c) set dum2d to: ', I,J, Dum2d(I,J)
+	                 write(6,*) 'here(c) set dum2d to: ', I,J, Dum2d(I,J)
                       ENDIF
                    ENDIF
                 ENDDO
@@ -1296,7 +1296,7 @@ end subroutine get_gefs_for_regional
                    .AND. TERRAIN_HGT_T(I,J) < Z3D_IN(I,J,2)) then
 
           !         IF (mod(I,50) == 0 .AND. mod(J,50) == 0) THEN
-          !            write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
+          !            write(6,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
           !               I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
           !         ENDIF
 
@@ -1307,13 +1307,13 @@ end subroutine get_gefs_for_regional
                    dum2d(i,j)= exp(dum2d(i,j))
                    DEFINED_PSFC(I,J)=.TRUE.
                    IF (I == Ilook .and. J == Jlook) THEN
-	              write(0,*) 'here(d) set dum2d to: ', I,J, Dum2d(I,J)
+	              write(6,*) 'here(d) set dum2d to: ', I,J, Dum2d(I,J)
                    ENDIF
                 ENDIF
 
                 IF (dum2d(I,J) == -9._r_kind) THEN
-                   write(0,*) 'must have flukey situation in new ', I,J
-                   write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
+                   write(6,*) 'must have flukey situation in new ', I,J
+                   write(6,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
                       I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
 
                    DO L=1,generic-1
@@ -1322,7 +1322,7 @@ end subroutine get_gefs_for_regional
                          dum2d(i,j)=PRESS3D_IN(I,J,L)
                          DEFINED_PSFC(I,J)=.TRUE.
                          IF (I == Ilook .and. J == Jlook) THEN
-                            write(0,*) 'here(e) set dum2d to: ', I,J, Dum2d(I,J)
+                            write(6,*) 'here(e) set dum2d to: ', I,J, Dum2d(I,J)
                          ENDIF
                       ENDIF
                    ENDDO
@@ -1331,9 +1331,9 @@ end subroutine get_gefs_for_regional
                       dum2d(I,J)=PSFC_IN(I,J)
                       DEFINED_PSFC(I,J)=.TRUE.
                       IF (I == Ilook .and. J == Jlook) THEN
-	                 write(0,*) 'here(f) set dum2d to: ', I,J, Dum2d(I,J)
+	                 write(6,*) 'here(f) set dum2d to: ', I,J, Dum2d(I,J)
                       ENDIF
-         !             write(0,*) 'matched input topo, psfc: ', I,J,TOPO_IN(I,J),PSFC_IN(I,J)
+         !             write(6,*) 'matched input topo, psfc: ', I,J,TOPO_IN(I,J),PSFC_IN(I,J)
                    ENDIF
 
 !                   IF (dum2d(I,J) == -9._r_kind) THEN
@@ -1342,34 +1342,34 @@ end subroutine get_gefs_for_regional
                 ENDIF
 
                 if (.not. defined_psfc(i,J)) then
-!                   write(0,*) 'switching to true here'
+!                   write(6,*) 'switching to true here'
                    DEFINED_PSFC(I,J)=.TRUE.
                 endif
 
                 IF (I == Ilook .AND. J == Jlook) THEN
-                   write(0,*) 'newstyle psfc: ', I,J,dum2d(I,J)
+                   write(6,*) 'newstyle psfc: ', I,J,dum2d(I,J)
                 ENDIF
 
              ENDIF 
 
              if (.not. DEFINED_PSFC(I,J)) then
-!                write(0,*) 'new style undefined at: ', I,J
+!                write(6,*) 'new style undefined at: ', I,J
              endif
 
           ENDDO I_loop
        ENDDO
 
-      !write(0,*) 'psfc points (new style)'
+      !write(6,*) 'psfc points (new style)'
        loopinc=max( (JmE-1)/20,1)
        iloopinc=max( (ImE-1)/10,1)
 
        DO J=JmE,1,-loopinc
-       !   write(0,633) (dum2d(I,J)/100.,I=1,min(ImE,ImE),iloopinc)
+       !   write(6,633) (dum2d(I,J)/100.,I=1,min(ImE,ImE),iloopinc)
        END DO
 
   633  format(35(f5.0,1x))
 
-!       write(0,*) 'PSFC extremes (new style): ',  minval(dum2d,MASK=DEFINED_PSFC),maxval(dum2d,MASK=DEFINED_PSFC)
+!       write(6,*) 'PSFC extremes (new style): ',  minval(dum2d,MASK=DEFINED_PSFC),maxval(dum2d,MASK=DEFINED_PSFC)
 
 !       IF (minval(dum2d,MASK=DEFINED_PSFC) < 40000._r_kind .or. maxval(dum2d,MASK=DEFINED_PSFC) > 110000._r_kind) THEN
 !       ENDIF
@@ -1400,7 +1400,7 @@ end subroutine get_gefs_for_regional
                    (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,2)) )
 
                 IF (I == Ilook .and. J == Jlook) THEN
-                   write(0,*) 'I,K, trad: dlnpdz, press_in(2), terrain_t, Z3D_IN(2): ', I,J,dlnpdz, &
+                   write(6,*) 'I,K, trad: dlnpdz, press_in(2), terrain_t, Z3D_IN(2): ', I,J,dlnpdz, &
                       PRESS3D_IN(i,j,2), TERRAIN_HGT_T(I,J), Z3D_IN(i,j,2)
                 ENDIF
 
@@ -1420,17 +1420,17 @@ end subroutine get_gefs_for_regional
                       DUM2DB(i,j)=exp(DUM2DB(i,j))
  
                       IF (I == Ilook .and. J == Jlook) THEN
-                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', &
+                         write(6,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', &
                                    L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), &
                                    Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
-                         write(0,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
-                         write(0,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
+                         write(6,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
+                         write(6,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
                       ENDIF
 
                       DEFINED_PSFCB(i,j)=.true.
 
                       IF (DUM2DB(I,J) < 13000._r_kind) THEN
-           !              write(0,*) 'I,J,L,terrain,Z3d(L),z3d(L+1),p3d(L),p3d(l+1): ', I,J,L, &
+           !              write(6,*) 'I,J,L,terrain,Z3d(L),z3d(L+1),p3d(L),p3d(l+1): ', I,J,L, &
            !                 TERRAIN_HGT_T(I,J),Z3D_IN(I,J,L),Z3D_IN(I,J,L+1),PRESS3D_IN(I,J,L), &
            !                 PRESS3D_IN(I,J,L+1)
                       ENDIF
@@ -1440,18 +1440,18 @@ end subroutine get_gefs_for_regional
              ELSEIF (TERRAIN_HGT_T(I,J) == Z3D_IN(i,j,2)) THEN
                 DUM2DB(i,j)=PRESS3D_IN(I,J,2)
                 IF (I == Ilook .and. J == Jlook) THEN
-                   write(0,*) 'here(2c) set dum2db to: ', I,J, Dum2db(I,J)
+                   write(6,*) 'here(2c) set dum2db to: ', I,J, Dum2db(I,J)
                 ENDIF
                 DEFINED_PSFCB(i,j)=.true.
              ENDIF
 
              IF (DUM2DB(I,J) == -9._r_kind) THEN
-         !       write(0,*) 'must have flukey situation in trad ', I,J
+         !       write(6,*) 'must have flukey situation in trad ', I,J
                 DO L=1,generic-1
                    IF ( TERRAIN_HGT_T(I,J) == Z3D_IN(i,j,L) ) THEN
                       DUM2DB(i,j)=PRESS3D_IN(I,J,L)
                       IF (I == Ilook .and. J == Jlook) THEN
-	                 write(0,*) 'here(2d) set dum2db to: ', I,J, Dum2db(I,J)
+	                 write(6,*) 'here(2d) set dum2db to: ', I,J, Dum2db(I,J)
                       ENDIF
                       DEFINED_PSFCB(i,j)=.true.
                    ENDIF
@@ -1459,22 +1459,22 @@ end subroutine get_gefs_for_regional
              ENDIF
 
              IF (DUM2DB(I,J) == -9._r_kind) THEN
-                write(0,*) 'HOPELESS PSFC, I QUIT'
+                write(6,*) 'HOPELESS PSFC, I QUIT'
              ENDIF
 
              if (I == Ilook .and. J == Jlook) THEN
-                write(0,*) ' traditional psfc: ', I,J,DUM2DB(I,J)
+                write(6,*) ' traditional psfc: ', I,J,DUM2DB(I,J)
              ENDIF
 
           ENDDO
        ENDDO
 
-!       write(0,*) 'psfc points (traditional)'
+!       write(6,*) 'psfc points (traditional)'
 !       DO J=JmE,1,-loopinc
-!          write(0,633) (DUM2DB(I,J)/100.,I=1,ime,iloopinc)
+!          write(6,633) (DUM2DB(I,J)/100.,I=1,ime,iloopinc)
 !       ENDDO
 
-!       write(0,*) 'PSFC extremes (traditional): ', minval(DUM2DB,MASK=DEFINED_PSFCB),maxval(DUM2DB,MASK=DEFINED_PSFCB)
+!       write(6,*) 'PSFC extremes (traditional): ', minval(DUM2DB,MASK=DEFINED_PSFCB),maxval(DUM2DB,MASK=DEFINED_PSFCB)
 
 !       IF (minval(DUM2DB,MASK=DEFINED_PSFCB) < 40000._r_kind .or. maxval(DUM2DB,MASK=DEFINED_PSFCB) > 108000._r_kind) THEN
 !       ENDIF
@@ -1486,7 +1486,7 @@ end subroutine get_gefs_for_regional
              IF (DEFINED_PSFCB(I,J) .and. DEFINED_PSFC(I,J)) THEN
 
                 IF (  abs(dum2d(I,J)-DUM2DB(I,J)) > 400._r_kind) THEN
-	!          write(0,*) 'BIG DIFF I,J, dum2d, DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
+	!          write(6,*) 'BIG DIFF I,J, dum2d, DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
                 ENDIF
 
 !! do we have enough confidence in new style to give it more than 50% weight?
@@ -1496,22 +1496,22 @@ end subroutine get_gefs_for_regional
              ELSEIF (DEFINED_PSFCB(I,J)) THEN
                 psfc_out(I,J)=DUM2DB(I,J)
              ELSE
-         !       write(0,*) 'I,J,dum2d,DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
-	 !       write(0,*) 'I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J): ', I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J)
+         !       write(6,*) 'I,J,dum2d,DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
+	 !       write(6,*) 'I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J): ', I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J)
              ENDIF
 
              IF (I == Ilook .AND. J == Jlook) THEN
-                write(0,*) ' combined psfc: ', I,J,psfc_out(I,J)
+                write(6,*) ' combined psfc: ', I,J,psfc_out(I,J)
              ENDIF
 
              IF (psfc_out(I,J) < 50000._r_kind .or. psfc_out(I,J) > 108000._r_kind) THEN
- !               write(0,*) 'strange combo on psfc_out, terrain_hgt_t: ', I,J, psfc_out(I,J), terrain_hgt_t(I,J)
- !               write(0,*) 'DEFINED_PSFC, dum2d: ', DEFINED_PSFC(I,J),dum2d(I,J)
- !               write(0,*) 'DEFINED_PSFCB, DUM2DB: ', DEFINED_PSFCB(I,J),DUM2DB(I,J)
+ !               write(6,*) 'strange combo on psfc_out, terrain_hgt_t: ', I,J, psfc_out(I,J), terrain_hgt_t(I,J)
+ !               write(6,*) 'DEFINED_PSFC, dum2d: ', DEFINED_PSFC(I,J),dum2d(I,J)
+ !               write(6,*) 'DEFINED_PSFCB, DUM2DB: ', DEFINED_PSFCB(I,J),DUM2DB(I,J)
 
 !                if (terrain_hgt_t(I,J) > 0._r_kind .and. terrain_hgt_t(I,J) < 5000._r_kind) then
 !                else
-!                   write(0,*) 'will let strange psfc pass because surface topo is: ', terrain_hgt_t(I,J)
+!                   write(6,*) 'will let strange psfc pass because surface topo is: ', terrain_hgt_t(I,J)
 !                endif
 
              ENDIF
@@ -1519,9 +1519,9 @@ end subroutine get_gefs_for_regional
           ENDDO
        ENDDO
 
-      ! write(0,*) 'psfc points (final combined)'
+      ! write(6,*) 'psfc points (final combined)'
        DO J=JmE,1,-loopinc
-      !    write(0,633) (psfc_out(I,J)/100.,I=1,ime,iloopinc)
+      !    write(6,633) (psfc_out(I,J)/100.,I=1,ime,iloopinc)
        ENDDO
 
        deallocate(dum2d,dum2db)

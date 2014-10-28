@@ -1477,7 +1477,7 @@ module ndfdgrids
   integer(i_kind) nx,ny
   real(r_single),allocatable::slmask(:,:)
   real(r_single),allocatable::terrain(:,:)
-  real(r_kind) da8,alat18,elon18,elonv8,alatan8,xx8,yy8
+  real(r_kind) da8,alat18,elon18,elonv8,alatan8
 
   real(r_kind) oberrinflfact,slmland
   integer(i_kind) ineighbour,jneighbour
@@ -2128,7 +2128,7 @@ module hilbertcurve
   public :: apply_hilbertcurve
   public :: destroy_hilbertcurve
 
-  integer(i_kind) ncross,nxv
+  integer(i_kind) ncross
 
   character(8),allocatable,dimension(:):: hil_cstation
   character(8),allocatable,dimension(:):: hil_cprovider

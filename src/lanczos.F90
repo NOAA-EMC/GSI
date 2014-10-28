@@ -231,6 +231,7 @@ iprt=nprt
 if(ltcost_) iprt=0
 kminit = kmaxit
 kmaxevecs = kmaxit
+imaxevecs = 0
 lldone=.false.
 if (kmaxit>maxiter) then
    write(6,*)'setup_congrad: kmaxit>maxiter',kmaxit,maxiter
