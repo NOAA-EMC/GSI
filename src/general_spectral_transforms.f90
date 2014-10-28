@@ -191,6 +191,10 @@ subroutine general_s2g0(grd,sp,spectral_in,grid_out)
      if(sp%factsml(i))spec_work(i)=zero
   end do
  
+!  fill in pole points using spectral coefficients
+!  (replace earlier algorithm that assumed zero gradient next to pole)
+  call general_spectra_pole_scalar (grd,sp,grid_out,spec_work)
+
   call general_sptez_s(sp,spec_work,work,1)
 
 !  Reverse ordering in j direction from n-->s to s-->n
@@ -201,10 +205,6 @@ subroutine general_s2g0(grd,sp,spectral_in,grid_out)
         grid_out(j,i)=work(i,jj)
      end do
   end do
-
-!  fill in pole points using spectral coefficients
-!  (replace earlier algorithm that assumed zero gradient next to pole)
-  call general_spectra_pole_scalar (grd,sp,grid_out,spec_work)
 
   return
 end subroutine general_s2g0

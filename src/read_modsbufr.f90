@@ -70,19 +70,14 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind),intent(in):: gstime,twindin
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxinfo = 20
+  integer(i_kind),parameter:: maxinfo = 18
   real(r_double),parameter:: d250 = 250.0_r_double
   real(r_double),parameter:: d350 = 350.0_r_double
-  real(r_kind),parameter:: r0_1  = 0.10_r_kind
-  real(r_kind),parameter:: r0_15 = 0.15_r_kind
   real(r_kind),parameter:: r0_2  = 0.20_r_kind
-  real(r_kind),parameter:: r0_4  = 0.40_r_kind
   real(r_kind),parameter:: r0_45 = 0.45_r_kind
   real(r_kind),parameter:: r0_6  = 0.60_r_kind
   real(r_kind),parameter:: r1_2  = 1.20_r_kind
   real(r_kind),parameter:: r1_5  = 1.50_r_kind
-  real(r_kind),parameter:: r24   = 24.0_r_kind
-  real(r_kind),parameter:: r60   = 60.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
 ! Declare local variables
@@ -520,11 +515,9 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
            data_all(15,ndata) = tsavg                   ! Tz: Background temperature at depth of zob
-           data_all(16,ndata) = ff10                    ! 10 meter wind factor
-           data_all(17,ndata) = sfcr                    ! surface roughness
-           data_all(18,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
-           data_all(19,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
-           data_all(20,ndata) = hdr(8)                  ! station elevation
+           data_all(16,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
+           data_all(17,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
+           data_all(18,ndata) = hdr(8)                  ! station elevation
  
 
            if(nst_gsi>0) then

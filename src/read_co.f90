@@ -28,8 +28,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 !     nodata   - number of co observations retained for further processing
 
   use kinds, only: r_kind,r_double,i_kind
-  use satthin, only: makegrids,map2tgrid,destroygrids, &
-      finalcheck,itxmax
+  use satthin, only: makegrids,map2tgrid,finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,nlco
@@ -48,13 +47,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
   real(r_kind)    ,intent(in   ) :: gstime
 
 ! Declare local parameters
-  real(r_kind),parameter:: r6   = 6.0_r_kind
-  real(r_kind),parameter:: r76  = 76.0_r_kind
-  real(r_kind),parameter:: r84  = 84.0_r_kind
-
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
-  real(r_kind),parameter:: rmiss = -9999.9_r_kind
   real(r_kind),parameter:: badco = 10000.0_r_kind
 
 ! Declare local variables

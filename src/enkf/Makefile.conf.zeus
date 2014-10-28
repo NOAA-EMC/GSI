@@ -31,7 +31,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -105,7 +105,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     =
+  LDFLAGS_D     = $(LDFLAGS_N)
 
 #--- Empty out mpi library definition: embedded in compiler
 

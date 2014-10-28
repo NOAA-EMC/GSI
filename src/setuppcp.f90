@@ -176,7 +176,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 ! Declare local variables
   integer(i_kind) isatid,itime,ilon,ilat,isfcflg,ipcp,isdv
   integer(i_kind) icnt,ilone,ilate,icnv,itype,iclw,icli
-  integer(i_kind) itim,itimp,istat,idomsfc,isfcr
+  integer(i_kind) itim,itimp,istat
 
   logical sea
   logical ssmi,amsu,tmi,stage3,muse
@@ -365,23 +365,21 @@ endif
   ilon    = 3     ! index of grid relative obs location (x)
   ilat    = 4     ! index of grid relative obs location (y)
   isfcflg = 5     ! index of surface flag
-  idomsfc = 6     ! index of dominant surface type
-  isfcr   = 7     ! index of surface roughness
-  ipcp    = 8     ! index of rain rate (mm/hr)
-  isdv    = 9     ! index of standard deviation of superob
-  icnt    = 10    ! index of number of obs in superob
-  ilone   = 11    ! index of earth realtive obs longitude (degrees)
-  ilate   = 12    ! index of earth relative obs latitude (degrees)
+  ipcp    = 6     ! index of rain rate (mm/hr)
+  isdv    = 7     ! index of standard deviation of superob
+  icnt    = 8     ! index of number of obs in superob
+  ilone   = 9     ! index of earth realtive obs longitude (degrees)
+  ilate   = 10    ! index of earth relative obs latitude (degrees)
 
   if (tmi) then
-     icnv  = 9
-     iclw  = 10
-     icli  = 11
-     icnt  = 12
-     ilone = 13
-     ilate = 14
+     icnv  = 7
+     iclw  = 8
+     icli  = 9
+     icnt  = 10
+     ilone = 11
+     ilate = 12
   elseif (amsu) then
-     itype = 10
+     itype = 8
   endif
   rterm1=one/float(nsig)
   rterm2=one/float(nsig*(nsig-1))

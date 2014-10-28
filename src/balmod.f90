@@ -16,7 +16,7 @@ module balmod
 !   2008-10-08  derber include routines strong_bk and strong_bk_ad
 !   2009-06-15  parrish - add logical l_hyb_ens to balance, tbalance so strong constraint
 !                          can be turned off in these routines when running in hybrid ensemble mode
-!                         (strong constraint gets moved to control2state and state2control routines
+!                         (strong constraint gets moved to control2state and control2state_ad routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
 !   2011-09-07  todling - note that implementation of hybrid in sqrt-B case
@@ -695,7 +695,7 @@ contains
 !   2008-12-29  todling - remove q from arg list
 !   2009-06-15  parrish - add logical l_hyb_ens to balance, t_balance so strong constraint
 !                          can be turned off in these routines when running in hybrid ensemble mode
-!                         (strong constraint gets moved to control2state and state2control routines
+!                         (strong constraint gets moved to control2state and control2state_ad routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
 !   2011-09-07  todling - in sqrt-b case, always apply balance (even in hyb mode) 

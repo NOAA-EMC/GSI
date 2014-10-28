@@ -147,7 +147,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) disterr,disterrmax,dlon00,dlat00,cdist
 
 !  ---- bufr argument -----
   real(r_double),dimension(n1bhdr):: bfr1bhdr
@@ -306,8 +306,10 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               if(diagnostic_reg) then
                  call txy2ll(dlon,dlat,dlon00,dlat00)
                  ntest=ntest+1
-                 disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                      (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+                 cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                      (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
                  disterrmax=max(disterrmax,disterr)
               end if
 

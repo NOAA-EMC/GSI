@@ -134,9 +134,9 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   imaxerr=9   ! index of pblh max error
   iqc=10      ! index of qulaity mark
   iuse=11     ! index of use parameter
-  ilone=15    ! index of longitude (degrees)
-  ilate=16    ! index of latitude (degrees)
-  istnelv=17  ! index of station elevation (m)
+  ilone=12    ! index of longitude (degrees)
+  ilate=13    ! index of latitude (degrees)
+  istnelv=14  ! index of station elevation (m)
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter

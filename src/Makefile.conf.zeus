@@ -20,12 +20,6 @@ OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
 
 INCnetcdf       = ${NETCDF}/include
-#WRFPATH =
-#LIBwrfio_int    =
-#LIBwrfio_netcdf =
-#OBJwrf_frame_pk =
-#OBJwrf_sizeof_int =
-#WRFLIB =
 
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf
@@ -39,7 +33,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -56,11 +50,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
                 -I $(INCnetcdf) -I $(INCw3) -O3 -traceback -convert big_endian -assume byterecl \
-	        -g -fp-model strict
+	        -g -fp-model source
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
                   -I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) \
-		  -O3 -traceback -g -fp-model strict \
+		  -O3 -traceback -g -fp-model source \
 		  -convert big_endian -assume byterecl
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
