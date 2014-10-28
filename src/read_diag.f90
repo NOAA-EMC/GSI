@@ -257,6 +257,21 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      isens=0
   end if
 
+  if (iflag/=0) then
+     rewind(ftin)
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra
+     idiag=ipchan+npred+1
+     angord=0
+     iversion=0
+     inewpc=0
+     isens=0
+     if (iflag/=0) then
+        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
+        return
+     endif
+  endif
+
   header_fix%isis    = sensat
   header_fix%id      = satid
   header_fix%obstype = sentype
@@ -273,32 +288,6 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   header_fix%iversion= iversion
   header_fix%inewpc  = inewpc
   header_fix%isens   = isens
-
-  if (iflag/=0) then
-     rewind(ftin)
-     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
-          ireal,ipchan,iextra,jextra
-     if (iflag/=0) then
-        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
-        return
-     endif
-     header_fix%isis    = sensat
-     header_fix%id      = satid
-     header_fix%obstype = sentype
-     header_fix%jiter   = jiter
-     header_fix%nchan   = nchanl
-     header_fix%npred   = npred
-     header_fix%idate   = ianldate
-     header_fix%ireal   = ireal
-     header_fix%ipchan  = ipchan
-     header_fix%iextra  = iextra
-     header_fix%jextra  = jextra
-     header_fix%idiag   = ipchan+npred+1
-     header_fix%angord  = 0
-     header_fix%iversion= 0
-     header_fix%inewpc  = 0
-     header_fix%isens   = 0
-  endif
 
   if (loutall) then
      write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&

@@ -124,7 +124,6 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !-------------------------------------------------------------------------
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
   external:: tintrp3
   external:: grdcrd1
   external:: stop2

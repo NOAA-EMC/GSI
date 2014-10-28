@@ -2,10 +2,10 @@ module m_extOzone
 !#define NO_EXTRA_
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_extOzone
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2013-09-27
+! subprogram:    module m_extOzone
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2013-09-27
 !
 ! abstract: a module for reading extra ozone observation data
 !
@@ -41,7 +41,7 @@ module m_extOzone
 
   use kinds, only: i_kind,r_kind,r_double
   implicit none
-  private	! except
+  private     ! except
 
   public:: is_extOzone
   public:: extOzone_read
@@ -197,18 +197,18 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
 
   character(len=*), parameter:: myname_=myname//'::read_'
 
-  integer(kind=i_kind), intent(out):: nread	! number of obs record reads in this call
-  integer(kind=i_kind), intent(out):: npuse	! nnmber of "preofiles" retained in this call
-  integer(kind=i_kind), intent(out):: nouse	! nnmber of obs retained in this call
+  integer(kind=i_kind), intent(out):: nread     ! number of obs record reads in this call
+  integer(kind=i_kind), intent(out):: npuse     ! nnmber of "preofiles" retained in this call
+  integer(kind=i_kind), intent(out):: nouse     ! nnmber of obs retained in this call
 
   ! jsatid,gstime,lunout,twind,ithin,rmesh
-  character(len=*)    , intent(in ):: jsatid	! platform ID (verification)
-  real   (kind=r_kind), intent(in ):: gstime	! analysis time (minute) from reference date
-  integer(kind=i_kind), intent(in ):: lunout	! logical unit to send obs output.
-  real   (kind=r_kind), intent(in ):: twind	! input group time window (hour)
+  character(len=*)    , intent(in ):: jsatid    ! platform ID (verification)
+  real   (kind=r_kind), intent(in ):: gstime    ! analysis time (minute) from reference date
+  integer(kind=i_kind), intent(in ):: lunout    ! logical unit to send obs output.
+  real   (kind=r_kind), intent(in ):: twind     ! input group time window (hour)
 
-  integer(kind=i_kind), intent(in ):: ithin	! flag to thin data
-  real   (kind=r_kind), intent(in ):: rmesh	! thining mesh size (km)
+  integer(kind=i_kind), intent(in ):: ithin     ! flag to thin data
+  real   (kind=r_kind), intent(in ):: rmesh     ! thining mesh size (km)
 
   real(kind=r_kind),pointer,dimension(:,:):: p_out
 
@@ -228,14 +228,14 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
   endif
 
   select case(dtype)
-  case('omieff','tomseff')		! layer-ozone or total-ozone types
+  case('omieff','tomseff')       ! layer-ozone or total-ozone types
      select case(dfile_format(dfile))
      case('nc')
-	call oztot_ncInquire_(dfile,dtype,dplat, &
+        call oztot_ncInquire_(dfile,dtype,dplat, &
                               nreal,nchan,ilat,ilon, &
                               ithin,rmesh,maxobs)
 
-	allocate(p_out(nreal+nchan,maxobs))
+        allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
         call oztot_ncRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
@@ -256,23 +256,23 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
         npuse=k
      end select
 
-  case('o3lev')			! level-ozone types
+  case('o3lev')         ! level-ozone types
      select case(dfile_format(dfile))
 !     case('text')
-!	call ozlev_textInquire(dfile,dtype,dplat,  &
+!       call ozlev_textInquire(dfile,dtype,dplat,  &
 !                               nreal,nchan,ilat,ilon, maxobs)
 !
-!	allocate(p_out(nreal+nchan,maxobs))
+!       allocate(p_out(nreal+nchan,maxobs))
 !        p_out(:,:)=RMISS
 !
 !        call ozlev_textRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
 !                             gstime,twind, nreal,nchan,ilat,ilon)
 !
      case('bufr')
-	call ozlev_bufrInquire_(dfile,dtype,dplat,  &
+        call ozlev_bufrInquire_(dfile,dtype,dplat,  &
                                 nreal,nchan,ilat,ilon,maxobs)
 
-	allocate(p_out(nreal+nchan,maxobs))
+        allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
         call ozlev_bufrRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
@@ -282,10 +282,10 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
   case('mls55')
      select case(dfile_format(dfile))
      case('nc')
-	call ozlev_ncInquire_(dfile,dtype,dplat,  &
+        call ozlev_ncInquire_(dfile,dtype,dplat,  &
                               nreal,nchan,ilat,ilon,maxobs)
 
-	allocate(p_out(nreal+nchan,maxobs))
+        allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
         call ozlev_ncRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
@@ -348,8 +348,8 @@ subroutine oztot_ncInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon, ithin,rmes
   integer(kind=i_kind), intent(out):: ilat   ! index to latitude in nreal parameters.
   integer(kind=i_kind), intent(out):: ilon   ! index to longitude in nreal parameters.
 
-  integer(kind=i_kind), intent(in ):: ithin	! flag to thin data
-  real   (kind=r_kind), intent(in ):: rmesh	! size (km) of the thinning mesh
+  integer(kind=i_kind), intent(in ):: ithin     ! flag to thin data
+  real   (kind=r_kind), intent(in ):: rmesh     ! size (km) of the thinning mesh
 
   integer(kind=i_kind), intent(out):: maxrec    ! extimated input record count
 
@@ -413,8 +413,8 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   integer(kind=i_kind), intent(in):: ilat   ! index to latitude in nreal parameters.
   integer(kind=i_kind), intent(in):: ilon   ! index to longitude in nreal parameters.
 
-  integer(kind=i_kind), intent(in ):: ithin	! flag to thin data
-  real   (kind=r_kind), intent(in ):: rmesh	! size (km) of the thinning mesh
+  integer(kind=i_kind), intent(in ):: ithin     ! flag to thin data
+  real   (kind=r_kind), intent(in ):: rmesh     ! size (km) of the thinning mesh
 
   character(len=*), parameter:: myname_=myname//'::oztot_ncRead_'
 
@@ -642,17 +642,17 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
            timedif = r6*abs(tdiff)        ! range:  0 to 18 
         endif 
         crit1 = 0.01_r_kind+timedif
-	if (ithin /= 0) then	
+        if (ithin /= 0) then
            call satthin_map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,dsis)
-           if(.not. iuse)go to 135 	
+           if(.not. iuse)go to 135 
            call satthin_finalcheck(dist1,crit1,itx,iuse)
            if(.not. iuse)go to 135
            ndata=ndata+1
            nodata=ndata
-	else
+        else
            ndata=ndata+1
            nodata=ndata
-	   itx= ndata
+           itx= ndata
         end if
 
 !!        ASSERT_(size(ozout,2)>=itx)
@@ -678,7 +678,7 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
 ! Added apriori and efficiency profiles 
           ozout(15:25,itx)=apriori        
           ozout(26:36,itx)=efficiency
-	  ozout(37,itx)=totoz 
+          ozout(37,itx)=totoz 
         endif
 
 !!        ASSERT_(size(ozout,1)==37)
@@ -912,7 +912,7 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
 !           if (ndata >= maxobs) then 
 !              write(6,*) ' read_ozone:   Number of MLS obs reached maxobs = ', &
 !                   maxobs
-!	      return ! goto 150
+!              return ! goto 150
 !           endif
            if (iuse_oz(ipos(ilev)) < 0) then
               usage = 100._r_kind
@@ -1111,7 +1111,7 @@ subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
      ! If it has failed at the first read(), ...
      if (iret/=0 .or. subset /= 'GM008015') then
         call closbf(lunin)
-	close(lunin)
+        close(lunin)
 
         call warn(myname_,'Failed at reading BUFR file, dfile =',trim(dfile))
         call warn(myname_,'                             dtype =',trim(dtype))
@@ -1133,7 +1133,7 @@ subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
      !    A: Because there are 44 entries in ozinfo.txt at the time - j.guo
 
      mpos=max(nloz,jpch_oz)
-     allocate (ipos(mpos))	! 44? 37?
+     allocate (ipos(mpos))      ! 44? 37?
      allocate (usage1(nloz))
 
      nmrecs=0

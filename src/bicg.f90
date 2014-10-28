@@ -41,7 +41,7 @@ use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
 use control_vectors, only: dot_product,assignment(=)
 use obs_ferrscale, only: lferrscale, apply_hrm1h
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult
+use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
 use timermod,      only: timer_ini, timer_fnl
 use bicglanczos, only:  pcglanczos, setup_pcglanczos, save_pcgprecond, pcgprecond, LMPCGL 
 

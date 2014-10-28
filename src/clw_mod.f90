@@ -233,8 +233,6 @@ contains
 !     si85    - scattering index over ocean
   real(r_kind):: si85
  
-  real(r_kind),parameter:: r20=20.0_r_kind
-  real(r_kind),parameter:: r80=80.0_r_kind
   real(r_kind),parameter:: r290=290.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
  

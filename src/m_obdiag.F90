@@ -1,17 +1,17 @@
 module m_obdiag
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_obdiag
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-17
+! subprogram:    module m_obdiag
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-17
 !
 ! abstract: coupler of type(*_ob_type) and type(obsdiags)
 !
 ! program history log:
-!   2009-12-01	Guo - initial implementation
-!   2009-12-09	Guo - changed an argument name from "size" to "count".
-!   2009-12-09	Guo - fixed an error in verification of %nloz
+!   2009-12-01  Guo - initial implementation
+!   2009-12-09  Guo - changed an argument name from "size" to "count".
+!   2009-12-09  Guo - fixed an error in verification of %nloz
 !   2010-03-17  j guo   - added this document block
 !   2010-04-27  tangborn - added carbon monoxide
 !   2010-05-26  treadon - add tcp_verify to ob_verify interface
@@ -42,23 +42,23 @@ module m_obdiag
 
 ! Usecase - link %diag of an ob_type node to the right node in an obsdiags list.
 !
-!	use obsmod, only :: obsdiags
-!	use m_obdiag,only :: obdiag_buildSearch
-!	use m_obdiag,only :: obdiag_cleanSearch
-!	use m_obdiag,only :: obdiag_locate
-!	use m_obdiag,only :: obdiag_verify
-!	
+!       use obsmod, only :: obsdiags
+!       use m_obdiag,only :: obdiag_buildSearch
+!       use m_obdiag,only :: obdiag_cleanSearch
+!       use m_obdiag,only :: obdiag_locate
+!       use m_obdiag,only :: obdiag_verify
+!
 !!! for an obsdiags already build
-!	call obdiag_buildSearcher(obsdiags)	! create an search object for the given obsdiags
-!	do ...					! loop through a list of x_ob_type
-!	  my_node => xxx
-!	  my_node%diags => obdiag_locate(obsdiags,my_node%idv,my_node%iob,1,who=myname_)
-!		if(.not.associated(my_diag)) then
-!		  call perr(myname_,'can not locate, (idv,iob,ich) =',(/idv,iob,ich/))
-!		  call die(myname_)
-!		endif
-!	enddo
-!	call obdiag_cleanSearcher(obsdiags)
+!       call obdiag_buildSearcher(obsdiags)     ! create an search object for the given obsdiags
+!       do ...                                  ! loop through a list of x_ob_type
+!         my_node => xxx
+!         my_node%diags => obdiag_locate(obsdiags,my_node%idv,my_node%iob,1,who=myname_)
+!         if(.not.associated(my_diag)) then
+!           call perr(myname_,'can not locate, (idv,iob,ich) =',(/idv,iob,ich/))
+!           call die(myname_)
+!         endif
+!       enddo
+!       call obdiag_cleanSearcher(obsdiags)
 
   interface ob_verify; module procedure &
      ps_verify_, &  ! 1
@@ -85,11 +85,11 @@ module m_obdiag
 
 !!! usage:
 !!!
-!!!	ptr => obdiag_locate(obsdiags(jj,ii),idv,iob,ich)
-!!!		if(.not.associated(ptr)) then
-!!!		  call perr(myname_,'not located, (idv,iob,ich) =',(/idv,iob,ich/))
-!!!		  call die(myname_)
-!!!		endif
+!!!    ptr => obdiag_locate(obsdiags(jj,ii),idv,iob,ich)
+!!!    if(.not.associated(ptr)) then
+!!!      call perr(myname_,'not located, (idv,iob,ich) =',(/idv,iob,ich/))
+!!!      call die(myname_)
+!!!    endif
 
   character(len=*),parameter:: myname='m_obdiag'
   character(len=*),parameter:: ob_verify_name=myname//'.ob_verify'
@@ -112,7 +112,7 @@ subroutine obdiag_buildSearcher(obsdiags)
   use timermod, only: timer_ini,timer_fnl
   use mpeu_util, only: die
   implicit none
-  type(obs_diags),intent(in):: obsdiags	! as it is named in obsmod
+  type(obs_diags),intent(in):: obsdiags ! as it is named in obsmod
 
   character(len=*),parameter:: myname_=myname//'.buildSearcher'
   integer(i_kind),allocatable,dimension(:):: indx
@@ -155,14 +155,14 @@ subroutine obdiag_cleanSearcher()
 end subroutine obdiag_cleanSearcher
 
 function obdiag_locate(obsdiags,idv,iob,ich,who) result(my_diag)
-	!!! this version implements a simple linear search.  A fater
-	!!! binary tree search can be implemented for efficiency.
+!!! this version implements a simple linear search.  A fater
+!!! binary tree search can be implemented for efficiency.
   use obsmod, only: obs_diags
   use obsmod, only: obs_diag
   use timermod, only: timer_ini,timer_fnl
   use mpeu_util, only: die,tell
   implicit none
-  type(obs_diags),intent(in):: obsdiags	! as it is named in obsmod
+  type(obs_diags),intent(in):: obsdiags ! as it is named in obsmod
   integer(i_kind),intent(in) :: idv,iob,ich
   character(len=*),optional,intent(in):: who
 
@@ -177,7 +177,7 @@ function obdiag_locate(obsdiags,idv,iob,ich,who) result(my_diag)
 #ifdef BINARY_SEARCH
   if(.not.allocated(obdiag_Searcher)) call die(myname_,'obdiag_Searcher is not built')
 
-  my_diag => null()	! return null() if the key is not located.
+  my_diag => null()      ! return null() if the key is not located.
   done=.false.
   lb=1; ub=size(obdiag_Searcher)
   do while(.not.done)
@@ -186,14 +186,14 @@ function obdiag_locate(obsdiags,idv,iob,ich,who) result(my_diag)
     done = m==0
     if(done) exit
 
-    	! We are searching for EQUAL, so skip the i-th point if not equal.
-    if(m<0) then	! keys < (i)%keys
+    ! We are searching for EQUAL, so skip the i-th point if not equal.
+    if(m<0) then        ! keys < (i)%keys
       ub=i-1
-    else		! keys > (i)%keys
+    else                ! keys > (i)%keys
       lb=i+1
     endif
 
-    if(ub<lb) exit	! termionate the search
+    if(ub<lb) exit      ! termionate the search
   enddo
   if(done) my_diag => obdiag_Searcher(i)%diag
 
@@ -255,29 +255,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head     ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -289,11 +289,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -332,29 +332,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head    ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -366,11 +366,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -409,29 +409,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head     ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -443,11 +443,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -486,29 +486,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -520,11 +520,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -563,29 +563,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -597,11 +597,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -640,29 +640,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -674,11 +674,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -717,29 +717,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head    ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -751,11 +751,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -794,29 +794,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -828,11 +828,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -871,29 +871,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head     ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -905,11 +905,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -948,29 +948,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -982,11 +982,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1025,29 +1025,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -1059,11 +1059,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1102,29 +1102,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -1136,11 +1136,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1180,35 +1180,35 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diagu => my_node%diagu
       my_diagv => my_node%diagv
       good = associated(my_diagu).and.associated(my_diagv)
-      	if(.not.good .and. perr_) then
-	  if(.not.associated(my_diagu)) call iperr(myname_,'unassociated %diagu, @count =',n)
-	  if(.not.associated(my_diagv)) call iperr(myname_,'unassociated %diagv, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        if(.not.associated(my_diagu)) call iperr(myname_,'unassociated %diagu, @count =',n)
+        if(.not.associated(my_diagv)) call iperr(myname_,'unassociated %diagv, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diagu%idv .and. &
-    	       my_node%iob == my_diagu%iob .and. &
-	                 1 == my_diagu%ich .and. &
+               my_node%iob == my_diagu%iob .and. &
+                         1 == my_diagu%ich .and. &
                my_node%idv == my_diagv%idv .and. &
-    	       my_node%iob == my_diagv%iob .and. &
-	                 2 == my_diagv%ich
+               my_node%iob == my_diagv%iob .and. &
+                         2 == my_diagv%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
-	  call iperr(myname_,'%diagu%(idv,iob,ich) =',(/my_diagu%idv,my_diagu%iob,my_diagu%ich/))
-	  call iperr(myname_,'%diagv%(idv,iob,ich) =',(/my_diagv%idv,my_diagv%iob,my_diagv%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
+          call iperr(myname_,'%diagu%(idv,iob,ich) =',(/my_diagu%idv,my_diagu%iob,my_diagu%ich/))
+          call iperr(myname_,'%diagv%(idv,iob,ich) =',(/my_diagv%idv,my_diagv%iob,my_diagv%ich/))
         endif
       endif
     endif
@@ -1220,10 +1220,10 @@ _EXIT_(myname_)
         return
       endif 
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1262,35 +1262,35 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diagu => my_node%diagu
       my_diagv => my_node%diagv
       good = associated(my_diagu).and.associated(my_diagv)
-      	if(.not.good .and. perr_) then
-	  if(.not.associated(my_diagu)) call iperr(myname_,'unassociated %diagu, @count =',n)
-	  if(.not.associated(my_diagv)) call iperr(myname_,'unassociated %diagv, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        if(.not.associated(my_diagu)) call iperr(myname_,'unassociated %diagu, @count =',n)
+        if(.not.associated(my_diagv)) call iperr(myname_,'unassociated %diagv, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diagu%idv .and. &
-    	       my_node%iob == my_diagu%iob .and. &
-	                 1 == my_diagu%ich .and. &
+               my_node%iob == my_diagu%iob .and. &
+                         1 == my_diagu%ich .and. &
                my_node%idv == my_diagv%idv .and. &
-    	       my_node%iob == my_diagv%iob .and. &
-	                 2 == my_diagv%ich
+               my_node%iob == my_diagv%iob .and. &
+                         2 == my_diagv%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
-	  call iperr(myname_,'%diagu%(idv,iob,ich) =',(/my_diagu%idv,my_diagu%iob,my_diagu%ich/))
-	  call iperr(myname_,'%diagv%(idv,iob,ich) =',(/my_diagv%idv,my_diagv%iob,my_diagv%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
+          call iperr(myname_,'%diagu%(idv,iob,ich) =',(/my_diagu%idv,my_diagu%iob,my_diagu%ich/))
+          call iperr(myname_,'%diagv%(idv,iob,ich) =',(/my_diagv%idv,my_diagv%iob,my_diagv%ich/))
         endif
       endif
     endif
@@ -1302,10 +1302,10 @@ _EXIT_(myname_)
         return
       endif 
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1344,35 +1344,35 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diagx => my_node%diag_lon
       my_diagy => my_node%diag_lat
       good = associated(my_diagx).and.associated(my_diagy)
-      	if(.not.good .and. perr_) then
-	  if(.not.associated(my_diagx)) call iperr(myname_,'unassociated %diag_lon, @count =',n)
-	  if(.not.associated(my_diagy)) call iperr(myname_,'unassociated %diag_lat, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        if(.not.associated(my_diagx)) call iperr(myname_,'unassociated %diag_lon, @count =',n)
+        if(.not.associated(my_diagy)) call iperr(myname_,'unassociated %diag_lat, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diagx%idv .and. &
-    	       my_node%iob == my_diagx%iob .and. &
-	                 1 == my_diagx%ich .and. &
+               my_node%iob == my_diagx%iob .and. &
+                         1 == my_diagx%ich .and. &
                my_node%idv == my_diagy%idv .and. &
-    	       my_node%iob == my_diagy%iob .and. &
-	                 2 == my_diagy%ich
+               my_node%iob == my_diagy%iob .and. &
+                         2 == my_diagy%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
-	  call iperr(myname_,'%diag_lon%(idv,iob,ich) =',(/my_diagx%idv,my_diagx%iob,my_diagx%ich/))
-	  call iperr(myname_,'%diag_lat%(idv,iob,ich) =',(/my_diagy%idv,my_diagy%iob,my_diagy%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ichu,ichv) =',(/my_node %idv,my_node %iob,1,2/))
+          call iperr(myname_,'%diag_lon%(idv,iob,ich) =',(/my_diagx%idv,my_diagx%iob,my_diagx%ich/))
+          call iperr(myname_,'%diag_lat%(idv,iob,ich) =',(/my_diagy%idv,my_diagy%iob,my_diagy%ich/))
         endif
       endif
 
@@ -1384,10 +1384,10 @@ _EXIT_(myname_)
       endif 
     endif
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1426,26 +1426,26 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head  ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #0
+      ! check #0
       good = associated(my_node%diags)
       if(.not.good .and. perr_) then
-	call iperr(myname_,'unassociated node%diags, @count =',n)
-	call iperr(myname_,'node%(idv,iob,nloz) =',(/my_node%idv,my_node%iob,my_node%nloz/))
+        call iperr(myname_,'unassociated node%diags, @count =',n)
+        call iperr(myname_,'node%(idv,iob,nloz) =',(/my_node%idv,my_node%iob,my_node%nloz/))
       endif
 
-      		! check #0.1
+      ! check #0.1
       if(good) then
         good = my_node%nloz+1 == size(my_node%diags)
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching [%nloz,size(%diags)], @count =',n)
-	  call iperr(myname_,'node%(idv,iob,nloz,size(%diags)) =', &
-	              (/my_node%idv,my_node%iob,my_node%nloz,size(my_node%diags)/))
+          call iperr(myname_,'mismatching [%nloz,size(%diags)], @count =',n)
+          call iperr(myname_,'node%(idv,iob,nloz,size(%diags)) =', &
+                  (/my_node%idv,my_node%iob,my_node%nloz,size(my_node%diags)/))
         endif
       endif
 
@@ -1453,23 +1453,23 @@ _EXIT_(myname_)
         do k=1,my_node%nloz+1
           my_diag => my_node%diags(k)%ptr
 
-      		! check #1
+      ! check #1
           good = associated(my_diag)
-      	  if(.not.good .and. perr_) then
-	    call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
-	  endif
-
-      		! check #2
-          good = my_node%idv == my_diag%idv .and. &
-    	         my_node%iob == my_diag%iob .and. &
-	                 k   == my_diag%ich
           if(.not.good .and. perr_) then
-	    call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
-	    call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+            call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
           endif
-	enddo
+
+      ! check #2
+          good = my_node%idv == my_diag%idv .and. &
+                 my_node%iob == my_diag%iob .and. &
+                         k   == my_diag%ich
+          if(.not.good .and. perr_) then
+            call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+            call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          endif
+        enddo
       endif
       
       if(.not.(good.or.present(count))) then
@@ -1480,10 +1480,10 @@ _EXIT_(myname_)
       endif 
     endif
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3, is done when some other test is already failed.
+  ! check #3, is done when some other test is already failed.
   if(present(count)) then
     if(n/=count) then
       good=.false.
@@ -1620,26 +1620,26 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #0
+      ! check #0
       good = associated(my_node%diags)
       if(.not.good .and. perr_) then
-	call iperr(myname_,'unassociated node%diags, @count =',n)
-	call iperr(myname_,'node%(idv,iob,nchan) =',(/my_node%idv,my_node%iob,my_node%nchan/))
+        call iperr(myname_,'unassociated node%diags, @count =',n)
+        call iperr(myname_,'node%(idv,iob,nchan) =',(/my_node%idv,my_node%iob,my_node%nchan/))
       endif
 
-      		! check #0.1
+      ! check #0.1
       if(good) then
         good = my_node%nchan == size(my_node%diags)
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching [%nchan,size(%diags)], @count =',n)
-	  call iperr(myname_,'node%(idv,iob,nchan,size(%diags)) =', &
-	              (/my_node%idv,my_node%iob,my_node%nchan,size(my_node%diags)/))
+          call iperr(myname_,'mismatching [%nchan,size(%diags)], @count =',n)
+          call iperr(myname_,'node%(idv,iob,nchan,size(%diags)) =', &
+                   (/my_node%idv,my_node%iob,my_node%nchan,size(my_node%diags)/))
         endif
       endif
 
@@ -1647,23 +1647,23 @@ _EXIT_(myname_)
         do k=1,my_node%nchan
           my_diag => my_node%diags(k)%ptr
 
-      		! check #1
+      ! check #1
           good = associated(my_diag)
-      	  if(.not.good .and. perr_) then
-	    call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,my_node%ich/))
-	  endif
-
-      		! check #2
-          good = my_node%idv    == my_diag%idv .and. &
-    	         my_node%iob    == my_diag%iob .and. &
-	         my_node%ich(k) == my_diag%ich
           if(.not.good .and. perr_) then
-	    call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,my_node%ich(k)/))
-	    call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+            call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,my_node%ich/))
           endif
-	enddo
+
+      ! check #2
+          good = my_node%idv    == my_diag%idv .and. &
+                 my_node%iob    == my_diag%iob .and. &
+                 my_node%ich(k) == my_diag%ich
+          if(.not.good .and. perr_) then
+            call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,my_node%ich(k)/))
+            call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          endif
+        enddo
       endif
       
       if(.not.(good.or.present(count))) then
@@ -1674,10 +1674,10 @@ _EXIT_(myname_)
       endif 
     endif
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3, is done when some other test is already failed.
+  ! check #3, is done when some other test is already failed.
   if(present(count)) then
     if(n/=count) then
       good=.false.
@@ -1717,26 +1717,26 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #0
+      ! check #0
       good = associated(my_node%diags)
       if(.not.good .and. perr_) then
-	call iperr(myname_,'unassociated node%diags, @count =',n)
-	call iperr(myname_,'node%(idv,iob,nlaero) =',(/my_node%idv,my_node%iob,my_node%nlaero/))
+        call iperr(myname_,'unassociated node%diags, @count =',n)
+        call iperr(myname_,'node%(idv,iob,nlaero) =',(/my_node%idv,my_node%iob,my_node%nlaero/))
       endif
 
-      		! check #0.1
+      ! check #0.1
       if(good) then
         good = my_node%nlaero+1 == size(my_node%diags)
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching [%nlaero,size(%diags)], @count =',n)
-	  call iperr(myname_,'node%(idv,iob,nlaero,size(%diags)) =', &
-	              (/my_node%idv,my_node%iob,my_node%nlaero,size(my_node%diags)/))
+          call iperr(myname_,'mismatching [%nlaero,size(%diags)], @count =',n)
+          call iperr(myname_,'node%(idv,iob,nlaero,size(%diags)) =', &
+                   (/my_node%idv,my_node%iob,my_node%nlaero,size(my_node%diags)/))
         endif
       endif
 
@@ -1744,23 +1744,23 @@ _EXIT_(myname_)
         do k=1,my_node%nlaero+1
           my_diag => my_node%diags(k)%ptr
 
-      		! check #1
+      ! check #1
           good = associated(my_diag)
-      	  if(.not.good .and. perr_) then
-	    call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
-	  endif
-
-      		! check #2
-          good = my_node%idv == my_diag%idv .and. &
-    	         my_node%iob == my_diag%iob .and. &
-	                 k   == my_diag%ich
           if(.not.good .and. perr_) then
-	    call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
-	    call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
-	    call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+            call iperr(myname_,'unassociated node%diags(k)%ptr, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
           endif
-	enddo
+
+      ! check #2
+          good = my_node%idv == my_diag%idv .and. &
+                 my_node%iob == my_diag%iob .and. &
+                         k   == my_diag%ich
+          if(.not.good .and. perr_) then
+            call iperr(myname_,'mismatching keys, @(count,k) =',(/n,k/))
+            call iperr(myname_,'node%(idv,iob,ich) =',(/my_node%idv,my_node%iob,k/))
+            call iperr(myname_,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          endif
+        enddo
       endif
       
       if(.not.(good.or.present(count))) then
@@ -1771,10 +1771,10 @@ _EXIT_(myname_)
       endif 
     endif
 
-    my_node => my_node%llpoint	! next
+    my_node => my_node%llpoint ! next
   enddo
 
-  		! check #3, is done when some other test is already failed.
+  ! check #3, is done when some other test is already failed.
   if(present(count)) then
     if(n/=count) then
       good=.false.
@@ -1814,29 +1814,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head   ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -1848,11 +1848,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.
@@ -1892,29 +1892,29 @@ _EXIT_(myname_)
   perr_=.false.
   if(present(perr)) perr_=perr
 
-  my_node => hd%head	! top
+  my_node => hd%head    ! top
   n=0
   do while(associated(my_node))
     n=n+1
 
     if(good) then
-      		! check #1
+      ! check #1
       my_diag => my_node%diags
       good = associated(my_diag)
-      	if(.not.good .and. perr_) then
-	  call iperr(myname_,'unassociated %diags, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
-	endif
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
 
-      		! check #2
+      ! check #2
       if(good) then
         good = my_node%idv == my_diag%idv .and. &
-    	       my_node%iob == my_diag%iob .and. &
-	                 1 == my_diag%ich
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
         if(.not.good .and. perr_) then
-	  call iperr(myname_,'mismatching keys, @count =',n)
-	  call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
-	  call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
         endif
       endif
     endif
@@ -1926,11 +1926,11 @@ _EXIT_(myname_)
       return
     endif
 
-    my_node => my_node%llpoint	! i.e. %next
+    my_node => my_node%llpoint ! i.e. %next
 
   enddo
 
-  		! check #3
+  ! check #3
   if(present(count)) then
     if(n/=count) then
       good = .false.

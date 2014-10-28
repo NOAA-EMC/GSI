@@ -1,3 +1,4 @@
+#ifdef WRF
 subroutine read_wrf_nmm_files(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -236,6 +237,54 @@ subroutine read_wrf_nmm_files(mype)
 ! End of routine
   return
 end subroutine read_wrf_nmm_files
+#else /* Start no WRF-library block */
+
+subroutine read_wrf_nmm_files(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_wrf_nmm_files   same as read_files, but for wrfnmm
+!   prgmmr: parrish          org: np22                date: 2004-06-22
+!
+! abstract: dummy figure out available time levels of background fields for 
+!             later input.  This is still evolving for wrf nmm and other
+!             possible wrf input fields.  Initially patterned after 
+!             read_files.
+!
+! program history log:
+!   2004-06-22  parrish, document
+!   2004-08-02  treadon - add only to module use, add intent in/out
+!   2004-12-03  treadon - replace mpe_ibcast (IBM extension) with
+!                         standard mpi_bcast
+!   2005-03-30  treadon - reformat code (cosmetic changes only)
+!   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
+!   2008-04-16  safford - remove unsused vars
+!   2009-10-09  wu - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
+!   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
+!
+!   input argument list:
+!     mype     - pe number
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$  end documentation block
+
+  use kinds, only: r_kind,r_single,i_kind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in   ) :: mype
+
+  write(6,*)'READ_WRF_NMM_FILES:     ***WARNING*** dummy call ... does nothing!'
+
+! End of routine
+  return
+end subroutine read_wrf_nmm_files
+
+#endif
 
 subroutine read_nems_nmmb_files(mype)
 !$$$  subprogram documentation block

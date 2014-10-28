@@ -405,12 +405,16 @@ do ii=1,ntgases
    endif
 enddo
 
-allocate(tgases3d(ng3d),tgases2d(ng2d),&
-         chemty3d(ng3d),chemty2d(ng2d),&
-         i4crtm3d(ng3d),i4crtm2d(ng2d),&
-         usrname3d(ng3d),usrname2d(ng2d),&
-         i4crtm(ntgases),usrname(ntgases),&
+allocate(i4crtm(ntgases),usrname(ntgases),&
          tgases(ntgases),chemtype(ntgases))
+if(ng3d > 0)allocate(tgases3d(ng3d),&
+                     chemty3d(ng3d),&
+                     i4crtm3d(ng3d),&
+                     usrname3d(ng3d))
+if(ng2d > 0)allocate(tgases2d(ng2d),&
+                     chemty2d(ng2d),&
+                     i4crtm2d(ng2d),&
+                     usrname2d(ng2d))
 
 ! Now load information from table
 ng3d=0;ng2d=0

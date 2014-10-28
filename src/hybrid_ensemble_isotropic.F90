@@ -63,6 +63,17 @@ module hybrid_ensemble_isotropic
 !   sub ensemble_forward_model_ad         - adjoint of ensemble_forward_model
 !   sub ensemble_forward_model_dual_res   - dual resolution version of ensemble_forward_model
 !   sub ensemble_forward_model_ad_dual_res- adjoint of ensemble_forward_model_dual_res
+!   get_new_alpha_beta - 
+!   bkerror_a_en - 
+!   ckgcov_a_en_new_factorization - 
+!   ckgcov_a_en_new_factorization_ad - 
+!   hybens_grid_setup - 
+!   hybens_localization_setup - 
+!   convert_km_to_grid_units - 
+!   get_region_lat_lon_ens - 
+!   get_region_dx_dy_ens - 
+!   get_regional_dual_res_grid - 
+!   acceptable_for_essl_fft - 
 !
 ! Variable Definitions:
 !   def yyyy      - what yyyy is
@@ -115,6 +126,17 @@ module hybrid_ensemble_isotropic
   public :: sf_xy
   public :: sqrt_sf_xy
   public :: sqrt_sf_xy_ad
+  public :: get_new_alpha_beta
+  public :: bkerror_a_en
+  public :: ckgcov_a_en_new_factorization
+  public :: ckgcov_a_en_new_factorization_ad
+  public :: hybens_grid_setup
+  public :: hybens_localization_setup
+  public :: convert_km_to_grid_units
+  public :: get_region_lat_lon_ens
+  public :: get_region_dx_dy_ens
+  public :: get_regional_dual_res_grid
+  public :: acceptable_for_essl_fft
 
 ! set passed variables to public
   public :: nelen
@@ -206,7 +228,7 @@ subroutine init_rf_z(z_len)
 !
 !$$$
 
-  use gridmod, only: nsig,ak5,bk5,aeta1_ll,aeta2_ll,pt_ll,pdtop_ll,twodvar_regional, &
+  use gridmod, only: nsig,ak5,bk5,eta1_ll,eta2_ll,pt_ll,pdtop_ll,twodvar_regional, &
                      wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,cmaq_regional, &
                      regional
   use constants, only: half,one,rd_over_cp,zero,one_tenth,ten,two
@@ -214,9 +236,11 @@ subroutine init_rf_z(z_len)
 
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,nxy,i,ii,jj
+  integer(i_kind) k,nxy,i,ii,jj,j,l
   real(r_kind) aspect(nsig),p_interface(nsig+1),ln_p_int(nsig+1)
   real(r_kind) dlnp,kap1,kapr,d1,rnsig
+  real(r_kind),dimension(:,:,:),allocatable:: fmatz_tmp
+  real(r_kind),dimension(:,:),allocatable:: fmat0z_tmp
 
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
@@ -224,8 +248,9 @@ subroutine init_rf_z(z_len)
   rnsig=float(nsig)
 
 !    use new factorization:
-  allocate(fmatz(2,nsig,2,nxy),fmat0z(nsig,2,nxy))
 
+  allocate(fmatz(nxy,2,nsig,2),fmat0z(nxy,nsig,2))
+  allocate(fmatz_tmp(2,nsig,2),fmat0z_tmp(nsig,2))
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
   if(s_ens_v > zero) then
 
@@ -235,7 +260,19 @@ subroutine init_rf_z(z_len)
      end do
 
      do i=1,nxy
-       call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
+       call get_new_alpha_beta(aspect,nsig,fmatz_tmp,fmat0z_tmp)
+       do l=1,2
+         do k=1,nsig
+           do j=1,2
+             fmatz(i,j,k,l)=fmatz_tmp(j,k,l)
+           end do
+         end do
+       end do
+       do l=1,2
+         do k=1,nsig
+           fmat0z(i,k,l)=fmat0z_tmp(k,l)
+         end do
+       end do
      end do
 
   else
@@ -255,15 +292,15 @@ subroutine init_rf_z(z_len)
 
               do k=1,nsig+1
                  if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
-   	            p_interface(k)= one_tenth* &
-                          (aeta1_ll(k)*pdtop_ll + &
-                           aeta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
+                    p_interface(k)= one_tenth* &
+                          (eta1_ll(k)*pdtop_ll + &
+                           eta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
                            pt_ll)
                  endif
                  if (wrf_mass_regional .or. twodvar_regional) then
-		    p_interface(k)=one_tenth*(aeta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
+                    p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
                  endif
-	         ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
+                 ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
               end do
 
            else
@@ -275,17 +312,31 @@ subroutine init_rf_z(z_len)
 
            do k=1,nsig
               dlnp=abs(ln_p_int(k)-ln_p_int(k+1))
- 	      d1=abs(z_len(k))/dlnp
+              d1=abs(z_len(k))/dlnp
               d1=min(rnsig,d1)
               aspect(k)=d1**2
 !!            if(mype == 0) write(400,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
 !!                                         k,sqrt(aspect(k))
            enddo
    
-           call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
+           call get_new_alpha_beta(aspect,nsig,fmatz_tmp,fmat0z_tmp)
+           do l=1,2
+             do k=1,nsig
+               do j=1,2
+                 fmatz(i,j,k,l)=fmatz_tmp(j,k,l)
+               end do
+             end do
+           end do
+           do l=1,2
+             do k=1,nsig
+               fmat0z(i,k,l)=fmat0z_tmp(k,l)
+             end do
+           end do
         end do
      end do
   end if
+  deallocate(fmatz_tmp,fmat0z_tmp)
+  return
 
 end subroutine init_rf_z
 
@@ -345,6 +396,7 @@ subroutine init_rf_x(x_len,kl)
         end do
      end do
   end do
+  return
 
 end subroutine init_rf_x
 
@@ -393,6 +445,7 @@ subroutine init_rf_y(y_len,kl)
      end do
      call get_new_alpha_beta(aspect,grd_loc%nlat,fmaty(1,1,1,k),fmat0y(1,1,k))
   end do
+  return
 
 end subroutine init_rf_y
 
@@ -443,21 +496,21 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
   do k=1,nz
      do l=1,min(2,k-1)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k,iadvance,i)*f(i,k-l)
+           f(i,k)=f(i,k)-fmatz(i,l,k,iadvance)*f(i,k-l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iadvance,i)*f(i,k)
+        f(i,k)=fmat0z(i,k,iadvance)*f(i,k)
      end do
   end do
   do k=nz,1,-1
      do l=1,min(2,nz-k)
         do i=1,nxy
-           f(i,k)=f(i,k)-fmatz(l,k+l,iback,i)*f(i,k+l)
+           f(i,k)=f(i,k)-fmatz(i,l,k+l,iback)*f(i,k+l)
         end do
      end do
      do i=1,nxy
-        f(i,k)=fmat0z(k,iback,i)*f(i,k)
+        f(i,k)=fmat0z(i,k,iback)*f(i,k)
      end do
   end do
   if(iadvance == 2) then
@@ -467,6 +520,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
         end do
      end do
   end if
+  return
 
 end subroutine new_factorization_rf_z
 
@@ -509,6 +563,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs)
   ny=grd_loc%nlat ; nx=grd_loc%nlon ; nz=nlevs
 
   if(vvlocal)then
+!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -551,6 +606,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs)
 
      end do
   else 
+!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -593,6 +649,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs)
 
      end do
   endif
+  return
 end subroutine new_factorization_rf_x
 
 subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
@@ -699,6 +756,7 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs)
         end do
      end do
   endif
+  return
 end subroutine new_factorization_rf_y
 
 subroutine normal_new_factorization_rf_z
@@ -740,7 +798,7 @@ subroutine normal_new_factorization_rf_z
 
   znorm_new=one
 
-   do k=1,grd_ens%nsig
+  do k=1,grd_ens%nsig
       f=zero
       f(:,k)=one
 
@@ -750,26 +808,29 @@ subroutine normal_new_factorization_rf_z
       call new_factorization_rf_z(f,iadvance,iback)
 
       diag(:,k)=sqrt(one/f(:,k))
-   end do
-
-   do k=1,grd_ens%nsig
-      znorm_new(:,k)=diag(:,k)
-   end do
-
-! Check result:
-  do k=1,grd_ens%nsig
-     f=zero
-     f(:,k)=one
-
-     iadvance=1 ; iback=2
-     call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2 ; iback=1
-     call new_factorization_rf_z(f,iadvance,iback)
-
-     diag(:,k)=sqrt(one/f(:,k))
   end do
 
-  if(debug) write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+  do k=1,grd_ens%nsig
+      znorm_new(:,k)=diag(:,k)
+  end do
+
+! Check result:
+  if(debug)then
+    do k=1,grd_ens%nsig
+       f=zero
+       f(:,k)=one
+
+       iadvance=1 ; iback=2
+       call new_factorization_rf_z(f,iadvance,iback)
+       iadvance=2 ; iback=1
+       call new_factorization_rf_z(f,iadvance,iback)
+
+       diag(:,k)=sqrt(one/f(:,k))
+    end do
+
+    write(6,*)'in normal_new_factorization_rf_z, min,max(diag)=',minval(diag),maxval(diag)
+  end if
+  return
 
 end subroutine normal_new_factorization_rf_z
 
@@ -827,20 +888,20 @@ subroutine normal_new_factorization_rf_x
 
   do j=1,grd_loc%nlon
      f=zero
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              f(i,j,k)=one
-           end do
+     do k=1,kl
+        do i=1,grd_loc%nlat
+           f(i,j,k)=one
         end do
+     end do
      iadvance=1 ; iback=2
      call new_factorization_rf_x(f,iadvance,iback,kl)
      iadvance=2 ; iback=1
      call new_factorization_rf_x(f,iadvance,iback,kl)
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              diag(i,j,k)=sqrt(one/f(i,j,k))
-           end do
+     do k=1,kl
+        do i=1,grd_loc%nlat
+           diag(i,j,k)=sqrt(one/f(i,j,k))
         end do
+     end do
   end do
   do k=1,kl
      do j=1,grd_loc%nlon
@@ -868,8 +929,9 @@ subroutine normal_new_factorization_rf_x
            end do
         end do
      end do
-  write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
+     write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
   endif
+  return
 
 end subroutine normal_new_factorization_rf_x
 
@@ -929,66 +991,67 @@ subroutine normal_new_factorization_rf_y
   ynorm_new=one
 
   if(grd_loc%nlat < grd_loc%nlon)then
-  lend=1
-  iend=grd_loc%nlat 
+    lend=1
+    iend=grd_loc%nlat 
   else
-  lend=grd_loc%nlat/grd_loc%nlon + 1
-  iend=grd_loc%nlon 
+    lend=grd_loc%nlat/grd_loc%nlon + 1
+    iend=grd_loc%nlon 
   endif
               
   do loop=1,lend
      ll=(loop-1)*iend
      f=zero
-        do k=1,kl
-           do i=1,iend
-           lcount=ll+i
-           f(lcount,i,k)=one
-           if(lcount == grd_loc%nlat) exit
-           end do
-        enddo
-
-     iadvance=1 ; iback=2
-     call new_factorization_rf_y(f,iadvance,iback,kl)
-     iadvance=2 ; iback=1
-     call new_factorization_rf_y(f,iadvance,iback,kl)
-
-  do k=1,kl
-     do i=1,iend
-        lcount=ll+i
-        diag(lcount,k)=sqrt(one/f(lcount,i,k))
-        ynorm_new(lcount,k)=diag(lcount,k)
-        if(lcount == grd_loc%nlat) exit
-     end do
-  end do
-  enddo
-!               check that ynorm is corect
-  if(debug) then
-  do loop=1,lend
-     ll=(loop-1)*iend
-     f=zero
      do k=1,kl
         do i=1,iend
-           lcount=ll+i
-           f(lcount,i,k)=one
-           if(lcount ==  grd_loc%nlat) exit
+        lcount=ll+i
+        f(lcount,i,k)=one
+        if(lcount == grd_loc%nlat) exit
         end do
      enddo
 
      iadvance=1 ; iback=2
      call new_factorization_rf_y(f,iadvance,iback,kl)
      iadvance=2 ; iback=1
-     call new_factorization_rf_y(f,iadvance,iback,kl) 
+     call new_factorization_rf_y(f,iadvance,iback,kl)
 
      do k=1,kl
         do i=1,iend
            lcount=ll+i
            diag(lcount,k)=sqrt(one/f(lcount,i,k))
-           if(lcount ==  grd_loc%nlat) exit
+           ynorm_new(lcount,k)=diag(lcount,k)
+           if(lcount == grd_loc%nlat) exit
         end do
      end do
- enddo
-     write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
+  enddo
+!               check that ynorm is corect
+  if(debug) then
+     do loop=1,lend
+        ll=(loop-1)*iend
+        f=zero
+        do k=1,kl
+           do i=1,iend
+              lcount=ll+i
+              f(lcount,i,k)=one
+              if(lcount ==  grd_loc%nlat) exit
+           end do
+        enddo
+
+        iadvance=1 ; iback=2
+        call new_factorization_rf_y(f,iadvance,iback,kl)
+        iadvance=2 ; iback=1
+        call new_factorization_rf_y(f,iadvance,iback,kl) 
+
+        do k=1,kl
+           do i=1,iend
+              lcount=ll+i
+              diag(lcount,k)=sqrt(one/f(lcount,i,k))
+              if(lcount ==  grd_loc%nlat) exit
+           end do
+        end do
+    enddo
+    write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
   endif
+  return
 end subroutine normal_new_factorization_rf_y
 
   subroutine create_ensemble
@@ -1030,7 +1093,7 @@ end subroutine normal_new_factorization_rf_y
     allocate(en_perts(n_ens,ntlevs_ens))
     call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
  
-   do m=1,ntlevs_ens
+    do m=1,ntlevs_ens
        do n=1,n_ens
           call gsi_bundlecreate(en_perts(n,m),grid_ens,'ensemble perts',istatus, &
                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
@@ -1043,9 +1106,12 @@ end subroutine normal_new_factorization_rf_y
 
 
     allocate(ps_bar(grd_ens%lat2,grd_ens%lon2,ntlevs_ens) )
-    if(debug) write(6,*)' in create_ensemble, grd_ens%latlon11,grd_ens%latlon1n,n_ens,ntlevs_ens=', &
-                                    grd_ens%latlon11,grd_ens%latlon1n,n_ens,ntlevs_ens
-    if(debug) write(6,*)' in create_ensemble, total bytes allocated=',4*nelen*n_ens*ntlevs_ens
+    if(debug) then
+       write(6,*)' in create_ensemble, grd_ens%latlon11,grd_ens%latlon1n,n_ens,ntlevs_ens=', &
+                                 grd_ens%latlon11,grd_ens%latlon1n,n_ens,ntlevs_ens
+       write(6,*)' in create_ensemble, total bytes allocated=',4*nelen*n_ens*ntlevs_ens
+    end if
+    return
 
   end subroutine create_ensemble
 
@@ -1192,7 +1258,7 @@ end subroutine normal_new_factorization_rf_y
           if(istatus/=0) then
           write(6,*)trim(myname_),': trouble destroying en_bar bundle'
           call stop2(999)
-	  end if
+         end if
        end do
 
        deallocate(en_bar)
@@ -1237,9 +1303,11 @@ end subroutine normal_new_factorization_rf_y
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
 !                             GEFS ensemble perturbations in TC vortex area
 !                             are replaced with TC vortex library perturbations
+#ifdef WRF
                 if (pseudo_hybens) then
                    call get_pseudo_ensperts
                 end if
+#endif /* end NO WRF-library block */
 
              case(2)
 
@@ -1264,6 +1332,7 @@ end subroutine normal_new_factorization_rf_y
        end if
 
     end if
+    return
 
   end subroutine load_ensemble
 
@@ -1425,6 +1494,7 @@ end subroutine normal_new_factorization_rf_y
     else
        call general_suba2sube(grd_anl,grd_ens,p_e2a,bundle_anl%values,bundle_ens%values,regional)
     end if
+    return
 
 
   end subroutine generate_one_ensemble_perturbation
@@ -1468,6 +1538,7 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) zloc1(ny,nx)
     integer(i_kind) i,ii,j,jj,k
 
+!$omp parallel do schedule(dynamic,1) private(j,k,i,jj,ii,zloc1)
     do j=1,nscl
        do k=1,nnnn1o
           i=0
@@ -1491,6 +1562,7 @@ end subroutine normal_new_factorization_rf_y
           end do
        end do
     end do
+    return
     
   end subroutine fix_belt
 
@@ -1541,8 +1613,8 @@ end subroutine normal_new_factorization_rf_y
        call general_suba2sube(grd_a1,grd_e1,p_e2a, &
             reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/)),qvar3d_ens,regional)
     end if
-!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
     do m=1,ntlevs_ens
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
        do n=1,n_ens
           call gsi_bundlegetpointer(en_perts(n,m),'q',w3,istatus)
           if(istatus/=0) then
@@ -1558,6 +1630,7 @@ end subroutine normal_new_factorization_rf_y
           end do
        end do
     end do
+    return
  
   end subroutine rescale_ensemble_rh_perturbations
 
@@ -1589,8 +1662,8 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) istatus,n,m
 
     if(l_hyb_ens) then
-       do m=ntlevs_ens,1,-1
-          do n=n_ens,1,-1
+       do m=1,ntlevs_ens
+          do n=1,n_ens
              call gsi_bundleunset(en_perts(n,m),istatus)
              if(istatus/=0) then
                 write(6,*)'in destroy_ensemble: trouble destroying en_perts bundle'
@@ -1601,6 +1674,7 @@ end subroutine normal_new_factorization_rf_y
        deallocate(ps_bar)
        deallocate(en_perts)
     end if
+    return
 
   end subroutine destroy_ensemble
 
@@ -1647,11 +1721,11 @@ end subroutine normal_new_factorization_rf_y
     implicit none
     type(gsi_bundle),intent(inout) :: cvec
     type(gsi_bundle),intent(in)    :: a_en(n_ens)
-    integer,intent(in)		   :: ibin
+    integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model'
     logical nogood
-    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
     integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
 
 !   Check resolution consistency between static and ensemble components
@@ -1681,55 +1755,54 @@ end subroutine normal_new_factorization_rf_y
     jm=cvec%grid%jm
     km=cvec%grid%km
     ipe(1)=1
+    ipx=ipe(1)
+!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
+    do j=1,jm
        do n=1,n_ens
           do ic3=1,nc3d
+             ipic=ipc3d(ic3)
              do k=1,km
-                do j=1,jm
-                   do i=1,im
-                      cvec%r3(ipc3d(ic3))%q(i,j,k)=cvec%r3(ipc3d(ic3))%q(i,j,k) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,k)*en_perts(n,ibin)%r3(ipc3d(ic3))%qr4(i,j,k)
-                   end do
+                do i=1,im
+                   cvec%r3(ipic)%q(i,j,k)=cvec%r3(ipic)%q(i,j,k) &
+                         +a_en(n)%r3(ipx)%q(i,j,k)*en_perts(n,ibin)%r3(ipic)%qr4(i,j,k)
                 end do
              end do
           end do
 
           do ic2=1,nc2d
+             ipic=ipc2d(ic2)
 
              select case (trim(cvars2d(ic2)))
  
                 case('ps','PS')
- 
-        if(pwgtflg)then
-                   do k=1,km
-                      do j=1,jm
+    
+                   if(pwgtflg)then
+                      do k=1,km
                          do i=1,im
-                         cvec%r2(ipc2d(ic2))%q(i,j)=cvec%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,k)*pwgt(i,j,k)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
+                         cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
+                            +a_en(n)%r3(ipx)%q(i,j,k)*pwgt(i,j,k)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                          end do
                       end do
-                   end do
-        else
-                   do j=1,jm
+                    else
                       do i=1,im
-                         cvec%r2(ipc2d(ic2))%q(i,j)=cvec%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
+                         cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
+                            +a_en(n)%r3(ipx)%q(i,j,1)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                       end do
-                   end do
-        endif
+                    endif
  
                 case('sst','SST')
  
-                   do j=1,jm
-                      do i=1,im
-                         cvec%r2(ipc2d(ic2))%q(i,j)=cvec%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
+                         +a_en(n)%r3(ipx)%q(i,j,1)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
  
              end select
 
           end do
-       end do !end do n_ens
+       end do
+    end do !end do n_ens
+    return
 
   end subroutine ensemble_forward_model
 
@@ -1785,7 +1858,7 @@ end subroutine normal_new_factorization_rf_y
     integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_dual_res'
-    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
     integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
@@ -1821,58 +1894,56 @@ end subroutine normal_new_factorization_rf_y
 
 
     ipe(1)=1
+    ipx=ipe(1)
     work_ens%values(:)=zero
     im=work_ens%grid%im
     jm=work_ens%grid%jm
     km=work_ens%grid%km
+!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
+    do j=1,jm
        do n=1,n_ens
           do ic3=1,nc3d
+             ipic=ipc3d(ic3)
              do k=1,km
-                do j=1,jm
-                   do i=1,im
-                      work_ens%r3(ipc3d(ic3))%q(i,j,k)=work_ens%r3(ipc3d(ic3))%q(i,j,k) &
-                         +a_en(n)%r3(ipe(1))%q(i,j,k)*en_perts(n,ibin)%r3(ipc3d(ic3))%qr4(i,j,k)
-                   end do
+                do i=1,im
+                   work_ens%r3(ipic)%q(i,j,k)=work_ens%r3(ipic)%q(i,j,k) &
+                      +a_en(n)%r3(ipx)%q(i,j,k)*en_perts(n,ibin)%r3(ipic)%qr4(i,j,k)
                 end do
              end do
           end do
           do ic2=1,nc2d
+             ipic=ipc2d(ic2)
 
              select case (trim(cvars2d(ic2)))
 
                 case('ps','PS')
 
-        if(pwgtflg)then
-                   do k=1,km
-                      do j=1,jm
+                  if(pwgtflg)then
+                      do k=1,km
                          do i=1,im
-                         work_ens%r2(ipc2d(ic2))%q(i,j)=work_ens%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,k)*pwgt(i,j,k)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
+                         work_ens%r2(ipic)%q(i,j)=work_ens%r2(ipic)%q(i,j) &
+                            +a_en(n)%r3(ipx)%q(i,j,k)*pwgt(i,j,k)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                          end do
                       end do
-                   end do
-        else
-                   do j=1,jm
+                  else
                       do i=1,im
-                         work_ens%r2(ipc2d(ic2))%q(i,j)=work_ens%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
+                         work_ens%r2(ipic)%q(i,j)=work_ens%r2(ipic)%q(i,j) &
+                            +a_en(n)%r3(ipx)%q(i,j,1)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                       end do
-                   end do
-        endif
+                  endif
 
                 case('sst','SST')
 
-                   do j=1,jm
-                      do i=1,im
-                         work_ens%r2(ipc2d(ic2))%q(i,j)=work_ens%r2(ipc2d(ic2))%q(i,j) &
-                            +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      work_ens%r2(ipic)%q(i,j)=work_ens%r2(ipic)%q(i,j) &
+                         +a_en(n)%r3(ipx)%q(i,j,1)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
 
              end select
 
           end do
-       end do !n_ens
+       end do
+    end do !n_ens
 
     call general_sube2suba(grd_ens,grd_anl,p_e2a,work_ens%values,work_anl%values,regional)
     call gsi_bundledestroy(work_ens,istatus)
@@ -1891,6 +1962,7 @@ end subroutine normal_new_factorization_rf_y
        write(6,*)trim(myname_),': trouble destroying work anl bundle'
        call stop2(999)
     endif
+    return
 
   end subroutine ensemble_forward_model_dual_res
 
@@ -1941,7 +2013,7 @@ end subroutine normal_new_factorization_rf_y
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad'
     logical nogood
-    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
     integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
 
 !   Check resolution consistency between static and ensemble components
@@ -1971,53 +2043,52 @@ end subroutine normal_new_factorization_rf_y
     jm=cvec%grid%jm
     km=cvec%grid%km
     ipe(1)=1
+    ipx=ipe(1)
+!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
+    do j=1,jm
        do n=1,n_ens
           do ic3=1,nc3d
+             ipic=ipc3d(ic3)
              do k=1,km
-                do j=1,jm
-                   do i=1,im
-                         a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
-                               +cvec%r3(ipc3d(ic3))%q(i,j,k)*en_perts(n,ibin)%r3(ipc3d(ic3))%qr4(i,j,k)
-                   end do
+                do i=1,im
+                      a_en(n)%r3(ipx)%q(i,j,k)=a_en(n)%r3(ipx)%q(i,j,k) &
+                            +cvec%r3(ipic)%q(i,j,k)*en_perts(n,ibin)%r3(ipic)%qr4(i,j,k)
                 end do
              end do
           end do
           do ic2=1,nc2d
 
+             ipic=ipc2d(ic2)
              select case (trim(cvars2d(ic2)))
  
                 case('ps','PS')
  
                  if(pwgtflg)then
                    do k=1,km
-                      do j=1,jm
-                         do i=1,im
-                            a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
-                               +cvec%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)*pwgt(i,j,k)
-                         end do
+                      do i=1,im
+                         a_en(n)%r3(ipx)%q(i,j,k)=a_en(n)%r3(ipx)%q(i,j,k) &
+                            +cvec%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)*pwgt(i,j,k)
                       end do
                    end do
                  else
-                   do j=1,jm
-                      do i=1,im
-                         a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
-                            +cvec%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      a_en(n)%r3(ipx)%q(i,j,1)=a_en(n)%r3(ipx)%q(i,j,1) &
+                         +cvec%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
                  endif
   
                 case('sst','SST')
   
-                   do j=1,jm
-                      do i=1,im
-                         a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
-                            +cvec%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      a_en(n)%r3(ipx)%q(i,j,1)=a_en(n)%r3(ipx)%q(i,j,1) &
+                         +cvec%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
  
              end select
           end do
-       end do !n_ens
+       end do
+    end do !n_ens
+    return
   end subroutine ensemble_forward_model_ad
 
   subroutine ensemble_forward_model_ad_dual_res(cvec,a_en,ibin)
@@ -2073,7 +2144,7 @@ end subroutine normal_new_factorization_rf_y
     integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad_dual_res'
-    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
     integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
@@ -2122,61 +2193,60 @@ end subroutine normal_new_factorization_rf_y
     endif
 
     ipe(1)=1
+    ipx=ipe(1)
     im=a_en(1)%grid%im
     jm=a_en(1)%grid%jm
     km=a_en(1)%grid%km
+!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
+    do j=1,jm
        do n=1,n_ens
           do ic3=1,nc3d
+             ipic=ipc3d(ic3)
              do k=1,km
-                do j=1,jm
-                   do i=1,im
-                      a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
-                               +work_ens%r3(ipc3d(ic3))%q(i,j,k)*en_perts(n,ibin)%r3(ipc3d(ic3))%qr4(i,j,k)
-                   end do
+                do i=1,im
+                   a_en(n)%r3(ipx)%q(i,j,k)=a_en(n)%r3(ipx)%q(i,j,k) &
+                            +work_ens%r3(ipic)%q(i,j,k)*en_perts(n,ibin)%r3(ipic)%qr4(i,j,k)
                 end do
              end do
           end do
           do ic2=1,nc2d
 
+             ipic=ipc2d(ic2)
              select case (trim(cvars2d(ic2)))
 
                 case('ps','PS')
 
                  if(pwgtflg)then
                    do k=1,km
-                      do j=1,jm
-                         do i=1,im
-                            a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
-                               +work_ens%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)*pwgt(i,j,k)
-                         end do
+                      do i=1,im
+                         a_en(n)%r3(ipx)%q(i,j,k)=a_en(n)%r3(ipx)%q(i,j,k) &
+                            +work_ens%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)*pwgt(i,j,k)
                       end do
                    end do
                  else
-                   do j=1,jm
-                      do i=1,im
-                         a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
-                            +work_ens%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      a_en(n)%r3(ipx)%q(i,j,1)=a_en(n)%r3(ipx)%q(i,j,1) &
+                         +work_ens%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
                  endif
 
                 case('sst','SST')
 
-                   do j=1,jm
-                      do i=1,im
-                         a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
-                            +work_ens%r2(ipc2d(ic2))%q(i,j)*en_perts(n,ibin)%r2(ipc2d(ic2))%qr4(i,j)
-                      end do
+                   do i=1,im
+                      a_en(n)%r3(ipx)%q(i,j,1)=a_en(n)%r3(ipx)%q(i,j,1) &
+                         +work_ens%r2(ipic)%q(i,j)*en_perts(n,ibin)%r2(ipic)%qr4(i,j)
                    end do
 
              end select
           end do
-       end do !n_ens
+       end do
+    end do !n_ens
     call gsi_bundledestroy(work_ens,istatus)
     if(istatus/=0) then
        write(6,*)trim(myname_),': trouble destroying work ens bundle'
        call stop2(999)
     endif
+    return
 
   end subroutine ensemble_forward_model_ad_dual_res
 
@@ -2231,10 +2301,10 @@ end subroutine normal_new_factorization_rf_y
 
     nv_tot=nvert
     nv_this=nv_tot/npe
-    if(mod(nv_tot,npe)/=0) nv_this=nv_this+1
     if(mod(nv_tot,npe)==0) then
        kchk=npe
     else
+       nv_this=nv_this+1
        kchk=mod(nv_tot,npe)
     end if
 
@@ -2319,6 +2389,7 @@ end subroutine normal_new_factorization_rf_y
     end do
 
     deallocate(zsub,z)
+    return
 
   end subroutine special_sd2h0
 
@@ -2379,6 +2450,7 @@ end subroutine normal_new_factorization_rf_y
         z(i,k,is)=work(ii)
      end do
   end do
+  return
   
 end subroutine special_sd2h
 
@@ -2445,95 +2517,98 @@ subroutine beta12mult(grady)
 
 ! Initialize timer
   call timer_ini('beta12mult')
-if(regional .and. betaflg) then
-! Request CV pointers to vars pertinent to ensemble
-  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
-  if(istatus/=0) then
-     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
-     call stop2(999)
-  endif
-  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
-  if(istatus/=0) then
-     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
-     call stop2(999)
-  endif
-  do ii=1,nsubwin
+  if(regional .and. betaflg) then
+!   Request CV pointers to vars pertinent to ensemble
+    call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
+    if(istatus/=0) then
+       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+       call stop2(999)
+    endif
+    call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+    if(istatus/=0) then
+       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+       call stop2(999)
+    endif
+    do ii=1,nsubwin
 
 !    multiply by beta1_inv first:
-     do ic3=1,nc3d
-!  check for ozone and skip if oz_univ_static = true
-        if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
-              enddo
-           enddo
-        enddo
-     enddo
-     do ic2=1,nc2d
+!$omp parallel do schedule(dynamic,1) private(ic3,k,j,i)
+       do ic3=1,nc3d
+!    check for ozone and skip if oz_univ_static = true
+          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+                enddo
+             enddo
+          enddo
+       enddo
+       do ic2=1,nc2d
 ! Default to static B estimate for SST
-        if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle
-        do j=1,lon2
-           do i=1,lat2
-              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
-           enddo
-        enddo
-     enddo
+          if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle
+          do j=1,lon2
+             do i=1,lat2
+                grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+             enddo
+          enddo
+       enddo
 
-!    next multiply by beta2inv:
-     do nn=1,n_ens
-        do k=1,grd_ens%nsig
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 grady%aens(ii,nn)%r3(1)%q(i,j,k) =beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
-              enddo
-           enddo
-        enddo
-     enddo
+!      next multiply by beta2inv:
+!$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
+       do nn=1,n_ens
+          do k=1,grd_ens%nsig
+             do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                   grady%aens(ii,nn)%r3(1)%q(i,j,k) =beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
+                enddo
+             enddo
+          enddo
+       enddo
+  
 
+    end do
+  else
 
-  end do
-else
-
-! Request CV pointers to vars pertinent to ensemble
-  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
-  if(istatus/=0) then
-     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
-     call stop2(999)
-  endif
-  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
-  if(istatus/=0) then
-     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
-     call stop2(999)
-  endif
-  do ii=1,nsubwin
-
-!    multiply by betas_inv first:
-     do ic3=1,nc3d
-!  check for ozone and skip if oz_univ_static = true
+!   Request CV pointers to vars pertinent to ensemble
+    call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
+    if(istatus/=0) then
+       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+       call stop2(999)
+    endif
+    call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+    if(istatus/=0) then
+       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+       call stop2(999)
+    endif
+    do ii=1,nsubwin
+  
+!      multiply by betas_inv first:
+!$omp parallel do schedule(dynamic,1) private(ic3,k)
+       do ic3=1,nc3d
+!    check for ozone and skip if oz_univ_static = true
         if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-        do k=1,nsig
-           grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k)
-        enddo
-     enddo
-     do ic2=1,nc2d
+          do k=1,nsig
+             grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k)
+          enddo
+       enddo
+       do ic2=1,nc2d
 ! Default to static B estimate for SST
-        if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-        grady%step(ii)%r2(ipc2d(ic2))%q =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q
-     enddo
+          if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
+          grady%step(ii)%r2(ipc2d(ic2))%q =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q
+       enddo
 
-!    next multiply by betae_inv:
-!$omp parallel do schedule(dynamic,1) private(nn)
-     do nn=1,n_ens
-        do k=1,nsig
-           grady%aens(ii,nn)%r3(1)%q(:,:,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,:,k)
-        enddo
-     enddo
+!      next multiply by betae_inv:
+!$omp parallel do schedule(dynamic,1) private(nn,k)
+       do nn=1,n_ens
+          do k=1,nsig
+             grady%aens(ii,nn)%r3(1)%q(:,:,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,:,k)
+          enddo
+       enddo
      
  
-  end do
-endif ! regional
+    end do
+  endif ! regional
   call timer_fnl('beta12mult')
 
   return
@@ -2767,34 +2842,36 @@ subroutine init_sf_xy(jcap_in)
      nlon_sploc=grd_ens%nlon
      nlon_sploc0=nlon_sploc
   end if
-        if(mype == 0) write(6,*)' nlat_sploc,nlon_sploc0,nlon_sploc=',nlat_sploc,nlon_sploc0,nlon_sploc
-        if(mype == 0) write(6,*)' nlat_ens  ,nlon_ens              =',grd_ens%nlat,grd_ens%nlon
+  if(mype == 0)then
+     write(6,*)' nlat_sploc,nlon_sploc0,nlon_sploc=',nlat_sploc,nlon_sploc0,nlon_sploc
+     write(6,*)' nlat_ens  ,nlon_ens              =',grd_ens%nlat,grd_ens%nlon
+  end if
   num_fields=grd_ens%nsig*n_ens
   call general_sub2grid_create_info(grd_sploc,1,nlat_sploc,nlon_sploc,grd_ens%nsig,num_fields,.false.)
 
 !  set up spectral variables for jcap
 
   call general_init_spec_vars(sp_loc,jcap,jcap,nlat_sploc,nlon_sploc,eqspace=use_sp_eqspace)
-             if(mype==0) then
-                do j=1,grd_ens%nlon
-                   if(j.le.nlon_sploc) then
-                      write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
-                          j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
-                   else
-                      write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
-                          j,rad2deg*sp_ens%rlons(j)
-                   end if
-                end do
-                do i=1,grd_ens%nlat
-                   if(i.le.nlat_sploc) then
-                      write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
-                          i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
-                   else
-                      write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
-                          i,rad2deg*sp_ens%rlats(i)
-                   end if
-                end do
-             end if
+  if(mype==0) then
+     do j=1,grd_ens%nlon
+        if(j.le.nlon_sploc) then
+           write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
+               j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
+        else
+           write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
+               j,rad2deg*sp_ens%rlons(j)
+        end if
+     end do
+     do i=1,grd_ens%nlat
+        if(i.le.nlat_sploc) then
+           write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
+               i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
+        else
+           write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
+               i,rad2deg*sp_ens%rlats(i)
+        end if
+     end do
+  end if
 
 !   regardless of whether or not nlat_sploc=grd_ens%nlat and nlon_sploc=grd_ens%nlon, compute
 !    interpolation structure variable that will be used for interpolation from sp_loc grid to grd_ens.
@@ -2944,17 +3021,18 @@ subroutine init_sf_xy(jcap_in)
       ftest(grd_ens%nlat/2,grd_ens%nlon/2,k)=one
    end do
    call sf_xy(ftest,grd_loc%kbegin_loc,grd_loc%kend_loc)
-      if(mype==0) then
-         do j=1,grd_ens%nlon
-            do i=1,grd_ens%nlat
-               out1(j,i)=ftest(i,j,grd_loc%kbegin_loc)
-            end do
-         end do
-         write(mapname,'("out_",i2.2)')1+mod(grd_loc%kbegin_loc-1,grd_ens%nsig)
-         call outgrads1(out1,grd_ens%nlon,grd_ens%nlat,mapname)
-      end if
+   if(mype==0) then
+      do j=1,grd_ens%nlon
+        do i=1,grd_ens%nlat
+           out1(j,i)=ftest(i,j,grd_loc%kbegin_loc)
+        end do
+     end do
+     write(mapname,'("out_",i2.2)')1+mod(grd_loc%kbegin_loc-1,grd_ens%nsig)
+     call outgrads1(out1,grd_ens%nlon,grd_ens%nlat,mapname)
+   end if
   end if
   deallocate(rkm,f,f0)
+  return
 
 end subroutine init_sf_xy
 
@@ -2992,6 +3070,7 @@ subroutine sf_xy(f,k_start,k_end)
   use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
   use hybrid_ensemble_parameters,only: use_localization_grid
   use egrid2agrid_mod,only: g_egrid2agrid,g_egrid2agrid_ad  
+  use mpimod, only: mype
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
@@ -3004,32 +3083,27 @@ subroutine sf_xy(f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
-!  Cannot get this loop to thread properly on Zeus - remove threading for now.
-!!$omp parallel do schedule(dynamic,1) private(k,g)
+!$omp parallel do schedule(dynamic,1) private(k,g)
     do k=k_start,k_end
-       call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
+       call general_s2g0_ad(grd_ens,sp_loc,g,f(1,1,k))
        g(:)=g(:)*spectral_filter(:,k_index(k))
-!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
-!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
-       call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
+       call general_s2g0(grd_ens,sp_loc,g,f(1,1,k))
     end do
 
   else
 
     vector=.false.
-!  Cannot get this loop to thread properly on Zeus - remove threading for now.
-!!$omp parallel do schedule(dynamic,1) private(k,g,work)
+!$omp parallel do schedule(dynamic,1) private(k,g,work)
     do k=k_start,k_end
        call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
        call general_s2g0_ad(grd_sploc,sp_loc,g,work)
        g(:)=g(:)*spectral_filter(:,k_index(k))
-!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
-!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
        call general_s2g0(grd_sploc,sp_loc,g,work)
        call g_egrid2agrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
     end do
 
   endif
+  return
 
 end subroutine sf_xy
 
@@ -3093,6 +3167,7 @@ subroutine sqrt_sf_xy(z,f,k_start,k_end)
      end do
 
   end if
+  return
 
 end subroutine sqrt_sf_xy
 
@@ -3157,10 +3232,10 @@ subroutine sqrt_sf_xy_ad(z,f,k_start,k_end)
      end do
 
   end if
+  return
 
 end subroutine sqrt_sf_xy_ad
 
-end module hybrid_ensemble_isotropic
 
 subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
 !$$$  subprogram documentation block
@@ -3215,6 +3290,7 @@ subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
      fmat_out(1,i,2)=fmat(i-1,-1,2)
      fmat0_out(i,2)=one/fmat(i-1,0,2)
   end do
+  return
 
 end subroutine get_new_alpha_beta
 
@@ -3330,8 +3406,6 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   use kinds, only: r_kind,i_kind
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_isotropic, only: &
-         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y,sf_xy
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -3433,11 +3507,6 @@ subroutine ckgcov_a_en_new_factorization(z,a_en)
   use constants, only: zero
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_isotropic, only: &
-         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y
-#ifdef LATER
-  use hybrid_ensemble_isotropic, only: sqrt_sf_xy
-#endif /*LATER*/
   use hybrid_ensemble_parameters, only: nval_lenz_en
   use general_sub2grid_mod, only: general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
@@ -3548,8 +3617,6 @@ subroutine ckgcov_a_en_new_factorization_ad(z,a_en)
   use constants, only: zero
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_isotropic, only: &
-         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y,sqrt_sf_xy_ad
   use hybrid_ensemble_parameters, only: nval_lenz_en
   use general_sub2grid_mod, only: general_sub2grid
   use gsi_bundlemod, only: gsi_bundle
@@ -3661,8 +3728,6 @@ subroutine hybens_grid_setup
   use egrid2agrid_mod,only: g_create_egrid2agrid,create_egrid2agrid
   use mpimod, only: mype,ierror,npe
   use constants, only: zero,one
-  use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
-  use hybrid_ensemble_isotropic, only: region_dx_ens,region_dy_ens
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
 
@@ -3674,7 +3739,7 @@ subroutine hybens_grid_setup
   real(r_kind) eps,r_e
   real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
 
-             nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
+  nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
 
   if(aniso_a_en) then
      if(mype == 0) write(6,*)' anisotropic option not available yet for hybrid ensemble localization'
@@ -3795,13 +3860,10 @@ subroutine hybens_localization_setup
 !$$$
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
-	 n_ens,vvlocal,&
-	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
+         n_ens,vvlocal,&
+         s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
          readin_localization,nval_lenz_en,readin_beta,betas_inv,betae_inv,beta1_inv
   use gridmod,only: regional
-  use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
-         normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
-         normal_new_factorization_rf_y,init_sf_xy
   use constants, only: one,zero
   use mpimod, only: mype
   implicit none
@@ -3883,7 +3945,7 @@ subroutine hybens_localization_setup
      allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
      s_ens_hv=s_ens_h
      s_ens_vv=s_ens_v
-      nz=1
+     nz=1
   end if
 
 ! Set up localization filters
@@ -3916,6 +3978,7 @@ subroutine hybens_localization_setup
   else
      nval_lenz_en=sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
   end if
+  return
 
 end subroutine hybens_localization_setup
 
@@ -3945,7 +4008,6 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_isotropic,only: region_dx_ens,region_dy_ens
   use hybrid_ensemble_parameters, only: grd_loc,n_ens,s_ens_hv
   implicit none
 
@@ -3957,10 +4019,12 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
 
   dxmax=maxval(region_dx_ens)
   dymax=maxval(region_dy_ens)
-  if(debug) write(6,*)' in convert_km_to_grid_units, min, max region_dx_ens*.001=',&
-                    .001_r_kind*minval(region_dx_ens),.001_r_kind*dxmax
-  if(debug) write(6,*)' in convert_km_to_grid_units, min, max region_dy_ens*.001=',&
-                    .001_r_kind*minval(region_dy_ens),.001_r_kind*dymax
+  if(debug)then
+     write(6,*)' in convert_km_to_grid_units, min, max region_dx_ens*.001=',&
+                 .001_r_kind*minval(region_dx_ens),.001_r_kind*dxmax
+     write(6,*)' in convert_km_to_grid_units, min, max region_dy_ens*.001=',&
+                 .001_r_kind*minval(region_dy_ens),.001_r_kind*dymax
+  end if
 
   do k=1,nz
      s_ens_h_gu_x(k)=s_ens_hv(k)/(.001_r_kind*dxmax)
@@ -3979,6 +4043,7 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
      enddo
   enddo
   endif
+  return
 
 
 end subroutine convert_km_to_grid_units
@@ -4558,34 +4623,36 @@ subroutine get_region_lat_lon_ens(region_lat_ens,region_lon_ens,rlat_e,rlon_e,nl
                              rad2deg*minval(region_lon_ens),rad2deg*maxval(region_lon_ens)
 
   make_test_maps=.false.
-  allocate(out1e(nlon_e,nlat_e))
-  allocate(out1(nlon,nlat))
   if(make_test_maps.and.mype==0) then
-         do j=1,nlon_e
-            do i=1,nlat_e
-               out1e(j,i)=region_lon_ens(i,j)
-            end do
-         end do
-         call outgrads1(out1e,nlon_e,nlat_e,'region_lon_e')
-                do j=1,nlon
-                   do i=1,nlat
-                      out1(j,i)=region_lon(i,j)
-                   end do
-                end do
-                call outgrads1(out1,nlon,nlat,'region_lon')
-         do j=1,nlon_e
-            do i=1,nlat_e
-               out1e(j,i)=region_lat_ens(i,j)
-            end do
-         end do
-         call outgrads1(out1e,nlon_e,nlat_e,'region_lat_e')
-                do j=1,nlon
-                   do i=1,nlat
-                      out1(j,i)=region_lat(i,j)
-                   end do
-                end do
-                call outgrads1(out1,nlon,nlat,'region_lat')
+     allocate(out1e(nlon_e,nlat_e))
+     allocate(out1(nlon,nlat))
+     do j=1,nlon_e
+        do i=1,nlat_e
+           out1e(j,i)=region_lon_ens(i,j)
+        end do
+     end do
+     call outgrads1(out1e,nlon_e,nlat_e,'region_lon_e')
+     do j=1,nlon
+        do i=1,nlat
+           out1(j,i)=region_lon(i,j)
+        end do
+     end do
+     call outgrads1(out1,nlon,nlat,'region_lon')
+     do j=1,nlon_e
+        do i=1,nlat_e
+           out1e(j,i)=region_lat_ens(i,j)
+        end do
+     end do
+     call outgrads1(out1e,nlon_e,nlat_e,'region_lat_e')
+     do j=1,nlon
+        do i=1,nlat
+           out1(j,i)=region_lat(i,j)
+        end do
+     end do
+     call outgrads1(out1,nlon,nlat,'region_lat')
+     deallocate(out1e,out1)
   end if
+  return
 
 end subroutine get_region_lat_lon_ens
 
@@ -4640,35 +4707,36 @@ subroutine get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
   region_dy_ens(:,:)=worke(1,:,:,1)*ratio
 
   make_test_maps=.false.
-  allocate(out1ens(nlon_ens,nlat_ens))
-  allocate(out1(nlon,nlat))
   if(make_test_maps.and.mype==0) then
-         do j=1,nlon_ens
-            do i=1,nlat_ens
-               out1ens(j,i)=region_dx_ens(i,j)
-            end do
-         end do
-         call outgrads1(out1ens,nlon_ens,nlat_ens,'region_dx_ens')
-                do j=1,nlon
-                   do i=1,nlat
-                      out1(j,i)=region_dx(i,j)
-                   end do
-                end do
-                call outgrads1(out1,nlon,nlat,'region_dx')
-         do j=1,nlon_ens
-            do i=1,nlat_ens
-               out1ens(j,i)=region_dy_ens(i,j)
-            end do
-         end do
-         call outgrads1(out1ens,nlon_ens,nlat_ens,'region_dy_ens')
-                do j=1,nlon
-                   do i=1,nlat
-                      out1(j,i)=region_dy(i,j)
-                   end do
-                end do
-                call outgrads1(out1,nlon,nlat,'region_dy')
+     allocate(out1ens(nlon_ens,nlat_ens))
+     allocate(out1(nlon,nlat))
+     do j=1,nlon_ens
+        do i=1,nlat_ens
+           out1ens(j,i)=region_dx_ens(i,j)
+        end do
+     end do
+     call outgrads1(out1ens,nlon_ens,nlat_ens,'region_dx_ens')
+     do j=1,nlon
+        do i=1,nlat
+           out1(j,i)=region_dx(i,j)
+        end do
+     end do
+     call outgrads1(out1,nlon,nlat,'region_dx')
+     do j=1,nlon_ens
+        do i=1,nlat_ens
+           out1ens(j,i)=region_dy_ens(i,j)
+        end do
+     end do
+     call outgrads1(out1ens,nlon_ens,nlat_ens,'region_dy_ens')
+     do j=1,nlon
+        do i=1,nlat
+           out1(j,i)=region_dy(i,j)
+        end do
+     end do
+     call outgrads1(out1,nlon,nlat,'region_dy')
+     deallocate(out1ens,out1)
   end if
-  deallocate(out1ens,out1)
+  return
 
 end subroutine get_region_dx_dy_ens
 
@@ -4739,6 +4807,7 @@ subroutine get_regional_dual_res_grid(eps,r_e,n_a,n_e,x_a,x_e)
   do n=1,n_e
      x_e(n) =one - eps + r_e_x*(n-one)
   end do
+  return
 
 end subroutine get_regional_dual_res_grid
 
@@ -4816,5 +4885,9 @@ subroutine acceptable_for_essl_fft(nin,nout)
       nout=n_acceptable_table(i)
       if(nout.ge.nin) exit
     end do
+    return
 
 end subroutine acceptable_for_essl_fft
+
+end module hybrid_ensemble_isotropic
+

@@ -339,23 +339,14 @@ contains
 !   inquire number of clouds to participate in CRTM calculations
     call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds, ier )
     n_clouds=max(0,n_clouds)
-    allocate(clouds_names(n_clouds))
-    if (n_clouds>0) then
-        call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
-    endif
 
 !   inquire number of aerosols to participate in CRTM calculations
     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros, ier )
     n_aeros=max(0,n_aeros)
-    allocate(aeros_names(n_aeros))
-    if (n_aeros>0) then
-        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
-    endif
 
     nvarjac=size(wirednames)+n_meteo+n_clouds+n_aeros
     allocate(radjacnames(nvarjac))
     allocate(radjacindxs(nvarjac))
-    allocate(aux(nvarjac))
 
 !   Fill in with wired names first
     do ii=1,size(wirednames)
@@ -376,6 +367,8 @@ contains
 !   Fill in clouds next 
     jj=0
     if (n_clouds>0) then
+       allocate(clouds_names(n_clouds))
+       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
        ib=size(wirednames)+n_meteo+1
        ie=ib+n_clouds-1
        do ii=ib,ie
@@ -383,10 +376,13 @@ contains
           radjacnames(ii) = trim(clouds_names(jj))
           radjacindxs(ii) = mxlvs
        enddo
+       deallocate(clouds_names)
     endif
 !   Fill in aerosols next 
     jj=0
     if (n_aeros>0) then
+        allocate(aeros_names(n_aeros))
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
        ib=size(wirednames)+n_meteo+n_clouds+1
        ie=ib+n_aeros-1
        do ii=ib,ie
@@ -394,6 +390,7 @@ contains
           radjacnames(ii) = trim(aeros_names(jj))
           radjacindxs(ii) = mxlvs
        enddo
+       deallocate(aeros_names)
     endif
 
 !   Overwrite levels for certain fields (this must be revisited)
@@ -404,6 +401,7 @@ contains
     enddo
 
 !   Determine initial pointer location for each var in the Jacobian
+    allocate(aux(nvarjac))
     if(size(radjacnames)>0) then
        nsigradjac = sum(radjacindxs)
        isum=0
@@ -415,8 +413,6 @@ contains
        radjacindxs=aux
     endif
     deallocate(aux)
-    deallocate(aeros_names)
-    deallocate(clouds_names)
     deallocate(meteo_names)
 
     if(mype==0) then
@@ -598,7 +594,7 @@ contains
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
     inew_rad=.true.
-    ifactq=0
+    ifactq=15
     air_rad=one
     ang_rad=one
 
@@ -1318,7 +1314,7 @@ contains
 
 ! !USES:
 
-   use obsmod, only: ndat,dplat,dfile,dtype,dsis
+   use obsmod, only: ndat,dplat,dtype,dsis
    use mpimod, only:  npe,mype,mpi_comm_world,ierror
    use read_diag, only: read_radiag_header,read_radiag_data,diag_header_fix_list,&
         diag_header_chan_list,diag_data_fix_list,diag_data_chan_list,&

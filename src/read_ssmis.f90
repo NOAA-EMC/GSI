@@ -133,7 +133,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter    :: tbmin=70.0_r_kind
   real(r_kind),parameter    :: tbmax=320.0_r_kind
   real(r_kind),parameter    :: one_minute=0.01666667_r_kind
-  real(r_kind),parameter    :: minus_one_minute=-0.01666667_r_kind
 
   logical :: do_noise_reduction
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
@@ -176,7 +175,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: disterr,disterrmax,dlon00,dlat00
+  real(r_kind) :: disterr,disterrmax,cdist,dlon00,dlat00
   real(r_kind) :: fovn,scan,orbn,rainf
   real(r_kind) :: sort_time1, sort_time2   
   real(r_kind) :: flgch
@@ -614,8 +613,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
            ntest=ntest+1
-           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+           cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
            disterrmax=max(disterrmax,disterr)
         end if
 

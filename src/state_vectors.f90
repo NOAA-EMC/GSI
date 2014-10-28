@@ -52,7 +52,6 @@ use mpl_allreducemod, only: mpl_allreduce
 use GSI_BundleMod, only : GSI_BundleCreate
 use GSI_BundleMod, only : GSI_Bundle
 use GSI_BundleMod, only : GSI_BundleGetPointer
-use GSI_BundleMod, only : GSI_BundlePrint
 use GSI_BundleMod, only : dplevs => GSI_BundleDplevs
 use GSI_BundleMod, only : sum_mask => GSI_BundleSum
 use GSI_BundleMod, only : GSI_BundleDestroy

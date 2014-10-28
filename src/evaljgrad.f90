@@ -145,12 +145,12 @@ if (l4dvar) then
    end if
 
    if(l_do_adjoint.and.pertmod_adtest) &
-   		call adtest_copy_(mval,adtest_mval)
+         call adtest_copy_(mval,adtest_mval)
 
    call model_tl(mval,sval,llprt)
 
    if(l_do_adjoint.and.pertmod_adtest) &
-   		call adtest_copy_(sval,adtest_sval)
+         call adtest_copy_(sval,adtest_sval)
 
 else
    if (l_hyb_ens) then
@@ -218,20 +218,20 @@ if (l_do_adjoint) then
 !  Run adjoint model
    if (l4dvar) then
       if(l_do_adjoint.and.pertmod_adtest) &
-      		call adtest_copy_(rval,adtest_rval)
+              call adtest_copy_(rval,adtest_rval)
 
       call model_ad(mval,rval,llprt)
 
       if(l_do_adjoint.and.pertmod_adtest) then
         call adtest_show_(adtest_mval,adtest_sval,adtest_rval,mval)
-	call adtest_dstr_(adtest_mval)
-	call adtest_dstr_(adtest_sval)
-	call adtest_dstr_(adtest_rval)
+        call adtest_dstr_(adtest_mval)
+        call adtest_dstr_(adtest_sval)
+        call adtest_dstr_(adtest_rval)
       endif
 
       if (l_hyb_ens) then
           eval(1)=mval(1)
-          call model2ensctl(eval,mval(1),gradx)
+          call ensctl2model_ad(eval,mval(1),gradx)
       end if
 
    else
@@ -240,7 +240,7 @@ if (l_do_adjoint) then
           do ii=1,nobs_bins
               eval(ii)=rval(ii)
           enddo
-          call model2ensctl(eval,mval(1),gradx)
+          call ensctl2model_ad(eval,mval(1),gradx)
       else
          mval(1)=rval(1)
          do ii=2,nobs_bins
@@ -256,7 +256,7 @@ if (l_do_adjoint) then
    endif
 
 !  Adjoint of convert control var to physical space
-   call model2control(mval,rbias,gradx)
+   call control2model_ad(mval,rbias,gradx)
 
 !  Cost function
    fjcost=zjb+zjo+zjc+zjl
@@ -338,11 +338,11 @@ subroutine adtest_copy_(vi,vo)
   
   do iv=1,size(vi)
     call gsi_bundleCreate(vo(iv),vi(iv),"adtest_"//trim(vi(iv)%name),istatus=ierr)
-     		if(ierr/=0) then
-		  call perr(myname_,'gsi_bundleCreate("adtest_'//trim(vi(iv)%name)//'"), istatus =',ierr)
-		  call perr(myname_,'                ("adtest_'//trim(vi(iv)%name)//'"),      iv =',iv  )
-		  call die(myname_)
-		endif
+    if(ierr/=0) then
+       call perr(myname_,'gsi_bundleCreate("adtest_'//trim(vi(iv)%name)//'"), istatus =',ierr)
+       call perr(myname_,'                ("adtest_'//trim(vi(iv)%name)//'"),      iv =',iv  )
+       call die(myname_)
+    endif
     vo(iv)=vi(iv)
   enddo
 end subroutine adtest_copy_
@@ -360,11 +360,11 @@ subroutine adtest_dstr_(v)
 
   do iv=1,size(v)
     call gsi_bundleDestroy(v(iv),istatus=ierr)
-     		if(ierr/=0) then
-		  call perr(myname_,'gsi_bundleDestroy("adtest_'//trim(v(iv)%name)//'"), istatus =',ierr)
-		  call perr(myname_,'                 ("adtest_'//trim(v(iv)%name)//'"),      iv =',iv  )
-		  call die(myname_)
-		endif
+     if(ierr/=0) then
+        call perr(myname_,'gsi_bundleDestroy("adtest_'//trim(v(iv)%name)//'"), istatus =',ierr)
+        call perr(myname_,'                 ("adtest_'//trim(v(iv)%name)//'"),      iv =',iv  )
+        call die(myname_)
+     endif
   enddo
 end subroutine adtest_dstr_
 
@@ -375,8 +375,8 @@ subroutine adtest_show_(x,p,q,y)
   use mpeu_util, only: stdout,perr,die
   use mpimod   , only: mype
   implicit none
-  type(gsi_bundle),dimension(:),intent(in):: x, p	! some x, and p=Mx
-  type(gsi_bundle),dimension(:),intent(in):: q, y	! some q, and y=M'q
+  type(gsi_bundle),dimension(:),intent(in):: x, p     ! some x, and p=Mx
+  type(gsi_bundle),dimension(:),intent(in):: q, y     ! some q, and y=M'q
 
   character(len=*),parameter:: myname_=myname//".adtest_show_"
   real(r_quad):: dpp,dqq,dpq,cpq,rpq
@@ -408,12 +408,12 @@ subroutine adtest_show_(x,p,q,y)
 
   dpq=0._r_quad
   do iv=1,size(p)
-    dpq=dpq+dot_product(p(iv),q(iv))		! (p,q)
+    dpq=dpq+dot_product(p(iv),q(iv))          ! (p,q)
   enddo
   
   dxy=0._r_quad
   do iv=1,size(x)
-    dxy=dxy+dot_product(x(iv),y(iv))		! (x,y)
+    dxy=dxy+dot_product(x(iv),y(iv))       ! (x,y)
   enddo
 
   cpq=1._r_quad
@@ -425,15 +425,15 @@ subroutine adtest_show_(x,p,q,y)
     dpp=0._r_quad
     dqq=0._r_quad
     do iv=1,size(p)
-      dpp=dpp+dot_product(p(iv),p(iv))		! (p,p)
-      dqq=dqq+dot_product(q(iv),q(iv))		! (q,q)
+      dpp=dpp+dot_product(p(iv),p(iv))       ! (p,p)
+      dqq=dqq+dot_product(q(iv),q(iv))       ! (q,q)
     enddo
 
     dyy=0._r_quad
     dxx=0._r_quad
     do iv=1,size(x)
-      dyy=dyy+dot_product(y(iv),y(iv))		! (y,y)
-      dxx=dxx+dot_product(x(iv),x(iv))		! (x,x)
+      dyy=dyy+dot_product(y(iv),y(iv))          ! (y,y)
+      dxx=dxx+dot_product(x(iv),x(iv))          ! (x,x)
     enddo
 
     if(IamROOT_) then
