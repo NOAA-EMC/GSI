@@ -21,7 +21,7 @@ CYC=`echo $adate | cut -c9-10`
 datadir=/com/gfs/prod/${mod}.$YYYY$MM$DD
 cd $datadir
 
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 gdate=`$ndate -06 $adate`
 GYYYY=`echo $gdate | cut -c1-4`
 GMM=`echo $gdate | cut -c5-6`

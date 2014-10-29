@@ -16,7 +16,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgrb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 gdate=`$ndate -06 `
 
 cd $savedir/$adate

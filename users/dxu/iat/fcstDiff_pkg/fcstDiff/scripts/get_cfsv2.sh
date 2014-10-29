@@ -8,7 +8,7 @@ adate=${1:-2013040600}
 savedir=${2:-/ptmp/wx23dc/cfsv2}
 if [ ! -d $savedir ]; then mkdir -p $savedir || exit 8 ; fi ;
 
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 tdate=`$ndate -192 $adate`
 

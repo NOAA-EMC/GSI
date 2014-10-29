@@ -21,7 +21,7 @@ export scale_select=1.
 export CYC=`echo $CDATE|cut -c9-10`
 export CDY=`echo $CDATE|cut -c7-8`
 export CMO=`echo $CDATE|cut -c5-6`
-export GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+export GDATE=`${ndate_dir}/ndate -06 $CDATE`
 cp /global/noscrub/wx23dc/${case}${CMO}${CDY}${CYC}/pgbanl.${CDATE} $TMPGRADS/pgbanl.${CDATE}
 cp /global/noscrub/wx23dc/${case}ges/pgbf06.${GDATE} $TMPGRADS/pgbges.${GDATE}
 

@@ -19,7 +19,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgrb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 hpsstar=/nwprod/util/ush/hpsstar
 
 $hpsstar getnostage /NCEPDEV/hpssuser/g01/glopara/WCOSS/pr$pslot/${adate}gdas.tar biascr.gdas.$adate satang.gdas.$adate sfcanl.gdas.$adate siganl.gdas.$adate

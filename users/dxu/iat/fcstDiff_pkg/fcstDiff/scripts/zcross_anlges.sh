@@ -18,7 +18,7 @@ export CDY=`echo $CDATE|cut -c7-8`
 export CMO=`echo $CDATE|cut -c5-6`
 savedir=/ptmp/$LOGNAME/out382/sigmap/${case}${CMO}${CDY}${CYC}
 #savedir=/ptmp/$LOGNAME/out382/sigmap/nodata${CMO}${CDY}${CYC}
-GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+GDATE=`${ndate_dir}/ndate -06 $CDATE`
 #copygb -x -g2 /global/noscrub/wx23dc/${case}${CMO}${CDY}${CYC}/pgbanl.${CDATE} $TMPGRADS/pgbanl.${CDATE}
 #copygb -x -g2 /global/noscrub/wx23dc/${case}ges/pgbf06.${GDATE} $TMPGRADS/pgbf06.${GDATE}
 #

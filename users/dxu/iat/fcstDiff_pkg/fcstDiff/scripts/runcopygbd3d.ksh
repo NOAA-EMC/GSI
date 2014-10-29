@@ -32,7 +32,7 @@ if [ $fhr -lt 9 ]
 fhr=0$fhr
 fi
 
-NEWDATE=`ndate +${fhr} $sdate`
+NEWDATE=`${ndate_dir}/ndate +${fhr} $sdate`
 
 done
 echo "I'm finished"

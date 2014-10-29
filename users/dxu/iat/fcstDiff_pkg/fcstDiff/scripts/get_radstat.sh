@@ -9,7 +9,7 @@ adate=${1:-2009081118}
 edate=${2:-2009081200}
 mod=${3:-gdas}
 savedir=${4:-/ptmp/wx23dc/gdas}
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 if [ ! -d $savedir ]; then mkdir $savedir || exit 8 ; fi ;
 cd $savedir

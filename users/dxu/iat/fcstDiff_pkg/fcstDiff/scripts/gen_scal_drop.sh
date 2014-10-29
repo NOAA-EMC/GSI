@@ -30,7 +30,7 @@ export lev=${5:-P500}
 export edate=${6:-20060930}
 export ndays=${7:-30}
        nhours=`expr $ndays \* 24 - 24`
-       tmp=`/nwprod/util/exec/ndate -$nhours ${edate}00 `
+       tmp=`${ndate_dir}/ndate -$nhours ${edate}00 `
        sdate=`echo $tmp | cut -c 1-8`
 
 ## forecast cycle to be vefified: 00Z, 06Z, 12Z, 18Z
@@ -79,7 +79,7 @@ while [ $cdate -le $edate ]; do
     vhour=` expr $vhour + 24 `
   done
 
-xdate=`/nwprod/util/exec/ndate +24 ${cdate}00`
+xdate=`${ndate_dir}/ndate +24 ${cdate}00`
 cdate=`echo ${xdate} | cut -c 1-8`
 done
 

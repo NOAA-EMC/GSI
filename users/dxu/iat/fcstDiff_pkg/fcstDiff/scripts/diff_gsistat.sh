@@ -49,7 +49,7 @@ fi
 
 
 #------------------------
-CDATE=` /nwprod/util/exec/ndate +24 ${CDATE}${cyc} | cut -c1-8`
+CDATE=` ${ndate_dir}/ndate +24 ${CDATE}${cyc} | cut -c1-8`
 done 
 #------------------------
 done 

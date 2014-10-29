@@ -96,7 +96,7 @@ export PGBERR="stderr.$adate"
    export SFCINP=$datdir/sfcanl.$mod.${adate}
    export SFCOUT=$tmpdir/sfcanl.$mod.${adate}
    $CHGRESSH
-adate=`/nwprod/util/exec/ndate +24 $adate`
+adate=`${ndate_dir}/ndate  +24 $adate`
 #mv $SFCOUT $SIGOUT $savdir
 done
 

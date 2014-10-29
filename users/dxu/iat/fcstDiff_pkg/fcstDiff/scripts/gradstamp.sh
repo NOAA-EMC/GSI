@@ -12,9 +12,9 @@ indate=`echo $indate |cut -c 1-8 `
 fi
 nhours=`expr $nday \* 24`
 if [ $nhours -le 0 ]; then
- NDATE=`/nwprod/util/exec/ndate $nhours ${indate}00`
+ NDATE=`${ndate_dir}/ndate $nhours ${indate}00`
 else
- NDATE=`/nwprod/util/exec/ndate +$nhours ${indate}00`
+ NDATE=`${ndate_dir}/ndate  +$nhours ${indate}00`
 fi
 
 yy=`echo $NDATE |cut -c 1-4 `

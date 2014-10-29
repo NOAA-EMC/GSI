@@ -9,7 +9,7 @@ adate=${1:-2008082500}
 mod=${2:-gdas}
 savedir=${3:-/ptmp/wx23dc/qkswnd}
 edate=2008093018
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 if [ ! -d $savedir ]; then mkdir $savedir || exit 8 ; fi ;
 tag=qkswnd

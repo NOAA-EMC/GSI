@@ -19,7 +19,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 gdate=`$ndate -06 $adate`
 
 #/u/wx20mi/bin/hpsstar get /hpssuser/g01/globstat/pra/pra_pgb${YYYY}${MM}_${CYC}c.tar ${tag}f00.$adate ${tag}f24.$adate ${tag}f48.$adate ${tag}f72.$adate ${tag}f96.$adate ${tag}f120.$adate

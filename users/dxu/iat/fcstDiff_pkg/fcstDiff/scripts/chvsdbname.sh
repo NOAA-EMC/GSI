@@ -20,6 +20,6 @@ CYC=`echo $adate | cut -c9-10`
 
 sed 's/PRGM141XNM/XNUM_ORIG/g' ${name1}_${YYYY}${MM}${DD}.vsdb > ${name3}_${YYYY}${MM}${DD}.vsdb
 #cp ${name1}_${YYYY}${MM}${DD}.vsdb ${name3}_${YYYY}${MM}${DD}.vsdb
-adate=`ndate +24 $adate`
+adate=`${ndate_dir}/ndate +24 $adate`
 done
 done

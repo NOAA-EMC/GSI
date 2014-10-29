@@ -101,7 +101,7 @@ for reg  in $reglist ; do
 
 # -- generate output names 
   nhours=`expr $ndays \* 24 - 24`
-  tmp=`/nwprod/util/exec/ndate -$nhours ${edate}00 `
+  tmp=`${ndate_dir}/ndate  -$nhours ${edate}00 `
   sdate=`echo $tmp | cut -c 1-8`
   reg1=`echo $reg | sed "s?/??g"`
   outname1=${vnam1}_${lev}_${reg1}_${cyc}Z${sdate}${edate}

@@ -20,7 +20,7 @@ export dd=`echo $VDATE |cut -c 7-8`
 
 for da in $day; do
 export ff=`expr $da \* 24`
-rdate=`/nwprod/util/exec/ndate -${ff} $VDATE`
+rdate=`${ndate_dir}/ndate -${ff} $VDATE`
 tdate=`/global/save/wx23dc/scripts/datestamp.sh $rdate`
 mdate=`/global/save/wx23dc/scripts/datestamp.sh $VDATE`
 #Copy files to rundir

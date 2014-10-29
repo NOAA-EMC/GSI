@@ -7,7 +7,7 @@ hpssdir=/hpssuser/g01/wx23dc/dailyecm
 dir=${2:-ecm011212}
 basedir=/global/noscrub/wx23dc
 cd ${basedir}/$dir
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 #while [ $cdate -le $edate ] ; do
 YYYY=`echo $cdate | cut -c1-4`

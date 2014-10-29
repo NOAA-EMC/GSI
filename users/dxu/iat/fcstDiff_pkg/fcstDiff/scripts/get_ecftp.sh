@@ -26,6 +26,6 @@ gunzip $file
 gfile=`echo $file | cut -c1-20`
 ls -l $gfile
 mv $gfile pgbanl.$sdate
-sdate=`ndate +06 $sdate`
+sdate=`${ndate_dir}/ndate   +06 $sdate`
 done
 exit $rc

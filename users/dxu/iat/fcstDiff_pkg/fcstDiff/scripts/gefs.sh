@@ -2,7 +2,7 @@
 CDATE=2012091500
 EDATE=2012092000
 ens=anl
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 savedir=/ptmp/wx23dc/gefs
 mkdir -p $savedir
 cd $savedir

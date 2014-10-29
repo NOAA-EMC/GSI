@@ -5,7 +5,7 @@ set -x
 #  die-off curves 
 # ----------------------------------------
 
-chmmdd=/nwprod/util/exec/ndate
+chmmdd=${ndate_dir}/ndate
 exedir=${STMP}/$LOGNAME/annual
 tmpdir=${exedir}/WTS16.sd.yr
 rm -r -f $tmpdir;  mkdir -p $tmpdir

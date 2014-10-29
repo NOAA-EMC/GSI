@@ -19,7 +19,7 @@ export CYC=`echo $CDATE|cut -c9-10`
 export CDY=`echo $CDATE|cut -c7-8`
 export CMO=`echo $CDATE|cut -c5-6`
 
-GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+GDATE=`${ndate_dir}/ndate  -06 $CDATE`
 #copygb -x -g2 /global/noscrub/wx23dc/${case}${CMO}${CDY}${CYC}/pgbanl.${CDATE} $TMPGRADS/pgbanl.${CDATE}
 #copygb -x -g2 /global/noscrub/wx23dc/${case}ges/pgbf06.${GDATE} $TMPGRADS/pgbf06.${GDATE}
 #

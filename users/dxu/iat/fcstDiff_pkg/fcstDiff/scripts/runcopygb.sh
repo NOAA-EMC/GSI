@@ -30,7 +30,7 @@ fi
 let "fhr=fhr+$inchr"
 
 typeset -Z3 fhr
-NEWDATE=`ndate +${fhr} $sdate`
+NEWDATE=`${ndate_dir}/ndate +${fhr} $sdate`
 
 done
 echo "I'm finished"

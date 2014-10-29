@@ -18,7 +18,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 gdate=`$ndate -06 $adate`
 GYYYY=`echo $gdate | cut -c1-4`
 GMM=`echo $gdate | cut -c5-6`

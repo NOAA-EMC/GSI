@@ -1,7 +1,7 @@
 #!/bin/sh
 #set -x
 rundir=/stmp/wx23dc/printscores
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 datadir=/global/shared/stat/vrfy
 if [ ! -d $rundir ]; then mkdir $rundir || exit 8 ; fi ;
 cd $rundir;rm -f dummy *.txt

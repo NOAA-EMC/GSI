@@ -107,7 +107,7 @@ EOF
 pwd
 case1=cntrl
 case2=interp
-GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+GDATE=`${ndate_dir}/ndate  -06 $CDATE`
 copygb -x -g2  /global/noscrub/wx23dc/${case1}${CMO}${CDY}${CYC}/pgbanl.${CDATE}  $TMPGRADS/pgbanl.${CDATE}
 copygb -x -g2 /global/noscrub/wx23dc/${case1}ges/pgbf06.${GDATE} $TMPGRADS/pgbf06.${GDATE}
 #

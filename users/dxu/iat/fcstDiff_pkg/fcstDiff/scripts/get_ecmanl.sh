@@ -11,7 +11,7 @@ mod=${3:-ecm}
 savedir=${4:-/ptmp/wx23dc/$mod}
 if [ ! -d $savedir ]; then mkdir $savedir || exit 8 ; fi ;
 tag=pgb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 cd $savedir
 while [ $adate -le $edate ]; do

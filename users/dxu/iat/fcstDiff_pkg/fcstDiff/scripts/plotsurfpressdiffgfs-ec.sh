@@ -1,7 +1,7 @@
 #!/bin/sh
 set -x
 sdate=2010092100
-gdate=`/nwprod/util/exec/ndate -06 $sdate`
+gdate=`${ndate_dir}/ndate -06 $sdate`
 datadir=/ptmp/wx23dc/ecm
 rundir=/ptmp/wx23dc/ecm/mapsregion
 mkdir $rundir; cd $rundir

@@ -23,7 +23,7 @@ export MP_LABELIO=yes
 
 # CDATE is the cycle start date,
 export CDATE=2010121112
-export GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+export GDATE=`${ndate_dir}/ndate   -06 $CDATE`
 export gyy=`echo $GDATE |cut -c1-4`
 export gmm=`echo $GDATE |cut -c5-6`
 export gdd=`echo $GDATE |cut -c7-8`

@@ -22,7 +22,7 @@ export scale_select=1.
 export CYC=`echo $CDATE|cut -c9-10`
 export CDY=`echo $CDATE|cut -c7-8`
 export CMO=`echo $CDATE|cut -c5-6`
-export GDATE=`/nwprod/util/exec/ndate -06 $CDATE`
+export GDATE=`${ndate_dir}/ndate -06 $CDATE`
 
 if [ ! -s $TMPGRADS/pgbanlc.${CDATE} ]; then
 cp /global/noscrub/wx23dc/${case1}${CMO}${CDY}${CYC}/pgbanl.${CDATE} $TMPGRADS/pgbanlc.${CDATE}

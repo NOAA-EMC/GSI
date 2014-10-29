@@ -17,7 +17,7 @@ YYYY=`echo $adate | cut -c1-4`
 MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 /u/wx20mi/bin/hpsstar getnostage /NCEPPROD/hpssprod/runhistory/rh${YYYY}/${YYYY}${MM}/${YYYY}${MM}${DD}/com_${mod}_prod_${mod}.${YYYY}${MM}${DD}${CYC}.anl.tar ./gfs.t${CYC}z.bufrsnd.tar.gz 
 

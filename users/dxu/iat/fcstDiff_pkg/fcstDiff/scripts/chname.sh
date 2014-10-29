@@ -18,5 +18,5 @@ CYC=`echo $adate | cut -c9-10`
 
 mv ${mod}.t${CYC}z.${tag}$fhr pgb${fhr}.$adate
 done
-adate=`ndate +24 $adate`
+adate=`${ndate_dir}/ndate  +24 $adate`
 done

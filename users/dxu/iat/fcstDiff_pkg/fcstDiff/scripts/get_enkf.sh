@@ -18,7 +18,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgrb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 hpsstar=/nwprod/util/ush/hpsstar
 $hpsstar getnostage /NCEPPROD/hpssprod/runhistory/rh${YYYY}/${YYYY}${MM}/${YYYY}${MM}${DD}/com_${mod}_prod_gdas.${YYYY}${MM}${DD}${CYC}.tar ./gdas1.t${CYC}z.abias ./gdas1.t${CYC}z.satang ./gdas1.t${CYC}z.sanl ./gdas1.t${CYC}z.sfcanl
 

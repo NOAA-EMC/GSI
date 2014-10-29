@@ -17,7 +17,7 @@ DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=sig
 mod=gdas
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 /u/wx20mi/bin/hpsstar getnostage /NCEPPROD/hpssprod/runhistory/rh${YYYY}/${YYYY}${MM}/${YYYY}${MM}${DD}/com_gfs_prod_gdas.${YYYY}${MM}${DD}${CYC}.tar  ${tag}anl.$mod.$adate ${tag}f06.$mod.$adate ${tag}f12.$mod.$adate ${tag}f18.$mod.$adate ${tag}f24.$mod.$adate ${tag}f30.$mod.$adate ${tag}f36.$mod.$adate ${tag}f42.$mod.$adate ${tag}f48.$mod.$adate ${tag}f54.$mod.$adate ${tag}f60.$mod.$adate ${tag}f66.$mod.$adate ${tag}f72.$mod.$adate ${tag}f78.$mod.$adate ${tag}f84.$mod.$adate ${tag}f90.$mod.$adate ${tag}f96.$mod.$adate ${tag}f102.$mod.$adate ${tag}f108.$mod.$adate ${tag}f114.$mod.$adate ${tag}f120.$mod.$adate  
 

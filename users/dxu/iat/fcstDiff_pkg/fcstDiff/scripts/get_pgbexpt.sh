@@ -17,7 +17,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 #/u/wx20mi/bin/hpsstar getnostage /NCEPDEV/hpssuser/g01/wx23dc/$expt/${YYYY}${MM}${DD}${CYC}gfs.tar  ${tag}f03.gfs.$adate ${tag}f09.gfs.$adate ${tag}f15.gfs.$adate ${tag}f21.gfs.$adate ${tag}f27.gfs.$adate ${tag}f33.gfs.$adate ${tag}f39.gfs.$adate ${tag}f42.gfs.$adate ${tag}f45.gfs.$adate ${tag}f51.gfs.$adate ${tag}f54.gfs.$adate ${tag}f57.gfs.$adate ${tag}f63.gfs.$adate ${tag}f66.gfs.$adate ${tag}f69.gfs.$adate ${tag}f75.gfs.$adate ${tag}f78.gfs.$adate ${tag}f81.gfs.$adate ${tag}f84.gfs.$adate ${tag}f87.gfs.$adate ${tag}f90.gfs.$adate ${tag}f93.gfs.$adate ${tag}f99.gfs.$adate ${tag}f105.gfs.$adate ${tag}f111.gfs.$adate ${tag}f114.gfs.$adate ${tag}f117.gfs.$adate 
 

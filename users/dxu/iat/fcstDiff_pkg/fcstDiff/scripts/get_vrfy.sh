@@ -17,7 +17,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=flx
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 /u/wx20mi/bin/hpsstar getnostage /NCEPPROD/1year/hpsspara/runhistory/glopara/$expt/${YYYY}${MM}${DD}${CYC}gdas.tar pgbh00.gdas.$adate pgbh06.gdas.$adate siganl.gdas.$adate cnvstat.gdas.$adate s.$adate prepqc.gdas.$adate prepqa.gdas.$adate 
 

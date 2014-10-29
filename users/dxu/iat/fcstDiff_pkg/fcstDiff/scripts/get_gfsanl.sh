@@ -17,7 +17,7 @@ MM=`echo $adate | cut -c5-6`
 DD=`echo $adate | cut -c7-8`
 CYC=`echo $adate | cut -c9-10`
 tag=pgrb
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 
 /u/wx20mi/bin/hpsstar getnostage /hpssprod/runhistory/rh${YYYY}/${YYYY}${MM}/${YYYY}${MM}${DD}/com_gfs_prod_${mod}.${YYYY}${MM}${DD}${CYC}.anl.tar ./${mod}.t${CYC}z.${tag}anl 
 

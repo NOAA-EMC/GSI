@@ -5,7 +5,7 @@ dir=/global/hires/glopara/archive/pre13a
 savedir=/ptmp/wx23dc/t574
 cdate=2010042712
 edate=2010050200
-ndate=/nwprod/util/exec/ndate
+ndate=${ndate_dir}/ndate
 mkdir -p $savedir; cd $savedir
 
 while [ $cdate -le $edate ]; do
