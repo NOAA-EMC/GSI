@@ -26,18 +26,19 @@ program getsigensstatp
 !
 !$$$
   
-  use sigio_module
+  use sigio_module, only: sigio_head,sigio_data,sigio_srohdc,sigio_axdata,sigio_sclose
   use kinds, only: r_kind
   use specmod, only: init_spec_vars,gaulats,sptez_s,sptezv_s
   implicit none
-  
+ 
+  integer, parameter :: iunit=21 
   character(len=3) charnanal
-  character(len=500) filenamein,filenameout,datapath,fileprefix
-  integer iret,nlevs,ntrac,ntrunc,nanals,k,iunit,nlats,nlons
+  character(len=500) filenamein,filenameout,datapath,filepref
+  integer iret,nlevs,ntrac,ntrunc,nanals,k,nlats,nlons
   integer nspec,nsize2,nsize3
   integer mype,mype1,npe,orig_group, new_group, new_comm
   integer,dimension(:),allocatable:: new_group_members
-  real :: rnanals, rnanalsm1
+  real(8) :: rnanals, rnanalsm1
   type(sigio_head) :: sigheadi
   type(sigio_data) :: sigdatai
   real :: fha(5)
@@ -60,8 +61,12 @@ program getsigensstatp
 
 ! Get user input from command line
   call getarg(1,datapath)
-  call getarg(2,fileprefix)
+  call getarg(2,filepref)
   call getarg(3,charnanal)
+  if ( iargc() < 3 ) then
+     write(6,'(a)') "USAGE: ./getsigensstatp.x datapath filepref nanals"
+     goto 999
+  endif
   read(charnanal,'(i3)') nanals
   rnanals=nanals
   rnanals=1.0_8/rnanals
@@ -71,21 +76,19 @@ program getsigensstatp
   if (mype == 0) then
      write(6,*)' '
      write(6,*)'Command line input'
-     write(6,*)' datapath      = ',trim(datapath)
-     write(6,*)' fileprefix    = ',trim(fileprefix)
+     write(6,*)' datapath      = ',trim(adjustl(datapath))
+     write(6,*)' filepref      = ',trim(adjustl(filepref))
      write(6,*)' nanals,rnanals= ',nanals,rnanals
-     write(6,*)' emean fileout = ',trim(fileprefix)//'_ensmean'
-     write(6,*)' esprd fileout = ',trim(fileprefix)//'_enssprd'
+     write(6,*)' emean fileout = ',trim(adjustl(filepref))//'_ensmean'
+     write(6,*)' esprd fileout = ',trim(adjustl(filepref))//'_enssprd'
   endif
   
   if (npe < nanals) then
-     write(6,*)'***ERROR***  npe too small.  npe=',npe,' < nanals=',nanals
-     call MPI_Abort(MPI_COMM_WORLD,99,iret)
-     stop
-  end if
+     write(6,*)'numproc =',npe,' < nanals=',nanals
+     write(6,*)'***ERROR***  numproc too small (must be atleast nanals), aborting!'
+     goto 999
+  endif
   
-  iunit = 21
-
 ! Create sub-communicator to handle number of cases (nanals)
   call mpi_comm_group(mpi_comm_world,orig_group,iret)
 
@@ -106,8 +109,7 @@ program getsigensstatp
   if (mype1 <= nanals) then
      
      write(charnanal,'(i3.3)') mype1
-     filenamein = trim(adjustl(datapath))// &
-          trim(adjustl(fileprefix))//'_mem'//charnanal
+     filenamein = trim(adjustl(datapath))//'/'//trim(adjustl(filepref))//'_mem'//charnanal
      
 !    Read each ensemble member FHDFI forecast.
      call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
@@ -247,9 +249,12 @@ program getsigensstatp
   endif
 
   if (mype == 0) call w3tage('GETSIGENSSTATP')
-  
- deallocate(new_group_members)
  
+ call mpi_comm_free(new_comm) 
+ deallocate(new_group_members)
+
+999 continue
+
  call mpi_finalize(iret)
  stop
 
@@ -261,7 +266,7 @@ program getsigensstatp
    character(len=*), intent(in) :: statstr
    integer :: lunit
 
-   filenameout = trim(adjustl(datapath))//trim(adjustl(fileprefix))//'_ens'//trim(adjustl(statstr))
+   filenameout = trim(adjustl(datapath))//'/'//trim(adjustl(filepref))//'_ens'//trim(adjustl(statstr))
 
    lunit = 63
    call baopenwt(lunit,trim(adjustl(filenameout))//'.bin',iret)
@@ -277,7 +282,7 @@ program getsigensstatp
 
    lunit = 64
    open(lunit,file=trim(adjustl(filenameout))//'.ctl',form='formatted',status='replace',iostat=iret)
-   write(lunit,'("DSET ^",a)') trim(adjustl(fileprefix))//'_ens'//trim(adjustl(statstr))//'.bin'
+   write(lunit,'("DSET ^",a)') trim(adjustl(filepref))//'_ens'//trim(adjustl(statstr))//'.bin'
    write(lunit,'("OPTIONS yrev")')
    write(lunit,'("UNDEF -9.99E+33")')
    write(lunit,'("TITLE ensemble",1x,a)') trim(adjustl(statstr))
