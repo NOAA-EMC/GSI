@@ -1,10 +1,10 @@
 module m_gsiBiases
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_gsiBiases
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_gsiBiases
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract: background bias estimation/correction
 !
@@ -277,8 +277,8 @@ subroutine comp2d_(bias2d_,bias,hour)
    sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias2d_(:,:) = bias(:,:,1) + &
- 		  bias(:,:,2)*coshr + &
-	 	  bias(:,:,3)*sinhr
+                  bias(:,:,2)*coshr + &
+                  bias(:,:,3)*sinhr
 end subroutine comp2d_
 
 !-------------------------------------------------------------------------
@@ -333,8 +333,8 @@ subroutine comp3d_(bias3d_,bias,hour)
    sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias3d_(:,:,:) = bias(:,:,:,1) + &
-	 	    bias(:,:,:,2)*coshr + &
- 		    bias(:,:,:,3)*sinhr
+                    bias(:,:,:,2)*coshr + &
+                    bias(:,:,:,3)*sinhr
 end subroutine comp3d_
 
 !-------------------------------------------------------------------------

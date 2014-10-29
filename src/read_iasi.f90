@@ -188,7 +188,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(10) :: sscale
   real(crtm_kind),dimension(n_totchan) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
-  real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi
@@ -350,7 +350,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec=999999
-  do while(ireadmg(lnbufr,subset,idate)>=0)
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
      next=next+1
      irec=irec+1
      if(next == npe_sub)next=0
@@ -391,9 +391,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
-!  Extract satellite id.  If not the one we want, read next record
+!  Extract satellite id.  If not the one we want, read next subset
         ksatid=nint(allspot(1))
-        if(ksatid /= kidsat) cycle read_loop
+        if(ksatid /= kidsat) cycle read_subset
         rsat=allspot(1) 
 
 !    Check observing position
@@ -425,10 +425,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    so always positive for limited area
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,rlon00,rlat00)
+              call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                   (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
 
@@ -686,7 +688,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         nrec(itx)=irec
 
      enddo read_loop
-  enddo
+  enddo read_subset
   call closbf(lnbufr)
 
 ! deallocate crtm info

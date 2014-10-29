@@ -732,6 +732,18 @@ end subroutine write_ghg_grid
 !   End of loop over data records
     end do
 
+    deallocate(&
+         sfc_data%tsea,&
+         sfc_data%smc,&
+         sfc_data%sheleg,&
+         sfc_data%stc,&
+         sfc_data%slmsk,&
+         sfc_data%zorl,&
+         sfc_data%vfrac,&
+         sfc_data%f10m,&
+         sfc_data%vtype,&
+         sfc_data%stype,&
+         sfc_data%orog)
     call sfcio_axdata(sfc_data,iret)
 
 
@@ -1694,6 +1706,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        endif                 ! if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
 
 !
+!      update slmsk in nstanl with slmsk from sfcgcy
+!
+       data_nst%slmsk = data_sfcanl%slmsk
+!
 !      update tref (in nst file) & tsea (in the surface file) when Tr analysis is on
 !      reset NSSTM variables for new open water grids
 !
@@ -1702,66 +1718,51 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !        For the new open water (sea ice just melted) grids, reset the NSSTM
 !        variables
 !
-!        Notes: data_nst%slmsk is the mask of the background
-!               data_sfc%slmsk is the mask of the analysis since global_cycle
-!               has been applied
+!        Notes: data_sfcges%slmsk is the mask of the background
+!               data_sfcanl%slmsk is the mask of the analysis since global_cycle has been applied
 !
-         do j = 1, latb
-           do i = 1, lonb
-             if ( data_sfcanl%slmsk(i,j) == zero .and. data_sfcges%slmsk(i,j) == two ) then
-               data_nst%xt(i,j)      = zero
-               data_nst%xs(i,j)      = zero
-               data_nst%xu(i,j)      = zero
-               data_nst%xv(i,j)      = zero
-               data_nst%xz(i,j)      = z_w_max
-               data_nst%zm(i,j)      = zero
-               data_nst%xtts(i,j)    = zero
-               data_nst%xzts(i,j)    = zero
-               data_nst%dt_cool(i,j) = zero
-               data_nst%z_c(i,j)     = zero
-               data_nst%c_0(i,j)     = zero
-               data_nst%c_d(i,j)     = zero
-               data_nst%w_0(i,j)     = zero
-               data_nst%w_d(i,j)     = zero
-               data_nst%d_conv(i,j)  = zero
-               data_nst%ifd(i,j)     = zero
-               data_nst%tref(i,j)    = tfrozen
-               data_nst%qrain(i,j)   = zero
-             endif
-           end do
-         end do
-
+         where ( data_sfcanl%slmsk(:,:) == zero .and. data_sfcges%slmsk(:,:) == two )
+           data_nst%xt(:,:)      = zero
+           data_nst%xs(:,:)      = zero
+           data_nst%xu(:,:)      = zero
+           data_nst%xv(:,:)      = zero
+           data_nst%xz(:,:)      = z_w_max
+           data_nst%zm(:,:)      = zero
+           data_nst%xtts(:,:)    = zero
+           data_nst%xzts(:,:)    = zero
+           data_nst%dt_cool(:,:) = zero
+           data_nst%z_c(:,:)     = zero
+           data_nst%c_0(:,:)     = zero
+           data_nst%c_d(:,:)     = zero
+           data_nst%w_0(:,:)     = zero
+           data_nst%w_d(:,:)     = zero
+           data_nst%d_conv(:,:)  = zero
+           data_nst%ifd(:,:)     = zero
+           data_nst%tref(:,:)    = tfrozen
+           data_nst%qrain(:,:)   = zero
+         end where
 !
 !        update analysis variable: Tref (foundation temperature) for nst file
 !
-         do j = 1, latb
-           do i = 1, lonb
-             if ( data_sfcanl%slmsk(i,j) == zero ) then
-               data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),tfrozen)
-             else
-               data_nst%tref(i,j) = data_sfcges%tsea(i,j)
-             endif
-           end do
-         end do
+         where ( data_sfcanl%slmsk(:,:) == zero )
+           data_nst%tref(:,:) = max(data_nst%tref(:,:) + dsfct_anl(:,:),tfrozen)
+         elsewhere
+           data_nst%tref(:,:) = data_sfcgcy%tsea(:,:)
+         end where
 !
 !        update SST: tsea for sfc file
 !
-         do j = 1, latb
-           do i = 1, lonb
-             if ( data_sfcanl%slmsk(i,j) == zero ) then
-                dtw = two*data_nst%xt(i,j)/data_nst%xz(i,j)
-                dtc = data_nst%dt_cool(i,j)
-                data_sfcanl%tsea(i,j) = max(data_nst%tref(i,j) + dtw - dtc, tfrozen)
-             endif
-           end do
-         end do
+         where ( data_sfcanl%slmsk(:,:) == zero )
+           data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:)  &
+                                 + two*data_nst%xt(:,:)/data_nst%xz(:,:) & 
+                                 - data_nst%dt_cool(:,:), tfrozen)
+         end where
 !        Write updated information to surface analysis file
          call sfcio_swohdc(io_sfcanl,fname_sfcanl,head_sfcanl,data_sfcanl,iret)
 
          write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
 100      format(' WRITE_NST_SFC:  sfc analysis written  for ',&
             a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
-
 !
 !        write info on the new open water and new sea ice grids
 !
@@ -1774,6 +1775,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                n_new_water = n_new_water + 1
                dtw = two*data_nst%xt(i,j)/data_nst%xz(i,j)
                dtc = data_nst%dt_cool(i,j)
+
                write(*,'(a,I7,2F8.2,16F7.2)') 'new water grids:',n_new_water, &
                rad2deg*rlats_sfc(latb+2-j),rad2deg*rlons_sfc(i), &
                data_sfcges%fice(i,j), data_sfcgcy%fice(i,j),data_sfcanl%fice(i,j), &
@@ -1805,45 +1807,38 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
          do j=1,latb
             do i=1,lonb
               data_nst%tref(i,j) = data_sfcanl%tsea(i,j)  ! keep tref as tsea before analysis
-
             end do
          end do
 !
 !        For the new open water (sea ice just melted) grids, reset the NSSTM
 !        variables
 !
-         do j=1,latb
-            do i=1,lonb
-              if ( data_sfcanl%slmsk(i,j) == zero .and. data_sfcges%slmsk(i,j) == two ) then
-                n_new_water = n_new_water + 1
-                data_nst%xt(i,j)      = zero
-                data_nst%xs(i,j)      = zero
-                data_nst%xu(i,j)      = zero
-                data_nst%xv(i,j)      = zero
-                data_nst%xz(i,j)      = z_w_max
-                data_nst%zm(i,j)      = zero
-                data_nst%xtts(i,j)    = zero
-                data_nst%xzts(i,j)    = zero
-                data_nst%dt_cool(i,j) = zero
-                data_nst%z_c(i,j)     = zero
-                data_nst%c_0(i,j)     = zero
-                data_nst%c_d(i,j)     = zero
-                data_nst%w_0(i,j)     = zero
-                data_nst%w_d(i,j)     = zero
-                data_nst%d_conv(i,j)  = zero
-                data_nst%ifd(i,j)     = zero
-                data_nst%tref(i,j)    = tfrozen
-                data_nst%qrain(i,j)   = zero
-              endif
-            end do
-         end do
+         where ( data_sfcanl%slmsk(:,:) == zero .and. data_sfcges%slmsk(:,:) == two ) 
+           data_nst%xt(:,:)      = zero
+           data_nst%xs(:,:)      = zero
+           data_nst%xu(:,:)      = zero
+           data_nst%xv(:,:)      = zero
+           data_nst%xz(:,:)      = z_w_max
+           data_nst%zm(:,:)      = zero
+           data_nst%xtts(:,:)    = zero
+           data_nst%xzts(:,:)    = zero
+           data_nst%dt_cool(:,:) = zero
+           data_nst%z_c(:,:)     = zero
+           data_nst%c_0(:,:)     = zero
+           data_nst%c_d(:,:)     = zero
+           data_nst%w_0(:,:)     = zero
+           data_nst%w_d(:,:)     = zero
+           data_nst%d_conv(:,:)  = zero
+           data_nst%ifd(:,:)     = zero
+           data_nst%tref(:,:)    = tfrozen
+           data_nst%qrain(:,:)   = zero
+         end where
 !
-!        update tsea
+!        update tsea when NO Tf analysis
 !
          do j=1,latb
             do i=1,lonb
               data_sfcanl%tsea(i,j) = max(data_sfcges%tsea(i,j) + dsfct_anl(i,j),tfrozen) ! update tsea
-
             end do
          end do
 
@@ -2096,7 +2091,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        call nstio_srohdc(io_nstges,fname_nstges,head_nst,data_nst,iret)
        if (iret /= 0) then
           write(6,*)'WRITE_ENS_NST_SFC:  ***ERROR*** problem reading',fname_nstges,', iret=',iret
-
           call nstio_axdata(data_nst,iret)
           call stop2(80)
        endif
@@ -2124,6 +2118,9 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
           call stop2(80)
        endif
 
+!
+!      assign sfc analysis as sfcges with gcycle applied
+!
        head_sfcanl = head_sfcgcy
        data_sfcanl = data_sfcgcy
 
@@ -2218,57 +2215,45 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !        For the new open water (sea ice just melted) grids, reset the NSSTM variables
 !
 !        set tref = tfrozen = 271.2_r_kind
-!        note: data_nst%slmsk is the mask of the guess
-!              data_sfc%slmsk is the mask of the analysis
+!        note: data_sfcges%slmsk is the mask of the guess
+!              data_sfcanl%slmsk is the mask of the analysis
 !
-         do j = 1, latb
-           do i = 1, lonb
-             if ( data_sfcanl%slmsk(i,j) == zero .and. data_nst%slmsk(i,j) == two ) then
-               data_nst%xt(i,j)      = zero
-               data_nst%xs(i,j)      = zero
-               data_nst%xu(i,j)      = zero
-               data_nst%xv(i,j)      = zero
-               data_nst%xz(i,j)      = z_w_max
-               data_nst%zm(i,j)      = zero
-               data_nst%xtts(i,j)    = zero
-               data_nst%xzts(i,j)    = zero
-               data_nst%dt_cool(i,j) = zero
-               data_nst%z_c(i,j)     = zero
-               data_nst%c_0(i,j)     = zero
-               data_nst%c_d(i,j)     = zero
-               data_nst%w_0(i,j)     = zero
-               data_nst%w_d(i,j)     = zero
-               data_nst%d_conv(i,j)  = zero
-               data_nst%ifd(i,j)     = zero
-               data_nst%tref(i,j)    = tfrozen
-               data_nst%qrain(i,j)   = zero
-             endif
-           end do
-         end do
+         where ( data_sfcanl%slmsk(:,:) == zero .and. data_sfcges%slmsk(:,:) == two ) 
+           data_nst%xt(:,:)      = zero
+           data_nst%xs(:,:)      = zero
+           data_nst%xu(:,:)      = zero
+           data_nst%xv(:,:)      = zero
+           data_nst%xz(:,:)      = z_w_max
+           data_nst%zm(:,:)      = zero
+           data_nst%xtts(:,:)    = zero
+           data_nst%xzts(:,:)    = zero
+           data_nst%dt_cool(:,:) = zero
+           data_nst%z_c(:,:)     = zero
+           data_nst%c_0(:,:)     = zero
+           data_nst%c_d(:,:)     = zero
+           data_nst%w_0(:,:)     = zero
+           data_nst%w_d(:,:)     = zero
+           data_nst%d_conv(:,:)  = zero
+           data_nst%ifd(:,:)     = zero
+           data_nst%tref(:,:)    = tfrozen
+           data_nst%qrain(:,:)   = zero
+         end where
 !
 !        update analysis variable: Tref (foundation temperature) for nst file
 !
-         do j = 1, latb
-           do i = 1, lonb
-             if ( data_sfcanl%slmsk(i,j) == zero) then
-              data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),tfrozen)
-            else
-              data_nst%tref(i,j) = data_sfcanl%tsea(i,j)
-            endif
-          end do
-        end do
+         where ( data_sfcanl%slmsk(:,:) == zero ) 
+           data_nst%tref(:,:) = max(data_nst%tref(:,:) + dsfct_anl(:,:),tfrozen)
+         else where
+           data_nst%tref(:,:) = data_sfcanl%tsea(:,:)
+         end where
 !
-!       update SST: tsea for sfc file
+!        update SST: tsea for sfc file
 !
-        do j = 1, latb
-          do i = 1, lonb
-            if ( data_sfcanl%slmsk(i,j) == zero) then
-              data_sfcanl%tsea(i,j) = max(data_nst%tref(i,j) + two*data_nst%xt(i,j)/data_nst%xz(i,j) &
-
-                                    - data_nst%dt_cool(i,j),tfrozen)
-            endif
-          end do
-        end do
+         where ( data_sfcanl%slmsk(:,:) == zero )
+           data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:)  &
+                                 + two*data_nst%xt(:,:)/data_nst%xz(:,:) & 
+                                 - data_nst%dt_cool(:,:), tfrozen)
+         end where
 
          n_new_water = 0
          n_new_seaice = 0

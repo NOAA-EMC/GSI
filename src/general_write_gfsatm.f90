@@ -25,7 +25,7 @@
 
     use kinds, only: r_kind,i_kind,r_single
     use sigio_r_module, only: sigio_dbti,sigio_rropen,sigio_rrhead,sigio_rwhead,&
-        sigio_rrdbti,sigio_rwdbti,sigio_rwopen,sigio_rclose
+        sigio_rrdbti,sigio_rwdbti,sigio_rwopen,sigio_rclose,sigio_aldbti
     use sigio_module, only: sigio_head,sigio_alhead
     use general_sub2grid_mod, only: sub2grid_info
     use guess_grids, only: ntguessig,ifilesig
@@ -93,10 +93,12 @@
 100    format('sigf',i2.2)
 !   Handle case of NCEP SIGIO
 
+    i=1
 ! Have all files open ges and read header for now with RanRead
     call sigio_rropen(lunges,fname_ges,iret)
     call sigio_alhead(sigges_head,iret)
     call sigio_rrhead(lunges,sigges_head,iret)
+    call sigio_aldbti(sigges_head,i,sigdati,iret)
 
 ! All tasks should also open output file for random write
     call sigio_rwopen(lunanl,filename,iret_write)
@@ -161,6 +163,11 @@
     if (idpsfc5 /= 2) then
        do j=1,grd%lon2
           do i=1,grd%lat2
+             if(work_ps(i,j)<=zero)then
+                write(6,*) 'Surface pressure is ',work_ps(i,j),&
+                   'Exiting the code now.'
+                exit
+             end if
              work_ps(i,j)=log(work_ps(i,j))
           end do
        end do
@@ -271,7 +278,7 @@
        end if
 
     end do gfsfields
-
+    deallocate(sigges_head%vcoord,sigges_head%cfvars)
     call sigio_rclose(lunanl,iret)
     iret_write=iret_write+iret
     if (iret_write /=0) goto 1000

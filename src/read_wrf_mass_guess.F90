@@ -197,6 +197,7 @@ subroutine read_wrf_mass_binary_guess(mype)
      call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
      if (n_actual_clouds>0) then
 !       Get pointer for each of the hydrometeors from guess at time index "it"
+        ier=0
         it=ntguessig
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
@@ -307,7 +308,8 @@ subroutine read_wrf_mass_binary_guess(mype)
         endif
         read(lendian_in) wrfges
         read(lendian_in) ! n_position          !  offset for START_DATE record
-        if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
+!       if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
+        if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges= ',wrfges
         
         i=i+1 ; i_mub=i                                                ! mub
         read(lendian_in) n_position
@@ -1988,58 +1990,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
      return
 end subroutine read_wrf_mass_netcdf_guess
-#else /* Start no WRF-library block */
-subroutine read_wrf_mass_binary_guess(mype)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_wrf_mass_binary_guess
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-12-07  lueken - added subprogram doc block and implicit none
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-  use kinds,only: i_kind
-  implicit none
-  integer(i_kind),intent(in)::mype
-  write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy routine, does nothing!'
-end subroutine read_wrf_mass_binary_guess
-subroutine read_wrf_mass_netcdf_guess(mype)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_wrf_mass_netcdf_guess
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-12-07  lueken - added subprogram doc block and implicit none
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-  use kinds,only: i_kind
-  implicit none
-  integer(i_kind),intent(in)::mype
-  write(6,*)'READ_WRF_MASS_NETCDF_GUESS:  dummy routine, does nothing!'
-end subroutine read_wrf_mass_netcdf_guess
-#endif /* End no WRF-library block */
 
 subroutine generic_grid2sub(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
 !$$$  subprogram documentation block
@@ -2457,3 +2407,55 @@ subroutine move_ibuf_ihg(ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
   end do
   
 end subroutine move_ibuf_ihg
+#else /* Start no WRF-library block */
+subroutine read_wrf_mass_binary_guess(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_wrf_mass_binary_guess
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-12-07  lueken - added subprogram doc block and implicit none
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds,only: i_kind
+  implicit none
+  integer(i_kind),intent(in)::mype
+  write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy routine, does nothing!'
+end subroutine read_wrf_mass_binary_guess
+subroutine read_wrf_mass_netcdf_guess(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_wrf_mass_netcdf_guess
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-12-07  lueken - added subprogram doc block and implicit none
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds,only: i_kind
+  implicit none
+  integer(i_kind),intent(in)::mype
+  write(6,*)'READ_WRF_MASS_NETCDF_GUESS:  dummy routine, does nothing!'
+end subroutine read_wrf_mass_netcdf_guess
+#endif /* End no WRF-library block */

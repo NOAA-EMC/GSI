@@ -16,15 +16,15 @@
 
       implicit none
 
-      private	! except
+      private   ! except
 
         ! reconfigurable parameters, via NAMELIST/setup/
-      public :: berror_stats	! reconfigurable filename
+      public :: berror_stats    ! reconfigurable filename
 
         ! interfaces to file berror_stats.
-      public :: berror_get_dims_reg	! get dimensions, jfunc::createj_func()
-      public :: berror_read_bal_reg	! get cross-cov.stats., balmod::prebal()
-      public :: berror_read_wgt_reg	! get auto-cov.stats., prewgt()
+      public :: berror_get_dims_reg   ! get dimensions, jfunc::createj_func()
+      public :: berror_read_bal_reg   ! get cross-cov.stats., balmod::prebal()
+      public :: berror_read_wgt_reg   ! get auto-cov.stats., prewgt()
 
 
 ! !REVISION HISTORY:
@@ -36,8 +36,8 @@
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
 
-  	! Reconfigurable parameters, vai NAMELISt/setup/
-  character(len=256),save :: berror_stats = "berror_stats"	! filename
+     ! Reconfigurable parameters, vai NAMELISt/setup/
+  character(len=256),save :: berror_stats = "berror_stats"   ! filename
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2

@@ -61,13 +61,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2009-01-17  todling - update interface to intjo
 !   2009-03-05  meunier - add call to lagragean operator
 !   2009-08-19  guo     - moved all rhs related statistics variables to m_rhs
-!			  for multi-pass setuprhsall();
-!			- added control arguments init_pass and last_pass for
-!			  multi-pass setuprhsall().
+!                         for multi-pass setuprhsall();
+!                       - added control arguments init_pass and last_pass for
+!                         multi-pass setuprhsall().
 !   2009-09-14  guo     - invoked compute_derived() even under lobserver.  This is
-!			  the right way to do it.  It trigged moving of statments
-!			  from glbsoi() to observer_init().
-!			- cleaned up redandent calls to setupyobs() and inquire_obsdiags().
+!                         the right way to do it.  It trigged moving of statments
+!                         from glbsoi() to observer_init().
+!                       - cleaned up redandent calls to setupyobs() and inquire_obsdiags().
 !   2009-10-22     shen - add high_gps and high_gps_sub
 !   2009-12-08  guo     - fixed diag_conv output rewind while is not init_pass, with open(position='rewind')
 !   2010-04-09  cucurull - remove high_gps and high_gps_sub
@@ -153,7 +153,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Declare passed variables
   integer(i_kind)                  ,intent(in   ) :: mype
   integer(i_kind),dimension(ndat,3),intent(in   ) :: ndata
-  logical                          ,intent(in   ) :: init_pass, last_pass	! state of "setup" processing
+  logical                          ,intent(in   ) :: init_pass, last_pass   ! state of "setup" processing
 
 
 ! Declare external calls for code analysis
@@ -168,7 +168,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupbend
   external:: setupdw
   external:: setuplag
-  external:: setupoz
+  external:: setupozlay
+  external:: setupozlev
   external:: setuppcp
   external:: setupps
   external:: setuppw
@@ -321,14 +322,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    endif
   endif
 
-! Compute 2d subdomain pbl heights from the guess fields	
-   if (wrf_mass_regional) then					
-      call load_gsdpbl_hgt(mype)				
+! Compute 2d subdomain pbl heights from the guess fields
+   if (wrf_mass_regional) then
+      call load_gsdpbl_hgt(mype)
    else if (nems_nmmb_regional) then
       if (l_PBL_pseudo_SurfobsT .or. l_PBL_pseudo_SurfobsQ .or. l_PBL_pseudo_SurfobsUV) then
          call load_gsdpbl_hgt(mype)
       end if
-   endif							      
+   endif   
 
 
 ! Compute derived quantities on grid
@@ -614,7 +615,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   endif  ! < .not. lobserver >
 
   deallocate(awork1)
-  call rhs_dealloc()	! destroy the workspace: awork, bwork, etc.
+  call rhs_dealloc()   ! destroy the workspace: awork, bwork, etc.
 ! Print Jo table
   nprt=2
   llouter=.true.

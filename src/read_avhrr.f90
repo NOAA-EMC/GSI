@@ -149,7 +149,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) lnbufr,ireadsb,ireadmg,iskip,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
 ! real(r_kind), dimension(3,2) :: bandcor_a,bandcor_b
@@ -295,8 +295,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
            if(outside) cycle read_loop

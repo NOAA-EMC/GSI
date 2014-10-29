@@ -215,7 +215,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
 
-  real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
   integer(i_kind) ntest
 
   logical           :: airs, amsua, hsb, airstab
@@ -443,10 +443,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       so always positive for limited area
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,rlon00,rlat00)
+              call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                   (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
 

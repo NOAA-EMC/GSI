@@ -65,7 +65,7 @@ use jfunc   ,  only : iter, jiter
 use gsi_4dvar, only : nwrvecs,l4dvar,lanczosave
 use gsi_4dvar, only : nsubwin, nobs_bins
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult
+use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
 
 implicit none
 private
