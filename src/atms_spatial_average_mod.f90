@@ -39,7 +39,6 @@ CONTAINS
     integer(i_kind), parameter :: atms1c_h_wmosatid=224
     integer(i_kind), parameter :: lninfile=15
     integer(i_kind), parameter :: max_fov=96
-    integer(i_kind), parameter :: max_obs=1000000
     real(r_kind), parameter    :: scan_interval = 8.0_r_kind/3.0_r_kind
     ! Maximum number of channels 
     integer(i_kind), parameter :: MaxChans = 22
@@ -162,7 +161,7 @@ CONTAINS
        ! Set all scan positions to missing in a scanline if one is missing
        do iscan=1,max_scan
           if (ANY(bt_image1(:,iscan) > 500.0_r_kind)) &
-	     bt_image1(:,iscan)=1000.0_r_kind
+             bt_image1(:,iscan)=1000.0_r_kind
        enddo
 
        ! If the channel number is present in the channelnumber array we should process it 

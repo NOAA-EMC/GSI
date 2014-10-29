@@ -135,6 +135,7 @@ subroutine calctends_tl(fields,fields_dt,mype)
      call stop2(999)
   endif
 
+  ier=0
   call gsi_bundlegetpointer(fields_dt,'u',   u_t, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields_dt,'v',   v_t, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields_dt,'tv',  t_t, istatus);ier=istatus+ier

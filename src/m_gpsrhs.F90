@@ -1,10 +1,10 @@
 module m_gpsrhs
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_gpsrhs
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:    module m_gpsrhs
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: defines persistant workspace for multiple-pass setupbend()/setupref()
 !
@@ -89,7 +89,7 @@ module m_gpsrhs
     real(r_kind    ), pointer, dimension(  :):: error_adjst => null()
     real(r_kind    ), pointer, dimension(  :):: ratio_errors=> null()
 
-    	! case: class=="ref"
+       ! case: class=="ref"
     real(r_kind    ), pointer, dimension(  :):: termq  => null()
     real(r_kind    ), pointer, dimension(  :):: termpk => null()
     real(r_kind    ), pointer, dimension(  :):: termt  => null()
@@ -100,17 +100,17 @@ module m_gpsrhs
     real(r_kind    ), pointer, dimension(  :):: pressure => null()
     real(r_kind    ), pointer, dimension(  :):: dpresl => null()
 
-    	! case: class=="bend"
+       ! case: class=="bend"
     real(r_kind    ), pointer, dimension(:,:):: dbend_loc => null()
-    real(r_kind    ), pointer, dimension(:,:):: xj	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: n_t	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: n_q	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: n_p	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: nrefges	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: rges	=> null()
-    real(r_kind    ), pointer, dimension(:,:):: gp2gm	=> null()
+    real(r_kind    ), pointer, dimension(:,:):: xj      => null()
+    real(r_kind    ), pointer, dimension(:,:):: n_t     => null()
+    real(r_kind    ), pointer, dimension(:,:):: n_q     => null()
+    real(r_kind    ), pointer, dimension(:,:):: n_p     => null()
+    real(r_kind    ), pointer, dimension(:,:):: nrefges => null()
+    real(r_kind    ), pointer, dimension(:,:):: rges    => null()
+    real(r_kind    ), pointer, dimension(:,:):: gp2gm   => null()
     real(r_kind    ), pointer, dimension(:,:):: prsltmp_o => null()
-    real(r_kind    ), pointer, dimension(:,:):: tges_o	=> null()
+    real(r_kind    ), pointer, dimension(:,:):: tges_o  => null()
 
     real(r_kind    ), pointer, dimension(:,:):: rdiagbuf => null()
     character(len=8), pointer, dimension(  :):: cdiagbuf => null()
@@ -136,12 +136,12 @@ module m_gpsrhs
   real(r_kind    ), pointer, dimension(  :), save:: error,error_adjst
   real(r_kind    ), pointer, dimension(  :), save:: ratio_errors
 
-  	! case: class=='ref'
+     ! case: class=='ref'
   real(r_kind    ), pointer, dimension(  :), save:: termq,termpk,termt,termtk
   real(r_kind    ), pointer, dimension(:,:), save:: termtl,termpl1,termpl2
   real(r_kind    ), pointer, dimension(  :), save:: dpresl, pressure
 
-  	! case: class=='bend'
+     ! case: class=='bend'
   real(r_kind    ), pointer, dimension(:,:), save:: dbend_loc,xj
   real(r_kind    ), pointer, dimension(:,:), save:: n_t,n_q,n_p,nrefges
   real(r_kind    ), pointer, dimension(:,:), save:: rges,gp2gm,prsltmp_o,tges_o
@@ -180,7 +180,7 @@ _ENTRY_(myname_)
     allocate(aGPSRHS_buffer(ndat))
     aGPSRHS_buffer(1:ndat)%alloced=.false.
   endif
-  b=>aGPSRHS_buffer(is)	! b is aliased to an entry in aGPSRHS_buffer
+  b=>aGPSRHS_buffer(is) ! b is aliased to an entry in aGPSRHS_buffer
   if(b%alloced) call die(myname_,'this object is already allocated')
 
   b%alloced =.true.
@@ -299,7 +299,7 @@ _ENTRY_(myname_)
     call die(myname_)
   endif
 
-  b=>aGPSRHS_buffer(is)	! b is aliased to an entry in gpsrhs_buffer
+  b=>aGPSRHS_buffer(is) ! b is aliased to an entry in gpsrhs_buffer
   if(.not.b%alloced) then
     call perr(myname_,'aGPSRHS_buffer(is) not allocated, is =',is)
     call die(myname_)
@@ -363,50 +363,50 @@ subroutine gpsrhs_aliases(is)
   type(gpsrhs_buffer),pointer:: b
   character(len=*),parameter:: myname_=myname//'_aliases'
 _ENTRY_(myname_)
-  b=>aGPSRHS_buffer(is)	! b is aliased to an entry in gpsrhs_buffer
+  b=>aGPSRHS_buffer(is) ! b is aliased to an entry in gpsrhs_buffer
 
-  muse		=> b%muse
+  muse          => b%muse
 
   select case(b%class)
   case('ref')
-    termq	=> b%termq
-    termpk	=> b%termpk
-    termt	=> b%termt
-    termtk	=> b%termtk
-    termtl	=> b%termtl
-    termpl1	=> b%termpl1
-    termpl2	=> b%termpl2
-    pressure	=> b%pressure
-    dpresl	=> b%dpresl
+    termq       => b%termq
+    termpk      => b%termpk
+    termt       => b%termt
+    termtk      => b%termtk
+    termtl      => b%termtl
+    termpl1     => b%termpl1
+    termpl2     => b%termpl2
+    pressure    => b%pressure
+    dpresl      => b%dpresl
 
   case('bend')
-    dbend_loc	=> b%dbend_loc
-    xj		=> b%xj
-    n_t		=> b%n_t
-    n_q		=> b%n_q
-    n_p		=> b%n_p
-    nrefges	=> b%nrefges
-    rges	=> b%rges
-    gp2gm	=> b%gp2gm
-    prsltmp_o	=> b%prsltmp_o
-    tges_o	=> b%tges_o
+    dbend_loc   => b%dbend_loc
+    xj          => b%xj
+    n_t         => b%n_t
+    n_q         => b%n_q
+    n_p         => b%n_p
+    nrefges     => b%nrefges
+    rges        => b%rges
+    gp2gm       => b%gp2gm
+    prsltmp_o   => b%prsltmp_o
+    tges_o      => b%tges_o
   end select
 
-  error		=> b%error
-  error_adjst	=> b%error_adjst
-  ratio_errors	=> b%ratio_errors
+  error         => b%error
+  error_adjst   => b%error_adjst
+  ratio_errors  => b%ratio_errors
 
-  rdiagbuf	=> b%rdiagbuf
-  cdiagbuf	=> b%cdiagbuf
+  rdiagbuf      => b%rdiagbuf
+  cdiagbuf      => b%cdiagbuf
 
-  qcfail	=> b%qcfail
-  qcfail_loc	=> b%qcfail_loc
-  qcfail_high	=> b%qcfail_high
-  qcfail_gross	=> b%qcfail_gross
+  qcfail        => b%qcfail
+  qcfail_loc    => b%qcfail_loc
+  qcfail_high   => b%qcfail_high
+  qcfail_gross  => b%qcfail_gross
 
-  data_ier	=> b%data_ier
-  data_igps	=> b%data_igps
-  data_ihgt	=> b%data_ihgt
+  data_ier      => b%data_ier
+  data_igps     => b%data_igps
+  data_ihgt     => b%data_ihgt
 _EXIT_(myname_)
 end subroutine gpsrhs_aliases
 

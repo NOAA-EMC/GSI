@@ -215,6 +215,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! read observation error table
 
+  disterrmax=zero
+  vdisterrmax=zero
   allocate(etabl(300,33,6))
   etabl=1.e9_r_kind
   ietabl=19

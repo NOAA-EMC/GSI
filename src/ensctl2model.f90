@@ -28,7 +28,8 @@ use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
 use hybrid_ensemble_parameters, only: nval_lenz_en,n_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
-use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult
+use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult, &
+        ckgcov_a_en_new_factorization
 use balmod, only: strong_bk
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle

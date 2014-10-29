@@ -91,7 +91,7 @@
       data lunin /50/
 
 !     Initialize variables
-      nreal=17
+      nreal=14
       ntest=0
       nrtmax=0                       ! # rpts to print per msg type (0=all)
 
@@ -461,12 +461,9 @@
       cdata_all(9,iout)=pblhoe*three            ! max error
       cdata_all(10,iout)=pblhqm                 ! quality mark
       cdata_all(11,iout)=usage                  ! usage parameter
-      cdata_all(12,iout)=idomsfc                ! dominate surface type
-      cdata_all(13,iout)=tsavg                  ! skin temperature
-      cdata_all(14,iout)=sfcr                   ! surface roughness
-      cdata_all(15,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-      cdata_all(16,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-      cdata_all(17,iout)=stnelev                ! station elevation (m)
+      cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+      cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+      cdata_all(14,iout)=stnelev                ! station elevation (m)
 
       end do ! while ireadsb
 

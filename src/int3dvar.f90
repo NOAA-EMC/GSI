@@ -75,7 +75,6 @@ subroutine int3dvar(rval,rval_dt)
   use kinds, only: i_kind,r_kind
   use mpimod, only: mype
   use jfunc, only: l_foto
-  use gridmod, only: nnnn1o
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -108,7 +107,7 @@ subroutine int3dvar(rval,rval_dt)
 !   Adjoint of virtual to sensible temperature conversion
     call tv_to_tsen_ad(rval_dt_t,rval_dt_q,rval_dt_tsen)
 
-    call calctends_ad(rval,rval_dt,mype,nnnn1o)
+    call calctends_ad(rval,rval_dt,mype)
 
   end if
 

@@ -225,13 +225,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
   real(r_kind) diffuu,diffvv
 
-! check data (P3 track)
-  integer :: NLEV, NFLAG
-  real :: obs
-  real :: RLAT, RLON, TIM
-  character(8) :: STID
-  logical check
-
 ! following variables are for fore/aft separation
   real(r_kind) tdrele1,tdrele2,tdrele3
   integer(i_kind) nswp,firstbeam,nforeswp,naftswp,nfore,naft,nswptype,irec
@@ -1280,15 +1273,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
 65 continue
 
-  if(check)then
-     open(300,file='track',form='unformatted')
-
-     STID = '        '
-     TIM = 0.0
-     NLEV = 1
-     NFLAG = 1
-     obs=1.0
-  end if
 
 
   erad = rearth
@@ -1376,6 +1360,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   if(trim(infile) == 'tldplrso') goto 75
 
   nswptype=0
+  nmrecs=0
+  irec=0
   if(l_foreaft_thin)then
 ! read the first 500 records to deterine which criterion
 ! should be used to seperate fore/aft sweep
@@ -1389,8 +1375,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
        go to 1100
     end if
 
-    nmrecs=0
-    irec=0
 !   Big loop over bufr file
 
 700   call readsb(lnbufr,iret)
@@ -1549,13 +1533,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   this_stalat=hdr(8)
   this_stalon=hdr(9)
-
-  if(check)then
-     RLAT=this_stalat
-     RLON=this_stalon
-     WRITE (200) STID,RLAT,RLON,TIM,NLEV,NFLAG  
-     WRITE (200) obs
-  end if
 
   rlon0=deg2rad*this_stalon
   this_stalatr=this_stalat*deg2rad
@@ -1920,17 +1897,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 ! Close unit to bufr file
   close(lnbufr)
 
-  if(check)then
-     STID = '        '
-     NLEV = 0
-     NFLAG = 0
-     RLAT = 0.0
-     RLON = 0.0
-
-     WRITE (200) STID,RLAT,RLON,TIM,NLEV,NFLAG
-     close(200)
-  end if
-  
   go to 1200
 
 75 continue

@@ -65,7 +65,7 @@
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
-  use deter_sfc_mod, only: deter_sfc
+  use deter_sfc_mod, only: deter_sfc_type
   use obsmod, only: bmiss
 
   implicit none
@@ -89,18 +89,16 @@
   character(8) subset
   character(40) strhdr7,strsmi4,strsmi2_old,strsmi2,strtmi7,stramb5
 
-  integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg,idomsfc
+  integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg
   integer(i_kind) ihh,idd,im,kx,jdate
   integer(i_kind) ndatout,nreal,nchanl,iy,iret,idate,itype,ihr,idy,imo
   integer(i_kind) minobs,lndsea,ilat,ilon
   integer(i_kind) idate5(5)
 
-  real(r_kind) scli,sclw,dlon,dlat,scnt,sfcr
+  real(r_kind) scli,sclw,dlon,dlat,scnt
   real(r_kind) dlat_earth,dlon_earth
   real(r_kind) scnv,stdv,spcp,tdiff,sstime,t4dv
-  real(r_kind),dimension(0:3)::sfcpct
-  real(r_kind),dimension(0:3):: ts
-  real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: tsavg
   real(r_kind),allocatable,dimension(:,:)::  pcpdata
   real(r_double) hdr7(7),pcpdat(7),pcpprd(2,2)
 
@@ -124,19 +122,19 @@
   pcp_amsu=  obstype == 'pcp_amsu'
   pcp_stage3=obstype == 'pcp_stage3'
   if (pcp_ssmi) then
-     nreal=12
+     nreal=10
      ptype='ssmi'
   endif
   if (pcp_tmi)  then
-     nreal=14
+     nreal=12
      ptype='tmi'
   endif
   if (pcp_amsu) then
-     nreal=12
+     nreal=10
      ptype='amsu'
   endif
   if (pcp_stage3) then
-     nreal=12
+     nreal=10
      ptype='stage3'
   endif
   ndatout=nreal+nchanl
@@ -293,14 +291,8 @@
 !                2 sea ice
 !                3 snow
 !                4 mixed                        
-!      sfcpct(0:3)- percentage of 4 surface types
-!                 (0) - sea percentage
-!                 (1) - land percentage
-!                 (2) - sea ice percentage
-!                 (3) - snow percentage
 
-  call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-     ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+  call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
 
 ! Load output array
 
@@ -309,31 +301,29 @@
   pcpdata(3,ndata) = dlon                  ! grid relative longitude
   pcpdata(4,ndata) = dlat                  ! grid relative latitude
   pcpdata(5,ndata) = isflg + .001_r_kind   ! surface tag
-  pcpdata(6,ndata) = idomsfc + .001_r_kind ! dominant surface type (0-sea,1-land/snow,2-ice)
-  pcpdata(7,ndata) = sfcr                  ! surface roughness
-  pcpdata(8,ndata) = spcp                  ! total precipitation (mm/hr)
+  pcpdata(6,ndata) = spcp                  ! total precipitation (mm/hr)
   if (pcp_ssmi) then
-     pcpdata(9,ndata) = stdv               ! standard deviation of superobs
-     pcpdata(10,ndata) = scnt              ! number of obs used to make superobs
-     pcpdata(11,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(12,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(7,ndata) = stdv               ! standard deviation of superobs
+     pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
+     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
   elseif (pcp_tmi) then
-     pcpdata(9,ndata) = scnv               ! convective precipitation (mm/hr)
-     pcpdata(10,ndata) = sclw              ! cloud water (mm)
-     pcpdata(11,ndata)= scli               ! cloud ice (mm)
-     pcpdata(12,ndata)= scnt               ! number of obs used to make superobs
-     pcpdata(13,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(14,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(7,ndata) = scnv               ! convective precipitation (mm/hr)
+     pcpdata(8,ndata) = sclw               ! cloud water (mm)
+     pcpdata(9,ndata) = scli               ! cloud ice (mm)
+     pcpdata(10,ndata)= scnt               ! number of obs used to make superobs
+     pcpdata(11,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
+     pcpdata(12,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
   elseif (pcp_amsu) then
-     pcpdata(9,ndata) = zero               ! standard deviation of superobs (not yet)
-     pcpdata(10,ndata) = itype             ! type of algorithm
-     pcpdata(11,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(12,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(7,ndata) = zero               ! standard deviation of superobs (not yet)
+     pcpdata(8,ndata) = itype             ! type of algorithm
+     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
   elseif (pcp_stage3) then
-     pcpdata(9,ndata) = stdv               ! standard deviation of superobs
-     pcpdata(10,ndata) = scnt              ! number of obs used to make superobs
-     pcpdata(11,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(12,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(7,ndata) = stdv               ! standard deviation of superobs
+     pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
+     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
   endif
 !
 ! End of big loop over bufr file.  Process next observation.

@@ -1018,15 +1018,31 @@ end subroutine fact_qopt2
   if (ivar==nrf3_loc(nrf3_vp)) fvarname='chi'
   if (ivar==nrf3_loc(nrf3_t))  fvarname='t'
   if (ivar==nrf3_loc(nrf3_q))  fvarname='pseudorh'
-  if (nrf3_oz>0.and.ivar==nrf3_loc(nrf3_oz)) fvarname='oz'
-  if (nrf3_cw>0.and.ivar==nrf3_loc(nrf3_cw)) fvarname='qw'
+  if (nrf3_oz>0) then
+     if(ivar==nrf3_loc(nrf3_oz)) fvarname='oz'
+  end if
+  if (nrf3_cw>0) then
+     if(ivar==nrf3_loc(nrf3_cw)) fvarname='qw'
+  end if
   if (ivar==nrf2_loc(nrf2_ps)) fvarname='ps'
-  if (nrf2_sst>0.and.ivar==nrf2_loc(nrf2_sst)) fvarname='sst'
-  if (nrf2_gust>0.and.ivar==nrf2_loc(nrf2_gust)) fvarname='gust'
-  if (nrf2_vis>0.and.ivar==nrf2_loc(nrf2_vis)) fvarname='vis'
-  if (nrf2_pblh>0.and.ivar==nrf2_loc(nrf2_pblh)) fvarname='pblh'
-  if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'   ! _RTod this is a disaster!
-  if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'   ! _RTod this is a disaster!
+  if (nrf2_sst>0) then
+     if(ivar==nrf2_loc(nrf2_sst)) fvarname='sst'
+  end if
+  if (nrf2_gust>0) then
+     if(ivar==nrf2_loc(nrf2_gust)) fvarname='gust'
+  end if
+  if (nrf2_vis>0) then
+     if(ivar==nrf2_loc(nrf2_vis)) fvarname='vis'
+  end if
+  if (nrf2_pblh>0) then
+     if(ivar==nrf2_loc(nrf2_pblh)) fvarname='pblh'
+  end if
+  if (nrf2_sst>0) then
+     if(ivar==nrf+1) fvarname='lst'   ! _RTod this is a disaster!
+  end if
+  if (nrf2_sst>0) then
+     if(ivar==nrf+2) fvarname='ist'   ! _RTod this is a disaster!
+  end if
 
   return
 end function fvarname

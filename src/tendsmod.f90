@@ -73,8 +73,6 @@ module tendsmod
   public :: destroy_ges_tendencies
   public :: tnd_initialized
   public :: gsi_tendency_bundle
-  public :: tvars2d, tvars3d
-  public :: tsrcs2d, tsrcs3d
 ! set passed variables to public
   public :: pr_ydif9,pr_ysum9,pr_xdif9,coriolis,curvy,curvx,r_prsum9,prsth9
   public :: what9,pr_xsum9,prdif9,r_prdif9,wint9,wint9_f,r_bdiag9,factk9
@@ -190,8 +188,8 @@ enddo
 
 deallocate(utable)
 
-allocate(tvars2d(n2d),tvars3d(n3d),&
-         tsrcs2d(n2d),tsrcs3d(n3d),levels(n3d))
+if(n2d >0)allocate(tvars2d(n2d),tsrcs2d(n2d))
+if(n3d >0)allocate(tvars3d(n3d),tsrcs3d(n3d),levels(n3d))
 
 ! loop over variables and identify them by comparison
 i2d=0; i3d=0
@@ -386,7 +384,11 @@ subroutine destroy_ges_tendencies
      if(mype==0) write(6,*)'destroy_ges_tendencies warning: vector not allocated'
   endif
 
-  deallocate(tvars2d,tvars3d,tsrcs2d,tsrcs3d,levels)
+  if(allocated(tvars2d))deallocate(tvars2d)
+  if(allocated(tvars3d))deallocate(tvars3d)
+  if(allocated(tsrcs2d))deallocate(tsrcs2d)
+  if(allocated(tsrcs3d))deallocate(tsrcs3d)
+  if(allocated(levels))deallocate(levels)
 
   tnd_initialized = .false.
   if(mype==0) write(6,*) 'destroy_ges_tendencies: successfully complete'

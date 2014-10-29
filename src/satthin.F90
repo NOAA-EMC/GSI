@@ -30,7 +30,7 @@ module satthin
 !   2009-04-21  derber  - add ithin to call to makegrids - account for negative ithin
 !   2009-08-19  guo     - added assertions of ntguessig and ntguessfc.
 !   2009-09-14  guo     - added an experimenting description of the usecase.
-!			- added an an array size assertion on istart_val(:).
+!                       - added an an array size assertion on istart_val(:).
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
@@ -47,15 +47,15 @@ module satthin
 !
 ! Usecase destription:
 !     read_obs    -->  read_airs, etc
-!   []_makegvals			- set up for superob weighting
-!   []_getsfc				- create full horizontal fields of surface arrays
-!                     []_makegrids	- set up thinning grids
-!                     []_map2tgrid	- map observation to location on thinning grid
-!                     []_checkob	- intermediate ob checking to see if it should not be used
-!                     []_finalcheck	- the final criterion check for sat obs and increments counters
+!   []_makegvals                        - set up for superob weighting
+!   []_getsfc                           - create full horizontal fields of surface arrays
+!                     []_makegrids      - set up thinning grids
+!                     []_map2tgrid      - map observation to location on thinning grid
+!                     []_checkob        - intermediate ob checking to see if it should not be used
+!                     []_finalcheck     - the final criterion check for sat obs and increments counters
 !                     combine_radobs    - 
-!                     []_destroygrids	- deallocate thinning grid arrays
-!   []_destroy_sfc			- deallocate full horizontal fields of surface arrays
+!                     []_destroygrids   - deallocate thinning grid arrays
+!   []_destroy_sfc                      - deallocate full horizontal fields of surface arrays
 !
 ! Variable Definitions:
 !   def mlat           - number of latitudes in thinning grid
@@ -350,7 +350,7 @@ contains
 
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
-          mlonj   = nint(mlonx*factor)	
+          mlonj   = nint(mlonx*factor)
           mlon(j) = max(2,mlonj)
           delon = dlon_grid/mlon(j)
        else
@@ -447,7 +447,6 @@ contains
     real(r_kind),allocatable,dimension(:)::wlatx,slatx
     real(r_kind) :: dlon, missing
     real(r_kind),allocatable,dimension(:,:)::dum
-    real(r_kind),allocatable,dimension(:,:)::dummy
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt,istatus
     character(24) filename
 
@@ -457,12 +456,12 @@ contains
         (ntguessfc<1.or.ntguessfc>nfldsfc) ) then
         call perr('satthin.getsfc','ntguessig = ',ntguessig)
         call perr('satthin.getsfc','ntguessfc = ',ntguessfc)
-	call die('satthin.getsfc')
+        call die('satthin.getsfc')
     endif
     mm1=mype+1
 
     if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
-	' and nlat,nlon=',nlat,nlon
+      ' and nlat,nlon=',nlat,nlon
     if(regional)then
        nlat_sfc=nlat
        nlon_sfc=nlon
@@ -479,9 +478,10 @@ contains
        allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
        allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
        allocate(veg_type_full(nlat_sfc,nlon_sfc))
-    else
-       allocate(dum(nlat_sfc,nlon_sfc))
     end if
+    do j=1,lon1*lat1
+       zsm(j)=zero
+    end do
 
 
 !  Global read
@@ -519,26 +519,31 @@ contains
                    fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
                    veg_type_full,veg_frac_full(:,:,it), &
                    soil_type_full,soil_temp_full(:,:,it),&
-                   soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
+                   soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),&
+                   zs_full_gfs)
              else
                 call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
                    veg_type_full(1,1),veg_frac_full(1,1,it), &
                    soil_type_full(1,1),soil_temp_full(1,1,it),&
-                   soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+                   soil_moi_full(1,1,it),isli_full(1,1),sfc_rough_full(1,1,it),&
+                   zs_full_gfs)
              end if
           end do
        else
+          allocate(dum(nlat_sfc,nlon_sfc))
           do it=1,nfldsfc
              write(filename,200)ifilesfc(it)
              if ( use_gfs_nemsio ) then
                 call read_nemssfc(filename,mype,&
                    fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
-                   dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
+                   dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),&
+                   zs_full_gfs)
              else
                 call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
-                   dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
+                   dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),&
+                   zs_full_gfs)
              end if
           end do
           deallocate(dum)
@@ -547,10 +552,6 @@ contains
        if (biascor > zero) then
           if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ',&
                                       filename
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
- 
           call compress_bias(b_tskin,bias_tskin,bias_hour)
           do j=1,lon2
              do i=1,lat2
@@ -591,9 +592,6 @@ contains
        rlons_sfc=rlons
 
 ! isli_full
-       do j=1,lon1*lat1
-          zsm(j)=zero
-       end do
        do j=1,lon2
           do i=1,lat2
              work2(i,j)=isli(i,j,it)
@@ -612,9 +610,6 @@ contains
        do it=1,nfldsfc
 
 ! sst_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(sfct(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -625,9 +620,6 @@ contains
           end do
 
 ! fact10_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(fact10(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -638,9 +630,6 @@ contains
           end do
 
 ! sfc_rough_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(sfc_rough(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -651,9 +640,6 @@ contains
           end do
 
 ! sno_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(sno(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -664,9 +650,6 @@ contains
           end do
 
 ! veg_frac_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(veg_frac(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -678,9 +661,6 @@ contains
              end do
           end if
 ! soil_temp_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(soil_temp(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -694,9 +674,6 @@ contains
 
 
 ! soil_moi_full
-          do j=1,lon1*lat1
-             zsm(j)=zero
-          end do
           call strip(soil_moi(:,:,it),zsm)
           call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
              work1,ijn,displs_g,mpi_rtype,&
@@ -714,9 +691,6 @@ contains
 ! Now single time level surface fields
        it=ntguessfc
 ! soil_type_full
-       do j=1,lon1*lat1
-          zsm(j)=zero
-       end do
        call strip(soil_type(:,:,it),zsm)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
@@ -729,9 +703,6 @@ contains
        end if
 
 ! veg_type_full
-       do j=1,lon1*lat1
-          zsm(j)=zero
-       end do
        call strip(veg_type(:,:,it),zsm)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
@@ -752,9 +723,6 @@ contains
     it=ntguessig
     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z',ges_z,istatus)
     if (istatus==0) then
-       do j=1,lon1*lat1
-          zsm(j)=zero
-       end do
        call strip(ges_z,zsm)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
@@ -774,10 +742,10 @@ contains
           if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
              zs_full_gfs = zs_full
           else
-             allocate(dummy(nlat_sfc,nlon_sfc))
-             call sfc_interpolate(zs_full,nlon,nlat,dummy,nlon_sfc,nlat_sfc)
-             zs_full_gfs = dummy
-             deallocate(dummy)
+             allocate(dum(nlat_sfc,nlon_sfc))
+             call sfc_interpolate(zs_full,nlon,nlat,dum,nlon_sfc,nlat_sfc)
+             zs_full_gfs = dum
+             deallocate(dum)
           endif
        endif
     endif
@@ -791,7 +759,7 @@ contains
              il=i+istart(mm1)-2
              il=min0(max0(1,il),nlat)
              isli2(i,j)=isli_full(il,jl)
- 	     do k=1,nfldsfc
+             do k=1,nfldsfc
                 sno2(i,j,k)=sno_full(il,jl,k)
              end do
           end do
