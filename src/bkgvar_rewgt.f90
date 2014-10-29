@@ -421,6 +421,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   work1=work2-work1
 
 ! Perform scalar g2s on work array
+!$omp parallel do schedule(dynamic,1) private(k,spc1)
   do k=g3%kbegin_loc,g3%kend_loc
      spc1=zero 
      call general_g2s0(grd_a,sp_a,spc1,work1(1,:,:,k))

@@ -66,29 +66,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   integer(i_kind),parameter:: mxtb=5000000
   integer(i_kind),parameter:: nmsgmax=10000 ! max message count
-  real(r_kind),parameter:: r1_2= 1.2_r_kind
-  real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
-  real(r_kind),parameter:: r50= 50.0_r_kind
-  real(r_kind),parameter:: r54= 54.0_r_kind
-  real(r_kind),parameter:: r55= 55.0_r_kind
-  real(r_kind),parameter:: r56= 56.0_r_kind
-  real(r_kind),parameter:: r70= 70.0_r_kind
-  real(r_kind),parameter:: r85= 85.0_r_kind
   real(r_kind),parameter:: r90= 90.0_r_kind
-  real(r_kind),parameter:: r105= 105.0_r_kind
   real(r_kind),parameter:: r110= 110.0_r_kind
-  real(r_kind),parameter:: r125=125.0_r_kind
-  real(r_kind),parameter:: r200=200.0_r_kind
-  real(r_kind),parameter:: r250=250.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  real(r_kind),parameter:: r700=700.0_r_kind
-  real(r_kind),parameter:: r199=199.0_r_kind
-  real(r_kind),parameter:: r299=299.0_r_kind
   real(r_kind),parameter:: r421=421.0_r_kind
-  real(r_kind),parameter:: r799=799.0_r_kind
   real(r_kind),parameter:: r1200= 1200.0_r_kind
-  real(r_kind),parameter:: r10000= 10000.0_r_kind
   
   
 

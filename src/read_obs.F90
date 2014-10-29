@@ -531,7 +531,7 @@ subroutine read_obs(ndata,mype)
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
-    use convinfo, only: nconvtype,ioctype,icuse,diag_conv
+    use convinfo, only: nconvtype,ioctype,icuse,diag_conv,ithin_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
     use gsi_nstcouplermod, only: gsi_nstcoupler_set
@@ -573,8 +573,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind):: iread,ipuse,iouse
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
-    real(r_kind),dimension(lat1*lon1):: prslsm,hgtlsm
-    real(r_kind),dimension(max(iglobal,itotsub)):: work1
+    real(r_kind),allocatable,dimension(:) :: prslsm,hgtlsm,work1
     real(r_kind),allocatable,dimension(:,:,:):: prsl_full,hgtl_full
 
     data lunout / 81 /
@@ -926,20 +925,34 @@ subroutine read_obs(ndata,mype)
     do i=1,ndat
        if(ditype(i) =='conv')then
           obstype=dtype(i)
-          if(obstype /= 'dw' .and. obstype /= 'rw' .and. obstype /= 'srw')then
+          if (obstype == 't' .or. obstype == 'q'  .or. &
+              obstype == 'uv') then
              use_prsl_full=.true.
              if(belong(i))use_prsl_full_proc=.true.
-          else if(obstype == 'rw')then
+          else
+            do j=1,nconvtype
+               if(obstype == trim(ioctype(j)) .and. ithin_conv(j) > 0)then
+                  use_prsl_full=.true.
+                  if(belong(i))use_prsl_full_proc=.true.
+               end if
+            end do
+          end if
+          if(obstype == 'rw')then
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
-       else if(ditype(i) == 'rad' .or. ditype(i)=='pcp')then
+       else if(ditype(i) == 'rad' )then
           if(belong(i))use_sfc=.true.
        end if
     end do
 !   Get guess 3d pressure on full grid
+    allocate(work1(max(iglobal,itotsub)),prslsm(lat1*lon1))
     if(use_prsl_full)then
-       if(use_prsl_full_proc)allocate(prsl_full(nlat,nlon,nsig))
+       if(use_prsl_full_proc)then
+          allocate(prsl_full(nlat,nlon,nsig))
+       else
+          allocate(prsl_full(1,1,1))
+       end if
        do k=1,nsig
           call strip(ges_prsl(:,:,k,ntguessig),prslsm)
           call mpi_allgatherv(prslsm,ijn(mype+1),mpi_rtype,&
@@ -953,10 +966,17 @@ subroutine read_obs(ndata,mype)
              end do
           end if
        end do
+    else
+       allocate(prsl_full(1,1,1))
     end if
 !   Get guess 3d geopotential height on full grid
     if(use_hgtl_full)then
-       if(use_hgtl_full_proc)allocate(hgtl_full(nlat,nlon,nsig))
+       allocate(hgtlsm(lat1*lon1))
+       if(use_hgtl_full_proc)then
+          allocate(hgtl_full(nlat,nlon,nsig))
+       else
+          allocate(hgtl_full(1,1,1))
+       end if
        do k=1,nsig
           call strip(geop_hgtl(:,:,k,ntguessig),hgtlsm)
           call mpi_allgatherv(hgtlsm,ijn(mype+1),mpi_rtype,&
@@ -970,7 +990,11 @@ subroutine read_obs(ndata,mype)
              end do
            end if
        end do
+       deallocate(hgtlsm)
+    else
+      allocate(hgtl_full(1,1,1))
     end if
+    deallocate(work1,prslsm)
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
@@ -1302,7 +1326,7 @@ subroutine read_obs(ndata,mype)
                   rmesh,isfcalc,nouse,npe_sub(i)
 8000         format(1x,a15,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
-                  ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
+                  ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)
 
           endif

@@ -1,4 +1,4 @@
-subroutine model2control(rval,bval,grad)
+subroutine control2model_ad(rval,bval,grad)
 !$$$  subprogram documentation block
 !
 ! abstract:  Converts variables from physical space to control space
@@ -63,7 +63,7 @@ type(predictors)    ,intent(in   ) :: bval
 type(control_vector),intent(inout) :: grad
 
 ! Declare local variables
-character(len=*),parameter::myname='model2control'
+character(len=*),parameter::myname='control2model_ad'
 character(len=10),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
@@ -190,7 +190,7 @@ do jj=1,nsubwin
    gradz(:)=zero
 
 !  create an internal structure w/ the same vars as those in the control vector, including motley vars
-   call gsi_bundlecreate (wbundle,grid,'model2control work',istatus,names2d=cvars2dpm,names3d=cvars3d)
+   call gsi_bundlecreate (wbundle,grid,'control2model_ad work',istatus,names2d=cvars2dpm,names3d=cvars3d)
    if (istatus/=0) then
       write(6,*)trim(myname),': trouble creating work bundle'
       call stop2(999)
@@ -280,4 +280,4 @@ endif
 if (nclouds>0) deallocate(clouds)
 
 return
-end subroutine model2control
+end subroutine control2model_ad

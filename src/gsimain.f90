@@ -326,7 +326,7 @@
 !          = 143 - m_stats: MPI_allreduce(dot-sum)
 !          = 144 - m_stats: MPI_allreduce(min-max)
 !          = 145 - m_stats: MPI_allreduce(dim)
-!          = 146 - model2control: assumes lsqrtb
+!          = 146 - control2model_ad: assumes lsqrtb
 !          = 147 - model_tl: error nstep
 !          = 148 - model_tl: error nfrctl
 !          = 149 - model_tl: error nfrobs
@@ -492,7 +492,7 @@
 !          = 308 - sqrtmin: congrad requires ltlint
 !          = 309 - sqrtmin: congrad requires ltlint
 !          = 310 - sqrtmin: error estimated gradient
-!          = 311 - state2control: not for sqrt(B)
+!          = 311 - control2state_ad: not for sqrt(B)
 !          = 312 - allocate_state: state already allocated
 !          = 313 - allocate_state:  error length
 !          = 314 - stpspd:ltlint & foto not compatible at this time

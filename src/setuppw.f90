@@ -124,7 +124,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) i,nchar,nreal,k,j,jj,ii,l,mm1
   integer(i_kind) ier,ilon,ilat,ipw,id,itime,ikx,ipwmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,iobsprs
-  integer(i_kind) idomsfc,iskint,iff10,isfcr
 
   logical,dimension(nobs):: luse,muse
   logical proceed
@@ -187,15 +186,11 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iqc=9       ! index of quality mark
   ier2=10     ! index of original-original obs error ratio
   iuse=11     ! index of use parameter
-  idomsfc=12  ! index of dominant surface type
-  iskint=13   ! index of surface skin temperature
-  iff10=14    ! index of 10 meter wind factor
-  isfcr=15    ! index of surface roughness
-  ilone=16    ! index of longitude (degrees)
-  ilate=17    ! index of latitude (degrees)
-  istnelv=18  ! index of station elevation (m)
-  iobsprs=19  ! index of observation pressure (hPa)
-  iobshgt=20  ! index of observation height (m)
+  ilone=12    ! index of longitude (degrees)
+  ilate=13    ! index of latitude (degrees)
+  istnelv=14  ! index of station elevation (m)
+  iobsprs=15  ! index of observation pressure (hPa)
+  iobshgt=16  ! index of observation height (m)
 
   do i=1,nobs
      muse(i)=nint(data(11,i)) <= jiter

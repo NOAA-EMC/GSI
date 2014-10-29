@@ -59,9 +59,9 @@ module cloud_efr_mod
                              XMImin=1.e6_r_kind*DMImin, XMImax=1.e6_r_kind*DMImax
   integer(i_kind), parameter :: MDImin=XMImin, MDImax=XMImax
 !     Mean rain drop diameters vary from 50 microns to 450 microns
-  real(r_kind), parameter :: DMRmin=.05E-3_r_kind, DMRmax=.45E-3_r_kind, DelDMR=1.E-6_r_kind,   &
+  real(r_kind), parameter :: DMRmin=.05E-3_r_kind, DMRmax=.45E-3_r_kind,   &
                              XMRmin=1.E6_r_kind*DMRmin, XMRmax=1.E6_r_kind*DMRmax,              &
-			     N0r0=8.E6_r_kind, N0rmin=1.e4_r_kind
+                             N0r0=8.E6_r_kind, N0rmin=1.e4_r_kind
   integer(i_kind), parameter :: MDRmin=XMRmin, MDRmax=XMRmax
 !     Mean mass of precpitation ice particles as functions of their mean
 !     size (in microns)

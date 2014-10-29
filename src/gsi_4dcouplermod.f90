@@ -49,7 +49,7 @@ interface GSI_4dCoupler_setServices
    subroutine pertmod_setServices_ (rc)
    use kinds, only: i_kind
    implicit none
-   integer(i_kind),optional,intent(out):: rc	! return status code
+   integer(i_kind),optional,intent(out):: rc     ! return status code
    end subroutine pertmod_setServices_
 end interface
 
