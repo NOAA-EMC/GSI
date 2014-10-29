@@ -26,27 +26,28 @@ program getsigensstatp
 !
 !$$$
   
-  use sigio_module, only: sigio_head,sigio_data,sigio_srohdc,sigio_axdata,sigio_sclose
   use kinds, only: r_kind
   use specmod, only: init_spec_vars,gaulats,sptez_s,sptezv_s
+  use sigio_module, only: sigio_head,sigio_data,sigio_srohdc,sigio_axdata,sigio_sclose
+
   implicit none
  
-  integer, parameter :: iunit=21 
-  character(len=3) charnanal
-  character(len=500) filenamein,filenameout,datapath,filepref
-  integer iret,nlevs,ntrac,ntrunc,nanals,k,nlats,nlons
-  integer nspec,nsize2,nsize3
-  integer mype,mype1,npe,orig_group, new_group, new_comm
-  integer,dimension(:),allocatable:: new_group_members
-  real(8) :: rnanals, rnanalsm1
+  integer,parameter :: iunit=21 
   type(sigio_head) :: sigheadi
   type(sigio_data) :: sigdatai
-  real :: fha(5)
-  integer :: idat(8), jdat(8)
-  character(len=10) :: cdat(8)
-  real(r_kind),dimension(:,:),allocatable::  psgi,psgs
-  real(r_kind),dimension(:,:,:),allocatable:: ugi,ugs,vgi,vgs,tgi,tgs,qgi,qgs
-  real(r_kind),dimension(:,:,:),allocatable::ozgi,ozgs,cwgi,cwgs
+  character(len=3)   :: charnanal
+  character(len=500) :: filenamein,filenameout,datapath,filepref
+  integer :: nanals,nlevs,ntrac,ntrunc,nlats,nlons,nsize2,nsize3,iret,k
+  real(8) :: rnanals,rnanalsm1
+  integer :: mype,mype1,npe,orig_group,new_group,new_comm
+  integer,dimension(:),allocatable :: new_group_members
+  integer,dimension(8) :: idat,jdat
+  character(len=10),dimension(8) :: cdat
+  real,dimension(5) :: fha
+  real(r_kind),dimension(:,:),  allocatable :: psgi,psgs
+  real(r_kind),dimension(:,:,:),allocatable :: ugi,ugs,vgi,vgs,tgi,tgs,qgi,qgs
+  real(r_kind),dimension(:,:,:),allocatable :: ozgi,ozgs,cwgi,cwgs
+
 ! mpi definitions.
   include 'mpif.h'
 
@@ -80,7 +81,7 @@ program getsigensstatp
      write(6,*)' filepref      = ',trim(adjustl(filepref))
      write(6,*)' nanals,rnanals= ',nanals,rnanals
      write(6,*)' emean fileout = ',trim(adjustl(filepref))//'_ensmean'
-     write(6,*)' esprd fileout = ',trim(adjustl(filepref))//'_enssprd'
+     write(6,*)' esprd fileout = ',trim(adjustl(filepref))//'_ensspread'
   endif
   
   if (npe < nanals) then
@@ -95,7 +96,7 @@ program getsigensstatp
   allocate(new_group_members(nanals))
   do k=1,nanals
      new_group_members(k)=k-1
-  end do
+  enddo
   if (mype1 <= nanals) then
      call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
   endif
@@ -111,7 +112,7 @@ program getsigensstatp
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))//'/'//trim(adjustl(filepref))//'_mem'//charnanal
      
-!    Read each ensemble member FHDFI forecast.
+!    Read each ensemble member forecast.
      call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
      write(6,*)'Read ',trim(filenamein),' iret=',iret
      
@@ -122,9 +123,8 @@ program getsigensstatp
      nlevs  = sigheadi%levs
      nsize2 = nlons*nlats
      nsize3 = nsize2*nlevs
-     nspec  = (ntrunc+1)*(ntrunc+2)
 
-     if (mype ==0 ) then
+     if (mype == 0 ) then
         write(6,*)'Read header information from ',trim(filenamein)
         write(6,*)' ntrunc = ',ntrunc
         write(6,*)' ntrac  = ',ntrac
@@ -133,13 +133,12 @@ program getsigensstatp
         write(6,*)' nlevs  = ',nlevs
         write(6,*)' nsize2 = ',nsize2
         write(6,*)' nsize3 = ',nsize3
-        write(6,*)' nspec  = ',nspec
      endif
 
      call init_spec_vars(nlons,nlats,ntrunc,4)
 
      if (mype == 0) then
-        fha(:)=0.
+        fha(:) =0.
         idat(:)=0
         jdat(:)=0
         fha(2) =sigheadi%fhour
@@ -248,11 +247,11 @@ program getsigensstatp
 
   endif
 
-  if (mype == 0) call w3tage('GETSIGENSSTATP')
- 
  call mpi_comm_free(new_comm) 
  deallocate(new_group_members)
 
+  if (mype == 0) call w3tage('GETSIGENSSTATP')
+ 
 999 continue
 
  call mpi_finalize(iret)
