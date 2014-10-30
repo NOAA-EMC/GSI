@@ -147,7 +147,7 @@ enddo
 call baclose(lunout, iret)
 write(6,'(a)') trim(adjustl(outgrib))
 
-outgrib = trim(adjustl(datapath)) // '/' // trim(adjustl(filepref)) // '_ensspread'
+outgrib = trim(adjustl(datapath)) // '/' // trim(adjustl(filepref)) // '_enssprd'
 call baopenwt(lunout+nanal, trim(adjustl(outgrib)), iret)
 kens(4) = 11
 ! increase decimal scale factor by two powers of 10.
