@@ -36,9 +36,9 @@ program getsigensstatp
   type(sigio_head) :: sigheadi
   type(sigio_data) :: sigdatai
   character(len=3)   :: charnanal
-  character(len=500) :: filenamein,filenameout,datapath,filepref
+  character(len=500) :: filenamein,datapath,filepref
   integer :: nanals,nlevs,ntrac,ntrunc,nlats,nlons,nsize2,nsize3,iret,k
-  real(8) :: rnanals,rnanalsm1
+  real(r_kind) :: rnanals,rnanalsm1
   integer :: mype,mype1,npe,orig_group,new_group,new_comm
   integer,dimension(:),allocatable :: new_group_members
   integer,dimension(8) :: idat,jdat
@@ -70,9 +70,9 @@ program getsigensstatp
   endif
   read(charnanal,'(i3)') nanals
   rnanals=nanals
-  rnanals=1.0_8/rnanals
-  rnanalsm1=nanals-1.0_8
-  rnanalsm1=1.0_8/rnanalsm1
+  rnanals=1.0_r_kind/rnanals
+  rnanalsm1=nanals-1.0_r_kind
+  rnanalsm1=1.0_r_kind/rnanalsm1
 
   if (mype == 0) then
      write(6,*)' '
@@ -102,8 +102,8 @@ program getsigensstatp
   endif
   call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
   if (iret.ne.0) then
-     write(6,*)'***ERROR*** after mpi_comm_create with iret=',iret
-     call mpi_abort(mpi_comm_world,101,iret)
+     write(6,*)'***ERROR*** after mpi_comm_create with iret=',iret,', aborting!'
+     goto 999
   endif
 
 ! Process input files (one file per task)
@@ -113,8 +113,8 @@ program getsigensstatp
      filenamein = trim(adjustl(datapath))//'/'//trim(adjustl(filepref))//'_mem'//charnanal
      
 !    Read each ensemble member forecast.
-     call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
-     write(6,*)'Read ',trim(filenamein),' iret=',iret
+     call sigio_srohdc(iunit,trim(adjustl(filenamein)),sigheadi,sigdatai,iret)
+     write(6,*)'Read ',trim(adjustl(filenamein)),' iret=',iret
      
      ntrunc = sigheadi%jcap
      ntrac  = sigheadi%ntrac
@@ -125,7 +125,7 @@ program getsigensstatp
      nsize3 = nsize2*nlevs
 
      if (mype == 0 ) then
-        write(6,*)'Read header information from ',trim(filenamein)
+        write(6,*)'Read header information from ',trim(adjustl(filenamein))
         write(6,*)' ntrunc = ',ntrunc
         write(6,*)' ntrac  = ',ntrac
         write(6,*)' nlats  = ',nlats
@@ -236,7 +236,6 @@ program getsigensstatp
   call mpi_barrier(mpi_comm_world,iret)
 
   if (mype1 <= nanals) then
-
      deallocate(psgi,psgs)
      deallocate( ugi, ugs)
      deallocate( vgi, vgs)
@@ -244,10 +243,8 @@ program getsigensstatp
      deallocate( qgi, qgs)
      deallocate(ozgi,ozgs)
      deallocate(cwgi,cwgs)
-
   endif
 
- call mpi_comm_free(new_comm) 
  deallocate(new_group_members)
 
   if (mype == 0) call w3tage('GETSIGENSSTATP')
@@ -263,6 +260,7 @@ program getsigensstatp
    implicit none
 
    character(len=*), intent(in) :: statstr
+   character(len=500) :: filenameout
    integer :: lunit
 
    filenameout = trim(adjustl(datapath))//'/'//trim(adjustl(filepref))//'_ens'//trim(adjustl(statstr))

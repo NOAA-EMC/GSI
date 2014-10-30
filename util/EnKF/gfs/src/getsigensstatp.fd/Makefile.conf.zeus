@@ -6,7 +6,6 @@
 # ----------------------------------
 COREINC  = /contrib/nceplibs/nwprod/lib/incmod
 CORELIB  = /contrib/nceplibs/nwprod/lib
-INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 
 # ---------------------------
@@ -29,12 +28,12 @@ INCsigio = $(COREINC)/sigio_4
   FFLAGS_F90    = -D_REAL4_
 
   FFLAGS_COM_N  = -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) \
+        -I $(INCsigio) \
 		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
 		-convert big_endian -assume byterecl
 
   FFLAGS_COM_N_NOSWAP  = -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) \
+        -I $(INCsigio) \
 		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
 		-convert big_endian -assume byterecl
 
@@ -46,11 +45,11 @@ INCsigio = $(COREINC)/sigio_4
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./  \
-        -I $(INCsfcio) -I $(INCsigio) \
+        -I $(INCsigio) \
 		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
 		-convert big_endian -assume byterecl
   FFLAGS_COM_NOSWAP_D  =  -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) \
+        -I $(INCsigio) \
 		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
 		-convert big_endian -assume byterecl
 
@@ -81,7 +80,7 @@ INCsigio = $(COREINC)/sigio_4
   LD            = $(CF) -mkl=sequential -lmpi -Wl,-Map,loadmap.txt
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lw3nco_v2.0.6_4 -lsigio_4 -lsfcio_4 -lbacio_4
+  LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lw3nco_v2.0.6_4 -lsigio_4 -lbacio_4
 
   LDFLAGS_N     = $(OMP)
 
