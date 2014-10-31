@@ -373,9 +373,9 @@ subroutine update_guess(sval,sbias)
 
   end do
 
-  if(ngases>0)then
-     deallocate(gases)
-  endif
+  if(ngases>0) deallocate(gases)
+  if(ncloud>0) deallocate(cloud)
+  if(nguess>0) deallocate(guess)
 
   if(is_sst>0) then
      do it=1,nfldsfc

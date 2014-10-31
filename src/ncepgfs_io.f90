@@ -84,7 +84,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -101,16 +101,16 @@ contains
     integer(i_kind):: it,nlon_b
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
-    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
-    real(r_kind),allocatable,dimension(:,:  ):: aux_z
-    real(r_kind),allocatable,dimension(:,:,:):: aux_u
-    real(r_kind),allocatable,dimension(:,:,:):: aux_v
-    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
-    real(r_kind),allocatable,dimension(:,:,:):: aux_div
-    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
-    real(r_kind),allocatable,dimension(:,:,:):: aux_q
-    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
-    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+    real(r_kind),dimension(lat2,lon2  ):: aux_ps
+    real(r_kind),dimension(lat2,lon2  ):: aux_z
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
@@ -127,9 +127,6 @@ contains
 
     type(spec_vars):: sp_b
 
-
-!   Get space for temporary arrays need to read file
-    call create_aux_
 
 !   If needed, initialize for hires_b transforms
     nlon_b=((2*jcap_b+1)/nlon+1)*nlon
@@ -188,37 +185,9 @@ contains
 
     if (hires_b) call general_destroy_spec_vars(sp_b)
 
-!   Get rid of temporary arrays
-    call destroy_aux_
 
   contains
 
-  subroutine create_aux_
-!
-!   Description: this routine is here only temporarily. It serves to demonstrate
-!   the ability to use a single (meaningful) variable in the analysis, as for 
-!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
-!   fields, we need to allocate space to read them all, even though depending on
-!   metguess, some maybe excluded from being carried into the analysis. In the
-!   future, it would be better to recode read_gfsatm and have it deal with a
-!   single variable at a time; at that time, this routine and its destroy could 
-!   be removed.
-!
-!   2013-10-29  Todling Initial code.
-!
-  use gridmod, only: lat2,lon2,nsig
-  implicit none
-  allocate(aux_ps(lat2,lon2))
-  allocate(aux_z(lat2,lon2))
-  allocate(aux_u(lat2,lon2,nsig))
-  allocate(aux_v(lat2,lon2,nsig))
-  allocate(aux_vor(lat2,lon2,nsig))
-  allocate(aux_div(lat2,lon2,nsig))
-  allocate(aux_tv(lat2,lon2,nsig))
-  allocate(aux_q(lat2,lon2,nsig))
-  allocate(aux_oz(lat2,lon2,nsig))
-  allocate(aux_cwmr(lat2,lon2,nsig))
-  end subroutine create_aux_
 
   subroutine set_guess_
 
@@ -252,25 +221,6 @@ contains
   endif
 
   end subroutine set_guess_
-
-  subroutine destroy_aux_
-!
-!   Description: see create_aux_
-!
-!   2013-10-29  Todling Initial code.
-!
-  implicit none
-  deallocate(aux_cwmr)
-  deallocate(aux_oz)
-  deallocate(aux_q)
-  deallocate(aux_tv)
-  deallocate(aux_div)
-  deallocate(aux_vor)
-  deallocate(aux_v)
-  deallocate(aux_u)
-  deallocate(aux_z)
-  deallocate(aux_ps)
-  end subroutine destroy_aux_
 
   end subroutine read_gfs
 
@@ -991,11 +941,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use kinds, only: i_kind,r_kind
     use guess_grids, only: dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
+    use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
 
@@ -1008,16 +959,16 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     character(24):: file_sfc,file_nst
 
-    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
-    real(r_kind),allocatable,dimension(:,:  ):: aux_z
-    real(r_kind),allocatable,dimension(:,:,:):: aux_u
-    real(r_kind),allocatable,dimension(:,:,:):: aux_v
-    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
-    real(r_kind),allocatable,dimension(:,:,:):: aux_div
-    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
-    real(r_kind),allocatable,dimension(:,:,:):: aux_q
-    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
-    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+    real(r_kind),dimension(lat2,lon2  ):: aux_ps
+    real(r_kind),dimension(lat2,lon2  ):: aux_z
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
@@ -1039,8 +990,16 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        ntlevs=nfldsig
     end if
 
-!   Get space for temporary arrays need to read file
-    call create_aux_
+    aux_ps=zero
+    aux_z=zero
+    aux_u=zero
+    aux_v=zero
+    aux_vor=zero
+    aux_div=zero
+    aux_tv=zero
+    aux_q=zero
+    aux_oz=zero
+    aux_cwmr=zero
 
     do it=1,ntlevs
        if (increment>0) then
@@ -1105,38 +1064,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
       endif
     endif
 
-!   Get rid of temporary arrays
-    call destroy_aux_
-
   contains
 
-  subroutine create_aux_
-!
-!   Description: this routine is here only temporarily. It serves to demonstrate
-!   the ability to use a single (meaningful) variable in the analysis, as for 
-!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
-!   fields, we need to allocate space to read them all, even though depending on
-!   metguess, some maybe excluded from being carried into the analysis. In the
-!   future, it would be better to recode read_gfsatm and have it deal with a
-!   single variable at a time; at that time, this routine and its destroy could 
-!   be removed.
-!
-!   2013-10-29  Todling Initial code.
-!
-  use gridmod, only: lat2,lon2,nsig
-  use constants, only: zero
-  implicit none
-  allocate(aux_ps(lat2,lon2)); aux_ps=zero
-  allocate(aux_z(lat2,lon2)); aux_z=zero
-  allocate(aux_u(lat2,lon2,nsig)); aux_u=zero
-  allocate(aux_v(lat2,lon2,nsig)); aux_v=zero
-  allocate(aux_vor(lat2,lon2,nsig)); aux_vor=zero
-  allocate(aux_div(lat2,lon2,nsig)); aux_div=zero
-  allocate(aux_tv(lat2,lon2,nsig)); aux_tv=zero
-  allocate(aux_q(lat2,lon2,nsig)); aux_q=zero
-  allocate(aux_oz(lat2,lon2,nsig)); aux_oz=zero
-  allocate(aux_cwmr(lat2,lon2,nsig)); aux_cwmr=zero
-  end subroutine create_aux_
 
   subroutine set_analysis_(it)
   implicit none
@@ -1164,25 +1093,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
   if(istatus==0) aux_cwmr = ges_cwmr_it
 
   end subroutine set_analysis_
-
-  subroutine destroy_aux_
-!
-!   Description: see create_aux_
-!
-!   2013-10-29  Todling Initial code.
-!
-  implicit none
-  deallocate(aux_cwmr)
-  deallocate(aux_oz)
-  deallocate(aux_q)
-  deallocate(aux_tv)
-  deallocate(aux_div)
-  deallocate(aux_vor)
-  deallocate(aux_v)
-  deallocate(aux_u)
-  deallocate(aux_z)
-  deallocate(aux_ps)
-  end subroutine destroy_aux_
 
   end subroutine write_gfs
 

@@ -1333,8 +1333,8 @@ subroutine read_obs(ndata,mype)
        endif task_belongs
 
     end do loop_of_obsdata_files
-    if(use_prsl_full_proc)deallocate(prsl_full)
-    if(use_hgtl_full_proc)deallocate(hgtl_full)
+    deallocate(prsl_full)
+    deallocate(hgtl_full)
 
 !   Broadcast aircraft new tail numbers for aircraft
 !   temperature bias correction
