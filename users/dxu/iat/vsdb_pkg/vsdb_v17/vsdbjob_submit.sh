@@ -14,29 +14,29 @@ set -ux
 ##    http://www.emc.ncep.noaa.gov/gmb/wx24fy/vsdb/prhs11/)
 ##-------------------------------------------------------------------
 
- MAKEVSDBDATA=NO            ;#VSDB data already exists
  MAKEVSDBDATA=YES           ;#To create VSDB date
+ MAKEVSDBDATA=NO            ;#VSDB data already exists
 
  MAKEMAPS=NO                ;#Not to make AC and RMS maps
  MAKEMAPS=YES               ;#To make AC and RMS maps
 
 #..............
- CONUSDATA=NO               ;#all precip stats already exist
  CONUSDATA=YES              ;#To generate precip verification stats
+ CONUSDATA=NO               ;#all precip stats already exist
 
- CONUSPLOTS=NO              ;#Not to make precip verification maps
  CONUSPLOTS=YES             ;#To make precip verification maps
+ CONUSPLOTS=NO              ;#Not to make precip verification maps
 #..............
 
- FIT2OBS=NO                 ;#Not to make fit-to-obs maps              
  FIT2OBS=YES                ;#To make fit-to-obs maps              
+ FIT2OBS=NO                 ;#Not to make fit-to-obs maps              
 #..............
 
- MAPS2D=NO         ;#Not to make maps of lat-lon distributions and zonal-mean corss-sections.
  MAPS2D=YES        ;#To make maps of lat-lon distributions and zonal-mean corss-sections.
+ MAPS2D=NO         ;#Not to make maps of lat-lon distributions and zonal-mean corss-sections.
 
 #----------------------------------------------------------------------
-export machine=BADGER              ;#IBM(cirrus/stratus), ZEUS, GAEA, and JET etc
+export machine=CARDINAL              ;#IBM(cirrus/stratus), ZEUS, GAEA, and JET etc
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 myhome=`pwd`
 set -a;. ${myhome}/setup_envs.sh $machine 
@@ -72,7 +72,7 @@ chost=$(hostname)                              ;#current computer host name
 # output  location:
 #   $vsdbsave ( set in setup_envs.sh)
 #---------------------
-myarch=/data/dxu/vsdb/data/input/fcst_data
+myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
 export fcyclist="00"                        ;#forecast cycles to be verified
 export expnlist="gfs ecm"                   ;#experiment names 
 export expdlist="$myarch $myarch"              ;#exp directories, can be different
@@ -162,7 +162,7 @@ fi
 #   $ARCDIR (set down below)
 #---------------------
 export expnlist="gfs gfs2"                          ;#experiment names
-export COMROT=/data/dxu/vsdb/data/input/fcst_data
+export COMROT=/data/users/dxu/vsdb_workspace/data/input/fcst_data
 export expdlist="$COMROT $COMROT"                        ;#fcst data directories, can be different
 #dxu ##retrieve data from tape
 export hpsslist="/NCEPDEV/hpssuser/g01/wx24fy/WCOSS /NCEPDEV/hpssuser/g01/wx24fy/WCOSS"  ;#hpss archive directory                  
@@ -210,7 +210,7 @@ fi
 export expnlist="gfs gfs2"                              ;#experiment names, up to 6 , gfs is operational GFS
 #dxu export expdlist="${gfswgnedir} $myarch"                   ;#fcst data directories, can be different
 export ARCDIR=$GNOSCRUB/$LOGNAME/archive   ;#directory to save stats data
-export gstat=/data/dxu/vsdb/data/input/qpf  ; # operational gfs rain stat data, used if exp=gfs
+export gstat=/data/users/dxu/vsdb_workspace/data/input/qpf  ; # operational gfs rain stat data, used if exp=gfs
 export expdlist="$ARCDIR $ARCDIR"                   ;#fcst data directories, can be different
 export complist="$chost  $chost "                         ;#computer names, can be different if passwordless ftp works 
 export cyclist="00 "                                    ;#forecast cycles for making QPF maps, 00Z and/or 12Z 
@@ -253,7 +253,7 @@ fi
 #dxu export expnlist="fnl prt1534"                              ;#experiment names, only two allowed, fnl is operatinal GFS
 export expnlist="fit_model  fit_model2"                              ;#experiment names, only two allowed, fnl is operatinal GFS
 #dxu export expdlist="$gfsfitdir $myarch1"                    ;#fcst data directories, can be different
-fitdir=/data/dxu/vsdb/data/input/f2o
+fitdir=/data/users/dxu/vsdb_workspace/data/input/f2o
 export expdlist="$fitdir $fitdir"                    ;#fcst data directories, can be different
 export complist="$chost  $chost "                         ;#computer names, can be different if passwordless ftp works
 export endianlist="little little"           ;#big_endian or little_endian of fits data, CCS-big, Zeus-little
@@ -287,8 +287,8 @@ export scrdir=${vsdbhome}/fit2obs
 # output  location:
 #   $mapdir/2D ( set up above)
 #---------------------
-export myarch=/data/dxu/vsdb/data/input/fcst_data
-export gstat=/data/dxu/vsdb/data/input/fcst_data ; # operational gfs fcst files, used if exp=gfs
+export myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
+export gstat=/data/users/dxu/vsdb_workspace/data/input/fcst_data ; # operational gfs fcst files, used if exp=gfs
 export expnlist="gfs ecm"        ;#experiments, up to 8; gfs will point to ops data
 export expdlist="$myarch  $myarch"   ;#fcst data directories, can be different
 export complist="$chost  $chost "    ;#computer names, can be different if passwordless ftp works 
