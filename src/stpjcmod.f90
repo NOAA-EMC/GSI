@@ -412,7 +412,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c)
   use mpimod, only: mype
   use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
   use guess_grids, only:  ges_prsi,ntguessig
-  use mpl_allreducemod, only: mpl_allreduce
+  use mpl_allreducemod, only: mpl_reduce
   use jcmod, only: bamp_jcpdry
   use gsi_bundlemod, only: assignment(=)
   use gsi_metguess_mod,  only: gsi_metguess_get
@@ -483,7 +483,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c)
      end do
   end do
 
-  call mpl_allreduce(2,qpvals=dmass)
+  call mpl_reduce(2,0,qpvals=dmass)
 
   if (mype==0) then
 
@@ -571,8 +571,8 @@ subroutine stpjcdfi(rval,sval,pen,b,c)
   call self_mul(rfilter,alphajc)
 
 ! Convert to energy norm/apply grid factors
-  call enorm_state(sfilter,pjc,afilter)
-  call enorm_state(rfilter,rjc,bfilter)
+  call enorm_state_red(sfilter,pjc,afilter)
+  call enorm_state_red(rfilter,rjc,bfilter)
 
 ! Penalty, b, c
   if (mype==0) then

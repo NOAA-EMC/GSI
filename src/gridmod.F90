@@ -232,7 +232,7 @@ module gridmod
   integer(i_kind) itotsub           ! number of horizontal points of all subdomains combined
   integer(i_kind) msig              ! number of profile layers to use when calling RTM
 
-  integer(i_kind) jcap_cut          ! spectral triangular truncation beyond which you recalculate pln and plntop - default 700 - used to save memory
+  integer(i_kind) jcap_cut          ! spectral triangular truncation beyond which you recalculate pln and plntop - default 600 - used to save memory
   integer(i_kind) jcap              ! spectral triangular truncation of ncep global analysis
   integer(i_kind) jcap_b            ! spectral triangular truncation of ncep global background
   integer(i_kind) nthreads          ! number of threads used (currently only used in calctends routines)

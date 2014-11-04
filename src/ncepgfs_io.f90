@@ -438,7 +438,8 @@ subroutine write_ghg_grid(a,char_ghg,mype)
   return
 end subroutine write_ghg_grid
 
-  subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
+  subroutine read_sfc(filename,nsfc,fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
+           soil_moi,sfc_rough,terrain,isli)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_sfc
@@ -453,14 +454,9 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     lunges             - unit number to use for IO
-!     mype               - mpi task id
 !     filename           - gfs surface file to read
-!     iope               - mpi task to perform IO
 !
 !   output argument list:
-!     sfcdata (inout)    - sfc data structure to hold data
-!     sfchead (inout)    - sfc header structure to hold metadata
-!     iret               - return code (0 for successful completion)
 !
 ! attributes:
 !   language:  f90
@@ -468,59 +464,112 @@ end subroutine write_ghg_grid
 !
 !$$$ end documentation block
     ! read data from sfc file on a single task, bcast data to other tasks.
-    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data
+    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_intkind
+    use sfcio_module, only: sfcio_axdata
     use kinds, only: i_kind,r_single,r_kind
-    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
+    use gridmod, only: nlat_sfc,nlon_sfc
     character(*),intent(in) :: filename
-    type(sfcio_head), intent(inout) :: sfchead
-    type(sfcio_data), intent(inout):: sfcdata
-    integer(i_kind), intent(inout) :: iret
-    integer(i_kind), intent(in) :: iope,mype,lunges
-    integer(i_kind) idate(4),latb,lonb
-    real(r_single) fhour
-    ! read a file on a specified task, broadcast data to other tasks.
-    ! iope is task that does IO for this file.
-    if (mype == iope) then
-        call sfcio_srohdc(lunges,filename,sfchead,sfcdata,iret)
-        if (iret /= 0) print *,'error in read_sfc',trim(filename),iret
-        idate = sfchead%idate
-        lonb = sfchead%lonb
-        latb = sfchead%latb
-        fhour = sfchead%fhour
+    integer(i_kind), intent(in) :: nsfc
+    integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
+         veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough,terrain
+    integer(i_kind) :: latb,lonb
+    integer(i_kind) :: iret,n,i,j
+    type(sfcio_head) :: sfc_head
+    type(sfcio_data) :: sfc_data
+    real(r_kind),allocatable,dimension(:,:):: outtmp
+    integer(sfcio_intkind):: lunges = 11
+! read a surface file on the task
+    call sfcio_srohdc(lunges,filename,sfc_head,sfc_data,iret)
+!   Check for possible problems
+    if (iret /= 0) then
+       write(6,*)'READ_SFC:  ***ERROR*** problem reading ',filename,&
+            ', iret=',iret
+       call sfcio_axdata(sfc_data,iret)
+       call stop2(80)
     endif
-    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    sfchead%fhour   = fhour
-    sfchead%idate   = idate
-    sfchead%latb   = latb
-    sfchead%lonb   = lonb
-    if (mype /= iope) then
-       allocate(&
-         sfcdata%tsea(lonb,latb),&
-         sfcdata%smc(lonb,latb,1),&
-         sfcdata%sheleg(lonb,latb),&
-         sfcdata%stc(lonb,latb,1),&
-         sfcdata%slmsk(lonb,latb),&
-         sfcdata%zorl(lonb,latb),&
-         sfcdata%vfrac(lonb,latb),&
-         sfcdata%f10m(lonb,latb),&
-         sfcdata%vtype(lonb,latb),&
-         sfcdata%stype(lonb,latb),&
-         sfcdata%orog(lonb,latb))
+    lonb = sfc_head%lonb
+    latb = sfc_head%latb
+    if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
+         write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
+              ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
+                 lonb,latb
+         call sfcio_axdata(sfc_data,iret)
+         call stop2(80)
     endif
-    call mpi_bcast(sfcdata%tsea(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%smc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%stc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%sheleg(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%zorl(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%vfrac(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%slmsk(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%f10m(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%vtype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%stype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%orog(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+!$omp parallel do private(n,i,j,outtmp)
+    do n=1,nsfc
+     if(n == 1)then                                  !skin temperature
+
+       call tran_gfssfc(sfc_data%tsea,sfct,lonb,latb)                                 
+     else if(n == 2) then                            ! soil moisture
+
+       call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi,lonb,latb)  
+
+     else if(n == 3) then                            ! snow depth
+
+       call tran_gfssfc(sfc_data%sheleg,sno,lonb,latb)        
+
+     else if(n == 4) then                            ! soil temperature
+
+       call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp,lonb,latb)  
+
+     else if(n == 5) then                            ! sea/land/ice mask
+
+       allocate(outtmp(latb+2,lonb))
+       call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
+       do j=1,lonb
+         do i=1,latb+2
+            isli(i,j) = nint(outtmp(i,j))
+         end do
+       end do
+       deallocate(outtmp)
+
+     else if(n == 6) then                             ! vegetation cover
+
+       call tran_gfssfc(sfc_data%vfrac,veg_frac,lonb,latb)                       
+     else if(n == 7) then                             ! 10m wind factor
+
+       call tran_gfssfc(sfc_data%f10m,fact10,lonb,latb)                           
+     else if(n == 8) then                             ! vegetation type
+
+       call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
+
+     else if(n == 9) then                             ! soil type
+
+       call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
+
+     else if(n == 10) then                            ! surface roughness length (cm)
+
+       call tran_gfssfc(sfc_data%zorl,sfc_rough,lonb,latb)            
+
+     else if(n == 11) then                            ! terrain
+
+       call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
+
+     end if
+
+
+!      End of loop over data records
+    end do
+    deallocate(&
+       sfc_data%tsea,&
+       sfc_data%smc,&
+       sfc_data%sheleg,&
+       sfc_data%stc,&
+       sfc_data%slmsk,&
+       sfc_data%zorl,&
+       sfc_data%vfrac,&
+       sfc_data%f10m,&
+       sfc_data%vtype,&
+       sfc_data%stype,&
+       sfc_data%orog)
+    call sfcio_axdata(sfc_data,iret)
+
+!   Print date/time stamp
+    write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
+700 format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
+         2i6,', hour=',f10.1,', idate=',4i5)
   end subroutine read_sfc
 
 
@@ -569,13 +618,12 @@ end subroutine write_ghg_grid
 !$$$
     use kinds, only: r_kind,i_kind
     use gridmod, only: nlat_sfc,nlon_sfc
-    use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
-         sfcio_srohdc,sfcio_axdata
+    use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
-    character(*)                               ,intent(in   ) :: filename
+    character(*)                                ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: iope
     integer(i_kind)                             ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
@@ -583,122 +631,34 @@ end subroutine write_ghg_grid
          veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough,terrain
 
 !   Declare local parameters
-    integer(sfcio_intkind):: lunges = 11
     integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
-    integer(i_kind) i,j,latb,lonb,n
-    integer(sfcio_intkind):: irets,iret
-    real(r_kind),allocatable,dimension(:,:):: outtmp
+    integer(i_kind):: iret,npts
 
-    type(sfcio_head):: sfc_head
-    type(sfcio_data):: sfc_data
 
 !-----------------------------------------------------------------------------
-!   Read surface file
-    call read_sfc(lunges,filename,sfc_head,sfc_data,iope,mype,irets)
-
-
-!   Check for possible problems
-    if (irets /= 0) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** problem reading ',filename,&
-            ', irets=',irets
-       call sfcio_axdata(sfc_data,iret)
-       call stop2(80)
-    endif
-    latb=sfc_head%latb
-    lonb=sfc_head%lonb
-    if ( (latb /= nlat_sfc-2) .or. &
-         (lonb /= nlon_sfc) ) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
-               lonb,latb
-       call sfcio_axdata(sfc_data,iret)
-       call stop2(80)
-    endif
-
-!   Load surface fields into local work array
-
-!$omp parallel do private(n,i,j,outtmp)
-    do n=1,nsfc
-      if(n == 1)then                                  !skin temperature
-
-        call tran_gfssfc(sfc_data%tsea,sfct,lonb,latb)                                 
-
-      else if(n == 2) then                            ! soil moisture
-
-        call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi,lonb,latb)  
-
-      else if(n == 3) then                            ! snow depth
-
-        call tran_gfssfc(sfc_data%sheleg,sno,lonb,latb)        
-
-      else if(n == 4) then                            ! soil temperature
-
-        call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp,lonb,latb)  
-
-      else if(n == 5) then                            ! sea/land/ice mask
-
-        allocate(outtmp(latb+2,lonb))
-        call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
-        do j=1,lonb
-          do i=1,latb+2
-             isli(i,j) = nint(outtmp(i,j))
-          end do
-        end do
-        deallocate(outtmp)
-
-      else if(n == 6) then                             ! vegetation cover
-
-        call tran_gfssfc(sfc_data%vfrac,veg_frac,lonb,latb)                       
-
-      else if(n == 7) then                             ! 10m wind factor
-
-        call tran_gfssfc(sfc_data%f10m,fact10,lonb,latb)                           
-
-      else if(n == 8) then                             ! vegetation type
-
-        call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
-
-      else if(n == 9) then                             ! soil type
-
-        call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
-
-      else if(n == 10) then                            ! surface roughness length (cm)
-
-        call tran_gfssfc(sfc_data%zorl,sfc_rough,lonb,latb)            
-
-      else if(n == 11) then                            ! terrain
-
-        call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
-
-      end if
-
-
-!   End of loop over data records
-    end do
-
-    deallocate(&
-         sfc_data%tsea,&
-         sfc_data%smc,&
-         sfc_data%sheleg,&
-         sfc_data%stc,&
-         sfc_data%slmsk,&
-         sfc_data%zorl,&
-         sfc_data%vfrac,&
-         sfc_data%f10m,&
-         sfc_data%vtype,&
-         sfc_data%stype,&
-         sfc_data%orog)
-    call sfcio_axdata(sfc_data,iret)
-
-
-!   Print date/time stamp
-    if(mype==iope) then
-       write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
-700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
-            2i6,', hour=',f10.1,', idate=',4i5)
+!   Read surface file on processor iope
+    if(mype == iope)then
+      call read_sfc(filename,nsfc,fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
+           soil_moi,sfc_rough,terrain,isli)
     end if
+
+!     Load onto all processors
+
+    npts=nlat_sfc*nlon_sfc
+
+    call mpi_bcast(sfct,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(fact10,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sno,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfc_rough,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(terrain,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli,npts,mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(veg_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(veg_frac,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(soil_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(soil_temp,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(soil_moi,npts,mpi_rtype,iope,mpi_comm_world,iret)
 
     return
   end subroutine read_gfssfc

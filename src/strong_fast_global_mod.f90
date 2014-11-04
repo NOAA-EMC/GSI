@@ -1816,10 +1816,6 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
   real(r_kind) f11p,f21p,f12p,f22p
   real(r_kind):: c1,c2
 
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(876)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2) &
 !$omp private(f11u,f21u,f12u,f22u,f11v,f21v,f12v,f22v,f11p,f21p,f12p,f22p)
@@ -1964,10 +1960,6 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
   real(r_kind) f11p,f21p,f12p,f22p
   real(r_kind):: c1
 
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(875)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,uvm_ns_temp) &
 !$omp private(f11u,f21u,f12u,f22u,f11v,f21v,f12v,f22v,f11p,f21p,f12p,f22p)
@@ -2137,10 +2129,6 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 
   real(r_kind):: c1
 
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(874)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1) &
 !$omp private(f1ur,f1ui,f2ur,f2ui,f1vr,f1vi,f2vr,f2vi,f1pr,f1pi,f2pr,f2pi)
@@ -2339,10 +2327,6 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
   real(r_kind) f1cr,f1ci,f2cr,f2ci
   real(r_kind) f1mr,f1mi,f2mr,f2mi
 
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(873)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp) &
 !$omp private(f1pr,f1pi,f2pr,f2pi,f1cr,f1ci,f2cr,f2ci,f1mr,f1mi,f2mr,f2mi)
@@ -2517,10 +2501,6 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
   real(r_kind) f11m,f21m,f12m,f22m
 
   pcm_hat=zero
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(872)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp,pcm_ns_temp) &
 !$omp private(f11p,f21p,f12p,f22p,f11c,f21c,f12c,f22c,f11m,f21m,f12m,f22m)
@@ -2670,10 +2650,6 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 
   real(r_kind):: c1,c2
 
-  if(.not. sp_a%precalc_pln)then
-     write(6,*) ' error in fast balance routines jcap_cut must be >= ',sp_a%jcap+1
-     call stop2(871)
-  end if
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
 !$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2) &
 !$omp private(f1ur,f1ui,f2ur,f2ui,f1vr,f1vi,f2vr,f2vi,f1pr,f1pi,f2pr,f2pi)

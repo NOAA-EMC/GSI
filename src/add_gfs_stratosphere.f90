@@ -59,7 +59,7 @@ subroutine add_gfs_stratosphere
 
   type(sub2grid_info) grd_gfs,grd_mix
   type(spec_vars) sp_gfs,sp_b
-  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,psri_m,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
+  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
