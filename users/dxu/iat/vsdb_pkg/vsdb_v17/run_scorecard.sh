@@ -14,11 +14,13 @@ export webhostid=${webhostid:-"$LOGNAME"}              ;#login id on rzdm webhos
 #export webhostid=${webhostid:-"wx23dc"}              ;#login id on rzdm webhost
 export webhost=${webhost:-"emcrzdm.ncep.noaa.gov"}     ;#login id on webhost
 export ftpdir=${ftpdir:-/home/people/emc/www/htdocs/gmb/$webhostid/vsdb}  ; #where maps are  displayed
+# dxu : output 1 : final scorecard 
 export mapdir=${mapdir:-~/scorecard}  ; #place to save output in local machine 
 export doftp=${doftp:-"NO"}                           ; #whether or not sent html files to scardftp 
 
 #Calculate total number of days
-vsdbhome=${vsdbhome:-/data/dxu/vsdb/vsdb_v17}
+# dxu: input 1 : vsdb location
+vsdbhome=${vsdbhome:-/data/users/dxu/vsdb_pkg/vsdb_v17}
 y1=`echo $SDATE |cut -c 1-4 `
 m1=`echo $SDATE |cut -c 5-6 `
 d1=`echo $SDATE |cut -c 7-8 `
@@ -29,7 +31,11 @@ ndays=`${vsdbhome}/map_util/days.sh -a $y2 $m2 $d2 - $y1 $m1 $d1`
 export ndays=`expr $ndays + 1 `
 
 #User can find the location of scorecard text files from vsdbjob_submit.sh
-rundir=/data/dxu/vsdb/work_space/stmp/dxu/nwpvrfy29092/acrms29092
+# dxu: input 2: input data that is generated in step2
+rundir=/data/users/dxu/vsdb_workspace/data/stmp/dxu/nwpvrfy47090/acrms47090
+rundir=/data/users/dxu/badgerdata/dxu/vsdb/work_space/stmp/dxu/nwpvrfy5064/acrms5064
+rundir=/data/users/dxu/vsdb_workspace/data/stmp/dxu/nwpvrfy9457/acrms9457
+# dxu:  working directory
 scoredir=${scoredir:-$rundir/score}                    ; #location of scard text files
 mkdir -p $scoredir
 cd $scoredir || exit
@@ -242,11 +248,11 @@ if [[ ! -s "$file1" || ! -s "$file2" || ! -s "$file3" ]] ; then
   echo "All text files do not exist to create verif scorecard" 
   echo "Check that all files exist and have size"
   echo "Check file1: " $file1
-  ls - $file1
+  ls -l $file1
   echo "Check file2: " $file2
-  ls - $file2
+  ls -l $file2
   echo "Check file3: " $file3
-  ls - $file3
+  ls -l $file3
   exit 88
 fi
 
@@ -257,15 +263,17 @@ conf1=$undef
 
 while read line          
 do           
-score1=$(echo $line | awk '{print $1}' | bc)
+  score1=$(echo $line | awk '{print $1}' | bc)
 done < ${file1}
+
 while read line
 do
-score2=$(echo $line | awk '{print $1}' | bc)
+  score2=$(echo $line | awk '{print $1}' | bc)
 done < ${file2}
+
 while read line
 do
-conf1=$(echo $line | awk '{print $1}' | bc)
+  conf1=$(echo $line | awk '{print $1}' | bc)
 done < ${file3}
 
 if [[ $ndays -ge 80 ]] ;then
