@@ -74,7 +74,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Linker and options
 # ------------------
 
-  LD            = $(CF)
+  LD            = $(CF) -lmpi
 
 #--- Normal mode options
 

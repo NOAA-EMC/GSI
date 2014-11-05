@@ -59,7 +59,7 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF)
+  LD            = $(CF) -lmpi
 
 #--- Normal mode options
   LIBS_N        = -L$(CORELIB) -lw3nco_v$(W3NCO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4
