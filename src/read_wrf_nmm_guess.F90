@@ -1045,7 +1045,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
   use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen,ges_prsl
+       isli,nfldsig,ifilesig,ges_tsen,ges_prsl,sfc_rough
   use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use cloud_efr_mod, only: cloud_calc
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
@@ -1122,7 +1122,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !          jm -- number of NMM latitudes (y-points) on E-grid
 !          lm -- number of NMM vertical levels ( = nsig for now)
 
-
+     sfc_rough = 0.05_r_kind   !default value
      good_o3mr=.false.  ! no input guess for ozone; will use gfs ozone
 
      num_doubtful_sfct=0

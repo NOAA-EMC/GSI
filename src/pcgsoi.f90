@@ -95,7 +95,7 @@ subroutine pcgsoi()
 !   2011-04-25  eL akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
-!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to state2ensctl
+!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to ensctl2state_ad
 !                          and ensctl2state.  I put in temporary fix to allow debug compile
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
@@ -143,7 +143,7 @@ subroutine pcgsoi()
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en,ntlevs_ens
-  use hybrid_ensemble_isotropic, only: beta12mult
+  use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
@@ -305,10 +305,10 @@ subroutine pcgsoi()
 
         if (l_hyb_ens) then
            eval(1)=mval(1)
-           call state2ensctl(eval,mval(1),gradx)
+           call ensctl2state_ad(eval,mval(1),gradx)
         end if
 !       Adjoint of convert control var to physical space
-        call state2control(mval,rbias,gradx)
+        call control2state_ad(mval,rbias,gradx)
      else
 
 !       Convert to control space directly from physical space.
@@ -316,7 +316,7 @@ subroutine pcgsoi()
            do ii=1,nobs_bins
               eval(ii)=rval(ii)
            end do
-           call state2ensctl(eval,mval(1),gradx)
+           call ensctl2state_ad(eval,mval(1),gradx)
         else
            mval(1)=rval(1)
            if (nobs_bins > 1 ) then
@@ -325,7 +325,7 @@ subroutine pcgsoi()
               enddo
            end if
         end if
-        call state2control(mval,rbias,gradx)
+        call control2state_ad(mval,rbias,gradx)
 
      end if
 
@@ -442,14 +442,23 @@ subroutine pcgsoi()
 
 !    Calculate new search direction
      if (.not. restart) then
+        if(diag_precon)then
+          do i=1,nclen
+             diry%values(i)=dirw%values(i)
+          end do
+        end if
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)
            ydiff%values(i)=grady%values(i)
            dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-           dirw%values(i)=-gradx%values(i)+b*dirw%values(i)
-           diry%values(i)= dirw%values(i)
+           diry%values(i)=-gradx%values(i)+b*diry%values(i)
         end do
-        if(diag_precon)call precond(diry)
+        if(diag_precon)then
+          do i=1,nclen
+             dirw%values(i)=diry%values(i)
+          end do
+          call precond(diry)
+        end if
      else
 !    If previous solution available, transfer into local arrays.
         xdiff=zero
@@ -648,15 +657,15 @@ subroutine pcgsoi()
        call model_ad(mval,rval,llprt)
        if (l_hyb_ens) then
           eval(1)=mval(1)
-          call state2ensctl(eval,mval(1),gradx)
+          call ensctl2state_ad(eval,mval(1),gradx)
        end if
-       call state2control(mval,rbias,gradx)
+       call control2state_ad(mval,rbias,gradx)
      else
        if (l_hyb_ens) then
           do ii=1,nobs_bins
             eval(ii)=rval(ii)
           end do
-          call state2ensctl(eval,mval(1),gradx)
+          call ensctl2state_ad(eval,mval(1),gradx)
        else
           mval(1)=rval(1)
           if (nobs_bins > 1 ) then
@@ -665,7 +674,7 @@ subroutine pcgsoi()
              enddo
           end if
        end if
-       call state2control(mval,rbias,gradx)
+       call control2state_ad(mval,rbias,gradx)
      end if
   
 !    Add contribution from background term
@@ -832,6 +841,7 @@ subroutine init_
 !
 !$$$ end documentation block
 
+  use jfunc, only: diag_precon
   implicit none
 
 ! Allocate local variables
@@ -840,7 +850,7 @@ subroutine init_
   call allocate_cv(grady)
   call allocate_cv(dirx)
   call allocate_cv(diry)
-  call allocate_cv(dirw)
+  if(diag_precon)call allocate_cv(dirw)
   call allocate_cv(ydiff)
   call allocate_cv(xdiff)
   do ii=1,nobs_bins
@@ -861,7 +871,7 @@ subroutine init_
   grady=zero
   dirx=zero
   diry=zero
-  dirw=zero
+  if(diag_precon)dirw=zero
   ydiff=zero
   xdiff=zero
   xhat=zero
@@ -894,6 +904,7 @@ subroutine clean_
 !
 !$$$ end documentation block
 
+  use jfunc, only: diag_precon
   implicit none
 
 ! Deallocate obs file
@@ -905,7 +916,7 @@ subroutine clean_
   call deallocate_cv(grady)
   call deallocate_cv(dirx)
   call deallocate_cv(diry)
-  call deallocate_cv(dirw)
+  if(diag_precon)call deallocate_cv(dirw)
   call deallocate_cv(ydiff)
   call deallocate_cv(xdiff)
  

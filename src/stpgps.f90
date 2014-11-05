@@ -91,7 +91,7 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
   use obsmod, only: gps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n,latlon1n1,nsig
+  use gridmod, only: latlon1n,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

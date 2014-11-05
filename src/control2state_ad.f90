@@ -1,7 +1,7 @@
-subroutine state2control(rval,bval,grad)
+subroutine control2state_ad(rval,bval,grad)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    state2control
+! subprogram:    control2state_ad
 !   prgmmr: tremolet
 !
 ! abstract:  Converts variables from physical space to control space
@@ -68,7 +68,7 @@ type(predictors)    , intent(in   ) :: bval
 type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
-character(len=*),parameter::myname='state2control'
+character(len=*),parameter::myname='control2state_ad'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
@@ -159,7 +159,7 @@ call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
 do jj=1,nsubwin
 
 !  Create a work bundle similar to grad control vector's bundle
-   call gsi_bundlecreate ( wbundle, grad%step(jj), 'state2control work', istatus )
+   call gsi_bundlecreate ( wbundle, grad%step(jj), 'control2state_ad work', istatus )
    if (istatus/=0) then
       write(6,*) trim(myname),': trouble creating work bundle'
       call stop2(999)
@@ -183,10 +183,6 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
 !  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
-   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
-   if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
-   if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
-   if (icpblh>0) call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
 
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
@@ -199,10 +195,6 @@ do jj=1,nsubwin
    else
       if(istatus_oz==0) rv_oz=zero 
    end if
-   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
-   if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
-   if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
-   if (icpblh>0) call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
 
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
@@ -225,6 +217,32 @@ do jj=1,nsubwin
       enddo
    end if
 
+!$omp parallel sections
+
+!$omp section
+
+!  Convert RHS calculations for u,v to st/vp for application of
+!  background error
+   if (do_getuv) call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
+
+!$omp section
+
+!  Calculate sensible temperature
+   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
+
+!  Adjoint of convert input normalized RH to q to add contribution of moisture
+!  to t, p , and normalized rh
+   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
+
+!  Adjoint to convert ps to 3-d pressure
+   if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_prse)
+
+
+!$omp section
+
+   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
+   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
+
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
@@ -239,22 +257,21 @@ do jj=1,nsubwin
       endif
    enddo
 
-!  Convert RHS calculations for u,v to st/vp for application of
-!  background error
-   if (do_getuv) call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
-
-!  Calculate sensible temperature
-   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-
-!  Adjoint of convert input normalized RH to q to add contribution of moisture
-!  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
-
-!  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_prse)
-
+   if (icgust>0) then
+      call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
+      call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
+   end if
+   if (icvis >0) then
+      call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
+      call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
+      call logvis_to_vis_ad(cv_vis,rv_vis)
+   end if
+   if (icpblh>0)then
+      call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
+      call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
+   end if
 !  Adjoint of convert logvis to vis
-   if(icvis >0) call logvis_to_vis_ad(cv_vis,rv_vis)
+!$omp end parallel sections
 
 !  Adjoint of transfer variables
 
@@ -289,4 +306,4 @@ endif
 if (nclouds>0) deallocate(clouds)
 
 return
-end subroutine state2control
+end subroutine control2state_ad
