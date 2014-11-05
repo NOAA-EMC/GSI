@@ -56,6 +56,11 @@ export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 
 #
+#  PLOT_HORIZ switches on/off plotting of horizontal data.  0=off, 1 = on.
+#
+export PLOT_HORIZ=${PLOT_HORIZ:-0}
+
+#
 #  USE_TM is only used for regional data sources and by default uses the tm12
 #  files.  
 export USE_TM=${USE_TM:-tm12}
