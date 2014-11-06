@@ -5,22 +5,43 @@
 ### for the scorecard text files to be created which are read by this script.
 ### Users should only need to change the 9 variables at the top of this script.
 ### Written by: DaNa Carlis and Rebecca LaPorta 11/5/2013
+### Update history: 
+###  11/6/2014, Deyong Xu / RTi @ JCSDA, 1) initialized var "rundir" so this script could run 
+###     outside vsdb main running script. 2) highlighten input and output settings for clarification.
+###     3) replace "exit 88" with "continue" so script won't crush in the middle due to missing some of score
+###     card files and continue to generate score card.
+### 
 
 set -x
-export SDATE=${DATEST:-20140201}
-export EDATE=${DATEND:-20140228}
-export mdlist=${mdlist:-"gfs ecm"}                     ;#Can only compare 2 experiments 
+#-----------------------------------
+# 1. Score card inputs:
+#-----------------------------------
+# a) VSDB package location
+vsdbhome=${vsdbhome:-/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_pkg/vsdb_v17}
+# b) Score card text file location
+export rundir=${rundir:-/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/stmp/Deyong.Xu/nwpvrfy29853/acrms29853}
+# c) Date range
+export SDATE=${DATEST:-20130723}
+export EDATE=${DATEND:-20130808}
+# d) Experiment name
+export mdlist=${mdlist:-"prt670 prthin1"}       ;#Can only compare 2 experiments 
+
+#-----------------------------------
+# 2. Score card inputs:
+#-----------------------------------
+# final scorecard location
+export mapdir=${mapdir:-~/scorecard}  ; #place to save output in local machine 
+
+#-----------------------------------------------------------
+# 3. Auxillary setting not interested to most of users. 
+#-----------------------------------------------------------
 export webhostid=${webhostid:-"$LOGNAME"}              ;#login id on rzdm webhost
 #export webhostid=${webhostid:-"wx23dc"}              ;#login id on rzdm webhost
 export webhost=${webhost:-"emcrzdm.ncep.noaa.gov"}     ;#login id on webhost
 export ftpdir=${ftpdir:-/home/people/emc/www/htdocs/gmb/$webhostid/vsdb}  ; #where maps are  displayed
-# dxu : output 1 : final scorecard 
-export mapdir=${mapdir:-~/scorecard}  ; #place to save output in local machine 
 export doftp=${doftp:-"NO"}                           ; #whether or not sent html files to scardftp 
 
 #Calculate total number of days
-# dxu: input 1 : vsdb location
-vsdbhome=${vsdbhome:-/data/users/dxu/vsdb_pkg/vsdb_v17}
 y1=`echo $SDATE |cut -c 1-4 `
 m1=`echo $SDATE |cut -c 5-6 `
 d1=`echo $SDATE |cut -c 7-8 `
@@ -31,11 +52,6 @@ ndays=`${vsdbhome}/map_util/days.sh -a $y2 $m2 $d2 - $y1 $m1 $d1`
 export ndays=`expr $ndays + 1 `
 
 #User can find the location of scorecard text files from vsdbjob_submit.sh
-# dxu: input 2: input data that is generated in step2
-rundir=/data/users/dxu/vsdb_workspace/data/stmp/dxu/nwpvrfy47090/acrms47090
-rundir=/data/users/dxu/badgerdata/dxu/vsdb/work_space/stmp/dxu/nwpvrfy5064/acrms5064
-rundir=/data/users/dxu/vsdb_workspace/data/stmp/dxu/nwpvrfy9457/acrms9457
-# dxu:  working directory
 scoredir=${scoredir:-$rundir/score}                    ; #location of scard text files
 mkdir -p $scoredir
 cd $scoredir || exit
@@ -253,7 +269,8 @@ if [[ ! -s "$file1" || ! -s "$file2" || ! -s "$file3" ]] ; then
   ls -l $file2
   echo "Check file3: " $file3
   ls -l $file3
-  exit 88
+  #dxu  exit 88
+  continue
 fi
 
 #Set default score
@@ -492,9 +509,12 @@ fi
 # cp  *css $mapdir/www/scorecard/.
 #fi
 
-if [ -s $mapdir ]; then
- cp *html $mapdir
- cp  *css $mapdir
+# Copy core card html files $mapdir, and create $mapdir if not exist.
+if [ ! -d $mapdir ]; then
+   mkdir $mapdir
 fi
+
+cp *html $mapdir
+cp  *css $mapdir
 
 exit
