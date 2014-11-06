@@ -53,7 +53,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pt_ll
   use constants, only: zero,one,r10
-  use obsmod, only: bmiss,sfcmodel  
+  use obsmod, only: bmiss,sfcmodel,time_offset  
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -127,7 +127,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
   real(r_kind) tgges,roges
   real(r_kind),dimension(nsig):: tvtmp,qtmp,utmp,vtmp,hsges
-  real(r_kind),dimension(nobs,5):: vals ! innovation, lat, lon, elev., usage from read_prepbufr
+  real(r_kind),dimension(nobs,7):: vals ! innovation, lat, lon, elev., station id, report time usage from read_prepbufr
   real(r_kind) u10ges,v10ges,t2ges,q2ges,psges2,f10ges,range,difmax
 
   real(r_kind),dimension(nsig):: prsltmp2
@@ -213,6 +213,8 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
        vals(i,3)=data(ilone,i)
        vals(i,4)=data(iobshgt,i)
        vals(i,5)=data(iuse,i)
+       vals(i,6)=data(id,i)
+       vals(i,7)=dtime-time_offset
        cycle
      end if   
          
@@ -295,6 +297,8 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
            vals(i,3)=data(ilone,i)
            vals(i,4)=data(iobshgt,i)
            vals(i,5)=data(iuse,i)
+           vals(i,6)=data(id,i)
+           vals(i,7)=dtime-time_offset
            cycle
         endif
      endif
@@ -304,7 +308,9 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
      vals(i,2)=data(ilate,i)
      vals(i,3)=data(ilone,i)
      vals(i,4)=data(iobshgt,i)
-     vals(i,5)=data(iuse,ii)     
+     vals(i,5)=data(iuse,ii)
+     vals(i,6)=data(id,i)
+     vals(i,7)=dtime-time_offset 
 ! End of loop over observations
   end do
 ! Release memory of local guess arrays
@@ -460,7 +466,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 ! !USES:
   use jfunc, only: jiter,last,jiterstart
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_comm_world
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nsig,twodvar_regional,regional
   use constants, only: zero, one,one_tenth,r100,tiny_r_kind
   use obsmod, only: obs_sub_comm,bmiss,dtype
@@ -468,7 +474,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   implicit none
 
 ! !INPUT PARAMETERS:
-  real(r_kind)                                     , intent(in   ) :: pevals(numobs,5)  ! data array containing all observations
+  real(r_kind)                                     , intent(in   ) :: pevals(numobs,7)  ! data array containing all observations
   real(r_kind)                                     , intent(in   ) :: range,& ! Radius within which we check for an ob's buddies (units are m)
                                                                       difmax  ! Max difference allowed relative to avg of buddy innovations
   integer(i_kind)                                  , intent(in   ) :: mype    ! mpi task id
@@ -513,19 +519,24 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 
 
 ! Declare local variables
+  integer(i_kind),parameter :: nvals=7
 
   real(r_kind) :: average,myinnov,mylat,mylon,myelev,sum,&
                   diff_check_1,diff_check_2,diff_j,err,fact
-  real(r_kind) :: distance,vdist
+  real(r_kind) :: distance,vdist,mydhr
   integer(i_kind) :: i,j,buddy_num,numobs_global,kob,buddy_num_final
   integer(i_kind) :: submm1,mynpe,ji,newrank,rem,amount,mydata
   integer(i_kind),allocatable,dimension(:) :: buddyuse_global,buddyuse,idisp,ircnt
   integer(i_kind),allocatable,dimension(:) :: locdisp,locsendcnt
-  real(r_kind) :: pevals1d(numobs*5)
+  real(r_kind) :: pevals1d(numobs*nvals)
   real(r_kind),allocatable,dimension(:,:) :: vals_global,vals
   real(r_kind),allocatable,dimension(:) :: vals1dglob,myvals1d,diff
   character(len=*),parameter :: myname='execute_buddy_check'
   character(8) :: mype_file,my_jiter
+  real(r_double) rstation_id
+  character(8) myid
+  equivalence(rstation_id,myid)
+
 
   ! Obtain the number of tasks here by using the communicator setup in obs_para.f90
   ! Note that the only communicator that gets activated here is the one associated with nobs>0
@@ -546,7 +557,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
     open(1920+mype,file='buddycheck_'//trim(dtype(is))//'_'//trim(mype_file)//'.'//trim(my_jiter),form='formatted',&
        status='unknown')
     write(1920+mype,'(A)')&
-       '  Lat     Lon       O-F  |O-F-AVG(O-Fs)| #Buddies  Pass?(1:pass,-1:fail,0s not recorded)'      	  
+       'ID         Lat     Lon       O-F  |O-F-AVG(O-Fs)| #Buddies  Pass?(1:pass,-1:fail,0s not recorded)  time'      	  
   end if
 
   call mpi_allgather(numobs,1,mpi_itype,ircnt,1,mpi_itype,obs_sub_comm(is),ierror)
@@ -569,7 +580,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   call mpi_allreduce(numobs,numobs_global,1,mpi_itype,mpi_sum,obs_sub_comm(is),ierror)
 
   ! Allocate the memory for everything and initialize certain fields to zero
-  allocate(vals_global(numobs_global,5),buddyuse_global(numobs_global),vals1dglob(numobs_global*5),diff(numobs_global))
+  allocate(vals_global(numobs_global,nvals),buddyuse_global(numobs_global),vals1dglob(numobs_global*nvals),diff(numobs_global))
   vals_global=zero
 
   ! Gather all pevals(:,:) on subdomains into vals_global on every task, noting that pevals takes the following
@@ -579,23 +590,24 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   !                pevals(i,3)=earth lon
   !                pevals(i,4)=ob height
   !                pevals(i,5)=rusage
-     
+  !                pevals(i,6)=rstation_id
+  !                pevals(i,7)=obtime relative to analysis time          
 
   !put pevals in a 1d array for easy mpi comms
   ji=0
   do i=1,numobs       
-     do j=1,5
+     do j=1,nvals
         ji=ji+1
         pevals1d(ji)=pevals(i,j)
      end do
   end do
 
-  call mpi_allgatherv(pevals1d,numobs*5,mpi_rtype,vals1dglob,ircnt*5,idisp*5,mpi_rtype,obs_sub_comm(is),ierror)
+  call mpi_allgatherv(pevals1d,numobs*nvals,mpi_rtype,vals1dglob,ircnt*nvals,idisp*nvals,mpi_rtype,obs_sub_comm(is),ierror)
 
    ! put vals1dglob to 2d vals_glob so things are more human-readable
   ji=0
   do i=1,numobs_global       
-     do j=1,5
+     do j=1,nvals
         ji=ji+1
         vals_global(i,j)=vals1dglob(ji)
      end do
@@ -635,13 +647,13 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 ! Now scatterv vals1dglob to workers for better load balance
 
   mydata=locsendcnt(submm1)
-  allocate(myvals1d(mydata*5),vals(mydata,5),buddyuse(mydata))
+  allocate(myvals1d(mydata*nvals),vals(mydata,nvals),buddyuse(mydata))
   myvals1d=0
-  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp*5,mpi_rtype,myvals1d,mydata*5,mpi_rtype,0,obs_sub_comm(is),ierror) 
+  call mpi_scatterv(vals1dglob,locsendcnt*nvals,locdisp*nvals,mpi_rtype,myvals1d,mydata*nvals,mpi_rtype,0,obs_sub_comm(is),ierror) 
 
   ji=0
   do i=1,mydata     
-     do j=1,5
+     do j=1,nvals
         ji=ji+1
         vals(i,j)=myvals1d(ji)
      end do
@@ -674,6 +686,8 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
     mylat=vals(i,2) 
     mylon=vals(i,3)
     myelev=vals(i,4)
+    rstation_id=vals(i,6)
+    mydhr=vals(i,7)
     diff=zero
     inner: do j = 1, numobs_global
 
@@ -750,16 +764,16 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
      if (abs(err) > fact*difmax) then
         buddyuse(i) = -1
         ! Most obs pass so it can be useful to print every buddy check failure to the screen
-        if(buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')&
-           myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i 
+        if(buddydiag_save) write(6,'(A,A,A,f10.4,A,f10.4,A,f10.4,A,I10,A,f8.4)') 'Station: ',myid,&
+           ' Fails! innov: ',myinnov,' err: ', err,' avg buddy innovs: ',average,' buddy count:', buddy_num_final,' dhr: ',mydhr
      else
         buddyuse(i)=1
         ! Most obs pass - so printing every pass to the screen would be overwhelming
-        if(mod(i,100)==0 .and. buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)') &
-           myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i         
+        if(mod(i,100)==0 .and. buddydiag_save) write(6,'(A,A,A,f10.4,A,f10.4,A,f10.4,A,I10,A,f8.4)') 'Station: ',myid,&
+           ' Passes! innov: ',myinnov,' err: ', err,' avg buddy innovs: ',average, ' buddy count:', buddy_num_final, ' dhr: ',mydhr 
      end if
-      if (buddydiag_save) write(1920+mype,'(f6.2,3x,f6.2,3x,f6.2,3x,f6.2,3x,I10,4x,I2)')&
-           mylat,mylon,myinnov,err,buddy_num_final,buddyuse(i)         
+      if (buddydiag_save) write(1920+mype,'(A,f6.2,3x,f6.2,3x,f6.2,3x,f6.2,3x,I10,4x,I2,3x,f8.4)')&
+           myid,mylat,mylon,myinnov,err,buddy_num_final,buddyuse(i),mydhr         
   end do main
 
 
