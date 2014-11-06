@@ -990,7 +990,7 @@ subroutine normal_new_factorization_rf_y
 
   ynorm_new=one
 
-  if(grd_loc%nlat < grd_loc%nlon)then
+  if(grd_loc%nlat <= grd_loc%nlon)then
     lend=1
     iend=grd_loc%nlat 
   else
