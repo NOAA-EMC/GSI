@@ -15,7 +15,7 @@ export anl_type=gfs            ;#analysis type: gfs, gdas, ecmwf, manl or canl
                                 ##gfs/gdas--own anl of each exps, manl--mean in expnlist; canl--mean of GFS,EC and UK.
 export sfcvsdb="YES"           ;#include the group of surface variables       
 export gd=G2                   ;#grid resoultion on which vsdb stats are computed, G2->2.5deg, G3->1deg, G4->0.5deg
-export doftp="YES"             ;#whether or not to send maps to web server
+export doftp="NO"             ;#whether or not to send maps to web server
 export scppgb="NO"             ;#copy files between machine? need passwordless ssh
 export batch="YES"             ;#run jobs at batch nodes                              
 export scorecard="YES"          ;#create scorecard text files and web display plate                          
@@ -54,8 +54,10 @@ elif [ $machine = WCOSS ]; then
 
 #----------------------------
 elif [ $machine = ZEUS ]; then
- export vsdbsave=/scratch2/portfolios/NCEPDEV/global/noscrub/$LOGNAME/archive/vsdb_data  ;#place where vsdb database is saved
- export ACCOUNT=glbss                                  ;#computer ACCOUNT task
+#dxu  export vsdbsave=/scratch2/portfolios/NCEPDEV/global/noscrub/$LOGNAME/archive/vsdb_data  ;#place where vsdb database is saved
+ # export vsdbsave=/scratch2/portfolios/NESDIS/drt/save/Tong.Zhu/gfs_pgb/prt670
+ export vsdbsave=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/output/vsdb_data
+ export ACCOUNT=h-sandy                                  ;#computer ACCOUNT task
  export CUE2RUN=batch                                  ;#default to batch queue
  export CUE2FTP=batch                                  ;#queue for data transfer
  export GROUP=g01                                      ;#group of account, g01 etc
@@ -164,20 +166,20 @@ elif [ $machine = WCOSS ]; then
 
 #----------------------------
 elif [ $machine = ZEUS ]; then
- export vsdbhome=/scratch2/portfolios/NCEPDEV/global/save/Fanglin.Yang/VRFY/vsdb ;#script home, do not change
- export obdata=/scratch2/portfolios/NCEPDEV/global/save/Fanglin.Yang/obdata      ;#observation data for making 2dmaps
- export gstat=/scratch2/portfolios/NCEPDEV/global/noscrub/stat  ;#global stats directory              
- export gfsvsdb=$gstat/vsdb_data                            ;#operational gfs vsdb database
+ export vsdbhome=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_pkg/vsdb_v17
+ export obdata=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/plot2d/obdata
+ export gstat=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/qpf
+ export gfsvsdb=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/output/vsdb_data
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
- export OBSPCP=$gstat/OBSPRCP                               ;#observed precip for verification
+ export OBSPCP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/qpf/OBSPRCP
  export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
- export gfsfitdir=$gstat/surufits                           ;#Suru operational model fit-to-obs database
+ export gfsfitdir=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/f2o
  export SUBJOB=$vsdbhome/bin/sub_zeus                       ;#script for submitting batch jobs
  export NWPROD=$vsdbhome/nwprod                             ;#common utilities and libs included in /nwprod
- export GNOSCRUB=/scratch2/portfolios/NCEPDEV/global/noscrub ;#temporary directory                          
- export STMP=/scratch2/portfolios/NCEPDEV/stmp              ;#temporary directory                          
- export PTMP=/scratch2/portfolios/NCEPDEV/ptmp              ;#temporary directory                          
+ export GNOSCRUB=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/intermediate
+ export STMP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/stmp
+ export PTMP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/ptmp
 #export GRADSBIN=/apps/grads/2.0.1/bin                      ;#GrADS executables       
  export GRADSBIN=/apps/grads/2.0.a9/bin                     ;#GrADS executables       
  export IMGCONVERT=/apps/ImageMagick/ImageMagick-6.7.6-8/bin/convert  ;#image magic converter
