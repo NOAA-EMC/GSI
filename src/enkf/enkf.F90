@@ -556,8 +556,7 @@ do niter=1,numiter
   if (nproc == 0) print *,'time to broadcast obfit_post = ',mpi_wtime()-t1,' secs, niter =',niter
 
   ! satellite bias correction update.
-  if ( (.not. lastiter .or. (lastiter .and. nskip == 0)) &
-       .and. nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
+  if (nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
 
 enddo ! niter loop
 
