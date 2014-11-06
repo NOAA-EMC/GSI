@@ -53,10 +53,10 @@ INCsfcio = $(COREINC)/sfcio_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF) 
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3lib-2.0_4 -lsfcio_4
+  LIBS_N        = -L$(CORELIB) -lw3lib-2.0_4 -lsfcio_4 -lmpi
 
   LDFLAGS_N     =
 
