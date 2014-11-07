@@ -69,7 +69,7 @@
       $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
    }
    elsif( $machine eq "jibb" ) {
-      $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
+      $tankdir = "/jcsda/nobackup/vkrishn1/radmon_workspace/data/output/radmon_tank";
    }
    else {
       $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
@@ -167,6 +167,10 @@
    if( $machine eq "cardinal" ) {
       $my_ptmp="export PTMP=/data/users/dxu/radmon_workspace/log";
       $my_stmp="export STMP=/data/users/dxu/radmon_workspace/run";
+   } 
+   if( $machine eq "jibb" ) {
+      $my_ptmp="export PTMP=/jcsda/nobackup/vkrishn1/radmon_workspace/log";
+      $my_stmp="export STMP=/jcsda/nobackup/vkrishn1/radmon_workspace/run";
    } 
 
    print "my_ptmp = $my_ptmp\n";
