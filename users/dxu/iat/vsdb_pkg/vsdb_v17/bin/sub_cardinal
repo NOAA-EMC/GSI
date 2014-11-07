@@ -114,26 +114,30 @@ cfile=$DATA/sub$$
 # 8. Start to fill out job card based 
 #    on option parameters passed 
 #=================================================
-# On badger, 
+# On cardinal:
 # -pe smp : node number 
-# -N : job name
-# -V : pass ENV variables
+# -J : job name
+# --export=<environment variables | ALL | NONE>
 # -o : output file
-echo "#!/bin/bash" >>$cfile
-echo "#$ -pe smp $procs"  >>$cfile
-echo "#$ -N $jobname" >>$cfile
-echo "#$ -V" >>$cfile
-echo "#$ -o $output"  >>$cfile
-echo "source /etc/bashrc"  >>$cfile
-echo "ulimit -v unlimited" >>$cfile
-echo "$exec $args" >>$cfile
+echo "#!/bin/bash"                 >>$cfile
+echo "#SBATCH --job-name=$jobname" >>$cfile
+echo "#SBATCH --partition=serial"  >> $cfile
+echo "#SBATCH --share"             >> $cfile
+echo "#SBATCH --ntasks=$procs"     >> $cfile
+echo "#SBATCH --cpus-per-task=1"   >> $cfile
+echo "#SBATCH --mem-per-cpu=4500"  >> $cfile
+echo "#SBATCH --export=ALL"        >> $cfile
+echo "#SBATCH --output=$output"    >>$cfile
+echo "source /etc/bashrc"          >>$cfile
+echo "ulimit -v unlimited"         >>$cfile
+echo "$exec $args"                 >>$cfile
 
 cat $cfile
 
 #=================================================
 # 9. Submit job
 #=================================================
-qsub $cfile
+sbatch $cfile
 
 rc=$?
 exit $rc
