@@ -276,6 +276,8 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
       $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $SCRIPTS/mk_horiz_plots.sh 
    elif [[ $MY_MACHINE = "cardinal" ]]; then
       $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/mk_horiz_plots.sh
+   elif [[ $MY_MACHINE = "jibb" ]]; then
+      $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/mk_horiz_plots.sh
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
    fi
