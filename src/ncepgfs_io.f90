@@ -1463,10 +1463,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !     to another grids (higher resolution, e.g., 1760 x 880) with surface mask
 !     info accounted
 !     The main ideas of the surface mask dependent interpolation:
-!     (1) By-linear interpolation is applied.
+!     (1) Bilinear interpolation is applied.
 !     (2) A preparation step is adopted to get more specified surface type points in
 !         the source. This can be done more than one time
-!     (3) For a target point, the candidates from the source must have the idetical surface type
+!     (3) For a target point, the candidates from the source must have the identical surface type
 !     (4) If none of the 4 nearby grids has the same surface type as the target
 !         point, the search area is expanded to one grid futher in each
 !         direction.
@@ -1760,7 +1760,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !        Write updated information to surface analysis file
          call sfcio_swohdc(io_sfcanl,fname_sfcanl,head_sfcanl,data_sfcanl,iret)
 
-         write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
+!        write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
 100      format(' WRITE_NST_SFC:  sfc analysis written  for ',&
             a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 !

@@ -1490,7 +1490,7 @@ contains
       seviri     = obstype == 'seviri'
       tmi        = obstype == 'tmi'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. seviri
+                .or. seviri .or. tmi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1

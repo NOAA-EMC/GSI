@@ -201,7 +201,6 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ioff0=maxinfo+nstinfo
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     write(*,'(a,4I7)') 'setupsst_allo,mype,maxinfo,nreal,nobs : ',mype,maxinfo,nreal,nobs
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
@@ -527,14 +526,6 @@ if(.not.in_curbin) cycle
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if
-
-! if(conv_diagsave )then
-! write(*,*) 'setupsst_3, mype,nreal,nobs : ',mype,nreal,nobs
-!   deallocate(cdiagbuf)
-! write(*,*) 'setupsst_4, mype,nreal,nobs : ',mype,nreal,nobs
-!   deallocate(rdiagbuf)
-! write(*,*) 'setupsst_5, mype,nreal,nobs : ',mype,nreal,nobs
-! end if
 
 ! End of routine
 end subroutine setupsst

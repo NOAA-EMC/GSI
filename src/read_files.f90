@@ -270,7 +270,6 @@ subroutine read_files(mype)
            idateg=sfc_head%idate
            i_ges(1)=sfc_head%lonb
            i_ges(2)=sfc_head%latb+2
-          write(*,*) 'i, filename,hourg4,idateg,i_ges(1),i_ges(2), : ',i, filename,hourg4,idateg,i_ges(1),i_ges(2) 
            if(sfc_head%latb/2>num_lpl)then
               write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
               call stop2(80)
@@ -463,8 +462,6 @@ subroutine read_files(mype)
          (ifilenst(i),i=1,nfldnst),(hrdifnst(i),i=1,nfldnst),ntguesnst
     deallocate(time_nst)
   endif
-
-  write(*,'(a,3I5)') ' read_files, ntguessig,ntguessfc,ntguesnst : ',ntguessig,ntguessfc,ntguesnst
 
 ! End of routine
   return
