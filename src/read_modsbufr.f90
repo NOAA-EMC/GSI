@@ -28,6 +28,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                       - (2) use t4dv rather than tdiff in calls to deter_sfc
 !                       - (3) use tsavg that is computed at observation depth
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2014-1-28   xli     - modify NSST related tz
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -479,7 +480,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
                           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
-           if(isflg /= zero)  cycle read_loop                            ! use data over water only
+           if( idomsfc /= zero)  cycle read_loop                         ! use data over water only
 
            nodata = nodata + 1
            ndata = ndata + 1
@@ -498,7 +499,10 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               tz_tr = one
               if(isflg == zero) then
                  call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
-                 tz = tref+dtw-dtc            ! Tz: Background temperature at depth of zob
+                 tz = tref
+                 if ( nst_gsi > 2 ) then
+                    tz = tref+dtw-dtc            ! Tz: Background temperature at depth of zob
+                 endif
               endif
 
            endif
