@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss"  && $machine ne "cardinal"&& $machine ne "badger") {
+   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss"  && $machine ne "jibb" && $machine ne "cardinal"&& $machine ne "badger") {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -59,13 +59,16 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $mahine eq "zeus" ) {
+   if( $machine eq "zeus" ) {
       $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
    } 
-   elsif( $mahine eq "badger" ) {
+   elsif( $machine eq "badger" ) {
       $tankdir = "/data/dxu/radmon_workspace/data/output/radmon_tank";
    }
-   elsif( $mahine eq "cardinal" ) {
+   elsif( $machine eq "cardinal" ) {
+      $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
+   }
+   elsif( $machine eq "jibb" ) {
       $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
    }
    else {
