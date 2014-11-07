@@ -31,7 +31,7 @@ module params
 use mpisetup
 use constants, only: rearth, deg2rad, init_constants, init_constants_derived
 use kinds, only: r_single,i_kind
-use radinfo, only: adp_anglebc,angord,use_edges,emiss_bc
+use radinfo, only: adp_anglebc,angord,use_edges,emiss_bc,newpc4pred
 
 implicit none
 private
@@ -96,7 +96,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
-                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
+                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,newpc4pred,&
                    nmmb,iau,nhr_anal,letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
 namelist /nam_wrf/arw,nmm,doubly_periodic
 namelist /satobs_enkf/sattypes_rad,dsis
@@ -174,7 +174,12 @@ nanals = 0
 ! for hydrostatic models, typically 5 (u,v,T,q,ozone).
 nvars = 5
 ! background error variance for rad bias coeffs  (used in radbias.f90)
-! default is GSI value.
+! default is (old) GSI value.
+! if negative, bias coeff error variace is set to -biasvar/N, where
+! N is number of obs per instrument/channel.
+! if newpc4pred is .true., biasvar is not used - the estimated
+! analysis error variance from the previous cycle is used instead
+! (same as in the GSI).
 biasvar = 0.1_r_single
 ! Observation box size for LETKF (deg)
 boxsize = 90._r_single
@@ -244,7 +249,7 @@ latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
 !! if not performing satellite bias correction update, set iterations to 1
-if (.not. (lupd_satbiasc)) then 
+if (.not. lupd_satbiasc) then 
    numiter=1
    if (nproc == 0) then
      write(6,*) 'PARAMS: NOT UPDATING BIAS CORRECTION COEFFS, SET NUMBER OF ITERATIONS TO 1'
