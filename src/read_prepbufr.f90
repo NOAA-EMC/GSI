@@ -942,11 +942,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else if (aircraft_t_bc_pof) then
                     call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
                     aircraftwk(2,:) = bmiss
-                    do i=1,levs
-                       if (kx0==330 .or. kx0==332) aircraftwk(1,i) = 3.0_r_kind
-                       if (kx0==430 .or. kx0==432) aircraftwk(1,i) = 5.0_r_kind
-                       if (kx0==530 .or. kx0==532) aircraftwk(1,i) = 6.0_r_kind
-                    end do
                     if (kx==130) aircraftwk(1,:) = 3.0_r_kind 
                  else if (aircraft_t_bc_ext) then
                     call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
