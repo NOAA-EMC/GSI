@@ -2155,7 +2155,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (k==1) then
 !                   adjust quality mark/usage parameter
                     if (trim(subset) == 'GOESND') then
-                       call adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
+                       call adjust_goescldobs(goescld(2,1),timeobs,idomsfc,dlat_earth,dlon_earth, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                   hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
                     else

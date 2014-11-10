@@ -382,7 +382,7 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 ! input variables
   integer(i_kind),intent(in) :: idomsfc
   real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth
-  real(r_kind),dimension(:,:),intent(in):: goescld
+  real(r_kind),intent(in):: goescld
 
 ! output variables
   integer(i_kind),intent(inout) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
@@ -417,8 +417,8 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   tcamt_qc=15
 
 ! cloud amount (%)
-  if (goescld(2,1)<=100.0_r_kind) then
-     tcamt=goescld(2,1)
+  if (goescld<=100.0_r_kind) then
+     tcamt=goescld
      tcamt_qc=1
 
 

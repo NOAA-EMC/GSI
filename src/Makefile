@@ -564,6 +564,7 @@ clean:
 	read_diag.f90 \
         read_fl_hdob.f90 \
 	read_goesimg.f90 \
+	read_goesimgr_skycover.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
 	read_lag.f90 \

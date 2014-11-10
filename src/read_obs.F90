@@ -1029,7 +1029,7 @@ subroutine read_obs(ndata,mype)
                  obstype=='mxtm' .or. obstype == 'mitm' .or. &
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
-                 obstype == 'tcamt' .or. obstype == 'lcbas'  ) then
+                 obstype == 'lcbas'  ) then
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
@@ -1039,8 +1039,27 @@ subroutine read_obs(ndata,mype)
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full)
                    string='READ_PREPBUFR'
+
                 endif
-!            Process winds in the prepbufr
+
+!            Process total cloud amount (tcamt) in prepbufr -or- from goes imager sky cover products
+             else if(obstype == 'tcamt') then
+!             Process GOES Imager Sky Cover product separately from prepbufr-based sky cover obs
+                if ( index(infile,'goessky') /=0 ) then
+
+                   write(6,*)'CARLEY: CALLING READ_GOESIMGR_SKYCOVER FOR TCAMT'
+
+                   call read_goesimgr_skycover(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                        prsl_full)
+                   string='READ_GOESIMGR_SKYCOVER'
+                else
+!              else read from prepbufr
+                   write(6,*)'CARLEY: CALLING READ_PREPBUFR FOR TCAMT'
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,prsl_full)
+                   string='READ_PREPBUFR'
+                end if
+
+!             Process winds in the prepbufr
             else if(obstype == 'uv' .or. obstype == 'wspd10m') then
 !             Process satellite winds which seperate from prepbufr
                 if ( index(infile,'satwnd') /=0 ) then
