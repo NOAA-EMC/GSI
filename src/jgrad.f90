@@ -215,7 +215,7 @@ if (l_do_adjoint) then
   end if
 
 ! Adjoint of convert control var to state space
-  call state2control(mval,rbias,gradx)
+  call control2state_ad(mval,rbias,gradx)
  
 ! Contribution from current and previous backgroun term
   do i=1,nclen

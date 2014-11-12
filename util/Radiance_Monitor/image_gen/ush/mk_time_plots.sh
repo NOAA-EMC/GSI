@@ -130,7 +130,7 @@ fi
 #   ((nprocs=(ntasks+1)/2))
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs12" || $SUFFIX = "wopr" ]]; then
+      if [[ $SUFFIX = "prhw14" || $SUFFIX = "wopr" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/ex_plot_summary.sh
       else
          $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/plot_summary.sh

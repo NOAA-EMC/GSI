@@ -36,9 +36,12 @@ shell=ksh
 # 
 # Need better reference here!
 if [[ $SUFFIX = "wopr" ]]; then
-   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/wopr"
-else
-   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/wopr"
+elif [[ $SUFFIX = "prhw14" ]]; then 
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/prhw14"
+elif [[ $SUFFIX = "nrx" ]]; then
+#   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
 fi
 
 HTAR="/usrx/local/hpss/htar"

@@ -728,6 +728,18 @@ end subroutine write_ghg_grid
 !   End of loop over data records
     end do
 
+    deallocate(&
+         sfc_data%tsea,&
+         sfc_data%smc,&
+         sfc_data%sheleg,&
+         sfc_data%stc,&
+         sfc_data%slmsk,&
+         sfc_data%zorl,&
+         sfc_data%vfrac,&
+         sfc_data%f10m,&
+         sfc_data%vtype,&
+         sfc_data%stype,&
+         sfc_data%orog)
     call sfcio_axdata(sfc_data,iret)
 
 

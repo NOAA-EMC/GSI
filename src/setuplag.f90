@@ -67,9 +67,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_001 = 0.001_r_kind
-  real(r_kind),parameter:: r8 = 8.0_r_kind
-  real(r_kind),parameter:: ten = 10.0_r_kind
 
   integer(i_kind),parameter:: iv_debug = 1
 

@@ -317,11 +317,22 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   pbc=zero_quad
 
 ! penalty, b and c for background terms
+!$omp parallel sections
 
-  pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
+!$omp section
+  xhat_yhat=qdot_prod_sub(xhatsave,yhatsave)
+!$omp section
+  dirx_yhat=qdot_prod_sub(dirx,yhatsave)
+!$omp section
+  diry_xhat=qdot_prod_sub(diry,xhatsave)
+!$omp section
+  dirx_diry=qdot_prod_sub(dirx,diry)
+!$omp end parallel sections
+
+  pstart(1,1) = xhat_yhat
 !  two terms in next line should be the same, but roundoff makes average more accurate.
-  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
-  pstart(3,1) = qdot_prod_sub(dirx,diry)
+  pstart(2,1) =-0.5_r_quad*(dirx_yhat+diry_xhat)
+  pstart(3,1) = dirx_diry
 
 ! Contraint and 3dvar terms
   if(l_foto )then

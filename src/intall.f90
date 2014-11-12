@@ -254,11 +254,13 @@ subroutine intall(sval,sbias,rval,rbias)
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
 
-! RHS calculation for Jc and other 3D-Var terms
-  call int3dvar(rval(1),dhat_dt)
+  if(l_foto) then
+!    RHS calculation for Jc and other 3D-Var terms
+     call int3dvar(rval(1),dhat_dt)
 
 ! Release local memory
-  if (l_foto) call deallocate_state(dhat_dt)
+     call deallocate_state(dhat_dt)
+   end if
 
 ! Finalize timer
   call timer_fnl('intall')

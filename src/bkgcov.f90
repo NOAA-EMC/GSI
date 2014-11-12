@@ -54,7 +54,6 @@ subroutine bkgcov(cstate)
   real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
   nlevs=s2g_raf%nlevs_loc
-  nsloop=3
   n3d=cstate%n3d
 
 ! Multiply by background error variances, and break up skin temp
@@ -147,7 +146,6 @@ subroutine ckgcov(z,cstate,nval_lenz)
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
   nlevs=s2g_raf%nlevs_loc
-  nsloop=3
 
 ! Apply horizontal smoother for number of horizontal scales
   call sqrt_smoothrf(z,hwork,nlevs)
@@ -227,7 +225,6 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
   nlevs=s2g_raf%nlevs_loc
-  nsloop=3
 
 ! Multiply by background error variances, and break up skin temp
 ! into components

@@ -9,7 +9,7 @@ COM=$3
 mkdir -p $tmpdir
 
 rm -f $tmpdir/radstat.*
-rm -f $tmpdir/satbias.*
+rm -f $tmpdir/satbiasc.*
 
 rm -f datem00
 rm -f datem12

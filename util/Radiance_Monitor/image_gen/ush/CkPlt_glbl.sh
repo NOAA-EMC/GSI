@@ -93,7 +93,6 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
 
 
 #--------------------------------------------------------------------
@@ -176,16 +175,9 @@ if [[ "$proceed" != "YES" ]]; then
    exit
 fi
 
-#--------------------------------------------------------------------
-# Make horizontal plots only on 00z cycle.  All other plotting
-# is done with each cycle. 
-#--------------------------------------------------------------------
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+
 
 echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
-
 
 prev_cycle=`$NDATE -6 $PDATE`
 

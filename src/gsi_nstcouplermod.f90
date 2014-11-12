@@ -33,7 +33,6 @@
 module GSI_NSTCouplerMod
 
 ! !USES:
-use gsi_bundlemod, only: gsi_bundle
 use kinds,         only: r_kind, i_kind
 
 implicit none
