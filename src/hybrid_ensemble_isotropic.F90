@@ -2529,36 +2529,36 @@ subroutine beta12mult(grady)
        write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
        call stop2(999)
     endif
-    do ii=1,nsubwin
+!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
+    do j=1,lon2
+       do ii=1,nsubwin
 
 !    multiply by beta1_inv first:
-!$omp parallel do schedule(dynamic,1) private(ic3,k,j,i)
-       do ic3=1,nc3d
+          do ic3=1,nc3d
 !    check for ozone and skip if oz_univ_static = true
-          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-          do k=1,nsig
-             do j=1,lon2
+             if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+             do k=1,nsig
                 do i=1,lat2
                    grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
                 enddo
              enddo
           enddo
-       enddo
-       do ic2=1,nc2d
+          do ic2=1,nc2d
 ! Default to static B estimate for SST
-          if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle
-          do j=1,lon2
+             if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle
              do i=1,lat2
                 grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
              enddo
           enddo
        enddo
+    end do
 
+!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
 !      next multiply by beta2inv:
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
-       do nn=1,n_ens
-          do k=1,grd_ens%nsig
-             do j=1,grd_ens%lon2
+    do j=1,grd_ens%lon2
+       do ii=1,nsubwin
+          do nn=1,n_ens
+             do k=1,grd_ens%nsig
                 do i=1,grd_ens%lat2
                    grady%aens(ii,nn)%r3(1)%q(i,j,k) =beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
                 enddo
@@ -2581,32 +2581,38 @@ subroutine beta12mult(grady)
        write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
        call stop2(999)
     endif
-    do ii=1,nsubwin
+!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,nn,k,j,i)
+    do j=1,lon2
+       do ii=1,nsubwin
   
 !      multiply by betas_inv first:
-!$omp parallel do schedule(dynamic,1) private(ic3,k)
-       do ic3=1,nc3d
+         do ic3=1,nc3d
 !    check for ozone and skip if oz_univ_static = true
-        if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-          do k=1,nsig
-             grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k)
-          enddo
-       enddo
-       do ic2=1,nc2d
+          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+            do k=1,nsig
+              grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k)
+            enddo
+         enddo
+         do ic2=1,nc2d
 ! Default to static B estimate for SST
-          if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-          grady%step(ii)%r2(ipc2d(ic2))%q =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q
-       enddo
+            if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
+            grady%step(ii)%r2(ipc2d(ic2))%q(:,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(:,j)
+         enddo
 
+       end do
+    end do
+!$omp parallel do schedule(dynamic,1) private(ii,nn,k,j,i)
+    do j=1,grd_ens%lon2
+       do ii=1,nsubwin
 !      next multiply by betae_inv:
-!$omp parallel do schedule(dynamic,1) private(nn,k)
-       do nn=1,n_ens
+         do nn=1,n_ens
           do k=1,nsig
-             grady%aens(ii,nn)%r3(1)%q(:,:,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,:,k)
+             grady%aens(ii,nn)%r3(1)%q(:,j,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,j,k)
           enddo
-       enddo
+         enddo
      
  
+       end do
     end do
   endif ! regional
   call timer_fnl('beta12mult')
@@ -3348,9 +3354,9 @@ subroutine bkerror_a_en(gradx,grady)
      write(6,*)'bkerror_a_en: trouble getting pointer to ensemble CV'
      call stop2(317)
   endif
-  do ii=1,nsubwin
-!$omp parallel do schedule(dynamic,1) private(nn)
-     do nn=1,n_ens
+!$omp parallel do schedule(dynamic,1) private(nn,ii)
+  do nn=1,n_ens
+     do ii=1,nsubwin
         grady%aens(ii,nn)%r3(ip)%q=gradx%aens(ii,nn)%r3(ip)%q
      enddo
   end do

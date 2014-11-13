@@ -59,7 +59,7 @@ subroutine add_gfs_stratosphere
 
   type(sub2grid_info) grd_gfs,grd_mix
   type(spec_vars) sp_gfs,sp_b
-  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,pri_m,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
+  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
@@ -445,26 +445,26 @@ subroutine add_gfs_stratosphere
 
 !  IN THIS SECTION GET 3D PRESSURE FOR MERGED (TARGET) PRESSURE
 
-     allocate(pri_m(lat2,lon2,nsig+1))
-     do k=1,nsig+1
-        do j=1,lon2
-           do i=1,lat2
-              pri_m(i,j,k)=one_tenth*(eta1_ll(k)*pdtop_ll + &
-                              eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &        
-                              pt_ll)
-           end do
+! allocate(pri_m(lat2,lon2,nsig+1))
+! do k=1,nsig+1
+!    do j=1,lon2
+!       do i=1,lat2
+!          pri_m(i,j,k)=one_tenth*(eta1_ll(k)*pdtop_ll + &
+!                          eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &        
+!                          pt_ll)
+!       end do
+!    end do
+! end do
+  allocate(prsl_m(lat2,lon2,nsig))
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
+                           aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &       
+                           pt_ll)
         end do
      end do
-     allocate(prsl_m(lat2,lon2,nsig))
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
-                              aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &       
-                              pt_ll)
-           end do
-        end do
-     end do
+  end do
 
   allocate(xspli_r(nsig_save),yspliu_r(nsig_save),yspliv_r(nsig_save),xsplo(nsig))
   allocate(ysplou_r(nsig),ysplov_r(nsig),ysplou_g(nsig),ysplov_g(nsig))
@@ -675,7 +675,7 @@ subroutine add_gfs_stratosphere
   deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
   deallocate(xspli_g,yspliu_g,yspliv_g)
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
-  deallocate(pri_m)  
+! deallocate(pri_m)  
   deallocate(vector) 
 
   enddo it_loop       

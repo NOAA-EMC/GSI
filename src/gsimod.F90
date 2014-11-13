@@ -81,7 +81,7 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,use_sp_eqspace,final_grid_vars,use_reflectivity,&
-     jcap_gfs,nlat_gfs,nlon_gfs
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
@@ -516,7 +516,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -981,6 +981,13 @@
   close(11)
 #endif
 
+  if(jcap > jcap_cut)then
+    jcap_cut = jcap+1
+    if(mype == 0)then
+      write(6,*) ' jcap_cut increased to jcap+1 = ', jcap+1
+      write(6,*) ' jcap_cut < jcap+1 not allowed '
+    end if
+  end if
   if (anisotropic) then
       call init_fgrid2agrid(pf2aP1)
       call init_fgrid2agrid(pf2aP2)
@@ -1019,7 +1026,7 @@
   endif
 
   call gsi_4dcoupler_setservices(rc=ier)
-         if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
+  if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
 
 
 ! Check user input for consistency among parameters for given setups.
@@ -1066,9 +1073,9 @@
 
   if (tlnmc_option>=2 .and. tlnmc_option<=4) then
      if (.not.l_hyb_ens) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
-	if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
-	tlnmc_option=1
+     if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
+     if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
+     tlnmc_option=1
      end if
   else if (tlnmc_option<0 .or. tlnmc_option>4) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
@@ -1244,17 +1251,19 @@
      if(ngroup>0) then
        if (ngroup<size(dmesh)) then
           write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+ 400      format(' ngroup = ',I5,' dmesh = ',(5f10.2))
        else
           call die(myname_,'dmesh size needs increasing',99)
        endif
      endif
      do i=1,ndat
-        write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
+        write(6,401)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
+ 401    format(1x,a20,1x,a10,1x,a10,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
      end do
      write(6,superob_radar)
      write(6,lag_data)
      write(6,hybrid_ensemble)
-     write(6,rapidrefresh_cldsurf)	
+     write(6,rapidrefresh_cldsurf)
      write(6,chem)
      if (oneobtest) write(6,singleob_test)
   endif
