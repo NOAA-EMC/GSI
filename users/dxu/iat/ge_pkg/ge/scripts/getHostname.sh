@@ -12,9 +12,11 @@
 hnStr=`hostname`
 
 # Define an array of hosts 
-declare -a hostArr
-hostArr=('badger' 'cardinal' 'zeus' )
-SIZE=${#hostArr[@]}   # array size
+declare -a hnSchArr
+declare -a hnArr
+hnSchArr=('badger' 'cardinal' 'fe' )
+hnArr=('badger' 'cardinal' 'zeus' )
+SIZE=${#hnSchArr[@]}   # array size
 
 # Define two const strings 
 emptyStr=""
@@ -26,12 +28,12 @@ searchStr="${emptyStr}"
 # Seach through host array to find a match
 for (( i=0; i<$SIZE; i++)); do
    
-   searchStr=` echo $hnStr  |grep -e "${hostArr[${i}]}" `
+   searchStr=` echo $hnStr  |grep -e "${hnSchArr[${i}]}" `
 
    if [ "${searchStr}" != "${emptyStr}" ]
    then
       # Once a match is found, return and exit.
-      echo "${hostArr[${i}]}"
+      echo "${hnArr[${i}]}"
       exit
    fi
 done 
