@@ -396,6 +396,7 @@ integer(i_kind),intent(in   ) :: idate   ! Date (yyyymmddhh)
 real(r_kind)   ,intent(  out) :: step4d  ! Time since start of 4D-Var window (hours)
 
 integer(i_kind) iyr,imo,idy,ihr,nmin_obs,nhrobs,nhrbgn,nhroff
+integer(i_kind),dimension(5) :: idate5
 
 ihr=idate
 iyr=ihr/1000000
@@ -404,7 +405,12 @@ imo=ihr/10000
 ihr=ihr-10000*imo
 idy=ihr/100
 ihr=ihr-100*idy
-call w3fs21((/iyr,imo,idy,ihr,0/),nmin_obs)
+idate5(1)=iyr
+idate5(2)=imo
+idate5(3)=idy
+idate5(4)=ihr
+idate5(5)=0
+call w3fs21(idate5,nmin_obs)
 if (MOD(nmin_obs,60)/=0) then
    write(6,*)'time_4dvar: minutes should be 0',nmin_obs
    call stop2(136)

@@ -93,6 +93,7 @@ subroutine intlimq(rval,sval,itbin)
   call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,ier)
   if(ier/=0)return
  
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,q)
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
@@ -357,6 +358,7 @@ subroutine intjcpdry(rval,sval,pjc)
 
 ! Declare local variables
   real(r_quad),dimension(2) :: mass ! 1=dry;2=wv
+  real(r_quad),dimension(nsig) :: mass2
   real(r_quad) rcon,con,dmass
   integer(i_kind) i,j,k,it,ii,mm1,ier,icw,iql,iqi,istatus
   real(r_kind),pointer,dimension(:,:,:) :: sq =>NULL()
@@ -402,20 +404,25 @@ subroutine intjcpdry(rval,sval,pjc)
     end do
   end do
 
+  mass2(:)=zero_quad
 ! Calculate water-vapor contribution to total mass
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,ii,con)
   do k=1,nsig
      do j=2,lon2-1
         do i=2,lat2-1
            ii=istart(mm1)+i-2
            con = (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
-           mass(2)=mass(2)+sq(i,j,k)*con
+           mass2(k)=mass2(k)+sq(i,j,k)*con
            if (icw==0) then
-              mass(2)=mass(2)+sc(i,j,k)*con
+              mass2(k)=mass2(k)+sc(i,j,k)*con
            else
-              mass(2)=mass(2)+(sql(i,j,k)+sqi(i,j,k))*con
+              mass2(k)=mass2(k)+(sql(i,j,k)+sqi(i,j,k))*con
            endif
         end do
      end do
+  end do
+  do k=1,nsig
+     mass(2)=mass(2)+mass2(k)
   end do
 
 ! First, use MPI to get global mean increment
@@ -438,6 +445,7 @@ subroutine intjcpdry(rval,sval,pjc)
     end do
   end do
 ! Remove water to get incremental dry ps
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,ii,con)
   do k=1,nsig
      do j=2,lon2-1
         do i=2,lat2-1

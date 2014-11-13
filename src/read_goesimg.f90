@@ -93,7 +93,6 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 ! Declare local parameters
   integer(i_kind),parameter:: nimghdr=13
   integer(i_kind),parameter:: maxinfo=37
-  integer(i_kind),parameter:: maxchanl=4
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -126,7 +125,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_double),dimension(nimghdr) :: hdrgoesarr       !  goes imager header
   real(r_double),dimension(3,6) :: dataimg              !  goes imager data
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
 
@@ -253,8 +252,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
 

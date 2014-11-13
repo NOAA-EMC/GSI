@@ -181,7 +181,7 @@
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
@@ -213,7 +213,7 @@
   integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
   real(r_kind),dimension(40,ndat)   ,intent(inout) :: aivals
   real(r_kind),dimension(7,jpch_rad),intent(inout) :: stats
-  logical                           ,intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                           ,intent(in   ) :: init_pass,last_pass    ! state of "setup" processing
 
 ! Declare external calls for code analysis
   external:: stop2
@@ -284,7 +284,7 @@
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
-  real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
+  real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval
 ! real(r_kind) :: predchan6_save   
 
@@ -292,8 +292,8 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical channel_passive
 
+  logical channel_passive
   logical,dimension(nobs):: luse
 
   character(10) filex
@@ -825,17 +825,14 @@
 ! assignment (needed for vertical localization).
               weightmax(i) = zero
               do k=2,nsig
-                 ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+                 ptau5deriv = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
                     (log(prsltmp(k-1))-log(prsltmp(k))) )
-                 if (ptau5deriv(k,i) > ptau5derivmax) then
-                    ptau5derivmax = ptau5deriv(k,i)
+                 if (ptau5deriv > ptau5derivmax) then
+                    ptau5derivmax = ptau5deriv
                     kmax(i) = k
                     weightmax(i) = r10*prsitmp(k) ! cb to mb.
                  end if
               enddo
-! normalize weighting function
-              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax(i),i)
-              ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-tvp(2))
@@ -1413,6 +1410,8 @@
 !       Link obs to diagnostics structure
         iii=0
         do ii=1,nchanl
+          m=ich(ii)
+          if (iuse_rad(m)>=1 .or. l4dvar) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
@@ -1490,6 +1489,7 @@
 
               endif
            endif ! (in_curbin)
+          end if
         enddo
         if(in_curbin) then
            if(.not. retrieval.and.(iii/=icc)) then

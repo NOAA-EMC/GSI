@@ -115,7 +115,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
   integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
   integer(i_kind) istat,id_qc
-  integer(i_kind) idomsfc,itz,iff10,isfcr
+  integer(i_kind) idomsfc,itz
   integer(i_kind) idatamax
   
   logical,dimension(nobs):: luse,muse
@@ -156,16 +156,14 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iuse=13     ! index of use parameter
   idomsfc=14  ! index of dominant surface type
   itz=15      ! index of temperature at depth z (Tz)
-  iff10=16    ! index of 10 meter wind factor
-  isfcr=17    ! index of surface roughness
-  ilone=18    ! index of longitude (degrees)
-  ilate=19    ! index of latitude (degrees)
-  istnelv=20  ! index of station elevation (m)
-  itref=21    ! index of Tr
-  idtw=22     ! index of dtw
-  idtc=23     ! index of dtc
-  itz_tr=24   ! index of tz_tr
-  idatamax=24 ! set to largest value in list above
+  ilone=16    ! index of longitude (degrees)
+  ilate=17    ! index of latitude (degrees)
+  istnelv=18  ! index of station elevation (m)
+  itref=19    ! index of Tr
+  idtw=20     ! index of dtw
+  idtc=21     ! index of dtc
+  itz_tr=22   ! index of tz_tr
+  idatamax=22 ! set to largest value in list above
 
   if(nst_gsi>0) then
      if(nele<idatamax) then
@@ -411,10 +409,10 @@ if(.not.in_curbin) cycle
            ssttail(ibin)%head => ssttail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) + 1
-	my_head => ssttail(ibin)%head
-	my_head%idv = is
-	my_head%iob = i
+        m_alloc(ibin) = m_alloc(ibin) + 1
+        my_head => ssttail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
         call get_ij(mm1,dlat,dlon,ssttail(ibin)%head%ij(1),ssttail(ibin)%head%wij(1))
@@ -424,22 +422,24 @@ if(.not.in_curbin) cycle
         ssttail(ibin)%head%raterr2 = ratio_errors**2    
         ssttail(ibin)%head%time    = dtime
         ssttail(ibin)%head%zob     = zob
-        ssttail(ibin)%head%tz_tr   = tz_tr
+        if (nst_gsi > 0 ) then
+           ssttail(ibin)%head%tz_tr   = tz_tr
+        end if
         ssttail(ibin)%head%b       = cvar_b(ikx)
         ssttail(ibin)%head%pg      = cvar_pg(ikx)
         ssttail(ibin)%head%luse    = luse(i)
         ssttail(ibin)%head%diags => obsdiags(i_sst_ob_type,ibin)%tail
  
-	my_head => ssttail(ibin)%head
-	my_diag => ssttail(ibin)%head%diags
+        my_head => ssttail(ibin)%head
+        my_diag => ssttail(ibin)%head%diags
         if(my_head%idv /= my_diag%idv .or. &
-	   my_head%iob /= my_diag%iob ) then
-	  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-	  	(/is,i,ibin/))
-	  call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-	  call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-	  call die(myname)
-	endif
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+        endif
      endif
 
 
