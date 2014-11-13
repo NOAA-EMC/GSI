@@ -110,10 +110,10 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    done
 
    #------------------------------------------------------------------
-   #  Remove any directories in $ARCHIVE_DIR in excess of 60 
+   #  Remove any directories in $ARCHIVE_DIR in excess of 30 
    #------------------------------------------------------------------
    total=`ls -d1 ${ARCHIVE_DIR}/radmon.* | wc -l`
-   ((extra=total-61)) 
+   ((extra=total-31)) 
 
    if [[ $extra -gt 0 ]]; then
       `ls -d1 ${ARCHIVE_DIR}/radmon.* | head -n $extra | xargs rm -rf`

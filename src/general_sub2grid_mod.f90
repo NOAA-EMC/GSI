@@ -641,7 +641,15 @@ end subroutine get_iuse_pe
   integer(i_kind),intent(  out) :: ilat1(npe),istart(npe),jlon1(npe),jstart(npe)
 
   character(len=*), parameter :: myname_='general_deter_subdomain'
+! integer(i_kind)  :: npe2,npsqrt
 
+! npe2=npe/2
+! npsqrt=sqrt(npe2)
+! if(2*npsqrt*npsqrt == npe)then
+!    nxpe=2*npsqrt
+!    nype=npsqrt
+!    if(mype == 0)write(6,*) ' using nxpe and nype in deter_subdomain ',nxpe,nype
+! end if
 ! If a layout is provided, use it for the domain decomposition
 ! ------------------------------------------------------------
   if ( nxPE > 0 .AND. nyPE > 0 ) then

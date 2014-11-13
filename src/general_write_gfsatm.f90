@@ -77,8 +77,6 @@
     type(sigio_head):: sigges_head,siganl_head
     type(sigio_dbti):: sigdati
 
-    type(ncepgfs_head):: gfshead
-
     logical lloop
 
 !*************************************************************************
@@ -96,12 +94,12 @@
     i=1
 ! Have all files open ges and read header for now with RanRead
     call sigio_rropen(lunges,fname_ges,iret)
-    call sigio_alhead(sigges_head,iret)
     call sigio_rrhead(lunges,sigges_head,iret)
-    call sigio_aldbti(sigges_head,i,sigdati,iret)
 
 ! All tasks should also open output file for random write
     call sigio_rwopen(lunanl,filename,iret_write)
+    call sigio_alhead(siganl_head,iret,levs=sigges_head%levs, &
+       nvcoord=sigges_head%nvcoord,ntrac=sigges_head%ntrac,idvm=sigges_head%idvm)
     if (iret_write /=0) goto 1000
 
 ! Load date
@@ -137,15 +135,6 @@
 
 !      Load grid dimension and other variables used below
 !      into local header structure
-       gfshead%fhour   = siganl_head%fhour
-       gfshead%idate   = siganl_head%idate
-       gfshead%levs    = siganl_head%levs
-       gfshead%ntrac   = siganl_head%ntrac
-       gfshead%ncldt   = siganl_head%ncldt
-       gfshead%jcap    = siganl_head%jcap
-       gfshead%lonb    = grd%nlon
-       gfshead%latb    = nlatm2
-       gfshead%idrt    = 4
 
 !      Write header to analysis file
     if (mype==mype_out) then
@@ -224,19 +213,19 @@
              sigdati%i = 2+klev                                   ! temperature
 !  Z
           else if ( kvar==4 .and. (mype==(k-1)) ) then
-             sigdati%i = gfshead%levs + 2 + (klev-1) * 2 + 2      ! vorticity
+             sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 2      ! vorticity
 !  D
           else if ( kvar==5 .and. (mype==(k-1)) ) then
-             sigdati%i = gfshead%levs + 2 + (klev-1) * 2 + 1      ! divergence
+             sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 1      ! divergence
 !  Q
           else if ( kvar==6 .and. (mype==(k-1)) ) then
-             sigdati%i = gfshead%levs * (2+1) + 2 + klev          ! q
+             sigdati%i = siganl_head%levs * (2+1) + 2 + klev          ! q
 ! OZ
           else if ( kvar==7 .and. (mype==(k-1)) ) then
-             sigdati%i = gfshead%levs * (2+2) + 2 + klev          ! oz
+             sigdati%i = siganl_head%levs * (2+2) + 2 + klev          ! oz
 ! CW
           else if ( kvar==8 .and. (mype==(k-1)) ) then
-             sigdati%i = gfshead%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
+             sigdati%i = siganl_head%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
           end if
 
           if ( klev>0 .and. (mype==k-1) ) then
@@ -278,15 +267,16 @@
        end if
 
     end do gfsfields
-    deallocate(sigges_head%vcoord,sigges_head%cfvars)
+    deallocate(siganl_head%vcoord,siganl_head%cfvars)
+    call sigio_rclose(lunges,iret)
     call sigio_rclose(lunanl,iret)
     iret_write=iret_write+iret
     if (iret_write /=0) goto 1000
 
 !   Print date/time stamp
     if (mype==mype_out) then
-       write(6,700) gfshead%jcap,gfshead%lonb,gfshead%latb,gfshead%levs,&
-            gfshead%fhour,gfshead%idate
+       write(6,700) siganl_head%jcap,grd%nlon,nlatm2,siganl_head%levs,&
+            siganl_head%fhour,siganl_head%idate
 700    format('GENERAL_WRITE_GFSATM:  anl write, jcap,lonb,latb,levs=',&
             4i6,', hour=',f10.1,', idate=',4i5)
     endif
