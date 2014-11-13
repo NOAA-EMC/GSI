@@ -11,7 +11,7 @@
 #======================================
 set -a
 
-ndate_dir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
+ndate_dir=/scratch2/portfolios/NCEPDEV/rstprod/nwprod/util/exec
 gribmap_dir=/apps/grads/2.0.1a/bin
 gxps_dir=/apps/grads/2.0.1a/bin
 grads_dir=/apps/grads/2.0.1a/bin
