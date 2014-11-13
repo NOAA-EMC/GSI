@@ -49,7 +49,7 @@ mkdir -p ${rundir}; cd $rundir || exit 8
 
 
 #==================================================================
-for storm in Amanda Boris Cristina Douglas Elida Fausto Wali Genevieve Hernan Iselle Julio ;do
+for storm in Amanda Boris Cristina Douglas Elida Fausto Genevieve Hernan Iselle Julio ; do
  case $storm in
   Amanda)         code1=ep012014.dat; DATEST=20140522; DATEND=20140529;;
   Boris)          code1=ep022014.dat; DATEST=20140602; DATEND=20140604;;
@@ -57,11 +57,10 @@ for storm in Amanda Boris Cristina Douglas Elida Fausto Wali Genevieve Hernan Is
   Douglas)        code1=ep042014.dat; DATEST=20140628; DATEND=20140705;;
   Elida)          code1=ep052014.dat; DATEST=20140630; DATEND=20140702;;
   Fausto)         code1=ep062014.dat; DATEST=20140707; DATEND=20140709;;
-  Wali)           code1=ep072014.dat; DATEST=20140717; DATEND=20140719;;
-  Genevieve)      code1=ep082014.dat; DATEST=20140725; DATEND=20140807;;
-  Hernan)         code1=ep092014.dat; DATEST=20140726; DATEND=20140729;;
-  Iselle)         code1=ep102014.dat; DATEST=20140731; DATEND=20140809;;
-  Julio)          code1=ep112014.dat; DATEST=20140804; DATEND=20140813;;
+  Genevieve)      code1=ep072014.dat; DATEST=20140725; DATEND=20140807;;
+  Hernan)         code1=ep082014.dat; DATEST=20140726; DATEND=20140729;;
+  Iselle)         code1=ep092014.dat; DATEST=20140731; DATEND=20140805;;
+  Julio)          code1=ep102014.dat; DATEST=20140803; DATEND=20140808;;
  esac
 OCEAN=EP
 
