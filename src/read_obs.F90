@@ -497,7 +497,8 @@ subroutine read_obs(ndata,mype)
 !                         through module m_extOzone, separated from read_ozone.
 !                       - Added some -do- and -if- construct names, for easier
 !                         understanding of the code.
-!   2014-06-19  carley/zhu - add tcamt and lcbas
+!   2014-06-19  carley/zhu - Add tcamt and lcbas
+!   2014-11-12  carley  - Add call to read goes imager sky cover data for tcamt
 !   
 !
 !   input argument list:
@@ -555,7 +556,8 @@ subroutine read_obs(ndata,mype)
     logical :: modis
     logical :: acft_profl_file
     character(10):: obstype,platid
-    character(15):: string,infile
+    character(22):: string
+    character(15):: infile
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
@@ -1046,15 +1048,11 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'tcamt') then
 !             Process GOES Imager Sky Cover product separately from prepbufr-based sky cover obs
                 if ( index(infile,'goessky') /=0 ) then
-
-                   write(6,*)'CARLEY: CALLING READ_GOESIMGR_SKYCOVER FOR TCAMT'
-
                    call read_goesimgr_skycover(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                         prsl_full)
                    string='READ_GOESIMGR_SKYCOVER'
                 else
 !              else read from prepbufr
-                   write(6,*)'CARLEY: CALLING READ_PREPBUFR FOR TCAMT'
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,prsl_full)
                    string='READ_PREPBUFR'
                 end if
@@ -1328,7 +1326,7 @@ subroutine read_obs(ndata,mype)
 
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a15,': file=',a15,&
+8000         format(1x,a22,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)

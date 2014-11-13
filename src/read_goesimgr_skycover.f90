@@ -12,7 +12,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !            domain
 !
 ! program history log:
-!   2014-11-07 J. Carley      
+!   2014-11-07 J. Carley - Initial code     
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -81,7 +81,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   character(len=8) :: c_prvstg,c_sprvstg ,c_station_id
 
 
-  integer(i_kind) :: ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,nrep,ntb
+  integer(i_kind) :: nmsub,ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,nrep,ntb
   integer(i_kind) :: iret,kx,minobs,minan,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
@@ -108,21 +108,13 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !  equivalence to handle character names
   equivalence(rstation_id,c_station_id)
 
-
-
-
   lunin=11_i_kind
   ithin=-9_i_kind
   rmesh=-99.999_r_kind
-  myname='read_goesimgr_skycover'
+  myname='READ_GOESIMGR_SKYCOVER'
   hdrstr='RPID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
   goescldstr='SAID TOCC TOCC_AVG'   
   nreal=20
-
-
-
-
-
 
   nc=0
   do i=1,nconvtype
@@ -142,13 +134,12 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      rmesh=rmesh_conv(nc)
      pmesh=pmesh_conv(nc)
      use_all = .false.
-     if(pmesh > zero) then
-        pflag=1
-        nlevp=r1200/pmesh
-     else
-        pflag=0
-        nlevp=nsig
-     endif
+     if(pmesh > zero) then 
+        write(6,'(A,1x,A,1x,f6.3,1x,A)')  myname,': WARNING, PMESH IS:',pmesh,' - CANNOT THIN 2D SKYCOVER OBS IN THE VERTICAL. SEE CONVINFO FILE.  SETTING PMESH TO ZERO...'
+        pmesh=zero
+     end if
+     pflag=0
+     nlevp=nsig
      xmesh=rmesh
      call make3grids(xmesh,nlevp)
      if (.not.use_all) then
@@ -159,7 +150,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
            enddo
         endif
      endif
-     write(6,*)myname,': ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
+     write(6,'(A,1x,A,1x,A,I4,1x,f8.2,I2,I3,f8.2,I3)')myname,': ioctype(nc), ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
                  ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
   endif
 
@@ -172,25 +163,22 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
  
   nmsg=0
   ntb = 0
-  maxobs=0
   ! Find number of reports and messages so we know how much memory to allocate
   do while (ireadmg(lunin,subset,idate) == 0)
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
+     ntb = ntb + nmsub(lunin)
      if (nmsg>nmsgmax) then
         write(6,*)myname,': messages exceed maximum ',nmsgmax
         call stop2(50)
      endif
-     do while (ireadsb(lunin) == 0)
-        ntb = ntb+1
-        maxobs=maxobs+1
-        if (ntb>mxtb) then
-           write(6,*)myname,': reports exceed maximum ',mxtb   
-           call stop2(50)
-        endif
-     end do
+     if (ntb>mxtb) then
+        write(6,*)myname,': reports exceed maximum ',mxtb   
+        call stop2(50)
+     endif
   end do
+  maxobs=ntb
 
 
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
@@ -200,8 +188,9 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   nchanl=0
   ilon=2
   ilat=3
+  ntb=0
 
-
+   close(lunin)
    call closbf(lunin)
    open(lunin,file=trim(infile),form='unformatted')
    call openbf(lunin,'IN',lunin)
@@ -232,6 +221,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
                if( (abs(tdiff) > ctwind(nc)) .or. (abs(tdiff) > twind) )cycle loop_readsb
             endif
    
+
             kx=999_i_kind !hardwire typ to 999
             if(abs(hdr(8))>r90 .or. abs(hdr(9))>r360) cycle loop_readsb
             if(hdr(9)== r360)hdr(9)=hdr(9)-r360
@@ -266,7 +256,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
           ! - Thin in vertical  - note we can only thin in the horizontal
           ! -   since sky cover is a 2D field.  So this branch should never run
           ! -   unless we get info about the vertical location of the clouds in the
-          ! -   future.
+          ! -   future.  Leaving here as a 'just-in-case' measure.
             if(ithinp   )then
 !           Interpolate guess pressure profile to observation location
                klon1= int(dlon);  klat1= int(dlat)
@@ -306,7 +296,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
                      presl_thin(kk)=presl(kk)
                   end do
                endif
-               ppb=one_tenth*1013.25 !number is irrelevant for 2D - set to standard SLP -> 1013.25 and convert from mb to cb
+               ppb=one_tenth*1013.25_r_kind !number is irrelevant for 2D - set to standard SLP -> 1013.25 and convert from mb to cb
                call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
                                  ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
 
@@ -325,8 +315,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
          !-  Set usage variable
          usage = 0 
-
          if(iuse <= 0)usage=r100
+
          ! Get information from surface file necessary for conventional data here
          call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 

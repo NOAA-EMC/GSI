@@ -433,6 +433,7 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
      anal_time(4)=0
      anal_time(5)=iadate(4)
      call w3movdat(tmp_time,anal_time,obs_time) ! observation time
+
      leap_day = 0
      if( mod(obs_time(1),4)==0 ) then
         if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
