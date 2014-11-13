@@ -42,7 +42,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     use constants, only: zero,one,fv,r0_01
     use sigio_module, only: sigio_intkind,sigio_head,sigio_alhead
     use sigio_r_module, only: sigio_dbti,sigio_rrhead,sigio_rropen,&
-        sigio_axdbti,sigio_rrdbti,sigio_aldbti
+        sigio_axdbti,sigio_rrdbti,sigio_aldbti,sigio_rclose
     use ncepgfs_io, only: sigio_cnvtdv8
     use gsi_io, only: mype_io
 
@@ -79,9 +79,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     type(sigio_head):: sighead
     type(sigio_dbti):: sigdati
 
-    type(ncepgfs_head):: gfshead
-
-
 !******************************************************************************  
 !   Initialize variables used below
     iret_read=0
@@ -92,17 +89,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !   All tasks open and read header with RanRead
     rewind(lunges)
     call sigio_rropen(lunges,filename,iret)
-    call sigio_alhead(sighead,iret)
     call sigio_rrhead(lunges,sighead,iret_read)
-    call sigio_aldbti(sighead,i,sigdati,iret)
     if (iret_read /=0) goto 1000
-    gfshead%fhour   = sighead%fhour
-    gfshead%idate   = sighead%idate
-    gfshead%lonb    = sighead%lonb
-    gfshead%latb    = sighead%latb
-    gfshead%levs    = sighead%levs
-    gfshead%ntrac   = sighead%ntrac
-    gfshead%ncldt   = sighead%ncldt
 
     icount=0
 
@@ -163,7 +151,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !   mpi_alltoallv calls communicate the grids to all mpi tasks.  
 !   Finally, the grids are loaded into guess arrays used later in the 
 !   code.
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=3
        ilev(icount)=k
@@ -188,13 +176,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
                icount,iflag,ilev,work,uvflag)
        end if
     end do
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=4
        ilev(icount)=k
        if (mype==icount-1) then
 !  Vorticity
-          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+          sigdati%i = sighead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
           sigdati%f => specwrk_4
           call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -214,13 +202,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
                icount,iflag,ilev,work,uvflag)
        end if
     end do
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=5
        ilev(icount)=k
        if (mype==icount-1) then
 !   Divergence 
-          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+          sigdati%i = sighead%levs + 2 + (k-1) * 2 + 1     ! Divergence
           sigdati%f => specwrk_4
           call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -242,7 +230,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        end if
     end do
     if (uvflag) then
-       do k=1,gfshead%levs
+       do k=1,sighead%levs
           icount=icount+1
           iflag(icount)=6
           ilev(icount)=k
@@ -252,12 +240,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !   U  Compute u and v from div and vor
 
 !               Divergence
-             sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+             sigdati%i = sighead%levs + 2 + (k-1) * 2 + 1     ! Divergence
              sigdati%f => specdiv_4
              call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
 !               Vorticity
-             sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+             sigdati%i = sighead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
              sigdati%f => specwrk_4
              call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -279,7 +267,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
                   icount,iflag,ilev,work,uvflag)
           end if
        end do
-       do k=1,gfshead%levs
+       do k=1,sighead%levs
           icount=icount+1
           iflag(icount)=7
           ilev(icount)=k
@@ -287,12 +275,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !   Divergence and voriticity.  Compute u and v from div and vor
 
 !              Divergence
-             sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+             sigdati%i = sighead%levs + 2 + (k-1) * 2 + 1     ! Divergence
              sigdati%f => specdiv_4
              call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
 !              Vorticity
-             sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+             sigdati%i = sighead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
              sigdati%f => specwrk_4
              call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -315,14 +303,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
           end if
        end do
     end if
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=8
        ilev(icount)=k
        if (mype==icount-1) then
 
 !   Specific humidity
-          sigdati%i = gfshead%levs * (2+1) + 2 + k    ! q
+          sigdati%i = sighead%levs * (2+1) + 2 + k    ! q
           sigdati%f => specwrk_4
           call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -338,13 +326,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
               icount,iflag,ilev,work,uvflag)
        end if
     end do
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=9
        ilev(icount)=k
        if (mype==icount-1) then
 !   Ozone mixing ratio
-          sigdati%i = gfshead%levs * (2+2) + 2 + k    ! oz
+          sigdati%i = sighead%levs * (2+2) + 2 + k    ! oz
           sigdati%f => specwrk_4
           call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -361,15 +349,15 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
                icount,iflag,ilev,work,uvflag)
        end if
     end do
-    do k=1,gfshead%levs
+    do k=1,sighead%levs
        icount=icount+1
        iflag(icount)=10
        ilev(icount)=k
        if (mype==icount-1) then
 !   Cloud condensate mixing ratio.
-         if (gfshead%ntrac>2 .or. gfshead%ncldt>=1) then
+         if (sighead%ntrac>2 .or. sighead%ncldt>=1) then
 ! 
-          sigdati%i = gfshead%levs * (2+3) + 2 + k    ! cw, 3rd tracer
+          sigdati%i = sighead%levs * (2+3) + 2 + k    ! cw, 3rd tracer
           sigdati%f => specwrk_4
           call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
@@ -384,14 +372,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
          endif
        endif
 
-       if (icount == npe .or. k == gfshead%levs) then
+       if (icount == npe .or. k == sighead%levs) then
            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag)
        end if
     end do
     
 !   Deallocate sigio data array
-    call sigio_axdbti(sigdati,iret)
+    call sigio_rclose(lunges,iret)
     deallocate(sighead%vcoord,sighead%cfvars)
 
 !   Surface pressure.
@@ -435,8 +423,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 
 !   Print date/time stamp 
     if(mype==mype_io) then
-       write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,grd%nlon,nlatm2,&
-            gfshead%fhour,gfshead%idate
+       write(6,700) sighead%lonb,sighead%latb,sighead%levs,grd%nlon,nlatm2,&
+            sighead%fhour,sighead%idate
 700    format('GENERAL_READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
             3i6,', nlon,nlat=',2i6,', hour=',f10.1,', idate=',4i5)
     end if
