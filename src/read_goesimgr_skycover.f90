@@ -5,8 +5,10 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 ! subprogram:    read_goesimgr_skycover                    read GOES Imager sky cover product
 !   prgmmr: Jacob Carley                               date: 2014-11-07
 !
-! abstract:  This routine reads GOES Imager sky cover data for BUFR_d files.        
-!            it also has options to thin the data by using conventional thinning programs 
+! abstract:  This routine reads GOES Imager sky cover data from bufr_d files.        
+!            It also has options to thin the data by using conventional
+!            thinning programs, though data are only thinned in 2D and not 3D
+!            since sky cover is a 2D data set. 
 !            When running the gsi in regional mode, the code only
 !            retains those observations that fall within the regional
 !            domain

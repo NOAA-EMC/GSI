@@ -293,6 +293,7 @@
 !                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
 !                       regional analysis
 !  10-07-2014 carley    added buddy check options under obsqc
+!  11-12-2014 pondeca   must read in from gridopts before calling obsmod_init_instr_table. swap order
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -947,8 +948,8 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  read(5,setup)
   call obsmod_init_instr_table(nhr_assimilation,ndat)
+  read(5,setup) 
   read(5,gridopts)
   read(5,bkgerr)
   read(5,anbkgerr)
@@ -965,10 +966,10 @@
 ! Initialize table of instruments and data types
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
-        if(ios/=0) call die(myname_,'read(setup)',ios)
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
+        if(ios/=0) call die(myname_,'read(setup)',ios)  
   read(11,gridopts,iostat=ios)
         if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,bkgerr,iostat=ios)
         if(ios/=0) call die(myname_,'read(bkgerr)',ios)
   read(11,anbkgerr,iostat=ios)

@@ -2714,6 +2714,7 @@ subroutine init_instr_table_ (nhr_assim,nall,iamroot,rcname)
 !
 ! program history log:
 !   2013-09-27  todling  - initial code
+!   2014-11-13  pondeca  - put back ndat_times=1 exception for twodvar_regional
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -2728,6 +2729,7 @@ use file_utility, only : get_lun
 use mpeu_util, only: gettablesize
 use mpeu_util, only: gettable
 use mpeu_util, only: getindex
+use gridmod, only: twodvar_regional
 implicit none
 
 integer(i_kind),intent(in)  :: nhr_assim       ! number of assimilation hours
@@ -2772,6 +2774,7 @@ if(luin/=5) close(luin)
 
 ! Because obs come in 6-hour batches
 ndat_times=max(1,nhr_assim/6)
+if(twodvar_regional)ndat_times = 1
 ndat_types=nrows
 nall=ndat_times*ndat_types
 

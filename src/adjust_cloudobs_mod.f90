@@ -9,7 +9,7 @@ module adjust_cloudobs_mod
 !
 ! subroutines included:
 !   sub adjust_convcldobs    -     obtain cloud amount info from conventional prepbufr
-!   sub adjust_goescldobs    -     obtain cloud amount info from NESDIS goescld
+!   sub adjust_goescldobs    -     obtain cloud amount info from goes cloud obs
 !
 !
 ! attributes:
