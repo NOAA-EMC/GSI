@@ -1,0 +1,8 @@
+# module command
+alias mload="module add "    # add one module
+alias munload="module unload "    # delete all modules
+alias mpurge="module purge "  # unload all modules
+alias mlist="module list "   # list LOADED modules
+alias mavail="module avail " # list available modules
+alias mspider="module spider " # get info about a module
+alias mwhatis="module whatis " # get info about a module

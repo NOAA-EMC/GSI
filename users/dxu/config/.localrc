@@ -1,0 +1,48 @@
+
+######################################
+# Set up my data location
+######################################
+export data_dir="/data/users/dxu"
+alias data="cd ${data_dir} "
+
+# iat
+if [ -f ~/.config/.iatrc ]
+then
+   . ~/.config/.iatrc
+fi
+
+# svn
+if [ -f ~/.config/.svnrc ]
+then
+   . ~/.config/.svnrc
+fi
+
+# module
+if [ -f ~/.config/.modulerc ]
+then
+   . ~/.config/.modulerc
+fi
+
+# ps
+if [ -f ~/.config/.psrc ]
+then
+   . ~/.config/.psrc
+fi
+
+# dir related 
+if [ -f ~/.config/.dirrc ]
+then
+   . ~/.config/.dirrc
+fi
+
+# job submission 
+if [ -f ~/.config/.subjobrc ]
+then
+   . ~/.config/.subjobrc
+fi
+
+# my tool
+if [ -f ~/.config/.toolrc ]
+then
+   . ~/.config/.toolrc
+fi

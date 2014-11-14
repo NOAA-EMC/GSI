@@ -1,0 +1,25 @@
+###################################
+# IAT
+###################################
+#1. radmon
+alias radmon_run=" cd $data_dir/radmon_workspace/run/dxu"
+alias radmon_log=" cd $data_dir/radmon_workspace/log/dxu/logs/radmyolddata "
+alias radmon_stat="cd $data_dir/radmon_workspace/data/output/radmon_tank/stats/myolddata "
+alias radmon_imgn="cd $data_dir/radmon_workspace/data/output/radmon_tank/imgn/myolddata/pngs "
+alias radmon="     cd $data_dir/radmon_pkg/radmon/util/Radiance_Monitor "
+#2. vsdb
+alias vsdb="       cd $data_dir/vsdb_pkg/vsdb_v17  "
+alias vsdb_output="cd $data_dir/vsdb_workspace/data/output/vsdb_data "
+alias vsdb_stmp="  cd $data_dir/vsdb_workspace/data/stmp/dxu "
+#3. ge
+alias ge="         cd $data_dir/ge_pkg/ge/scripts  "
+alias ge_output="  cd $data_dir/ge_workspace/data/output "
+#4. hit
+alias hit="        cd $data_dir/hit_pkg/hit "
+alias hit_input="  cd $data_dir/hit_workspace/data/input "
+alias hit_output=" cd $data_dir/hit_workspace/data/stmp/dxu/track "
+#5. fcstDiff
+alias fd="         cd $data_dir/fcstDiff_pkg/fcstDiff "
+alias fd_input="   cd $data_dir/hit_workspace/data/input"
+alias fd_output="  cd $data_dir/hit_workspace/data/output"
+
