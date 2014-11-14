@@ -847,13 +847,17 @@ contains
     if (istatus/=0) &
          write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
          istatus
-#ifndef HAVE_ESMF
-    deallocate(isli,fact10,dsfct,sfct,sno,veg_type,veg_frac,soil_type,&
-         sfc_rough,soil_temp,soil_moi,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
-         istatus
-#endif /* HAVE_ESMF */
+    if(allocated(isli))deallocate(isli)
+    if(allocated(fact10))deallocate(fact10)
+    if(allocated(sfct))deallocate(sfct)
+    if(allocated(sno))deallocate(sno)
+    if(allocated(veg_type))deallocate(veg_type)
+    if(allocated(veg_frac))deallocate(veg_frac)
+    if(allocated(soil_type))deallocate(soil_type)
+    if(allocated(sfc_rough))deallocate(sfc_rough)
+    if(allocated(soil_temp))deallocate(soil_temp)
+    if(allocated(soil_moi))deallocate(soil_moi)
+    if(allocated(dsfct))deallocate(dsfct)
 
     return
   end subroutine destroy_sfc_grids

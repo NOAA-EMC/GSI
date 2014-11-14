@@ -433,7 +433,7 @@ contains
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
-    logical        ,intent(in   ) :: use_sfc
+    logical        ,intent(inout) :: use_sfc
 
 
 ! Local variables
@@ -474,6 +474,8 @@ contains
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
+!  Necessary to make read_sfc routine to work properly
+    if(mype == mype_io .and. .not. use_gfs_nemsio)use_sfc=.true.
     if(use_sfc)then
        allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
        allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
@@ -787,6 +789,11 @@ contains
        end do
 
     end if
+    if(allocated(veg_frac)) deallocate(veg_frac)
+    if(allocated(veg_type)) deallocate(veg_type)
+    if(allocated(soil_type)) deallocate(soil_type)
+    if(allocated(soil_moi)) deallocate(soil_moi)
+    if(allocated(sfc_rough)) deallocate(sfc_rough)
     return
 
   end subroutine getsfc

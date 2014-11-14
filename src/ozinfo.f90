@@ -154,7 +154,10 @@ contains
        call stop2(79)
     endif
     jpch_oz = j
-
+    if(jpch_oz == 0)then
+      close(lunin)
+      return
+    end if
 
 !   Allocate arrays to hold ozone information
     allocate(nusis_oz(jpch_oz),nulev(jpch_oz),iuse_oz(jpch_oz), &
