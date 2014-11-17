@@ -51,6 +51,7 @@ subroutine read_gfs_ozone_for_regional
   use obsmod, only: iadate
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use gsi_4dvar, only: nhr_assimilation
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -119,7 +120,8 @@ subroutine read_gfs_ozone_for_regional
   enddo
  
 ! Loop through input GFS files
-  it_loop: do it = it_beg,it_end
+!  it_loop: do it = it_beg,it_end
+  it = nhr_assimilation
  
   filename=infiles(it)
   if (mype==0) write(6,*)'read_gfs_ozone_for_regional: reading in gfs file:',trim(filename)                  
@@ -459,7 +461,7 @@ subroutine read_gfs_ozone_for_regional
   deallocate(xspli,yspli,xsplo,ysplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
              glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
-  enddo it_loop
+!  enddo it_loop
 
 ! copy ges_oz to met-bundle ...
   call copy_vars_

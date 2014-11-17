@@ -29,6 +29,7 @@ subroutine wrwrfnmma_binary(mype)
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
 !   2013-10-19  todling - metguess now holds background
+!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
 !
 !   input argument list:
 !     mype     - pe number
@@ -61,6 +62,7 @@ subroutine wrwrfnmma_binary(mype)
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
   use mpeu_util, only: die
+  use gsi_4dvar, only: nhr_assimilation
 
   implicit none
 
@@ -220,7 +222,8 @@ subroutine wrwrfnmma_binary(mype)
   length_start_date=2048
 
 !     open wrf file for mpi-io reading and writing
-  wrfanl = 'wrf_inout'
+  write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
+!  wrfanl = 'wrf_inout'
   call mpi_file_open(mpi_comm_world,trim(wrfanl),mpi_mode_rdwr,mpi_info_null,mfcst,ierror)
 
 !     update START_DATE record so it contains new analysis time in place of old starting time
@@ -1127,7 +1130,7 @@ subroutine wrnemsnmma_binary(mype)
   logical good_u10,good_v10,good_tshltr,good_qshltr,good_o3mr
 
 ! variables for cloud info
-  integer(i_kind) iret,ier_cloud,n_actual_clouds,istatus
+  integer(i_kind) iret,ier_cloud,n_actual_clouds,istatus,ierr
   real(r_kind) total_ice
   real(r_kind),dimension(lat2,lon2):: work_clwmr,work_fice,work_frain
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
@@ -1235,7 +1238,7 @@ subroutine wrnemsnmma_binary(mype)
   call gsi_nemsio_update(wrfanl,'WRNEMSNMMA_BINARY:  problem with update of wrfanl',mype,mype_input)
 
 !   open output file for read-write so we can update fields.
-  call gsi_nemsio_open(wrfanl,'rdwr','WRNEMSNMMA_BINARY:  problem with wrfanl',mype,mype_input)
+  call gsi_nemsio_open(wrfanl,'rdwr','WRNEMSNMMA_BINARY:  problem with wrfanl',mype,mype_input,ierr)
 
   do kr=1,nsig_write
 

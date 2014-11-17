@@ -1694,7 +1694,7 @@ subroutine read_nems_nmmb_guess(mype)
   real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
 
 ! variables for cloud info
-  integer(i_kind) iqtotal,icw4crtm,ier,iret,n_actual_clouds,istatus
+  integer(i_kind) iqtotal,icw4crtm,ier,iret,n_actual_clouds,istatus,ierr
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
@@ -1760,14 +1760,15 @@ subroutine read_nems_nmmb_guess(mype)
      if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
      if(mype==mype_input) then
-        if(it==1)then
-           wrfges = 'wrf_inout'
-        else
-           write(wrfges,'("wrf_inou",i1.1)')it
-        endif
+!        if(it==1)then
+!           wrfges = 'wrf_inout'
+!        else
+           write(wrfges,'("wrf_inout",i2.2)')it
+!        endif
      end if
      call gsi_nemsio_open(wrfges,'READ', &
-                          'READ_NEMS_NMMB_GUESS:  problem with wrfges',mype,mype_input)
+                          'READ_NEMS_NMMB_GUESS:  problem with wrfges',mype,mype_input,ierr)
+     if(ierr==1)cycle
 
 !                            ! pd
 
@@ -2028,7 +2029,7 @@ subroutine read_nems_nmmb_guess(mype)
 !       write(6,*)'start to read obsref.nemsio'
      end if
      call gsi_nemsio_open(wrfges,'READ', &
-                    'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input)
+                    'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input,ierr)
      do kr=1,nsig
         k=nsig+1-kr
         call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)

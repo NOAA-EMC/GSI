@@ -136,7 +136,8 @@ subroutine convert_binary_mass
 
   n_loop: do n=1,9  ! loop over forecast hours in assim interval
 
-     if(n==nhr_assimilation)then
+!     if(n==nhr_assimilation)then
+     if(n==1)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
@@ -1437,11 +1438,11 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   
   n_loop: do n=1,9
 
-     if(n==nhr_assimilation)then
-        wrfges = 'wrf_inout'
-     else
-        write(wrfges,'("wrf_inou",i1.1)')n
-     endif
+!     if(n==nhr_assimilation)then
+!        wrfges = 'wrf_inout'
+!     else
+        write(wrfges,'("wrf_inout",i2.2)')n
+!     endif
      call nemsio_open(gfile,wrfges,'READ',iret=iret)
      write(6,*)' convert_nems_nmmb: nemsio_open, file name, iret=',trim(wrfges),iret
      if(n==nhr_assimilation) then
