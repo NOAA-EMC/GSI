@@ -162,7 +162,7 @@ end if
 do jj=1,nsubwin
 
 !  create an internal structure w/ the same vars as those in the control vector, including motley vars
-   call gsi_bundlecreate (wbundle,grid,'model2control work',istatus,names2d=cvars2dpm,names3d=cvars3d)
+   call gsi_bundlecreate (wbundle,grid,'control2model work',istatus,names2d=cvars2dpm,names3d=cvars3d)
    if(istatus/=0) then
       write(6,*) trim(myname), ': trouble creating work bundle'
       call stop2(999)

@@ -370,6 +370,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Initialize variables
 
+  vdisterrmax=zero
   pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   nreal=0
   satqc=zero
@@ -395,6 +396,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob .or. &
             tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob .or. &
             tcamtob .or. lcbasob
+  aircraftobst=.false.
   if(tob)then
      nreal=25
   else if(uvob) then 
@@ -402,21 +404,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(spdob) then
      nreal=23
   else if(psob) then
-     nreal=22
+     nreal=19
   else if(qob) then
-     nreal=25
+     nreal=22
   else if(pwob) then
-     nreal=20
+     nreal=16
   else if(sstob) then
      if (nst_gsi > 0) then
-        nreal=20 + nstinfo
+        nreal=18 + nstinfo
      else
-        nreal=20
+        nreal=18
      end if
   else if(gustob) then
      nreal=21
   else if(visob) then
-     nreal=21
+     nreal=18
   else if(tdob) then
      nreal=25
   else if(mxtmob) then
@@ -1053,7 +1055,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          Determine tail number for aircraft temperature data
            idx = 0
            iyyyymm = iadate(1)*100+iadate(2)
-           if (aircraftobst .and. (aircraft_t_bc_pof .or. &
+           if (tob)then
+            if (aircraftobst .and. (aircraft_t_bc_pof .or. &
                 aircraft_t_bc .or. aircraft_t_bc_ext)) then
 !             Determine if the tail number is included in the taillist
               do j=1,nsort
@@ -1108,6 +1111,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Re-set idx if idx>ntail 
               if (idx>ntail) idx = 0
+            end if
            end if
 
 !          Loop over levels
@@ -1160,7 +1164,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            stnelev=hdr(6)
            ithin=ithin_conv(nc)
            ithinp = ithin > 0 .and. pflag /= 0
-           if(.not. driftl .and. (levs > 1 .or. ithinp))then
+           if(.not. driftl .and. (((tob .or. qob .or. uvob).and. levs > 1) .or. ithinp))then
 !             Interpolate guess pressure profile to observation location
               klon1= int(dlon);  klat1= int(dlat)
               dx   = dlon-klon1; dy   = dlat-klat1
@@ -1249,17 +1253,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Check qc marks to see if obs should be processed or skipped
 
-           if (visob) then
-              if (obsdat(9,k) > r0_1_bmiss) then
-                 patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
-                           (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
-                           (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
-                 if (patch_fog) obsdat(9,k)=1000.0_r_kind
-                 if (metarwth(1,1)==247.0_r_kind) obsdat(9,k)=75.0_r_kind
-                 if (metarwth(1,1)==248.0_r_kind) obsdat(9,k)=45.0_r_kind
-                 if (metarwth(1,1)==249.0_r_kind) obsdat(9,k)=15.0_r_kind
+              if (visob) then
+                 if (obsdat(9,k) > r0_1_bmiss) then
+                    patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
+                              (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
+                              (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
+                    if (patch_fog) obsdat(9,k)=1000.0_r_kind
+                    if (metarwth(1,1)==247.0_r_kind) obsdat(9,k)=75.0_r_kind
+                    if (metarwth(1,1)==248.0_r_kind) obsdat(9,k)=45.0_r_kind
+                    if (metarwth(1,1)==249.0_r_kind) obsdat(9,k)=15.0_r_kind
+                 end if
               end if
-           end if
 
               if (psob) then
                  cat=nint(min(obsdat(10,k),qcmark_huge))
@@ -1355,7 +1359,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     call grdcrd1(dlon,rlons,nlon,1)
                  endif
 
-                 if(levs > 1 .or. ithinp)then
+                 if((tob.or. qob.or. uvob .and. levs > 1) .or. ithinp)then
 !                   Interpolate guess pressure profile to observation location
                     klon1= int(dlon);  klat1= int(dlat)
                     dx   = dlon-klon1; dy   = dlat-klat1
@@ -1530,8 +1534,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
-                      aircraft_t_bc_ext) then
+                 if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) then
                     cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
                     cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
                     cdata_all(27,iout)=idx                 ! index of temperature bias
@@ -1712,18 +1715,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(12,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=12         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(13,iout)=idomsfc                ! dominate surface type
-                 cdata_all(14,iout)=tsavg                  ! skin temperature
-                 cdata_all(15,iout)=ff10                   ! 10 meter wind factor
-                 cdata_all(16,iout)=sfcr                   ! surface roughness
-                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-                 cdata_all(19,iout)=stnelev                ! station elevation (m)
-                 cdata_all(20,iout)=zz                     ! terrain height at ob location
-                 cdata_all(21,iout)=r_prvstg(1,1)          ! provider name
-                 cdata_all(22,iout)=r_sprvstg(1,1)         ! subprovider name
-                 if(perturb_obs)cdata_all(23,iout)=ran01dom()*perturb_fact ! ps perturbation
+                 cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(16,iout)=stnelev                ! station elevation (m)
+                 cdata_all(17,iout)=zz                     ! terrain height at ob location
+                 cdata_all(18,iout)=r_prvstg(1,1)          ! provider name
+                 cdata_all(19,iout)=r_sprvstg(1,1)         ! subprovider name
+                 if(perturb_obs)cdata_all(20,iout)=ran01dom()*perturb_fact ! ps perturbation
                  if (twodvar_regional) &
-                    call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
+                    call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout))
 
 !             Specific humidity 
               else if(qob) then
@@ -1751,20 +1751,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(13,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=13         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(14,iout)=idomsfc                ! dominate surface type
-                 cdata_all(15,iout)=tsavg                  ! skin temperature
-                 cdata_all(16,iout)=ff10                   ! 10 meter wind factor
-                 cdata_all(17,iout)=sfcr                   ! surface roughness
-                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-                 cdata_all(20,iout)=stnelev                ! station elevation (m)
-                 cdata_all(21,iout)=obsdat(4,k)            ! observation height (m)
-                 cdata_all(22,iout)=zz                     ! terrain height at ob location
-                 cdata_all(23,iout)=r_prvstg(1,1)          ! provider name
-                 cdata_all(24,iout)=r_sprvstg(1,1)         ! subprovider name
-                 cdata_all(25,iout)=obsdat(10,k)            ! cat
-                 if(perturb_obs)cdata_all(26,iout)=ran01dom()*perturb_fact ! q perturbation
+                 cdata_all(15,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(16,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(17,iout)=stnelev                ! station elevation (m)
+                 cdata_all(18,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(19,iout)=zz                     ! terrain height at ob location
+                 cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
+                 cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
+                 cdata_all(22,iout)=obsdat(10,k)            ! cat
+                 if(perturb_obs)cdata_all(23,iout)=ran01dom()*perturb_fact ! q perturbation
                  if (twodvar_regional) &
-                    call adjust_error(cdata_all(18,iout),cdata_all(19,iout),cdata_all(12,iout),cdata_all(1,iout))
+                    call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
  
 !             Total precipitable water (ssm/i)
               else if(pwob) then
@@ -1783,15 +1780,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(10,iout)=obserr(7,k)            ! original obs error
                  cdata_all(11,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=11         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
-                 cdata_all(12,iout)=idomsfc                ! dominate surface type
-                 cdata_all(13,iout)=tsavg                  ! skin temperature
-                 cdata_all(14,iout)=ff10                   ! 10 meter wind factor
-                 cdata_all(15,iout)=sfcr                   ! surface roughness
-                 cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-                 cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-                 cdata_all(18,iout)=stnelev                ! station elevation (m)
-                 cdata_all(19,iout)=obsdat(1,k)            ! observation pressure (hPa)
-                 cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(14,iout)=stnelev                ! station elevation (m)
+                 cdata_all(15,iout)=obsdat(1,k)            ! observation pressure (hPa)
+                 cdata_all(16,iout)=obsdat(4,k)            ! observation height (m)
  
 
 !             Conventional sst observations
@@ -1818,11 +1811,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (lhilbert) thisobtype_usage=13         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(14,iout)=idomsfc                ! dominate surface type
                  cdata_all(15,iout)=tsavg                  ! skin temperature
-                 cdata_all(16,iout)=ff10                   ! 10 meter wind factor
-                 cdata_all(17,iout)=sfcr                   ! surface roughness
-                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-                 cdata_all(20,iout)=stnelev                ! station elevation (m)
+                 cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(18,iout)=stnelev                ! station elevation (m)
 
                  if( nst_gsi > 0) then
                    zob   = sstdat(2,k)
@@ -1835,10 +1826,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
                    end if
 
-                   cdata_all(21,iout) = tref               ! foundation temperature
-                   cdata_all(22,iout) = dtw                ! dt_warm at zob
-                   cdata_all(23,iout) = dtc                ! dt_cool at zob
-                   cdata_all(24,iout) = tz_tr              ! d(Tz)/d(Tr)
+                   cdata_all(19,iout) = tref               ! foundation temperature
+                   cdata_all(20,iout) = dtw                ! dt_warm at zob
+                   cdata_all(21,iout) = dtc                ! dt_cool at zob
+                   cdata_all(22,iout) = tz_tr              ! d(Tz)/d(Tr)
                  end if
 
 !          Measurement types
@@ -1928,16 +1919,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(10,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=10         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(11,iout)=idomsfc                ! dominate surface type
-                 cdata_all(12,iout)=tsavg                  ! skin temperature
-                 cdata_all(13,iout)=ff10                   ! 10 meter wind factor
-                 cdata_all(14,iout)=sfcr                   ! surface roughness
-                 cdata_all(15,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-                 cdata_all(16,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-                 cdata_all(17,iout)=stnelev                ! station elevation (m)
-                 cdata_all(18,iout)=obsdat(4,k)            ! observation height (m)
-                 cdata_all(19,iout)=zz                     ! terrain height at ob location
-                 cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
-                 cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(14,iout)=stnelev                ! station elevation (m)
+                 cdata_all(15,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(16,iout)=zz                     ! terrain height at ob location
+                 cdata_all(17,iout)=r_prvstg(1,1)          ! provider name
+                 cdata_all(18,iout)=r_sprvstg(1,1)         ! subprovider name
 
 !             2m-Dewpoint
               else if(tdob) then

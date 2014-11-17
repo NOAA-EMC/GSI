@@ -166,7 +166,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
-  integer(i_kind) idomsfc,iskint,isfcr,iff10,iderivative
+  integer(i_kind) idomsfc,iderivative
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -219,18 +219,15 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ier2=12     ! index of original-original obs error ratio
   iuse=13     ! index of use parameter
   idomsfc=14  ! index of dominant surface type
-  iskint=15   ! index of surface skin temperature
-  iff10=16    ! index of 10 meter wind factor
-  isfcr=17    ! index of surface roughness
-  ilone=18    ! index of longitude (degrees)
-  ilate=19    ! index of latitude (degrees)
-  istnelv=20  ! index of station elevation (m)
-  iobshgt=21  ! index of observation height (m)
-  izz=22      ! index of surface height
-  iprvd=23    ! index of observation provider
-  isprvd=24   ! index of observation subprovider
-  icat =25    ! index of data level category
-  iptrb=26    ! index of q perturbation
+  ilone=15    ! index of longitude (degrees)
+  ilate=16    ! index of latitude (degrees)
+  istnelv=17  ! index of station elevation (m)
+  iobshgt=18  ! index of observation height (m)
+  izz=19      ! index of surface height
+  iprvd=20    ! index of observation provider
+  isprvd=21   ! index of observation subprovider
+  icat =22    ! index of data level category
+  iptrb=23    ! index of q perturbation
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter

@@ -193,7 +193,7 @@ if (l_do_adjoint) then
     call model_ad(mval,rval,llprt)
     if (l_hyb_ens) then
        eval(1)=mval(1)
-       call state2ensctl(eval,mval(1),gradx)
+       call ensctl2state_ad(eval,mval(1),gradx)
     end if
 
   else
@@ -203,7 +203,7 @@ if (l_do_adjoint) then
        do ii=1,nobs_bins
           eval(ii)=rval(ii)
        end do
-       call state2ensctl(eval,mval(1),gradx)
+       call ensctl2state_ad(eval,mval(1),gradx)
     else
        mval(1)=rval(1)
        if (nobs_bins>1) then
@@ -215,7 +215,7 @@ if (l_do_adjoint) then
   end if
 
 ! Adjoint of convert control var to state space
-  call state2control(mval,rbias,gradx)
+  call control2state_ad(mval,rbias,gradx)
  
 ! Contribution from current and previous backgroun term
   do i=1,nclen

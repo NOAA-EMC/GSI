@@ -321,7 +321,6 @@ subroutine init_hybrid_ensemble_parameters
 !
 !$$$ end documentation block
   use constants, only: one
-  use constants, only: zero
   implicit none
 
   l_hyb_ens=.false.
@@ -371,9 +370,9 @@ subroutine create_hybens_localization_parameters
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
   allocate( betas_inv(grd_ens%nsig),betae_inv(grd_ens%nsig))
   allocate( beta1wgt(grd_ens%nsig),beta2wgt(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
-  beta1wgt=one               ! Array which must be allocated prior to assignment
-  beta2wgt=zero              ! Array which must be allocated prior to assignment
-  pwgt=zero                  ! Array which must be allocated prior to assignment
+  beta1wgt=one
+  beta2wgt=zero
+  pwgt=zero
   
 end subroutine create_hybens_localization_parameters
 

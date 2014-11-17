@@ -1,3 +1,4 @@
+#ifdef WRF
 subroutine get_pseudo_ensperts
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1206,4 +1207,5 @@ subroutine pseudo_ens_e2a(lon_bc,lat_bc,lon_lc,lat_lc,nlone,nlate,e,blend,ratio_
   end do
               
 end subroutine pseudo_ens_e2a
+#endif /* end NO WRF-library block */
 

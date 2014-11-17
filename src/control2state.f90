@@ -221,38 +221,17 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 !  Get pointers to required state variables
-   call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
-   call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
-   call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-   call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  
-   call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
-   if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
-   if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
-   if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
-   if (icwspd10m>0) call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)
-   if (ictd2m>0) call gsi_bundlegetpointer (sval(jj),'td2m' ,sv_td2m, istatus)
-   if (icmxtm>0) call gsi_bundlegetpointer (sval(jj),'mxtm' ,sv_mxtm, istatus)
-   if (icmitm>0) call gsi_bundlegetpointer (sval(jj),'mitm' ,sv_mitm, istatus)
-   if (icpmsl>0) call gsi_bundlegetpointer (sval(jj),'pmsl' ,sv_pmsl, istatus)
-   if (ichowv>0) call gsi_bundlegetpointer (sval(jj),'howv' ,sv_howv, istatus)
-   if (ictcamt>0) call gsi_bundlegetpointer (sval(jj),'tcamt' ,sv_tcamt, istatus)
-   if (iclcbas>0) call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
 
+!$omp parallel sections
 
+!$omp section
 
-!  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
-
-!  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
-
-!  Calculate sensible temperature
-   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
-
+   call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
+   call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
       if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
@@ -266,34 +245,80 @@ do jj=1,nsubwin
           deallocate(uland,vland,uwter,vwter)
        else
           call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
-      endif
-   endif
+       end if
+    end if
 
-!  Convert log(vis) to vis
-   if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
+!$omp section
+!  Get 3d pressure
+   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
-!  Convert log(lcbas) to lcbas
-   if (iclcbas >0)  call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
+!  Convert input normalized RH to q
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
+
+!  Calculate sensible temperature
+   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
 
 !  Copy other variables
    call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
+!$omp section
+   call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
+   call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
+   call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
+   call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
+   call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  
    if (icoz>0) then
       call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
    else
       if(istatus_oz==0) sv_oz=zero   
    end if
-   call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
-   call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
-   if (icgust>0) call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
-   if (icpblh>0) call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
-   if (icwspd10m>0) call gsi_bundlegetvar ( wbundle, 'wspd10m', sv_wspd10m, istatus )
-   if (ictd2m>0) call gsi_bundlegetvar ( wbundle, 'td2m', sv_td2m, istatus )
-   if (icmxtm>0) call gsi_bundlegetvar ( wbundle, 'mxtm', sv_mxtm, istatus )
-   if (icmitm>0) call gsi_bundlegetvar ( wbundle, 'mitm', sv_mitm, istatus )
-   if (icpmsl>0) call gsi_bundlegetvar ( wbundle, 'pmsl', sv_pmsl, istatus )
-   if (ichowv>0) call gsi_bundlegetvar ( wbundle, 'howv', sv_howv, istatus )
-   if (ictcamt>0) call gsi_bundlegetvar ( wbundle, 'tcamt', sv_tcamt, istatus )
+   if (icgust>0) then
+      call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
+      call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
+   end if
+   if (icpblh>0) then
+      call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
+      call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
+   end if
+   if (icvis >0) then
+      call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
+      !  Convert log(vis) to vis
+      call logvis_to_vis(cv_vis,sv_vis)
+   end if
+   if (icwspd10m>0) then
+      call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)
+      call gsi_bundlegetvar ( wbundle, 'wspd10m', sv_wspd10m, istatus )      
+   end if
+   if (ictd2m>0) then
+      call gsi_bundlegetpointer (sval(jj),'td2m' ,sv_td2m, istatus)
+      call gsi_bundlegetvar ( wbundle, 'td2m', sv_td2m, istatus )
+   end if
+   if (icmxtm>0) then
+      call gsi_bundlegetpointer (sval(jj),'mxtm' ,sv_mxtm, istatus)
+      call gsi_bundlegetvar ( wbundle, 'mxtm', sv_mxtm, istatus )
+   end if
+   if (icmitm>0) then 
+      call gsi_bundlegetpointer (sval(jj),'mitm' ,sv_mitm, istatus)
+      call gsi_bundlegetvar ( wbundle, 'mitm', sv_mitm, istatus )
+   end if
+   if (icpmsl>0) then 
+      call gsi_bundlegetpointer (sval(jj),'pmsl' ,sv_pmsl, istatus)
+      call gsi_bundlegetvar ( wbundle, 'pmsl', sv_pmsl, istatus )
+   end if
+   if (ichowv>0) then
+      call gsi_bundlegetpointer (sval(jj),'howv' ,sv_howv, istatus)
+      call gsi_bundlegetvar ( wbundle, 'howv', sv_howv, istatus )
+   end if
+   if (ictcamt>0) then 
+      call gsi_bundlegetpointer (sval(jj),'tcamt' ,sv_tcamt, istatus)
+      call gsi_bundlegetvar ( wbundle, 'tcamt', sv_tcamt, istatus )
+   end if
+   if (iclcbas >0) then 
+      call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
+      ! Convert log(lcbas) to lcbas
+      call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
+   end if
 
+!$omp end parallel sections
 
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
