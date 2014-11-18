@@ -1,9 +1,36 @@
-
 ######################################
 # Set up my data location
 ######################################
-export data_dir="/data/users/dxu"
+hnStr=`hostname`
+
+declare -a hostArr
+declare -a data_dirArr
+hostArr=('badger' 'cardinal' 'fe' 'jibb' 's4')
+data_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
+SIZE=${#hostArr[@]}   # array size
+
+emptyStr=""
+notSupportStr="NOT_SUPPORTED_HOST"
+
+searchStr="${emptyStr}"
+
+for (( i=0; i<$SIZE; i++)); do
+   searchStr=` echo $hnStr  |grep -e "${hostArr[${i}]}" `
+   if [ "${searchStr}" != "${emptyStr}" ]
+   then
+      data_dir=${data_dirArr[i]}
+      break
+   fi
+done
+
+echo ${data_dir}
+export data_dir
 alias data="cd ${data_dir} "
+
 
 # iat
 if [ -f ~/.config/.iatrc ]
