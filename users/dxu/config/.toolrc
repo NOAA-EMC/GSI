@@ -7,5 +7,6 @@ alias bl="   ${data_dir}/tools/tellBL.exe  "  # make notes
 alias lower="${data_dir}/tools/lower.sh "
 alias upper="${data_dir}/tools/upper.sh "
 
-alias notes="cd ${data_dir}/dxu/notes "       # go to notes dir
+alias notes="cd ${data_dir}/${LOGNAME}/notes "       # go to notes dir
+alias tools="cd ${data_dir}/${LOGNAME}/tools "       # go to notes dir
 
