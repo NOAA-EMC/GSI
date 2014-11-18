@@ -29,7 +29,7 @@ subroutine wrwrfnmma_binary(mype)
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
 !   2013-10-19  todling - metguess now holds background
-!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
+!!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
 !
 !   input argument list:
 !     mype     - pe number
@@ -62,7 +62,6 @@ subroutine wrwrfnmma_binary(mype)
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
   use mpeu_util, only: die
-  use gsi_4dvar, only: nhr_assimilation
 
   implicit none
 
@@ -222,8 +221,8 @@ subroutine wrwrfnmma_binary(mype)
   length_start_date=2048
 
 !     open wrf file for mpi-io reading and writing
-  write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
-!  wrfanl = 'wrf_inout'
+!  write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
+  wrfanl = 'wrf_inout'
   call mpi_file_open(mpi_comm_world,trim(wrfanl),mpi_mode_rdwr,mpi_info_null,mfcst,ierror)
 
 !     update START_DATE record so it contains new analysis time in place of old starting time
@@ -1080,6 +1079,7 @@ subroutine wrnemsnmma_binary(mype)
 !   2013-10-19  todling - upper-air guess now in metguess
 !   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
+!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
 !
 !   input argument list:
 !     mype     - pe number
@@ -1107,6 +1107,7 @@ subroutine wrnemsnmma_binary(mype)
   use control_vectors, only: cvars3d
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
+  use gsi_4dvar, only: nhr_assimilation
 
   implicit none
 
@@ -1232,7 +1233,8 @@ subroutine wrnemsnmma_binary(mype)
      end if	
   end if 
 
-  if(mype==mype_input) wrfanl = 'wrf_inout'
+!  if(mype==mype_input) wrfanl = 'wrf_inout'
+  if(mype==mype_input) write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
 
 !   update date info so start time is analysis time, and forecast time = 0
   call gsi_nemsio_update(wrfanl,'WRNEMSNMMA_BINARY:  problem with update of wrfanl',mype,mype_input)

@@ -106,7 +106,8 @@ subroutine read_gfs_ozone_for_regional
 
 ! Determine input GFS filenames
   it_beg=1
-  it_end=nfldsig
+!  it_end=nfldsig
+  it_end=1
   allocate(infiles(nfldsig))
   do it=it_beg,it_end
      write(filename,'("gfs_sigf",i2.2)')ifilesig(it)
@@ -120,8 +121,7 @@ subroutine read_gfs_ozone_for_regional
   enddo
  
 ! Loop through input GFS files
-!  it_loop: do it = it_beg,it_end
-  it = nhr_assimilation
+  it_loop: do it = it_beg,it_end
  
   filename=infiles(it)
   if (mype==0) write(6,*)'read_gfs_ozone_for_regional: reading in gfs file:',trim(filename)                  
@@ -461,7 +461,7 @@ subroutine read_gfs_ozone_for_regional
   deallocate(xspli,yspli,xsplo,ysplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
              glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
-!  enddo it_loop
+  enddo it_loop
 
 ! copy ges_oz to met-bundle ...
   call copy_vars_
