@@ -45,43 +45,55 @@ alias data="cd ${data_dir} "
 ###################################################
 # Various configurations
 ###################################################
-# iat
-if [ -f ~/.config/.iatrc ]
-then
-   . ~/.config/.iatrc
-fi
-
-# svn
-if [ -f ~/.config/.svnrc ]
-then
-   . ~/.config/.svnrc
-fi
-
-# module
-if [ -f ~/.config/.modulerc ]
-then
-   . ~/.config/.modulerc
-fi
-
-# ps
-if [ -f ~/.config/.psrc ]
-then
-   . ~/.config/.psrc
-fi
-
-# dir related 
+# 1. dir
 if [ -f ~/.config/.dirrc ]
 then
    . ~/.config/.dirrc
 fi
 
-# job submission 
+# 2. iat
+if [ -f ~/.config/.iatrc ]
+then
+   . ~/.config/.iatrc
+fi
+
+# 3. misc
+if [ -f ~/.config/.miscrc ]
+then
+   . ~/.config/.miscrc
+fi
+
+# 4. module
+if [ -f ~/.config/.modulerc ]
+then
+   . ~/.config/.modulerc
+fi
+
+# 5. ps
+if [ -f ~/.config/.psrc ]
+then
+   . ~/.config/.psrc
+fi
+
+# 6. sftp
+if [ -f ~/.config/.sftprc ]
+then
+   . ~/.config/.sftprc
+fi
+
+# 7. submit job
 if [ -f ~/.config/.subjobrc ]
 then
    . ~/.config/.subjobrc
 fi
 
-# my tool
+# 8. svn
+if [ -f ~/.config/.svnrc ]
+then
+   . ~/.config/.svnrc
+fi
+
+# 9. my tool
 if [ -f ~/.config/.toolrc ]
 then
    . ~/.config/.toolrc
