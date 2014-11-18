@@ -1,5 +1,14 @@
+#======================================
+# Purpose:
+#    Set alias name by category 
+# Author: Deyong Xu / RTi@JCSDA
+# History:
+#    11/18/2014, D. Xu / RTi@JCSDA , initial code.
+#
+#======================================
+#
 ######################################
-# Set up my data location
+# Set up data location by hostname
 ######################################
 hnStr=`hostname`
 
@@ -27,11 +36,15 @@ for (( i=0; i<$SIZE; i++)); do
    fi
 done
 
-echo ${data_dir}
+##############################################
+# Now export data_dir for use by downstream
+##############################################
 export data_dir
 alias data="cd ${data_dir} "
 
-
+###################################################
+# Various configurations
+###################################################
 # iat
 if [ -f ~/.config/.iatrc ]
 then
