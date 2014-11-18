@@ -34,7 +34,7 @@ qsub_usage=" \n\
 # \n\
 "
 alias qsub_info='printf "$qsub_usage" '
-alias qstat="   qstat | grep dxu "
+alias qstatme="   qstat | grep ${LOGNAME} "
 alias rserial=" qsub "                 # small job, followed by "    -N MyJob  a.sh"
 alias rsmp="    qsub -pe smp "         # medium job, followed by "48  -N MyJob  a.sh"
 alias rmpi="    qsub -pe mpi2_mpd "    # big job, followed by "192 -N MyJob  a.sh"
