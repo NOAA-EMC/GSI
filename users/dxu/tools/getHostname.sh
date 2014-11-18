@@ -9,14 +9,14 @@
 #======================================
 
 # Get hostname
-# it returns: badger cardinal  fe    jibb
+# it returns: badger cardinal  fe    jibb   s4-gateway
 #               |      |        |     |
-#             badger cardinal  zeus  jibb
+#             badger cardinal  zeus  jibb   s4-gateway
 hnStr=`hostname`
 
 # Define an array of hosts 
 declare -a hostArr
-hostArr=('badger' 'cardinal' 'fe' 'jibb')
+hostArr=('badger' 'cardinal' 'fe' 'jibb' 's4')
 SIZE=${#hostArr[@]}   # array size
 
 # Define two const strings 
