@@ -16,7 +16,9 @@ hnStr=`hostname`
 
 # Define an array of hosts 
 declare -a hostArr
+declare -a hostArrRetnd
 hostArr=('badger' 'cardinal' 'fe' 'jibb' 's4')
+hostArrRetnd=('badger' 'cardinal' 'zeus' 'jibb' 's4-gateway')
 SIZE=${#hostArr[@]}   # array size
 
 # Define two const strings 
@@ -34,7 +36,7 @@ for (( i=0; i<$SIZE; i++)); do
    if [ "${searchStr}" != "${emptyStr}" ]
    then
       # Once a match is found, return and exit.
-      echo "${hostArr[${i}]}"
+      echo "${hostArrRetnd[${i}]}"
       exit
    fi
 done 
