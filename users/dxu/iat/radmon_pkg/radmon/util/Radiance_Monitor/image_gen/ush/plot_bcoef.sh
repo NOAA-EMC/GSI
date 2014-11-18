@@ -72,7 +72,14 @@ for type in ${SATYPE}; do
          fi
       fi
       if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-         $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
+        #dxu $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
+        if [[ -s $TANKDIR/bcoef/${type}.${cdate}.ieee_d ]]; then
+           $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d ./
+        fi
+
+        if [[ -s $TANKDIR/bcoef/${type}.${cdate}.ieee_d.${Z} ]]; then
+           $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d.${Z} ./
+        fi
       fi
       adate=`$NDATE +6 $cdate`
       cdate=$adate

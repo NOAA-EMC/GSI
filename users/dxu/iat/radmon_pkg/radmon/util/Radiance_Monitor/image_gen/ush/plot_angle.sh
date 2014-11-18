@@ -92,8 +92,16 @@ for type in ${SATYPE2}; do
          fi
       fi
       if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-         $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
+         #dxu    $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
+	 if [[ -s $TANKDIR/angle/${type}.${cdate}.ieee_d ]]; then
+	    $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d ./
+	 fi
+
+	 if [[ -s $TANKDIR/angle/${type}.${cdate}.ieee_d.${Z} ]]; then
+	    $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d.${Z} ./
+	 fi
       fi
+
      
       adate=`$NDATE +6 $cdate`
       cdate=$adate
