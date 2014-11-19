@@ -8,6 +8,7 @@ alias supdate="svn update "
 alias smove="svn move  "
 alias sdelete="svn delete "
 alias slog="svn log "
+alias sinfo="svn info "
 alias srevert="svn revert "
 alias svndiff="svn diff "
 alias sm='svn commit -m "" '
