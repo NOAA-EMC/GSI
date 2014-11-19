@@ -2359,7 +2359,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 ! !INPUT/OUTPUT PARAMETERS:
   integer(i_kind)                                  , intent(inout) ::levsio
-  real(r_double),dimension(11,255), intent(inout) :: obsdat
+  real(r_double),dimension(13,255), intent(inout) :: obsdat
   real(r_double),dimension(8,255), intent(inout) :: drfdat,qcmark,obserr
   real(r_double),dimension(255,20), intent(inout) :: tpc
 
@@ -2367,7 +2367,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   real(r_kind),dimension(nsig) :: prsltmp,dpmdl
   integer(i_kind) i,j,k,levs
   integer(i_kind) ku,kl,ll,im
-  real rsig(60)
+  real rsig(nsig)
   integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm,cat,zqm
   real(r_kind),dimension(255):: dpres,tvflg,dpobs
 
