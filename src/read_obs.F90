@@ -1089,7 +1089,7 @@ subroutine read_obs(ndata,mype)
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis)
                    string='READ_MODSBUFR'
-                elseif (platid == 'prep') then
+                elseif ( platid == 'prep') then
                    if(nst_gsi>0)then
                       write(6,*)'read_obs: should not handle SST via read_prepbufr when NSST on'
                       call stop2(999)

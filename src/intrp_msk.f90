@@ -248,7 +248,7 @@
  real   (r_kind), intent(  out) :: x
 
 !Declare local variables
- integer(i_kind) :: i,j,ix,iy,ii,jj,ixa,iya
+ integer(i_kind) :: ix,iy,ii,jj,ixa,iya
  integer(i_kind) :: nwsum,nfinal
  real(r_kind)    :: dx0,dx1,dx2,dx3,dy0,dy1,dy2,dy3,dx,dy,dr
  real(r_kind)    :: dx0s,dx1s,dx2s,dx3s,dy0s,dy1s,dy2s,dy3s
@@ -456,9 +456,6 @@
   enddo                  ! do k = 1, nprep
 
  end subroutine int2_msk_glb_prep
-
-# subroutine int21_nst_msk_glb(nst_fld,alats,alons,nx,ny,nst_x,lat,lon)
-# end subroutine int21_nst_msk_glb
 
  subroutine reset_nst(nst_fld,dim1,dim2,ii,jj)
 

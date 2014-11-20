@@ -1889,9 +1889,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(nlat,nlon):: dsfct_glb
     integer(i_kind), dimension(nlat,nlon):: isli_glb
 
+    integer(i_kind), allocatable, dimension(:,:):: isli_tmp,isli_gsi
+
     real(r_kind), allocatable, dimension(:)     :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
-    real(r_kind), allocatable, dimension(:,:)   :: dsfct_gsi,work,isli_gsi,dsfct_anl
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp,isli_tmp
+    real(r_kind), allocatable, dimension(:,:)   :: dsfct_gsi,work,dsfct_anl
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp
 
     real(r_kind) :: dlat,dlon,dtw,dtc
 
@@ -2362,8 +2364,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind), dimension(nlat,nlon):: isli_glb
 
     real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_gsi,work,isli_gsi,dsfct_anl
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp,isli_tmp
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_gsi,work,dsfct_anl
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp
+
+    integer(i_kind), allocatable, dimension(:,:):: isli_tmp,isli_gsi
 
     real(r_kind) :: dlat,dlon
     type(sfcio_head):: head_sfcges,head_sfcgcy
