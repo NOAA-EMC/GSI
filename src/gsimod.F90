@@ -48,7 +48,7 @@
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
@@ -285,6 +285,8 @@
 !                              grid than mass background grid
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
+!  05-29-2014 Thomas    add lsingleradob logical for single radiance ob test
+!                       (originally of mccarty)
 !  08-18-2014 tong      add jcap_gfs to allow spectral transform to a coarser resolution grid,
 !                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
 !                       regional analysis
@@ -443,6 +445,9 @@
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !     emiss_bc    - option to turn on emissivity bias predictor
+!     lsingleradob - logical for single radiance observation assimilation.
+!                   Uses existing bufr file and rejects all radiances that don't fall within a tight threshold around
+!                   oblat/oblon (SINGLEOB_TEST)
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
@@ -476,7 +481,7 @@
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
-       use_sp_eqspace,lnested_loops,use_reflectivity
+       use_sp_eqspace,lnested_loops,use_reflectivity,lsingleradob
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -680,17 +685,20 @@
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
 !      magoberr   - magnitude of observational error
-!      oneob_type - observation type
-!      oblat      - observation latitude
-!      oblon      - observation longitude
+!      oneob_type - observation type (lsingleradob: platform type, i.e. 'airs')
+!      oblat      - observation latitude (lsingleradob: footprint cenlat)
+!      oblon      - observation longitude (lsingleradob: footprint cenlon)
 !      obpres     - observation pressure
 !      obdattim   - observation date
 !      obhourset  - observation delta time from analysis time
 !      pctswitch  - if .true. innovation & oberr are relative (%) of background value
 !                      (level ozone only)
+!      obchan     - if > 0, selects the channel number.  If <= zero, it will use
+!                   all channels that pass qc in setuprad.    
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
-       oblat,oblon,obpres,obdattim,obhourset,pctswitch
+       oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
+       obchan
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -1229,6 +1237,18 @@
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
      dsis(1)=dtype(1)
+  endif
+
+! Single radiance assimilation case
+  if (lsingleradob) then
+#ifdef ibm_sp 
+     read(5,singleob_test)
+#else 
+     open(11,file='gsiparm.anl')
+     read(11,singleob_test,iostat=ios)
+     if(ios/=0) call die(myname_,'read(singleob_test)',ios)
+     close(11)
+#endif 
   endif
 
 ! Write namelist output to standard out

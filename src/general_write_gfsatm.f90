@@ -153,9 +153,7 @@
        do j=1,grd%lon2
           do i=1,grd%lat2
              if(work_ps(i,j)<=zero)then
-                write(6,*) 'Surface pressure is ',work_ps(i,j),&
-                   'Exiting the code now.'
-                exit
+                work_ps(i,j)=one
              end if
              work_ps(i,j)=log(work_ps(i,j))
           end do

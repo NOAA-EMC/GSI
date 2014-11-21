@@ -23,8 +23,8 @@
 #     RAD_AREA      flag for global or regional
 #     TANKDIR       repository for radmon data files
 #     DATA          data working space
-#     FIXgfs        fixed file directory
-#     USHgfs        scripts directory
+#     FIXradmon     fixed file directory
+#     USHradmon     scripts directory
 #     PDY           processing day; 
 #                   overridden by 1
 #     cyc	    processing cycle; 
@@ -60,10 +60,10 @@
 #                  $LOGSCRIPT
 #                  $ERRSCRIPT 
 #                  $ENDSCRIPT
-#                  ${USHgfs}/radmon_verf_angle.sh
-#                  ${USHgfs}/radmon_verf_bcoef.sh
-#                  ${USHgfs}/radmon_verf_bcor.sh
-#                  ${USHgfs}/radmon_verf_time.sh
+#                  ${USHradmon}/radmon_verf_angle.sh
+#                  ${USHradmon}/radmon_verf_bcoef.sh
+#                  ${USHradmon}/radmon_verf_bcor.sh
+#                  ${USHradmon}/radmon_verf_time.sh
 #
 #     programs   : $NDATE
 #
@@ -109,13 +109,13 @@ export cyc=${2:-${cyc:?}}
 
 #  Directories
 export DATA=${DATA:-$(pwd)}
-export COM_OUT=/com/${NET}/${envir}
-export COMOUT=${COMOUT:-$COM_OUT/${RUN}.${PDY}}
-export HOMEgfs=${HOMEgfs:-/nw${envir}}
-export EXECgfs=${EXECgfs:-$HOMEgfs/exec}
-export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
-export PARMgfs=${PARMgfs:-$HOMEgfs/parm}
-export USHgfs=${USHgfs:-$HOMEgfs/ush}
+export COM_IN=/com/${NET}/${envir}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export HOMEradmon=${HOMEradmon:-/nw${envir}}
+export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+export FIXradmon=${FIXradmon:-$HOMEradmon/fix}
+export PARMradmon=${PARMradmon:-$HOMEradmon/parm}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
 export TANKverf=${TANKverf:-/com/verf/prod}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
 
@@ -187,7 +187,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #  SATYPE is the list of expected satellite/instrument sources
    #  in the radstat file.  It should be stored in the $TANKverf 
-   #  directory.  If it isn't there then use the $FIXgfs copy.  In all 
+   #  directory.  If it isn't there then use the $FIXradmon copy.  In all 
    #  cases write it back out to the radmon.$PDY directory.  Add any
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
@@ -214,13 +214,13 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    fi
 
    if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
-      if [[ ! -e ${FIXgfs}/${satype_file} ]]; then 
+      if [[ ! -e ${FIXradmon}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
             echo " ${satype_file} not found.  Adding it now using radstat file contents."
          fi
       else
-         export SATYPE=`cat ${FIXgfs}/${satype_file}`
+         export SATYPE=`cat ${FIXradmon}/${satype_file}`
       fi
    else
       export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
@@ -284,16 +284,16 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #   Run the child sccripts.
    #------------------------------------------------------------------
-    ${USHgfs}/radmon_verf_angle.sh ${PDATE}
+    ${USHradmon}/radmon_verf_angle.sh ${PDATE}
     rc_angle=$?
 
-    ${USHgfs}/radmon_verf_bcoef.sh ${PDATE}
+    ${USHradmon}/radmon_verf_bcoef.sh ${PDATE}
     rc_bcoef=$?
 
-    ${USHgfs}/radmon_verf_bcor.sh ${PDATE}
+    ${USHradmon}/radmon_verf_bcor.sh ${PDATE}
     rc_bcor=$?
 
-    ${USHgfs}/radmon_verf_time.sh ${PDATE}
+    ${USHradmon}/radmon_verf_time.sh ${PDATE}
     rc_time=$?
 
 fi

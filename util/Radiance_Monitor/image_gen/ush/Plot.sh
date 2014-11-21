@@ -20,8 +20,8 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  Plot_glbl.sh suffix start_date end_date"
-  echo "            File name for CkPlt_glbl.sh may be full or relative path"
+  echo "Usage:  Plot.sh suffix start_date end_date"
+  echo "            File name for Plot.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
   echo "            start_date and end_date are in the format YYYYMMDDHH."

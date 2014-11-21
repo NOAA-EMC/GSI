@@ -64,7 +64,7 @@ else
 fi
 
 . ${DE_PARM}/data_extract_config
-export USHgfs=${USHgfs:-$HOMEgfs/ush}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
 #--------------------------------------------------------------------
@@ -186,7 +186,7 @@ if [[ $exit_value == 0 ]]; then
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
    $NCP $DE_SCRIPTS/radmon_err_rpt.sh      ${test_dir}/.
-   $NCP $USHgfs/radmon_getchgrp.pl           ${test_dir}/.
+   $NCP $USHradmon/radmon_getchgrp.pl           ${test_dir}/.
 
    prev_bad_pen=${TANKverf}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}

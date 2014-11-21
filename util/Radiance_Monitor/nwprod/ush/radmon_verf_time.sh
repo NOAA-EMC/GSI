@@ -40,9 +40,9 @@
 #                       defaults to 1 (on)
 #     MAKE_DATA         switch to construct the binary data file
 #                       defaults to 1 (on)
-#     EXECgfs           executable directory
+#     EXECradmon        executable directory
 #                       defaults to current directory 
-#     FIXgfs            fixed data directory
+#     FIXradmon         fixed data directory
 #                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
@@ -113,8 +113,8 @@
 export PDATE=${1:-${PDATE:?}}
 
 # Directories
-FIXgfs=${FIXgfs:-$(pwd)}
-EXECgfs=${EXECgfs:-$(pwd)}
+FIXradmon=${FIXradmon:-$(pwd)}
+EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
@@ -123,7 +123,7 @@ LOGSCRIPT=${LOGSCRIPT:-}
 ERRSCRIPT=${ERRSCRIPT:-}
 ENDSCRIPT=${ENDSCRIPT:-}
 
-base_file=${base_file:-$FIXgfs/gdas_radmon_base.tar}
+base_file=${base_file:-$FIXradmon/gdas_radmon_base.tar}
 report=report.txt
 disclaimer=disclaimer.txt
 region=region.txt
@@ -179,7 +179,7 @@ CYCLE=$cyc
 #--------------------------------------------------------------------
 #   Copy extraction program and base files to working directory
 #-------------------------------------------------------------------
-$NCP ${EXECgfs}/${time_exec}  ./
+$NCP ${EXECradmon}/${time_exec}  ./
 if [[ ! -s ./${time_exec} ]]; then
    err=8
 fi
@@ -312,7 +312,7 @@ EOF
 #  Check stdout file for any reported problem(s) reading the 
 #  diagnostic file by calling ck_stdout.sh
 #
-   ${USHgfs}/radmon_ck_stdout.sh  ${diag}
+   ${USHradmon}/radmon_ck_stdout.sh  ${diag}
 
    if [[ -s ${diag} ]]; then
       cat << EOF > ${diag_hdr}
@@ -403,8 +403,8 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 #-------------------------------------------------------------------
 #  run radmon_err_rpt.sh for chan and pen to create the error files
 #
-   ${USHgfs}/radmon_err_rpt.sh ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
-   ${USHgfs}/radmon_err_rpt.sh ${prev_bad_chan} ${bad_chan} chan ${qdate} ${PDATE} ${diag_report} ${chan_err}
+   ${USHradmon}/radmon_err_rpt.sh ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
+   ${USHradmon}/radmon_err_rpt.sh ${prev_bad_chan} ${bad_chan} chan ${qdate} ${PDATE} ${diag_report} ${chan_err}
 
 #-------------------------------------------------------------------
 #  put together the unified error report with any obs, chan, and

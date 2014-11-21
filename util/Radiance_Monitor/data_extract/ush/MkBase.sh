@@ -200,7 +200,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${HOMEgfs}/exec/make_base ./
+   $NCP ${HOMEradmon}/exec/make_base ./
 
 cat << EOF > input
  &INPUT

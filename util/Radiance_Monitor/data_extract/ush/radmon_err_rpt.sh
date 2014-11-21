@@ -42,7 +42,7 @@
 #
 #   Imported Shell Variables:
 #
-#     USHgfs            scripts directory
+#     USHradmon         scripts directory
 #                       defaults to pwd
 #     INISCRIPT         preprocessing script
 #                       defaults to none
@@ -99,7 +99,7 @@ diag_rpt=${6:-${diag_rpt:?}}
 outfile=${7:-${outfile:?}}
 
 # Directories
-USHgfs=${USHgfs:-$(pwd)}
+USHradmon=${USHradmon:-$(pwd)}
 
 # File names
 INISCRIPT=${INISCRIPT:-}
@@ -224,7 +224,7 @@ fi
             if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
                uncompress ${ctlfile}.*
             fi
-            changrp=`${USHgfs}/radmon_getchgrp.pl ${ctlfile} ${channel}`
+            changrp=`${USHradmon}/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp
             line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/opr/index.html?sat=${satname}&region=region${region}&channel=${changrp}&stat=${type}"
             if [[ $changrp -gt 0 ]]; then

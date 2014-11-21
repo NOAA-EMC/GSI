@@ -34,9 +34,9 @@
 #                       defaults to 1 (on)
 #     MAKE_DATA         switch to construct the binary data file
 #                       defaults to 1 (on)
-#     EXECgfs           executable directory
+#     EXECradmon        executable directory
 #                       defaults to current directory
-#     FIXgfs            fixed data directory
+#     FIXradmon         fixed data directory
 #                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
@@ -96,8 +96,8 @@
 export PDATE=${1:-${PDATE:?}}
 
 # Directories
-FIXgfs=${FIXgfs:-$(pwd)}
-EXECgfs=${EXECgfs:-$(pwd)}
+FIXradmon=${FIXradmon:-$(pwd)}
+EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
@@ -136,7 +136,7 @@ fi
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
 
-$NCP $EXECgfs/${bcoef_exec}              ./${bcoef_exec}
+$NCP $EXECradmon/${bcoef_exec}              ./${bcoef_exec}
 $NCP ${biascr}                              ./biascr.txt
 
 if [[ ! -s ./${bcoef_exec} || ! -s ./biascr.txt ]]; then

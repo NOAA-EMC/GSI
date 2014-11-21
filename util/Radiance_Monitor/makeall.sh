@@ -55,13 +55,15 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
       fi
    done
 
-   cd ${top_level}/nwprod/sorc/make_base.fd
+   cd ${top_level}/data_extract/sorc/make_base.fd
    rm -f Makefile.conf
    ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
    make ${mode}  
-   if [[ $mode = all ]]; then
-      cp -f make_base ${top_level}/nwprod/exec/.
-   fi
+
+   cd ${top_level}/data_extract/sorc/validate_time.fd
+   rm -f Makefile.conf
+   ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+   make ${mode}  
 
 
    #------------------------------------------------------------------

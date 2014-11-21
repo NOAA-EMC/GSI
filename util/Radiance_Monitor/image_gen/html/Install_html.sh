@@ -1,22 +1,24 @@
 #!/bin/sh
 set -ax
 
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#  Install_html.sh
 #
-# install_html.sh
-#
-# Given a suffix and a global/regional flag as inputs, build the
-# html necessary for a radiance monitor web site and tranfer it to
-# the server.
-#
+#  Given a suffix and a global/regional flag as inputs, build the
+#  html necessary for a radiance monitor web site and tranfer it to
+#  the server.
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  install_html.sh suffix area"
+  echo "Usage:  Install_html.sh suffix area"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
   echo "            area is either 'glb' or 'rgn' (global or regional)"
 }
 
-echo "BEGIN install_html.sh"
+echo "BEGIN Install_html.sh"
 echo ""
 
 nargs=$#
@@ -80,117 +82,90 @@ mkdir $workdir
 cd $workdir
 
 
-#--------------------------------------------------------------
-#  source glbl/rgnl_conf to get the satype list
+#-------------------------------------------------------------
+#  Assemble the SATYPE list from available data files in 
+#  $TANKverf using angle.* files.
+#-------------------------------------------------------------
+
+#-----------------------------------------------------------
+#  Find the first date with data.  Start at today and work
+#  backwards.  Stop after 90 days and exit.
 #
-use_static_satype=${STATIC_SATYPE:-0}
-echo "use_static_satype =  $use_static_satype"
+PDATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+echo PDATE= $PDATE
 
-#-------------------------------------------------------------
-#  If use_static_satype == 0 then assemble the SATYPE list from
-#  available data files in $TANKverf angle*
-#  If use_static_satype == 1 then load SATYPE from the SATYPE.txt
-#  file.
-#-------------------------------------------------------------
-if [[ $use_static_satype -eq 0 ]]; then
+limit=`$NDATE -2160 $PDATE`		# 90 days
+echo limit, PDATE = $limit, $PDATE
 
-   #-----------------------------------------------------------
-   #  Find the first date with data.  Start at today and work
-   #  backwards.  Stop after 90 days and exit.
-   #
-   PDATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+#-----------------------------------------------------------
+#  Build test_list which will contain all data files for
+#  one cycle in $PDATE. 
 
-   echo PDATE= $PDATE
+data_found=0
+while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
+   PDY=`echo $PDATE|cut -c1-8`
 
-   limit=`$NDATE -2160 $PDATE`		# 90 days
-   echo limit, PDATE = $limit, $PDATE
-
-   #-----------------------------------------------------------
-   #  Build test_list which will contain all data files for
-   #  one cycle in $PDATE. 
-   data_found=0
-   while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
-      PDY=`echo $PDATE|cut -c1-8`
-
-      if [[ -d $TANKverf/radmon.${PDY} ]]; then
-         test00=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
-         test06=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
-         test12=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
-         test18=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
-         if [[ $test00 -gt 0 ]]; then
-            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
-            data_found=1
-         elif [[ $test06 -gt 0 ]]; then
-            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
-            data_found=1
-         elif [[ $test12 -gt 0 ]]; then
-            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
-            data_found=1
-         elif [[ $test18 -gt 0 ]]; then
-            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
-            data_found=1
-         fi
-      else
-        test=`ls $TANKverf/angle/*.${PDATE}*.ieee_d* | wc -l`
-        if [[ $test -gt 0 ]]; then
-           test_list=`ls $TANKverf/angle/*.${PDATE}.ieee_d*`
-           data_found=1
-        else
-           PDATE=`$NDATE -24 $PDATE`
-           echo PDATE = $PDATE
-        fi
+   if [[ -d $TANKverf/radmon.${PDY} ]]; then
+      test00=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
+      test06=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
+      test12=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
+      test18=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
+      if [[ $test00 -gt 0 ]]; then
+         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
+         data_found=1
+      elif [[ $test06 -gt 0 ]]; then
+         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
+         data_found=1
+      elif [[ $test12 -gt 0 ]]; then
+         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
+         data_found=1
+      elif [[ $test18 -gt 0 ]]; then
+         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
+         data_found=1
       fi
-   done
-
-   if [[ $data_found -eq 0 ]]; then
-      echo Unable to locate any data files in the past 90 days for $SUFFIX 
-      echo in $TANKverf/angle.
-      exit
    fi
 
-   #-----------------------------------------------------------
-   #  Go through test_list  and identify all unique 
-   #  sat_instrument combinations.  The results are the 
-   #  SATYPE list for this source.
-   # 
+   if [[ data_found -eq 0 ]]; then
+     PDATE=`$NDATE -24 $PDATE`
+     echo PDATE = $PDATE
+   fi
+done
 
-   for test in ${test_list}; do
-      this_file=`basename $test`
-      tmp=`echo "$this_file" | cut -d. -f1`
-      if [[ $tmp == "angle" ]]; then
-         tmp=`echo "$this_file" | cut -d. -f2`
-      fi 
+if [[ $data_found -eq 0 ]]; then
+   echo Unable to locate any data files in the past 90 days for $SUFFIX 
+   echo in $TANKverf/angle.
+   exit
+fi
+
+#-----------------------------------------------------------
+#  Go through test_list  and identify all unique 
+#  sat_instrument combinations.  The results are the 
+#  SATYPE list for this source.
+# 
+
+for test in ${test_list}; do
+   this_file=`basename $test`
+   tmp=`echo "$this_file" | cut -d. -f1`
+   if [[ $tmp == "angle" ]]; then
+      tmp=`echo "$this_file" | cut -d. -f2`
+   fi 
    
-      #----------------------------------------------------------   
-      #  remove sat/instrument_anl names so we don't end up
-      #  with both "airs_aqua" and "airs_aqua_anl" if analysis
-      #  files are being generated for this source.
-      #----------------------------------------------------------   
-      test_anl=`echo $tmp | grep "_anl"`
-      if [[ $test_anl = "" ]]; then
-         SATYPE_LIST="$SATYPE_LIST $tmp"
-      fi
-   done
-
-   export SATYPE=$SATYPE_LIST
-else
-   TANKDIR_INFO=${TANKverf}/info
-   STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
-
-   #-------------------------------------------------------------
-   #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
-   #  if unable to locate it.
-   #-------------------------------------------------------------
-   if [[ -s $STATIC_SATYPE_FILE ]]; then
-      SATYPE=""
-      SATYPE=`cat ${STATIC_SATYPE_FILE}`
-   else
-      echo Unable to locate $STATIC_SATYPE_FILE, must exit.
-      cd $workdir
-      cd ../
-      rm -rf $workdir
-      exit
+   #----------------------------------------------------------   
+   #  remove sat/instrument_anl names so we don't end up
+   #  with both "airs_aqua" and "airs_aqua_anl" if analysis
+   #  files are being generated for this source.
+   #----------------------------------------------------------   
+   test_anl=`echo $tmp | grep "_anl"`
+   if [[ $test_anl = "" ]]; then
+      SATYPE_LIST="$SATYPE_LIST $tmp"
    fi
+done
+
+export SATYPE=$SATYPE_LIST
+
+if [[ ${#SATYPE} -le 0 ]]; then  
+  echo "SATYPE list is zero length, unable to complete html installation"
+  exit 
 fi
 
 echo $SATYPE
@@ -208,7 +183,6 @@ for satype in $SATYPE; do
    ins=${satype%_*}
    tmp="${ins}_"
    sat=${satype#$tmp} 
-#   sat=${sat%-*}
 
    sat_num=`echo $sat | tr -d '[[:alpha:]]'`	
 
@@ -410,6 +384,6 @@ cd ../
 rm -rf $workdir
 
 echo ""
-echo "END install_html.sh"
+echo "END Install_html.sh"
 
 exit

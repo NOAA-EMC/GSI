@@ -286,9 +286,9 @@ if [ -s $radstat -a -s $biascr ]; then
    logfile=$LOGdir/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEradmon/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEradmon}/jobs/JGDAS_VERFRAD
    fi
 
 fi

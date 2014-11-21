@@ -5,6 +5,8 @@
 #  base history files for each entry in the SATYPE list from the 
 #  time data files (*.ieee_d) for the specified source (suffix).
 #
+#  This is not normally necessary for RadMon users unless you want
+#  to use the automated validation mechanism.
 # *****************************************************************
 
 SHELL=/bin/sh
@@ -34,6 +36,7 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../../exec/.
 
 make_base.o : make_base.f90
 	$(CF) $(FFLAGS) -c $(*).f90
