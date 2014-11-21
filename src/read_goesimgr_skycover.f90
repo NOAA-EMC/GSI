@@ -87,7 +87,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   integer(i_kind) :: iret,kx,minobs,minan,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
-  integer(i_kind) :: iout,ntmp,iiout,maxobs,icount,itx,iuse,idate
+  integer(i_kind) :: iout,ntmp,iiout,maxobs,icount,itx,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
   integer(i_kind),allocatable,dimension(:):: isort,iloc
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,rtime,toff,t4dv
@@ -119,13 +119,28 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   nreal=20
 
   nc=0
-  do i=1,nconvtype
-     if(trim(obstype) == trim(ioctype(i)) .and. ictype(i)==999_i_kind) nc=i
-  end do
+  conv: do i=1,nconvtype
+     if(trim(obstype) == trim(ioctype(i)) .and. ictype(i)==999_i_kind) then
+        nc=i
+        exit conv
+     end if
+  end do conv
   if(nc == 0)then
      write(6,*) myname,' no matching obstype found in convinfo ',obstype
      return
   end if
+
+  ! Try opening bufr file, if unable print error to the screen
+  !  and return to read_obs.F90
+  open(lunin,file=trim(infile),form='unformatted',iostat=ierr)
+  if (ierr/=0) then
+     write(6,'(A)')myname,':ERROR: Trouble opening input file: ',trim(infile),' returning to read_obs.F90...'
+     return
+  end if
+
+  call openbf(lunin,'IN',lunin)
+  call datelen(10)
+  subset='GEOCLDUW'
 
 
 
@@ -136,10 +151,13 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      rmesh=rmesh_conv(nc)
      pmesh=pmesh_conv(nc)
      use_all = .false.
-     if(pmesh > zero) then 
-        write(6,'(A,1x,A,1x,f6.3,1x,A)')  myname,': WARNING, PMESH IS:',pmesh,' - CANNOT THIN 2D SKYCOVER OBS IN THE VERTICAL. SEE CONVINFO FILE.  SETTING PMESH TO ZERO...'
-        pmesh=zero
-     end if
+     if(pmesh > zero) then
+        pflag=1
+        nlevp=r1200/pmesh
+     else
+        pflag=0
+        nlevp=nsig
+     endif
      pflag=0
      nlevp=nsig
      xmesh=rmesh
@@ -152,16 +170,9 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
            enddo
         endif
      endif
-     write(6,'(A,1x,A,1x,A,I4,1x,f8.2,I2,I3,f8.2,I3)')myname,': ioctype(nc), ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
-                 ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
+     write(6,'(A,1x,A,1x,A,I4,1x,f8.2,1x,I2,1x,I3,1x,f8.2,1x,I3)')myname,': ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
+                 trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
   endif
-
-
-
-  open(lunin,file=trim(infile),form='unformatted')
-  call openbf(lunin,'IN',lunin)
-  call datelen(10)
-  subset='GEOCLDUW'
  
   nmsg=0
   ntb = 0
@@ -170,7 +181,9 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
-     ntb = ntb + nmsub(lunin)
+     ntb = ntb + nmsub(lunin) !nmsub is a bufrlib function which returns the number of subsets in 
+                              !  a bufr message open for input via a previous call to a bufrlib
+                              !  routine readmg or equivalent.  The subsets are not required to be read (saves time).
      if (nmsg>nmsgmax) then
         write(6,*)myname,': messages exceed maximum ',nmsgmax
         call stop2(50)
@@ -181,7 +194,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      endif
   end do
   maxobs=ntb
-
 
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
   isort = 0
