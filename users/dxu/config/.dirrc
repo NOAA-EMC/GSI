@@ -13,6 +13,7 @@ alias bb1='cd ${fdir1} '
 alias bb2='cd ${fdir2} '
 alias bb3='cd ${fdir3} '
 alias lr="ls -ltr "
+alias la="ls -a "
 alias hn="hostname "
 alias h="history "
 alias tf="tail -f "
