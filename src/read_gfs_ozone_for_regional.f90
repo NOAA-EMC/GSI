@@ -106,11 +106,10 @@ subroutine read_gfs_ozone_for_regional
 
 ! Determine input GFS filenames
   it_beg=1
-!  it_end=nfldsig
-  it_end=1
+  it_end=nfldsig
   allocate(infiles(nfldsig))
   do it=it_beg,it_end
-     write(filename,'("gfs_sigf",i2.2)')ifilesig(it)
+     write(filename,'("gfs_sigf",i2.2)')nhr_assimilation
      infiles(it)=filename
      if(mype==0) then
         write(6,*) 'read_gfs_ozone_for_regional: gfs file required: nfldsig = ',nfldsig                           
@@ -213,7 +212,7 @@ subroutine read_gfs_ozone_for_regional
         ck5(k) = sighead%vcoord(k,3)*zero_001
      end do
   else
-     write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
+     write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord,filename
      call stop2(85)
   endif
 ! Load reference temperature array (used by general coordinate)
