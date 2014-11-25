@@ -13,6 +13,7 @@ alias vsdb="       cd ${data_dir}/vsdb_pkg/vsdb_v17  "
 alias vsdb_input=" cd ${data_dir}/vsdb_workspace/data/input "
 alias vsdb_output="cd ${data_dir}/vsdb_workspace/data/output/vsdb_data "
 alias vsdb_stmp="  cd ${data_dir}/vsdb_workspace/data/stmp/${LOGNAME}"
+alias scorefile="  ls -l scorecard.html scorecard.css legend.html  mainindex.html " 
 #3. ge
 alias ge="         cd ${data_dir}/ge_pkg/ge/scripts  "
 alias ge_input="  cd ${data_dir}/ge_workspace/data/input "
