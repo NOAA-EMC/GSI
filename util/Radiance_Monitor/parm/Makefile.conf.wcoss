@@ -21,7 +21,6 @@
 # Linker and options
 # ------------------
 
-#  LIBS          = -L$(CORELIB) -lw3nco_4
   LIBS          = $(W3NCO_LIB4)
   LDFLAGS       = 
 

@@ -59,10 +59,19 @@ export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
 export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
-export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon.${radmon_ver}}
+export HOMEgdasradmon=${HOMEgdasradmon:-/nw${envir}/gdas_radmon.${gdas_radmon_ver}}
+export SCRIPTSgdasradmon=${SCRIPTSgdasradmon:-$HOMEgdasradmon/scripts}
+export FIXgdasradmon=${FIXgdasradmon:-$HOMEgdasradmon/fix}
+
+export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon_shared.${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
 export FIXradmon=${FIXradmon:-$HOMEradmon/fix}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
+
+#export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon.${radmon_ver}}
+#export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+#export FIXradmon=${FIXradmon:-$HOMEradmon/fix}
+#export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 export COMPRESS=${COMPRESS:-gzip}
@@ -70,12 +79,11 @@ export UNCOMPRESS=${UNCOMPRESS:-gunzip}
 export Z=${Z:-gz}
 
 
-#export NWPROD=${NWPROD:-/nwprod}
 
 ###################################
 # Set up the UTILITIES
 ###################################
-#echo PDY = $PDY
+export NWPROD=${NWPROD:-/nwprod}
 export utilscript=${utilscript:-$NWPROD/util/ush}
 export utilexec=${utilexec:-$NWPROD/util/exec}
 
@@ -116,7 +124,7 @@ postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${RADMONSH:-$HOMEradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
+${RADMONSH:-$HOMEgdasradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"

@@ -111,11 +111,15 @@ export cyc=${2:-${cyc:?}}
 export DATA=${DATA:-$(pwd)}
 export COM_IN=/com/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
-export HOMEradmon=${HOMEradmon:-/nw${envir}}
+
+export HOMEgdasradmon=${HOMEgdasradmon:-/nw${envir}/gdas_radmon.${gdas_radmon_ver}}
+export FIXgdasradmon=${FIXgdasradmon:-$HOMEgdasradmon/fix}
+export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
+
+export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon_shared.${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
-export FIXradmon=${FIXradmon:-$HOMEradmon/fix}
-export PARMradmon=${PARMradmon:-$HOMEradmon/parm}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
+
 export TANKverf=${TANKverf:-/com/verf/prod}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
 
@@ -192,11 +196,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
-#   if [[ $MY_MACHINE = 'ccs' ]]; then
-#      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $10 "_" $11 }'`
-#   else
-      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
-#   fi
+   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype
    fi
@@ -214,13 +214,13 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    fi
 
    if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
-      if [[ ! -e ${FIXradmon}/${satype_file} ]]; then 
+      if [[ ! -e ${FIXgdasradmon}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
             echo " ${satype_file} not found.  Adding it now using radstat file contents."
          fi
       else
-         export SATYPE=`cat ${FIXradmon}/${satype_file}`
+         export SATYPE=`cat ${FIXgdasradmon}/${satype_file}`
       fi
    else
       export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
