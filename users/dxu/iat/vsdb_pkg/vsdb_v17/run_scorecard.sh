@@ -10,6 +10,7 @@
 ###     outside vsdb main running script. 2) highlighten input and output settings for clarification.
 ###     3) replace "exit 88" with "continue" so script won't crush in the middle due to missing some of score
 ###     card files and continue to generate score card.
+###  11/25/2014, Deyong Xu / RTi @ JCSDA, Fixed the column shift bug in score card 
 ### 
 
 set -x
@@ -65,6 +66,9 @@ export reglist=${reglist:-"G2PNA G2NHX G2SHX G2TRO"}
 #export day=${day:-"1 3 5 6 8 10"}
 export day=${day:-"1 3 5 "}
 
+# Get number of columns per region
+colno=`echo ${day} |wc -w`
+
 #Verification scorecard html filename
 htfile=scorecard.html
 legfile=legend.html
@@ -86,15 +90,15 @@ EOF
 
 for reg1 in $reglist; do
 if [[ $reg1 = "G2" ]] ; then
-   world=$(echo '<th colspan="6">Globe</th>')
+   world=$(echo "<th colspan=${colno}>Globe</th>")
 elif [[ $reg1 = "G2NHX" ]] ; then
-   world=$(echo '<th colspan="6">N. Hemisphere</th>')
+   world=$(echo "<th colspan=${colno}>N. Hemisphere</th>")
 elif [[ $reg1 = "G2SHX" ]] ; then
-   world=$(echo '<th colspan="6">S. Hemisphere</th>')
+   world=$(echo "<th colspan=${colno}>S. Hemisphere</th>")
 elif [[ $reg1 = "G2TRO" ]] ; then
-   world=$(echo '<th colspan="6">Tropics</th>') 
+   world=$(echo "<th colspan=${colno}>Tropics</th>") 
 elif [[ $reg1 = "G2PNA" ]] ; then
-   world=$(echo '<th colspan="6">N. American</th>')
+   world=$(echo "<th colspan=${colno}>N. American</th>")
 fi
 
 cat <<EOF >> $htfile
