@@ -108,8 +108,14 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 ! Declare external calls for code analysis
   external:: SFC_WTQ_FWD
   external:: get_tlm_tsfc
-  external:: tintrp2a1,tintrp2a11
-  external:: tintrp31
+! A bug with the intel compiler requires that the 
+!  externals for the tintrp* routines be commented out
+!  in order for GSI to compile in debug mode. (has to do
+!  with the fact that these are set as externals in setupt, 
+!  which calls this routine).
+ 
+!  external:: tintrp2a1,tintrp2a11
+!  external:: tintrp31
   external:: grdcrd1
   external:: stop2
 
