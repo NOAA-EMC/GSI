@@ -469,7 +469,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !       penalties for lcbas constraint
         if(getindex(cvars2d,'lcbas')>0) &
-        call stpliml(dval(1),sval(1),sges,pbc(1,9),nstep) 
+        call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
      end if
 
 !    penalties for Jo
@@ -618,10 +618,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end if
   pjcostnew(1) = psum(1)                                 ! Jb
   pjcostnew(3) = psum(2)+psum(3)                         ! Jc
-  pjcostnew(4) = psum(4)+psum(5)+psum(6)+psum(7)+psum(8) ! Jl
-  pjcostnew(2) = zero
+  pjcostnew(4)=zero
+  do i=4,n0
+     pjcostnew(4) =  pjcostnew(4) + psum(i) ! Jl
+  end do
+
   do i=1,nobs_type
-     pjcostnew(2) = pjcostnew(2)+psum(8+i)               ! Jo
+     pjcostnew(2) = pjcostnew(2)+psum(n0+i)               ! Jo
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
