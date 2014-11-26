@@ -38,6 +38,8 @@ module qcmod
 !   2013-07-19  zhu     - tighten quality control for amsua surface sensitive channels when emiss_bc=.t.
 !   2013-10-27  todling - add create/destroy
 !   2014-01-09  mccarty - do not apply qc to wv channels for amsub (lower quality than mhs)
+!   2014-05-29  thomas  - add lsingleradob functionality rejection flag
+!                         (originally of mccarty)
 !   2014-10-06  carley  - add logicals for buddy check
 !
 ! subroutines included:
@@ -118,7 +120,7 @@ module qcmod
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
-            ifail_gross_qc,ifail_cloud_qc
+            ifail_gross_qc,ifail_cloud_qc,ifail_outside_range
 
   public :: buddycheck_t,buddydiag_save
 
@@ -166,6 +168,8 @@ module qcmod
   integer(i_kind),parameter:: ifail_emiss_qc=8
 !  Reject due to observations being out of range in qc routine
   integer(i_kind),parameter:: ifail_range_qc=9
+!  Reject because outside the range of lsingleradob
+  integer(i_kind),parameter:: ifail_outside_range=11
 
 !  Failures specific to qc routine start at 50 and the numbers overlap
 !  QC_SSMI failures 

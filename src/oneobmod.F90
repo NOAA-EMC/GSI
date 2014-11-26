@@ -13,6 +13,8 @@ module oneobmod
 !   2005-04-04  todling, fixed little endian ouput of prepqc file
 !   2009-04-28  sienkiewicz - add text output for ozone level obs testing
 !   2012-07-14  todling - only do it once (in observer mode)
+!   2014-05-29  thomas - add lsingleradob parameter for single radiance
+!                        assimilation (originally of mccarty)
 !
 ! subroutines included:
 !   sub init_oneobmod
@@ -47,6 +49,7 @@ module oneobmod
 ! set passed variables to public
   public :: oneobtest,oneob_type,magoberr,pctswitch,maginnov
   public :: oblat,oblon,obpres,obdattim,obhourset
+  public :: lsingleradob, obchan
 
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
@@ -54,6 +57,8 @@ module oneobmod
   character(10) oneob_type
   logical oneobtest
   logical pctswitch
+  logical lsingleradob
+  integer(i_kind) obchan
 
   logical :: oneobmade
 
@@ -93,6 +98,8 @@ contains
     obdattim=2000010100
     obhourset=zero
     pctswitch=.false.
+    lsingleradob=.false.
+    obchan=zero
 
     oneobmade=.false.
     return
