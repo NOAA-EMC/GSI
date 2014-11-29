@@ -12,8 +12,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 
 !    2010-03-30  Tangborn, initial code.
 !    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), fixed indentation
-!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-
+!    2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!
 !   input argument list:
 !     obstype  - observation type to process
 !     infile   - unit from which to read co data
@@ -68,7 +68,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 
   integer(i_kind) ipoq7
 
-  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq
+  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq  
   real(r_kind) slons0,slats0,rsat,solzen,dlat_earth,dlon_earth
   real(r_kind) rlat,rlon,rpress,rsza
   real(r_kind),allocatable,dimension(:):: pco
@@ -163,7 +163,6 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      sstime=real(nmind,r_kind)
      tdiff=(sstime-gstime)*r60inv
-     
 
 !    Check co layer values.  If any layer value is bad, toss entire profile
 !     do k=1,nlco

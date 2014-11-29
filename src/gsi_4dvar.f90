@@ -20,7 +20,8 @@ module gsi_4dvar
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !   2011-07-10 guo/zhang- add liauon
 !   2012-02-08 kleist   - add new features for 4dvar with ensemble/hybrid.
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs 
+!   2014-11-24 Rancic/Thomas - iwinbgn changed from hours to mins        
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -49,7 +50,7 @@ module gsi_4dvar
 !   iedate            - Date and time at  end  of 4dvar window
 !   iadateend         - Date and time at  end  of 4dvar window
 !
-!   iwinbgn           - Time since ref at start of 4dvar window (hours)
+!   iwinbgn           - Time since ref at start of 4dvar window (mins)
 !   winlen            - Length of 4dvar window (hours)
 !   winoff            - Main analysis time within 4dvar window (hours)
 !

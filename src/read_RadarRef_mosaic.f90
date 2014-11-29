@@ -12,6 +12,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2008-12-20  Hu  make it read in BUFR form reflectivity  data
 !    2010-04-09  Hu  make changes based on current trunk style
+!    2014-11-24  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read mosaic information file
@@ -43,7 +44,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   use constants, only: zero,one
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
-  use gsi_4dvar, only: l4dvar,winlen
+  use gsi_4dvar, only: l4dvar,winlen,l4densvar
 
   implicit none
 !
@@ -135,7 +136,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
             call ufbint(lunin,hdr,5,1,iret,hdrstr)
 
 ! check time window in subset
-            if (l4dvar) then
+            if (l4dvar.or.l4densvar) then
                t4dv=hdr(4)
                if (t4dv<zero .OR. t4dv>winlen) then
                   write(6,*)'read_RadarRef_mosaic:      time outside window ',&
