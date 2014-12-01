@@ -49,7 +49,7 @@ done
 ##############################################
 export src_dir
 export data_dir
-alias src="cd ${src_dir} "
+alias src=" cd ${src_dir} "
 alias data="cd ${data_dir} "
 
 ###################################################
