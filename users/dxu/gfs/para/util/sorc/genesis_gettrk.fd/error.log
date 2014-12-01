@@ -1,0 +1,88 @@
+ 
+  Compiling the modules.....
+	ncepxlf -O -qcheck -qextchk -qarch=auto -qflttrap=ov:zero:inv:enable -qintsize=4 -qrealsize=8 -c getgntrk_modules.f -o getgntrk_modules.o
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_r15ne is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_vmaxrad is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_vmax is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_r15nw is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_r15sw is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_r15se is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_stspd is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_stdir is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_lon is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_penvrad is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_penv is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable tcv_pcen is misaligned.  This may affect the efficiency of the code.
+** def_vitals   === End of Compilation 1 ===
+** inparms   === End of Compilation 2 ===
+"getgntrk_modules.f", 1514-008 (W) Variable contint is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable v850thresh is misaligned.  This may affect the efficiency of the code.
+"getgntrk_modules.f", 1514-008 (W) Variable mslpthresh is misaligned.  This may affect the efficiency of the code.
+** trkrparms   === End of Compilation 3 ===
+** contours   === End of Compilation 4 ===
+** atcf   === End of Compilation 5 ===
+** tracked_parms   === End of Compilation 6 ===
+** radii   === End of Compilation 7 ===
+** grid_bounds   === End of Compilation 8 ===
+** error_parms   === End of Compilation 9 ===
+** set_max_parms   === End of Compilation 10 ===
+** level_parms   === End of Compilation 11 ===
+** trig_vals   === End of Compilation 12 ===
+1501-510  Compilation successful for file getgntrk_modules.f.
+ 
+ 
+  Compiling the tracking program.....
+	ncepxlf -O -qcheck -qextchk -qarch=auto -qflttrap=ov:zero:inv:enable -qintsize=4 -qrealsize=8 -bloadmap:loadmap -bnoquiet getgntrk_modules.o getgntrk_main.f -L/nwprod/lib -lw3_d -lbacio_4 -o genesis_gettrk
+** trakmain   === End of Compilation 1 ===
+"getgntrk_main.f", line 981.46: 1516-205 (S) Entity maxconts is defined in more than one module files.  Referencing it is not permitted.
+** tracker   === End of Compilation 2 ===
+** open_grib_files   === End of Compilation 3 ===
+** is_it_a_storm   === End of Compilation 4 ===
+** sort_storms_by_pressure   === End of Compilation 5 ===
+** getvrvt   === End of Compilation 6 ===
+** output_radii   === End of Compilation 7 ===
+** output_all   === End of Compilation 8 ===
+** output_atcf   === End of Compilation 9 ===
+** output_atcfunix   === End of Compilation 10 ===
+** output_tcvitals   === End of Compilation 11 ===
+** output_tracker_mask   === End of Compilation 12 ===
+** get_next_ges   === End of Compilation 13 ===
+** getradii   === End of Compilation 14 ===
+** get_max_wind   === End of Compilation 15 ===
+** fixcenter   === End of Compilation 16 ===
+** avgcalc   === End of Compilation 17 ===
+** wtavrg   === End of Compilation 18 ===
+** stdevcalc   === End of Compilation 19 ===
+** get_uv_center   === End of Compilation 20 ===
+** get_uv_guess   === End of Compilation 21 ===
+** calc_vmag   === End of Compilation 22 ===
+** bilin_int   === End of Compilation 23 ===
+** lin_int   === End of Compilation 24 ===
+** find_maxmin   === End of Compilation 25 ===
+** barnes   === End of Compilation 26 ===
+** get_ij_bounds   === End of Compilation 27 ===
+** check_bounds   === End of Compilation 28 ===
+** calcdist   === End of Compilation 29 ===
+** subtract_cor   === End of Compilation 30 ===
+** getdata   === End of Compilation 31 ===
+** bitmapchk   === End of Compilation 32 ===
+** conv1d2d_logic   === End of Compilation 33 ===
+** conv1d2d_real   === End of Compilation 34 ===
+** read_nlists   === End of Compilation 35 ===
+** read_tcv_card   === End of Compilation 36 ===
+** getgridinfo   === End of Compilation 37 ===
+** rvcal   === End of Compilation 38 ===
+"getgntrk_main.f", line 6939.28: 1516-205 (S) Entity maxconts is defined in more than one module files.  Referencing it is not permitted.
+"getgntrk_main.f", line 6949.16: 1516-205 (S) Entity maxconts is defined in more than one module files.  Referencing it is not permitted.
+** first_ges_center   === End of Compilation 39 ===
+** find_all_maxmins   === End of Compilation 40 ===
+** fix_latlon_to_ij   === End of Compilation 41 ===
+"getgntrk_main.f", line 7629.42: 1516-205 (S) Entity maxconts is defined in more than one module files.  Referencing it is not permitted.
+** check_closed_contour   === End of Compilation 42 ===
+** sphere_of_influence   === End of Compilation 43 ===
+** get_ijplus1_check_wrap   === End of Compilation 44 ===
+1501-511  Compilation failed for file getgntrk_main.f.
+make: 1254-004 The error code from the last command is 1.
+
+
+Stop.

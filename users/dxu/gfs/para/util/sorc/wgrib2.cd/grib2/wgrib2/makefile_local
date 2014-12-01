@@ -1,0 +1,111 @@
+#
+# this makefile is for gnu-make on a linux box
+# wgrib2 rerequires grib2c (NCEP C grib2), jasper (jpeg), z and png libraries
+#
+#  REQUIRES GNU make
+# mod 1/07 M. Schwarb
+# mod 2/07 W. Ebisuzaki changes for *.dat files
+# mod 8/07 W. Ebisuzaki cleanup
+# mod 6/10 W. Ebisuzaki add ipolates
+#
+
+SHELL=/bin/sh
+
+zlib=../zlib-1.2.5
+pnglib=../libpng-1.2.43/.libs
+
+# optional packages see config.h
+
+USE_NETCDF3:=$(shell grep -c '^\#define USE_NETCDF3' config.h)
+USE_NETCDF4:=$(shell grep -c "^\#define USE_NETCDF4" config.h)
+USE_MYSQL:=$(shell grep -c "^\#define USE_MYSQL" config.h)
+USE_IPOLATES:=$(shell grep -c "^\#define USE_IPOLATES" config.h)
+
+ifeq ($(USE_NETCDF3),1)
+   netcdf_lib=-L../netcdf-3.6.2/libsrc/.libs -lnetcdf
+   netcdf_inc=-I../netcdf-3.6.2/libsrc
+endif
+ifeq ($(USE_NETCDF4),1)
+   netcdf_lib=-L../netcdf-4.0.1/libsrc4/.libs -lnetcdf -L../hdf5/lib -lhdf5_hl -lhdf5
+   netcdf_inc=-I../netcdf-4.0.1/libsrc4
+endif
+
+ifeq ($(USE_MYSQL),1)
+   mysql_inc=-I/export/wesley/wd51we/download/mysql-5.0.51a-linux-i686-glibc23/include
+   mysql_lib=-L/export/wesley/wd51we/download/mysql-5.0.51a-linux-i686-glibc23/lib -lmysqlclient
+   mysql_lib=/export/wesley/wd51we/download/mysql-5.0.51a-linux-i686-glibc23/lib/libmysqlclient.a
+#   mysql_inc=`mysql_config --cflags`
+#   mysql_lib=`mysql_config --libs`
+endif
+
+ifeq ($(USE_IPOLATES),1)
+   ipolates_lib=-L../iplib -lipolate \
+   -L/export/wesley/wd51we/g95-install/lib/gcc-lib/i686-pc-linux-gnu/4.0.3 -lf95 
+#   -L/usr/lib/gcc/i386-redhat-linux5E/4.1.2 -lgfortran
+endif
+
+g2=../g2clib-1.1.8
+
+jasper_lib=-L../jasper-1.900.1/src/libjasper/.libs -ljasper
+jasper_inc=-I../jasper-1.900.1/src/libjasper/include
+
+
+all:=$(patsubst %.c,%.o,$(wildcard *.c))
+code:=$(filter-out fnlist.o,$(all))
+o=$(wildcard *.o)
+h:=grb2.h  wgrib2.h fnlist.h config.h
+options=$(wildcard [A-Z]*.c)
+CODE_TABLE_DAT=$(wildcard CodeTable_[0-9].[0-9]*.dat)
+
+f90=G95
+# f90=GFORTRAN
+CFLAGS=-I${g2} ${netcdf_inc} ${jasper_inc} ${mysql_inc} -O2  -D${f90}
+
+ifeq ($(CC),gcc) 
+   CFLAGS+=-Wall  -Wmissing-prototypes -Wold-style-definition -ffast-math -mtune=prescott -march=prescott
+endif
+
+# big LDFLAGS=-L${g2} -lgrib2c ${jasper_lib} ${netcdf_lib} ${mysql_lib} ${ipolates_lib} -L${pnglib} -lpng -L${zlib} -lz -lm 
+LDFLAGS=-L${g2} -lgrib2c ${jasper_lib} ${netcdf_lib} ${mysql_lib} ${ipolates_lib} -lpng  -lz -lm 
+
+# LDFLAGS=-L${g2} -lgrib2c ${jasper_lib} ${netcdf_lib} ${mysql_lib} ${ipolates_lib} -L/usr/lib -L${pnglib} -lpng -L${zlib} -lz -lm 
+# LDFLAGS=-L${g2} ${jasper_lib} ${netcdf_lib} ${mysql_lib} -L/usr/lib -lpng -lz -lm 
+
+wgrib2: $h ${all} 
+	${CC} -o wgrib2new ${all} ${LDFLAGS} 
+#	${CC} -o wgrib2new ${CFLAGS} ${all} ${LDFLAGS} 
+	rm Config.o
+
+
+fnlist.c:	${options}
+	./function.sh 
+
+fnlist.h:	${options}
+	./function.sh
+
+fast:	${code}
+	touch fnlist.o fnlist.c fnlist.h 
+	${CC} -o wgrib2new ${CFLAGS} ${all} ${LDFLAGS} 
+	rm Config.o
+
+Help.o:	Help.c wgrib2.h
+	${CC} -c ${CFLAGS} Help.c
+
+CodeTable.o:	CodeTable.c ${CODE_TABLE_DAT}
+	${CC} -c ${CFLAGS} CodeTable.c
+
+cname.o:	cname.c gribtab.dat
+	${CC} -c ${CFLAGS} cname.c
+
+Sec1.o:	Sec1.c code_table0.dat ncep_tableC.dat
+	${CC} -c ${CFLAGS} Sec1.c
+
+gribtab.o:	gribtab.c gribtab.dat misc_gribtab.dat
+	${CC} -c ${CFLAGS} gribtab.c
+
+Mod_grib.o:	Mod_grib.c NCEP_local_levels_test.h
+	${CC} -c ${CFLAGS} Mod_grib.c
+
+clean:
+	touch wgrib2
+	rm ${o} wgrib2

@@ -1,0 +1,78 @@
+test_write.o : test_write.c
+test_write.o : tests.h
+test_write.o : ../config.h
+test_write.o : /usr/include/stdio.h
+test_write.o : /usr/include/standards.h
+test_write.o : /usr/include/va_list.h
+test_write.o : /usr/include/sys/types.h
+test_write.o : /usr/include/strict_stdtypes.h
+test_write.o : /usr/include/sys/inttypes.h
+test_write.o : /usr/include/stdint.h
+test_write.o : /usr/include/end_strict_stdtypes.h
+test_write.o : /usr/include/sys/m_types.h
+test_write.o : /usr/include/sys/vm_types.h
+test_write.o : /usr/include/sys/limits.h
+test_write.o : /usr/include/float.h
+test_write.o : /usr/vac/include/string.h
+test_write.o : /usr/include/string.h
+test_write.o : /usr/vac/include/stdlib.h
+test_write.o : /usr/include/stdlib.h
+test_write.o : /usr/include/sys/wait.h
+test_write.o : /usr/include/sys/resource.h
+test_write.o : /usr/include/sys/time.h
+test_write.o : /usr/include/sys/signal.h
+test_write.o : /usr/include/sys/context.h
+test_write.o : /usr/include/sys/m_param.h
+test_write.o : /usr/include/sys/mstsave.h
+test_write.o : /usr/include/sys/m_signal.h
+test_write.o : /usr/include/sys/localedef.h
+test_write.o : /usr/include/sys/lc_core.h
+test_write.o : /usr/include/locale.h
+test_write.o : /usr/include/sys/localedef31.h
+test_write.o : /usr/include/assert.h
+test_write.o : /usr/include/limits.h
+test_write.o : ../libsrc/netcdf.h
+test_write.o : /usr/include/stddef.h
+test_write.o : /usr/include/errno.h
+test_write.o : error.h
+test_write.o : /usr/vac/include/math.h
+test_write.o : /usr/include/math.h
+test_write.c:
+tests.h:
+../config.h:
+/usr/include/stdio.h:
+/usr/include/standards.h:
+/usr/include/va_list.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/include/assert.h:
+/usr/include/limits.h:
+../libsrc/netcdf.h:
+/usr/include/stddef.h:
+/usr/include/errno.h:
+error.h:
+/usr/vac/include/math.h:
+/usr/include/math.h:

@@ -1,0 +1,17 @@
+Please follow the instruction to build the ESMF library
+Please note that this version of ESMF is NOT intended to replace the current production version
+
+0. set variable "envir" (prod, para, test) 
+1. export ESMF_DIR=/nw${envir}/lib/sorc/esmf_3_1_0rp2
+2. cd $ESMF_DIR
+3. export ESMF_BOPT=O
+4. unset ESMF_ARCH ESMF_PREC
+5. gmake clobber
+6. gmake
+7. cd /nw${envir}/lib/sorc/esmf_3_1_0rp2/lib/libO/AIX.default.64.mpi.default
+   mv libesmf.a /nwprod/lib/libesmf_3_1_0rp2.a
+8. mkdir /nw${envir}/lib/incmod/esmf_3_1_0rp2
+   cd /nw${envir}/lib/sorc/esmf_3_1_0rp2/mod/modO/AIX.default.64.mpi.default
+   mv * /nw${envir}/lib/incmod/esmf_3_1_0rp2
+9. cd $ESMF_DIR
+10. gmake clobber  # to clean up the unnecessary files in the src directory

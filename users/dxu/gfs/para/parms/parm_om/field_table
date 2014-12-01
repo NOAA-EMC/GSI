@@ -1,0 +1,19 @@
+
+"diag_tracers","ocean_mod","frazil"
+/
+
+
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdfl_sweby
+vertical-advection-scheme = mdfl_sweby
+const_init_tracer=.false.
+const_init_value=30.0
+/
+
+
+"prog_tracers","ocean_mod","salt"
+horizontal-advection-scheme = mdfl_sweby
+vertical-advection-scheme = mdfl_sweby
+const_init_tracer=.false.
+const_init_value=35.0
+/
