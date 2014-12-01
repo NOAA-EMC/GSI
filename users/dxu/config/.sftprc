@@ -1,10 +1,16 @@
 # sftp
 alias tome=" mail -s 'from s4'  deyong.xu@noaa.gov  <  " # followed by a file
+
+# ssh mode
 alias s4=" ssh dxu@s4-gateway.ssec.wisc.edu  "
 alias cardinal="ssh -X dxu@s4-cardinal.ssec.wisc.edu  "
+
+# sftp mode
 alias ss4=" sftp dxu@s4-gateway.ssec.wisc.edu  "
 alias scardinal="sftp dxu@s4-cardinal.ssec.wisc.edu  "
+
 alias hn="hostname "
+
 alias sts="echo   /data/users/dxu/transferStation/  "
 alias tosts="cd   /data/users/dxu/transferStation/  "
 
