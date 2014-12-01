@@ -44,6 +44,12 @@ echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
 
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
