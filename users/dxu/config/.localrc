@@ -13,11 +13,18 @@
 hnStr=`hostname`
 
 declare -a hostArr
+declare -a src_dirArr
 declare -a data_dirArr
 hostArr=('badger' 'cardinal' 'fe' 'jibb' 's4')
-data_dirArr=("/data/${LOGNAME}"  \
+# Separate source and data into two locations
+src_dirArr=("/data/${LOGNAME}"  \
              "/data/users/${LOGNAME}" \
              "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
+data_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
              "/data/users/${LOGNAME}" \
              "/data/users/${LOGNAME}")
 SIZE=${#hostArr[@]}   # array size
@@ -31,6 +38,7 @@ for (( i=0; i<$SIZE; i++)); do
    searchStr=` echo $hnStr  |grep -e "${hostArr[${i}]}" `
    if [ "${searchStr}" != "${emptyStr}" ]
    then
+      src_dir=${src_dirArr[i]}
       data_dir=${data_dirArr[i]}
       break
    fi
@@ -39,7 +47,9 @@ done
 ##############################################
 # Now export data_dir for use by downstream
 ##############################################
+export src_dir
 export data_dir
+alias src="cd ${src_dir} "
 alias data="cd ${data_dir} "
 
 ###################################################
