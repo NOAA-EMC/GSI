@@ -15,17 +15,17 @@ hnStr=`hostname`
 declare -a hostArr
 declare -a src_dirArr
 declare -a data_dirArr
-hostArr=('badger' 'cardinal' 'fe' 'jibb' 's4')
+hostArr=('badger' 's4' 'cardinal' 'fe' 'jibb')
 # Separate source and data into two locations
 src_dirArr=("/data/${LOGNAME}"  \
-             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}/src" \
+             "/data/users/${LOGNAME}/src" \
              "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
-             "/data/users/${LOGNAME}" \
              "/data/users/${LOGNAME}")
 data_dirArr=("/data/${LOGNAME}"  \
-             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}/workspace" \
+             "/data/users/${LOGNAME}/workspace" \
              "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
-             "/data/users/${LOGNAME}" \
              "/data/users/${LOGNAME}")
 SIZE=${#hostArr[@]}   # array size
 
