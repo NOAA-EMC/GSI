@@ -1,0 +1,40 @@
+ncx.lo : ncx.c
+ncx.lo : ncx.h
+ncx.lo : ../config.h
+ncx.lo : rnd.h
+ncx.lo : /usr/include/stddef.h
+ncx.lo : /usr/include/standards.h
+ncx.lo : /usr/include/errno.h
+ncx.lo : /usr/include/sys/types.h
+ncx.lo : /usr/include/strict_stdtypes.h
+ncx.lo : /usr/include/sys/inttypes.h
+ncx.lo : /usr/include/stdint.h
+ncx.lo : /usr/include/end_strict_stdtypes.h
+ncx.lo : /usr/include/sys/m_types.h
+ncx.lo : /usr/include/sys/vm_types.h
+ncx.lo : /usr/vac/include/string.h
+ncx.lo : /usr/include/string.h
+ncx.lo : /usr/include/limits.h
+ncx.lo : /usr/include/sys/limits.h
+ncx.lo : /usr/include/float.h
+ncx.lo : /usr/include/assert.h
+ncx.c:
+ncx.h:
+../config.h:
+rnd.h:
+/usr/include/stddef.h:
+/usr/include/standards.h:
+/usr/include/errno.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/include/limits.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/assert.h:

@@ -1,0 +1,336 @@
+#!/bin/ksh
+################################################################################
+# This script makes the rlist, the list of data flow for the experiment.
+# Usage: pmkr [CONFIG]
+# Imported variables:
+#   CONFIG
+# Configuration variables:
+################################################################################
+#set -ux
+set -u
+CONFIG=${1:-${CONFIG:?}}
+set -a;. $CONFIG;set +a
+CDFNL=${CDFNL:-gdas}
+GDUMP=${GDUMP:-$CDFNL}
+MANAL=${MANAL:-1}
+CCPOST=${CCPOST:-NO}
+GGPOST=${GGPOST:-NO}
+DO2ANL=${DO2ANL:-YES}
+COUP_FCST=${COUP_FCST:-NO}
+gdas_cyc=${gdas_cyc:-4}
+JCAP=${JCAP:-382}
+NST_FCST=${NST_FCST:-0}
+
+if [ $gdas_cyc -eq 2 ] ; then
+ hrlist='00 12'
+elif [ $gdas_cyc -eq 4 ] ; then
+ hrlist='00 06 12 18'
+elif [ $gdas_cyc -eq 6 ] ; then
+ hrlist='00 04 08 12 16 20'
+elif [ $gdas_cyc -eq 8 ] ; then
+ hrlist='00 03 06 09 12 15 18 21'
+elif [ $gdas_cyc -eq 12 ] ; then
+ hrlist='00 02 04 06 08 10 12 14 16 18 20 22'
+elif [ $gdas_cyc -eq 24 ] ; then
+ hrlist='00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24'
+else
+ echo 'Invalid gdas_cyc= ' $gdas_cyc
+ exit
+fi
+
+echo '# rlist for '$CONFIG' created by '$0' on '$(date -u "+%Y-%m-%d %H:%M:%S UTC")
+
+if [[ $MANAL = 1 ]];then
+
+  echo ''
+  echo '# prep step'
+  s=prep
+  echo '# observation input'
+  a=DMRI
+  echo '*/*/'$s'/'$a'	=	statup.$CDUMP.$CDATE'
+  a=DMPI
+  for t in adpupa proflr aircar aircft satwnd adpsfc sfcshp sfcbog;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  for t in goesnd spssmi erscat qkswnd gpsipw vadwnd rassda wdsatr ascatw;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  echo '*/*/'$s'/'$a'	=	tcvitl.$CDUMP.$CDATE'
+  a=DMPG
+  echo '*/*/'$s'/'$a'	=	tcvitl.$GDUMP.$GDATE'
+  a=DMPH
+  echo '*/*/'$s'/'$a'	=	tcvitl.$GDUMP.$HDATE'
+  echo '# rotational input'
+  a=ROTI
+  pgb_typ4prep=${pgb_typ4prep:-f}
+  for t in sigf03 sigf06 sigf09 pgb${pgb_typ4prep}00 pgb${pgb_typ4prep}03 pgb${pgb_typ4prep}06 pgb${pgb_typ4prep}09;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+  done
+  echo '# optional input'
+  a=OPTI
+  for t in sigf04 sigf05 sigf07 sigf08;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+  done
+  echo '# rotational output'
+  a=ROTO
+  for t in prepqc sigges siggm3 siggp3;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  echo '# optional output'
+  a=OPTO
+  for t in siggm2 siggm1 siggp1 siggp2 tcinform_relocate tcvitals_relocate;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+
+  if [ $COUP_FCST = YES ] ; then
+    echo ''
+    echo '# oanl step'
+    s=oanl
+    echo '# observation input'
+    a=DMPI
+    for t in sstgrb icegrb snogrb snogrb_t$JCAP;do
+      echo '*/*/'$s'/'$a' =       '$t'.$CDUMP.$CDATE'
+    done
+  fi
+
+  echo ''
+  echo '# anal step'
+  s=anal
+  echo '# observation input'
+  a=DMPI
+  for t in goesnd goesnd1 goesfv 1bhrs2 1bmsu 1bhrs3 1bhrs4 1bamua 1bamub 1bmhs esamua esamub eshrs3 osbuvb osbuv8 gome omi mls spssmi sptrmm airs airsev amsre ssmit sevcsr atms cris gpsro satwnd tcvitl stat01 mtiasi;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  for t in sstgrb icegrb snogrb snogrb_t$JCAP;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  a=DMPG
+  for t in snogrb snogrb_t$JCAP;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+  done
+  echo '# rotational input'
+  a=ROTI
+  if [ $NST_FCST -gt 0 ] ; then
+    for t in biascr satang sfcf06 nstf06;do
+      echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+    done
+  else
+    for t in biascr satang sfcf06 ;do
+      echo '*/*/'$s'/'$a' =       '$t'.$GDUMP.$GDATE'
+    done
+  fi
+  for t in siggm3 sigges siggp3 prepqc;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  echo '# optional input'
+  a=OPTI
+  if [[ $DO2ANL = YES ]];then
+    for c in $hrlist;do
+      eval manal=\${MANAL${c}GFS:-1}
+      if [[ $manal -gt 0 ]];then
+        for t in gesfile;do
+          echo '*'$c'/$CDFNL/'$s'/'$a'	=	'$t'.gfs.$CDATE'
+        done
+      fi
+    done
+  fi
+  if [ $NST_FCST -gt 0 ] ; then
+    for t in sfcf03 sfcf04 sfcf05 sfcf07 sfcf08 sfcf09 sigbias nstf03 nstf04 nstf05 nstf07 nstf08 nstf09;do
+      echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+    done
+  else
+    for t in sfcf03 sfcf04 sfcf05 sfcf07 sfcf08 sfcf09 radstat sigbias ;do
+      echo '*/*/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+    done
+  fi
+  for t in siggm2 siggm1 siggp1 siggp2 satcnt;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  echo '# required ensemble input'
+  a=ENOI
+  for t in  fcsstat;do
+    echo '*/*/'$s'/'$a' =       '$t'_${GDATE}_all'
+  done
+  echo '# optional ensemble input'
+  a=ENOI
+  for t in  sfg;do
+    echo '*/*/'$s'/'$a' =       '$t'_${GDATE}_fhr06s_mem*'
+  done
+  echo '# rotational output'
+  a=ROTO
+# for t in biascr satang;do
+  for t in biascr;do
+    echo '*/'$GDUMP'/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  if [ $NST_FCST -gt 0 ] ; then
+    for t in sfcanl siganl nstanl;do
+      echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+    done
+  else
+    for t in sfcanl siganl ;do
+      echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+    done
+  fi
+  echo '# optional output'
+  a=OPTO
+  if [[ $DO2ANL = YES ]];then
+    for t in gesfile;do
+      echo '*/gfs/'$s'/'$a'	=	'$t'.gfs.$CDATE'
+    done
+  fi
+  for t in satbias ssistat gsistat;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  for t in radstat pcpstat;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE.Z'
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  for t in oznstat cnvstat sigbias satcnt;do
+    echo '*/*/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+
+  echo '# gdas angu step'
+  s=angu
+  a=ROTI
+  for t in satang sfcf06 ;do
+    echo '*/gdas/'$s'/'$a'	=	'$t'.$GDUMP.$GDATE'
+  done
+  for t in radstat;do
+    echo '*/gdas/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+  echo '# required output'
+  a=ROTO
+  for t in satang ;do
+    echo '*/gdas/'$s'/'$a'	=	'$t'.$CDUMP.$CDATE'
+  done
+fi
+
+for c in $hrlist;do
+  for d in gfs $CDFNL;do
+    D=$(echo $d|tr '[a-z]' '[A-Z]')
+    eval manal=\${MANAL$c$D:-1}
+    eval mfcst=\${MFCST$c$D:-1}
+    nk=1
+    while [[ $nk -le $mfcst ]];do
+      echo ''
+#     echo '# '$c$d fcst$nk' step'
+      if [[ $c = 00 && $d = $GDUMP && $nk = 1 && $MANAL = 1 ]];then
+        echo '# initial copy'
+#               ------------
+       if [ $NST_FCST -gt 0 ] ; then
+          for t in sfcanl siganl nstanl biascr satang;do
+            echo '*'$c'/'$d'/fcst'$nk'/COPI	=	'$t'.$CDUMP.$CDATE'
+          done
+        else
+          for t in sfcanl siganl biascr satang;do
+            echo '*'$c'/'$d'/fcst'$nk'/COPI	=	'$t'.$CDUMP.$CDATE'
+          done
+        fi
+      fi
+########################################################################
+# comment out lines for fcst and post ROTI and ROTO  -dcs 3/13/2008
+#  no longer needed, per Moorthi
+#     echo '# rotational input'
+#     ntran=$(eval echo \${NTRANFCST$c$D:-1,}|cut -f$nk -d,)
+#     fhbak=$(eval echo \${FHBAKFCST$c$D:-00,}|cut -f$nk -d,)
+#     fhini=$(eval echo \${FHINIFCST$c$D:-00,}|cut -f$nk -d,)
+#     fhmax=$(eval echo \${FHMAXFCST$c$D:-09,}|cut -f$nk -d,)
+#     fhout=$(eval echo \${FHOUTFCST$c$D:-03,}|cut -f$nk -d,)
+#     if [[ $nk = 1 ]];then
+#       for t in sfcanl siganl;do
+#         echo '*'$c'/'$d'/fcst'$nk'/ROTI	=	'$t'.$CDUMP.$CDATE'
+#       done
+#     else
+#       if [[ $ntran -le 1 ]];then
+#         for t in sfcf sigf;do
+#           echo '*'$c'/'$d'/fcst'$nk'/ROTI	=	'$t$fhbak'.$CDUMP.$CDATE'
+#         done
+#       else
+#         for t in sfcr sig1r sig2r;do
+#           echo '*'$c'/'$d'/fcst'$nk'/ROTI	=	'$t$fhbak'.$CDUMP.$CDATE'
+#         done
+#       fi
+#     fi
+#     echo '# rotational output'
+#     fh=$((10#$fhini));[[ $fh -lt 10 ]]&&fh=0$fh
+#     if [[ $fhini -gt 0 ]];then fh=$((10#$fhini+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh;fi
+#     while [[ $fh -le $fhmax ]];do
+#       for t in flxf sigf;do
+#       for t in flxf sigf d3df;do
+#         echo '*'$c'/'$d'/fcst'$nk'/ROTO	=	'$t$fh'.$CDUMP.$CDATE'
+#       done
+#       if [[ $d = $GDUMP && $nk = 1 && $MANAL = 1 ]];then
+#         for t in sfcf;do
+#           echo '*'$c'/'$d'/fcst'$nk'/ROTO	=	'$t$fh'.$CDUMP.$CDATE'
+#         done
+#       fi
+#       ((fh=10#$fh+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh
+#     done
+#     ((nx=nk+1))
+#     if [[ $nx -le $mfcst ]];then
+#       ntrax=$(eval echo \${NTRANFCST$c$D:-1,}|cut -f$nx -d,)
+#       fhbax=$(eval echo \${FHBAKFCST$c$D:-00,}|cut -f$nx -d,)
+#       if [[ $ntrax -le 1 ]];then
+#         for t in sfcf;do
+#           echo '*'$c'/'$d'/fcst'$nk'/ROTO	=	'$t$fhbax'.$CDUMP.$CDATE'
+#         done
+#       else
+#         for t in sfcr sig1r sig2r;do
+#           echo '*'$c'/'$d'/fcst'$nk'/ROTO	=	'$t$fhbax'.$CDUMP.$CDATE'
+#         done
+#       fi
+#     fi
+#     echo ''
+#     echo '# '$c$d post$nk' step'
+#     echo '# rotational input'
+#     if [[ $nk = 1 && $manal = 1 ]];then
+#       if [[ $GGPOST = YES ]];then
+#         for t in siggm3 sigges siggp3;do
+#           echo '*'$c'/'$d'/post'$nk'/ROTI	=	'$t'.$CDUMP.$CDATE'
+#         done
+#       fi
+#       echo '*'$c'/'$d'/post'$nk'/ROTI	=	siganl.$CDUMP.$CDATE'
+#     fi
+#     if [[ $CCPOST != YES ]];then
+#       fh=$((10#$fhini));[[ $fh -lt 10 ]]&&fh=0$fh
+#       if [[ $fhini -gt 0 ]];then fh=$((10#$fhini+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh;fi
+#       while [[ $fh -le $fhmax ]];do
+#         for t in flxf sigf;do
+#           echo '*'$c'/'$d'/post'$nk'/ROTI	=	'$t$fh'.$CDUMP.$CDATE'
+#         done
+#         ((fh=10#$fh+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh
+#       done
+#     fi
+#     echo '# rotational output'
+#     if [[ $nk = 1 && $manal = 1 ]];then
+#       if [[ $GGPOST = YES ]];then
+#         for t in pgbgm3 pgbges pgbgp3;do
+#           echo '*'$c'/'$d'/post'$nk'/ROTO	=	'$t'.$CDUMP.$CDATE'
+#         done
+#       fi
+#       for t in pgbanl pgbf00;do
+#         echo '*'$c'/'$d'/post'$nk'/ROTO	=	'$t'.$CDUMP.$CDATE'
+#       done
+#     fi
+#     fh=$((10#$fhini));[[ $fh -lt 10 ]]&&fh=0$fh
+#     if [[ $fhini -gt 0 ]];then fh=$((10#$fhini+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh;fi
+##    fh=$((10#$fhini+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh
+#     while [[ $fh -le $fhmax ]];do
+#       echo '*'$c'/'$d'/post'$nk'/ROTO	=	pgbf'$fh'.$CDUMP.$CDATE'
+#       ((fh=10#$fh+10#$fhout));[[ $fh -lt 10 ]]&&fh=0$fh
+#     done
+########################################################################
+      ((nk+=1))
+    done
+  done
+done
+
+echo ''
+echo '# vrfy step'
+echo '# observation input'
+if [[ ${VRFYTRAK:-NO} = YES ]];then
+echo '*/*/vrfy/DMPI	=	tcvitl.$CDUMP.$CDATE'
+echo '*/*/vrfy/DMPG	=	tcvitl.$GDUMP.$GDATE'
+fi
+
+echo ''

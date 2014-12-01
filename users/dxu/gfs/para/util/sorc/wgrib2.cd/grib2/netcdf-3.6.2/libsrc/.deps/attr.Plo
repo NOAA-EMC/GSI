@@ -1,0 +1,74 @@
+attr.lo : attr.c
+attr.lo : nc.h
+attr.lo : ../config.h
+attr.lo : /usr/include/stddef.h
+attr.lo : /usr/include/standards.h
+attr.lo : /usr/include/sys/types.h
+attr.lo : /usr/include/strict_stdtypes.h
+attr.lo : /usr/include/sys/inttypes.h
+attr.lo : /usr/include/stdint.h
+attr.lo : /usr/include/end_strict_stdtypes.h
+attr.lo : /usr/include/sys/m_types.h
+attr.lo : /usr/include/sys/vm_types.h
+attr.lo : netcdf.h
+attr.lo : /usr/include/errno.h
+attr.lo : ncio.h
+attr.lo : fbits.h
+attr.lo : /usr/vac/include/stdlib.h
+attr.lo : /usr/include/stdlib.h
+attr.lo : /usr/include/sys/wait.h
+attr.lo : /usr/include/sys/resource.h
+attr.lo : /usr/include/sys/time.h
+attr.lo : /usr/include/sys/signal.h
+attr.lo : /usr/include/sys/context.h
+attr.lo : /usr/include/sys/m_param.h
+attr.lo : /usr/include/sys/mstsave.h
+attr.lo : /usr/include/sys/m_signal.h
+attr.lo : /usr/include/sys/localedef.h
+attr.lo : /usr/include/sys/limits.h
+attr.lo : /usr/include/float.h
+attr.lo : /usr/include/sys/lc_core.h
+attr.lo : /usr/include/locale.h
+attr.lo : /usr/include/sys/localedef31.h
+attr.lo : /usr/vac/include/string.h
+attr.lo : /usr/include/string.h
+attr.lo : /usr/include/assert.h
+attr.lo : ncx.h
+attr.lo : rnd.h
+attr.c:
+nc.h:
+../config.h:
+/usr/include/stddef.h:
+/usr/include/standards.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+netcdf.h:
+/usr/include/errno.h:
+ncio.h:
+fbits.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/include/assert.h:
+ncx.h:
+rnd.h:

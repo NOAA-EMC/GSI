@@ -1,0 +1,78 @@
+putget.lo : putget.c
+putget.lo : nc.h
+putget.lo : ../config.h
+putget.lo : /usr/include/stddef.h
+putget.lo : /usr/include/standards.h
+putget.lo : /usr/include/sys/types.h
+putget.lo : /usr/include/strict_stdtypes.h
+putget.lo : /usr/include/sys/inttypes.h
+putget.lo : /usr/include/stdint.h
+putget.lo : /usr/include/end_strict_stdtypes.h
+putget.lo : /usr/include/sys/m_types.h
+putget.lo : /usr/include/sys/vm_types.h
+putget.lo : netcdf.h
+putget.lo : /usr/include/errno.h
+putget.lo : ncio.h
+putget.lo : fbits.h
+putget.lo : /usr/vac/include/string.h
+putget.lo : /usr/include/string.h
+putget.lo : /usr/vac/include/stdlib.h
+putget.lo : /usr/include/stdlib.h
+putget.lo : /usr/include/sys/wait.h
+putget.lo : /usr/include/sys/resource.h
+putget.lo : /usr/include/sys/time.h
+putget.lo : /usr/include/sys/signal.h
+putget.lo : /usr/include/sys/context.h
+putget.lo : /usr/include/sys/m_param.h
+putget.lo : /usr/include/sys/mstsave.h
+putget.lo : /usr/include/sys/m_signal.h
+putget.lo : /usr/include/sys/localedef.h
+putget.lo : /usr/include/sys/limits.h
+putget.lo : /usr/include/float.h
+putget.lo : /usr/include/sys/lc_core.h
+putget.lo : /usr/include/locale.h
+putget.lo : /usr/include/sys/localedef31.h
+putget.lo : /usr/include/assert.h
+putget.lo : ncx.h
+putget.lo : rnd.h
+putget.lo : onstack.h
+putget.lo : /usr/include/alloca.h
+putget.c:
+nc.h:
+../config.h:
+/usr/include/stddef.h:
+/usr/include/standards.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+netcdf.h:
+/usr/include/errno.h:
+ncio.h:
+fbits.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/include/assert.h:
+ncx.h:
+rnd.h:
+onstack.h:
+/usr/include/alloca.h:
