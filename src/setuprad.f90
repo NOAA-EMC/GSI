@@ -1163,28 +1163,10 @@
               if(lcw4crtm .and. sea) then 
                  if (i <= 3 .or. i==15) then         
                     errf(i) = 2.50_r_kind*errf(i)    
-                    if (abs(tbc(i)) > errf(i)) then   
-                       if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                       varinv(i) = zero
-                       if(luse(n))stats(2,m) = stats(2,m) + one
-                       if(luse(n))aivals(7,is) = aivals(7,is) + one
-                    end if
                  else if (i == 4) then                     
                     errf(i) = 2.50_r_kind*errf(i)           
-                    if (abs(tbc(i)) > errf(i)) then         
-                       if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                       varinv(i) = zero
-                       if(luse(n))stats(2,m) = stats(2,m) + one
-                       if(luse(n))aivals(7,is) = aivals(7,is) + one
-                    end if
                  else                                    
                     errf(i) = three*errf(i)              
-                    if (abs(tbc(i)) > errf(i)) then         
-                       if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                       varinv(i) = zero
-                       if(luse(n))stats(2,m) = stats(2,m) + one
-                       if(luse(n))aivals(7,is) = aivals(7,is) + one
-                    end if
                  endif                                   
               else if (ssmis) then
                  errf(i) = min(1.5_r_kind*errf(i),ermax_rad(m))  ! tighten up gross check for SSMIS
