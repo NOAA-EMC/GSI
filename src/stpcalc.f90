@@ -208,7 +208,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       l_foto,xhat_dt,dhat_dt,nvals_len
+       l_foto,xhat_dt,dhat_dt,nvals_len,jiter,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
@@ -491,7 +491,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
-
+  
 
 !    save penalty  and stepsizes
      nsteptot=nsteptot+1
@@ -531,15 +531,16 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
         pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                   ! Jb
-        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2))   + (pbc(ipenloc,3)  + pbc(1,3)) ! Jc
-        pjcost(4) = (pbc(ipenloc,5) + pbc(1,5))   + (pbc(ipenloc,4)  + pbc(1,4)) &
-                  + (pbc(ipenloc,6) + pbc(1,6))   + (pbc(ipenloc,7)  + pbc(1,7)) &
-                  + (pbc(ipenloc,8) + pbc(1,8))   + (pbc(ipenloc,9)  + pbc(1,9)) & 
-                  + (pbc(ipenloc,10) + pbc(1,10)) + (pbc(ipenloc,11) + pbc(1,11)) ! Jl
-        pjcost(2) = zero
+        pjcost(2) = zero_quad
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pbc(ipenloc,n0+i) + pbc(1,n0+i)  ! Jo
+           pjcost(2) = pjcost(2)+pbc(ipenloc,n0+i) + pbc(1,n0+i)                 ! Jo
         end do
+        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2))   + (pbc(ipenloc,3)  + pbc(1,3)) ! Jc
+        pjcost(4) = zero_quad
+        do i=4,n0
+           pjcost(4) = pjcost(4) + (pbc(ipenloc,i) + pbc(1,i))                   ! Jl
+        end do
+
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)    ! J = Jb + Jo + Jc +Jl
      end if
 
@@ -622,7 +623,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   do i=4,n0
      pjcostnew(4) =  pjcostnew(4) + psum(i) ! Jl
   end do
-
+  pjcostnew(2) = zero 
   do i=1,nobs_type
      pjcostnew(2) = pjcostnew(2)+psum(n0+i)               ! Jo
   end do

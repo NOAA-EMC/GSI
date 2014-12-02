@@ -337,10 +337,12 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
     if (getindex(cvars2d,'mitm')>0) &
     call stpmitm(yobs%mitm,dval,xval,pbcjo(1,i_mitm_ob_type),sges,nstep)
 
+!$omp section
 !   penalty, b, and c for conventional pmsl
     if (getindex(cvars2d,'pmsl')>0) &
     call stppmsl(yobs%pmsl,dval,xval,pbcjo(1,i_pmsl_ob_type),sges,nstep)
 
+!$omp section
 !   penalty, b, and c for conventional howv
     if (getindex(cvars2d,'howv')>0) &
     call stphowv(yobs%howv,dval,xval,pbcjo(1,i_howv_ob_type),sges,nstep)
