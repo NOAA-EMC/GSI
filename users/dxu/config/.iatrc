@@ -2,29 +2,29 @@
 # IAT
 ###################################
 #1. radmon
-alias radmon_input="cd ${data_dir}/radmon_workspace/data/input" 
-alias radmon_run="  cd ${data_dir}/radmon_workspace/run/${LOGNAME}"
-alias radmon_log="  cd ${data_dir}/radmon_workspace/log/${LOGNAME}/logs/radmyolddata "
-alias radmon_stat=" cd ${data_dir}/radmon_workspace/data/output/radmon_tank/stats/myolddata "
-alias radmon_imgn=" cd ${data_dir}/radmon_workspace/data/output/radmon_tank/imgn/myolddata/pngs "
-alias radmon="      cd ${src_dir}/radmon_pkg/radmon/util/Radiance_Monitor "
+alias radmon_input="cd ${iat_ws_dir}/radmon_workspace/data/input" 
+alias radmon_run="  cd ${iat_ws_dir}/radmon_workspace/run/${LOGNAME}"
+alias radmon_log="  cd ${iat_ws_dir}/radmon_workspace/log/${LOGNAME}/logs/radmyolddata "
+alias radmon_stat=" cd ${iat_ws_dir}/radmon_workspace/data/output/radmon_tank/stats/myolddata "
+alias radmon_imgn=" cd ${iat_ws_dir}/radmon_workspace/data/output/radmon_tank/imgn/myolddata/pngs "
+alias radmon="      cd ${iat_src_dir}/radmon_pkg/radmon/util/Radiance_Monitor "
 #2. vsd b
-alias vsdb="       cd ${src_dir}/vsdb_pkg/vsdb_v17  "
-alias vsdb_input=" cd ${data_dir}/vsdb_workspace/data/input "
-alias vsdb_output="cd ${data_dir}/vsdb_workspace/data/output/vsdb_data "
-alias vsdb_stmp="  cd ${data_dir}/vsdb_workspace/data/stmp/${LOGNAME}"
+alias vsdb="       cd ${iat_src_dir}/vsdb_pkg/vsdb_v17  "
+alias vsdb_input=" cd ${iat_ws_dir}/vsdb_workspace/data/input "
+alias vsdb_output="cd ${iat_ws_dir}/vsdb_workspace/data/output/vsdb_data "
+alias vsdb_stmp="  cd ${iat_ws_dir}/vsdb_workspace/data/stmp/${LOGNAME}"
 alias scorefile="  ls -l scorecard.html scorecard.css legend.html  mainindex.html " 
 alias savescore="  cp scorecard.html scorecard.css legend.html  mainindex.html  /data/users/dxu/transferStation" 
 #3. ge
-alias ge="         cd ${src_dir}/ge_pkg/ge/scripts  "
-alias ge_input="  cd ${data_dir}/ge_workspace/data/input "
-alias ge_output="  cd ${data_dir}/ge_workspace/data/output "
+alias ge="         cd ${iat_src_dir}/ge_pkg/ge/scripts  "
+alias ge_input="  cd ${iat_ws_dir}/ge_workspace/data/input "
+alias ge_output="  cd ${iat_ws_dir}/ge_workspace/data/output "
 #4. hit
-alias hit="        cd ${src_dir}/hit_pkg/hit "
-alias hit_input="  cd ${data_dir}/hit_workspace/data/input "
-alias hit_output=" cd ${data_dir}/hit_workspace/data/stmp/${LOGNAME}/track "
+alias hit="        cd ${iat_src_dir}/hit_pkg/hit "
+alias hit_input="  cd ${iat_ws_dir}/hit_workspace/data/input "
+alias hit_output=" cd ${iat_ws_dir}/hit_workspace/data/stmp/${LOGNAME}/track "
 #5. fcstDiff
-alias fd="         cd ${src_dir}/fcstDiff_pkg/fcstDiff "
-alias fd_input="   cd ${data_dir}/hit_workspace/data/input"
-alias fd_output="  cd ${data_dir}/hit_workspace/data/output"
+alias fd="         cd ${iat_src_dir}/fcstDiff_pkg/fcstDiff "
+alias fd_input="   cd ${iat_ws_dir}/hit_workspace/data/input"
+alias fd_output="  cd ${iat_ws_dir}/hit_workspace/data/output"
 
