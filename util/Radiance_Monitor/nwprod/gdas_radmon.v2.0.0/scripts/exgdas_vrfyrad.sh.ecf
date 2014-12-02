@@ -23,6 +23,7 @@
 #     RAD_AREA      flag for global or regional
 #     TANKDIR       repository for radmon data files
 #     DATA          data working space
+#     FIXgdasradmon fixed file directory, gdas specific
 #     FIXradmon     fixed file directory
 #     USHradmon     scripts directory
 #     PDY           processing day; 
@@ -318,12 +319,6 @@ fi
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh.sms, exit value = ${err}"
 fi
-
-#if [[ ! "$RUN_ENVIR" = "prod" ]]; then
-#   cd $DATA
-#   cd ..
-#   rm -rf $DATA
-#fi
 
 if [[ ${err} -ne 0 ]]; then
    export err

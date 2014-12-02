@@ -98,8 +98,6 @@ export TANKverf=${TANKverf:-/com/verf/${envir}}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
-#export COM_OUT=/com/${NET}/${envir}
-#export COMOUT=${COMOUT:-$COM_OUT/${RUN}.${PDY}}
 
 mkdir -p -m 775 $TANKverf_rad
  
@@ -114,7 +112,6 @@ export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
 export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
 
 msg="JOB HAS STARTED"
-#${utilscript}/postmsg.sh "$jlogfile" "$msg"
 postmsg "$jlogfile" "$msg"
 
 ########################################################
@@ -123,7 +120,6 @@ ${RADMONSH:-$HOMEgdasradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
-#${utilscript}/postmsg.sh "$jlogfile" "$msg"
 postmsg "$jlogfile" "$msg"
 
 ################################
