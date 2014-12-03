@@ -779,11 +779,11 @@
         kraintype=0
         if(microwave .and. sea) then 
            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms,amsr2,gmi, &
-                tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
+                tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
 ! call to retrieval_mi for gmi from gmao gmi code goes here
            if(gmi) then               ! ej
              clw_obs = clw
-             call retrieval_gmi(tb,clw,gwp,kraintype,ierrret)
+             call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
 !             tpwc_amsua = tpwc
 !             nchanl2 = nchanl - 2    ! cha 1&2 for TMI are not available for SSMI.
 !             nchanl2 = 7
