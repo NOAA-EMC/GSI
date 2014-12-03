@@ -16,6 +16,7 @@
 !   sub ret_ssmis       - calculates clw for ssmis
 !   sub ret_amsua       - calculates clw for amsua 
 !   sub retrieval_amsre - calculates clw for amsre
+!   sub retrieval_gmi   - calculates clw and gwp for gmi
 !   sub rcwps_alg       - makes retrieval for AMSR-E observation
 !   sub tbe_from_tbo    - perform corrections for scattering effect in amsr-e obs
 !   sub tba_from_tbe    - adjust amsr-e obs to algorithm based brightness temperature
@@ -35,13 +36,13 @@ implicit none
 ! set default to private
   private
 ! set routines used externally to public
-  public :: calc_clw, ret_amsua, retrieval_mi ! ej
+  public :: calc_clw, ret_amsua, retrieval_mi, retrieval_gmi ! ej
 
 contains
 
 
  subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms,amsr2,gmi,&   
-          tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
+          tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   calc_clw    estimates cloud liquid water for micro. QC
@@ -148,7 +149,7 @@ contains
 !     nchanl2 = 7      ! channels 3 - 9
 !     call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
 !          tpwc,clw,kraintype,ierrret )
-     call retrieval_gmi(tb_obs,clw,gwp,kraintype,ierrret)
+     call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
      clw=max(zero,clw)
      gwp=max(zero,gwp)
 
@@ -684,7 +685,7 @@ subroutine retrieval_amsre(tb,degre,  &
   return
 end subroutine retrieval_amsre
 
-subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
+subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: retrieval_gmi   make retrieval from GMI observation
@@ -705,16 +706,19 @@ subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
   integer(i_kind)::tb_index(9)
   integer(i_kind)::nchan_reg,nvar_clw,nvar_gwp
   real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
-  real(r_kind)::regr_coeff_gwp(11),pred_var_gwp(2)
+  real(r_kind)::regr_coeff_gwp(10),pred_var_gwp(2)
   real(r_kind)::a0_clw,a0_gwp
   real(r_kind)::tb_regr(9)
-  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb36v,tb36h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
+  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb37v,tb37h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
 
   integer(i_kind)::i,n,diff_var
 ! ---------- Initialize some variables ---------------------
 
+  kraintype = 0
+  ierr = 0
+
   tb10v=tb(1); tb10h=tb(2); tb18v=tb(3); tb18h=tb(4)
-  tb23v=tb(5); tb36v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
+  tb23v=tb(5); tb37v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
   tb166v=tb(10); tb166h=tb(11); tb183v=tb(12); tb183h=tb(13)
 
   ! intercepts
@@ -723,7 +727,7 @@ subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
 
   nchan_reg = 9       ! number of channels used in regression 
   nvar_clw = 11       ! number of independent variables in clw regression
-  nvar_qwp = 10       ! number of independent variables in gwp regression
+  nvar_gwp = 10       ! number of independent variables in gwp regression
 
   ! channels used in regression
   tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 12, 13 /)  
@@ -733,19 +737,25 @@ subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
 
   regr_coeff_gwp = (/ 0.00393, 0.00088, -0.00063, -0.00683, 0.00333, -0.00382, 0.00452, 0.04765, -0.00491, 11.98897 /)
 
-
 ! ---------- Calculate predictors ---------------------------
 
   pred_var_clw(1) = log(tb18v - tb18h)
-  pred_var_clw(2) = log(tb36v - tb36h)
+  pred_var_clw(2) = log(tb37v - tb37h)
 
   pred_var_gwp(1) = 300.0-log(tb166v)
   pred_var_gwp(2) = 300.0-log(tb183v)
 
+! ---------- Gross check ------------------------------------
+! Gross error check on all channels.  If there are any
+! bad channels, skip this obs.
+
+  if ( any(tb(1:9) < 50.0_r_kind) .or. any(tb(10:13) < 70.0_r_kind ) ) then
+     ierr = 1
+     return
+  end if
+
 ! ---------- Apply regression to calculate clw and gwp ------
 
-  kraintype = 0
- 
   ! calculate clw first
   clw = a0_clw
   diff_var = nvar_clw - nchan_reg  ! difference in number of channels used 
@@ -759,8 +769,8 @@ subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
     enddo
   endif
   ! weight by non-spectral independent variables
-  if ( nvar .gt. nchan_reg ) then
-    do i-1,diff_var
+  if ( nvar_clw .gt. nchan_reg ) then
+    do i=1,diff_var
       clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
     enddo 
   endif
@@ -780,8 +790,8 @@ subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
     enddo
   endif
   ! weight by non-spectral independent variables
-  if ( nvar .gt. nchan_reg ) then
-    do i-1,diff_var
+  if ( nvar_gwp .gt. nchan_reg ) then
+    do i=1,diff_var
       gwp = gwp + ( pred_var_gwp(i) * regr_coeff_gwp(i+nchan_reg) )
     enddo
   endif
