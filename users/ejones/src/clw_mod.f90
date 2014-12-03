@@ -680,6 +680,49 @@ subroutine retrieval_amsre(tb,degre,  &
   return
 end subroutine retrieval_amsre
 
+subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: retrieval_gmi   make retrieval from GMI observation
+!
+
+
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: two,zero,r10,r100
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: clw,gwp
+
+! Declare local variables
+  real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
+  real(r_kind)::regr_coeff_gwp(11),pred_var_gwp(2)
+  real(r_kind)::a0_clw,a0_gwp
+  real(r_kind)::tb_regr(9)
+  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb36v,tb36h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
+
+! ---------- Initialize some variables ---------------------
+
+  tb10v=tb(1); tb10h=tb(2); tb18v=tb(3); tb18h=tb(4)
+  tb23v=tb(5); tb36v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
+  tb166v=tb(10); tb166h=tb(11); tb183v=tb(12); tb183h=tb(13)
+
+  a0_clw= -0.61127
+  a0_gwp= -3541.46329
+
+  regr_coeff_clw=(/ 0.00378, -0.00149, -0.03438, 0.01670, 0.00228, 0.03884, -0.02345, -0.00036, 0.00044, 1.95559, -2.15143 /)
+
+  regr_coeff_gwp=(/ 0.00393, 0.00088, -0.00063, -0.00683, 0.00333, -0.00382, 0.00452, 0.04765, -0.00491, 11.98897 /)
+
+
+
+
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$  subprogram documentation block
@@ -879,7 +922,6 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 ! if (cwp <= 0.2_r_kind .and. wind >= five) rwp = zero
 
 end subroutine RCWPS_Alg
-
 
 
 subroutine TBE_FROM_TBO(tbo,tb)
