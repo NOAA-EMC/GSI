@@ -56,6 +56,7 @@ contains
 !   2013-01-22  zhu - add adp_anglebc option
 !   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
 !   2013-11-25  kim - revisit logic of frozen points
+!   2014-12-03  ejones- added GMI and AMSR2, variable for gwp, and call to retrieval_gmi subroutine.
 !
 !  input argument list:
 !     nadir     - scan position
@@ -74,7 +75,8 @@ contains
 !     zasat     - satellite zenith angle
 !
 !   output argument list:
-!     clw       - cloud liquid water                                                   
+!     clw       - cloud liquid water                                            
+!     gwp       - graupel water path
 !     tpwc      - total column water vapor                                           
 !     kraintype - rain type
 !     ierrret   - return flag
@@ -94,7 +96,7 @@ contains
   logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms
   logical                           ,intent(in   ) :: gmi,amsr2        !ej
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
-  real(r_kind)                      ,intent(  out) :: clw,tpwc
+  real(r_kind)                      ,intent(  out) :: clw,tpwc,gwp
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
   integer(i_kind)                                  :: nchanl2            ! ej
 
@@ -143,10 +145,12 @@ contains
 
   else if (gmi) then           ! ej
 !     nchanl2 = nchanl - 2    ! cha 1&2 for TMI/GMI are not available for SSMI.
-     nchanl2 = 7      ! channels 3 - 9
-     call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
-          tpwc,clw,kraintype,ierrret )
+!     nchanl2 = 7      ! channels 3 - 9
+!     call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
+!          tpwc,clw,kraintype,ierrret )
+     call retrieval_gmi(tb_obs,clw,gwp,kraintype,ierrret)
      clw=max(zero,clw)
+     gwp=max(zero,gwp)
 
   else if (amsr2) then            ! ej
 !     nchanl2 = nchanl - 6    ! cha 1-6 for AMSR2 are not available for SSMI.
@@ -680,16 +684,13 @@ subroutine retrieval_amsre(tb,degre,  &
   return
 end subroutine retrieval_amsre
 
-subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
+subroutine retrieval_gmi(tb,clw,gwp,kraintype,ierr)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: retrieval_gmi   make retrieval from GMI observation
 !
 
-
-
   use kinds, only: r_kind, i_kind
-  use constants, only: two,zero,r10,r100
 
   implicit none
 
@@ -701,27 +702,97 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   real(r_kind)                  ,intent(  out) :: clw,gwp
 
 ! Declare local variables
+  integer(i_kind)::tb_index(9)
+  integer(i_kind)::nchan_reg,nvar_clw,nvar_gwp
   real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
   real(r_kind)::regr_coeff_gwp(11),pred_var_gwp(2)
   real(r_kind)::a0_clw,a0_gwp
   real(r_kind)::tb_regr(9)
   real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb36v,tb36h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
 
+  integer(i_kind)::i,n,diff_var
 ! ---------- Initialize some variables ---------------------
 
   tb10v=tb(1); tb10h=tb(2); tb18v=tb(3); tb18h=tb(4)
   tb23v=tb(5); tb36v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
   tb166v=tb(10); tb166h=tb(11); tb183v=tb(12); tb183h=tb(13)
 
-  a0_clw= -0.61127
-  a0_gwp= -3541.46329
+  ! intercepts
+  a0_clw = -0.61127
+  a0_gwp = -3541.46329
 
-  regr_coeff_clw=(/ 0.00378, -0.00149, -0.03438, 0.01670, 0.00228, 0.03884, -0.02345, -0.00036, 0.00044, 1.95559, -2.15143 /)
+  nchan_reg = 9       ! number of channels used in regression 
+  nvar_clw = 11       ! number of independent variables in clw regression
+  nvar_qwp = 10       ! number of independent variables in gwp regression
 
-  regr_coeff_gwp=(/ 0.00393, 0.00088, -0.00063, -0.00683, 0.00333, -0.00382, 0.00452, 0.04765, -0.00491, 11.98897 /)
+  ! channels used in regression
+  tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 12, 13 /)  
+
+  ! regression coefficients
+  regr_coeff_clw = (/ 0.00378, -0.00149, -0.03438, 0.01670, 0.00228, 0.03884, -0.02345, -0.00036, 0.00044, 1.95559, -2.15143 /)
+
+  regr_coeff_gwp = (/ 0.00393, 0.00088, -0.00063, -0.00683, 0.00333, -0.00382, 0.00452, 0.04765, -0.00491, 11.98897 /)
 
 
+! ---------- Calculate predictors ---------------------------
 
+  pred_var_clw(1) = log(tb18v - tb18h)
+  pred_var_clw(2) = log(tb36v - tb36h)
+
+  pred_var_gwp(1) = 300.0-log(tb166v)
+  pred_var_gwp(2) = 300.0-log(tb183v)
+
+! ---------- Apply regression to calculate clw and gwp ------
+
+  kraintype = 0
+ 
+  ! calculate clw first
+  clw = a0_clw
+  diff_var = nvar_clw - nchan_reg  ! difference in number of channels used 
+                                   ! and independent variables
+
+  ! loop over variables
+  ! start with spectral independent variables
+  if ( nchan_reg .gt. 0 )then
+    do i=1,nchan_reg
+      clw = clw + ( tb(tb_index(i)) * regr_coeff_clw(i) ) 
+    enddo
+  endif
+  ! weight by non-spectral independent variables
+  if ( nvar .gt. nchan_reg ) then
+    do i-1,diff_var
+      clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
+    enddo 
+  endif
+
+  ! set maximum for clw at 6.0 kg/m2
+  clw = min(clw,6.0_r_kind)
+
+  ! calculate gwp
+  gwp = a0_gwp
+  diff_var = nvar_gwp - nchan_reg
+
+  ! loop over variables
+  ! spectral independent variables
+  if ( nchan_reg .gt. 0 )then
+    do i=1,nchan_reg
+      gwp = gwp + ( tb(tb_index(i)) * regr_coeff_gwp(i) )
+    enddo
+  endif
+  ! weight by non-spectral independent variables
+  if ( nvar .gt. nchan_reg ) then
+    do i-1,diff_var
+      gwp = gwp + ( pred_var_gwp(i) * regr_coeff_gwp(i+nchan_reg) )
+    enddo
+  endif
+
+  ! flag convective precip
+  if ( gwp .gt. 0.05) then
+    kraintype = 2
+  endif
+
+  return
+end subroutine retrieval_gmi
 
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
