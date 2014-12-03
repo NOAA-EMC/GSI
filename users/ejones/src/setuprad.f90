@@ -141,6 +141,8 @@
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
+!   2014-12-03  ejones  - Add amsr2 and gmi, gwp variable, and call to
+!   retrieval_gmi
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -194,7 +196,7 @@
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
-  use clw_mod, only: calc_clw, ret_amsua,retrieval_mi     !retrieval_mi is gmao gmi change
+  use clw_mod, only: calc_clw, ret_amsua,retrieval_gmi     !retrieval_mi is gmao gmi change
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc         !ifail_scanedge_qc is gmao tmi change
@@ -244,7 +246,7 @@
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval,clw_obs !clw_obs is gmao gmi change
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval,gwp,clw_obs !clw_obs is gmao gmi change
   real(r_kind) dtsavg,r90,coscon,sincon
 !  real(r_kind) dlat,wlat 
 
@@ -364,7 +366,7 @@
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
             ssmi  .or. ssmis  .or. amsre .or. atms .or. amsr2 .or. gmi
 
-  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre .or. amsr2  !.or. gmi
+  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre !.or. amsr2  !.or. gmi
 
 ! Determine whether or not cloud-condensate is present in MetGuess
   lcw4crtm=.false.
@@ -781,11 +783,14 @@
 ! call to retrieval_mi for gmi from gmao gmi code goes here
            if(gmi) then               ! ej
              clw_obs = clw
-             tpwc_amsua = tpwc
-             nchanl2 = nchanl - 2    ! cha 1&2 for TMI are not available for SSMI.
-             call retrieval_mi(tsim(3),nchanl2,no85GHz, &
-                 tpwc_guess_retrieval,clw_guess_retrieval,kraintype_guess_retrieval,&
-                 ierrret_guess_retrieval )
+             call retrieval_gmi(tb,clw,gwp,kraintype,ierrret)
+!             tpwc_amsua = tpwc
+!             nchanl2 = nchanl - 2    ! cha 1&2 for TMI are not available for SSMI.
+!             nchanl2 = 7
+!             call retrieval_mi(tsim(3),nchanl2,no85GHz, &
+!             call retrieval_mi(tsim(3:9),nchanl2,no85GHz, &
+!                 tpwc_guess_retrieval,clw_guess_retrieval,kraintype_guess_retrieval,&
+!                 ierrret_guess_retrieval )
            endif 
 
            if(lcw4crtm) then
@@ -933,7 +938,7 @@
 !          Assign observation error if assimilating all-sky MW radiance data 
            ! this call to obserr_allshy_mw slightly different in gmao gmi code
            ! (clw_obs used instead of clwp_amsua)
-           if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clwp_amsua,clw_guess_retrieval) 
+           if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clw_obs,clw_guess_retrieval) 
 
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
@@ -1658,6 +1663,7 @@
               if((lcw4crtm .and. sea) .or. gmi) then
                  if (gmi) then                    ! ej
                  diagbuf(25)  = clw_obs
+write(6,*)"***SETUPRAD clw_obs=",clw_obs          ! ej erin debug
                  else
                  diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
                  ! gmao uses clw_obs
