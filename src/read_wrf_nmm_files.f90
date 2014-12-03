@@ -340,7 +340,8 @@ subroutine read_nems_nmmb_files(mype)
               if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
               ndiff=nming2-nminanl
-              if(abs(ndiff) > 60*nhr_half ) go to 110
+!for test with the 3 hr files with FGAT
+!              if(abs(ndiff) > 60*nhr_half ) go to 110
            endif
            iwan=iwan+1
            time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv

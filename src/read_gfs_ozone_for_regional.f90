@@ -106,7 +106,7 @@ subroutine read_gfs_ozone_for_regional
 
 ! Determine input GFS filenames
   it_beg=1
-  it_end=nfldsig
+  it_end=1
   allocate(infiles(nfldsig))
   do it=it_beg,it_end
      write(filename,'("gfs_sigf",i2.2)')nhr_assimilation

@@ -1661,7 +1661,7 @@ subroutine read_nems_nmmb_guess(mype)
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
   use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ges_tsen,ges_prsl
+       isli,nfldsig,ges_tsen,ges_prsl,ifilesig
   use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
@@ -1760,11 +1760,7 @@ subroutine read_nems_nmmb_guess(mype)
      if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
      if(mype==mype_input) then
-!        if(it==1)then
-!           wrfges = 'wrf_inout'
-!        else
-           write(wrfges,'("wrf_inout",i2.2)')it
-!        endif
+           write(wrfges,'("wrf_inout",i2.2)')ifilesig(it)
      end if
      call gsi_nemsio_open(wrfges,'READ', &
                           'READ_NEMS_NMMB_GUESS:  problem with wrfges',mype,mype_input,ierr)
@@ -2035,7 +2031,6 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)
 !       write(6,*)'reading obsref.nemsio'
      end do
-!       write(6,*)'before close obsref.nemsio'
      call gsi_nemsio_close(wrfges,'READ_radar_reflectivity_mosaic',mype,mype_input)
      end if
 !    end read in radar reflectivity

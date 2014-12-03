@@ -131,21 +131,31 @@ subroutine gsisub(mype,init_pass,last_pass)
   end if
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
+!call mpi_barrier(mpi_comm_world,ierror)
+!if(mype==0)write(0,*)'www bf radar r '
   if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
        .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
 !at some point cmaq will become also an online met/chem model (?)
 
+!if(mype==0)write(0,*)'www aft radar r '
+!call mpi_barrier(mpi_comm_world,ierror)
+
 ! Read info files for assimilation of various obs
   if (init_pass) then
      if (.not.twodvar_regional) then
+!if(mype==0)write(0,*)'www bf radinfor '
         call radinfo_read
         call ozinfo_read
         call coinfo_read
         call pcpinfo_read
+!if(mype==0)write(0,*)'www aft pcp   r '
+!call mpi_barrier(mpi_comm_world,ierror)
         call aeroinfo_read
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
            call aircraftinfo_read
      endif
+!if(mype==0)write(0,*)'www aft aircft  r '
+!call mpi_barrier(mpi_comm_world,ierror)
      call convinfo_read
 #ifdef VERBOSE
      call tell('gsisub','returned from convinfo_read()')
@@ -155,6 +165,8 @@ subroutine gsisub(mype,init_pass,last_pass)
 ! Compute random number for precipitation forward model.  
   if(init_pass) then
      call create_pcp_random(iadate,mype)
+!if(mype==0 )write(0,*)'www aft pcp random'
+!call mpi_barrier(mpi_comm_world,ierror)
 #ifdef VERBOSE
      call tell('gsisub','returned from create_pcp_random()')
 #endif

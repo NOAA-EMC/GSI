@@ -554,20 +554,20 @@ contains
 	       irad,master_stn_table(krad),master_lat_table(krad),master_lon_table(krad), &
                master_hgt_table(krad),icount(krad)
        end do
-       write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',ddiffmin0,distfact,idups0
-       write(6,*)' nthisrad=',nthisrad
-       write(6,*)' nthisbins=',nthisbins
-       write(6,*)' timemin,max=',timemin1,timemax1
-       write(6,*)' nradials_in=',nradials_in1
-       write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
-       write(6,*)' nradials_fail_time=',nradials_fail_time1
-       write(6,*)' nradials_fail_elb=',nradials_fail_elb1
-       write(6,*)' nobs_in=',nobs_in1
-       write(6,*)' nobs_badvr=',nobs_badvr1
-       write(6,*)' nobs_badsr=',nobs_badsr1
-       write(6,*)' nobs_lrbin=',nobs_lrbin1
-       write(6,*)' nobs_hrbin=',nobs_hrbin1
-       write(6,*)' nrange_max=',nrange_max1
+!       write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',ddiffmin0,distfact,idups0
+!       write(6,*)' nthisrad=',nthisrad
+!       write(6,*)' nthisbins=',nthisbins
+!       write(6,*)' timemin,max=',timemin1,timemax1
+!       write(6,*)' nradials_in=',nradials_in1
+!       write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
+!       write(6,*)' nradials_fail_time=',nradials_fail_time1
+!       write(6,*)' nradials_fail_elb=',nradials_fail_elb1
+!       write(6,*)' nobs_in=',nobs_in1
+!       write(6,*)' nobs_badvr=',nobs_badvr1
+!       write(6,*)' nobs_badsr=',nobs_badsr1
+!       write(6,*)' nobs_lrbin=',nobs_lrbin1
+!       write(6,*)' nobs_hrbin=',nobs_hrbin1
+!       write(6,*)' nrange_max=',nrange_max1
 
 !    Print out histogram of counts by ielbin to see where angles are
        do ielbin=1,nelbin
@@ -607,6 +607,8 @@ contains
           call mpi_gather(bins(1,1,krad),nthisbins,mpi_real16,bins_work,nthisbins, &
                        mpi_real16,0,mpi_comm_world,ierror)
        endif
+!call mpi_barrier(mpi_comm_world,ierror)
+!if(mype==0)write(6,*)'www in radar r bf irad',irad
        if(mype == 0)then
     
 !   Create superobs and write out.
@@ -718,29 +720,32 @@ contains
              nsuper=nsuper+1
           end do
           if(nsuper > 0)then
-            write(6,*)' for radar ',this_staid,' nsuper=',nsuper,' delazmmax=',delazmmax
-            write(6,*)' vrmin,max=',vrmin,vrmax,' errmin,max=',errmin,errmax
-            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax,' deldistmin,max=',deldistmin,deldistmax
-            vrminall=min(vrminall,vrmin)
-            vrmaxall=max(vrmaxall,vrmax)
-            errminall=min(errminall,errmin)
-            errmaxall=max(errmaxall,errmax)
-            delazmmaxall=max(delazmmaxall,delazmmax)
-            deltiltmaxall=max(deltiltmaxall,deltiltmax)
-            deldistmaxall=max(deldistmaxall,deldistmax)
-            deltiltminall=min(deltiltminall,deltiltmin)
-            deldistminall=min(deldistminall,deldistmin)
+!            write(6,*)' for radar ',this_staid,' nsuper=',nsuper,' delazmmax=',delazmmax
+!            write(6,*)' vrmin,max=',vrmin,vrmax,' errmin,max=',errmin,errmax
+!            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax,' deldistmin,max.irad=',deldistmin,deldistmax,irad
+!            vrminall=min(vrminall,vrmin)
+!            vrmaxall=max(vrmaxall,vrmax)
+!            errminall=min(errminall,errmin)
+!            errmaxall=max(errmaxall,errmax)
+!            delazmmaxall=max(delazmmaxall,delazmmax)
+!            deltiltmaxall=max(deltiltmaxall,deltiltmax)
+!            deldistmaxall=max(deldistmaxall,deldistmax)
+!            deltiltminall=min(deltiltminall,deltiltmin)
+!            deldistminall=min(deldistminall,deldistmin)
             nsuperall=nsuperall+nsuper
           end if
        end if
     end do
+!call mpi_barrier(mpi_comm_world,ierror)
+!if(mype==0)write(6,*)'www in radar r after irad'
+
     if(mype == 0)then
-       write(6,*)' total number of superobs written=',nsuperall
-       write(6,*)'  vrmin,maxall=',vrminall,vrmaxall
-       write(6,*)' errmin,maxall=',errminall,errmaxall
-       write(6,*)' delazmmaxall=',delazmmaxall
-       write(6,*)' deltiltmin,maxall=',deltiltminall,deltiltmaxall
-       write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
+!       write(6,*)' total number of superobs written=',nsuperall
+!       write(6,*)'  vrmin,maxall=',vrminall,vrmaxall
+!       write(6,*)' errmin,maxall=',errminall,errmaxall
+!       write(6,*)' delazmmaxall=',delazmmaxall
+!       write(6,*)' deltiltmin,maxall=',deltiltminall,deltiltmaxall
+!       write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
        close(inbufr)
     end if
     deallocate(bins_work,bins,ibins2)
