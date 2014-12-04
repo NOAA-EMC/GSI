@@ -143,7 +143,7 @@ module gridmod
   public :: use_gfs_nemsio
   public :: use_reflectivity
   public :: jcap_gfs,nlat_gfs,nlon_gfs
-  public :: use_sp_eqspace
+  public :: use_sp_eqspace,jcap_cut
 
   interface strip
      module procedure strip_single_rank33_
@@ -232,6 +232,7 @@ module gridmod
   integer(i_kind) itotsub           ! number of horizontal points of all subdomains combined
   integer(i_kind) msig              ! number of profile layers to use when calling RTM
 
+  integer(i_kind) jcap_cut          ! spectral triangular truncation beyond which you recalculate pln and plntop - default 600 - used to save memory
   integer(i_kind) jcap              ! spectral triangular truncation of ncep global analysis
   integer(i_kind) jcap_b            ! spectral triangular truncation of ncep global background
   integer(i_kind) nthreads          ! number of threads used (currently only used in calctends routines)
@@ -442,6 +443,7 @@ contains
        nlayers(k) = 1
     end do
 
+    jcap_cut=600
     jcap=62
     jcap_b=62
     hires_b=.false.
@@ -473,6 +475,7 @@ contains
 ! !USES:
 
     use mpeu_util, only: getindex
+    use general_specmod, only: spec_cut
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -515,6 +518,7 @@ contains
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
 
+    spec_cut=jcap_cut
     if(jcap==62) gencode=80.0_r_kind
     ns1=2*nsig+1
     nsig2=2*nsig

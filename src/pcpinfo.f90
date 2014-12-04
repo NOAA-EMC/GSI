@@ -182,6 +182,10 @@ contains
        call stop2(79)
     endif
     npcptype=j
+    if(npcptype == 0)then
+      close(lunin)
+      return
+    end if
 
 
 !   Allocate arrays to hold pcp information
@@ -215,7 +219,6 @@ contains
 
     end do
     close(lunin)
-    if (mype==mype_pcp) close(iout_pcp)
 
 100 format(a1,a120)
 130 format(a20,' iusep = ',i2,   ' ibias = ',i2,' var   = ',&
@@ -247,7 +250,7 @@ contains
     else
        if (mype==mype_pcp) write(6,*)'PCPINFO_READ:  no pcpbias file.  set predxp=0.0'
     endif
-    close(iout_pcp)
+    if (mype==mype_pcp) close(iout_pcp)
     
     return
   end subroutine pcpinfo_read
