@@ -197,7 +197,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
-   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
+   radstat_satype=`ls d*ges* | awk -F_ '{ print $2 "_" $3 }'`
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype
    fi
