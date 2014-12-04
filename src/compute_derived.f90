@@ -45,7 +45,7 @@ subroutine compute_derived(mype,init_pass)
 !   2008-11-03  sato - add anisotropic mode procedures
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
 !   2009-08-19  guo     - add verifications of drv_initialized and tnd_initialized
-!			  before the use of related module variables.
+!                         before the use of related module variables.
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
 !   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
@@ -162,7 +162,7 @@ subroutine compute_derived(mype,init_pass)
   real(r_kind):: factor,factk,hswgtsum
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
-	call die(myname,'invalid init_pass, ntguessig =',ntguessig)
+     call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
@@ -259,7 +259,7 @@ subroutine compute_derived(mype,init_pass)
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
-		call die(myname,'unexpected drv_initialized =',drv_initialized)
+          call die(myname,'unexpected drv_initialized =',drv_initialized)
 
 !       Instead, update gradients of all guess fields.  these will
 !       be used for forward models that need gradient of background field,
@@ -274,11 +274,11 @@ subroutine compute_derived(mype,init_pass)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
           if(.not.tnd_initialized) &
-		call die(myname,'unexpected tnd_initialized =',tnd_initialized)
+            call die(myname,'unexpected tnd_initialized =',tnd_initialized)
 
 
 ! now that we have derivs, get time tendencies if necessary
-	  if(init_pass) then
+          if(init_pass) then
 
            if(allocated(ges_ps)) call getprs(ges_ps,ges_3dp)
 
@@ -297,7 +297,7 @@ subroutine compute_derived(mype,init_pass)
 
               call final_vars_('tendency')
            end if
-          end if	! (init_pass)
+          end if       ! (init_pass)
         end if
      end if
 
@@ -312,9 +312,9 @@ subroutine compute_derived(mype,init_pass)
 
        if(regional)then
           call tpause(mype,'temp')
-       else	! (regional)
+       else     ! (regional)
           call tpause(mype,'pvoz')
-       end if	! (regional)
+       end if   ! (regional)
   
      endif       ! (init_pass)
 

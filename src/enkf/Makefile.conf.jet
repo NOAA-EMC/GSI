@@ -4,21 +4,25 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-COREINC  = /contrib/nceplibs/nwprod/lib/incmod
-CORELIB  = /contrib/nceplibs/nwprod/lib
-SHTNSLIB = /contrib/pythonextras/Anaconda-1.8.0/lib
+#COREINC  = /contrib/nceplibs/nwprod/lib/incmod
+#CORELIB  = /contrib/nceplibs/nwprod/lib
+#SHTNSLIB = /contrib/pythonextras/Anaconda-1.8.0/lib
+COREINC  = /misc/whome/Michael.Lueken/nceplibs/incmod
+CORELIB  = /misc/whome/Michael.Lueken/nceplibs/lib
+SHTNSLIB = /pan2/projects/gfsenkf/whitaker/lib/
 INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 INCnetcdf = ${NETCDF}/include
 INCnemsio = $(COREINC)/nemsio
  
-WRFPATH = /contrib/nceplibs_ext/WRF/WRFV3
+#WRFPATH = /contrib/nceplibs_ext/WRF/WRFV3
+WRFPATH = /lfs1/projects/modelpsd/hwinterbottom/repo/trunk/hwrf/enkf-tc-initialization/sorc/WRFV3/
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
-GSILIBS   = -L$(CORELIB) -lw3emc_d -lbufr_d_64 -lcrtm_v2.1.3 $(WRFLIB)
+GSILIBS   = -L$(CORELIB) -lw3emc_d -lbufr_d_64 -lCRTM $(WRFLIB)
 
 # Empty out definition of libs use by GMAO EnKF building structure
 LIBtransf = #-L$(CORELIB) -ltransf
@@ -31,7 +35,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -rv
+  AR     = ar -v
 
 # ----------------------------
 # Fortran compiler and options
@@ -44,11 +48,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -DGFS   
+  FFLAGS_F90    = -DGFS 
   EXE_FILE = global_enkf
-  #FFLAGS_F90    = -DWRF   
+  #FFLAGS_F90    = -DWRF
   #EXE_FILE = wrf_enkf
-  #FFLAGS_F90    = -DNMMB
+  #FFLAGS_F90    = -DNMMB 
   #EXE_FILE = nmmb_enkf
 
   FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
@@ -65,7 +69,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./  -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
-		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict -convert big_endian 
+		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict -convert big_endian
   FFLAGS_COM_NOSWAP_D  =  -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
 		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict -convert big_endian
 
@@ -96,10 +100,10 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   LD            = $(CF) 
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d $(GSILIBS)\
+  LIBS_N        = -L$(CORELIB) -lsp_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d $(GSILIBS)\
      	  -L$(NETCDF)/lib -lnetcdf
   # use this one if linking shtns lib intead of splib for spectral transforms.
-  #LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d\
+  #LIBS_N        = -L$(CORELIB) -lsp_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d\
   # 		  $(GSILIBS) -L$(NETCDF)/lib -lnetcdf -L$(SHTNSLIB) -lshtns -lfftw3
 
   LDFLAGS_N     = -mkl=sequential $(OMP)
@@ -110,7 +114,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = $(LDFLAGS_N)
+  LDFLAGS_D     =
 
 #--- Empty out mpi library definition: embedded in compiler
 
