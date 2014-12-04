@@ -64,7 +64,9 @@ module general_specmod
   public :: general_destroy_spec_vars
 ! set passed variables to public
   public :: spec_vars
+  public :: spec_cut
 
+  integer(i_kind) :: spec_cut
   type spec_vars
 
      integer(i_kind) jcap
@@ -105,6 +107,7 @@ module general_specmod
      real(r_kind),  pointer :: clons(:)     => NULL()
      real(r_double),pointer :: afft(:)      => NULL()
      logical:: lallocated = .false.
+     logical:: precalc_pln = .true.
 
   end type spec_vars
 
@@ -148,6 +151,7 @@ contains
 !
 !$$$
     use constants, only: zero,half,one,two,pi
+    use mpimod, only:mype
     implicit none
 
 !   Declare passed variables
@@ -156,9 +160,10 @@ contains
     logical,optional,intent(in   ) :: eqspace
 
 !   Declare local variables    
-    integer(i_kind) i,ii1,j,l,m
+    integer(i_kind) i,ii1,j,l,m,jhe
     integer(i_kind) :: ldafft
     real(r_kind) :: dlon_a,half_pi,two_pi
+    real(r_kind),dimension(nlat_a-2) :: wlatx,slatx
 
 
 !   Set constants used in transforms for analysis grid
@@ -223,11 +228,31 @@ contains
     allocate( sp%clat(sp%jb:sp%je) )
     allocate( sp%slat(sp%jb:sp%je) ) 
     allocate( sp%wlat(sp%jb:sp%je) ) 
-    allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
-    allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
-    call sptranf0(sp%iromb,sp%jcap,sp%idrt,sp%imax,sp%jmax,sp%jb,sp%je, &
-       sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop, &
-       sp%afft,sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop)
+    call spwget(sp%iromb,sp%jcap,sp%eps,sp%epstop,sp%enn1, &
+          sp%elonn1,sp%eon,sp%eontop)
+    call spffte(sp%imax,(sp%imax+2)/2,sp%imax,2,0.,0.,0,sp%afft)
+    call splat(sp%idrt,sp%jmax,slatx,wlatx)
+    jhe=(sp%jmax+1)/2
+    if(jhe > sp%jmax/2)wlatx(jhe)=wlatx(jhe)/2
+    do j=sp%jb,sp%je
+      sp%clat(j)=sqrt(1.-slatx(j)**2)
+      sp%slat(j)=slatx(j)
+      sp%wlat(j)=wlatx(j)
+    end do
+    if(sp%jcap < spec_cut)then
+      sp%precalc_pln=.true.
+      allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
+      allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
+      do j=sp%jb,sp%je
+        call splegend(sp%iromb,sp%jcap,sp%slat(j),sp%clat(j),sp%eps, &
+          sp%epstop,sp%pln(1,j),sp%plntop(1,j))
+      end do
+    else
+      sp%precalc_pln=.false.
+      allocate( sp%pln(sp%ncd2,1) )
+      allocate( sp%plntop(sp%jcap+1,1) )
+    end if
+      
 !     obtain rlats and rlons
     half_pi=half*pi
     two_pi=two*pi
@@ -292,7 +317,12 @@ contains
     if(sp%lallocated) then
        deallocate(sp%factsml,sp%factvml)
        deallocate(sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop,sp%afft,&
-          sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop)
+          sp%clat,sp%slat,sp%wlat)
+       deallocate(sp%pln)
+       deallocate(sp%plntop)
+       deallocate(sp%rlats,sp%rlons)
+       deallocate(sp%clats,sp%clons)
+       deallocate(sp%slats,sp%slons)
        sp%lallocated=.false.
     end if
 

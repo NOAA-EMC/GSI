@@ -576,6 +576,10 @@ contains
        call stop2(79)
     endif
     jpch_rad = j
+    if(jpch_rad == 0)then
+      close(lunin)
+      return
+    end if
 
 
 !   Allocate arrays to hold radiance information
