@@ -23,8 +23,8 @@ data_dirArr=("/data/${LOGNAME}"  \
              "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
              "/data/users/${LOGNAME}")
 iat_src_dirArr=("/data/${LOGNAME}"  \
-             "/data/users/${LOGNAME}/src" \
-             "/data/users/${LOGNAME}/src" \
+             "/data/users/${LOGNAME}/iat" \
+             "/data/users/${LOGNAME}/iat" \
              "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
              "/data/users/${LOGNAME}")
 iat_ws_dirArr=("/data/${LOGNAME}"  \
