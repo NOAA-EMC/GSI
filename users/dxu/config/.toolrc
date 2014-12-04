@@ -1,12 +1,12 @@
 # my tool
-alias ffile="${data_dir}/tools/ffile.sh "     # + filename pattern
-alias fline="${data_dir}/tools/fline.sh "     # + line pattern
-alias orig=" ${data_dir}/tools/orig.sh "      # + add suffix _orig
-alias mn="   ${data_dir}/tools/makeNote.sh  " # make notes
-alias bl="   ${data_dir}/tools/tellBL.exe  "  # make notes
-alias lower="${data_dir}/tools/lower.sh "
-alias upper="${data_dir}/tools/upper.sh "
+alias ffile="${src_dir}/tools/ffile.sh "     # + filename pattern
+alias fline="${src_dir}/tools/fline.sh "     # + line pattern
+alias orig=" ${src_dir}/tools/orig.sh "      # + add suffix _orig
+alias mn="   ${src_dir}/tools/makeNote.sh  " # make notes
+alias bl="   ${src_dir}/tools/tellBL.exe  "  # make notes
+alias lower="${src_dir}/tools/lower.sh "
+alias upper="${src_dir}/tools/upper.sh "
 
-alias notes="cd ${data_dir}/notes "       # go to notes dir
-alias tools="cd ${data_dir}/tools "       # go to notes dir
+alias notes="cd ${src_dir}/notes "       # go to notes dir
+alias tools="cd ${src_dir}/tools "       # go to notes dir
 
