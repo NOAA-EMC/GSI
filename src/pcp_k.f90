@@ -318,7 +318,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
      cwmlrg_o_ad(k)  = zero
   end do
   adjoint = .false.
-  call precpd_ad(im,ix,km,dtp,del_i,sl_i,psexp,rhc,&
+  call precpd_ad(km,dtp,del_i,sl_i,psexp,rhc,&
        qlrg_i, cwmlrg_i, tlrg_i,&
        qlrg_o, cwmlrg_o, tlrg_o,rnlrg_o,&
        qlrg_i_ad, cwmlrg_i_ad, tlrg_i_ad,&
@@ -395,7 +395,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
      save_cwmlrg(k)  = cwmlrg_o_ad(k)
   end do
   adjoint = .true.
-  call precpd_ad(im,ix,km,dtp,del_i,sl_i,psexp,rhc,&
+  call precpd_ad(km,dtp,del_i,sl_i,psexp,rhc,&
        qlrg_i, cwmlrg_i, tlrg_i,&
        qlrg_o, cwmlrg_o, tlrg_o,rnlrg_o,&
        qlrg_i_ad, cwmlrg_i_ad, tlrg_i_ad,&

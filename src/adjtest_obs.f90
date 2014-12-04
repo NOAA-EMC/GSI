@@ -230,7 +230,6 @@ subroutine get_lhs(yobs, lhs)
   type(gust_ob_type),  pointer  :: gustptr  ! 19. Conventional wind gust 
 
 ! ----------------------------------------------------------------------
-  character(len=*),parameter:: myname='adj_lhs'
   integer (i_kind) :: nob, nobs
   integer (i_kind) :: k
 !

@@ -166,7 +166,7 @@ contains
           aux(1) = 0
           aerojacindxs = aux
        endif
-       deallocate(aerosols_names)
+       deallocate(aerosols_names,aux)
        if(mype==0) then
           write(6,*) 'Vars in Aero-Jacobian (dims)'
           write(6,*) '--------------------------'

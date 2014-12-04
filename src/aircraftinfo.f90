@@ -43,7 +43,7 @@ module aircraftinfo
   public :: cleanup_tail
   public :: biaspredt
   public :: max_tail
-  public :: ntail, ntail_update, idx_tail, taillist, typelist, timelist, npredt, predt
+  public :: ntail, ntail_update, idx_tail, taillist, timelist, npredt, predt
   public :: ostats_t,rstats_t,varA_t
   public :: mype_airobst
   public :: upd_pred_t
@@ -64,7 +64,6 @@ module aircraftinfo
   integer(i_kind) nsort           ! used in sorting tail number
   
   character(len=10),dimension(max_tail):: taillist  ! tail number
-  character(len=10),dimension(max_tail):: typelist  ! type 
   character(len=1),dimension(max_tail):: itail_sort ! used in sorting tail number
   integer(i_kind),dimension(max_tail):: idx_tail    ! index of tail
   integer(i_kind),dimension(max_tail):: idx_sort    ! used in sorting tail number

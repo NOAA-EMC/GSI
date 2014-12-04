@@ -88,8 +88,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   integer(i_kind) :: iderivative
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
-  real(r_kind),parameter:: r10=10.0_r_kind
-  real(r_kind),parameter:: r100=100.0_r_kind
   integer(i_kind) i,j,k,it,ier,istatus
   real(r_kind) :: ainc, tinct
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf

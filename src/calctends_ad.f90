@@ -1,4 +1,4 @@
-subroutine calctends_ad(fields,fields_dt,mype,nnn)
+subroutine calctends_ad(fields,fields_dt,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_ad         adjoint of calctends_tl
@@ -40,7 +40,6 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
 !    fields    - bundle holding relevant fields
 !    fields_dt - bundle holding related time tendencies
 !     mype     - mpi integer task id
-!     nnn      - number of levels on each processor
 !
 !   output argument list:
 !    fields    - bundle holding fields
@@ -73,7 +72,9 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
 ! Declare passed variables
   type(gsi_bundle) :: fields
   type(gsi_bundle) :: fields_dt
-  integer(i_kind),intent(in) :: mype,nnn
+  type(gsi_bundle) :: derivativex
+  type(gsi_bundle) :: derivativey
+  integer(i_kind),intent(in) :: mype
 
 ! Declare local variables
   character(len=*),parameter::myname='calctends_ad'
@@ -83,13 +84,11 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
   real(r_kind),dimension(:,:,:),pointer :: p_t
   real(r_kind),dimension(:,:,:),pointer :: pri
 
-  real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y,prsth,what
+  real(r_kind),dimension(lat2,lon2,nsig+1):: prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,pr_ysum,&
        pr_ydif
 
-  real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y, v_x,v_y,t_x,t_y, &
-             q_x,q_y,oz_x,oz_y,cw_x,cw_y
-  real(r_kind),dimension(lat2,lon2):: ps_x,ps_y,sst_x,sst_y,sst
+  real(r_kind),dimension(lat2,lon2):: ps_x,ps_y
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
@@ -116,6 +115,22 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
   real(r_kind),pointer,dimension(:,:,:) :: ges_oz_lat=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_cw_lat=>NULL()
 
+  real(r_kind),pointer,dimension(:,:,:) :: u_x=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: v_x=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: t_x=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: q_x =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: oz_x=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: cw_x=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: pri_x=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:) :: u_y=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: v_y=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: t_y=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: q_y =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: oz_y=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: cw_y=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: pri_y=>NULL()
+
   it=ntguessig
 
   ier=0
@@ -128,6 +143,31 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
   call gsi_bundlegetpointer(fields,'prse',pri, istatus);ier=istatus+ier
   if(ier/=0) then
      write(6,*) myname,': pointers not found on input, ier=', ier
+     call stop2(999)
+  endif
+
+  ier=0
+  call gsi_bundlegetpointer(derivativex,'u',   u_x,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'v',   v_x,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'tv',  t_x,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'q',   q_x,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'oz' , oz_x,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'cw' , cw_x,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativex,'prse',pri_x, istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname,': x deriv. pointers not found on input, ier=', ier
+     call stop2(999)
+  endif
+  ier=0
+  call gsi_bundlegetpointer(derivativey,'u',   u_y,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'v',   v_y,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'tv',  t_y,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'q',   q_y,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'oz' , oz_y,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'cw' , cw_y,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(derivativey,'prse',pri_y, istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname,': y deriv. pointers not found on input, ier=', ier
      call stop2(999)
   endif
 
@@ -239,8 +279,6 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
         sumvkm1(i,j)=zero
         sum2km1(i,j)=zero
         sum2vkm1(i,j)=zero
-        sst_x(i,j)=zero
-        sst_y(i,j)=zero
         ps_x(i,j)=zero
         ps_y(i,j)=zero
       end do
@@ -603,9 +641,7 @@ subroutine calctends_ad(fields,fields_dt,mype,nnn)
 ! add contributions from derivatives
 
   call tget_derivatives( &
-         u ,v , t, pri ,q ,oz ,sst ,cw ,  &
-         u_x, v_x, t_x, ps_x, q_x, oz_x, sst_x, cw_x, &
-         u_y, v_y, t_y, ps_y, q_y, oz_y, sst_y, cw_y, nnn )
+         fields,derivativex,derivativey)
 
   return
 end subroutine calctends_ad
