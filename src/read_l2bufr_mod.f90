@@ -720,7 +720,7 @@ contains
           if(nsuper > 0)then
             write(6,*)' for radar ',this_staid,' nsuper=',nsuper,' delazmmax=',delazmmax
             write(6,*)' vrmin,max=',vrmin,vrmax,' errmin,max=',errmin,errmax
-            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax,' deldistmin,max.irad=',deldistmin,deldistmax,irad
+            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax,' deldistmin,max=',deldistmin,deldistmax
             vrminall=min(vrminall,vrmin)
             vrmaxall=max(vrmaxall,vrmax)
             errminall=min(errminall,errmin)

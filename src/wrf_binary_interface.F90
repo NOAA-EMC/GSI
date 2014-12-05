@@ -136,8 +136,7 @@ subroutine convert_binary_mass
 
   n_loop: do n=1,9  ! loop over forecast hours in assim interval
 
-!     if(n==nhr_assimilation)then
-     if(n==1)then
+     if(n==nhr_assimilation)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
