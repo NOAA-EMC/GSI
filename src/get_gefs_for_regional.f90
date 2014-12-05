@@ -15,6 +15,7 @@ subroutine get_gefs_for_regional
 !   2012-10-11  wu      - dual resolution for options of regional hybens
 !   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
 !   2013-10-19  todling - all guess variables in met-guess
+!   2014-12-05  wu      - changes to read in multiple ensemble for 4DEnVar
 !
 !   input argument list:
 !
@@ -52,7 +53,7 @@ subroutine get_gefs_for_regional
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ntguessig,geop_hgti
-  use guess_grids, only: ges_tsen
+  use guess_grids, only: ges_tsen,ifilesig,hrdifsig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -68,7 +69,7 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable :: tmp_ens(:,:,:,:),tmp_anl(:,:,:,:),tmp_ens2(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),allocatable,dimension(:,:)::  sstbar,pbar_nmmb
+  real(r_kind),allocatable,dimension(:,:)::  pbar_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:)::st_eg,vp_eg,t_eg,rh_eg,oz_eg,cw_eg
   real(r_kind),allocatable,dimension(:,:,:):: p_eg_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl_e
@@ -120,24 +121,28 @@ subroutine get_gefs_for_regional
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
-  filelists(1)='filelist1'
-  filelists(2)='filelist2'
-  filelists(3)='filelist3'
+    if(ntlevs_ens>1)then
+       do i=1,ntlevs_ens
+          write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+       enddo
+    else
+       write(filelists(1),'("filelist",i2.2)')ifilesig(ntguessig)
+    endif
 
+do it=1,ntlevs_ens
 ! get pointers for typical meteorological fields
   ier=0
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'z', ges_z, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'u', ges_u, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'v', ges_v, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'tv',ges_tv,istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'q' ,ges_q, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps',ges_ps,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z', ges_z, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u', ges_u, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v', ges_v, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv',ges_tv,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q, istatus );ier=ier+istatus
   if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
-do it=1,ntlevs_ens
 !  filename='sigf06_ens_mem001'
 !  open(10,file='filelist',form='formatted',err=30)
   open(10,file=trim(filelists(it)),form='formatted',err=30)
@@ -200,7 +205,11 @@ do it=1,ntlevs_ens
   iadate_gfs(1)=jda(1) ! year
   iadate_gfs(2)=jda(2) ! mon
   iadate_gfs(3)=jda(3) ! day
-  iadate_gfs(4)=jda(5) ! hour
+  if(ntlevs_ens>1)then
+     iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
+  else
+     iadate_gfs(4)=jda(5) ! hour
+  endif
   iadate_gfs(5)=0      ! minute
   if(mype == 0) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
@@ -596,11 +605,10 @@ do it=1,ntlevs_ens
   allocate(ozbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(cwbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(pbar_nmmb(grd_mix%lat2,grd_mix%lon2))
-  allocate(sstbar(grd_mix%lat2,grd_mix%lon2))
 
 !   compute mean state
   stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
-  sstbar=zero ; pbar_nmmb=zero
+  pbar_nmmb=zero
   do n=1,n_ens
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
@@ -738,9 +746,9 @@ do it=1,ntlevs_ens
 
   allocate(ges_prsl_e(grd_ens%inner_vars,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   if(dual_res) then
-     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,1,1,ntguessig),ges_prsl_e(:,1,1,1),regional) ! x?
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,1,1,it),ges_prsl_e(1,:,1,1),regional) ! x?
   else
-     ges_prsl_e(1,:,:,:)=ges_prsl(:,:,:,ntguessig)
+     ges_prsl_e(1,:,:,:)=ges_prsl(:,:,:,it)
   end if
 
   allocate(xspli(grd_mix%nsig),yspli(grd_mix%nsig),xsplo(grd_ens%nsig),ysplo(grd_ens%nsig))
@@ -857,7 +865,7 @@ do it=1,ntlevs_ens
               end do
            end do
         end do
-        call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
+        call genqsat(qs,ges_tsen(:,:,:,it),ges_prsl(:,:,:,it),lat2,lon2,nsig,ice,iderivative)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!! The first member is full perturbation based on regional first guess !!!
@@ -1067,7 +1075,6 @@ do it=1,ntlevs_ens
      end do
   end do
 
-enddo ! it=1,ntlevs_ens
 
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
@@ -1078,6 +1085,7 @@ enddo ! it=1,ntlevs_ens
   deallocate(prsl)
   deallocate(ut,vt,tt,rht,ozt,cwt)
 
+enddo ! it=1,ntlevs_ens
   return
 
 30 write(6,*) 'GET_GEFS+FOR_REGIONAL open filelist failed '
