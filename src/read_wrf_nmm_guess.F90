@@ -61,6 +61,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
 !   2013-10-30  todling - ltosj/i now live in commvars
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
+!   2014-12-05  wu      - bug fixes for FGAT
 !
 !   input argument list:
 !     mype     - pe number

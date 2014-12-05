@@ -9,6 +9,7 @@ module gsi_nemsio_mod
 ! program history log:
 !   2009-08-04  lueken - added module doc block
 !   2014-06-30  wu     - remove debugging printout
+!   2014-12-05  wu     - output error flag of nemsio_open
 !
 ! subroutines included:
 !   sub gsi_nemsio_open

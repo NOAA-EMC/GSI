@@ -29,7 +29,6 @@ subroutine wrwrfnmma_binary(mype)
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
 !   2013-10-19  todling - metguess now holds background
-!!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
 !
 !   input argument list:
 !     mype     - pe number
@@ -221,7 +220,6 @@ subroutine wrwrfnmma_binary(mype)
   length_start_date=2048
 
 !     open wrf file for mpi-io reading and writing
-!  write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
   wrfanl = 'wrf_inout'
   call mpi_file_open(mpi_comm_world,trim(wrfanl),mpi_mode_rdwr,mpi_info_null,mfcst,ierror)
 
@@ -1079,7 +1077,7 @@ subroutine wrnemsnmma_binary(mype)
 !   2013-10-19  todling - upper-air guess now in metguess
 !   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
-!   2014-11-14  wu      - write analysis to file "wrf_inout03" (nhr_assimilation)
+!   2014-11-14  wu      - write analysis to file "wrf_inout(nhr_assimilation)"
 !
 !   input argument list:
 !     mype     - pe number
@@ -1233,7 +1231,6 @@ subroutine wrnemsnmma_binary(mype)
      end if	
   end if 
 
-!  if(mype==mype_input) wrfanl = 'wrf_inout'
   if(mype==mype_input) write(wrfanl,'("wrf_inout",i2.2)') nhr_assimilation
 
 !   update date info so start time is analysis time, and forecast time = 0

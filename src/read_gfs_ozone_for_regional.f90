@@ -24,6 +24,7 @@ subroutine read_gfs_ozone_for_regional
 !   2014-06-30  wu      - bug fix for undefined variable "proceed" in check_vars_
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
+!   2014-12-05  wu      - read in just one GFS for ozone even when nfldsig > 1
 !
 !   input argument list:
 !
