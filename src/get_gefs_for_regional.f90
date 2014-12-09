@@ -121,13 +121,9 @@ subroutine get_gefs_for_regional
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
-    if(ntlevs_ens>1)then
-       do i=1,ntlevs_ens
-          write(filelists(i),'("filelist",i2.2)')ifilesig(i)
-       enddo
-    else
-       write(filelists(1),'("filelist",i2.2)')ifilesig(ntguessig)
-    endif
+  do i=1,ntlevs_ens
+     write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+  enddo
 
 do it=1,ntlevs_ens
 ! get pointers for typical meteorological fields
@@ -205,11 +201,7 @@ do it=1,ntlevs_ens
   iadate_gfs(1)=jda(1) ! year
   iadate_gfs(2)=jda(2) ! mon
   iadate_gfs(3)=jda(3) ! day
-  if(ntlevs_ens>1)then
-     iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
-  else
-     iadate_gfs(4)=jda(5) ! hour
-  endif
+  iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
   iadate_gfs(5)=0      ! minute
   if(mype == 0) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
