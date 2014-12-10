@@ -297,6 +297,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
 !     from a bufr file                      
 !
 ! PROGRAM HISTORY LOG:
+!   2014-12-09  wu      - increase max_obstime from 10 to 20 
 !
 !   variable list
 !
@@ -337,7 +338,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
 
   INTEGER(i_kind) ::  obs_time
 
-  INTEGER(i_kind),parameter :: max_obstime=10
+  INTEGER(i_kind),parameter :: max_obstime=20
   integer(i_kind) :: num_obstime_all(max_obstime)  
   integer(i_kind) :: num_subset_all(max_obstime) 
   integer(i_kind) :: num_obstime_hh(max_obstime) 
