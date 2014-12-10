@@ -288,6 +288,7 @@
 !  08-18-2014 tong      add jcap_gfs to allow spectral transform to a coarser resolution grid,
 !                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
 !                       regional analysis
+!  12-09-2014 wu        remove check to turn off regional 4densvar
 !
 !EOP
 !-------------------------------------------------------------------------
