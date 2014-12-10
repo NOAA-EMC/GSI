@@ -332,7 +332,6 @@ subroutine pcgsoi()
 !    Print initial Jo table
      if (iter==0 .and. print_diag_pcg) then
         nprt=2
-        nprt=3
         call evaljo(zjo,iobs,nprt,llouter)
         call prt_control_norms(gradx,'gradx')
      endif
