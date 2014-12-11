@@ -145,13 +145,21 @@ contains
      clw = max(zero,clw)
 
   else if (gmi) then           ! ej
-!     nchanl2 = nchanl - 2    ! cha 1&2 for TMI/GMI are not available for SSMI.
-!     nchanl2 = 7      ! channels 3 - 9
-!     call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
-!          tpwc,clw,kraintype,ierrret )
-     call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
-     clw=max(zero,clw)
-     gwp=max(zero,gwp)
+    if( (tb_obs(10) .gt. 450.0) .and. (tb_obs(11) .gt. 450.0) .and. & 
+      (tb_obs(12) .gt. 450.0) .and. (tb_obs(13) .gt. 450.0) ) then
+    ! call retrieval_mi for points at swath edges, where TBs of channels 10-13
+    ! are missing.
+         nchanl2 = nchanl - 2    ! cha 1&2 for TMI/GMI are not available for SSMI.
+         nchanl2 = 7      ! channels 3 - 9
+         call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
+         tpwc,clw,kraintype,ierrret )
+    else
+    ! call retrieval_gmi in all other cases
+       call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
+       clw=max(zero,clw)
+       gwp=max(zero,gwp)
+    endif
+
 
   else if (amsr2) then            ! ej
 !     nchanl2 = nchanl - 6    ! cha 1-6 for AMSR2 are not available for SSMI.
