@@ -59,6 +59,7 @@ subroutine get_gefs_for_regional
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
+  use gsi_4dvar, only: nhr_assimilation
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -121,9 +122,13 @@ subroutine get_gefs_for_regional
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
-  do i=1,ntlevs_ens
-     write(filelists(i),'("filelist",i2.2)')ifilesig(i)
-  enddo
+if(ntlevs_ens > 1) then
+   do i=1,ntlevs_ens
+      write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+   enddo
+else
+   write(filelists(i),'("filelist",i2.2)')nhr_assimilation
+endif
 
 do it=1,ntlevs_ens
 ! get pointers for typical meteorological fields
