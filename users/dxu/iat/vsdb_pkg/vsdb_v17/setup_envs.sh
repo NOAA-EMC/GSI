@@ -8,6 +8,7 @@ machine=${1:-WCOSS}
 machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 export rc=0
 
+
 #==================================
 ## machine-independent parameters
 #==================================
@@ -84,7 +85,8 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
- export vsdbsave=/data/users/dxu/vsdb_workspace/data/output/vsdb_data  ;#place where vsdb database is saved
+ WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
+ export vsdbsave=${WORKSPACE}/data/output/vsdb_data  ;#place where vsdb database is saved
  export ACCOUNT=glbss                                  ;#computer ACCOUNT task
  export CUE2RUN=batch                                  ;#default to batch queue
  export CUE2FTP=batch                                  ;#queue for data transfer
@@ -210,20 +212,23 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
- export vsdbhome=/data/users/dxu/vsdb_pkg/vsdb_v17   ;#script home, do not change 
- export obdata=/data/users/dxu/vsdb_workspace/data/input/plot2d/obdata      ;#observation data for making 2dmaps
- export gstat=/data/users/dxu/vsdb_workspace/data/input/qpf    ;#global stats directory 
- export gfsvsdb=/data/users/dxu/vsdb_workspace/data/output/vsdb_data        ;#operational gfs vsdb database
+ VSDBHOME=/data/users/dxu/iat/vsdb_pkg/vsdb_v17
+ WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
+
+ export vsdbhome=${VSDBHOME}    ;#script home, do not change 
+ export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
+ export gstat=${WORKSPACE}/data/input/qpf    ;#global stats directory 
+ export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
- export OBSPCP=/data/users/dxu/vsdb_workspace/data/input/qpf/OBSPRCP        ;#observed precip for verification
+ export OBSPCP=${WORKSPACE}/data/input/qpf/OBSPRCP        ;#observed precip for verification
  export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
- export gfsfitdir=/data/users/dxu/vsdb_workspace/data/input/f2o             ;#Suru operational model fit-to-obs database
+ export gfsfitdir=${WORKSPACE}/data/input/f2o             ;#Suru operational model fit-to-obs database
  export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
  export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
- export GNOSCRUB=/data/users/dxu/vsdb_workspace/data/intermediate  ;#temporary directory  
- export STMP=/data/users/dxu/vsdb_workspace/data/stmp     ;#temporary directory    
- export PTMP=/data/users/dxu/vsdb_workspace/data/ptmp     ;#temporary directory   
+ export GNOSCRUB=${WORKSPACE}/data/intermediate  ;#temporary directory  
+ export STMP=${WORKSPACE}/data/stmp     ;#temporary directory    
+ export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory   
 
  export GRADSBIN=/opt/grads/2.0.2-precompiled/bin
  export IMGCONVERT=/usr/bin/convert
