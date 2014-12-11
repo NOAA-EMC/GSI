@@ -22,6 +22,11 @@ data_dirArr=("/data/${LOGNAME}"  \
              "/data/users/${LOGNAME}" \
              "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
              "/data/users/${LOGNAME}")
+src_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
 iat_src_dirArr=("/data/${LOGNAME}"  \
              "/data/users/${LOGNAME}/iat" \
              "/data/users/${LOGNAME}/iat" \
@@ -44,6 +49,7 @@ for (( i=0; i<$SIZE; i++)); do
    if [ "${searchStr}" != "${emptyStr}" ]
    then
       data_dir=${data_dirArr[i]}
+      src_dir=${src_dirArr[i]}
       iat_src_dir=${iat_src_dirArr[i]}
       iat_ws_dir=${iat_ws_dirArr[i]}
       break
