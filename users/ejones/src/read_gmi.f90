@@ -91,7 +91,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
   real(r_kind),  allocatable, dimension(:) :: tbob
   integer(i_kind),allocatable,dimension(:) :: tbmin     ! different tbmin for the channels.
-  real(r_double), allocatable,dimension(:) :: mirad, gmichq   ! TBB from strtmbr
+  real(r_double), allocatable,dimension(:) :: mirad, gmichq,gmirfi   ! TBB from strtmbr
   real(r_double)            :: fovn      ! FOVN 
   real(r_double)            :: gmichqcr                       !-erin debug stuff
   real(r_kind),parameter    :: r360=360.0_r_kind
@@ -257,7 +257,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
        tbmin = (/50,50,50,50,50,50,50,50,50,70,70,70,70/)             !
      endif
      ang_nn=nscan/npos_bin+1
-     allocate (tbob(maxchanl), mirad(maxchanl),gmichq(maxchanl))
+     allocate (tbob(maxchanl), mirad(maxchanl),gmichq(maxchanl),gmirfi(maxchanl))
      allocate (val_angls(n_angls,ngs), pixelsaza(ngs))
      rlndsea(0) = zero
      rlndsea(1) = 30._r_kind
@@ -369,8 +369,11 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
           call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
 !write(6,*)'****GMI midat(2:4)',midat(2:4)             !-erin debug
           call ufbrep(lnbufr,gmichq,1,nchanl,iret,'GMICHQ')
+          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
+
 !          call ufbrep(lnbufr,gmichqcr,1,1,iret,'GMICHQ')     !-erin debug
-!write(6,*)'****GMI gmichq',gmichqcr             !-erin debug
+write(6,*)'****GMI gmichq',gmichq             !-erin debug
+write(6,*)'****GMI gmirfi',gmirfi             !-erin debug
           call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
           call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
         endif
@@ -442,7 +445,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 ! -erin debug comment out check of data quality, since the GSI seems to be
 ! reading bad values
 
-              if(mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax ) then ! &
+              if(mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax .or. gmichq(jc)>0.0 .or. gmirfi(jc)>0.0) then ! &
 !                .or. gmichqcr > 0 ) then                !-erin debug stuff
                 !.or. gmichqcr(jc) > 0 ) then           !JJJ, skip data with data_quality > 0.
                  iskip = iskip + 1
@@ -513,22 +516,23 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 !          Only keep obs over ocean    - ej
            if(isflg .ne. 0) cycle read_loop
 
+! the call to retrieval_mi commented out (since we probably won't use it)
 !------------------ use for erin's work (temporarily)
-           if(.not. regional .and. isflg==0 .and. &
-              (gmi_low .or. gmi) ) then
-             ! retrieve tpwc and clw
-
-             call retrieval_mi(tbob(3:9),nchanl2,no85GHz, &
-               tpwc,clw,kraintype,ierrret )
-
-
-             ! don't use obsercation for cases that there are thick clouds or rain, or clw/twc cannot be retrieved.
-             ! Increse the clw threshold 3 => 5 in order to read more data, but these data don't pass QC.  8/28/2014
-             if(tpwc<0 .or. clw > 5 .or. kraintype /=0_i_kind .or. ierrret > 0) then !cycle read_loop
-                cycle_rmi=cycle_rmi+1                          ! erin debug
-!                cycle read_loop                                ! erin debug
-             endif                                             ! erin debug
-           endif
+!           if(.not. regional .and. isflg==0 .and. &
+!              (gmi_low .or. gmi) ) then
+!             ! retrieve tpwc and clw
+!
+!             call retrieval_mi(tbob(3:9),nchanl2,no85GHz, &
+!               tpwc,clw,kraintype,ierrret )
+!
+!
+!             ! don't use obsercation for cases that there are thick clouds or rain, or clw/twc cannot be retrieved.
+!             ! Increse the clw threshold 3 => 5 in order to read more data, but these data don't pass QC.  8/28/2014
+!             if(tpwc<0 .or. clw > 5 .or. kraintype /=0_i_kind .or. ierrret > 0) then !cycle read_loop
+!                cycle_rmi=cycle_rmi+1                          ! erin debug
+!!                cycle read_loop                                ! erin debug
+!             endif                                             ! erin debug
+!           endif
 !--------------------- used for erin's work
 
            crit1 = crit1 + rlndsea(isflg)
@@ -622,7 +626,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 
 !------------------ erin debug stuff----------------
 write(6,*)'****GMI cycle1,2,3,4,5,6,7,8,rmi'&
-,cycle1,cycle2,cycle3,cycle4,cycle5,cycle6,cycle7,cycle8,cycle_rmi
+,cycle1,cycle2,cycle3,cycle4,cycle5,cycle6,cycle7,cycle8 !,cycle_rmi
 
 
 
@@ -743,7 +747,7 @@ write(6,*)'****GMI cycle1,2,3,4,5,6,7,8,rmi'&
      write(6,*)'READ_GMI:  mype,ntest,disterrmax=',&
         mype,ntest,disterrmax
 
-  deallocate(tbmin, tbob, mirad, gmichq)
+  deallocate(tbmin, tbob, mirad, gmichq, gmirfi)
   deallocate(val_angls, pixelsaza)
 ! End of routine
  return
