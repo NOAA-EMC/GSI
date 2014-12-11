@@ -259,7 +259,7 @@ subroutine read_nems_nmmb_files(mype)
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
 !   2012-01-22  parrish - move nming2 calculation before write(6 statement to prevent runtime
 !                           failure in debug mode on WCOSS
-!   2014-12-05  wu - remove check to allow FGAT/4DEnVar guess files beyong nhr_half
+!   2014-12-05  wu - remove check to allow FGAT/4DEnVar guess files beyond nhr_half
 !
 !   input argument list:
 !     mype     - pe number
