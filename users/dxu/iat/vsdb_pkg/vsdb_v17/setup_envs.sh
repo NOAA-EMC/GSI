@@ -85,7 +85,9 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
- WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
+ export VSDBHOME=/data/users/dxu/iat/vsdb_pkg/vsdb_v17
+ export WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
+
  export vsdbsave=${WORKSPACE}/data/output/vsdb_data  ;#place where vsdb database is saved
  export ACCOUNT=glbss                                  ;#computer ACCOUNT task
  export CUE2RUN=batch                                  ;#default to batch queue
@@ -212,9 +214,6 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
- VSDBHOME=/data/users/dxu/iat/vsdb_pkg/vsdb_v17
- WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
-
  export vsdbhome=${VSDBHOME}    ;#script home, do not change 
  export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
  export gstat=${WORKSPACE}/data/input/qpf    ;#global stats directory 
