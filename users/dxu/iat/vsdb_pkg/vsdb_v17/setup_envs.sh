@@ -216,7 +216,7 @@ elif [ $machine = BADGER ]; then
 elif [ $machine = CARDINAL ]; then
  export vsdbhome=${VSDBHOME}    ;#script home, do not change 
  export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
- export gstat=${WORKSPACE}/data/input/qpf    ;#global stats directory 
+ export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory 
  export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
@@ -225,7 +225,7 @@ elif [ $machine = CARDINAL ]; then
  export gfsfitdir=${WORKSPACE}/data/input/f2o             ;#Suru operational model fit-to-obs database
  export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
  export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
- export GNOSCRUB=${WORKSPACE}/data/intermediate  ;#temporary directory  
+ export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp ;#temporary directory  
  export STMP=${WORKSPACE}/data/stmp     ;#temporary directory    
  export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory   
 
