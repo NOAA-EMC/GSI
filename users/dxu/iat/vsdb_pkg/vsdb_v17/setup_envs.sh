@@ -214,15 +214,32 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
+ # VSDB home directory
  export vsdbhome=${VSDBHOME}    ;#script home, do not change 
- export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
- export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory 
- export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
+
+ # step 1
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
+
+ # step 2
+ export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
+
+ # step 3
  export OBSPCP=${WORKSPACE}/data/input/qpf/OBSPRCP        ;#observed precip for verification
+
+ # step 4
+ # "$gfswgnedir" is NOT used.
+ # "$gstat/wgne1" used explicitly in script.
+ export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory 
  export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
+
+ # step 5
  export gfsfitdir=${WORKSPACE}/data/input/f2o             ;#Suru operational model fit-to-obs database
+ export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
+
+ # step 6
+ # "$gstat/gfs" used explicitly in script.
+
  export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
  export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
  export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp ;#temporary directory  
