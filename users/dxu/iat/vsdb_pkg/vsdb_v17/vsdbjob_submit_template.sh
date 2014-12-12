@@ -32,15 +32,16 @@ set -ux
 #-----------------------------------------------------
 # Top-level setting: running dir and web dir
 #-----------------------------------------------------
-export tmpdir=$STMP/$LOGNAME/nwpvrfy$$          
+#dxu export tmpdir=$STMP/$LOGNAME/nwpvrfy$$          
+#dxu mkdir -p $tmpdir ||exit
+#dxu cd $tmpdir ||exit
+#dxu rm *.out
+
 export mapdir=$STMP/$LOGNAME/web               
-mkdir -p $tmpdir ||exit
 if [ ! -d $mapdir ]; then
-mkdir -p $mapdir ; cd $mapdir ||exit
-tar xvf ${vsdbhome}/vsdb_exp_webpage.tar 
+   mkdir -p $mapdir ; cd $mapdir ||exit
+   tar xvf ${vsdbhome}/vsdb_exp_webpage.tar 
 fi
-cd $tmpdir ||exit
-rm *.out
 
 
 #------------------------------
@@ -53,6 +54,9 @@ chost=$(hostname)
 ###   make vsdb database
 ### --------------------------------------------------------------
 if [ $MAKEVSDBDATA = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step1
+
    #1. Input dir :
    myarch=${ENV_1_MYARCH}
 
@@ -94,6 +98,9 @@ fi
 ###   make AC and RMSE maps            
 ### --------------------------------------------------------------
 if [ $MAKEMAPS = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step2
+
    #1. Input dir :
    #   $gfsvsdb (OPTIONAL, used if exp is gfs, set in setup_envs.sh) 
    #   $vsdbsave (set in setup_envs.sh)
@@ -138,6 +145,9 @@ fi
 ###   compute precip threat score stats over CONUS   
 ### --------------------------------------------------------------
 if [ $CONUSDATA = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step3
+
    #1. Input dir :
    #   $OBSPCP (REQUIRED data, set in setup_envs.sh)
    export COMROT=${ENV_3_COMROT}
@@ -183,6 +193,9 @@ fi
 ###   make CONUS precip skill score maps 
 ### --------------------------------------------------------------
 if [ $CONUSPLOTS = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step4
+
    #1. Input dir :
    #  $gstat/wgne1 ( OPTIONAL, used if exp = gfs , set in setup_envs.sh)
    export ARCDIR=${ENV_4_ARCDIR}
@@ -223,6 +236,9 @@ fi
 ###   make fit-to-obs plots
 ### --------------------------------------------------------------
 if [ $FIT2OBS = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step5
+
    #1. Input dir :
    # $gfsfitdir ( OPTIONAL, used if exp is fnl, set in setup_envs.sh)
    fitdir=${ENV_5_FITDIR}
@@ -257,6 +273,9 @@ fi
 ###   make maps of lat-lon distributions and zonal-mean cross-sections
 ### --------------------------------------------------------------
 if [ $MAPS2D = YES ] ; then
+   # Create run dir with step name
+   . ${myhome}/makeRunDir.sh step6
+
    #1. Input dir :
    # $gstat/gfs ( OPTIONAL, used if exp = gfs, set in setup_envs.sh)
    # $obdata ( REQUIRED data )
