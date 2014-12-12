@@ -30,7 +30,7 @@ if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
 
 #-----------------------------------------------------
-# Top-level setting: running dir and web location
+# Top-level setting: running dir and web dir
 #-----------------------------------------------------
 export tmpdir=$STMP/$LOGNAME/nwpvrfy$$          
 export mapdir=$STMP/$LOGNAME/web               
@@ -53,10 +53,10 @@ chost=$(hostname)
 ###   make vsdb database
 ### --------------------------------------------------------------
 if [ $MAKEVSDBDATA = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    myarch=${ENV_1_MYARCH}
 
-   #2. Output  location:
+   #2. Output  dir :
    #  $vsdbsave ( set in setup_envs.sh)
 
    #3. Running directory
@@ -94,11 +94,11 @@ fi
 ###   make AC and RMSE maps            
 ### --------------------------------------------------------------
 if [ $MAKEMAPS = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    #   $gfsvsdb (OPTIONAL, used if exp is gfs, set in setup_envs.sh) 
    #   $vsdbsave (set in setup_envs.sh)
 
-   #2. Output  location:
+   #2. Output  dir :
    #   $mapdir/allmodel
 
    #3. Running directory and score directory
@@ -138,11 +138,11 @@ fi
 ###   compute precip threat score stats over CONUS   
 ### --------------------------------------------------------------
 if [ $CONUSDATA = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    #   $OBSPCP (REQUIRED data, set in setup_envs.sh)
    export COMROT=${ENV_3_COMROT}
 
-   #2. Output location :
+   #2. Output dir :
    export ARCDIR=${ENV_3_ARCDIR}
 
    #3. Running directory
@@ -183,14 +183,14 @@ fi
 ###   make CONUS precip skill score maps 
 ### --------------------------------------------------------------
 if [ $CONUSPLOTS = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    #  $gstat/wgne1 ( OPTIONAL, used if exp = gfs , set in setup_envs.sh)
    export ARCDIR=${ENV_4_ARCDIR}
 
-   #2. Output location :
+   #2. Output dir :
    #  $mapdir/rain ( set up above)
 
-   #3. Running location :
+   #3. Running dir :
    export rundir=$tmpdir/plot_pcp
 
    #4. Case configuration
@@ -223,11 +223,11 @@ fi
 ###   make fit-to-obs plots
 ### --------------------------------------------------------------
 if [ $FIT2OBS = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    # $gfsfitdir ( OPTIONAL, used if exp is fnl, set in setup_envs.sh)
    fitdir=${ENV_5_FITDIR}
 
-   #2. Output  location:
+   #2. Output  dir :
    #  $mapdir/fits ( set up above)
 
    #3. Running directory:
@@ -257,12 +257,12 @@ fi
 ###   make maps of lat-lon distributions and zonal-mean cross-sections
 ### --------------------------------------------------------------
 if [ $MAPS2D = YES ] ; then
-   #1. Input location :
+   #1. Input dir :
    # $gstat/gfs ( OPTIONAL, used if exp = gfs, set in setup_envs.sh)
    # $obdata ( REQUIRED data )
    export myarch=${ENV_6_MYARCH}
 
-   #2. Output  location:
+   #2. Output  dir :
    # $mapdir/2D 
 
    #3. Running directory 
