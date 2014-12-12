@@ -1,22 +1,25 @@
 #!/bin/ksh
 set -ux
 
-# step 1 
+#------------------------------------------
+# Set up flag to run each step: YES/NO
+#------------------------------------------
+# step 1 : To create VSDB date
 MAKEVSDBDATA=${ENV_MAKEVSDBDATA}  
 
-# step 2 
+# step 2 : To make AC and RMS maps 
 MAKEMAPS=${ENV_MAKEMAPS}         
 
-# step 3 
+# step 3 : To generate precip verification stats
 CONUSDATA=${ENV_CONUSDATA}      
 
-# step 4 
+# step 4 : To make precip verification maps
 CONUSPLOTS=${ENV_CONUSPLOTS}   
 
-# step 5 
+# step 5 : To make fit-to-obs maps
 FIT2OBS=${ENV_FIT2OBS}        
 
-# step 6 
+# step 6 : To make maps of lat-lon distributions and zonal-mean corss-sections. 
 MAPS2D=${ENV_MAPS2D}
 
 #-----------------------------------------------------
@@ -30,13 +33,8 @@ if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
 
 #-----------------------------------------------------
-# Top-level setting: running dir and web dir
+# Top-level setting: web dir
 #-----------------------------------------------------
-#dxu export tmpdir=$STMP/$LOGNAME/nwpvrfy$$          
-#dxu mkdir -p $tmpdir ||exit
-#dxu cd $tmpdir ||exit
-#dxu rm *.out
-
 export mapdir=$STMP/$LOGNAME/web               
 if [ ! -d $mapdir ]; then
    mkdir -p $mapdir ; cd $mapdir ||exit
