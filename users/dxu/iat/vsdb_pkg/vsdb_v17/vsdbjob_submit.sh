@@ -17,8 +17,8 @@ set -ux
  MAKEVSDBDATA=YES           ;#To create VSDB date
  MAKEVSDBDATA=NO            ;#VSDB data already exists
 
- MAKEMAPS=NO                ;#Not to make AC and RMS maps
  MAKEMAPS=YES               ;#To make AC and RMS maps
+ MAKEMAPS=NO                ;#Not to make AC and RMS maps
 
 #..............
  CONUSDATA=YES              ;#To generate precip verification stats
@@ -28,8 +28,8 @@ set -ux
  CONUSPLOTS=NO              ;#Not to make precip verification maps
 #..............
 
- FIT2OBS=YES                ;#To make fit-to-obs maps              
  FIT2OBS=NO                 ;#Not to make fit-to-obs maps              
+ FIT2OBS=YES                ;#To make fit-to-obs maps              
 #..............
 
  MAPS2D=YES        ;#To make maps of lat-lon distributions and zonal-mean corss-sections.
@@ -43,17 +43,18 @@ set -a;. ${myhome}/setup_envs.sh $machine
 if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
 
-export tmpdir=$STMP/$LOGNAME/nwpvrfy$$               ;#temporary directory for running verification
-#dxu export mapdir=$tmpdir/web                            ;#local directory to display plots and web templates
+#dxu export tmpdir=$STMP/$LOGNAME/nwpvrfy$$               ;#temporary directory for running verification
+#dxu mkdir -p $tmpdir ||exit
+#dxu cd $tmpdir ||exit
+#dxu rm *.out
+
 #dxu so all steps will put plots into the same place.
+#dxu export mapdir=$tmpdir/web                            ;#local directory to display plots and web templates
 export mapdir=$STMP/$LOGNAME/web                            ;#local directory to display plots and web templates
-mkdir -p $tmpdir ||exit
 if [ ! -d $mapdir ]; then
  mkdir -p $mapdir ; cd $mapdir ||exit
  tar xvf ${vsdbhome}/vsdb_exp_webpage.tar 
 fi
-cd $tmpdir ||exit
-rm *.out
 
 
 myarch=$GNOSCRUB/$LOGNAME/archive              ;#archive directory of experiments 
@@ -73,6 +74,9 @@ chost=$(hostname)                              ;#current computer host name
 # output  location:
 #   $vsdbsave ( set in setup_envs.sh)
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step1
+
 myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
 export fcyclist="00"                        ;#forecast cycles to be verified
 export expnlist="gfs ecm"                   ;#experiment names 
@@ -118,6 +122,9 @@ fi
 #   $mapdir/allmodel
 #   $mapdir ( set up above)
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step2
+
 export fcycle="00 "                      ;#forecast cycles to be verified
 export mdlist="gfs ecm"           ;#experiment names, up to 10, to compare on maps
 export vsdblist="$vsdbsave $vsdbsave"  ;#vsdb stats directories 
@@ -164,6 +171,9 @@ fi
 # output  location:
 #   $ARCDIR (set down below)
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step3
+
 export expnlist="gfs gfs2"                          ;#experiment names
 export COMROT=/data/users/dxu/vsdb_workspace/data/input/fcst_data
 export expdlist="$COMROT $COMROT"                        ;#fcst data directories, can be different
@@ -178,7 +188,7 @@ export fhout=6                                           ;#forecast output frequ
 export cycle="00"                                        ;#forecast cycle to verify, give only one
 export DATEST=20140201                                   ;#forecast starting date 
 export DATEND=20140228                                   ;#forecast ending date 
-export ARCDIR=$GNOSCRUB/$LOGNAME/archive                 ;#directory to save stats data
+export ARCDIR=$GNOSCRUB                 ;#directory to save stats data
 export rundir=$tmpdir/mkup_precip                        ;#temporary running directory
 export scrdir=${vsdbhome}/precip                  
                                                                                                                            
@@ -211,9 +221,12 @@ fi
 # output  location:
 #   $mapdir/rain ( set up above)
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step4
+
 export expnlist="gfs gfs2"                              ;#experiment names, up to 6 , gfs is operational GFS
 #dxu export expdlist="${gfswgnedir} $myarch"                   ;#fcst data directories, can be different
-export ARCDIR=$GNOSCRUB/$LOGNAME/archive   ;#directory to save stats data
+export ARCDIR=$GNOSCRUB                                ;#directory to save stats data
 export gstat=/data/users/dxu/vsdb_workspace/data/input/qpf  ; # operational gfs rain stat data, used if exp=gfs
 export expdlist="$ARCDIR $ARCDIR"                   ;#fcst data directories, can be different
 export complist="$chost  $chost "                         ;#computer names, can be different if passwordless ftp works 
@@ -255,6 +268,9 @@ fi
 #   $mapdir/fits/time
 #   $mapdir/fits/vert
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step5
+
 #dxu export expnlist="fnl prt1534"                              ;#experiment names, only two allowed, fnl is operatinal GFS
 export expnlist="fit_model  fit_model2"                              ;#experiment names, only two allowed, fnl is operatinal GFS
 #dxu export expdlist="$gfsfitdir $myarch1"                    ;#fcst data directories, can be different
@@ -293,6 +309,9 @@ export scrdir=${vsdbhome}/fit2obs
 # output  location:
 #   $mapdir/2D ( set up above)
 #---------------------
+# Create run dir with step name
+. ${myhome}/makeRunDir.sh step6
+
 export myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
 export gstat=/data/users/dxu/vsdb_workspace/data/input/fcst_data ; # operational gfs fcst files, used if exp=gfs
 export expnlist="gfs ecm"        ;#experiments, up to 8; gfs will point to ops data
