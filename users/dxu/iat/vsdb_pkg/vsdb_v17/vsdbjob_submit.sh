@@ -14,26 +14,33 @@ set -ux
 ##    http://www.emc.ncep.noaa.gov/gmb/wx24fy/vsdb/prhs11/)
 ##-------------------------------------------------------------------
 
- MAKEVSDBDATA=YES           ;#To create VSDB date
- MAKEVSDBDATA=NO            ;#VSDB data already exists
+ #--------------------------------------------
+ # Set up flag to run each step
+ # Values are :YES or NO
+ #--------------------------------------------
+ # Flag to run step 1 (To create VSDB date)
+ MAKEVSDBDATA=YES  
+ MAKEVSDBDATA=NO
 
- MAKEMAPS=YES               ;#To make AC and RMS maps
- MAKEMAPS=NO                ;#Not to make AC and RMS maps
+ # Flag to run step 2 (To make AC and RMS maps)
+ MAKEMAPS=NO
+ MAKEMAPS=YES  
 
-#..............
- CONUSDATA=YES              ;#To generate precip verification stats
- CONUSDATA=NO               ;#all precip stats already exist
+ # Flag to run step 3 (To generate precip verification stats)
+ CONUSDATA=YES   
+ CONUSDATA=NO
 
- CONUSPLOTS=YES             ;#To make precip verification maps
- CONUSPLOTS=NO              ;#Not to make precip verification maps
-#..............
+ # Flag to run step 4 (To make precip verification maps)
+ CONUSPLOTS=YES 
+ CONUSPLOTS=NO
 
- FIT2OBS=NO                 ;#Not to make fit-to-obs maps              
- FIT2OBS=YES                ;#To make fit-to-obs maps              
-#..............
+ # Flag to run step 5 (To make fit-to-obs maps)
+ FIT2OBS=YES   
+ FIT2OBS=NO
 
- MAPS2D=YES        ;#To make maps of lat-lon distributions and zonal-mean corss-sections.
- MAPS2D=NO         ;#Not to make maps of lat-lon distributions and zonal-mean corss-sections.
+ # Flag to run step 6 (To make maps of lat-lon distributions and zonal-mean corss-sections)
+ MAPS2D=YES
+ MAPS2D=NO  
 
 #----------------------------------------------------------------------
 export machine=CARDINAL              ;#IBM(cirrus/stratus), ZEUS, GAEA, and JET etc
