@@ -218,6 +218,7 @@ elif [ $machine = CARDINAL ]; then
  export vsdbhome=${VSDBHOME}    ;#script home, do not change 
 
  # step 1
+ export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory 
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
 
@@ -230,7 +231,6 @@ elif [ $machine = CARDINAL ]; then
  # step 4
  # "$gfswgnedir" is NOT used.
  # "$gstat/wgne1" used explicitly in script.
- export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory 
  export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
 
  # step 5
@@ -240,11 +240,12 @@ elif [ $machine = CARDINAL ]; then
  # step 6
  # "$gstat/gfs" used explicitly in script.
 
- export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
- export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
  export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp ;#temporary directory  
  export STMP=${WORKSPACE}/data/stmp     ;#temporary directory    
  export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory   
+
+ export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
+ export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
 
  export GRADSBIN=/opt/grads/2.0.2-precompiled/bin
  export IMGCONVERT=/usr/bin/convert
