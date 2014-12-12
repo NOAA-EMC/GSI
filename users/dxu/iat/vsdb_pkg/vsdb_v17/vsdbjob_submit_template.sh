@@ -95,7 +95,7 @@ fi
 ### --------------------------------------------------------------
 if [ $MAKEMAPS = YES ] ; then
    #1. Input location :
-   #   $gfsvsdb (optional, used if exp is gfs )
+   #   $gfsvsdb (OPTIONAL, used if exp is gfs, set in setup_envs.sh) 
    #   $vsdbsave (set in setup_envs.sh)
 
    #2. Output  location:
@@ -139,7 +139,7 @@ fi
 ### --------------------------------------------------------------
 if [ $CONUSDATA = YES ] ; then
    #1. Input location :
-   #   $OBSPCP (required data)
+   #   $OBSPCP (REQUIRED data, set in setup_envs.sh)
    export COMROT=${ENV_3_COMROT}
 
    #2. Output location :
@@ -184,7 +184,7 @@ fi
 ### --------------------------------------------------------------
 if [ $CONUSPLOTS = YES ] ; then
    #1. Input location :
-   #  $gstat/wgne1 ( optional, used if exp = gfs )
+   #  $gstat/wgne1 ( OPTIONAL, used if exp = gfs , set in setup_envs.sh)
    export ARCDIR=${ENV_4_ARCDIR}
 
    #2. Output location :
@@ -224,7 +224,7 @@ fi
 ### --------------------------------------------------------------
 if [ $FIT2OBS = YES ] ; then
    #1. Input location :
-   # $gfsfitdir ( optional, used if exp is fnl )
+   # $gfsfitdir ( OPTIONAL, used if exp is fnl, set in setup_envs.sh)
    fitdir=${ENV_5_FITDIR}
 
    #2. Output  location:
@@ -258,12 +258,12 @@ fi
 ### --------------------------------------------------------------
 if [ $MAPS2D = YES ] ; then
    #1. Input location :
-   # $gstat/gfs ( optional, used if exp = gfs )
-   # $obdata ( required data )
+   # $gstat/gfs ( OPTIONAL, used if exp = gfs, set in setup_envs.sh)
+   # $obdata ( REQUIRED data )
    export myarch=${ENV_6_MYARCH}
 
    #2. Output  location:
-   #   $mapdir/2D ( set up above)
+   # $mapdir/2D 
 
    #3. Running directory 
    export rundir=$tmpdir/2dmaps
