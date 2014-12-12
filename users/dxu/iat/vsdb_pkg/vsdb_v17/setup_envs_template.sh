@@ -88,12 +88,12 @@ elif [ $machine = CARDINAL ]; then
  export VSDBHOME=/data/users/dxu/iat/vsdb_pkg/vsdb_v17
  export WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
 
- export vsdbsave=$ENV_VSDBSAVE
- export ACCOUNT=$ENV_ACCOUNT
- export CUE2RUN=$ENV_CUE2RUN
- export CUE2FTP=$ENV_CUE2FTP
- export GROUP=$ENV_GROUP
- export doftp=$EVN_DOFTP
+ export vsdbsave=${ENV_VSDBSAVE}
+ export ACCOUNT=${ENV_ACCOUNT}
+ export CUE2RUN=${ENV_CUE2RUN}
+ export CUE2FTP=${ENV_CUE2FTP}
+ export GROUP=${ENV_GROUP}
+ export doftp=${EVN_DOFTP}
  if [ $doftp = YES ]; then
   export webhost=${webhost:-emcrzdm.ncep.noaa.gov}     ;#host for web display
   export webhostid=${webhostid:-$LOGNAME}              ;#login id on webhost 
@@ -215,7 +215,7 @@ elif [ $machine = BADGER ]; then
 #----------------------------
 elif [ $machine = CARDINAL ]; then
  # VSDB home directory
- export vsdbhome=$ENV_VSDBHOME
+ export vsdbhome=${ENV_VSDBHOME}
 
  # step 1
  export canldir=${ENV_CANLDIR}
@@ -227,21 +227,25 @@ elif [ $machine = CARDINAL ]; then
  # step 3
  export OBSPCP=${ENV_OBSPCP}
 
- # step 4 : $gstat/wgne1 used explicitly in script.
+ # step 4 
+ # "$gstat/wgne1" used explicitly in script.
+ # "$gfswgnedir" is NOT used.
  export gstat=${ENV_GSTAT}
- export gfswgnedir=${ENV_GFSWGNEDIR}
+ export gfswgnedir=${gstat}/wgne1
 
  # step 5
  export gfsfitdir=${ENV_GFSFITDIR}
- export obdata=$ENV_OBDATA
+ export obdata=${ENV_OBDATA}
 
- # step 6: “$gstat/gfs” used explicitly in script.  
+ # step 6 
+ # "$gstat/gfs" used explicitly in script.  
 
- export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
- export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
  export GNOSCRUB=${ENV_GNOSCRUB}
  export STMP=${ENV_STMP}
  export PTMP=${ENV_PTMP}
+
+ export SUBJOB=$vsdbhome/bin/sub_cardinal  
+ export NWPROD=$vsdbhome/nwprod           
 
  export GRADSBIN=/opt/grads/2.0.2-precompiled/bin
  export IMGCONVERT=/usr/bin/convert
