@@ -35,7 +35,7 @@ iat_src_dirArr=("/data/${LOGNAME}"  \
 iat_ws_dirArr=("/data/${LOGNAME}"  \
              "/data/users/${LOGNAME}/workspace" \
              "/data/users/${LOGNAME}/workspace" \
-             "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}/workspace" \
              "/data/users/${LOGNAME}")
 SIZE=${#hostArr[@]}   # array size
 
