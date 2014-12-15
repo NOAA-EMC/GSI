@@ -201,7 +201,7 @@ elif [ $machine = ZEUS ]; then
  export STMP=${WORKSPACE}/data/stmp     ;#temporary directory
  export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory
 
- export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
+ export SUBJOB=$vsdbhome/bin/sub_zeus         ;#script for submitting batch jobs
  export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
 
  export GRADSBIN=/apps/grads/2.0.a9/bin                     ;#GrADS executables       
