@@ -82,21 +82,22 @@ chost=$(hostname)                              ;#current computer host name
 ###   make vsdb database
 ### --------------------------------------------------------------
 if [ $MAKEVSDBDATA = YES ] ; then
-   #---------------------
-   # input location :
-   #   $myarch (set down below)
-   #---------------------
-   #---------------------
-   # output  location:
-   #   $vsdbsave ( set in setup_envs.sh)
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step1
 
-   myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
-   export fcyclist="00"               ;#forecast cycles to be verified
-   export expnlist="gfs ecm"          ;#experiment names 
+   #1. Input dir :
+   myarch=${WORKSPACE}/data/input/fcst_data
+
+   #2. Output  dir :
+   #  $vsdbsave ( set in setup_envs.sh)
+
+   #3. Running directory
+   export rundir=$tmpdir/stats
+
+   #4. Case configuration
    export expdlist="$myarch $myarch"  ;#exp directories, can be different
+   export expnlist="gfs ecm"          ;#experiment names 
+   export fcyclist="00"               ;#forecast cycles to be verified
    export complist="$chost  $chost "  ;#computer names, can be different if passwordless ftp works 
    export dumplist=".gfs. .ecm."      ;#file format pgb${asub}${fhr}${dump}${yyyymmdd}${cyc}
    export vhrlist="00 "               ;#verification hours for each day             
@@ -126,18 +127,21 @@ fi
 ###   make AC and RMSE maps            
 ### --------------------------------------------------------------
 if [ $MAKEMAPS = YES ] ; then
-   #---------------------
-   # input location :
-   #---------------------
-   #   $vsdbsave (set in setup_envs.sh)
-   #---------------------
-   # output  location:
-   #   $mapdir/allmodel
-   #   $mapdir ( set up above)
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step2
 
+   #1. Input dir :
+   #   $gfsvsdb (OPTIONAL, used if exp is gfs, set in setup_envs.sh)
+   #   $vsdbsave (set in setup_envs.sh)
+
+   #2. Output  dir :
+   #   $mapdir/allmodel
+
+   #3. Running directory and score directory
+   export rundir=$tmpdir/acrms$$
+   export scoredir=$rundir/score
+
+   #4. Case configuration
    export fcycle="00 "                  ;#forecast cycles to be verified
    export mdlist="gfs ecm"              ;#experiment names, up to 10, to compare on maps
    export vsdblist="$vsdbsave $vsdbsave";#vsdb stats directories 
@@ -147,11 +151,8 @@ if [ $MAKEMAPS = YES ] ; then
    export vlength=120                   ;#forecast length in hour to show on map
    export maptop=10                     ;#can be set to 10, 50 or 100 hPa for cross-section maps
    export maskmiss=1        ;#remove missing data from all models to unify sample size, 0-->NO, 1-->Yes
-   export rundir=$tmpdir/acrms$$
-   export scoredir=$rundir/score
 
    ${vsdbhome}/verify_exp_step2.sh  1>${tmpdir}/vstep2.out 2>&1 
-
 
    ##--wait 3 hours for all stats to be created and then generate scorecard 
    if [ ${scorecard:-NO} = YES ]; then
@@ -173,22 +174,22 @@ fi
 ###   compute precip threat score stats over CONUS   
 ### --------------------------------------------------------------
 if [ $CONUSDATA = YES ] ; then
-   #---------------------
-   # input location :
-   #---------------------
-   #   $OBSPCP (set in setup_envs.sh)
-   #   $COMROT (set down below)
-   #---------------------
-   # output  location:
-   #   $ARCDIR (set down below)
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step3
 
-   export expnlist="gfs gfs2"                ;#experiment names
-   export COMROT=/data/users/dxu/vsdb_workspace/data/input/fcst_data
+   #1. Input dir :
+   #   $OBSPCP (REQUIRED data, set in setup_envs.sh)
+   export COMROT=${WORKSPACE}/data/input/fcst_data
+
+   #2. Output dir :
+   export ARCDIR=$GNOSCRUB  
+
+   #3. Running directory
+   export rundir=$tmpdir/mkup_precip
+
+   #4. Case configuration
    export expdlist="$COMROT $COMROT"         ;#fcst data directories, can be different
-   #dxu ##retrieve data from tape
+   export expnlist="gfs gfs2"                ;#experiment names
    export hpsslist="/NCEPDEV/hpssuser/g01/wx24fy/WCOSS /NCEPDEV/hpssuser/g01/wx24fy/WCOSS"  ;#hpss archive directory                  
    export complist="$chost  $chost "    ;#computer names, can be different if passwordless ftp works 
    export ftyplist="pgb pgb"            ;#file types: pgb or flx
@@ -199,8 +200,8 @@ if [ $CONUSDATA = YES ] ; then
    export cycle="00"                    ;#forecast cycle to verify, give only one
    export DATEST=20140201               ;#forecast starting date 
    export DATEND=20140228               ;#forecast ending date 
-   export ARCDIR=$GNOSCRUB              ;#directory to save stats data
-   export rundir=$tmpdir/mkup_precip    ;#temporary running directory
+
+   #5. Precip source directory
    export scrdir=${vsdbhome}/precip                  
 					
    export listvar1=expnlist,expdlist,hpsslist,complist,ftyplist,dumplist,ptyplist,bucket,fhout,cycle
@@ -221,28 +222,28 @@ fi
 ###   make CONUS precip skill score maps 
 ### --------------------------------------------------------------
 if [ $CONUSPLOTS = YES ] ; then
-   #---------------------
-   # input location :
-   #---------------------
-   #   $ARCDIR (set down below)
-   #   $gstat/wgne1 ( preferred location for gfs if exp = gfs, reset down below )
-   #---------------------
-   # output  location:
-   #   $mapdir/rain ( set up above)
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step4
 
-   export expnlist="gfs gfs2"     ;#experiment names, up to 6 , gfs is operational GFS
-   #dxu export expdlist="${gfswgnedir} $myarch"   ;#fcst data directories, can be different
-   export ARCDIR=$GNOSCRUB                        ;#directory to save stats data
-   export gstat=/data/users/dxu/vsdb_workspace/data/input/qpf  ; # operational gfs rain stat data, used if exp=gfs
+   #1. Input dir :
+   #  $gstat/wgne1 ( OPTIONAL, used if exp = gfs , set in setup_envs.sh)
+   export ARCDIR=$GNOSCRUB  
+
+   #2. Output dir :
+   #  $mapdir/rain ( set up above)
+
+   #3. Running dir :
+   export rundir=$tmpdir/plot_pcp
+
+   #4. Case configuration
    export expdlist="$ARCDIR $ARCDIR"      ;#fcst data directories, can be different
+   export expnlist="gfs gfs2"     ;#experiment names, up to 6 , gfs is operational GFS
    export complist="$chost  $chost "      ;#computer names, can be different if passwordless ftp works 
    export cyclist="00 "                   ;#forecast cycles for making QPF maps, 00Z and/or 12Z 
    export DATEST=20140201                 ;#forecast starting date to show on map
    export DATEND=20140228                 ;#forecast ending date to show on map
-   export rundir=$tmpdir/plot_pcp
+
+   #5. precip source directory
    export scrdir=${vsdbhome}/precip                  
 															      
    export listvar1=expnlist,expdlist,complist,cyclist,DATEST,DATEND,rundir,scrdir
@@ -265,35 +266,32 @@ fi
 ###   make fit-to-obs plots
 ### --------------------------------------------------------------
 if [ $FIT2OBS = YES ] ; then
-   #---------------------
-   # input location :
-   #---------------------
-   #   $fitdir (set down below)
-   #---------------------
-   # output  location:
-   #   $mapdir/fits ( set up above)
-   #   $mapdir/fits/horiz
-   #   $mapdir/fits/time
-   #   $mapdir/fits/vert
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step5
 
-   #dxu export expnlist="fnl prt1534"    ;#experiment names, only two allowed, fnl is operatinal GFS
-   export expnlist="fit_model  fit_model2"   ;#experiment names, only two allowed, fnl is operatinal GFS
-   #dxu export expdlist="$gfsfitdir $myarch1"  ;#fcst data directories, can be different
-   fitdir=/data/users/dxu/vsdb_workspace/data/input/f2o
+   #1. Input dir :
+   # $gfsfitdir ( OPTIONAL, used if exp is fnl, set in setup_envs.sh)
+   fitdir=${WORKSPACE}/data/input/f2o
+
+   #2. Output  dir :
+   #  $mapdir/fits ( set up above)
+
+   #3. Running directory:
+   export rundir=$tmpdir/fit
+
+   #4. Case configuration
    export expdlist="$fitdir $fitdir"      ;#fcst data directories, can be different
+   export expnlist="fit_model  fit_model2"   ;#experiment names, only two allowed, fnl is operatinal GFS
    export complist="$chost  $chost "      ;#computer names, can be different if passwordless ftp works
    export endianlist="little little"      ;#big_endian or little_endian of fits data, CCS-big, Zeus-little
    export cycle="00"        ;#forecast cycle to verify, only one cycle allowed
    export oinc_f2o=24       ;#increment (hours) between observation verify times for timeout plots
-   #dxu export finc_f2o=12  ;#increment (hours) between forecast lengths for timeout plots
    export finc_f2o=24       ;#increment (hours) between forecast lengths for timeout plots
    export fmax_f2o=120      ;#max forecast length to show for timeout plots
    export DATEST=20130801   ;#forecast starting date to show on map
    export DATEND=20130814   ;#forecast ending date to show on map
-   export rundir=$tmpdir/fit
+
+   #5. fit2obs source directory:
    export scrdir=${vsdbhome}/fit2obs
 
     ${scrdir}/fit2obs.sh 1>${tmpdir}/fit2obs.out 2>&1 
@@ -305,40 +303,38 @@ fi
 ###   make maps of lat-lon distributions and zonal-mean cross-sections
 ### --------------------------------------------------------------
 if [ $MAPS2D = YES ] ; then
-   #---------------------
-   # input location :
-   #---------------------
-   #   $myarch (set down below)
-   #   $gstat/gfs ( preferred location for gfs if exp = gfs, reset down below)
-   #   $obdata
-   #---------------------
-   # output  location:
-   #   $mapdir/2D ( set up above)
-   #---------------------
    # Create run dir with step name
    . ${myhome}/makeRunDir.sh step6
 
-   export myarch=/data/users/dxu/vsdb_workspace/data/input/fcst_data
-   export gstat=/data/users/dxu/vsdb_workspace/data/input/fcst_data ; # operational gfs fcst files, used if exp=gfs
-   export expnlist="gfs ecm"        ;#experiments, up to 8; gfs will point to ops data
+   #1. Input dir :
+   # $gstat/gfs ( OPTIONAL, used if exp = gfs, set in setup_envs.sh)
+   # $obdata ( REQUIRED data )
+   export myarch=${WORKSPACE}/data/input/fcst_data
+
+   #2. Output  dir :
+   # $mapdir/2D
+
+   #3. Running directory
+   export rundir=$tmpdir/2dmaps
+
+   #4. Case configuration
    export expdlist="$myarch  $myarch"   ;#fcst data directories, can be different
+   export expnlist="gfs ecm"        ;#experiments, up to 8; gfs will point to ops data
    export complist="$chost  $chost "    ;#computer names, can be different if passwordless ftp works 
    export dumplist=".gfs. .ecm."   ;#file format pgb${asub}${fhr}${dump}${yyyymmdd}${cyc}
-
    export fdlist="anl 1 5 10"   ;#fcst day to verify, e.g., d-5 uses f120 f114 f108 and f102; anl-->analysis; -1->skip
-   #note: these maps take a long time to make. be patient or set fewer cases
-   #export fhlist1="f06 f06 f18 f18"     ;#may specify exact fcst hours to compare for a specific day, must be four
-   #export fhlist5="f120 f120 f120 f120" ;#may specify exact fcst hours to compare for a specific day, must be four
    export cycle="00"        ;#forecast cycle to verify, given only one
    export DATEST=20140201   ;#starting verifying date
    export ndays=28          ;#number of days (cases)
-
    export nlev=26           ;#pgb file vertical layers
    export grid=G2           ;#pgb file resolution, G2-> 2.5deg;   G3-> 1deg
    export pbtm=1000         ;#bottom pressure for zonal mean maps
    export ptop=1            ;#top pressure for zonal mean maps
    export latlon="-90 90 0 360"   ;#map area lat1, lat2, lon1 and lon2
-   export rundir=$tmpdir/2dmaps
+   #note: these maps take a long time to make. be patient or set fewer cases
+   #export fhlist1="f06 f06 f18 f18"     ;#may specify exact fcst hours to compare for a specific day, must be four
+   #export fhlist5="f120 f120 f120 f120" ;#may specify exact fcst hours to compare for a specific day, must be four
+
 
    export listvara=machine,gstat,expnlist,expdlist,complist,dumplist,cycle,DATEST,ndays,nlev,grid,pbtm,ptop,latlon
    export listvarb=rundir,mapdir,obdata,webhost,webhostid,ftpdir,doftp,NWPROD,APRUN,vsdbhome,GRADSBIN
