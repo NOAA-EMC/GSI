@@ -55,9 +55,10 @@ elif [ $machine = WCOSS ]; then
 
 #----------------------------
 elif [ $machine = ZEUS ]; then
-#dxu  export vsdbsave=/scratch2/portfolios/NCEPDEV/global/noscrub/$LOGNAME/archive/vsdb_data  ;#place where vsdb database is saved
- # export vsdbsave=/scratch2/portfolios/NESDIS/drt/save/Tong.Zhu/gfs_pgb/prt670
- export vsdbsave=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/output/vsdb_data
+ export VSDBHOME=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_pkg/vsdb_v17
+ export WORKSPACE=/scratch2/portfolios/NESDIS/drt/noscrub/Deyong.Xu/workspace/vsdb_workspace
+
+ export vsdbsave=${WORKSPACE}/data/output/vsdb_data  ;#place where vsdb database is saved
  export ACCOUNT=h-sandy                                  ;#computer ACCOUNT task
  export CUE2RUN=batch                                  ;#default to batch queue
  export CUE2FTP=batch                                  ;#queue for data transfer
@@ -170,21 +171,39 @@ elif [ $machine = WCOSS ]; then
 
 #----------------------------
 elif [ $machine = ZEUS ]; then
- export vsdbhome=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_pkg/vsdb_v17
- export obdata=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/plot2d/obdata
- export gstat=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/qpf
- export gfsvsdb=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/output/vsdb_data
+ # VSDB home directory
+ export vsdbhome=${VSDBHOME}    ;#script home, do not change
+
+ # step 1
+ export gstat=${WORKSPACE}/data/input/gstat    ;#global stats directory
  export canldir=$gstat/canl                                 ;#consensus analysis directory
  export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
- export OBSPCP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/qpf/OBSPRCP
+
+ # step 2
+ export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
+
+ # step 3
+ export OBSPCP=${WORKSPACE}/data/input/qpf/OBSPRCP        ;#observed precip for verification
+
+ # step 4
+ # "$gfswgnedir" is NOT used.
+ # "$gstat/wgne1" used explicitly in script.
  export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
- export gfsfitdir=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/input/f2o
- export SUBJOB=$vsdbhome/bin/sub_zeus                       ;#script for submitting batch jobs
- export NWPROD=$vsdbhome/nwprod                             ;#common utilities and libs included in /nwprod
- export GNOSCRUB=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/intermediate
- export STMP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/stmp
- export PTMP=/scratch2/portfolios/NESDIS/h-sandy/noscrub/Deyong.Xu/vsdb_workspace/data/ptmp
-#export GRADSBIN=/apps/grads/2.0.1/bin                      ;#GrADS executables       
+
+ # step 5
+ export gfsfitdir=${WORKSPACE}/data/input/f2o             ;#Suru operational model fit-to-obs database
+ export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
+
+ # step 6
+ # "$gstat/gfs" used explicitly in script.
+
+ export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp ;#temporary directory
+ export STMP=${WORKSPACE}/data/stmp     ;#temporary directory
+ export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory
+
+ export SUBJOB=$vsdbhome/bin/sub_cardinal         ;#script for submitting batch jobs
+ export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
+
  export GRADSBIN=/apps/grads/2.0.a9/bin                     ;#GrADS executables       
  export IMGCONVERT=/apps/ImageMagick/ImageMagick-6.7.6-8/bin/convert  ;#image magic converter
  export FC=/apps/intel/composerxe-2011.4.191/composerxe-2011.4.191/bin/intel64/ifort ;#intel compiler
