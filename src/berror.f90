@@ -440,25 +440,25 @@ contains
 
                 if (new_tail) then
                    varprd(ii)=one_tenth
-                   if (aircraft_t_bc .and. j==2) varprd(ii)=0.001_r_kind
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=0.0001_r_kind
+                   if (aircraft_t_bc .and. j==2) varprd(ii)=1.0e-3_r_kind
+                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-4_r_kind
                 else
                    if (obs_count<=3.0_r_kind) then
                       if (aircraft_t_bc .and. j==2) then
-                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+0.00001_r_kind
+                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-5_r_kind
                       else if (aircraft_t_bc .and. j==3) then
-                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+0.000001_r_kind
+                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-6_r_kind
                       else
-                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+0.0001_r_kind
+                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-4_r_kind
                       end if
                       varprd(ii)=varA_t(j,i)
                    else
                       if (aircraft_t_bc .and. j==2) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+0.00001_r_kind
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
                       else if (aircraft_t_bc .and. j==3) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+0.000001_r_kind
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
                       else
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+0.0001_r_kind
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-4_r_kind
                       end if
                    end if
                    if (varprd(ii)>one) varprd(ii)=one
