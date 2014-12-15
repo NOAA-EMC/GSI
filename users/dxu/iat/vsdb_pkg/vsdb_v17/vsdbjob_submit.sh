@@ -12,6 +12,12 @@ set -ux
 ##    The different components can be turned on or off as desired. 
 ##    Graphics are sent to a web server for display (for example:  
 ##    http://www.emc.ncep.noaa.gov/gmb/wx24fy/vsdb/prhs11/)
+## Update history : 
+##   12/01/2014, D. Xu / RTi@JCSDA , indent code and streamline  
+##      configuration for all steps and make them consistent across board. 
+##   12/15/2014, D. Xu / RTi@JCSDA , add getHostname.sh to automatically   
+##      set up hostname instead of manually. 
+## 
 ##-------------------------------------------------------------------
 
  #--------------------------------------------
@@ -35,17 +41,20 @@ set -ux
  CONUSPLOTS=NO
 
  # Flag to run step 5 (To make fit-to-obs maps)
- FIT2OBS=YES   
  FIT2OBS=NO
+ FIT2OBS=YES   
 
  # Flag to run step 6 (To make maps of lat-lon distributions and zonal-mean corss-sections)
- MAPS2D=NO  
  MAPS2D=YES
+ MAPS2D=NO  
 
 #----------------------------------------------------------------------
-export machine=CARDINAL              ;#IBM(cirrus/stratus), ZEUS, GAEA, and JET etc
-export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
+# Get current VSDB root dir
 myhome=`pwd`
+# Automatically get hostname
+export machine=`${myhome}/getHostname.sh `
+export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
+# Set up ENV variables  
 set -a;. ${myhome}/setup_envs.sh $machine 
 if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
