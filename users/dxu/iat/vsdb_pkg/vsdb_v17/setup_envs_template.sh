@@ -85,10 +85,10 @@ elif [ $machine = BADGER ]; then
 
 #----------------------------
 elif [ $machine = CARDINAL ]; then
- export VSDBHOME=/data/users/dxu/iat/vsdb_pkg/vsdb_v17
- export WORKSPACE=/data/users/dxu/workspace/vsdb_workspace 
+ export VSDBHOME=${ENV_VSDBHOME}
+ export WORKSPACE=${ENV_WORKSPACE}
 
- export vsdbsave=${ENV_VSDBSAVE}
+ export vsdbsave=${WORKSPACE}/data/output/vsdb_data
  export ACCOUNT=${ENV_ACCOUNT}
  export CUE2RUN=${ENV_CUE2RUN}
  export CUE2FTP=${ENV_CUE2FTP}
@@ -215,7 +215,7 @@ elif [ $machine = BADGER ]; then
 #----------------------------
 elif [ $machine = CARDINAL ]; then
  # VSDB home directory
- export vsdbhome=${ENV_VSDBHOME}
+ export vsdbhome=${VSDBHOME}
 
  # step 1
  export canldir=${ENV_CANLDIR}
