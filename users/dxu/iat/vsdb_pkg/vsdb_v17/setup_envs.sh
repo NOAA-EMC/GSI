@@ -104,7 +104,7 @@ elif [ $machine = CARDINAL ]; then
 #----------------------------
 elif [ $machine = JIBB ]; then
  export VSDBHOME=/jibb/nobackup/vkrishn1/vsdb_pkg/vsdb_v17
- export WORKSPACE=/jibb/nobackup/vkrishn1/vsdb_workspace
+ export WORKSPACE=/jibb/nobackup/vkrishn1/workspace/vsdb_workspace
 
  export vsdbsave=${WORKSPACE}/data/output/vsdb_data
  export ACCOUNT=j1068                                  ;#computer ACCOUNT task
