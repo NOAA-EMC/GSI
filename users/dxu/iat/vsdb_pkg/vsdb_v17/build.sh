@@ -11,11 +11,12 @@ set -x
 
 machine=BADGER   ;#IBM or ZEUS, JET, GAEA, WCOSS
 machine=CARDINAL;#IBM or ZEUS, JET, GAEA, WCOSS
+machine=JIBB;#IBM or ZEUS, JET, GAEA, WCOSS
 
 if [ $machine = IBM ];then
  FCMP=xlf_r
  CCMP=xlc_r
-elif [ $machine = WCOSS -o $machine = ZEUS -o $machine = JET -o $machine = BADGER -o $machine = CARDINAL ];then
+elif [ $machine = WCOSS -o $machine = ZEUS -o $machine = JET -o $machine = BADGER -o $machine = CARDINAL -o $machine = JIBB ];then
  FCMP=ifort
  CCMP=cc
 elif [ $machine = GAEA ];then
@@ -56,7 +57,7 @@ if [ $machine = IBM -o $machine = WCOSS -o $machine = BADGER ]; then
  cp -p /nwprod/util/exec/grbindex $curdir/nwprod/util/exec/.
  cp -p /nwprod/util/exec/ndate    $curdir/nwprod/util/exec/.
  cp -p /nwprod/util/exec/nhour    $curdir/nwprod/util/exec/.
-elif [ $machine = CARDINAL ];then
+elif [ $machine = CARDINAL -o $machine = JIBB ];then
  utilDir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
  cp -p ${utilDir}/copygb   $curdir/nwprod/util/exec/.
  cp -p ${utilDir}/grbindex $curdir/nwprod/util/exec/.
