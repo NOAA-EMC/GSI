@@ -2,6 +2,7 @@
 alias ffile="${src_dir}/tools/ffile.sh "     # + filename pattern
 alias fline="${src_dir}/tools/fline.sh "     # + line pattern
 alias orig=" ${src_dir}/tools/orig.sh "      # + add suffix _orig
+alias cun="  ${src_dir}/tools/cun.sh "       # + add suffix YYYY-MM-DD-HH-MM
 alias mn="   ${src_dir}/tools/makeNote.sh  " # make notes
 alias bl="   ${src_dir}/tools/tellBL.exe  "  # make notes
 alias lower="${src_dir}/tools/lower.sh "
