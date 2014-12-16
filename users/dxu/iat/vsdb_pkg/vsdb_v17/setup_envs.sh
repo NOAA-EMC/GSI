@@ -102,6 +102,23 @@ elif [ $machine = CARDINAL ]; then
  fi 
 
 #----------------------------
+elif [ $machine = JIBB ]; then
+ export VSDBHOME=/jibb/nobackup/vkrishn1/vsdb_pkg/vsdb_v17
+ export WORKSPACE=/jibb/nobackup/vkrishn1/vsdb_workspace
+
+ export vsdbsave=${WORKSPACE}/data/output/vsdb_data
+ export ACCOUNT=j1068                                  ;#computer ACCOUNT task
+ export CUE2RUN=batch                                  ;#default to batch queue
+ export CUE2FTP=batch                                  ;#queue for data transfer
+ export GROUP=61068                                      ;#group of account, g01 etc
+ export doftp="NO"                                     ;#whether or not to sent maps to ftpdir
+ if [ $doftp = YES ]; then
+  export webhost=${webhost:-emcrzdm.ncep.noaa.gov}     ;#host for web display
+  export webhostid=${webhostid:-$LOGNAME}              ;#login id on webhost
+  export ftpdir=${ftpdir:-/home/people/emc/www/htdocs/gmb/$webhostid/vsdb}   ;#where maps are displayed on webhost
+ fi
+
+#----------------------------
 elif [ $machine = JET ]; then
  export vsdbsave=/pan2/projects/gnmip/$LOGNAME/noscrub/archive/vsdb_data  ;#place where vsdb database is saved
  export ACCOUNT=gnmip                                  ;#computer ACCOUNT task
@@ -269,6 +286,47 @@ elif [ $machine = CARDINAL ]; then
  export GRADSBIN=/opt/grads/2.0.2-precompiled/bin
  export IMGCONVERT=/usr/bin/convert
  export FC=/opt/intel/composer_xe_2013_sp1.2.144/bin/intel64/ifort
+ export FFLAG="-O2 -convert big_endian -FR"
+
+
+#----------------------------
+elif [ $machine = JIBB ]; then
+ # VSDB home directory
+ export vsdbhome=${VSDBHOME}    ;#script home, do not change 
+
+ # step 1
+ export gstat=${WORKSPACE}/data/input/qpf
+ export canldir=$gstat/canl                                 ;#consensus analysis directory
+ export ecmanldir=$gstat/ecm                                ;#ecmwf analysis directory
+
+ # step 2
+ export gfsvsdb=${WORKSPACE}/data/output/vsdb_data        ;#operational gfs vsdb database
+
+ # step 3
+ export OBSPCP=${WORKSPACE}/data/input/qpf/OBSPRCP        ;#observed precip for verification
+
+ # step 4
+ # "$gfswgnedir" is NOT used.
+ # "$gstat/wgne1" used explicitly in script.
+ export gfswgnedir=$gstat/wgne1                             ;#operational gfs precip QPF scores
+
+ # step 5
+ export gfsfitdir=${WORKSPACE}/data/input/f2o             ;#Suru operational model fit-to-obs database
+ export obdata=${WORKSPACE}/data/input/plot2d/obdata      ;#observation data for making 2dmaps
+
+ # step 6
+ # "$gstat/gfs" used explicitly in script.
+
+ export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp ;#temporary directory  
+ export STMP=${WORKSPACE}/data/stmp     ;#temporary directory    
+ export PTMP=${WORKSPACE}/data/ptmp     ;#temporary directory   
+
+ export SUBJOB=$vsdbhome/bin/sub_jibb         ;#script for submitting batch jobs
+ export NWPROD=$vsdbhome/nwprod                 ;#common utilities and libs included in /nwprod
+
+ export GRADSBIN=/usr/local/bin
+ export IMGCONVERT=/usr/bin/convert
+ export FC=/usr/local/intel/Composer/composer_xe_2011_sp1.10.319/bin/intel64/ifort
  export FFLAG="-O2 -convert big_endian -FR"
 
 #----------------------------
