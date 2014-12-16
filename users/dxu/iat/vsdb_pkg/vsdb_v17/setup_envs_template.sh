@@ -222,7 +222,7 @@ elif [ $machine = CARDINAL ]; then
  export ecmanldir=${ENV_ECMANLDIR}
 
  # step 2
- export gfsvsdb=${ENV_GFSVSDB}
+ export gfsvsdb=${WORKSPACE}/data/output/vsdb_data
 
  # step 3
  export OBSPCP=${ENV_OBSPCP}
@@ -240,9 +240,9 @@ elif [ $machine = CARDINAL ]; then
  # step 6 
  # "$gstat/gfs" used explicitly in script.  
 
- export GNOSCRUB=${ENV_GNOSCRUB}
- export STMP=${ENV_STMP}
- export PTMP=${ENV_PTMP}
+ export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp
+ export STMP=${WORKSPACE}/data/stmp
+ export PTMP=${WORKSPACE}/data/ptmp
 
  export SUBJOB=$vsdbhome/bin/sub_cardinal  
  export NWPROD=$vsdbhome/nwprod           
