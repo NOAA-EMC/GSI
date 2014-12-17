@@ -68,7 +68,7 @@ if [ $MAKEVSDBDATA = YES ] ; then
    export expdlist="$myarch $myarch"      # <== input dir
    export expnlist=${ENV_1_EXPNLIST}
    export fcyclist=${ENV_1_FCYCLIST}
-   export complist=${ENV_1_COMPLIST}
+   export complist="$chost  $chost "
    export dumplist=${ENV_1_DUMPLIST}
    export vhrlist=${ENV_1_VHRLIST}
    export DATEST=${ENV_1_DATEST}
@@ -113,7 +113,7 @@ if [ $MAKEMAPS = YES ] ; then
    #4. Case configuration 
    export fcycle=${ENV_2_FCYCLE}
    export mdlist=${ENV_2_MDLIST}
-   export vsdblist=${ENV_2_VSDBLIST}
+   export vsdblist="$vsdbsave $vsdbsave"
    export vhrlist=${ENV_2_VHRLIST}
    export DATEST=${ENV_2_DATEST}
    export DATEND=${ENV_2_DATEND}
