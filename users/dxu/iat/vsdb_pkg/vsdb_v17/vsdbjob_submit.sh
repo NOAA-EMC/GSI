@@ -190,7 +190,7 @@ if [ $CONUSDATA = YES ] ; then
    #4. Case configuration
    export expdlist="$COMROT $COMROT"         ;#fcst data directories, can be different
    export expnlist="gfs gfs2"                ;#experiment names
-   export hpsslist="/NCEPDEV/hpssuser/g01/wx24fy/WCOSS /NCEPDEV/hpssuser/g01/wx24fy/WCOSS"  ;#hpss archive directory                  
+   export hpsslist="/NCEPDEV/hpssuser/g01/wx24fy/WCOSS /NCEPDEV/hpssuser/g01/wx24fy/WCOSS"  ;#hpss archive directory 
    export complist="$chost  $chost "    ;#computer names, can be different if passwordless ftp works 
    export ftyplist="pgb pgb"            ;#file types: pgb or flx
    export dumplist=".gfs. .gfs."        ;#file format ${ftyp}f${fhr}${dump}${yyyymmdd}${cyc}
