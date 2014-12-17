@@ -49,10 +49,8 @@ CONTAINS
 !   integer(i_kind), parameter :: max_obs=20000000
     integer(i_kind), parameter :: as_node= 1_i_kind
     integer(i_kind), parameter :: ds_node=-1_i_kind
-    real(r_kind),    parameter :: scan_interval=1.90_r_kind
     real(r_kind),    parameter :: btmin=70.0_r_kind
     real(r_kind),    parameter :: btmax=320.0_r_kind
-    real(r_kind),    parameter :: btbad=-9.99e11_r_kind
     real(r_kind),    parameter :: sigma = 25.0_r_kind    
 !   real(r_kind),    parameter :: sigma = 50.0_r_kind  
 

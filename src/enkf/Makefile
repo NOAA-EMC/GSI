@@ -117,7 +117,7 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-  EXE_FILE = global_enkf
+  #EXE_FILE = global_enkf
 
 
 # --------------------
