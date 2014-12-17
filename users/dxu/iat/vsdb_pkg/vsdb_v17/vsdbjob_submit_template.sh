@@ -151,7 +151,7 @@ if [ $CONUSDATA = YES ] ; then
    export COMROT=${ENV_3_COMROT}
 
    #2. Output dir :
-   export ARCDIR=${ENV_3_ARCDIR}
+   export ARCDIR=$GNOSCRUB
 
    #3. Running directory
    export rundir=$tmpdir/mkup_precip           
@@ -196,7 +196,7 @@ if [ $CONUSPLOTS = YES ] ; then
 
    #1. Input dir :
    #  $gstat/wgne1 ( OPTIONAL, used if exp = gfs , set in setup_envs.sh)
-   export ARCDIR=${ENV_4_ARCDIR}
+   export ARCDIR=$GNOSCRUB
 
    #2. Output dir :
    #  $mapdir/rain ( set up above)
