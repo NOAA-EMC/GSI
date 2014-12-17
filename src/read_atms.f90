@@ -165,7 +165,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 !**************************************************************************
 ! Initialize variables
 
@@ -490,8 +490,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
            ntest=ntest+1
-           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+           cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
            disterrmax=max(disterrmax,disterr)
         end if
            

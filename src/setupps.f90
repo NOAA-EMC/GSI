@@ -136,8 +136,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb
-  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,isfcr,iff10,idomsfc,izz,iprvd,isprvd
-  integer(i_kind) ikxx,nn,istat,iskint,ibin,ioff,ioff0
+  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
+  integer(i_kind) ikxx,nn,istat,ibin,ioff,ioff0
   integer(i_kind) i,nchar,nreal,ii,jj,k,l,mm1
 
   logical,dimension(nobs):: luse,muse
@@ -184,16 +184,13 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ier2=11     ! index of original-original obs error ratio
   iuse=12     ! index of use parameter
   idomsfc=13  ! index of dominant surface type
-  iskint=14   ! index of surface skin temperature
-  iff10=15    ! index of 10 meter wind factor
-  isfcr=16    ! index of surface roughness
-  ilone=17    ! index of longitude (degrees)
-  ilate=18    ! index of latitude (degrees)
-  istnelv=19  ! index of station elevation (m)
-  izz=20      ! index of surface height
-  iprvd=21    ! index of observation provider
-  isprvd=22   ! index of observation subprovider
-  iptrb=23    ! index of ps perturbation
+  ilone=14    ! index of longitude (degrees)
+  ilate=15    ! index of latitude (degrees)
+  istnelv=16  ! index of station elevation (m)
+  izz=17      ! index of surface height
+  iprvd=18    ! index of observation provider
+  isprvd=19   ! index of observation subprovider
+  iptrb=20    ! index of ps perturbation
 
 ! Declare local constants
   halfpi = half*pi

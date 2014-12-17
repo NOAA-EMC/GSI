@@ -59,6 +59,11 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
   OMP = -openmp
 
   FFLAGS_F90    = -DGFS
+  EXE_FILE = global_enkf
+  #FFLAGS_F90    = -DWRF   
+  #EXE_FILE = wrf_enkf
+  #FFLAGS_F90    = -DNMMB
+  #EXE_FILE = nmmb_enkf
 
   FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio) \
 		-O3 -fp-model strict -convert big_endian -assume byterecl \

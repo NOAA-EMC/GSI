@@ -123,9 +123,9 @@ do ii=1,nsubwin
 enddo
 sbias2=sbias1
 if(lsqrtb)then
-   call model2control(stest2,sbias2,xtest2)
+   call control2model_ad(stest2,sbias2,xtest2)
 else
-   call state2control(stest2,sbias2,xtest2)
+   call control2state_ad(stest2,sbias2,xtest2)
 endif
 
 ! Diagnostics

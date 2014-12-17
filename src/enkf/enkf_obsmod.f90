@@ -131,7 +131,8 @@ real(r_single), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnob
 integer(i_kind), public, allocatable, dimension(:) :: numobspersat
 ! posterior stats computed in enkf_update
 real(r_single), public, allocatable, dimension(:) :: obfit_post, obsprd_post
-real(r_single), public, allocatable, dimension(:,:) :: biaspreds, deltapredx
+real(r_single), public, allocatable, dimension(:,:) :: biaspreds
+real(r_kind), public, allocatable, dimension(:,:) :: deltapredx
 ! arrays passed to kdtree2 routines must be single.
 real(r_single), public, allocatable, dimension(:,:) :: obloc
 integer(i_kind), public, allocatable, dimension(:) :: stattype, indxsat

@@ -1,10 +1,10 @@
 module m_berror_stats
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_berror_stats
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_berror_stats
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract:  a module of berror_stats input
 !
@@ -42,27 +42,27 @@ module m_berror_stats
 
       implicit none
 
-      private	! except
+      private    ! except
 
         ! reconfigurable parameters, via NAMELIST/setup/
-      public :: berror_stats	! reconfigurable filename
+      public :: berror_stats    ! reconfigurable filename
 
         ! interfaces to file berror_stats.
-      public :: berror_get_dims	! get dimensions, jfunc::createj_func()
-      public :: berror_read_bal	! get cross-cov.stats., balmod::prebal()
-      public :: berror_read_wgt	! get auto-cov.stats., prewgt()
+      public :: berror_get_dims ! get dimensions, jfunc::createj_func()
+      public :: berror_read_bal ! get cross-cov.stats., balmod::prebal()
+      public :: berror_read_wgt ! get auto-cov.stats., prewgt()
       public :: berror_set      ! set internal parameters
 
-      	! external interfaces relating to internal procedures.
+        ! external interfaces relating to internal procedures.
       interface berror_get_dims; module procedure get_dims; end interface
       interface berror_read_bal; module procedure read_bal; end interface
       interface berror_read_wgt; module procedure read_wgt; end interface
       interface berror_set;      module procedure lset; end interface
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code to wrap up all file
-!		  "berror_stats" related operations.
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code to wrap up all file
+!                 "berror_stats" related operations.
 !       25Feb10 - Zhu
 !               - made changes for generalizing control variables
 !               - remove berror_nvars
@@ -72,8 +72,8 @@ module m_berror_stats
 
   character(len=*),parameter :: myname='m_berror_stats'
 
-  	! Reconfigurable parameters, vai NAMELISt/setup/
-  character(len=256),save :: berror_stats = "berror_stats"	! filename
+      ! Reconfigurable parameters, vai NAMELISt/setup/
+  character(len=256),save :: berror_stats = "berror_stats"      ! filename
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2
@@ -99,8 +99,8 @@ contains
       integer(i_kind),optional,intent(in   ) :: unit  ! logical unit [22]
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of the code is extracted from jfunc.f90
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of the code is extracted from jfunc.f90
 !       18Jun10 - todling - turn mlon into optional
 !EOP ___________________________________________________________________
 
@@ -179,9 +179,9 @@ end subroutine lset
       integer(i_kind),optional                ,intent(in   ) :: unit ! an alternative unit
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of code for input is extracted from
-!		  prebal() in balmod.f90.
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of code for input is extracted from
+!                 prebal() in balmod.f90.
 !       25Feb10 - Zhu 
 !               - change the structure of background error file
 !               - read in agvin,wgvin,bvin only
@@ -278,12 +278,12 @@ end subroutine read_bal
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of the code for input is extracted from
-!		  prewgt() in prewgt.f90.
-!       25Feb10  - Zhu - change the structure of background error file
-!                      - make changes for generalizing control variables
-!                      - move varq here from prewgt
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of the code for input is extracted from
+!                 prewgt() in prewgt.f90.
+!       25Feb10 - Zhu - change the structure of background error file
+!                     - make changes for generalizing control variables
+!                     - move varq here from prewgt
 !       28May10 - Todling - Obtain variable id's on the fly (add getindex) 
 !                         - simpler logics to associate cv w/ berrors
 !       14Jun10 - Todling - Allow any 3d berror not in file to be templated 
@@ -498,8 +498,8 @@ end subroutine read_wgt
       integer(i_kind)                    ,intent(in   ) :: mype  ! ID of this processor
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- adopted from PREWGT of previous version
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - adopted from PREWGT of previous version
 !       2013-10-19 oz guess field in metguess now 
 !EOP ___________________________________________________________________
 
@@ -604,8 +604,8 @@ end subroutine setcoroz_
       integer(i_kind)              ,intent(in   ) :: mype ! ID of this processor
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::sethwlloz_'
@@ -663,14 +663,14 @@ end subroutine sethwlloz_
       real(r_single),dimension(nsig,nlat),intent(  out) :: vscalesoz
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::setvscalesoz_'
   real(r_kind),parameter:: eight_tenths = 0.8_r_kind
 
-  	! a fixed value is used.
+      ! a fixed value is used.
   vscalesoz(:,:)=eight_tenths
 
 end subroutine setvscalesoz_

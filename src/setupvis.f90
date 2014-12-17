@@ -90,7 +90,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
   integer(i_kind) ier,ilon,ilat,ivis,id,itime,ikx,imaxerr,iqc
-  integer(i_kind) iuse,ilate,ilone,istnelv,isfcr,iobshgt,izz,iprvd,isprvd
+  integer(i_kind) iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
   integer(i_kind) istat
@@ -144,14 +144,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iqc=9       ! index of quality mark
   iuse=10     ! index of use parameter
   idomsfc=11  ! index of dominant surface type
-  isfcr=14    ! index of surface roughness
-  ilone=15    ! index of longitude (degrees)
-  ilate=16    ! index of latitude (degrees)
-  istnelv=17  ! index of station elevation (m)
-  iobshgt=18  ! index of observation height (m)
-  izz=19      ! index of surface height
-  iprvd=20    ! index of provider
-  isprvd=21   ! index of subprovider
+  ilone=12    ! index of longitude (degrees)
+  ilate=13    ! index of latitude (degrees)
+  istnelv=14  ! index of station elevation (m)
+  iobshgt=15  ! index of observation height (m)
+  izz=16      ! index of surface height
+  iprvd=17    ! index of provider
+  isprvd=18   ! index of subprovider
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter

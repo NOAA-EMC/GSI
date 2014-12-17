@@ -113,7 +113,6 @@ contains
 
     integer(i_kind),intent(in   ) :: lunin
 
-    integer(i_kind),parameter:: maxstorm=10
     integer(i_kind) iret,lucard,ii
     type(tcvcard) stormtmp
     type(tcvcard),dimension(:),allocatable:: storminfo
