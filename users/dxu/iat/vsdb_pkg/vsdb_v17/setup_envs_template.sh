@@ -227,6 +227,7 @@ elif [ $machine = CARDINAL ]; then
 
  # step 3
  export OBSPCP=${ENV_OBSPCP}
+ export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp
 
  # step 4 
  # "$gstat/wgne1" used explicitly in script.
@@ -240,7 +241,6 @@ elif [ $machine = CARDINAL ]; then
  # step 6 
  # "$gstat/gfs" used explicitly in script.  
 
- export GNOSCRUB=${WORKSPACE}/data/output/conus_prcp
  export STMP=${WORKSPACE}/data/stmp
  export PTMP=${WORKSPACE}/data/ptmp
 
