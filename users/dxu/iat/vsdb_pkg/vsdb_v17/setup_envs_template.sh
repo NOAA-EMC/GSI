@@ -218,6 +218,7 @@ elif [ $machine = CARDINAL ]; then
  export vsdbhome=${VSDBHOME}
 
  # step 1
+ export gstat=${ENV_GSTAT}
  export canldir=${ENV_CANLDIR}
  export ecmanldir=${ENV_ECMANLDIR}
 
@@ -230,7 +231,6 @@ elif [ $machine = CARDINAL ]; then
  # step 4 
  # "$gstat/wgne1" used explicitly in script.
  # "$gfswgnedir" is NOT used.
- export gstat=${ENV_GSTAT}
  export gfswgnedir=${gstat}/wgne1
 
  # step 5
