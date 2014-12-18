@@ -167,7 +167,7 @@ if [ $CONUSDATA = YES ] ; then
    export bucket=${ENV_3_BUCKET}
    export fhout=${ENV_3_FHOUT}
    export cycle=${ENV_3_CYCLE}
-   export DATEST=${ENV_3_DAtESt}
+   export DATEST=${ENV_3_DATEST}
    export DATEND=${ENV_3_DATEND}
 
    #5. Precip source directory
