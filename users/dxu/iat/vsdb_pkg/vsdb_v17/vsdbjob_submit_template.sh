@@ -1,6 +1,16 @@
 #!/bin/ksh
 set -ux
 
+# Take in configuration users enter via GUI
+myhome=`pwd`
+source ${myhome}/vsdbTop_gui.config
+source ${myhome}/vsdbStep1.config
+source ${myhome}/vsdbStep2.config
+source ${myhome}/vsdbStep3.config
+source ${myhome}/vsdbStep4.config
+source ${myhome}/vsdbStep5.config
+source ${myhome}/vsdbStep6.config
+
 #------------------------------------------
 # Set up flag to run each step: YES/NO
 #------------------------------------------
@@ -25,9 +35,8 @@ MAPS2D=${ENV_MAPS2D}
 #-----------------------------------------------------
 # Specify machine : zeus, jibb, etc. 
 #-----------------------------------------------------
-export machine=${ENV_MACHINE}
+export machine=`${myhome}/getHostname.sh `
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
-myhome=`pwd`
 set -a;. ${myhome}/setup_envs_template.sh $machine 
 if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
