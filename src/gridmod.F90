@@ -3558,6 +3558,7 @@ end subroutine init_general_transform
 !   2004-05-14  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
 !   2013-10-24  todling create general interface (single/double)
+!   2014-08-21  pondeca - replace lat1 with lat2 in calculation for iji
 !
 ! !REMARKS:
 !
@@ -3577,7 +3578,7 @@ end subroutine init_general_transform
        jp1 = j+1
        do i=1,lat1
           ijo = ijo+1
-          iji = (i+1)+(jp1-1)*lat1
+          iji = (i+1)+(jp1-1)*lat2
           field_out(ijo)=field_in(iji) !(i+1,jp1)
        end do
     end do

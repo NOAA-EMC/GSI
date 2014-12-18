@@ -165,6 +165,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2010-08-19  lueken - add only to module use
 !   2010-09-14  derber - clean up quad precision
 !   2011-02-25  zhu    - add gust,vis,pblh calls
+!   2013-03-19  pondeca - add wspd10m call. introduce parameter n0 to make it  easier to add
+!                         more weak constraint contributions. update comment block to indicate 
+!                         the correct observation type associated with each pbc(*,j) term
+!   2014-05-07  pondeca - add howv call
+!   2014-06-17  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -206,8 +211,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
        l_foto,xhat_dt,dhat_dt,nvals_len
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
-  use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,&
-       stpjcdfi,stpjcpdry
+  use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
+       stplimhowv,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
   use control_vectors, only: control_vector,qdot_prod_sub,cvars2d
   use state_vectors, only: allocate_state,deallocate_state
@@ -234,7 +239,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipen = 8+nobs_type
+  integer(i_kind),parameter:: n0=11
+  integer(i_kind),parameter:: ipen = n0+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
   integer(i_kind),parameter:: ioutpen = istp_iter*4
@@ -291,25 +297,41 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,6) contribution from negative gust constraint term (Jo)
 !    pbc(*,7) contribution from negative vis constraint term (Jo)
 !    pbc(*,8) contribution from negative pblh constraint term (Jo)
-!    pbc(*,9)  contribution from ps observation  term (Jo)
-!    pbc(*,10)  contribution from t observation  term (Jo)
-!    pbc(*,11)  contribution from w observation  term (Jo)
-!    pbc(*,12)  contribution from q observation  term (Jo)
-!    pbc(*,13) contribution from spd observation  term (Jo)
-!    pbc(*,14) contribution from srw observation  term (Jo)
-!    pbc(*,15) contribution from rw observation  term (Jo)
-!    pbc(*,16) contribution from dw observation  term (Jo)
-!    pbc(*,17) contribution from sst observation  term (Jo)
-!    pbc(*,18) contribution from pw observation  term (Jo)
-!    pbc(*,19) contribution from pcp observation  term (Jo)
-!    pbc(*,20) contribution from oz observation  term (Jo)
-!    pbc(*,21) contribution from o3l observation  term (Jo)(not used)
-!    pbc(*,22) contribution from gps observation  term (Jo)
-!    pbc(*,23) contribution from rad observation  term (Jo)
-!    pbc(*,24) contribution from tcp observation  term (Jo)
-!    pbc(*,30) contribution from gust observation  term (Jo)
-!    pbc(*,31) contribution from vis observation  term (Jo)
-!    pbc(*,32) contribution from pblh observation  term (Jo)
+!    pbc(*,9) contribution from negative wspd10m constraint term (Jo)
+!    pbc(*,10) contribution from negative howv constraint term (Jo)
+!    pbc(*,11) contribution from negative lcbas constraint term (Jo)
+!    pbc(*,12) contribution from ps observation  term (Jo)
+!    pbc(*,13) contribution from t observation  term (Jo)
+!    pbc(*,14) contribution from w observation  term (Jo)
+!    pbc(*,15) contribution from q observation  term (Jo)
+!    pbc(*,16) contribution from spd observation  term (Jo)
+!    pbc(*,17) contribution from srw observation  term (Jo)
+!    pbc(*,18) contribution from rw observation  term (Jo)
+!    pbc(*,19) contribution from dw observation  term (Jo)
+!    pbc(*,20) contribution from sst observation  term (Jo)
+!    pbc(*,21) contribution from pw observation  term (Jo)
+!    pbc(*,22) contribution from pcp observation  term (Jo)
+!    pbc(*,23) contribution from oz observation  term (Jo)
+!    pbc(*,24) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,25) contribution from gps observation  term (Jo)
+!    pbc(*,26) contribution from rad observation  term (Jo)
+!    pbc(*,27) contribution from tcp observation  term (Jo)
+!    pbc(*,28) contribution from lag observation  term (Jo)
+!    pbc(*,39) contribution from colvk observation  term (Jo)
+!    pbc(*,30) contribution from aero observation  term (Jo)
+!    pbc(*,31) contribution from aerol observation  term (Jo)
+!    pbc(*,32) contribution from pm2_5 observation  term (Jo)
+!    pbc(*,33) contribution from gust observation  term (Jo)
+!    pbc(*,34) contribution from vis observation  term (Jo)
+!    pbc(*,35) contribution from pblh observation  term (Jo)
+!    pbc(*,36) contribution from wspd10m observation  term (Jo)
+!    pbc(*,37) contribution from td2m observation  term (Jo)
+!    pbc(*,38) contribution from mxtm observation  term (Jo)
+!    pbc(*,39) contribution from mitm observation  term (Jo)
+!    pbc(*,40) contribution from pmsl observation  term (Jo)
+!    pbc(*,41) contribution from howv observation  term (Jo)
+!    pbc(*,42) contribution from tcamt observation  term (Jo)
+!    pbc(*,43) contribution from lcbas observation  term (Jo)
 !
 
 
@@ -436,6 +458,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !       penalties for pblh constraint
         if(getindex(cvars2d,'pblh')>0) &
         call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
+
+!       penalties for wspd10m constraint
+        if(getindex(cvars2d,'wspd10m')>0) & 
+        call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
+
+!       penalties for howv constraint
+        if(getindex(cvars2d,'howv')>0) & 
+        call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
+
+!       penalties for lcbas constraint
+        if(getindex(cvars2d,'lcbas')>0) &
+        call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
      end if
 
 !    penalties for Jo
@@ -451,13 +485,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      enddo
      do j=1,nobs_type 
         do i=1,nstep 
-           pbc(i,8+j)=pbcjo(i,j) 
+           pbc(i,n0+j)=pbcjo(i,j) 
         end do 
      end do 
 
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
-
+  
 
 !    save penalty  and stepsizes
      nsteptot=nsteptot+1
@@ -496,16 +530,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
-        pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                ! Jb
-        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2)) + (pbc(ipenloc,3) + pbc(1,3)) ! Jc
-        pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) &
-                  + (pbc(ipenloc,6) + pbc(1,6)) + (pbc(ipenloc,7) + pbc(1,7)) &
-                  + (pbc(ipenloc,8) + pbc(1,8))                               ! Jl
-        pjcost(2) = zero
+        pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                   ! Jb
+        pjcost(2) = zero_quad
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pbc(ipenloc,8+i) + pbc(1,8+i)                ! Jo
+           pjcost(2) = pjcost(2)+pbc(ipenloc,n0+i) + pbc(1,n0+i)                 ! Jo
         end do
-        penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
+        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2))   + (pbc(ipenloc,3)  + pbc(1,3)) ! Jc
+        pjcost(4) = zero_quad
+        do i=4,n0
+           pjcost(4) = pjcost(4) + (pbc(ipenloc,i) + pbc(1,i))                   ! Jl
+        end do
+
+        penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)    ! J = Jb + Jo + Jc +Jl
      end if
 
 !    If change in penalty is very small end stepsize calculation
@@ -583,10 +619,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end if
   pjcostnew(1) = psum(1)                                 ! Jb
   pjcostnew(3) = psum(2)+psum(3)                         ! Jc
-  pjcostnew(4) = psum(4)+psum(5)+psum(6)+psum(7)+psum(8) ! Jl
-  pjcostnew(2) = zero
+  pjcostnew(4)=zero
+  do i=4,n0
+     pjcostnew(4) =  pjcostnew(4) + psum(i) ! Jl
+  end do
+  pjcostnew(2) = zero 
   do i=1,nobs_type
-     pjcostnew(2) = pjcostnew(2)+psum(8+i)               ! Jo
+     pjcostnew(2) = pjcostnew(2)+psum(n0+i)               ! Jo
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
