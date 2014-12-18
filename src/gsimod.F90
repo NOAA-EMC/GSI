@@ -53,10 +53,12 @@
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
-      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
+      buddycheck_t,buddydiag_save
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,&
+     factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
+     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -287,9 +289,13 @@
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
 !  05-29-2014 Thomas    add lsingleradob logical for single radiance ob test
 !                       (originally of mccarty)
+!  06-19-2014 carley/zhu  add factl and R_option for twodvar_regional lcbas/ceiling analysis
+!  08-05-2014 carley    add safeguard so that oneobtest disables hilbert_curve if user accidentally sets hilbert_curve=.true.
 !  08-18-2014 tong      add jcap_gfs to allow spectral transform to a coarser resolution grid,
 !                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
 !                       regional analysis
+!  10-07-2014 carley    added buddy check options under obsqc
+!  11-12-2014 pondeca   must read in from gridopts before calling obsmod_init_instr_table. swap order
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -451,11 +457,15 @@
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
+!     R_option   - Option to use variable correlation length for lcbas based on data
+!                    density - follows Hayden and Purser (1995) (twodvar_regional only)
+!
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation, &
+       factv,factl,factp,factg,factw10m,facthowv,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
@@ -667,11 +677,15 @@
 !                          is used for predictor
 !     aircraft_t_bc  - logical for aircraft temperature bias correction
 !     aircraft_t_bc_ext - logical for reading aircraft temperature bias correction from external file
+!     buddycheck_t - When true, run buddy check algorithm on temperature observations
+!     buddydiag_save - When true, output files containing buddy check QC info for all
+!                      obs run through the buddy check
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
-       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
+       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
+       buddycheck_t,buddydiag_save
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -942,8 +956,8 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  read(5,setup)
   call obsmod_init_instr_table(nhr_assimilation,ndat)
+  read(5,setup) 
   read(5,gridopts)
   read(5,bkgerr)
   read(5,anbkgerr)
@@ -960,10 +974,10 @@
 ! Initialize table of instruments and data types
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
-        if(ios/=0) call die(myname_,'read(setup)',ios)
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
+        if(ios/=0) call die(myname_,'read(setup)',ios)  
   read(11,gridopts,iostat=ios)
         if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,bkgerr,iostat=ios)
         if(ios/=0) call die(myname_,'read(bkgerr)',ios)
   read(11,anbkgerr,iostat=ios)
@@ -1226,6 +1240,10 @@
      dmesh=one
      factqmin=zero
      factqmax=zero
+     if (hilbert_curve) then
+        write(6,*) 'Disabling hilbert_curve cross validation when oneobtest=.true.'
+        hilbert_curve=.false.
+     end if
 #ifdef ibm_sp
      read(5,singleob_test)
 #else
