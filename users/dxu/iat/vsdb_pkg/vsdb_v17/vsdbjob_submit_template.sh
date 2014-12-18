@@ -28,7 +28,7 @@ MAPS2D=${ENV_MAPS2D}
 export machine=${ENV_MACHINE}
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 myhome=`pwd`
-set -a;. ${myhome}/setup_envs.sh $machine 
+set -a;. ${myhome}/setup_envs_template.sh $machine 
 if [ $? -ne 0 -o $rc -gt 0 ]; then exit; fi
 set -ux
 
