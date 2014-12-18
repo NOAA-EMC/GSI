@@ -269,7 +269,7 @@ EOF
 
          if [[ -s ${stdout_file} ]]; then
 #            $NCP ${stdout_file} ${time_stdout}
-            mv ${stdout_file} ${TANKverf_rad}/${time_stdout}
+            cp ${stdout_file} ${TANKverf_rad}/${time_stdout}
 #            mv ${time_stdout}  ${TANKverf_rad}/.
             ${COMPRESS} -f ${TANKverf_rad}/${time_stdout}
          fi

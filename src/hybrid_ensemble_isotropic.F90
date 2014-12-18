@@ -236,9 +236,11 @@ subroutine init_rf_z(z_len)
 
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,nxy,i,ii,jj
+  integer(i_kind) k,nxy,i,ii,jj,j,l
   real(r_kind) aspect(nsig),p_interface(nsig+1),ln_p_int(nsig+1)
   real(r_kind) dlnp,kap1,kapr,d1,rnsig
+  real(r_kind),dimension(:,:,:),allocatable:: fmatz_tmp
+  real(r_kind),dimension(:,:),allocatable:: fmat0z_tmp
 
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
@@ -1611,8 +1613,8 @@ end subroutine normal_new_factorization_rf_y
        call general_suba2sube(grd_a1,grd_e1,p_e2a, &
             reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/)),qvar3d_ens,regional)
     end if
-!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
     do m=1,ntlevs_ens
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
 !$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
        do n=1,n_ens
           call gsi_bundlegetpointer(en_perts(n,m),'q',w3,istatus)

@@ -48,15 +48,17 @@
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
-      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
+      buddycheck_t,buddydiag_save
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,&
+     factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
+     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -443,14 +445,21 @@
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !     emiss_bc    - option to turn on emissivity bias predictor
+!     lsingleradob - logical for single radiance observation assimilation.
+!                   Uses existing bufr file and rejects all radiances that don't fall within a tight threshold around
+!                   oblat/oblon (SINGLEOB_TEST)
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
+!     R_option   - Option to use variable correlation length for lcbas based on data
+!                    density - follows Hayden and Purser (1995) (twodvar_regional only)
+!
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation, &
+       factv,factl,factp,factg,factw10m,facthowv,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
@@ -476,7 +485,7 @@
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
-       use_sp_eqspace,lnested_loops,use_reflectivity
+       use_sp_eqspace,lnested_loops,use_reflectivity,lsingleradob
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -662,11 +671,15 @@
 !                          is used for predictor
 !     aircraft_t_bc  - logical for aircraft temperature bias correction
 !     aircraft_t_bc_ext - logical for reading aircraft temperature bias correction from external file
+!     buddycheck_t - When true, run buddy check algorithm on temperature observations
+!     buddydiag_save - When true, output files containing buddy check QC info for all
+!                      obs run through the buddy check
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
-       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
+       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
+       buddycheck_t,buddydiag_save
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -680,17 +693,20 @@
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
 !      magoberr   - magnitude of observational error
-!      oneob_type - observation type
-!      oblat      - observation latitude
-!      oblon      - observation longitude
+!      oneob_type - observation type (lsingleradob: platform type, i.e. 'airs')
+!      oblat      - observation latitude (lsingleradob: footprint cenlat)
+!      oblon      - observation longitude (lsingleradob: footprint cenlon)
 !      obpres     - observation pressure
 !      obdattim   - observation date
 !      obhourset  - observation delta time from analysis time
 !      pctswitch  - if .true. innovation & oberr are relative (%) of background value
 !                      (level ozone only)
+!      obchan     - if > 0, selects the channel number.  If <= zero, it will use
+!                   all channels that pass qc in setuprad.    
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
-       oblat,oblon,obpres,obdattim,obhourset,pctswitch
+       oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
+       obchan
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -934,8 +950,8 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  read(5,setup)
   call obsmod_init_instr_table(nhr_assimilation,ndat)
+  read(5,setup) 
   read(5,gridopts)
   read(5,bkgerr)
   read(5,anbkgerr)
@@ -952,10 +968,10 @@
 ! Initialize table of instruments and data types
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
-        if(ios/=0) call die(myname_,'read(setup)',ios)
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
+        if(ios/=0) call die(myname_,'read(setup)',ios)  
   read(11,gridopts,iostat=ios)
         if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,bkgerr,iostat=ios)
         if(ios/=0) call die(myname_,'read(bkgerr)',ios)
   read(11,anbkgerr,iostat=ios)
@@ -1218,6 +1234,10 @@
      dmesh=one
      factqmin=zero
      factqmax=zero
+     if (hilbert_curve) then
+        write(6,*) 'Disabling hilbert_curve cross validation when oneobtest=.true.'
+        hilbert_curve=.false.
+     end if
 #ifdef ibm_sp
      read(5,singleob_test)
 #else
@@ -1229,6 +1249,18 @@
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
      dsis(1)=dtype(1)
+  endif
+
+! Single radiance assimilation case
+  if (lsingleradob) then
+#ifdef ibm_sp 
+     read(5,singleob_test)
+#else 
+     open(11,file='gsiparm.anl')
+     read(11,singleob_test,iostat=ios)
+     if(ios/=0) call die(myname_,'read(singleob_test)',ios)
+     close(11)
+#endif 
   endif
 
 ! Write namelist output to standard out

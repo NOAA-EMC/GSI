@@ -76,7 +76,7 @@ subroutine add_gfs_stratosphere
   integer(i_kind) inner_vars,num_fields,nsig_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r,jcap_org,nlon_b
   logical,allocatable :: vector(:)
-  real(r_kind),parameter::  zero_001=0.001_r_kind
+  logical hires
   real(r_kind),allocatable,dimension(:) :: xspli_r,yspliu_r,yspliv_r,xsplo,xsplo_r,ysplou_r,ysplov_r
   real(r_kind),allocatable,dimension(:) :: xspli_g,yspliu_g,yspliv_g,ysplou_g,ysplov_g
   integer(i_kind) iyr,ihourg

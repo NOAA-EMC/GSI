@@ -331,12 +331,12 @@ $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 
 #--------------------------------------------------------------
 #  Copy the menu.html file and change "Experimental" to
-#  "Operational" if the suffix is opr or nrx (operational GDAS
+#  "Operational" if the suffix is wopr or nrx (operational GDAS
 #  or NDAS.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/menu.html.$RAD_AREA .
 
-if [[ $SUFFIX == "opr" || $SUFFIX == "nrx" ]]; then
+if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
    tmp_menu=./tmp_menu.html.${RAD_AREA}
    sed s/Experimental/Operational/1 menu.html.${RAD_AREA} > ${tmp_menu}
    mv -f ${tmp_menu} menu.html.${RAD_AREA}
@@ -344,39 +344,84 @@ fi
 
 
 $NCP ${RADMON_IMAGE_GEN}/html/index.html.$RAD_AREA .
-html_files="bcoef bcor_angle  bcor comp horiz index intro menu summary time"
+html_files="bcoef bcor_angle bcor comp horiz index intro menu summary time"
+
+js_files="jsuri-1.1.1.js"
 
 #--------------------------------------------------------------
-#  If we're running on the CCS or WCOSS, push the html files to 
-#  the web server.  If we're on zeus move the html files to
-#  the $IMGNDIR so they can be pulled from the server.
-#  Make the starting directory on the server and copy the
-#  html files to it.
+#  Make starting directory on the server and copy over html, 
+#  misc, and thumb images.
 #
-if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then
+#  If we're on zeus/other then access to the web server is 
+#  indirect and requires manual intervention.  Move all the web 
+#  files to $IMGNDIR so they can be pulled from the server.
+#
+if [[ $MY_MACHINE = "wcoss" ]]; then
    ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
+
+   #-----------------------
+   #  html files
+   #
    for file in $html_files; do
       scp ${file}.html.${RAD_AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
    done
 
+   #-----------------------
+   #  mk image dirs 
+   #
    subdirs="angle bcoef bcor comp horiz summary time"
    for dir in $subdirs; do
       ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}/pngs/${dir}"
    done
+
+   #-----------------------
+   #  js files
+   #
+   for file in $js_files; do
+      scp ${file} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}
+   done
+ 
+   #-----------------------
+   #  summary thumb images
+   #
+   scp -l ${WEB_USER} ${WEB_SVR} sum_thumb.tar ${WEB_USER}@${WEB_SVR}:${new_webdir}/pngs/summary/. 
+   ssh -l ${WEB_USER} ${WEB_SVR} "tar -xvf ${new_webdir}/pngs/summary/sum_thumb.tar
+   ssh -l ${WEB_USER} ${WEB_SVR} "rm -f ${new_webdir}/pngs/summary/sum_thumb.tar
+   
 else
    if [[ ! -d ${IMGNDIR} ]]; then
       mkdir -p ${IMGNDIR}
    fi
    imgndir=`dirname ${IMGNDIR}`
 
+   #-----------------------
+   #  html files
+   #
    for file in $html_files; do
       $NCP ${file}.html.${RAD_AREA} ${imgndir}/${file}.html
    done
    
+   #-----------------------
+   #  mk image dirs 
+   #
    subdirs="angle bcoef bcor comp horiz summary time"
    for dir in $subdirs; do
-      mkdir -p ${IMGNDIR}/${dir}
+      mkdir -p ${imgndir}/pngs/${dir}
    done
+
+   #-----------------------
+   #  js files
+   #
+   for file in $js_files; do
+      $NCP ${file} ${imgndir}/pngs/${file}
+   done
+
+   #-----------------------
+   #  summary thumb images
+   #
+   $NCP sum_thumb.tar ${imgndir}/pngs/summary/. 
+   tar -xvf ${imgndir}/pngs/summary/sum_thumb.tar
+   rm -f ${imgndir}/pngs/summary/sum_thumb.tar
 fi
 
 cd $workdir

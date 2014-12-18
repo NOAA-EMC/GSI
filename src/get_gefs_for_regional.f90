@@ -440,7 +440,9 @@ subroutine get_gefs_for_regional
      ! !ilook=29
      ! !jlook=41
      ilook=-1 ; jlook=-1
-     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl, &
+     allocate(prsl1000(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+     prsl1000=1000._r_kind*prsl
+     call compute_nmm_surfacep ( ges_z(:,:), zbarl,prsl1000, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
      deallocate(tt,zbarl,prsl1000)

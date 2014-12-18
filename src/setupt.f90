@@ -20,7 +20,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
-  use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
+  use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -49,6 +49,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use buddycheck_mod, only: buddy_check_t
 
   implicit none
 
@@ -144,6 +145,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
 !   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
+!   2014-10-06  carley  - add call to buddy check for twodvar_regional option
 !
 ! !REMARKS:
 !   language: f90
@@ -204,6 +206,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+
+  integer(i_kind),dimension(nobs):: buddyuse
+
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -291,6 +296,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
+  if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
   dup=one
   do k=1,nobs
@@ -613,6 +620,22 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=r0_7*cgross(ikx)
      else
         qcgross=cgross(ikx)
+     endif
+
+     if (twodvar_regional) then                  
+        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind )then 
+            qcgross=three*qcgross                    ! Terrain aware modification
+                                                     ! to gross error check
+            if (buddycheck_t .and.buddyuse(i)==1) then
+               qcgross=two*qcgross                  ! Relax even more for terrain in cases where 
+               data(iuse,i)=data(iuse,i)+0.50_r_kind ! buddy check passes.  Label usage so we can identify obs  
+                                                     ! with extra relaxed gross qc in diag files 
+            end if                                   ! (will show as an extra 0.75 appended)
+        else if (buddycheck_t .and. buddyuse(i)==1) then
+            qcgross=three*qcgross
+            data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
+                                                  ! in diag files  (will show as an extra 0.50 appended)            
+        end if  
      endif
 
      if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then

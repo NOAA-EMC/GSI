@@ -89,6 +89,7 @@ if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
    echo "$(date) executing $0 $* >&2"
 fi
+echo "Begin radmon_ck_stdout.sh"
 ################################################################################
 #  Preprocessing
 $INISCRIPT
@@ -105,9 +106,13 @@ for type in ${SATYPE}; do
       if [[ "$VERBOSE" = "YES" ]]; then
          echo  stdout.${type}
       fi
-      match=`gawk "/$error_msg/" stdout.$type`
+
+      match=`gawk "/$error_msg/" stdout.${type}`
+#      match=`grep $error_msg stdout.$type`
 
       match_len=`echo ${#match}`
+      echo "match_len = $match_len"
+
       if [[ $match_len > 0 ]]; then
          echo "${type}  ${match}" >> $outfile
       fi
@@ -123,4 +128,5 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
+echo "End radmon_ck_stdout.sh"
 exit ${err}
