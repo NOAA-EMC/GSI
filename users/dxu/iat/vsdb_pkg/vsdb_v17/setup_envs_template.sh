@@ -4,6 +4,8 @@ set -ux
 ## set up common directories, utilities and environment variables
 ## for different platforms, and assign user specific parameters.
 
+source  ./vsdbTop_gui.txt
+
 machine=${1:-WCOSS}
 machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 export rc=0
