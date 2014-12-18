@@ -8,6 +8,9 @@ alias showa="alias |sort |less "
 alias d3="find -ctime 3 -type f   |xargs  rm -rf   "
 alias d2="find -ctime 2 -type f   |xargs  rm -rf   "
 
+# list directory
+alias ldir="find -type d "
+
 #shell
 alias whichshell='echo $0 '   # or    ' ps -p $$ '
 
