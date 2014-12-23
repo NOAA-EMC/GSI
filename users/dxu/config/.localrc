@@ -122,3 +122,9 @@ if [ -f ~/.config/.toolrc ]
 then
    . ~/.config/.toolrc
 fi
+
+# 10. gsi
+if [ -f ~/.config/.gsirc ]
+then
+   . ~/.config/.gsirc
+fi
