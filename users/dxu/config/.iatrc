@@ -22,7 +22,7 @@ alias ge_output="  cd ${iat_ws_dir}/ge_workspace/data/output "
 #4. hit
 alias hit="        cd ${iat_src_dir}/hit_pkg/hit "
 alias hit_input="  cd ${iat_ws_dir}/hit_workspace/data/input "
-alias hit_output=" cd ${iat_ws_dir}/hit_workspace/data/stmp/${LOGNAME}/track "
+alias hit_output=" cd ${iat_ws_dir}/hit_workspace/data/output/${LOGNAME}/track "
 #5. fcstDiff
 alias fd="         cd ${iat_src_dir}/fcstDiff_pkg/fcstDiff "
 alias fd_input="   cd ${iat_ws_dir}/hit_workspace/data/input"

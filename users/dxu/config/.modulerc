@@ -6,3 +6,20 @@ alias mlist="module list "   # list LOADED modules
 alias mavail="module avail " # list available modules
 alias mspider="module spider " # get info about a module
 alias mwhatis="module whatis " # get info about a module
+
+MODULE_USE_STR="                           \n\
+  module add     # add one module          \n\
+  module unload  # delete all modules      \n\
+  module purge   # unload all modules      \n\
+  module list    # list LOADED modules     \n\
+  module avail   # list available modules  \n\
+  module spider  # get info about a module \n\
+  module whatis  # get info about a module \n\
+					   \n\
+					   \n\
+					   \n\
+"
+
+alias module_info='printf "$MODULE_USE_STR "  '
+
+
