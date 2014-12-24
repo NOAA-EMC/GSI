@@ -3,7 +3,7 @@ package iatgui;
 public final class DirSetter {
 
 	// Package Home directory (windows)
-	public static String theGUI_Home = System.getProperty("user.dir");
+	public static String theGUI_Home;
 	public static String theIAT_Home;
 	public static String theVsdbHome;
 	public static String theRadmonHome;
@@ -16,10 +16,13 @@ public final class DirSetter {
 	public DirSetter() {
 	}
 
-	public static void setDirs() {
+	// Use static block to initialize static variables
+	static {
+		// Get GUI Home directory
+		theGUI_Home = System.getProperty("user.dir");
+		
 		// Get OS name in lower case.
 		osName = System.getProperty("os.name").toLowerCase();
-
 		// Set path based on OS.
 		if (osName.indexOf("win") >= 0) {
 			// Setting for testing IAT in windows
@@ -49,31 +52,26 @@ public final class DirSetter {
 			theFcstDiffHome = theIAT_Home
 					+ "/fcstDiff_pkg/fcstDiff";
 		}	
-	}
 
+	}
 	
 	public static String getVsdbRoot()	{
-		setDirs();
 		return theVsdbHome;
 	}
 
 	public static String getRadmonRoot()	{
-		setDirs();
 		return theVsdbHome;
 	}
 
 	public static String getGeRoot()	{
-		setDirs();
 		return theVsdbHome;
 	}
 
 	public static String getHitRoot()	{
-		setDirs();
 		return theVsdbHome;
 	}
 
 	public static String getFcstDiffRoot()	{
-		setDirs();
 		return theVsdbHome;
 	}
 }
