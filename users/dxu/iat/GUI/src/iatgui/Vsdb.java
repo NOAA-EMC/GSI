@@ -129,16 +129,16 @@ public class Vsdb extends JPanel implements ActionListener {
 //	public String theFcstDiffHomeDir = theGUI_HomeDir
 //			+ "/../../fcstDiff_pkg/fcstDiff";
 
-	// Package dirs (windows)
-	public String theGUI_HomeDir = System.getProperty("user.dir");
-	public String theIAT_HomeDir = theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3); 
-	public String theVsdbHomeDir = theIAT_HomeDir + "\\vsdb_pkg\\vsdb_v17";
-	public String theRadmonHomeDir = theIAT_HomeDir
-			+ "\\radmon_pkg\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
-	public String theGeHomeDir = theIAT_HomeDir + "\\ge_pkg\\ge_pkg\\ge";
-	public String theHitHomeDir = theIAT_HomeDir + "\\hit_pkg\\hit";
-	public String theFcstDiffHomeDir = theIAT_HomeDir
-			+ "\\fcstDiff_pkg\\fcstDiff";
+//	// Package dirs (windows)
+//	public String theGUI_HomeDir = System.getProperty("user.dir");
+//	public String theIAT_HomeDir = theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3); 
+//	public String theVsdbHomeDir = theIAT_HomeDir + "\\vsdb_pkg\\vsdb_v17";
+//	public String theRadmonHomeDir = theIAT_HomeDir
+//			+ "\\radmon_pkg\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
+//	public String theGeHomeDir = theIAT_HomeDir + "\\ge_pkg\\ge_pkg\\ge";
+//	public String theHitHomeDir = theIAT_HomeDir + "\\hit_pkg\\hit";
+//	public String theFcstDiffHomeDir = theIAT_HomeDir
+//			+ "\\fcstDiff_pkg\\fcstDiff";
 
 	
 	// Constructor
@@ -1191,12 +1191,18 @@ public class Vsdb extends JPanel implements ActionListener {
 		int n = saveChanges("top level config");
 		if (n == 0) {
 			
-			System.out.println(theGUI_HomeDir);
-			System.out.println(theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3));
-				
-			System.out.println("iat home " + theIAT_HomeDir);
-			String filename = theVsdbHomeDir + "/"
+//			System.out.println(theGUI_HomeDir);
+//			System.out.println(theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3));
+//				
+//			System.out.println("iat home " + theIAT_HomeDir);
+//			String filename = theVsdbHomeDir + "/"
+//					+ "vsdbTop_gui.config";
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbTop_gui.config";
+			
+			System.out.println("vsdb roo is ");
+			System.out.println(DirSetter.getVsdbRoot());
+    System.out.println("filename is ");
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1225,7 +1231,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep1() throws IOException {
 		int n = saveChanges("step1");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep1_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
@@ -1254,7 +1260,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep2() throws IOException {
 		int n = saveChanges("step2");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep2_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
@@ -1283,7 +1289,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep3() throws IOException {
 		int n = saveChanges("step3");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep3_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
@@ -1312,7 +1318,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep4() throws IOException {
 		int n = saveChanges("step4");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep4_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
@@ -1341,7 +1347,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep5() throws IOException {
 		int n = saveChanges("step5");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep5_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
@@ -1370,7 +1376,7 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesStep6() throws IOException {
 		int n = saveChanges("step6");
 		if (n == 0) {
-			String filename = theVsdbHomeDir + "/"
+			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbStep6_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
