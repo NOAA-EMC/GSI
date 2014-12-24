@@ -54,12 +54,13 @@ public class Vsdb extends JPanel implements ActionListener {
 	// top-level config panel
 	public JLabel[] theTopLevelConfigLblArr = new JLabel[SIZE_TOP_LEVEL];
 	public JTextArea[] theTopLevelConfigTxtArr = new JTextArea[SIZE_TOP_LEVEL];
-	public String[] theTopLevelConfigEnvArr = new String[SIZE_TOP_LEVEL];
+	public String[] theTopLevelConfigEnvArr = new String[SIZE_TOP_LEVEL];	
 	public String[] theTopLevelConfigLblValueArr = new String[SIZE_TOP_LEVEL];
 	public String[] theTopLevelConfigTxtValueArr = new String[SIZE_TOP_LEVEL];
+	public String[] theTopLevelConfigTxtInitValueArr = new String[SIZE_TOP_LEVEL];
 	public JButton[] theTopLevelConfigBrowseBtnArr = new JButton[SIZE_TOP_LEVEL];
 	public JButton theTopLevelConfigSaveBtn = new JButton("Save");
-	public JButton theTopLevelConfigResetBtn = new JButton("Reset");
+	public JButton theTopLevelConfigResetBtn = new JButton("Default");
 
 	// Step 1 config panel
 	public JLabel[] theStep1ConfigLblArr = new JLabel[SIZE_STEP1];
@@ -67,9 +68,10 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep1ConfigEnvArr = new String[SIZE_STEP1];
 	public String[] theStep1ConfigLblValueArr = new String[SIZE_STEP1];
 	public String[] theStep1ConfigTxtValueArr = new String[SIZE_STEP1];
+	public String[] theStep1ConfigTxtInitValueArr = new String[SIZE_STEP1];
 	public JButton[] theStep1ConfigBrowseBtnArr = new JButton[SIZE_STEP1];
 	public JButton theStep1ConfigSaveBtn = new JButton("Save");
-	public JButton theStep1ConfigResetBtn = new JButton("Reset");
+	public JButton theStep1ConfigResetBtn = new JButton("Default");
 
 	// Step 2 config panel
 	public JLabel[] theStep2ConfigLblArr = new JLabel[SIZE_STEP2];
@@ -77,8 +79,9 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep2ConfigEnvArr = new String[SIZE_STEP2];
 	public String[] theStep2ConfigLblValueArr = new String[SIZE_STEP2];
 	public String[] theStep2ConfigTxtValueArr = new String[SIZE_STEP2];
+	public String[] theStep2ConfigTxtInitValueArr = new String[SIZE_STEP2];
 	public JButton theStep2ConfigSaveBtn = new JButton("Save");
-	public JButton theStep2ConfigResetBtn = new JButton("Reset");
+	public JButton theStep2ConfigResetBtn = new JButton("Default");
 
 	// Step 3 config panel
 	public JLabel[] theStep3ConfigLblArr = new JLabel[SIZE_STEP3];
@@ -86,9 +89,10 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep3ConfigEnvArr = new String[SIZE_STEP3];
 	public String[] theStep3ConfigLblValueArr = new String[SIZE_STEP3];
 	public String[] theStep3ConfigTxtValueArr = new String[SIZE_STEP3];
+	public String[] theStep3ConfigTxtInitValueArr = new String[SIZE_STEP3];
 	public JButton[] theStep3ConfigBrowseBtnArr = new JButton[SIZE_STEP3];
 	public JButton theStep3ConfigSaveBtn = new JButton("Save");
-	public JButton theStep3ConfigResetBtn = new JButton("Reset");
+	public JButton theStep3ConfigResetBtn = new JButton("Default");
 
 	// Step 4 config panel
 	public JLabel[] theStep4ConfigLblArr = new JLabel[SIZE_STEP4];
@@ -96,8 +100,9 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep4ConfigEnvArr = new String[SIZE_STEP4];
 	public String[] theStep4ConfigLblValueArr = new String[SIZE_STEP4];
 	public String[] theStep4ConfigTxtValueArr = new String[SIZE_STEP4];
+	public String[] theStep4ConfigTxtInitValueArr = new String[SIZE_STEP4];
 	public JButton theStep4ConfigSaveBtn = new JButton("Save");
-	public JButton theStep4ConfigResetBtn = new JButton("Reset");
+	public JButton theStep4ConfigResetBtn = new JButton("Default");
 
 	// Step 5 config panel
 	public JLabel[] theStep5ConfigLblArr = new JLabel[SIZE_STEP5];
@@ -105,9 +110,10 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep5ConfigEnvArr = new String[SIZE_STEP5];
 	public String[] theStep5ConfigLblValueArr = new String[SIZE_STEP5];
 	public String[] theStep5ConfigTxtValueArr = new String[SIZE_STEP5];
+	public String[] theStep5ConfigTxtInitValueArr = new String[SIZE_STEP5];
 	public JButton[] theStep5ConfigBrowseBtnArr = new JButton[SIZE_STEP5];
 	public JButton theStep5ConfigSaveBtn = new JButton("Save");
-	public JButton theStep5ConfigResetBtn = new JButton("Reset");
+	public JButton theStep5ConfigResetBtn = new JButton("Default");
 
 	// Step 6 config panel
 	public JLabel[] theStep6ConfigLblArr = new JLabel[SIZE_STEP6];
@@ -115,9 +121,10 @@ public class Vsdb extends JPanel implements ActionListener {
 	public String[] theStep6ConfigEnvArr = new String[SIZE_STEP6];
 	public String[] theStep6ConfigLblValueArr = new String[SIZE_STEP6];
 	public String[] theStep6ConfigTxtValueArr = new String[SIZE_STEP6];
+	public String[] theStep6ConfigTxtInitValueArr = new String[SIZE_STEP6];
 	public JButton[] theStep6ConfigBrowseBtnArr = new JButton[SIZE_STEP6];
 	public JButton theStep6ConfigSaveBtn = new JButton("Save");
-	public JButton theStep6ConfigResetBtn = new JButton("Reset");
+	public JButton theStep6ConfigResetBtn = new JButton("Default");
 
 	// Constructor
 	Vsdb() {
@@ -210,17 +217,17 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial top-level config panel's label and textareas
 	public void initializeTopLevel() {
-		String[] initialEnvValueArr = { "ENV_VSDBHOME", "ENV_WORKSPACE", "ENV_ACCOUNT",
-				"ENV_CUE2RUN", "ENV_CUE2FTP", "ENV_GROUP", "ENV_GSTAT", "ENV_CANLDIR", "ENV_ECMANLDIR",
-				"ENV_OBSPCP", "ENV_GFSFITDIR", "ENV_OBDATA" };
+		String[] initialEnvValueArr = { "ENV_VSDBHOME", "ENV_WORKSPACE",
+				"ENV_ACCOUNT", "ENV_CUE2RUN", "ENV_CUE2FTP", "ENV_GROUP",
+				"ENV_GSTAT", "ENV_CANLDIR", "ENV_ECMANLDIR", "ENV_OBSPCP",
+				"ENV_GFSFITDIR", "ENV_OBDATA" };
 		String[] initialLblValueArr = { "VSDBHOME", "WORKSPACE", "ACCOUNT",
 				"CUE2RUN", "CUE2FTP", "GROUP", "gstat", "canldir", "ecmanldir",
 				"OBSPCP", "gfsfitdir", "obdata" };
-		String[] initialTxtValueArr = {
-				"/data/users/dxu/iat/vsdb_pkg/vsdb_v17",
-				"/data/users/dxu/workspace/vsdb_workspace", "glbss", "batch",
-				"batch", "g01", "${WORKSPACE}/data/input/gstat", "$gstat/canl",
-				"$gstat/ecm", "${WORKSPACE}/data/input/qpf/OBSPRCP",
+		String[] initialTxtValueArr = { DirSetter.getVsdbRoot(),
+				DirSetter.getVsdbWorkspace(), "glbss", "batch", "batch", "g01",
+				"${WORKSPACE}/data/input/gstat", "$gstat/canl", "$gstat/ecm",
+				"${WORKSPACE}/data/input/qpf/OBSPRCP",
 				"${WORKSPACE}/data/input/f2o",
 				"${WORKSPACE}/data/input/plot2d/obdata" };
 
@@ -228,12 +235,14 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theTopLevelConfigLblValueArr[index] = initialLblValueArr[index];
 			theTopLevelConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theTopLevelConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
 			theTopLevelConfigEnvArr[index] = initialEnvValueArr[index];
 			theTopLevelConfigLblArr[index] = new JLabel(
 					initialLblValueArr[index]);
 			theTopLevelConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
+			System.out.println("deyong " + initialTxtValueArr[index]);
 
 			theTopLevelConfigBrowseBtnArr[index] = new JButton("Browse");
 		}
@@ -241,8 +250,9 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 1 config panel's label and textareas
 	public void initializeStep1() {
-		String[] initialEnvValueArr = { "ENV_MAKEVSDBDATA", "ENV_1_MYARCH", "ENV_1_EXPNLIST",
-				"ENV_1_FCYCLIST", "ENV_1_DUMPLIST", "ENV_1_VHRLIST", "ENV_1_DATEST", "ENV_1_DATEND",
+		String[] initialEnvValueArr = { "ENV_MAKEVSDBDATA", "ENV_1_MYARCH",
+				"ENV_1_EXPNLIST", "ENV_1_FCYCLIST", "ENV_1_DUMPLIST",
+				"ENV_1_VHRLIST", "ENV_1_DATEST", "ENV_1_DATEND",
 				"ENV_1_VLENGTH" };
 		String[] initialLblValueArr = { "MAKEVSDBDATA", "myarch", "expnlist",
 				"fcyclist", "dumplist", "vhrlist", "DATEST", "DATEND",
@@ -255,6 +265,7 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep1ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep1ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep1ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
 			theStep1ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep1ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
@@ -266,8 +277,9 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 2 config panel's label and textareas
 	public void initializeStep2() {
-		String[] initialEnvValueArr = { "ENV_MAKEMAPS", "ENV_2_FCYCLE", "ENV_2_MDLIST",
-				"ENV_2_VHRLIST", "ENV_2_DATEST", "ENV_2_DATEND", "ENV_2_VLENGTH", "ENV_2_MAPTOP" };
+		String[] initialEnvValueArr = { "ENV_MAKEMAPS", "ENV_2_FCYCLE",
+				"ENV_2_MDLIST", "ENV_2_VHRLIST", "ENV_2_DATEST",
+				"ENV_2_DATEND", "ENV_2_VLENGTH", "ENV_2_MAPTOP" };
 		String[] initialLblValueArr = { "MAKEMAPS", "fcycle", "mdlist",
 				"vhrlist", "DATEST", "DATEND", "vlength", "maptop" };
 		String[] initialTxtValueArr = { "NO", "00 ", "gfs ecm", "00",
@@ -277,6 +289,7 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep2ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep2ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep2ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
 			theStep2ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep2ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
@@ -287,8 +300,9 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 3 config panel's label and textareas
 	public void initializeStep3() {
-		String[] initialEnvValueArr = { "ENV_CONUSDATA", "ENV_3_COMROT", "ENV_3_EXPNLIST",
-				"ENV_3_FTYPLIST", "ENV_3_DUMPLIST", "ENV_3_PTYPLIST", "ENV_3_BUCKET", "ENV_3_FHOUT", "ENV_3_CYCLE",
+		String[] initialEnvValueArr = { "ENV_CONUSDATA", "ENV_3_COMROT",
+				"ENV_3_EXPNLIST", "ENV_3_FTYPLIST", "ENV_3_DUMPLIST",
+				"ENV_3_PTYPLIST", "ENV_3_BUCKET", "ENV_3_FHOUT", "ENV_3_CYCLE",
 				"ENV_3_DATEST", "ENV_3_DATEND" };
 		String[] initialLblValueArr = { "CONUSDATA", "COMROT", "expnlist",
 				"ftyplist", "dumplist", "ptyplist", "bucket", "fhout", "cycle",
@@ -302,8 +316,8 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep3ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep3ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep3ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
-			
 			theStep3ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep3ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theStep3ConfigTxtArr[index] = new JTextArea(
@@ -315,8 +329,8 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 4 config panel's label and textareas
 	public void initializeStep4() {
-		String[] initialEnvValueArr = { "ENV_CONUSPLOTS", "ENV_4_EXPNLIST", "ENV_4_CYCLIST",
-				"ENV_4_DATEST", "ENV_4_DATEND" };
+		String[] initialEnvValueArr = { "ENV_CONUSPLOTS", "ENV_4_EXPNLIST",
+				"ENV_4_CYCLIST", "ENV_4_DATEST", "ENV_4_DATEND" };
 		String[] initialLblValueArr = { "CONUSPLOTS", "expnlist", "cyclist",
 				"DATEST", "DATEND" };
 		String[] initialTxtValueArr = { "NO", "gfs gfs2", "00", "20140201",
@@ -326,6 +340,7 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep4ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep4ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep4ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
 			theStep4ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep4ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
@@ -336,8 +351,9 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 5 config panel's label and textareas
 	public void initializeStep5() {
-		String[] initialEnvValueArr = { "ENV_FIT2OBS", "ENV_5_FITDIR", "ENV_5_EXPNLIST",
-				"ENV_5_ENDIANLIST", "ENV_5_CYCLE", "ENV_5_OINC_F2O", "ENV_5_FINC_F2O", "ENV_5_FMAX_F2O",
+		String[] initialEnvValueArr = { "ENV_FIT2OBS", "ENV_5_FITDIR",
+				"ENV_5_EXPNLIST", "ENV_5_ENDIANLIST", "ENV_5_CYCLE",
+				"ENV_5_OINC_F2O", "ENV_5_FINC_F2O", "ENV_5_FMAX_F2O",
 				"ENV_5_DATEST", "ENV_5_DATEND" };
 		String[] initialLblValueArr = { "FIT2OBS", "fitdir", "expnlist",
 				"endianlist", "cycle", "oinc_f2o", "finc_f2o", "fmax_f2o",
@@ -350,6 +366,7 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep5ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep5ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep5ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
 			theStep5ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep5ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
@@ -361,8 +378,9 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	// Initial step 6 config panel's label and textareas
 	public void initializeStep6() {
-		String[] initialEnvValueArr = { "ENV_MAPS2D", "ENV_6_MYARCH", "ENV_6_EXPNLIST",
-				"ENV_6_DUMPLIST", "ENV_6_FDLIST", "ENV_6_CYCLE", "ENV_6_DATEST", "ENV_6_NDAYS", "ENV_6_NLEV",
+		String[] initialEnvValueArr = { "ENV_MAPS2D", "ENV_6_MYARCH",
+				"ENV_6_EXPNLIST", "ENV_6_DUMPLIST", "ENV_6_FDLIST",
+				"ENV_6_CYCLE", "ENV_6_DATEST", "ENV_6_NDAYS", "ENV_6_NLEV",
 				"ENV_6_GRID", "ENV_6_PBTM", "ENV_6_PTOP" };
 		String[] initialLblValueArr = { "MAPS2D", "myarch", "expnlist",
 				"dumplist", "fdlist", "cycle", "DATEST", "ndays", "nlev",
@@ -375,8 +393,8 @@ public class Vsdb extends JPanel implements ActionListener {
 			// These values will be updated once "save" button is clicked.
 			theStep6ConfigLblValueArr[index] = initialLblValueArr[index];
 			theStep6ConfigTxtValueArr[index] = initialTxtValueArr[index];
+			theStep6ConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
-			
 			theStep6ConfigEnvArr[index] = initialEnvValueArr[index];
 			theStep6ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theStep6ConfigTxtArr[index] = new JTextArea(
@@ -385,7 +403,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		}
 	}
 
-	// Display Top-level config panel 
+	// Display Top-level config panel
 	public void showTopLevelConfigPanel() {
 		theTopLevelConfigPanel.removeAll();
 
@@ -486,7 +504,7 @@ public class Vsdb extends JPanel implements ActionListener {
 
 	}
 
-	// Display step 1 config panel 
+	// Display step 1 config panel
 	public void showStep1ConfigPanel() {
 		theStep1ConfigPanel.removeAll();
 
@@ -1168,20 +1186,9 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void saveChangesTopLevel() throws IOException {
 		int n = saveChanges("top level config");
 		if (n == 0) {
-			
-//			System.out.println(theGUI_HomeDir);
-//			System.out.println(theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3));
-//				
-//			System.out.println("iat home " + theIAT_HomeDir);
-//			String filename = theVsdbHomeDir + "/"
-//					+ "vsdbTop_gui.config";
 			String filename = DirSetter.getVsdbRoot() + "/"
 					+ "vsdbTop_gui.config";
-			
-			System.out.println("vsdb roo is ");
-			System.out.println(DirSetter.getVsdbRoot());
-    System.out.println("filename is ");
-			System.out.println(filename);
+
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1193,9 +1200,8 @@ public class Vsdb extends JPanel implements ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export "
-						+ theTopLevelConfigEnvArr[index] + "="
-						+ theTopLevelConfigTxtArr[index].getText();
+				String tmpString = "export " + theTopLevelConfigEnvArr[index]
+						+ "=" + theTopLevelConfigTxtArr[index].getText();
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1383,10 +1389,10 @@ public class Vsdb extends JPanel implements ActionListener {
 	public void resetTopLevel() {
 		int n = resetChanges("top level config");
 		if (n == 0) {
-			for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
-				// Save values in GUI to value array
-				theTopLevelConfigTxtArr[index].setText("");
-			}
+			 for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
+			 // Save values in GUI to value array
+			 theTopLevelConfigTxtArr[index].setText(theTopLevelConfigTxtInitValueArr[index]);
+			 }
 		}
 	}
 
@@ -1396,7 +1402,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP1; index++) {
 				// Save values in GUI to value array
-				theStep1ConfigTxtArr[index].setText("");
+				theStep1ConfigTxtArr[index].setText(theStep1ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1407,7 +1413,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP2; index++) {
 				// Save values in GUI to value array
-				theStep2ConfigTxtArr[index].setText("");
+				theStep2ConfigTxtArr[index].setText(theStep2ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1418,7 +1424,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP3; index++) {
 				// Save values in GUI to value array
-				theStep3ConfigTxtArr[index].setText("");
+				theStep3ConfigTxtArr[index].setText(theStep3ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1429,7 +1435,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP4; index++) {
 				// Save values in GUI to value array
-				theStep4ConfigTxtArr[index].setText("");
+				theStep4ConfigTxtArr[index].setText(theStep4ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1440,7 +1446,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP5; index++) {
 				// Save values in GUI to value array
-				theStep5ConfigTxtArr[index].setText("");
+				theStep5ConfigTxtArr[index].setText(theStep5ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1451,7 +1457,7 @@ public class Vsdb extends JPanel implements ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP6; index++) {
 				// Save values in GUI to value array
-				theStep6ConfigTxtArr[index].setText("");
+				theStep6ConfigTxtArr[index].setText(theStep6ConfigTxtInitValueArr[index]);
 			}
 		}
 	}

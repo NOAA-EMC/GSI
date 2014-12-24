@@ -60,14 +60,6 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	private JLabel emptyLbl = new JLabel("Default");
 	private JTextArea emptyTextArea = new JTextArea("Default data");
 
-	// 1) Components for RADMON config panel
-
-	// 4) Components for GE config panel
-
-	// 5) Components for HIT config panel
-
-	private JButton theCancelButton = new JButton("Cancel");
-
 	// 5. IAT choice and its components
 	private Choice theIAT_Choice = new Choice();
 	private Choice theVsdb_Choice = new Choice();
@@ -93,14 +85,17 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		// Add listener
 		theIAT_Choice.addItemListener(this);
 		theVsdb_Choice.addItemListener(this);
-
+		
+		theRunButton.addActionListener(this);
+		
 	}
 
 	/**
 	 * Invoked when button clicked
 	 */
 	public void actionPerformed(ActionEvent evt) {
-
+	    JOptionPane.showMessageDialog(null, "run is clicked");
+	    
 	}
 
 	/**
