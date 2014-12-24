@@ -119,28 +119,6 @@ public class Vsdb extends JPanel implements ActionListener {
 	public JButton theStep6ConfigSaveBtn = new JButton("Save");
 	public JButton theStep6ConfigResetBtn = new JButton("Reset");
 
-	// Package dirs (linux version)
-//	public String theGUI_HomeDir = System.getProperty("user.dir");
-//	public String theVsdbHomeDir = theGUI_HomeDir + "/../../vsdb_pkg/vsdb_v17";
-//	public String theRadmonHomeDir = theGUI_HomeDir
-//			+ "/../../radmon_pkg/radmon_pkg/radmon/util/Radiance_Monitor";
-//	public String theGeHomeDir = theGUI_HomeDir + "/../../ge_pkg/ge_pkg/ge/";
-//	public String theHitHomeDir = theGUI_HomeDir + "/../../hit_pkg/hit";
-//	public String theFcstDiffHomeDir = theGUI_HomeDir
-//			+ "/../../fcstDiff_pkg/fcstDiff";
-
-//	// Package dirs (windows)
-//	public String theGUI_HomeDir = System.getProperty("user.dir");
-//	public String theIAT_HomeDir = theGUI_HomeDir.substring(0, theGUI_HomeDir.length()-3); 
-//	public String theVsdbHomeDir = theIAT_HomeDir + "\\vsdb_pkg\\vsdb_v17";
-//	public String theRadmonHomeDir = theIAT_HomeDir
-//			+ "\\radmon_pkg\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
-//	public String theGeHomeDir = theIAT_HomeDir + "\\ge_pkg\\ge_pkg\\ge";
-//	public String theHitHomeDir = theIAT_HomeDir + "\\hit_pkg\\hit";
-//	public String theFcstDiffHomeDir = theIAT_HomeDir
-//			+ "\\fcstDiff_pkg\\fcstDiff";
-
-	
 	// Constructor
 	Vsdb() {
 		initializeLblTxt();
