@@ -20,7 +20,7 @@ public final class DirSetter {
 	public static String theHitWorkspace;
 	public static String theFcstDiffWorkspace;
 
-	public static String osName;
+	public static String theOS;
 
 	public DirSetter() {
 	}
@@ -31,13 +31,13 @@ public final class DirSetter {
 		theGUI_Home = System.getProperty("user.dir");
 
 		// Get OS name in lower case.
-		osName = System.getProperty("os.name").toLowerCase();
+		theOS = System.getProperty("os.name").toLowerCase();
 		// Set path based on OS.
-		if (osName.indexOf("win") >= 0) {
+		if (isWindows()) {
 			// Setting for testing IAT in windows
 			// IAT Root directory, remove "GUI" ( 3 chars ) from string.
 			theIAT_Home = theGUI_Home.substring(0, theGUI_Home.length() - 4);
-			
+
 			System.out.println("IAT home " + theIAT_Home);
 
 			// Package HOME
@@ -101,7 +101,7 @@ public final class DirSetter {
 	public static String getFcstDiffRoot() {
 		return theFcstDiffHome;
 	}
-	
+
 	public static String getVsdbWorkspace() {
 		return theVsdbWorkspace;
 	}
@@ -120,6 +120,17 @@ public final class DirSetter {
 
 	public static String getFcstDiffWorkspace() {
 		return theFcstDiffWorkspace;
+	}
+
+	public static boolean isWindows() {
+		if (theOS.indexOf("win") >= 0)
+			return true;
+		else
+			return false;
+	}
+
+	public static boolean isLinux() {
+		return !isWindows();
 	}
 
 }
