@@ -24,7 +24,7 @@ import javax.swing.SpringLayout;
 
 public class Vsdb extends JPanel implements ActionListener {
 	// Constant
-	private final int LBL_WIDTH = 200;
+	private final int LBL_WIDTH = 150;
 	private final int LBL_HEIGHT = 15;
 	private final int TEXTAREA_WIDTH = 400;
 	private final int TEXTAREA_HEIGHT = 15;

@@ -64,11 +64,13 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	private Choice theIAT_Choice = new Choice();
 	private Choice theVsdb_Choice = new Choice();
 
-	private JCheckBox theRADMON_CheckBox = new JCheckBox("RADMON", false);
-	private JCheckBox theVSDB_CheckBox = new JCheckBox("VSDB", false);
-	private JCheckBox theFD_CheckBox = new JCheckBox("fcstDiff", false);
-	private JCheckBox theGE_CheckBox = new JCheckBox("gribExtrm", false);
-	private JCheckBox theHIT_CheckBox = new JCheckBox("HIT", false);
+	private JCheckBox theFcstDiffCbox = new JCheckBox("Fcst Diff (FcstDiff)",
+			false);
+	private JCheckBox theGeCbox = new JCheckBox("Grib Extremes (Ge)", false);
+	private JCheckBox theHitCbox = new JCheckBox(
+			"Hurricane Intensity and Track (Hit)", false);
+	private JCheckBox theRadmonCbox = new JCheckBox("Radmon", false);
+	private JCheckBox theVsdbCbox = new JCheckBox("Vsdb", false);
 
 	// 6. Five package classes
 	private Radmon theRadmon = new Radmon();
@@ -85,17 +87,70 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		// Add listener
 		theIAT_Choice.addItemListener(this);
 		theVsdb_Choice.addItemListener(this);
-		
+
 		theRunButton.addActionListener(this);
-		
+
 	}
 
 	/**
 	 * Invoked when button clicked
 	 */
 	public void actionPerformed(ActionEvent evt) {
-	    JOptionPane.showMessageDialog(null, "run is clicked");
-	    
+		JOptionPane.showMessageDialog(null, "run is clicked");
+
+		if (theFcstDiffCbox.isSelected()) {
+			System.out.println("fcstDiff is selected");
+		}
+
+		if (theGeCbox.isSelected()) {
+			System.out.println("ge is selected");
+		}
+
+		if (theHitCbox.isSelected()) {
+			System.out.println("hit is selected");
+		}
+
+		if (theRadmonCbox.isSelected()) {
+
+			System.out.println("radmon is selected");
+		}
+
+		if (theVsdbCbox.isSelected()) {
+			System.out.println("vsdb is selected.");
+			if (DirSetter.isLinux()) {
+				String s = null;
+				try {
+					// run the Unix "ps -ef" command
+
+					Process p = Runtime.getRuntime().exec("ps -ef");
+
+					BufferedReader stdInput = new BufferedReader(
+							new InputStreamReader(p.getInputStream()));
+					BufferedReader stdError = new BufferedReader(
+							new InputStreamReader(p.getErrorStream()));
+
+					// read the output from the command
+					System.out
+							.println("Here is the standard output of the command:\n");
+					while ((s = stdInput.readLine()) != null) {
+						System.out.println(s);
+					}
+
+					// read any errors from the attempted command
+					System.out
+							.println("Here is the standard error of the command (if any):\n");
+					while ((s = stdError.readLine()) != null) {
+						System.out.println(s);
+					}
+					System.exit(0);
+				} catch (IOException e) {
+					System.out
+							.println("exception happened - here's what I know: ");
+					e.printStackTrace();
+					System.exit(-1);
+				}
+			}
+		}
 	}
 
 	/**
@@ -110,20 +165,20 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 			case "choose...":
 				addEmptyConfigPanel();
 				break;
-			case "radmon":
-				addRADMON_ConfigPanel();
-				break;
-			case "vsdb":
-				addVSDB_ConfigPanel();
-				break;
-			case "fcstDiff":
+			case "FcstDiff":
 				addFcstDiffConfigPanel();
 				break;
-			case "gribExtrm":
+			case "Ge":
 				addGE_ConfigPanel();
 				break;
 			case "hit":
 				addHIT_ConfigPanel();
+				break;
+			case "Radmon":
+				addRADMON_ConfigPanel();
+				break;
+			case "Vsdb":
+				addVSDB_ConfigPanel();
 				break;
 			default:
 				addEmptyConfigPanel();
@@ -134,22 +189,22 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 			case "top-level config":
 				addVsdbTopLevelConfigPanel();
 				break;
-			case "step 1":
+			case "step 1 config":
 				addVsdbstep_1_ConfigPanel();
 				break;
-			case "step 2":
+			case "step 2 config":
 				addVsdbstep_2_ConfigPanel();
 				break;
-			case "step 3":
+			case "step 3 config":
 				addVsdbstep_3_ConfigPanel();
 				break;
-			case "step 4":
+			case "step 4 config":
 				addVsdbstep_4_ConfigPanel();
 				break;
-			case "step 5":
+			case "step 5 config":
 				addVsdbstep_5_ConfigPanel();
 				break;
-			case "step 6":
+			case "step 6 config":
 				addVsdbstep_6_ConfigPanel();
 				break;
 			default:
@@ -194,7 +249,7 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		fcstDiffConfigPanelCons.setY(Spring.constant(35));
 		fcstDiffConfigPanelCons.setWidth(Spring.constant(900));
 		fcstDiffConfigPanelCons.setHeight(Spring.constant(700));
-		
+
 		theFcstDiff.showConfigPanel();
 
 		// Now refresh theConfigPanel
@@ -404,7 +459,7 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep1ConfigPanel();
-		
+
 		// Now refresh theConfigPanel
 		theConfigPanel.revalidate();
 		theConfigPanel.repaint();
@@ -446,7 +501,7 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep2ConfigPanel();
-		
+
 		// Now refresh theConfigPanel
 		theConfigPanel.revalidate();
 		theConfigPanel.repaint();
@@ -694,11 +749,11 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		// 3.1 theIatCheckBoxPanel
 		//
 		// Add components into theIatCheckBoxPanel
-		theIatCheckBoxPanel.add(theRADMON_CheckBox);
-		theIatCheckBoxPanel.add(theVSDB_CheckBox);
-		theIatCheckBoxPanel.add(theFD_CheckBox);
-		theIatCheckBoxPanel.add(theGE_CheckBox);
-		theIatCheckBoxPanel.add(theHIT_CheckBox);
+		theIatCheckBoxPanel.add(theFcstDiffCbox);
+		theIatCheckBoxPanel.add(theGeCbox);
+		theIatCheckBoxPanel.add(theHitCbox);
+		theIatCheckBoxPanel.add(theRadmonCbox);
+		theIatCheckBoxPanel.add(theVsdbCbox);
 
 		// Set border for theIatCheckBoxPanel
 		Border lowerBorder = BorderFactory.createLoweredBevelBorder();
@@ -717,29 +772,44 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		theRunPanel.setLayout(theRunPanelLayout);
 
 		int spacer = 5;
-		int xOrig = 110;
-		int xWidth = 150;
-		int yHeight = 30;
+		int box1_width = 300;
+		int box1_height = 100;
+		int box1_x=0; 
+		int box1_y=0;
+		
+		int box2_width = 150;
+		int box2_height = 30;
+		int box2_x= box1_x + box1_width + spacer; 
+		int box2_y= box1_height - box2_height - box1_y;
+		
+		int box3_width = 150;
+		int box3_height = 30;
+		int box3_x= box2_x + box2_width + spacer; 
+		int box3_y= box2_y;
+		
+		int xWidth=150;
+		int yHeight=30;
+
 		SpringLayout.Constraints iatCheckBoxPanelCons = theRunPanelLayout
 				.getConstraints(theIatCheckBoxPanel);
-		iatCheckBoxPanelCons.setX(Spring.constant(0));
-		iatCheckBoxPanelCons.setY(Spring.constant(0));
-		iatCheckBoxPanelCons.setWidth(Spring.constant(100));
-		iatCheckBoxPanelCons.setHeight(Spring.constant(100));
+		iatCheckBoxPanelCons.setX(Spring.constant(box1_x));
+		iatCheckBoxPanelCons.setY(Spring.constant(box1_y));
+		iatCheckBoxPanelCons.setWidth(Spring.constant(box1_width));
+		iatCheckBoxPanelCons.setHeight(Spring.constant(box1_height));
 
 		SpringLayout.Constraints runButtonCons = theRunPanelLayout
 				.getConstraints(theRunButton);
-		runButtonCons.setX(Spring.constant(xOrig));
-		runButtonCons.setY(Spring.constant(70));
-		runButtonCons.setWidth(Spring.constant(xWidth));
-		runButtonCons.setHeight(Spring.constant(yHeight));
+		runButtonCons.setX(Spring.constant(box2_x));
+		runButtonCons.setY(Spring.constant(box2_y));
+		runButtonCons.setWidth(Spring.constant(box2_width));
+		runButtonCons.setHeight(Spring.constant(box2_height));
 
 		SpringLayout.Constraints parButtonCons = theRunPanelLayout
 				.getConstraints(theParButton);
-		parButtonCons.setX(Spring.constant(xOrig + xWidth + spacer));
-		parButtonCons.setY(Spring.constant(70));
-		parButtonCons.setWidth(Spring.constant(xWidth));
-		parButtonCons.setHeight(Spring.constant(yHeight));
+		parButtonCons.setX(Spring.constant(box3_x));
+		parButtonCons.setY(Spring.constant(box3_y));
+		parButtonCons.setWidth(Spring.constant(box3_width));
+		parButtonCons.setHeight(Spring.constant(box3_height));
 
 		// ==================================================================
 		// 4. theConfigPanel ( 800 x 600 )
@@ -751,21 +821,21 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 
 		// theIAT_Choice (pull-down options)
 		theIAT_Choice.add("choose...");
-		theIAT_Choice.add("radmon");
-		theIAT_Choice.add("vsdb");
-		theIAT_Choice.add("fcstDiff");
-		theIAT_Choice.add("gribExtrm");
-		theIAT_Choice.add("hit");
+		theIAT_Choice.add("FcstDiff");
+		theIAT_Choice.add("Ge");
+		theIAT_Choice.add("Hit");
+		theIAT_Choice.add("Radmon");
+		theIAT_Choice.add("Vsdb");
 
 		// theIAT_Choice (pull-down options)
 		theVsdb_Choice.add("choose...");
 		theVsdb_Choice.add("top-level config");
-		theVsdb_Choice.add("step 1");
-		theVsdb_Choice.add("step 2");
-		theVsdb_Choice.add("step 3");
-		theVsdb_Choice.add("step 4");
-		theVsdb_Choice.add("step 5");
-		theVsdb_Choice.add("step 6");
+		theVsdb_Choice.add("step 1 config");
+		theVsdb_Choice.add("step 2 config");
+		theVsdb_Choice.add("step 3 config");
+		theVsdb_Choice.add("step 4 config");
+		theVsdb_Choice.add("step 5 config");
+		theVsdb_Choice.add("step 6 config");
 
 		// 4.1 add components into theConfigPanel
 		theConfigPanel.add(theIAT_Choice);
