@@ -22,15 +22,10 @@ import javax.swing.JTextArea;
 import javax.swing.Spring;
 import javax.swing.SpringLayout;
 
-public class Vsdb extends JPanel implements ActionListener {
-	// Constant
-	private final int LBL_WIDTH = 150;
-	private final int LBL_HEIGHT = 15;
+public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
+	// Redefine constants below for local use. 
 	private final int TEXTAREA_WIDTH = 400;
 	private final int TEXTAREA_HEIGHT = 15;
-	private final int BUTTON_WIDTH = 100;
-	private final int BUTTON_HEIGHT = 15;
-	private final int SPACER = 5;
 
 	// Number of ENV vars in each step
 	private final int SIZE_TOP_LEVEL = 12;
@@ -638,15 +633,6 @@ public class Vsdb extends JPanel implements ActionListener {
 			txtConsArr[index].setY(Spring.constant(yPos));
 			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
 			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
-
-			// Position Browse button
-			// btnConsArr[index] = step2ConfigPanelLayout
-			// .getConstraints(theStep2ConfigBrowseBtnArr[index]);
-			// btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-			// + TEXTAREA_WIDTH + SPACER));
-			// btnConsArr[index].setY(Spring.constant(yPos));
-			// btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			// btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
