@@ -23,17 +23,8 @@ import java.util.Enumeration;
 import java.text.NumberFormat;
 import java.net.*;
 
-public class IAT extends JPanel implements ActionListener, ItemListener,
-		PropertyChangeListener {
-
-	// Constant
-	private final int LBL_WIDTH = 200;
-	private final int LBL_HEIGHT = 15;
-	private final int TEXTAREA_WIDTH = 400;
-	private final int TEXTAREA_HEIGHT = 15;
-	private final int BUTTON_WIDTH = 100;
-	private final int BUTTON_HEIGHT = 15;
-	private final int SPACER = 5;
+public class IAT extends JPanel implements SizeDefinition, ActionListener,
+		ItemListener, PropertyChangeListener {
 
 	// 1. Main panels
 	private JPanel theTitlePanel = new JPanel();
@@ -43,22 +34,18 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	SpringLayout theConfigPanelLayout = new SpringLayout();
 
 	// 2. Components of theRunPanel
-	private JPanel theIatCheckBoxPanel = new JPanel(new GridLayout(5, 1));
-	private JButton theRunButton = new JButton("Run");
-	private JButton theParButton = new JButton("Generate PAR");
+	private JPanel theIatCboxPanel = new JPanel(new GridLayout(5, 1));
+	private JButton theRunBtn = new JButton("Run");
+	private JButton theStatBtn = new JButton("Check job status");
+	private JButton theParBtn = new JButton("Generate PAR");
 
 	// 3. Components of theConfigPanel
-	private JPanel theEmptyConfigPanel = new JPanel();
-	private JPanel theRadmonConfigPanel = new JPanel();
-	private JPanel theGeConfigPanel = new JPanel();
-	private JPanel theHitConfigPanel = new JPanel();
 
 	/*
 	 * 4. Configuration for individual IAT config panels
 	 */
 	// 0) Default Empty config panel
-	private JLabel emptyLbl = new JLabel("Default");
-	private JTextArea emptyTextArea = new JTextArea("Default data");
+//	private JTextArea theEmptyTxt = new JTextArea("");
 
 	// 5. IAT choice and its components
 	private Choice theIAT_Choice = new Choice();
@@ -73,11 +60,14 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	private JCheckBox theVsdbCbox = new JCheckBox("Vsdb", false);
 
 	// 6. Five package classes
+	private JobStat theJobStat = new JobStat();
+	private EmptyConfig theEmptyConfig = new EmptyConfig();
+
+	private FcstDiff theFcstDiff = new FcstDiff();
+	private Ge theGe = new Ge();
+	private Hit theHit = new Hit();
 	private Radmon theRadmon = new Radmon();
 	private Vsdb theVsdb = new Vsdb();
-	private Ge theGe = new Ge();
-	private FcstDiff theFcstDiff = new FcstDiff();
-	private Hit theHit = new Hit();
 
 	// Constructor
 	public IAT() {
@@ -88,7 +78,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		theIAT_Choice.addItemListener(this);
 		theVsdb_Choice.addItemListener(this);
 
-		theRunButton.addActionListener(this);
+		theRunBtn.addActionListener(this);
+		theStatBtn.addActionListener(this);
 
 	}
 
@@ -96,60 +87,86 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	 * Invoked when button clicked
 	 */
 	public void actionPerformed(ActionEvent evt) {
-		JOptionPane.showMessageDialog(null, "run is clicked");
 
-		if (theFcstDiffCbox.isSelected()) {
-			System.out.println("fcstDiff is selected");
-		}
-
-		if (theGeCbox.isSelected()) {
-			System.out.println("ge is selected");
-		}
-
-		if (theHitCbox.isSelected()) {
-			System.out.println("hit is selected");
-		}
-
-		if (theRadmonCbox.isSelected()) {
-
-			System.out.println("radmon is selected");
-		}
-
-		if (theVsdbCbox.isSelected()) {
-			System.out.println("vsdb is selected.");
+		// Job stat button is clicked
+		if (evt.getSource() == theStatBtn) {
+			System.out.println("stat btn clicked");
+			JOptionPane.showMessageDialog(null, "stat is clicked");
+			
+			// Run "ps -u $LOGNAME " to  
 			if (DirSetter.isLinux()) {
-				String s = null;
+				String aStr = null;
 				try {
-					// run the Unix "ps -ef" command
+					// run "showJobStat.sh"			
+					Process prcs = Runtime.getRuntime().exec(DirSetter.getGUI_Root() + "/showJobStat.sh" );
 
-					Process p = Runtime.getRuntime().exec("ps -ef");
-
-					BufferedReader stdInput = new BufferedReader(
-							new InputStreamReader(p.getInputStream()));
-					BufferedReader stdError = new BufferedReader(
-							new InputStreamReader(p.getErrorStream()));
+					JTextArea aTxt = new JTextArea("");
+					// stdout
+					BufferedReader stdout = new BufferedReader(
+							new InputStreamReader(prcs.getInputStream()));
+					// stderr
+					BufferedReader stderr = new BufferedReader(
+							new InputStreamReader(prcs.getErrorStream()));
 
 					// read the output from the command
 					System.out
 							.println("Here is the standard output of the command:\n");
-					while ((s = stdInput.readLine()) != null) {
-						System.out.println(s);
+					while ((aStr = stdout.readLine()) != null) {
+						System.out.println(aStr);
+						aTxt.append(aStr + "\n");
 					}
 
 					// read any errors from the attempted command
 					System.out
 							.println("Here is the standard error of the command (if any):\n");
-					while ((s = stdError.readLine()) != null) {
-						System.out.println(s);
+					while ((aStr = stderr.readLine()) != null) {
+						System.out.println(aStr);
+						aTxt.append(aStr + "\n");
 					}
-					System.exit(0);
+					
+					theJobStat.setJobStat(aTxt.getText());
+					
+					addJobStatPanel();
+					
+
 				} catch (IOException e) {
+					JOptionPane.showMessageDialog(null, "exception thrown");
 					System.out
 							.println("exception happened - here's what I know: ");
 					e.printStackTrace();
 					System.exit(-1);
 				}
 			}
+
+			addJobStatPanel();
+		}
+
+		// Run button is clicked
+		if (evt.getSource() == theRunBtn) {
+			System.out.println("run btn clicked");
+			JOptionPane.showMessageDialog(null, "run is clicked");
+
+			if (theFcstDiffCbox.isSelected()) {
+				System.out.println("fcstDiff is selected");
+			}
+
+			if (theGeCbox.isSelected()) {
+				System.out.println("ge is selected");
+			}
+
+			if (theHitCbox.isSelected()) {
+				System.out.println("hit is selected");
+			}
+
+			if (theRadmonCbox.isSelected()) {
+
+				System.out.println("radmon is selected");
+			}
+
+			if (theVsdbCbox.isSelected()) {
+				System.out.println("vsdb is selected.");
+			}
+
 		}
 	}
 
@@ -215,12 +232,72 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 
 	}
 
-	private void addHIT_ConfigPanel() {
+	private void addJobStatPanel() {
+		// ======================================
+		// Step 1: Set up theConfigPanel
+		// ======================================
+		// Wipe out stuff within theConfigPanel
+		theConfigPanel.removeAll();
 
+		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		theConfigPanel.add(theIAT_Choice);
+		theConfigPanel.add(theJobStat.theJobStatPanel);
+
+		// Position theIAT_Choice within the config panel
+		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
+				.getConstraints(theIAT_Choice);
+		iatChoiceCons.setX(Spring.constant(10));
+		iatChoiceCons.setY(Spring.constant(10));
+		iatChoiceCons.setWidth(Spring.constant(150));
+		iatChoiceCons.setHeight(Spring.constant(30));
+
+		// Position theJobStat within the config panel
+		SpringLayout.Constraints jobStatlCons = theConfigPanelLayout
+				.getConstraints(theJobStat.theJobStatPanel);
+		jobStatlCons.setX(Spring.constant(10));
+		jobStatlCons.setY(Spring.constant(35));
+		jobStatlCons.setWidth(Spring.constant(PANEL_WIDTH));
+		jobStatlCons.setHeight(Spring.constant(PANEL_HEIGHT));
+
+		theJobStat.showConfigPanel();
+
+		// Now refresh theConfigPanel
+		theConfigPanel.revalidate();
+		theConfigPanel.repaint();
 	}
 
-	private void addGE_ConfigPanel() {
+	private void addEmptyConfigPanel() {
+		// ======================================
+		// Step 1: Set up theConfigPanel
+		// ======================================
+		// Wipe out stuff within theConfigPanel
+		theConfigPanel.removeAll();
 
+		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		theConfigPanel.add(theIAT_Choice);
+		theConfigPanel.add(theEmptyConfig.theEmptyConfigPanel);
+
+		// Position theIAT_Choice within the config panel
+		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
+				.getConstraints(theIAT_Choice);
+		iatChoiceCons.setX(Spring.constant(10));
+		iatChoiceCons.setY(Spring.constant(10));
+		iatChoiceCons.setWidth(Spring.constant(150));
+		iatChoiceCons.setHeight(Spring.constant(30));
+
+		// Position theFcstDiffConfigPanel within the config panel
+		SpringLayout.Constraints emptyConfigPanelCons = theConfigPanelLayout
+				.getConstraints(theEmptyConfig.theEmptyConfigPanel);
+		emptyConfigPanelCons.setX(Spring.constant(10));
+		emptyConfigPanelCons.setY(Spring.constant(35));
+		emptyConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		emptyConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+
+		theEmptyConfig.showConfigPanel();
+
+		// Now refresh theConfigPanel
+		theConfigPanel.revalidate();
+		theConfigPanel.repaint();
 	}
 
 	private void addFcstDiffConfigPanel() {
@@ -247,14 +324,22 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theFcstDiff.theFcstDiffConfigPanel);
 		fcstDiffConfigPanelCons.setX(Spring.constant(10));
 		fcstDiffConfigPanelCons.setY(Spring.constant(35));
-		fcstDiffConfigPanelCons.setWidth(Spring.constant(900));
-		fcstDiffConfigPanelCons.setHeight(Spring.constant(700));
+		fcstDiffConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		fcstDiffConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		theFcstDiff.showConfigPanel();
 
 		// Now refresh theConfigPanel
 		theConfigPanel.revalidate();
 		theConfigPanel.repaint();
+	}
+
+	private void addGE_ConfigPanel() {
+
+	}
+
+	private void addHIT_ConfigPanel() {
+
 	}
 
 	private void addVSDB_ConfigPanel() {
@@ -286,100 +371,6 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 	}
 
 	private void addRADMON_ConfigPanel() {
-		theConfigPanel.removeAll();
-
-		theConfigPanel.add(theIAT_Choice);
-		theConfigPanel.add(theEmptyConfigPanel);
-
-		SpringLayout.Constraints emptyConfigPanelCons = theConfigPanelLayout
-				.getConstraints(theEmptyConfigPanel);
-		emptyConfigPanelCons.setX(Spring.constant(10));
-		emptyConfigPanelCons.setY(Spring.constant(10 + SPACER));
-		emptyConfigPanelCons.setWidth(Spring.constant(TEXTAREA_WIDTH));
-		emptyConfigPanelCons.setHeight(Spring.constant(TEXTAREA_HEIGHT));
-
-		// 4.1 add components into theConfigPanel
-		theEmptyConfigPanel.add(emptyLbl);
-		theEmptyConfigPanel.add(emptyTextArea);
-
-		// 4.2 Position components within theConfigPanel using SpringLayout and
-		// Contraint.
-		SpringLayout emptyConfigPanelLayout = new SpringLayout();
-		theEmptyConfigPanel.setLayout(emptyConfigPanelLayout);
-
-		SpringLayout.Constraints emptyLblCons = emptyConfigPanelLayout
-				.getConstraints(emptyLbl);
-		emptyLblCons.setX(Spring.constant(10));
-		emptyLblCons.setY(Spring.constant(10));
-		emptyLblCons.setWidth(Spring.constant(LBL_WIDTH));
-		emptyLblCons.setHeight(Spring.constant(LBL_HEIGHT));
-
-		SpringLayout.Constraints emptyTextAreaCons = emptyConfigPanelLayout
-				.getConstraints(emptyTextArea);
-		emptyTextAreaCons.setX(Spring.constant(10));
-		emptyTextAreaCons.setY(Spring.constant(10 + LBL_HEIGHT + SPACER));
-		emptyTextAreaCons.setWidth(Spring.constant(TEXTAREA_WIDTH));
-		emptyTextAreaCons.setHeight(Spring.constant(TEXTAREA_HEIGHT));
-
-	}
-
-	private void addEmptyConfigPanel() {
-
-		theConfigPanel.removeAll();
-
-		int spacer = 5;
-		int xOrig = 110;
-		int xWidth = 150;
-		int yHeight = 30;
-
-		// 4.1 add components into theConfigPanel
-		theConfigPanel.add(theIAT_Choice);
-		theConfigPanel.add(theEmptyConfigPanel);
-		// theConfigPanel.add(theGeConfigPanel);
-
-		// 4.2 Position components within theConfigPanel using SpringLayout and
-		// Contraint.
-		theConfigPanel.setLayout(theConfigPanelLayout);
-
-		// Position theIAT_Choice within the config panel
-		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
-				.getConstraints(theIAT_Choice);
-		iatChoiceCons.setX(Spring.constant(10));
-		iatChoiceCons.setY(Spring.constant(10));
-		iatChoiceCons.setWidth(Spring.constant(xWidth));
-		iatChoiceCons.setHeight(Spring.constant(yHeight));
-
-		// Position theEmptyConfigPanel within the config panel
-		SpringLayout.Constraints emptyConfigPanelCons = theConfigPanelLayout
-				.getConstraints(theEmptyConfigPanel);
-		emptyConfigPanelCons.setX(Spring.constant(10));
-		emptyConfigPanelCons.setY(Spring.constant(10 + yHeight + spacer));
-		emptyConfigPanelCons.setWidth(Spring.constant(600));
-		emptyConfigPanelCons.setHeight(Spring.constant(500));
-
-		// --------------------------------------------------------------------
-
-		SpringLayout emptyConfigPanelLayout = new SpringLayout();
-		theEmptyConfigPanel.setLayout(emptyConfigPanelLayout);
-
-		SpringLayout.Constraints emptyLblCons = emptyConfigPanelLayout
-				.getConstraints(emptyLbl);
-		emptyLblCons.setX(Spring.constant(10));
-		emptyLblCons.setY(Spring.constant(10));
-		emptyLblCons.setWidth(Spring.constant(xWidth));
-		emptyLblCons.setHeight(Spring.constant(yHeight));
-
-		SpringLayout.Constraints emptyTextAreaCons = emptyConfigPanelLayout
-				.getConstraints(emptyTextArea);
-		emptyTextAreaCons.setX(Spring.constant(10));
-		emptyTextAreaCons.setY(Spring.constant(10 + yHeight + spacer));
-		emptyTextAreaCons.setWidth(Spring.constant(100));
-		emptyTextAreaCons.setHeight(Spring.constant(200));
-
-		// Now refresh theConfigPanel
-		theConfigPanel.revalidate();
-		theConfigPanel.repaint();
-
 	}
 
 	private void addVsdbTopLevelConfigPanel() {
@@ -412,8 +403,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theTopLevelConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showTopLevelConfigPanel();
@@ -454,8 +445,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep1ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep1ConfigPanel();
@@ -496,8 +487,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep2ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep2ConfigPanel();
@@ -538,8 +529,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep3ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep3ConfigPanel();
@@ -580,8 +571,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep4ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep4ConfigPanel();
@@ -622,8 +613,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep5ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep5ConfigPanel();
@@ -664,8 +655,8 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 				.getConstraints(theVsdb.theStep6ConfigPanel);
 		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
 		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(900));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(700));
+		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep6ConfigPanel();
@@ -746,26 +737,27 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		// 3. theRunPanel ( 800 x 120 )
 		// ==================================================================
 		//
-		// 3.1 theIatCheckBoxPanel
+		// 3.1 theIatCboxPanel
 		//
-		// Add components into theIatCheckBoxPanel
-		theIatCheckBoxPanel.add(theFcstDiffCbox);
-		theIatCheckBoxPanel.add(theGeCbox);
-		theIatCheckBoxPanel.add(theHitCbox);
-		theIatCheckBoxPanel.add(theRadmonCbox);
-		theIatCheckBoxPanel.add(theVsdbCbox);
+		// Add components into theIatCboxPanel
+		theIatCboxPanel.add(theFcstDiffCbox);
+		theIatCboxPanel.add(theGeCbox);
+		theIatCboxPanel.add(theHitCbox);
+		theIatCboxPanel.add(theRadmonCbox);
+		theIatCboxPanel.add(theVsdbCbox);
 
-		// Set border for theIatCheckBoxPanel
+		// Set border for theIatCboxPanel
 		Border lowerBorder = BorderFactory.createLoweredBevelBorder();
-		TitledBorder theIatCheckBoxPanelBorder = BorderFactory
-				.createTitledBorder(lowerBorder, "IAT Selection");
-		theIatCheckBoxPanelBorder.setTitleJustification(TitledBorder.CENTER);
-		theIatCheckBoxPanel.setBorder(theIatCheckBoxPanelBorder);
+		TitledBorder theIatCboxPanelBorder = BorderFactory.createTitledBorder(
+				lowerBorder, "IAT Selection");
+		theIatCboxPanelBorder.setTitleJustification(TitledBorder.CENTER);
+		theIatCboxPanel.setBorder(theIatCboxPanelBorder);
 
 		// 3.2 Add 3 components into theRunPanel
-		theRunPanel.add(theIatCheckBoxPanel);
-		theRunPanel.add(theRunButton);
-		theRunPanel.add(theParButton);
+		theRunPanel.add(theIatCboxPanel);
+		theRunPanel.add(theRunBtn);
+		theRunPanel.add(theStatBtn);
+		theRunPanel.add(theParBtn);
 
 		// 3.3 Position 3 components within theRunPanel
 		SpringLayout theRunPanelLayout = new SpringLayout();
@@ -774,42 +766,54 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		int spacer = 5;
 		int box1_width = 300;
 		int box1_height = 100;
-		int box1_x=0; 
-		int box1_y=0;
-		
+		int box1_x = 0;
+		int box1_y = 0;
+
 		int box2_width = 150;
 		int box2_height = 30;
-		int box2_x= box1_x + box1_width + spacer; 
-		int box2_y= box1_height - box2_height - box1_y;
-		
+		int box2_x = box1_x + box1_width + spacer;
+		int box2_y = box1_height - box2_height - box1_y;
+
 		int box3_width = 150;
 		int box3_height = 30;
-		int box3_x= box2_x + box2_width + spacer; 
-		int box3_y= box2_y;
-		
-		int xWidth=150;
-		int yHeight=30;
+		int box3_x = box2_x + box2_width + spacer;
+		int box3_y = box2_y;
+
+		int box4_width = 150;
+		int box4_height = 30;
+		int box4_x = box3_x + box3_width + spacer;
+		int box4_y = box3_y;
+
+		int xWidth = 150;
+		int yHeight = 30;
 
 		SpringLayout.Constraints iatCheckBoxPanelCons = theRunPanelLayout
-				.getConstraints(theIatCheckBoxPanel);
+				.getConstraints(theIatCboxPanel);
 		iatCheckBoxPanelCons.setX(Spring.constant(box1_x));
 		iatCheckBoxPanelCons.setY(Spring.constant(box1_y));
 		iatCheckBoxPanelCons.setWidth(Spring.constant(box1_width));
 		iatCheckBoxPanelCons.setHeight(Spring.constant(box1_height));
 
 		SpringLayout.Constraints runButtonCons = theRunPanelLayout
-				.getConstraints(theRunButton);
+				.getConstraints(theRunBtn);
 		runButtonCons.setX(Spring.constant(box2_x));
 		runButtonCons.setY(Spring.constant(box2_y));
 		runButtonCons.setWidth(Spring.constant(box2_width));
 		runButtonCons.setHeight(Spring.constant(box2_height));
 
+		SpringLayout.Constraints statButtonCons = theRunPanelLayout
+				.getConstraints(theStatBtn);
+		statButtonCons.setX(Spring.constant(box3_x));
+		statButtonCons.setY(Spring.constant(box3_y));
+		statButtonCons.setWidth(Spring.constant(box3_width));
+		statButtonCons.setHeight(Spring.constant(box3_height));
+
 		SpringLayout.Constraints parButtonCons = theRunPanelLayout
-				.getConstraints(theParButton);
-		parButtonCons.setX(Spring.constant(box3_x));
-		parButtonCons.setY(Spring.constant(box3_y));
-		parButtonCons.setWidth(Spring.constant(box3_width));
-		parButtonCons.setHeight(Spring.constant(box3_height));
+				.getConstraints(theParBtn);
+		parButtonCons.setX(Spring.constant(box4_x));
+		parButtonCons.setY(Spring.constant(box4_y));
+		parButtonCons.setWidth(Spring.constant(box4_width));
+		parButtonCons.setHeight(Spring.constant(box4_height));
 
 		// ==================================================================
 		// 4. theConfigPanel ( 800 x 600 )
@@ -839,8 +843,7 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 
 		// 4.1 add components into theConfigPanel
 		theConfigPanel.add(theIAT_Choice);
-		theConfigPanel.add(theEmptyConfigPanel);
-		// theConfigPanel.add(theGeConfigPanel);
+		theConfigPanel.add(theEmptyConfig.theEmptyConfigPanel);
 
 		// 4.2 Position components within theConfigPanel using SpringLayout and
 		// Contraint.
@@ -854,37 +857,16 @@ public class IAT extends JPanel implements ActionListener, ItemListener,
 		iatChoiceCons.setWidth(Spring.constant(xWidth));
 		iatChoiceCons.setHeight(Spring.constant(yHeight));
 
-		// Position theEmptyConfigPanel within the config panel
-		SpringLayout.Constraints emptyConfigPanelCons = theConfigPanelLayout
-				.getConstraints(theEmptyConfigPanel);
-		emptyConfigPanelCons.setX(Spring.constant(10));
-		emptyConfigPanelCons.setY(Spring.constant(10 + yHeight + spacer));
-		emptyConfigPanelCons.setWidth(Spring.constant(600));
-		emptyConfigPanelCons.setHeight(Spring.constant(500));
+		// Position theEmptyConfig within the config panel
+		SpringLayout.Constraints emptyConfigCons = theConfigPanelLayout
+				.getConstraints(theEmptyConfig.theEmptyConfigPanel);
+		emptyConfigCons.setX(Spring.constant(10));
+		emptyConfigCons.setY(Spring.constant(10));
+		emptyConfigCons.setWidth(Spring.constant(xWidth));
+		emptyConfigCons.setHeight(Spring.constant(yHeight));
 
-		// 4.1 add components into theConfigPanel
-		theEmptyConfigPanel.add(emptyLbl);
-		theEmptyConfigPanel.add(emptyTextArea);
-
-		// 4.2 Position components within theConfigPanel using SpringLayout and
-		// Contraint.
-		SpringLayout emptyConfigPanelLayout = new SpringLayout();
-		theEmptyConfigPanel.setLayout(emptyConfigPanelLayout);
-
-		SpringLayout.Constraints emptyLblCons = emptyConfigPanelLayout
-				.getConstraints(emptyLbl);
-		emptyLblCons.setX(Spring.constant(10));
-		emptyLblCons.setY(Spring.constant(10));
-		emptyLblCons.setWidth(Spring.constant(xWidth));
-		emptyLblCons.setHeight(Spring.constant(yHeight));
-
-		SpringLayout.Constraints emptyTextAreaCons = emptyConfigPanelLayout
-				.getConstraints(emptyTextArea);
-		emptyTextAreaCons.setX(Spring.constant(10));
-		emptyTextAreaCons.setY(Spring.constant(10 + yHeight + spacer));
-		emptyTextAreaCons.setWidth(Spring.constant(100));
-		emptyTextAreaCons.setHeight(Spring.constant(200));
-
+		// Redirect to class EmptyConfig to show its own components.
+		theEmptyConfig.showConfigPanel();
 	}
 
 	/**

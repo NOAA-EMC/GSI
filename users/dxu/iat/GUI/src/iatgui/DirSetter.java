@@ -82,12 +82,13 @@ public final class DirSetter {
 
 	}
 
-	public static String getVsdbRoot() {
-		return theVsdbHome;
+	// Get package home
+	public static String getGUI_Root() {
+		return theGUI_Home;
 	}
 
-	public static String getRadmonRoot() {
-		return theRadmonHome;
+	public static String getFcstDiffRoot() {
+		return theFcstDiffHome;
 	}
 
 	public static String getGeRoot() {
@@ -98,16 +99,17 @@ public final class DirSetter {
 		return theHitHome;
 	}
 
-	public static String getFcstDiffRoot() {
-		return theFcstDiffHome;
+	public static String getRadmonRoot() {
+		return theRadmonHome;
 	}
 
-	public static String getVsdbWorkspace() {
-		return theVsdbWorkspace;
+	public static String getVsdbRoot() {
+		return theVsdbHome;
 	}
 
-	public static String getRadmonWorkspace() {
-		return theRadmonWorkspace;
+	// Get workspace
+	public static String getFcstDiffWorkspace() {
+		return theFcstDiffWorkspace;
 	}
 
 	public static String getGeWorkspace() {
@@ -118,10 +120,15 @@ public final class DirSetter {
 		return theHitWorkspace;
 	}
 
-	public static String getFcstDiffWorkspace() {
-		return theFcstDiffWorkspace;
+	public static String getRadmonWorkspace() {
+		return theRadmonWorkspace;
 	}
 
+	public static String getVsdbWorkspace() {
+		return theVsdbWorkspace;
+	}
+
+	// Check platform
 	public static boolean isWindows() {
 		if (theOS.indexOf("win") >= 0)
 			return true;
