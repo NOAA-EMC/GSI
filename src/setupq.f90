@@ -472,6 +472,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
+     if (twodvar_regional) then
+        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) &
+               qcgross=three*qcgross
+     endif
+
      if(ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if(luse(i))awork(4)=awork(4)+one
         error=zero

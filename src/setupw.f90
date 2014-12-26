@@ -845,7 +845,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (lowlevelsat .and. twodvar_regional) then
-        if (abs(ten*psges-presw) > 200._r_kind) then
+        if (data(idomsfc,i) /= 0 .and. data(idomsfc,i) /= 3 ) then
            error = zero
            ratio_errors = zero
         endif
