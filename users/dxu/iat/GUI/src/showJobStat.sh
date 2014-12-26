@@ -36,8 +36,16 @@ for (( i=0; i<$SIZE; i++)); do
    if [ "${searchStr}" != "${emptyStr}" ]
    then
       # Once a match is found, return and exit.
-      echo ${jobStatCmdArr[${i}]} -u $LOGNAME
+      echo "----------------------"
+      echo "Jobs submitted:"
+      echo "----------------------"
       ${jobStatCmdArr[${i}]} -u $LOGNAME
+      echo "" 
+      echo "" 
+      echo "----------------------"
+      echo "All processes:"
+      echo "----------------------"
+      ps -u $LOGNAME
       exit
    fi
 done 
