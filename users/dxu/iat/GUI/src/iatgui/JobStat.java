@@ -10,19 +10,20 @@ import javax.swing.SpringLayout;
 
 public class JobStat implements SizeDefinition {
 	public JPanel theJobStatPanel = new JPanel();
-	public JLabel theJobStatLbl = new JLabel("Job Stats:");
-	public JTextArea theJobStatTxt = new JTextArea("");
+	public JLabel theLbl = new JLabel("Job Stats:");
+	public JTextArea theTxt = new JTextArea("");
 	public JScrollPane theScroll;
 
 	// Constructor
 	JobStat() {
-		theScroll = new JScrollPane(theJobStatTxt,
+		theTxt.setEditable(false);
+		theScroll = new JScrollPane(theTxt,
 				JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 				JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
 	}
 
 	public void setJobStat(String aStr) {
-		theJobStatTxt.setText(aStr);
+		theTxt.setText(aStr);
 	}
 
 	public void showConfigPanel() {
@@ -37,7 +38,7 @@ public class JobStat implements SizeDefinition {
 		int yPos = 5;
 
 		// Add an label and textarea
-		theJobStatPanel.add(theJobStatLbl);
+		theJobStatPanel.add(theLbl);
 		theJobStatPanel.add(theScroll);
 
 		// Constraint to control positions of Label and TextArea
@@ -45,7 +46,7 @@ public class JobStat implements SizeDefinition {
 		SpringLayout.Constraints txtCons = new SpringLayout.Constraints();
 
 		// Position Label
-		lblCons = aLayout.getConstraints(theJobStatLbl);
+		lblCons = aLayout.getConstraints(theLbl);
 		lblCons.setX(Spring.constant(xPos));
 		lblCons.setY(Spring.constant(yPos));
 		lblCons.setWidth(Spring.constant(LBL_WIDTH));
