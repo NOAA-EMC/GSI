@@ -4,8 +4,6 @@ set -ux
 ## set up common directories, utilities and environment variables
 ## for different platforms, and assign user specific parameters.
 
-source  ./vsdbTop_gui.txt
-
 machine=${1:-WCOSS}
 machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 export rc=0
@@ -95,7 +93,7 @@ elif [ $machine = CARDINAL ]; then
  export CUE2RUN=${ENV_CUE2RUN}
  export CUE2FTP=${ENV_CUE2FTP}
  export GROUP=${ENV_GROUP}
- export doftp=${EVN_DOFTP}
+ export doftp=${ENV_DOFTP}
  if [ $doftp = YES ]; then
   export webhost=${webhost:-emcrzdm.ncep.noaa.gov}     ;#host for web display
   export webhostid=${webhostid:-$LOGNAME}              ;#login id on webhost 
