@@ -62,7 +62,9 @@ public final class DirSetter {
 		} else {
 			// Setting for Linux
 			// Package HOME
-			theIAT_Home = theGUI_Home + "/../..";
+//			theIAT_Home = theGUI_Home + "/../..";
+			theIAT_Home = theGUI_Home.substring(0, theGUI_Home.length() - 8);
+
 			theVsdbHome = theIAT_Home + "/vsdb_pkg/vsdb_v17";
 			theRadmonHome = theIAT_Home
 					+ "/radmon_pkg/radmon_pkg/radmon/util/Radiance_Monitor";
