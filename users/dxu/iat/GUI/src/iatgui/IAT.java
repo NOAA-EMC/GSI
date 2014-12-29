@@ -45,7 +45,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	 * 4. Configuration for individual IAT config panels
 	 */
 	// 0) Default Empty config panel
-//	private JTextArea theEmptyTxt = new JTextArea("");
+	// private JTextArea theEmptyTxt = new JTextArea("");
 
 	// 5. IAT choice and its components
 	private Choice theIAT_Choice = new Choice();
@@ -90,83 +90,124 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 		// Job stat button is clicked
 		if (evt.getSource() == theStatBtn) {
-			System.out.println("stat btn clicked");
-			JOptionPane.showMessageDialog(null, "stat is clicked");
-			
-			// Run "ps -u $LOGNAME " to  
-			if (DirSetter.isLinux()) {
-				String aStr = null;
-				try {
-					// run "showJobStat.sh"			
-					Process prcs = Runtime.getRuntime().exec(DirSetter.getGUI_Root() + "/showJobStat.sh" );
-
-					JTextArea aTxt = new JTextArea("");
-					// stdout
-					BufferedReader stdout = new BufferedReader(
-							new InputStreamReader(prcs.getInputStream()));
-					// stderr
-					BufferedReader stderr = new BufferedReader(
-							new InputStreamReader(prcs.getErrorStream()));
-
-					// read the output from the command
-					System.out
-							.println("Here is the standard output of the command:\n");
-					while ((aStr = stdout.readLine()) != null) {
-						System.out.println(aStr);
-						aTxt.append(aStr + "\n");
-					}
-
-					// read any errors from the attempted command
-					System.out
-							.println("Here is the standard error of the command (if any):\n");
-					while ((aStr = stderr.readLine()) != null) {
-						System.out.println(aStr);
-						aTxt.append(aStr + "\n");
-					}
-					
-					theJobStat.setJobStat(aTxt.getText());
-					
-					addJobStatPanel();
-					
-
-				} catch (IOException e) {
-					JOptionPane.showMessageDialog(null, "exception thrown");
-					System.out
-							.println("exception happened - here's what I know: ");
-					e.printStackTrace();
-					System.exit(-1);
-				}
-			}
-
-			addJobStatPanel();
+			executeStatBtn();
 		}
 
 		// Run button is clicked
 		if (evt.getSource() == theRunBtn) {
-			System.out.println("run btn clicked");
-			JOptionPane.showMessageDialog(null, "run is clicked");
+			executeRunBtn();
+		}
+	}
 
-			if (theFcstDiffCbox.isSelected()) {
-				System.out.println("fcstDiff is selected");
+	// Check job status
+	private void executeStatBtn() {
+		// Run "showJobStat.sh"
+		if (DirSetter.isLinux()) {
+			String aStr = null;
+			try {
+				// run "showJobStat.sh" under the current directory, which can not be changed.
+				Process prcs = Runtime.getRuntime().exec(
+						DirSetter.getGUI_Root() + "/showJobStat.sh");
+
+				JTextArea aTxt = new JTextArea("");
+				// stdout
+				BufferedReader stdout = new BufferedReader(
+						new InputStreamReader(prcs.getInputStream()));
+				// stderr
+				BufferedReader stderr = new BufferedReader(
+						new InputStreamReader(prcs.getErrorStream()));
+
+				// read the output from the command
+				System.out
+						.println("Here is the standard output of the command:\n");
+				while ((aStr = stdout.readLine()) != null) {
+					System.out.println(aStr);
+					aTxt.append(aStr + "\n");
+				}
+
+				// read any errors from the attempted command
+				while ((aStr = stderr.readLine()) != null) {
+					System.out.println(aStr);
+					aTxt.append(aStr + "\n");
+				}
+
+				theJobStat.setJobStat(aTxt.getText());
+
+				addJobStatPanel();
+
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "exception thrown");
+				System.out.println("exception happened - here's what I know: ");
+				e.printStackTrace();
+				System.exit(-1);
 			}
+		}
 
-			if (theGeCbox.isSelected()) {
-				System.out.println("ge is selected");
+		addJobStatPanel();
+	}
+
+	// Run IAT
+	private void executeRunBtn() {
+		String pkgToRun = "";
+
+		if (theFcstDiffCbox.isSelected())
+			pkgToRun += "   - FcstDiff \n";
+
+		if (theGeCbox.isSelected())
+			pkgToRun += "   - Ge \n";
+
+		if (theHitCbox.isSelected())
+			pkgToRun += "   - Hit \n";
+
+		if (theRadmonCbox.isSelected())
+			pkgToRun += "   - Radmon \n";
+
+		if (theVsdbCbox.isSelected())
+			pkgToRun += "   - Vsdb \n";
+
+		if (pkgToRun == "") {
+			JOptionPane.showMessageDialog(null,
+					"No package selected, please select package.");
+		} else {
+
+			int n = confirm("run following IAT packages: \n" + pkgToRun);
+
+			if (n == 0) {
+				if (theFcstDiffCbox.isSelected()) {
+					System.out.println("fcstDiff is selected");
+				}
+
+				if (theGeCbox.isSelected()) {
+					System.out.println("ge is selected");
+				}
+
+				if (theHitCbox.isSelected()) {
+					System.out.println("hit is selected");
+				}
+
+				if (theRadmonCbox.isSelected()) {
+
+					System.out.println("radmon is selected");
+				}
+
+				if (theVsdbCbox.isSelected()) {
+					System.out.println("vsdb is selected.");
+					if (DirSetter.isLinux()) {
+						try {
+							// Run vsdb main script in VSDB HOME directory.
+							Process prcs = Runtime.getRuntime().exec(
+									"./vsdbjob_submit_template.sh",
+									null,
+									new File(DirSetter.getVsdbRoot())
+											.getAbsoluteFile());
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							System.out.println("error in running vsdb!!!");
+							e.printStackTrace();
+						}
+					}
+				}
 			}
-
-			if (theHitCbox.isSelected()) {
-				System.out.println("hit is selected");
-			}
-
-			if (theRadmonCbox.isSelected()) {
-
-				System.out.println("radmon is selected");
-			}
-
-			if (theVsdbCbox.isSelected()) {
-				System.out.println("vsdb is selected.");
-			}
-
 		}
 	}
 
@@ -899,6 +940,16 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 		frame.setVisible(true);
 		frame.setLocationRelativeTo(null);
+	}
+
+	public int confirm(String aString) {
+		int n = JOptionPane.showConfirmDialog(null, aString, "",
+				JOptionPane.YES_NO_OPTION);
+		if (n == 0) {
+			JOptionPane.showMessageDialog(null, aString);
+		} else
+			JOptionPane.showMessageDialog(null, "NOT to " + aString);
+		return n;
 	}
 
 	/**
