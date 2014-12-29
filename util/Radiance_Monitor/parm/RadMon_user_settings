@@ -61,6 +61,19 @@ export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 export PLOT_HORIZ=${PLOT_HORIZ:-0}
 
 #
+#  PLOT_STATIC_IMGS switches on/off generation of static summary image plots.
+#     Image plotting is moving towards client browser drawn images and plotting
+#     scripts will eventually not "plot" images, but rather generate very small
+#     text files used to draw these client browser images.  The reason for this
+#     change is that the browswer drawn images can be modified dynamically by the
+#     user, and the text files require less server space than static images.
+#
+#     At present only summary plots have been converted.  
+#     0 = no static summary plot images created, 1 = static summary plots are generated
+#
+export PLOT_STATIC_IMGS=${PLOT_STATIC_IMGS:-0}
+
+#
 #  USE_TM is only used for regional data sources and by default uses the tm12
 #  files.  
 export USE_TM=${USE_TM:-tm12}
