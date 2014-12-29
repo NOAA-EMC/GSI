@@ -233,6 +233,7 @@ done
 
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
+#
 PLATFORM_TBL=./platform.txt
 > ${PLATFORM_TBL}
 TIME_PLATFORM_TBL=./time_platform.txt
@@ -263,7 +264,7 @@ while read line; do
    echo $hline >> $PLATFORM_TBL
    echo $tline >> $TIME_PLATFORM_TBL
 done < "$SORTED_LIST"
-#<OPTION VALUE="sndrd1_g11"    id="sndrd1_g11"   > GOES-11 SNDRD1 </OPTION>
+
 
 echo '</SELECT><P>' >> $PLATFORM_TBL
 echo '</TD></TR>' >> $PLATFORM_TBL
@@ -272,9 +273,15 @@ echo '</TD></TR>' >> $PLATFORM_TBL
 #--------------------------------------------------------------
 #  Edit the html files to add the platform table to each.
 #
-html_files="bcoef bcor bcor_angle comp horiz summary time"
+#  An example line entry in platform table is thus:
+#       <OPTION VALUE="sndrd1_g11" id="sndrd1_g11"> GOES-11 SNDRD1 </OPTION>
 
-for file in $html_files; do
+mod_html_files="bcoef bcor bcor_angle comp summary time"
+if [[ $PLOT_HORIZ -eq 1 ]]; then
+   mod_html_files="$mod_html_files horiz"
+fi
+
+for file in $mod_html_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/$file.html.$RAD_AREA .
    
    html_file=$file.html.$RAD_AREA
@@ -300,9 +307,9 @@ for file in $html_files; do
             select_name_line=`echo $line | grep "SELECT NAME"`
          fi
 
-         test_line=`echo $line | grep "</TD></TR>"`
+         test_line=`echo $line | grep "</TR>"`
          if [[ ${#test_line} -gt 0 ]]; then
-            echo '<TR><TD ALIGN=LEFT><B> Select Platform:<br>' >> $tmp_html
+            echo '<TR><TD><B> Select Platform:</B><br>' >> $tmp_html
             echo $select_name_line >> $tmp_html
 
              if [[ $file == "time" ]]; then
@@ -325,6 +332,7 @@ done
 # Generate the intro.html.$RAD_AREA file.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
+$NCP ${RADMON_IMAGE_GEN}/html/intro.html  .
 
 ./mk_intro.sh 
 
@@ -345,88 +353,93 @@ fi
 
 $NCP ${RADMON_IMAGE_GEN}/html/index.html.$RAD_AREA .
 html_files="bcoef bcor_angle bcor comp horiz index intro menu summary time"
+plot_files="plot_summary"
+js_files="jsuri-1.1.1.js stats.js"
 
-js_files="jsuri-1.1.1.js"
 
 #--------------------------------------------------------------
-#  Make starting directory on the server and copy over html, 
+#  Make starting directory in $imgndir and copy over html, 
 #  misc, and thumb images.
 #
-#  If we're on zeus/other then access to the web server is 
-#  indirect and requires manual intervention.  Move all the web 
-#  files to $IMGNDIR so they can be pulled from the server.
+subdirs="angle bcoef bcor comp horiz summary time"
+subdirs="summary"
+
+if [[ ! -d ${IMGNDIR} ]]; then
+   mkdir -p ${IMGNDIR}
+fi
+imgndir=`dirname ${IMGNDIR}`
+
+#-----------------------
+#  html files
+#
+for file in $html_files; do
+   $NCP ${file}.html.${RAD_AREA} ${imgndir}/${file}.html
+done
+   
+#-----------------------
+#  mk image dirs 
+#
+for dir in $subdirs; do
+   mkdir -p ${imgndir}/pngs/${dir}
+done
+
+#-----------------------
+#  plot files
+#
+for file in $plot_files; do
+   $NCP ${RADMON_IMAGE_GEN}/html/${file}.html ${imgndir}/.
+done
+
+#-----------------------
+#  js files
+#
+for file in $js_files; do
+   $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
+done
+
+#-----------------------
+#  summary thumb images
+#    If any are missing dummy one in using a copy of sndrdr1_g15.
+#
+thumbs="sum_thumbs.tar"
+$NCP ${RADMON_IMAGE_GEN}/html/${thumbs} ${imgndir}/pngs/summary/. 
+cd ${imgndir}/pngs/summary
+tar -xvf ${thumbs}
+rm -f ${thumbs}
+
+for satype in $SATYPE; do
+   if [[ ! -e ${satype}.summary.png ]]; then
+      $NCP sndrd1_g15.summary.png ${satype}.summary.png
+   fi
+done
+
+img_list=`ls *.png`			# rm any images for sources not in $SATYPE
+for img in ${img_list}; do
+   tmp=`echo "$img" | cut -d. -f1`
+   echo $tmp
+   img_match=`echo $SATYPE | grep $tmp`
+   if [[ ${#img_match} -le 0 ]]; then
+      rm -f ${img}
+   fi
+done
+
+
+#---------------------------------------------------
+# if on wcoss then cd $imgndir and do the rsync here
 #
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
-
-   #-----------------------
-   #  html files
-   #
-   for file in $html_files; do
-      scp ${file}.html.${RAD_AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
-   done
-
-   #-----------------------
-   #  mk image dirs 
-   #
-   subdirs="angle bcoef bcor comp horiz summary time"
-   for dir in $subdirs; do
-      ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}/pngs/${dir}"
-   done
-
-   #-----------------------
-   #  js files
-   #
-   for file in $js_files; do
-      scp ${file} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}
-   done
- 
-   #-----------------------
-   #  summary thumb images
-   #
-   scp -l ${WEB_USER} ${WEB_SVR} sum_thumb.tar ${WEB_USER}@${WEB_SVR}:${new_webdir}/pngs/summary/. 
-   ssh -l ${WEB_USER} ${WEB_SVR} "tar -xvf ${new_webdir}/pngs/summary/sum_thumb.tar
-   ssh -l ${WEB_USER} ${WEB_SVR} "rm -f ${new_webdir}/pngs/summary/sum_thumb.tar
-   
-else
-   if [[ ! -d ${IMGNDIR} ]]; then
-      mkdir -p ${IMGNDIR}
+   if [[ ${imgndir} != "/" ]]; then	      # sanity check to avoid serious embarrassment
+      /usr/bin/rsync -ave ssh  --exclude *.ctl.${Z} ${imgndir}/ \
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi
-   imgndir=`dirname ${IMGNDIR}`
-
-   #-----------------------
-   #  html files
-   #
-   for file in $html_files; do
-      $NCP ${file}.html.${RAD_AREA} ${imgndir}/${file}.html
-   done
-   
-   #-----------------------
-   #  mk image dirs 
-   #
-   subdirs="angle bcoef bcor comp horiz summary time"
-   for dir in $subdirs; do
-      mkdir -p ${imgndir}/pngs/${dir}
-   done
-
-   #-----------------------
-   #  js files
-   #
-   for file in $js_files; do
-      $NCP ${file} ${imgndir}/pngs/${file}
-   done
-
-   #-----------------------
-   #  summary thumb images
-   #
-   $NCP sum_thumb.tar ${imgndir}/pngs/summary/. 
-   tar -xvf ${imgndir}/pngs/summary/sum_thumb.tar
-   rm -f ${imgndir}/pngs/summary/sum_thumb.tar
 fi
 
-cd $workdir
-cd ../
-rm -rf $workdir
+#------------------------
+# clean up $workdir
+#
+#cd $workdir
+#cd ../
+#rm -rf $workdir
 
 echo ""
 echo "END Install_html.sh"
