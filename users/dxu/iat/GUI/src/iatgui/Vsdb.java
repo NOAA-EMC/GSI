@@ -23,7 +23,7 @@ import javax.swing.Spring;
 import javax.swing.SpringLayout;
 
 public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
-	// Redefine constants below for local use. 
+	// Redefine constants below for local use.
 	private final int TEXTAREA_WIDTH = 400;
 	private final int TEXTAREA_HEIGHT = 15;
 
@@ -49,7 +49,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	// top-level config panel
 	public JLabel[] theTopLevelConfigLblArr = new JLabel[SIZE_TOP_LEVEL];
 	public JTextArea[] theTopLevelConfigTxtArr = new JTextArea[SIZE_TOP_LEVEL];
-	public String[] theTopLevelConfigEnvArr = new String[SIZE_TOP_LEVEL];	
+	public String[] theTopLevelConfigEnvArr = new String[SIZE_TOP_LEVEL];
 	public String[] theTopLevelConfigLblValueArr = new String[SIZE_TOP_LEVEL];
 	public String[] theTopLevelConfigTxtValueArr = new String[SIZE_TOP_LEVEL];
 	public String[] theTopLevelConfigTxtInitValueArr = new String[SIZE_TOP_LEVEL];
@@ -1152,9 +1152,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	}
 
-	public int saveChanges(String aString) {
-		int n = JOptionPane.showConfirmDialog(null, "Save changes?", aString,
-				JOptionPane.YES_NO_OPTION);
+	public int saveChanges(String aTitleString) {
+		int n = JOptionPane.showConfirmDialog(null, "Save changes?",
+				aTitleString, JOptionPane.YES_NO_OPTION);
 		if (n == 0) {
 			JOptionPane.showMessageDialog(null, "Changes saved.");
 		} else
@@ -1187,9 +1187,33 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theTopLevelConfigEnvArr[index]
-						+ "=" + theTopLevelConfigTxtArr[index].getText();
+						+ "=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
+				
+				// Need to export VSDBHOME, WORKSPACE and gstat explicitly because they 
+				// are used to build some of ENV variables 
+				// export VSDBHOME  
+				if (index == 0){
+					tmpString = "export " + "VSDBHOME=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+					print_line.printf("%s%n", tmpString);
+					System.out.println(tmpString);				
+				}
+				
+				// export WORKSPACE
+				if (index == 1){
+					tmpString = "export " + "WORKSPACE=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+					print_line.printf("%s%n", tmpString);
+					System.out.println(tmpString);				
+				}
+
+				// export gstat
+				if (index == 6){
+					tmpString = "export " + "gstat=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+					print_line.printf("%s%n", tmpString);
+					System.out.println(tmpString);				
+				}
+
 			}
 
 			// Close PrintWriter
@@ -1216,7 +1240,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep1ConfigEnvArr[index]
-						+ "=" + theStep1ConfigTxtArr[index].getText();
+						+ "=\"" + theStep1ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1245,7 +1269,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep2ConfigEnvArr[index]
-						+ "=" + theStep2ConfigTxtArr[index].getText();
+						+ "=\"" + theStep2ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1274,7 +1298,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep3ConfigEnvArr[index]
-						+ "=" + theStep3ConfigTxtArr[index].getText();
+						+ "=\"" + theStep3ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1303,7 +1327,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep4ConfigEnvArr[index]
-						+ "=" + theStep4ConfigTxtArr[index].getText();
+						+ "=\"" + theStep4ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1332,7 +1356,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep5ConfigEnvArr[index]
-						+ "=" + theStep5ConfigTxtArr[index].getText();
+						+ "=\"" + theStep5ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1361,7 +1385,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theStep6ConfigEnvArr[index]
-						+ "=" + theStep6ConfigTxtArr[index].getText();
+						+ "=\"" + theStep6ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 			}
@@ -1375,10 +1399,11 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public void resetTopLevel() {
 		int n = resetChanges("top level config");
 		if (n == 0) {
-			 for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
-			 // Save values in GUI to value array
-			 theTopLevelConfigTxtArr[index].setText(theTopLevelConfigTxtInitValueArr[index]);
-			 }
+			for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
+				// Save values in GUI to value array
+				theTopLevelConfigTxtArr[index]
+						.setText(theTopLevelConfigTxtInitValueArr[index]);
+			}
 		}
 	}
 
@@ -1388,7 +1413,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP1; index++) {
 				// Save values in GUI to value array
-				theStep1ConfigTxtArr[index].setText(theStep1ConfigTxtInitValueArr[index]);
+				theStep1ConfigTxtArr[index]
+						.setText(theStep1ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1399,7 +1425,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP2; index++) {
 				// Save values in GUI to value array
-				theStep2ConfigTxtArr[index].setText(theStep2ConfigTxtInitValueArr[index]);
+				theStep2ConfigTxtArr[index]
+						.setText(theStep2ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1410,7 +1437,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP3; index++) {
 				// Save values in GUI to value array
-				theStep3ConfigTxtArr[index].setText(theStep3ConfigTxtInitValueArr[index]);
+				theStep3ConfigTxtArr[index]
+						.setText(theStep3ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1421,7 +1449,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP4; index++) {
 				// Save values in GUI to value array
-				theStep4ConfigTxtArr[index].setText(theStep4ConfigTxtInitValueArr[index]);
+				theStep4ConfigTxtArr[index]
+						.setText(theStep4ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1432,7 +1461,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP5; index++) {
 				// Save values in GUI to value array
-				theStep5ConfigTxtArr[index].setText(theStep5ConfigTxtInitValueArr[index]);
+				theStep5ConfigTxtArr[index]
+						.setText(theStep5ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
@@ -1443,7 +1473,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		if (n == 0) {
 			for (int index = 0; index < SIZE_STEP6; index++) {
 				// Save values in GUI to value array
-				theStep6ConfigTxtArr[index].setText(theStep6ConfigTxtInitValueArr[index]);
+				theStep6ConfigTxtArr[index]
+						.setText(theStep6ConfigTxtInitValueArr[index]);
 			}
 		}
 	}
