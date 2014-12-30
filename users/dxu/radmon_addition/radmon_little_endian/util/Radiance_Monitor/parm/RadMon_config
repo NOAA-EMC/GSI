@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=/data/users/dxu/radmon_for_kg/util/Radiance_Monitor
+export MY_RADMON=/data/users/dxu/radmon_little_endian/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@ export MY_RADMON=/data/users/dxu/radmon_for_kg/util/Radiance_Monitor
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=/data/users/dxu/radmon_workspace/data/output/radmon_tank
+export MY_TANKDIR=/data/users/dxu/workspace/radmon_workspace_little/data/output/radmon_tank
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
@@ -53,8 +53,8 @@ echo endian = $LITTLE_ENDIAN
 #
 #  Log and work space definitions
 #
-export PTMP=/data/users/dxu/radmon_workspace/log
-export STMP=/data/users/dxu/radmon_workspace/run
+export PTMP=/data/users/dxu/workspace/radmon_workspace_little/log
+export STMP=/data/users/dxu/workspace/radmon_workspace_little/run
   
 export LOGSverf_rad=$PTMP/$LOGNAME/logs    
 export WORKverf_rad=$STMP/$LOGNAME         

@@ -57,6 +57,9 @@
       elsif( $host =~ /card/ ){
          $machine = "cardinal";
       }
+      elsif( $host =~ /jibb/ ){
+         $machine = "jibb";
+      }
       elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
          $machine = "wcoss";
       }
