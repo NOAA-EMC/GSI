@@ -303,8 +303,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				"ftyplist", "dumplist", "ptyplist", "bucket", "fhout", "cycle",
 				"DATEST", "DATEND" };
 		String[] initialTxtValueArr = { "NO",
-				"${WORKSPACE}/data/input/fcst_data", "gfs ecm", "pgb pgb",
-				".gfs. .gfs.", "PRIVATE PRIVATE", "6", "6", "00", "20140201",
+				"${WORKSPACE}/data/input/fcst_data", "gfs gfs2", "pgb pgb",
+				".gfs. .gfs.", "PRATE PRATE", "6", "6", "00", "20140201",
 				"20140228" };
 
 		for (int index = 0; index < SIZE_STEP3; index++) {
