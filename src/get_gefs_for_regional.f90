@@ -111,6 +111,7 @@ subroutine get_gefs_for_regional
   real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
   integer(i_kind) ii,jj,n1
   integer(i_kind) iimax,iimin,jjmax,jjmin
+  integer(i_kind) nming1,nming2
   real(r_kind) ratio_x,ratio_y
 
   real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
@@ -208,12 +209,13 @@ do it=1,ntlevs_ens
   iadate_gfs(3)=jda(3) ! day
   iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
   iadate_gfs(5)=0      ! minute
-  if(mype == 0) then
+  if(mype == 46) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if
-  if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
-                                 iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
+           call w3fs21(iadate,nming1)
+           call w3fs21(iadate_gfs,nming2)
+  if( nming1/=nming2 ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
      call stop2(85)
   end if
