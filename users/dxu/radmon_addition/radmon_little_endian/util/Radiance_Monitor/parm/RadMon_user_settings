@@ -37,7 +37,8 @@ export RAD_AREA=${RAD_AREA:-glb}
 #    horizontal data when it's needed rather than storing huge files all the time).
 #
 #export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/dxu/radmon_workspace/data/input/input_for_test}
-export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/dxu/radmon_workspace/data/input/radmon_input_for_kevin}
+#export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/dxu/radmon_workspace/data/input/radmon_input_for_kevin}
+export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/mmasutani/data_s4/G14.diag/radmon_workspace/data/input/input_for_test}
 
 #
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
