@@ -4,6 +4,9 @@
     == 12/2014, per WebStorm this document is now HTML5 compliant, using an embedded
     == ccs (cascading style sheet) to replace all deprecated html presentation tags.
     == There remains a problem at line ~68 with the request.open synchronous flag though.
+    ==   The solution for that is to restructure the drawing function to initiate the draw
+    ==   as a response to one or more events wired to the request object, rather than,
+    ==   as currently written, accomplishing the draw in a sequential manner.
     =====================================================================================-->
 
     <head>
@@ -50,6 +53,7 @@
                  * loadCSV loads data from comma separated value file
                  *****************************************************/
                 function loadCSV(file) {
+
                     if (window.XMLHttpRequest) {
                         // IE7+, Firefox, Chrome, Opera, Safari
                         var request = new XMLHttpRequest();
@@ -63,12 +67,26 @@
                     // load file
                     //   NOTE:  This request.open with false for the async param (meaning synchronous request)
                     //          is reported as deprecated when used on the main thread due to negative user
-                    //          experience (forced wait time).  I have yet to figure out how to load the data
-                    //          file on an asynchronous request though.
+                    //          experience (forced wait time).
+                    //
+                    //          Issue is that with asynchronous request, js execution proceeds before the data
+                    //          is returned from the request.open() call.  This means the dataProvider is not
+                    //          loaded, because the data isn't available yet.  I've tried implementing a crude
+                    //          sort of sleep function (js doesn't have one) but I still have timing problems
+                    //          and end up loading my dataProvider before the request data is back.
+                    //
+                    //          I think the way around this is to restructure the code so that loading the
+                    //          dataProvider (and all things downstream of that) is triggered by a callback from
+                    //          the request.
+
+                    //request.addEventListener("loadend", loadEnd(), false);
                     request.open('GET', file, false);
+                    //request.onload( loadEnd() );
                     request.send();
+
                     parseCSV(request.responseText);
                 }
+
 
                 /*****************************************************
                  *  parseCSV puts file data into dataProvider[] array

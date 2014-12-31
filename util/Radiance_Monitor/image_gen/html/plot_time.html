@@ -1,0 +1,1308 @@
+<!doctype html>
+<HTML>
+<head>
+    <!-- ***************************************************-->
+    <!-- Time Plot via Google Charts (javascript extension) -->
+    <!-- ***************************************************-->
+
+
+    <!-- load google chart api and local copy of date.format.js -->
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="jsuri-1.1.1.js"></script>
+    <script type="text/javascript" src="stats.js"></script>
+
+
+    <SCRIPT type="text/javascript">
+
+        google.load("visualization", "1", {packages:["corechart"]});
+
+        // on document load event fire the drawCharts() function
+        google.setOnLoadCallback(drawCharts);
+
+
+        // array for retrieved data from the csv file
+        var chanData   = [];    // channel meta-data
+        var cntData    = [];    // count data
+
+        var data1;              // data container for chart 1
+        var data2;              // data container for chart 2
+
+        var url    = window.location.href;
+
+        var initialLoad = true;
+
+        // These are numeric values corresponding to UI select list values
+        var curDataSrc = "ccr2";
+        var curStat;
+        var curChan;
+        var curSrc;
+
+        // This is the plain text name of the sat/instrument source.
+        var curSrcName;
+
+
+
+        /* -----------------------------------
+         *  drawCharts, main drawing function
+         * ----------------------------------- */
+        function drawCharts() {
+            //log ( "--> drawCharts");
+
+            // Handles to the selection lists in the UI.
+            var platformSel  = document.getElementById("platformSelect");
+            var statSel      = document.getElementById("statSelect");
+            var chanSel      = document.getElementById("chanSelect");
+
+
+            /*
+             *  Pull the data source from the url sent to this page
+             */
+            var url = window.location.href;
+
+
+            /*
+             * loadChanData requests data from [satname].chan.txt file
+             */
+            function loadChanData( file ){
+                //log( '--> loadChanData');
+                if (window.XMLHttpRequest) {
+                    // IE7+, Firefox, Chrome, Opera, Safari
+                    var request = new XMLHttpRequest();
+                }
+                else {
+                    // code for IE6, IE5
+                    var request = new ActiveXObject('Microsoft.XMLHTTP');
+                }
+
+                // load file
+                request.open('GET', file, false);
+                request.send();
+                parseChanData(request.responseText);
+                //log( '<-- loadChanData');
+            }
+
+            /*
+             * parseChanData loads channel data into the chanData array
+             */
+            function parseChanData( data ){
+                //log( '--> parseChanData' );
+
+                //replace UNIX new lines
+                data = data.replace(/\r\n/g, "\n");
+                //replace MAC new lines
+                data = data.replace(/\r/g, "\n");
+                //split into rows
+                var rows = data.split("\n");
+                //log( rows.length );
+
+                var sat   = '';
+                var nchan = 0;
+                var ncyc  = 0;
+
+                /*
+                 *  File line 0 contains the satname, number of channels, and number of cycles
+                 */
+                if (rows[0]) {
+                    var column = rows[0].split(",");
+                    sat    = column[0];
+                    nchan  = parseInt(column[1]);
+                    ncyc   = parseInt(column[2]);
+                }
+
+                /*
+                 * File lines 1..nchanl contain the individual channel meta data including:
+                 *          - actual channel number (some instrument channels are non-contiguously numbered)
+                 *          - use flag (1 is assimilated, -1 is not)
+                 *          - 10 chi values (ges regions 1-5, anl regions 1-5)
+                 *          - wavelength
+                 *          - frequency
+                 */
+                for (var i = 1; i <= nchan; i++){
+                    // this line helps to skip empty rows
+                    if (rows[i]) {
+                        // our columns are separated by comma
+                        var column = rows[i].split(",");
+
+                        // data element order is channel, use flag, 10 chi values, wavelength, freq
+                        var chan    = Number(column[0]);
+                        var use     = Number(column[1]);
+                        var chi     = [];
+                        chi.push(Number(column[2]));    chi.push(Number(column[3]));    chi.push(Number(column[4]));
+                        chi.push(Number(column[5]));    chi.push(Number(column[6]));    chi.push(Number(column[7]));
+                        chi.push(Number(column[8]));    chi.push(Number(column[9]));    chi.push(Number(column[10]));
+                        chi.push(Number(column[11]));
+                        var wvlnth  = Number(column[12]);
+                        var freq    = Number(column[13]);
+
+                        // put sat, nchan, and ncyc in each channel object so that we can later use curChan as index
+                        // rather than curchan -1
+                        var dataObject = {sat:sat, nchan:nchan, ncyc:ncyc, chan:chan, use:use,
+                            chi:chi, wvlnth:wvlnth, freq:freq};
+
+                        // add object to dataProvider array
+                        chanData.push(dataObject);
+                    }
+                }
+
+                //log( '<-- parseChanData' );
+            }
+
+            /*
+             * loadCSV loads data from comma separated value file
+             */
+            function loadCntData( file ) {
+                log( '--> loadCntData' + file);
+                if (window.XMLHttpRequest) {
+                    // IE7+, Firefox, Chrome, Opera, Safari
+                    var request = new XMLHttpRequest();
+                }
+                else {
+                    // code for IE6, IE5
+                    var request = new ActiveXObject('Microsoft.XMLHTTP');
+                }
+
+
+                // load file
+                request.open('GET', file, false);
+                request.send();
+                parseCntData(request.responseText, 0);
+
+                var file2 = file.substring(1);
+                var ctlFile = '../Ctl' + file2 ;
+
+                log( '  now need to load '+ctlFile);
+                // load ctlfile
+                request.open('GET', ctlFile, false);
+                request.send();
+                parseCntData( request.responseText, 1 );
+
+                log( '<-- loadCntData' );
+            }
+
+            function parseCntData(data, idx) {
+                log( '--> parseCntData ,idx = ' + idx);
+                //replace UNIX new lines
+                data = data.replace(/\r\n/g, "\n");
+                //replace MAC new lines
+                data = data.replace(/\r/g, "\n");
+                //split into rows
+                var rows = data.split("\n");
+                log( 'rows.length = ' + rows.length );
+
+                var ncyc  = chanData[0].ncyc;
+                log( 'ncyc = ' + ncyc );
+
+                /*
+                 * Load count data for each channel using arrays for the time and gr/ar values.
+                 */
+                var time = [];
+                var gr1  = []; var gr2 = []; var gr3 = []; var gr4 = []; var gr5 = [];
+                var ar1  = []; var ar2 = []; var ar3 = []; var ar4 = []; var ar5 = [];
+                var gr1pen  = []; var gr2pen = []; var gr3pen = []; var gr4pen = []; var gr5pen = [];
+                var ar1pen  = []; var ar2pen = []; var ar3pen = []; var ar4pen = []; var ar5pen = [];
+                var gr1omgnbcavg = []; var gr2omgnbcavg = []; var gr3omgnbcavg = []; var gr4omgnbcavg = [];
+                var gr5omgnbcavg = [];
+                var ar1omgnbcavg = []; var ar2omgnbcavg = []; var ar3omgnbcavg = []; var ar4omgnbcavg = [];
+                var ar5omgnbcavg = [];
+                var gr1omgnbcsdv = []; var gr2omgnbcsdv = []; var gr3omgnbcsdv = []; var gr4omgnbcsdv = [];
+                var gr5omgnbcsdv = [];
+                var ar1omgnbcsdv = []; var ar2omgnbcsdv = []; var ar3omgnbcsdv = []; var ar4omgnbcsdv = [];
+                var ar5omgnbcsdv = [];
+                var gr1bcravg = []; var gr2bcravg = []; var gr3bcravg = []; var gr4bcravg = []; var gr5bcravg = [];
+                var ar1bcravg = []; var ar2bcravg = []; var ar3bcravg = []; var ar4bcravg = []; var ar5bcravg = [];
+                var gr1bcrsdv = []; var gr2bcrsdv = []; var gr3bcrsdv = []; var gr4bcrsdv = []; var gr5bcrsdv = [];
+                var ar1bcrsdv = []; var ar2bcrsdv = []; var ar3bcrsdv = []; var ar4bcrsdv = []; var ar5bcrsdv = [];
+
+                var gr1omgbcavg = []; var gr2omgbcavg = []; var gr3omgbcavg = []; var gr4omgbcavg = [];
+                var gr5omgbcavg = [];
+                var ar1omgbcavg = []; var ar2omgbcavg = []; var ar3omgbcavg = []; var ar4omgbcavg = [];
+                var ar5omgbcavg = [];
+                var gr1omgbcsdv = []; var gr2omgbcsdv = []; var gr3omgbcsdv = []; var gr4omgbcsdv = [];
+                var gr5omgbcsdv = [];
+                var ar1omgbcsdv = []; var ar2omgbcsdv = []; var ar3omgbcsdv = []; var ar4omgbcsdv = [];
+                var ar5omgbcsdv = [];
+                var firstCyc;
+                var lastCyc;
+
+                //----------------------------------------------------------------
+                //  When loading idx > 0 we need to match the times to idx = 0,
+                //  otherwise the data times won't coincide on the plots.
+                //
+                //  Fill chanObj with all null values and then fill by assignment
+                //  where dates match.
+                //----------------------------------------------------------------
+                if( idx === 1 ){
+                    for( var ii=0; ii<rows.length-1; ii++ ){
+                        gr1.push(null);         ar1.push(null);
+                        gr2.push(null);         ar2.push(null);
+                        gr3.push(null);         ar3.push(null);
+                        gr4.push(null);         ar4.push(null);
+                        gr5.push(null);         ar5.push(null);
+                        gr1pen.push(null);      ar1pen.push(null);
+                        gr2pen.push(null);      ar2pen.push(null);
+                        gr3pen.push(null);      ar2pen.push(null);
+                        gr4pen.push(null);      ar4pen.push(null);
+                        gr5pen.push(null);      ar5pen.push(null);
+                        gr1omgnbcavg.push(null);  ar1omgnbcavg.push(null);
+                        gr2omgnbcavg.push(null);  ar2omgnbcavg.push(null);
+                        gr3omgnbcavg.push(null);  ar3omgnbcavg.push(null);
+                        gr4omgnbcavg.push(null);  ar4omgnbcavg.push(null);
+                        gr5omgnbcavg.push(null);  ar5omgnbcavg.push(null);
+                        gr1omgnbcsdv.push(null);  ar1omgnbcsdv.push(null);
+                        gr2omgnbcsdv.push(null);  ar2omgnbcsdv.push(null);
+                        gr3omgnbcsdv.push(null);  ar3omgnbcsdv.push(null);
+                        gr4omgnbcsdv.push(null);  ar4omgnbcsdv.push(null);
+                        gr5omgnbcsdv.push(null);  ar5omgnbcsdv.push(null);
+                        gr1bcravg.push(null);     ar1bcravg.push(null);
+                        gr2bcravg.push(null);     ar2bcravg.push(null);
+                        gr3bcravg.push(null);     ar3bcravg.push(null);
+                        gr4bcravg.push(null);     ar4bcravg.push(null);
+                        gr5bcravg.push(null);     ar5bcravg.push(null);
+                        gr1bcrsdv.push(null);     ar1bcrsdv.push(null);
+                        gr2bcrsdv.push(null);     ar2bcrsdv.push(null);
+                        gr3bcrsdv.push(null);     ar3bcrsdv.push(null);
+                        gr4bcrsdv.push(null);     ar4bcrsdv.push(null);
+                        gr5bcrsdv.push(null);     ar5bcrsdv.push(null);
+
+                        gr1omgbcavg.push(null);   ar1omgbcavg.push(null);
+                        gr2omgbcavg.push(null);   ar2omgbcavg.push(null);
+                        gr3omgbcavg.push(null);   ar3omgbcavg.push(null);
+                        gr4omgbcavg.push(null);   ar4omgbcavg.push(null);
+                        gr5omgbcavg.push(null);   ar5omgbcavg.push(null);
+                        gr1omgbcsdv.push(null);   ar1omgbcsdv.push(null);
+                        gr2omgbcsdv.push(null);   ar2omgbcsdv.push(null);
+                        gr3omgbcsdv.push(null);   ar3omgbcsdv.push(null);
+                        gr4omgbcsdv.push(null);   ar4omgbcsdv.push(null);
+                        gr5omgbcsdv.push(null);   ar5omgbcsdv.push(null);
+                    }
+
+                    firstCyc = cntData[curChan][0].time[0];
+                    lastCyc  = cntData[curChan][0].time[ncyc-1];
+                    log( ' firstCyc, lastCyc = ' + firstCyc + ', ' + lastCyc );
+                }
+
+                for( var i = 0; i < rows.length-1; i++ ){
+
+                    // this if statement helps to skip empty rows
+                    if (rows[i]) {
+                        var column = rows[i].split(",");
+
+                        if( idx === 1 ) {
+                            if( (Number(column[1]) > Number( firstCyc )) ||
+                                    (Number(column[1]) < Number( lastCyc )) ) {
+                                log (' need to skip ' + Number(column[1]));
+                                continue;
+                            }
+                            else{
+                                for( var jj=0; jj<rows.length-1; jj++ ){
+                                    if( Number(column[1]) == Number(cntData[curChan][0].time[jj]) ){
+                                        time[jj] = column[1];
+                                        //ges, anl count values, regions 1-5
+                                        gr1[jj] = Number(column[2]);    ar1[jj] = Number(column[7]);
+                                        gr2[jj] = Number(column[3]);    ar2[jj] = Number(column[8]);
+                                        gr3[jj] = Number(column[4]);    ar3[jj] = Number(column[9]);
+                                        gr4[jj] = Number(column[5]);    ar4[jj] = Number(column[10]);
+                                        gr5[jj] = Number(column[6]);    ar5[jj] = Number(column[11]);
+                                        //ges, anl penalty values, regions 1-5
+                                        gr1pen[jj] = (Number(column[12]));        ar1pen[jj] = (Number(column[17]));
+                                        gr2pen[jj] = (Number(column[13]));        ar2pen[jj] = (Number(column[18]));
+                                        gr3pen[jj] = (Number(column[14]));        ar2pen[jj] = (Number(column[19]));
+                                        gr4pen[jj] = (Number(column[15]));        ar4pen[jj] = (Number(column[20]));
+                                        gr5pen[jj] = (Number(column[16]));        ar5pen[jj] = (Number(column[21]));
+                                        //ges, anl omgnbc avg & std, regions 1-5
+                                        gr1omgnbcavg[jj] = (Number(column[22]));  ar1omgnbcavg[jj] = (Number(column[27]));
+                                        gr2omgnbcavg[jj] = (Number(column[23]));  ar2omgnbcavg[jj] = (Number(column[28]));
+                                        gr3omgnbcavg[jj] = (Number(column[24]));  ar3omgnbcavg[jj] = (Number(column[29]));
+                                        gr4omgnbcavg[jj] = (Number(column[25]));  ar4omgnbcavg[jj] = (Number(column[30]));
+                                        gr5omgnbcavg[jj] = (Number(column[26]));  ar5omgnbcavg[jj] = (Number(column[31]));
+                                        gr1omgnbcsdv[jj] = (Number(column[32]));  ar1omgnbcsdv[jj] = (Number(column[37]));
+                                        gr2omgnbcsdv[jj] = (Number(column[33]));  ar2omgnbcsdv[jj] = (Number(column[38]));
+                                        gr3omgnbcsdv[jj] = (Number(column[34]));  ar3omgnbcsdv[jj] = (Number(column[39]));
+                                        gr4omgnbcsdv[jj] = (Number(column[35]));  ar4omgnbcsdv[jj] = (Number(column[40]));
+                                        gr5omgnbcsdv[jj] = (Number(column[36]));  ar5omgnbcsdv[jj] = (Number(column[41]));
+
+                                        gr1bcravg[jj] = (Number(column[42]));     ar1bcravg[jj] = (Number(column[47]));
+                                        gr2bcravg[jj] = (Number(column[43]));     ar2bcravg[jj] = (Number(column[48]));
+                                        gr3bcravg[jj] = (Number(column[44]));     ar3bcravg[jj] = (Number(column[49]));
+                                        gr4bcravg[jj] = (Number(column[45]));     ar4bcravg[jj] = (Number(column[50]));
+                                        gr5bcravg[jj] = (Number(column[46]));     ar5bcravg[jj] = (Number(column[51]));
+                                        gr1bcrsdv[jj] = (Number(column[52]));     ar1bcrsdv[jj] = (Number(column[57]));
+                                        gr2bcrsdv[jj] = (Number(column[53]));     ar2bcrsdv[jj] = (Number(column[58]));
+                                        gr3bcrsdv[jj] = (Number(column[54]));     ar3bcrsdv[jj] = (Number(column[59]));
+                                        gr4bcrsdv[jj] = (Number(column[55]));     ar4bcrsdv[jj] = (Number(column[60]));
+                                        gr5bcrsdv[jj] = (Number(column[56]));     ar5bcrsdv[jj] = (Number(column[61]));
+
+                                        gr1omgbcavg[jj] = (Number(column[62]));   ar1omgbcavg[jj] = (Number(column[67]));
+                                        gr2omgbcavg[jj] = (Number(column[63]));   ar2omgbcavg[jj] = (Number(column[68]));
+                                        gr3omgbcavg[jj] = (Number(column[64]));   ar3omgbcavg[jj] = (Number(column[69]));
+                                        gr4omgbcavg[jj] = (Number(column[65]));   ar4omgbcavg[jj] = (Number(column[70]));
+                                        gr5omgbcavg[jj] = (Number(column[66]));   ar5omgbcavg[jj] = (Number(column[71]));
+                                        gr1omgbcsdv[jj] = (Number(column[72]));   ar1omgbcsdv[jj] = (Number(column[77]));
+                                        gr2omgbcsdv[jj] = (Number(column[73]));   ar2omgbcsdv[jj] = (Number(column[78]));
+                                        gr3omgbcsdv[jj] = (Number(column[74]));   ar3omgbcsdv[jj] = (Number(column[79]));
+                                        gr4omgbcsdv[jj] = (Number(column[75]));   ar4omgbcsdv[jj] = (Number(column[80]));
+                                        gr5omgbcsdv[jj] = (Number(column[76]));   ar5omgbcsdv[jj] = (Number(column[81]));
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            //log( 'loading time ' + column[1]);
+                            time.push(column[1]);
+                            gr1.push(Number(column[2]));            ar1.push(Number(column[7]));
+                            gr2.push(Number(column[3]));            ar2.push(Number(column[8]));
+                            gr3.push(Number(column[4]));            ar3.push(Number(column[9]));
+                            gr4.push(Number(column[5]));            ar4.push(Number(column[10]));
+                            gr5.push(Number(column[6]));            ar5.push(Number(column[11]));
+
+                            gr1pen.push(Number(column[12]));        ar1pen.push(Number(column[17]));
+                            gr2pen.push(Number(column[13]));        ar2pen.push(Number(column[18]));
+                            gr3pen.push(Number(column[14]));        ar2pen.push(Number(column[19]));
+                            gr4pen.push(Number(column[15]));        ar4pen.push(Number(column[20]));
+                            gr5pen.push(Number(column[16]));        ar5pen.push(Number(column[21]));
+
+                            gr1omgnbcavg.push(Number(column[22]));  ar1omgnbcavg.push(Number(column[27]));
+                            gr2omgnbcavg.push(Number(column[23]));  ar2omgnbcavg.push(Number(column[28]));
+                            gr3omgnbcavg.push(Number(column[24]));  ar3omgnbcavg.push(Number(column[29]));
+                            gr4omgnbcavg.push(Number(column[25]));  ar4omgnbcavg.push(Number(column[30]));
+                            gr5omgnbcavg.push(Number(column[26]));  ar5omgnbcavg.push(Number(column[31]));
+                            gr1omgnbcsdv.push(Number(column[32]));  ar1omgnbcsdv.push(Number(column[37]));
+                            gr2omgnbcsdv.push(Number(column[33]));  ar2omgnbcsdv.push(Number(column[38]));
+                            gr3omgnbcsdv.push(Number(column[34]));  ar3omgnbcsdv.push(Number(column[39]));
+                            gr4omgnbcsdv.push(Number(column[35]));  ar4omgnbcsdv.push(Number(column[40]));
+                            gr5omgnbcsdv.push(Number(column[36]));  ar5omgnbcsdv.push(Number(column[41]));
+
+                            gr1bcravg.push(Number(column[42]));     ar1bcravg.push(Number(column[47]));
+                            gr2bcravg.push(Number(column[43]));     ar2bcravg.push(Number(column[48]));
+                            gr3bcravg.push(Number(column[44]));     ar3bcravg.push(Number(column[49]));
+                            gr4bcravg.push(Number(column[45]));     ar4bcravg.push(Number(column[50]));
+                            gr5bcravg.push(Number(column[46]));     ar5bcravg.push(Number(column[51]));
+                            gr1bcrsdv.push(Number(column[52]));     ar1bcrsdv.push(Number(column[57]));
+                            gr2bcrsdv.push(Number(column[53]));     ar2bcrsdv.push(Number(column[58]));
+                            gr3bcrsdv.push(Number(column[54]));     ar3bcrsdv.push(Number(column[59]));
+                            gr4bcrsdv.push(Number(column[55]));     ar4bcrsdv.push(Number(column[60]));
+                            gr5bcrsdv.push(Number(column[56]));     ar5bcrsdv.push(Number(column[61]));
+
+                            gr1omgbcavg.push(Number(column[62]));   ar1omgbcavg.push(Number(column[67]));
+                            gr2omgbcavg.push(Number(column[63]));   ar2omgbcavg.push(Number(column[68]));
+                            gr3omgbcavg.push(Number(column[64]));   ar3omgbcavg.push(Number(column[69]));
+                            gr4omgbcavg.push(Number(column[65]));   ar4omgbcavg.push(Number(column[70]));
+                            gr5omgbcavg.push(Number(column[66]));   ar5omgbcavg.push(Number(column[71]));
+                            gr1omgbcsdv.push(Number(column[72]));   ar1omgbcsdv.push(Number(column[77]));
+                            gr2omgbcsdv.push(Number(column[73]));   ar2omgbcsdv.push(Number(column[78]));
+                            gr3omgbcsdv.push(Number(column[74]));   ar3omgbcsdv.push(Number(column[79]));
+                            gr4omgbcsdv.push(Number(column[75]));   ar4omgbcsdv.push(Number(column[80]));
+                            gr5omgbcsdv.push(Number(column[76]));   ar5omgbcsdv.push(Number(column[81]));
+                        }
+                    }
+                }
+
+                var chanObj = {time:time, gr1:gr1, gr2:gr2, gr3:gr3, gr4:gr4, gr5:gr5,
+                                          ar1:ar1, ar2:ar2, ar3:ar3, ar4:ar4, ar5:ar5,
+
+                                    gr1pen:gr1pen, gr2pen:gr2pen, gr3pen:gr3pen, gr4pen:gr4pen,
+                                    gr5pen:gr5pen, ar1pen:ar1pen, ar2pen:ar2pen, ar3pen:ar3pen,
+                                    ar4pen:ar4pen, ar5pen:ar5pen,
+
+                                    gr1omgnbcavg:gr1omgnbcavg, gr2omgnbcavg:gr2omgnbcavg, gr3omgnbcavg:gr3omgnbcavg,
+                                    gr4omgnbcavg:gr4omgnbcavg, gr5omgnbcavg:gr5omgnbcavg, ar1omgnbcavg:ar1omgnbcavg,
+                                    ar2omgnbcavg:ar2omgnbcavg, ar3omgnbcavg:ar3omgnbcavg, ar4omgnbcavg:ar4omgnbcavg,
+                                    ar5omgnbcavg:ar5omgnbcavg, gr1omgnbcsdv:gr1omgnbcsdv, gr2omgnbcsdv:gr2omgnbcsdv,
+                                    gr3omgnbcsdv:gr3omgnbcsdv, gr4omgnbcsdv:gr4omgnbcsdv, gr5omgnbcsdv:gr5omgnbcsdv,
+                                    ar1omgnbcsdv:ar1omgnbcsdv, ar2omgnbcsdv:ar2omgnbcsdv, ar3omgnbcsdv:ar3omgnbcsdv,
+                                    ar4omgnbcsdv:ar4omgnbcsdv, ar5omgnbcsdv:ar5omgnbcsdv,
+
+                                    gr1bcravg:gr1bcravg, gr2bcravg:gr2bcravg, gr3bcravg:gr3bcravg,
+                                    gr4bcravg:gr4bcravg, gr5bcravg:gr5bcravg, ar1bcravg:ar1bcravg,
+                                    ar2bcravg:ar2bcravg, ar3bcravg:ar3bcravg, ar4bcravg:ar4bcravg,
+                                    ar5bcravg:ar5bcravg, gr1bcrsdv:gr1bcrsdv, gr2bcrsdv:gr2bcrsdv,
+                                    gr3bcrsdv:gr3bcrsdv, gr4bcrsdv:gr4bcrsdv, gr5bcrsdv:gr5bcrsdv,
+                                    ar1bcrsdv:ar1bcrsdv, ar2bcrsdv:ar2bcrsdv, ar3bcrsdv:ar3bcrsdv,
+                                    ar4bcrsdv:ar4bcrsdv, ar5bcrsdv:ar5bcrsdv,
+
+                                    gr1omgbcavg:gr1omgbcavg, gr2omgbcavg:gr2omgbcavg, gr3omgbcavg:gr3omgbcavg,
+                                    gr4omgbcavg:gr4omgbcavg, gr5omgbcavg:gr5omgbcavg, ar1omgbcavg:ar1omgbcavg,
+                                    ar2omgbcavg:ar2omgbcavg, ar3omgbcavg:ar3omgbcavg, ar4omgbcavg:ar4omgbcavg,
+                                    ar5omgbcavg:ar5omgbcavg, gr1omgbcsdv:gr1omgbcsdv, gr2omgbcsdv:gr2omgbcsdv,
+                                    gr3omgbcsdv:gr3omgbcsdv, gr4omgbcsdv:gr4omgbcsdv, gr5omgbcsdv:gr5omgbcsdv,
+                                    ar1omgbcsdv:ar1omgbcsdv, ar2omgbcsdv:ar2omgbcsdv, ar3omgbcsdv:ar3omgbcsdv,
+                                    ar4omgbcsdv:ar4omgbcsdv, ar5omgbcsdv:ar5omgbcsdv
+
+                };
+
+                if( idx === 1 || idx === 0 ) {
+                    cntData[curChan][idx] = chanObj;
+                }
+
+                log( '<-- parseCntData ');
+            }
+
+
+            /*------------------------------
+             * -----------------------------
+             *
+             *  drawCharts code starts here
+             *
+             * -----------------------------
+             * -----------------------------*/
+
+
+
+            // Target values for the UI (re)load.
+            var targetSrc;
+            //var targetStat;
+            var targetChan;
+
+            //
+            //  On initial load pull any encoded values from the url line for src, stat, and/or channel
+            //   and load into target[Src|Stat|Chan].
+            //  If other than initial load, then we're reloading based on user action.  So load the
+            //   target[Src|Stat|Chan] values using the current UI settings
+            //
+            if( initialLoad ) {
+                log('initial Load is true ');
+
+                //
+                // These should all be human readable inputs;
+                //      - Sanitize data then
+                //      - Translate into interface values
+                //
+                var dataSrc = curDataSrc;
+                var src = new Uri(url).getQueryParamValue('src');
+                var stat = new Uri(url).getQueryParamValue('stat');  // this is cnt, pen, omgnbc, biascr, omgbc
+                var chan = new Uri(url).getQueryParamValue('chan');  // this is actual channel#, not sequential#
+
+
+                // --------------------------------------------------------------------------------
+                // Attempt to match input src to an existing string in the platformSel list.
+                // No input value or no match to the list defaults to the first item in the list.
+                // --------------------------------------------------------------------------------
+                if( src ) {
+                    var numPlatSel = platformSel.length;
+                    var srcFound = false;
+
+                    for (var i = 0; i < numPlatSel; ++i) {
+                        if( platformSel.options[i].innerHTML === src ) {
+                            targetSrc = src;
+                            srcFound = true;
+                        }
+                    }
+                    if( !srcFound ){
+                        var logMsg = 'Unable to match input src: ' + src + ' to any existing source, using Default';
+                        log( logMsg );
+                        src = null;
+                    }
+                }
+
+                if ( !src ) {
+                    curSrc = 0;
+                    curSrcName = platformSel.options[curSrc].text;
+                    src = curSrcName;
+                    targetSrc = src;
+                }
+
+
+                // -------------------------------------------------------------------------------
+                // Stat value is matched to one of the 5 stat types.  No value input or no match
+                // defaults to the first stat type (count).
+                // -------------------------------------------------------------------------------
+                if ( stat ) {
+                    var foundStat = false;
+                    if (stat === 'cnt') {
+                        curStat = 0;
+                    } else if (stat === 'pen') {
+                        curStat = 1;
+                    } else if (stat === 'omgnbc') {
+                        curStat = 2;
+                    } else if (stat === 'biascr') {
+                        curStat = 3;
+                    } else if (stat === 'omgbc') {
+                        curStat = 4;
+                    } else {
+                        var errorMsg = 'Requested statistic ' + stat + ' NOT found, setting to default';
+                        log(errorMsg);
+                        curStat = 0;
+                    }
+                }
+                else {
+                    curStat = 0;
+                }
+                statSel.selectedIndex = curStat;
+
+
+                // ------------------------------------------------------------
+                // Chan is validated by ensuring it's a positive integer.
+                // If no value or an incorrect one it defaults to 0.
+                // ------------------------------------------------------------
+                //log( 'testing chan: '); log( isInt( chan ) );
+
+                if( ! chan ){
+                    log( 'NO chan specified; curChan set to 0');
+                }
+                if ( ! isInt( chan ) ) {
+                    var logMsg = "Input chan value " + chan + ' is not an integer value, using Default instead';
+                    log( logMsg );
+                    chan = 0;
+                }
+                targetChan = chan;  // value unavailable until chanData is loaded
+
+
+                // ------------------------------
+                // End of initial load condition
+                // ------------------------------
+                initialLoad = false;
+
+            } else {
+                log( 'not initial load');
+                targetSrc  = platformSel.options[platformSel.selectedIndex].text;
+                curSrcName = targetSrc;
+                curSrc     = platformSel.selectedIndex;
+
+                curStat    = statSel.selectedIndex;
+
+            }
+
+            // -----------------------------------------------------------------------
+            //  set the platform menu to targetSrc or set to 0 if targetSrc not found
+            // -----------------------------------------------------------------------
+            var foundSrc = false;
+            for (var i = 0; i < platformSel.options.length; i++) {
+                if ( platformSel.options[i].text === targetSrc ) {
+                    platformSel.selectedIndex = i;
+                    curSrc = i;
+                    curSrcName = targetSrc;
+                    foundSrc = true;
+                    break;
+                }
+            }
+            if( !foundSrc ){
+                var errorMsg = 'requested source ' + targetSrc + 'NOT found';
+                log( errorMsg );
+                platformSel.selectedIndex = 0;
+                curSrc = 0;
+                curSrcName = platformSel.options[curSrc].text;
+            }
+
+
+            // ------------------------------------------------------------------------
+            //  reload the channel data if we've changed src or are on an initial load
+            // ------------------------------------------------------------------------
+            if( chanData.length <= 0 ) {
+
+                chanSel.selectedIndex = curChan;
+                var chanFile = './pngs/time/' + curSrcName + '.chan.txt';
+                //log( 'chanFile :'); log( chanFile );
+                loadChanData(chanFile);
+
+                //var statSel = document.getElementById("statSelect");
+
+
+
+                // ---------------------------------------------------------------------------
+                //  Load the channel numbers for this source.
+                //  Set selected channel to targetChan if targetChan matches a valid channel.
+                //  If no match set channel to 0.
+                // ---------------------------------------------------------------------------
+                var nchan = chanData[0].nchan;
+                var targetChanFound = false;
+                for (var ii = 0; ii < nchan; ii++) {
+                    var option = document.createElement("option");
+                    option.text = chanData[ii].chan;
+                    chanSel.add(option);
+                    if ( option.text === targetChan ) {
+                        curChan = ii;
+                        targetChanFound = true;
+                    }
+                }
+                if( !targetChanFound ){
+                    var logMsg = " Requested channel " + targetChan + " not found, using default value";
+                    log( logMsg );
+                    curChan = 0;
+                }
+                chanSel.selectedIndex = curChan;
+
+
+                // load null values into the cntData array for each channel
+                log( ' initializing cntData array')
+                for( var ii=0; ii < nchan; ii++ ) {
+                    cntData[ii] = new Array(2);
+                    cntData[ii][0] = null;
+                    cntData[ii][1] = null;
+                }
+                //log( 'cntData[0][0..1] = ' + cntData[0][0] + ' ' + cntData[0][1]);
+
+            }
+            else {
+                curChan = chanSel.selectedIndex;
+                curStat = statSel.selectedIndex;
+                var platformSel  = document.getElementById("platformSelect");
+                curSrc = platformSel.options[platformSel.selectedIndex].text;
+            }
+
+            if( ! cntData[curChan][0] ) {
+                var dataFile = './pngs/time/' + curSrcName + '.' + curChan + '.time.txt';
+                loadCntData(dataFile);
+            }
+
+            // ------------------------------------------------------------
+            //   define data1, the container for chart1's information.
+            // ------------------------------------------------------------
+            data1 = new google.visualization.DataTable();
+
+            data1.addColumn('date', 'time');
+            data1.addColumn('number', 'ges, global');     data1.addColumn('number', 'ges, land');
+            data1.addColumn('number', 'ges, water');      data1.addColumn('number', 'ges, ice');
+            data1.addColumn('number', 'ges, mixed');
+            data1.addColumn('number', 'anl, global');     data1.addColumn('number', 'anl, land');
+            data1.addColumn('number', 'anl, water');      data1.addColumn('number', 'anl, ice');
+            data1.addColumn('number', 'anl, mixed');
+
+            data1.addColumn('number', 'ctl_ges, global'); data1.addColumn('number', 'ctl_ges, land');
+            data1.addColumn('number', 'ctl_ges, water');  data1.addColumn('number', 'ctl_ges, ice');
+            data1.addColumn('number', 'ctl_ges, mixed');
+            data1.addColumn('number', 'ctl_anl, global'); data1.addColumn('number', 'ctl_anl, land');
+            data1.addColumn('number', 'ctl_anl, water');  data1.addColumn('number', 'ctl_anl, ice');
+            data1.addColumn('number', 'ctl_anl, mixed');
+
+            // set up data2 if plot is other than count or penalty (2 charts drawn)
+            if( curStat > 1 ) {
+                data2 = new google.visualization.DataTable();
+
+                data2.addColumn('date', 'time');
+                data2.addColumn('number', 'ges, global');       data2.addColumn('number', 'ges, land');
+                data2.addColumn('number', 'ges, water');        data2.addColumn('number', 'ges, ice');
+                data2.addColumn('number', 'ges, mixed');
+                data2.addColumn('number', 'anl, global');       data2.addColumn('number', 'anl, land');
+                data2.addColumn('number', 'anl, water');        data2.addColumn('number', 'anl, ice');
+                data2.addColumn('number', 'anl, mixed');
+
+                data2.addColumn('number', 'ctl_ges, global');   data2.addColumn('number', 'ctl_ges, land');
+                data2.addColumn('number', 'ctl_ges, water');    data2.addColumn('number', 'ctl_ges, ice');
+                data2.addColumn('number', 'ctl_ges, mixed');
+                data2.addColumn('number', 'ctl_anl, global');   data2.addColumn('number', 'ctl_anl, land');
+                data2.addColumn('number', 'ctl_anl, water');    data2.addColumn('number', 'ctl_anl, ice');
+                data2.addColumn('number', 'ctl_anl, mixed');
+            }
+
+            var idx = curChan;
+            //log( 'curChan:'); log( curChan );
+            //log( 'curStat:'); log( curStat );
+            var ncyc = chanData[0].ncyc;
+            //log( 'ncyc:'); log( ncyc );
+
+
+            var chartTitle1;
+            var chartTitle2;
+            var logScale = "true";
+            var vAxisFormat = '0.##E+0';
+
+            // --------------------------------------------------------------
+            //   load data1 and (as needed) data2 objects to make the chart(s)
+            // --------------------------------------------------------------
+            if( curStat === 0 ) {
+                chartTitle1 = "Number of Observations";
+                chartTitle2 = "";
+                log( 'curStat is 0, cntData[idx][0] = ' + idx, +' ' + cntData[idx[0]]);
+                for (var ii = 0; ii < ncyc; ii++) {
+                    var yr = cntData[idx][0].time[ii].substr(0, 4);
+                    var mm = Number(cntData[idx][0].time[ii].substr(4, 2)) -1;  // stupidity!  mm is range 0-11, not 1-12 according to some idiot at google
+                    var dd = cntData[idx][0].time[ii].substr(6, 2);
+                    var hh = cntData[idx][0].time[ii].substr(8, 2);
+
+                    data1.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1[ii]), Number(cntData[idx][0].gr2[ii]),
+                            Number(cntData[idx][0].gr3[ii]), Number(cntData[idx][0].gr4[ii]),
+                            Number(cntData[idx][0].gr5[ii]), Number(cntData[idx][0].ar1[ii]),
+                            Number(cntData[idx][0].ar2[ii]), Number(cntData[idx][0].ar3[ii]),
+                            Number(cntData[idx][0].ar4[ii]), Number(cntData[idx][0].ar5[ii]),
+                            Number(cntData[idx][1].gr1[ii]), Number(cntData[idx][1].gr2[ii]),
+                            Number(cntData[idx][1].gr3[ii]), Number(cntData[idx][1].gr4[ii]),
+                            Number(cntData[idx][1].gr5[ii]), Number(cntData[idx][1].ar1[ii]),
+                            Number(cntData[idx][1].ar2[ii]), Number(cntData[idx][1].ar3[ii]),
+                            Number(cntData[idx][1].ar4[ii]), Number(cntData[idx][1].ar5[ii])
+                        ]
+                    ]);
+                }
+            } else if( curStat === 1) {
+                chartTitle1 = "Contribution to Penalty";
+                chartTitle2 = "";
+                vAxisFormat = "0.##";
+                for (var ii = 0; ii < ncyc; ii++) {
+                    var yr = cntData[idx][0].time[ii].substr(0, 4);
+                    var mm = Number( cntData[idx][0].time[ii].substr(4, 2) )-1;  // same stupidity
+                    var dd = cntData[idx][0].time[ii].substr(6, 2);
+                    var hh = cntData[idx][0].time[ii].substr(8, 2);
+                    data1.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1pen[ii]), Number(cntData[idx][0].gr2pen[ii]),
+                            Number(cntData[idx][0].gr3pen[ii]), Number(cntData[idx][0].gr4pen[ii]),
+                            Number(cntData[idx][0].gr5pen[ii]), Number(cntData[idx][0].ar1pen[ii]),
+                            Number(cntData[idx][0].ar2pen[ii]), Number(cntData[idx][0].ar3pen[ii]),
+                            Number(cntData[idx][0].ar4pen[ii]), Number(cntData[idx][0].ar5pen[ii]),
+                            Number(cntData[idx][1].gr1pen[ii]), Number(cntData[idx][1].gr2pen[ii]),
+                            Number(cntData[idx][1].gr3pen[ii]), Number(cntData[idx][1].gr4pen[ii]),
+                            Number(cntData[idx][1].gr5pen[ii]), Number(cntData[idx][1].ar1pen[ii]),
+                            Number(cntData[idx][1].ar2pen[ii]), Number(cntData[idx][1].ar3pen[ii]),
+                            Number(cntData[idx][1].ar4pen[ii]), Number(cntData[idx][1].ar5pen[ii])
+                        ]
+                    ]);
+                }
+            } else if( curStat === 2) {     // omgnbc avg & sdv
+                chartTitle1 = "Avg Ges|Anl (w/o Bias Correction) - Obs(K)";
+                chartTitle2 = "Sdv Ges|Anl (w/o Bias Correction) - Obs(K)";
+                logScale = "false";
+                vAxisFormat = "0.##";
+
+                for (var ii = 0; ii < ncyc; ii++) {
+                    var yr = cntData[idx][0].time[ii].substr(0, 4);
+                    var mm = Number(cntData[idx][0].time[ii].substr(4, 2)) -1;   // and yet more
+                    var dd = cntData[idx][0].time[ii].substr(6, 2);
+                    var hh = cntData[idx][0].time[ii].substr(8, 2);
+                    data1.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1omgnbcavg[ii]), Number(cntData[idx][0].gr2omgnbcavg[ii]),
+                            Number(cntData[idx][0].gr3omgnbcavg[ii]), Number(cntData[idx][0].gr4omgnbcavg[ii]),
+                            Number(cntData[idx][0].gr5omgnbcavg[ii]), Number(cntData[idx][0].ar1omgnbcavg[ii]),
+                            Number(cntData[idx][0].ar2omgnbcavg[ii]), Number(cntData[idx][0].ar3omgnbcavg[ii]),
+                            Number(cntData[idx][0].ar4omgnbcavg[ii]), Number(cntData[idx][0].ar5omgnbcavg[ii]),
+                            Number(cntData[idx][1].gr1omgnbcavg[ii]), Number(cntData[idx][1].gr2omgnbcavg[ii]),
+                            Number(cntData[idx][1].gr3omgnbcavg[ii]), Number(cntData[idx][1].gr4omgnbcavg[ii]),
+                            Number(cntData[idx][1].gr5omgnbcavg[ii]), Number(cntData[idx][1].ar1omgnbcavg[ii]),
+                            Number(cntData[idx][1].ar2omgnbcavg[ii]), Number(cntData[idx][1].ar3omgnbcavg[ii]),
+                            Number(cntData[idx][1].ar4omgnbcavg[ii]), Number(cntData[idx][1].ar5omgnbcavg[ii])
+                        ]
+                    ]);
+                    data2.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1omgnbcsdv[ii]), Number(cntData[idx][0].gr2omgnbcsdv[ii]),
+                            Number(cntData[idx][0].gr3omgnbcsdv[ii]), Number(cntData[idx][0].gr4omgnbcsdv[ii]),
+                            Number(cntData[idx][0].gr5omgnbcsdv[ii]), Number(cntData[idx][0].ar1omgnbcsdv[ii]),
+                            Number(cntData[idx][0].ar2omgnbcsdv[ii]), Number(cntData[idx][0].ar3omgnbcsdv[ii]),
+                            Number(cntData[idx][0].ar4omgnbcsdv[ii]), Number(cntData[idx][0].ar5omgnbcsdv[ii]),
+                            Number(cntData[idx][1].gr1omgnbcsdv[ii]), Number(cntData[idx][1].gr2omgnbcsdv[ii]),
+                            Number(cntData[idx][1].gr3omgnbcsdv[ii]), Number(cntData[idx][1].gr4omgnbcsdv[ii]),
+                            Number(cntData[idx][1].gr5omgnbcsdv[ii]), Number(cntData[idx][1].ar1omgnbcsdv[ii]),
+                            Number(cntData[idx][1].ar2omgnbcsdv[ii]), Number(cntData[idx][1].ar3omgnbcsdv[ii]),
+                            Number(cntData[idx][1].ar4omgnbcsdv[ii]), Number(cntData[idx][1].ar5omgnbcsdv[ii])
+                        ]
+                    ]);
+                }
+            } else if( curStat === 3) {     // bias correction
+                chartTitle1 = "Avg Bias Correction";
+                chartTitle2 = "Sdv Bias Correction";
+                logScale = "false";
+                vAxisFormat = "0.##";
+
+                for (var ii = 0; ii < ncyc; ii++) {
+                    var yr = cntData[idx][0].time[ii].substr(0, 4);
+                    var mm = Number( cntData[idx][0].time[ii].substr(4, 2) )-1;     // ibid
+                    var dd = cntData[idx][0].time[ii].substr(6, 2);
+                    var hh = cntData[idx][0].time[ii].substr(8, 2);
+                    data1.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1bcravg[ii]), Number(cntData[idx][0].gr2bcravg[ii]),
+                            Number(cntData[idx][0].gr3bcravg[ii]), Number(cntData[idx][0].gr4bcravg[ii]),
+                            Number(cntData[idx][0].gr5bcravg[ii]), Number(cntData[idx][0].ar1bcravg[ii]),
+                            Number(cntData[idx][0].ar2bcravg[ii]), Number(cntData[idx][0].ar3bcravg[ii]),
+                            Number(cntData[idx][0].ar4bcravg[ii]), Number(cntData[idx][0].ar5bcravg[ii]),
+                            Number(cntData[idx][1].gr1bcravg[ii]), Number(cntData[idx][1].gr2bcravg[ii]),
+                            Number(cntData[idx][1].gr3bcravg[ii]), Number(cntData[idx][1].gr4bcravg[ii]),
+                            Number(cntData[idx][1].gr5bcravg[ii]), Number(cntData[idx][1].ar1bcravg[ii]),
+                            Number(cntData[idx][1].ar2bcravg[ii]), Number(cntData[idx][1].ar3bcravg[ii]),
+                            Number(cntData[idx][1].ar4bcravg[ii]), Number(cntData[idx][1].ar5bcravg[ii])
+                        ]
+                    ]);
+                    data2.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1bcrsdv[ii]), Number(cntData[idx][0].gr2bcrsdv[ii]),
+                            Number(cntData[idx][0].gr3bcrsdv[ii]), Number(cntData[idx][0].gr4bcrsdv[ii]),
+                            Number(cntData[idx][0].gr5bcrsdv[ii]), Number(cntData[idx][0].ar1bcrsdv[ii]),
+                            Number(cntData[idx][0].ar2bcrsdv[ii]), Number(cntData[idx][0].ar3bcrsdv[ii]),
+                            Number(cntData[idx][0].ar4bcrsdv[ii]), Number(cntData[idx][0].ar5bcrsdv[ii]),
+                            Number(cntData[idx][1].gr1bcrsdv[ii]), Number(cntData[idx][1].gr2bcrsdv[ii]),
+                            Number(cntData[idx][1].gr3bcrsdv[ii]), Number(cntData[idx][1].gr4bcrsdv[ii]),
+                            Number(cntData[idx][1].gr5bcrsdv[ii]), Number(cntData[idx][1].ar1bcrsdv[ii]),
+                            Number(cntData[idx][1].ar2bcrsdv[ii]), Number(cntData[idx][1].ar3bcrsdv[ii]),
+                            Number(cntData[idx][1].ar4bcrsdv[ii]), Number(cntData[idx][1].ar5bcrsdv[ii])
+                        ]
+                    ]);
+                }
+            }else if( curStat === 4) {     // omgnbc avg & sdv
+                chartTitle1 = "Avg Ges|Anl (w/ Bias Correction) - Obs(K)";
+                chartTitle2 = "Sdv Ges|Anl (w/ Bias Correction) - Obs(K)";
+                logScale = "false";
+                vAxisFormat = "0.##";
+
+                for (var ii = 0; ii < ncyc; ii++) {
+                    var yr = cntData[idx][0].time[ii].substr(0, 4);
+                    var mm = Number( cntData[idx][0].time[ii].substr(4, 2)) -1;     // see above
+                    var dd = cntData[idx][0].time[ii].substr(6, 2);
+                    var hh = cntData[idx][0].time[ii].substr(8, 2);
+                    data1.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1omgbcavg[ii]), Number(cntData[idx][0].gr2omgbcavg[ii]),
+                            Number(cntData[idx][0].gr3omgbcavg[ii]), Number(cntData[idx][0].gr4omgbcavg[ii]),
+                            Number(cntData[idx][0].gr5omgbcavg[ii]), Number(cntData[idx][0].ar1omgbcavg[ii]),
+                            Number(cntData[idx][0].ar2omgbcavg[ii]), Number(cntData[idx][0].ar3omgbcavg[ii]),
+                            Number(cntData[idx][0].ar4omgbcavg[ii]), Number(cntData[idx][0].ar5omgbcavg[ii]),
+                            Number(cntData[idx][1].gr1omgbcavg[ii]), Number(cntData[idx][1].gr2omgbcavg[ii]),
+                            Number(cntData[idx][1].gr3omgbcavg[ii]), Number(cntData[idx][1].gr4omgbcavg[ii]),
+                            Number(cntData[idx][1].gr5omgbcavg[ii]), Number(cntData[idx][1].ar1omgbcavg[ii]),
+                            Number(cntData[idx][1].ar2omgbcavg[ii]), Number(cntData[idx][1].ar3omgbcavg[ii]),
+                            Number(cntData[idx][1].ar4omgbcavg[ii]), Number(cntData[idx][1].ar5omgbcavg[ii])
+                        ]
+                    ]);
+                    data2.addRows([
+                        [new Date(yr, mm, dd, hh),
+                            Number(cntData[idx][0].gr1omgbcsdv[ii]), Number(cntData[idx][0].gr2omgbcsdv[ii]),
+                            Number(cntData[idx][0].gr3omgbcsdv[ii]), Number(cntData[idx][0].gr4omgbcsdv[ii]),
+                            Number(cntData[idx][0].gr5omgbcsdv[ii]), Number(cntData[idx][0].ar1omgbcsdv[ii]),
+                            Number(cntData[idx][0].ar2omgbcsdv[ii]), Number(cntData[idx][0].ar3omgbcsdv[ii]),
+                            Number(cntData[idx][0].ar4omgbcsdv[ii]), Number(cntData[idx][0].ar5omgbcsdv[ii]),
+                            Number(cntData[idx][1].gr1omgbcsdv[ii]), Number(cntData[idx][1].gr2omgbcsdv[ii]),
+                            Number(cntData[idx][1].gr3omgbcsdv[ii]), Number(cntData[idx][1].gr4omgbcsdv[ii]),
+                            Number(cntData[idx][1].gr5omgbcsdv[ii]), Number(cntData[idx][1].ar1omgbcsdv[ii]),
+                            Number(cntData[idx][1].ar2omgbcsdv[ii]), Number(cntData[idx][1].ar3omgbcsdv[ii]),
+                            Number(cntData[idx][1].ar4omgbcsdv[ii]), Number(cntData[idx][1].ar5omgbcsdv[ii])
+                        ]
+                    ]);
+                }
+            }
+
+            // formatter1 modifies format of date to be YYYYMMDDHH
+            var formatter1 = new google.visualization.DateFormat({pattern: "yyyyMMddHH"});
+            formatter1.format(data1, 0);
+
+            var options1 = {
+                title: chartTitle1,
+                titleTextStyle:{ fontSize: 20 },
+                vAxis:{ format          : vAxisFormat,
+                        logScale        : logScale},
+                hAxis:{ title           : 'Cycle Time',
+                        showTextEvery   :  1 }
+            };
+
+            // if there are 2 plots then format date in data2 and add options2
+            if( curStat > 1 ){
+                formatter1.format(data2,0);
+                var options2 = {
+                    title: chartTitle2,
+                    titleTextStyle:{ fontSize: 20 },
+                    vAxis:{ format          : vAxisFormat,
+                        logScale        : logScale},
+                    hAxis:{ title           : 'Cycle Time',
+                        showTextEvery   :  1 }
+                };
+            }
+
+            var chart1 = new google.visualization.LineChart(document.getElementById('plot1'));
+            var chart2;
+            var myView2;
+
+            // add callback for mouse events
+            //google.visualization.events.addListener(chart1, 'select', selectHandler);
+
+            //-------------------------------------------------------------------
+            // Create a view for the display of only selected values for chart1.
+            // If display is not count or penalty data then add chart 2.
+            //-------------------------------------------------------------------
+            var myView1 = new google.visualization.DataView( data1 );
+            if( curStat > 1 ){
+                chart2 = new google.visualization.LineChart( document.getElementById('plot2'));
+                myView2 = new google.visualization.DataView( data2 );
+            }
+
+            // turn on/off viewed data according to current checkbox configuration
+            var CkBxGes = document.getElementById( "ckboxGes"    ).checked;
+            var CkBxAnl = document.getElementById( "ckboxAnl"    ).checked;
+            var CkBxGlb = document.getElementById( "ckboxGlobal" ).checked;
+            var CkBxLnd = document.getElementById( "ckboxLand"   ).checked;
+            var CkBxWtr = document.getElementById( "ckboxWater"  ).checked;
+            var CkBxIce = document.getElementById( "ckboxIce"    ).checked;
+            var CkBxMxd = document.getElementById( "ckboxMixed"  ).checked;
+            var CkBxCcr = document.getElementById( "ckboxCcr2"   ).checked;
+            var CkBxCtl = document.getElementById( "ckboxCtl"    ).checked;
+
+            if (!CkBxCcr ){
+                myView1.hideColumns( [1,2,3,4,5,6,7,8,9,10]);
+                if( curStat > 1 ){
+                    myView2.hideColumns( [1,2,3,4,5,6,7,8,9,10]);
+                }
+            }
+            if( !CkBxCtl ){
+                myView1.hideColumns( [11,12,13,14,15,16,17,18,19,20]);
+                if( curStat > 1 ){
+                    myView2.hideColumns( [11,12,13,14,15,16,17,18,19,20]);
+                }
+            }
+
+            if (!CkBxGes) {
+                myView1.hideColumns( [1, 2, 3, 4, 5,11,12,13,14,15] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [1, 2, 3, 4, 5,11,12,13,14,15] );
+                }
+            }
+            if (!CkBxAnl) {
+                myView1.hideColumns( [6, 7, 8, 9, 10,16,17,18,19,20] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [6, 7, 8, 9, 10,16,17,18,19,20] );
+                }
+            }
+            if (!CkBxGlb) {
+                myView1.hideColumns( [1, 6,11,16] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [1, 6,11,16] );
+                }
+            }
+            if (!CkBxLnd) {
+                myView1.hideColumns( [2, 7,12,17] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [2, 7,12,17] );
+                }
+            }
+            if (!CkBxWtr) {
+                myView1.hideColumns( [3, 8,13,18] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [3, 8,13,18] );
+                }
+            }
+            if (!CkBxIce) {
+                myView1.hideColumns( [4, 9,14,19] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [4, 9,14,19] );
+                }
+            }
+            if (!CkBxMxd) {
+                myView1.hideColumns( [5, 10,15,20] );
+                if( curStat > 1 ){
+                    myView2.hideColumns( [5, 10,15,20] );
+                }
+            }
+
+            // ---------------------
+            // display the chart(s)
+            // ---------------------
+            chart1.draw(myView1, options1);
+            hndlChart2 = document.getElementById( 'plot2' );
+            if( curStat > 1 ){
+                chart2.draw(myView2, options2);
+                document.getElementById('plot2').style.visibility='visible';
+            } else {
+                document.getElementById('plot2').style.visibility='hidden';
+            }
+
+
+            //---------------------------------------
+            // update the channel specific labels
+            //---------------------------------------
+            var chanLab = document.getElementById("chanLabel");
+            var newLab =  "Channel " + chanData[curChan].chan + "<p>";
+            chanLab.innerHTML = newLab;
+
+            var freqLab = document.getElementById("freqLabel");
+            var newLab = "f " + chanData[curChan].freq + " GHZ";
+            freqLab.innerHTML = newLab;
+
+            var waveLab = document.getElementById("waveLabel");
+            var newLab = "&lambda; " + chanData[curChan].wvlnth + " &mu;m";
+            waveLab.innerHTML = newLab;
+
+            //------------------------------------------------------------------------------------
+            // Determine if chi value can be displayed and if avg & sdv calculation can be done.
+            // This can only be done if a single data source is displayed (when numColumns == 2).
+            // If numColumns != 2 then hide avg, sdv, and chi from view.
+            //------------------------------------------------------------------------------------
+            var avgLabel = document.getElementById("avgLabel");
+            var sdvLabel = document.getElementById("sdvLabel");
+            var chiLabel = document.getElementById("chiLabel");
+            var numColumns = myView1.getNumberOfColumns();
+
+            if( numColumns == 2 ){
+                var dataPts1 = [];
+                var dataPts2 = [];
+
+                // determine new chi value by finding the ges/anl setting and the displayed region
+                var region = 0;
+
+                if ( CkBxGlb ) {
+                    region = 0;
+                } else if( CkBxLnd ) {
+                    region = 1;
+                } else if( CkBxWtr ) {
+                    region = 2;
+                }else if( CkBxIce ) {
+                    region = 3;
+                } else {
+                    region = 4;
+                }
+
+                if( CkBxAnl ) {
+                    region =region + 5;
+                }
+                var newLab = "&chi;  " + chanData[curChan].chi[region];
+                chiLabel.innerHTML = newLab;
+                chiLabel.style.display = "block";
+
+                // -----------------------------------------------------------------------------------
+                // calculate avg and sdv values (uses the stats.js package (handle is "st" below)
+                // note that omgnbc, biascr, and omgbc plot sdvs so the overall sdv is the average of
+                //   those values and not the sdv of the plotted data
+                // ------------------------------------------------------------------------------------
+                for (var ii = 0; ii < ncyc; ii++) {
+                    dataPts1.push(myView1.getValue(ii, 1));
+                }
+                var avg = st.getAverageFromNumArr( dataPts1, 2 );
+                if( curStat > 1 ) {
+                    for (var ii = 0; ii < ncyc; ii++) {
+                        dataPts2.push(myView2.getValue(ii, 1));
+                    }
+                    sdv = st.getAverageFromNumArr( dataPts2, 2 );
+                } else {
+                    var sdv = st.getStandardDeviation( dataPts1, 2 );
+                }
+
+
+                var newLab = "avg:  " + avg;
+                avgLabel.innerHTML = newLab;
+                avgLabel.style.display = "block";
+
+                var newLab = "sdv:  " + sdv;
+                sdvLabel.innerHTML = newLab;
+                sdvLabel.style.display = "block";
+
+            } else {
+                avgLabel.style.display = "none";
+                sdvLabel.style.display = "none";
+                chiLabel.style.display = "none";
+            }
+
+
+            // ----------------------------------------------------
+            //  turn on/off the non-assimilated channel message if
+            //  use flag is 1 (assim) or 0 (non-assim)
+            // ----------------------------------------------------
+            var chanAssimLbl = document.getElementById("chanAssimLabel");
+            var isNotLbl     = document.getElementById("isNotLabel");
+            var assimLbl     = document.getElementById("assimLabel");
+
+            if( chanData[curChan].use === 1) {
+                chanAssimLbl.style.display  = "none";
+                isNotLbl.style.display      = "none";
+                assimLbl.style.display      = "none";
+            }else {
+                chanAssimLbl.innerHTML      = '<p style="color:green">' + "Channel " + chanData[curChan].chan + "<p>";
+                chanAssimLbl.style.display  = "inLine";
+                isNotLbl.style.display      = "inline";
+                assimLbl.style.display      = "inLine";
+            }
+
+            //--------------------------------------------------------------------
+            // Modify the page title and valid time labels for the data selection
+            //--------------------------------------------------------------------
+            var titleLbl       = document.getElementById("title");
+            var newTitle       = curSrcName.toUpperCase() + ", Time Series Plot";
+            titleLbl.innerHTML = newTitle;
+
+            var validLbl       = document.getElementById("valid");
+            var newValid       = "Valid " + cntData[idx][0].time[0];  // use cntData not myView1 so times aren't formatted
+            validLbl.innerHTML = newValid;
+
+            log ( "<-- drawCharts");
+        }   /* end drawCharts */
+
+
+        // selectList : Set an option list to the selected number (i) if it isn't already
+        //              selected.  )Setting an already selected item to selected on some browsers
+        //              causes the whole list to flash.)
+        function selectList(list, i) {
+            if (list.selectedIndex != i) list.selectedIndex = i;
+        }
+
+
+        function boxCheck(value) {
+            //
+            // draw or redraw the chart
+            //
+            //log( value );
+            drawCharts();
+        }
+
+        function channelSelect(value){
+            //
+            // redraw chart using selected channel
+            //
+            var chanSel = document.getElementById("chanSelect");
+            curChan     = chanSel.selectedIndex;
+            drawCharts();
+        }
+
+
+        function statisticSelect( value ){
+            //
+            // redraw chart using selected stat type
+            //
+            drawCharts();
+        }
+
+        function dataSetSelect( value ){
+           log( '-->  dataSetSelect');
+           log( '<--  dataSetSelect');
+        }
+
+
+        function platSelect( value ) {
+            //
+            // dump all data and reload
+            // attempt to reload curChan if that matches a value in the
+            // new channel array, otherwise, start at 0.
+            //
+            //log( '--> platSelect');
+
+            // remove all previous channel numbers
+            var chanSel = document.getElementById("chanSelect");
+            while (chanSel.firstChild)
+                chanSel.removeChild(chanSel.firstChild);
+
+
+            //log( value );
+            chanData = [];
+            cntData  = [[]];
+            curChan  = 0;
+
+            //src = value;
+
+            drawCharts();
+            //log( '<-- platSelect');
+        }
+
+
+        function log(msg) {
+            // debug tool only, this sends output msg to web consol as an error
+            setTimeout(function() {
+                throw new Error(msg);
+            }, 0);
+        }
+
+
+        function isInt(value) {
+            return !isNaN(value) &&
+                    parseInt(Number(value)) == value &&
+                    !isNaN(parseInt(value, 10));
+        }
+
+
+    </SCRIPT>
+</HEAD>
+
+
+<BODY>
+
+<h2 id=title align='center'>Time Series Plot </h2>
+<h3 id=valid align="center">Valid</h3>
+
+<!--<div id="plot1" style="position:absolute; width:1100px; height:400px; top:100px; left:150px;"></div> -->
+<div id="plot1" style="width: 1100px; height: 400px; left:170px"></div>
+<div id="plot2" style="width: 1100px; height: 400px; left:170px"></div>
+
+<form id="satSelectForm" action="" style="position:absolute; left:2px;top:40px">
+    <b>Platform:</b>
+    <select id="platformSelect" onChange="platSelect(this.value)">
+        <!-- This menu will need to be customized by Install_html.sh on wcoss
+             It could be loaded using a php file, but that risks a condition where
+             a source might be missing for some reason, and we should know about that
+             if it was to happen, so it's better that a data load would fail here.  -->
+        <option>cris_npp</option>
+        <option>hirs4_metop-a</option>
+    </select>
+</form>
+
+<form id="statSelectForm" action="" style="position:absolute; left:2px;top:70px">
+    <b>Statistic</b>
+    <select id="statSelect" onchange="statisticSelect(this.value)">
+        <option>Number of Observations</option>
+        <option>Contribution to Penalty</option>
+        <option>Ges|Anl (w/o bias correction) - Obs</option>
+        <option>Bias Correction</option>
+        <option>Ges|Anl (w/ bias correction) - Obs</option>
+    </select>
+</form>
+
+<!-- The channel menu is loaded dynamically according to the selected sat/instrument. -->
+<form id="chanSelectForm" action="" style="position:absolute;left:2px;top:100px">
+    <b>Channel:</b>
+    <select id="chanSelect" onChange="channelSelect(this.value)">
+    </select>
+</form>
+
+<table style="position:absolute;left:2px;top:140px;width:150px">
+    <caption style="text-indent:2em"><b>Data Sources:</b></caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxCcr2" name="checkbox" value="ccr2" checked onclick="boxCheck(this.value)">ccr2</input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxCtl"  name="checkbox" value="Ctl" onclick="boxCheck(this.value)" >Ctl</input>
+    </td></tr>
+</table>
+
+
+<table style="position:absolute;left:2px;top:210px;width:150px">
+    <caption style="text-indent:2em"><b>Data Sets:</b> </caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxGes" name="checkbox" value="gesdata" checked onclick="boxCheck(this.value)">ges data</input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxAnl" name="checkbox" value="anldata" onclick="boxCheck(this.value)">anl data</input>
+    </td></tr>
+</table>
+
+<table style="position: absolute;left:2px;top:290px;width:150px">
+    <caption style="text-indent:2em"><b>Regions:</b></caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxGlobal" name="checkbox" value="global" checked onclick="boxCheck(this.value)"><label for="ckboxGlobal" id="labGlobal">Global</label></input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxLand" name="checkbox" value="land"  onclick="boxCheck(this.value)"><label for="ckboxLand" id="labLand">Land</label></input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxWater" name="checkbox" value="water"  onclick="boxCheck(this.value)"><label for="ckboxWater" id="labWater">Water</label></input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxIce" name="checkbox" value="ice"  onclick="boxCheck(this.value)"><label for="ckboxIce" id="labIce">Ice/Snow</label></input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxMixed" name="checkbox" value="mixed"  onclick="boxCheck(this.value)"><label for="ckboxMixed" id="labMixed">Mixed</label></input>
+    </td></tr>
+</table>
+
+<label id="chanLabel" style="position:absolute;left:165px;top:200px">
+    <i>Channel numb</i>
+</label>
+<label id="chiLabel" style="position:absolute;left:165px;top:220px">
+    <i> &chi; </i>
+</label>
+<label id="freqLabel" style="position:absolute;left:165px;top:240px">
+    <i>f GHZ</i>
+</label>
+<label id="waveLabel" style="position:absolute;left:165px;top:260px">
+    <i> &lambda; &mu;m:</i>
+</label>
+<label id="avgLabel" style="position:absolute;left:165px;top:280px">
+    <i> avg: </i>
+</label>
+<label id="sdvLabel" style="position:absolute;left:165px;top:300px">
+    <i> sdv: </i>
+</label>
+<label id="chanAssimLabel" style="position:absolute;left:165px;top:320px">
+    <i> non-assimilated channel number (green) </i>
+</label>
+<label id="isNotLabel" style="position:absolute;left:165px;top:352px;color:#ff1eaf">
+    <i> *** is NOT *** </i>
+</label>
+<label id="assimLabel" style="position:absolute;left:165px;top:366px;color:green">
+    <i> assimilated</i>
+</label>
+
+
+
+</BODY></HTML>
