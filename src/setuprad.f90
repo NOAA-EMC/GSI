@@ -142,6 +142,7 @@
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
+!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -181,7 +182,7 @@
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
@@ -198,10 +199,12 @@
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc
+  use qcmod, only: setup_tzr_qc,ifail_outside_range
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
+  use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian
+
   implicit none
 
 ! Declare passed variables
@@ -211,7 +214,7 @@
   integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
   real(r_kind),dimension(40,ndat)   ,intent(inout) :: aivals
   real(r_kind),dimension(7,jpch_rad),intent(inout) :: stats
-  logical                           ,intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                           ,intent(in   ) :: init_pass,last_pass    ! state of "setup" processing
 
 ! Declare external calls for code analysis
   external:: stop2
@@ -283,7 +286,7 @@
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
-  real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
+  real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
 ! real(r_kind) :: predchan6_save   
 
@@ -291,8 +294,8 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical channel_passive
 
+  logical channel_passive
   logical,dimension(nobs):: luse
 
   character(10) filex
@@ -857,17 +860,14 @@
 ! assignment (needed for vertical localization).
               weightmax(i) = zero
               do k=2,nsig
-                 ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+                 ptau5deriv = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
                     (log(prsltmp(k-1))-log(prsltmp(k))) )
-                 if (ptau5deriv(k,i) > ptau5derivmax) then
-                    ptau5derivmax = ptau5deriv(k,i)
+                 if (ptau5deriv > ptau5derivmax) then
+                    ptau5derivmax = ptau5deriv
                     kmax(i) = k
                     weightmax(i) = r10*prsitmp(k) ! cb to mb.
                  end if
               enddo
-! normalize weighting function
-              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax(i),i)
-              ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-tvp(2))
@@ -1225,7 +1225,29 @@
 
         icc = 0
         iccm= 0
+
         do i = 1,nchanl
+
+!          Reject radiances for single radiance test
+           if (lsingleradob) then
+              ! if the channels are beyond 0.01 of oblat/oblon, specified
+              ! in gsi namelist, or aren't of type 'oneob_type', reject
+              if ( (abs(cenlat - oblat) > one/r100 .or. &
+                    abs(cenlon - oblon) > one/r100) .or. &
+                    obstype /= oneob_type ) then
+                 varinv(i) = zero
+                 varinv_use(i) = zero
+                 if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+              else
+                 ! if obchan <= zero, keep all footprints, if obchan > zero,
+                 ! keep only that which has channel obchan
+                 if (i /= obchan .and. obchan > zero) then
+                    varinv(i) = zero
+                    varinv_use(i) = zero
+                    if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+                 endif
+              endif !cenlat/lon
+           endif !lsingleradob
 
 !          Only process observations to be assimilated
 
@@ -1438,6 +1460,8 @@
 !       Link obs to diagnostics structure
         iii=0
         do ii=1,nchanl
+          m=ich(ii)
+          if (iuse_rad(m)>=1 .or. l4dvar) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
@@ -1515,6 +1539,7 @@
 
               endif
            endif ! (in_curbin)
+          end if
         enddo
         if(in_curbin) then
            if(.not. retrieval.and.(iii/=icc)) then

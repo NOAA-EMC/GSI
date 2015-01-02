@@ -180,6 +180,7 @@ subroutine prewgt(mype)
      allocate(hwllp(0:nlat+1,nc2d))
      allocate(corp(nlat,nc2d))
      allocate(hwllinp(nlat,nc2d))
+     hwllp=zero
   endif
 
   if(nc3d>0)then
@@ -315,7 +316,6 @@ subroutine prewgt(mype)
   if(nrf3_oz>0) hwll(:,:,nrf3_oz)=hwll(:,:,nrf3_oz)*three   !inflate scale
 
 ! surface pressure
-  hwllp=zero
   if(nrf2_ps>0) then
      do i=1,nlat
         hwllp(i,nrf2_ps)=hwllinp(i,nrf2_ps)

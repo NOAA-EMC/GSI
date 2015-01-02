@@ -29,7 +29,7 @@
 !   language: f95
 !
 !$$$
- use constants, only: zero,one,cp,rv,rd,grav,zero
+ use constants, only: zero,one,cp,fv,rd,grav,zero
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal,iau
  use kinds, only: i_kind,r_double,r_kind,r_single
@@ -200,7 +200,7 @@
            call stop2(23)
         endif
         if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
-        nems_wrk = nems_wrk + ((rv/rd)-1.)*nems_wrk2
+        nems_wrk = nems_wrk * ( 1.0 + fv*nems_wrk2 ) ! convert T to Tv
         ug = nems_wrk
         vg = nems_wrk2
         if (reducedgrid) then
@@ -773,11 +773,12 @@
            ug = grdin(:,2*nlevs+k)
            vg = grdin(:,3*nlevs+k)
         endif
-        vg =  nems_wrk + vg
-        ug = ug + nems_wrk + ((rv/rd)-1.)*nems_wrk2 
+        ! ug is Tv increment, nems_wrk is background T, nems_wrk2 is background spfh
+        ug = ug + nems_wrk * ( 1.0 + fv*nems_wrk2 )
         vg = vg + nems_wrk2 
         if (cliptracers)  where (vg < clip) vg = clip
-        nems_wrk = ug
+        ! convert Tv back to T
+        nems_wrk = ug/(1. + fv*vg)
         call nemsio_writerecv(gfileout,'tmp','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(tmp), iret=',iret
@@ -1007,7 +1008,7 @@ module gridio
   use netcdf_io
   use params,   only: nlevs, nvars, nlons, nlats, cliptracers, datapath,     &
        &              arw, nmm, doubly_periodic, datestring, pseudo_rh
-  use constants, only: zero,one,cp,rv,rd,grav,zero
+  use constants, only: zero,one,cp,fv,rd,grav,zero
 
   implicit none
 
@@ -1420,8 +1421,8 @@ contains
 
              enkf_virttemp(count,k) = ((wrfarw_pert_pottemp(i,j,k) +        &
                   & 300.0)/((1000.0/(enkf_pressure(count,k)/100.0))         &
-                  & **(rd/cp))) + ((rv/rd)-1.)*enkf_spechumd(count,k)
-             
+                  & **(rd/cp))) * (1. + fv*enkf_spechumd(count,k))
+
              ! Update counting variable
 
              count = count + 1
@@ -1909,8 +1910,8 @@ contains
              ! Compute virtual temp (this is only used to compute
              ! saturation specific humidity (call genqsat1)
 
-             enkf_virttemp(count,k) = wrfnmm_temp(i,j,k) +                  &
-                  & ((rv/rd)-1.)*enkf_spechumd(count,k)
+             enkf_virttemp(count,k) = &
+             wrfnmm_temp(i,j,k)* (1. + fv*enkf_spechumd(count,k))
              
              ! Update counting variable
 
@@ -2420,7 +2421,7 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
 use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal,iau
 use kinds, only: i_kind,r_double,r_kind,r_single
-use constants, only: zero,one,cp,rv,rd,grav,zero
+use constants, only: zero,one,cp,fv,rd,grav,zero
 use gridinfo, only: nvarozone,npts,wind2mass,mass2wind
 
 use mpisetup, only: nproc
@@ -2436,7 +2437,7 @@ character(len=3) charnanal
 integer, intent(in) :: nanal
 real(r_double), dimension(npts,nlevs), intent(out) :: qsat
 real(r_single), dimension(npts,ndim), intent(out) :: grdin
-real(r_kind), allocatable, dimension(:,:) :: pslg
+real(r_single), allocatable, dimension(:,:) :: pslg
 real(r_kind), allocatable, dimension(:) :: psg
 real(r_kind) clip
 
@@ -2521,7 +2522,7 @@ do k=1,nlevs
       call stop2(23)
    endif
    if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
-   grdin(:,k+2*nlevs) = nems_wrk + ((rv/rd)-1.)*nems_wrk2
+   grdin(:,k+2*nlevs) = nems_wrk*(1. + fv*nems_wrk2)
    if (nvars .gt. 3) grdin(:,k+3*nlevs) = nems_wrk2
 enddo
 ! compute qsat
@@ -2761,9 +2762,11 @@ do k=1,nlevs
       write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(spfh), iret=',iret
       call stop2(23)
    endif
-   nems_wrk = nems_wrk + ((rv/rd)-1.)*nems_wrk2 + grdin(:,k+2*nlevs)
+   nems_wrk = nems_wrk*(1. + fv*nems_wrk2) + grdin(:,k+2*nlevs)
    nems_wrk2 = nems_wrk2 + grdin(:,k+3*nlevs)
    if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
+   ! nems_wrk is now updated Tv, convert back to T
+   nems_wrk = nems_wrk/(1. + fv*nems_wrk2)
    call nemsio_writerecv(gfile,'tmp','mid layer',kk,nems_wrk,iret=iret)
    if (iret/=0) then
       write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_writerecv(tmp), iret=',iret

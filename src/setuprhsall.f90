@@ -61,13 +61,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2009-01-17  todling - update interface to intjo
 !   2009-03-05  meunier - add call to lagragean operator
 !   2009-08-19  guo     - moved all rhs related statistics variables to m_rhs
-!			  for multi-pass setuprhsall();
-!			- added control arguments init_pass and last_pass for
-!			  multi-pass setuprhsall().
+!                         for multi-pass setuprhsall();
+!                       - added control arguments init_pass and last_pass for
+!                         multi-pass setuprhsall().
 !   2009-09-14  guo     - invoked compute_derived() even under lobserver.  This is
-!			  the right way to do it.  It trigged moving of statments
-!			  from glbsoi() to observer_init().
-!			- cleaned up redandent calls to setupyobs() and inquire_obsdiags().
+!                         the right way to do it.  It trigged moving of statments
+!                         from glbsoi() to observer_init().
+!                       - cleaned up redandent calls to setupyobs() and inquire_obsdiags().
 !   2009-10-22     shen - add high_gps and high_gps_sub
 !   2009-12-08  guo     - fixed diag_conv output rewind while is not init_pass, with open(position='rewind')
 !   2010-04-09  cucurull - remove high_gps and high_gps_sub
@@ -85,6 +85,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !                         PBL pseudo obs
 !   2013-10-19  todling - metguess now holds background
 !   2013-05-24      zhu - add ostats_t and rstats_t for aircraft temperature bias correction
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-0-16   carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -118,7 +122,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,npe
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
@@ -153,7 +157,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Declare passed variables
   integer(i_kind)                  ,intent(in   ) :: mype
   integer(i_kind),dimension(ndat,3),intent(in   ) :: ndata
-  logical                          ,intent(in   ) :: init_pass, last_pass	! state of "setup" processing
+  logical                          ,intent(in   ) :: init_pass, last_pass   ! state of "setup" processing
 
 
 ! Declare external calls for code analysis
@@ -168,7 +172,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupbend
   external:: setupdw
   external:: setuplag
-  external:: setupoz
+  external:: setupozlay
+  external:: setupozlev
   external:: setuppcp
   external:: setupps
   external:: setuppw
@@ -185,6 +190,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupgust
   external:: setupvis
   external:: setuppblh
+  external:: setupwspd10m
+  external:: setuptd2m
+  external:: setupmxtm
+  external:: setupmitm
+  external:: setuppmsl
+  external:: setuphowv
+  external:: setuptcamt
+  external:: setuplcbas
   external:: statsconv
   external:: statsoz
   external:: statspcp
@@ -204,7 +217,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
-       i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,iobs,nprt,ii,jj
+       i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
+       i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,iobs,nprt,ii,jj
   integer(i_kind) it,ier,istatus
 
   real(r_quad):: zjo
@@ -253,7 +267,15 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_gust=14
   i_vis =15
   i_pblh=16
-  i_ref =i_pblh
+  i_wspd10m=17
+  i_td2m=18
+  i_mxtm=19
+  i_mitm=20
+  i_pmsl=21
+  i_howv=22
+  i_tcamt=23
+  i_lcbas=24
+  i_ref =i_lcbas
 
   allocate(awork1(7*nsig+100,i_ref))
   if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
@@ -321,14 +343,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    endif
   endif
 
-! Compute 2d subdomain pbl heights from the guess fields	
-   if (wrf_mass_regional) then					
-      call load_gsdpbl_hgt(mype)				
+! Compute 2d subdomain pbl heights from the guess fields
+   if (wrf_mass_regional) then
+      call load_gsdpbl_hgt(mype)
    else if (nems_nmmb_regional) then
       if (l_PBL_pseudo_SurfobsT .or. l_PBL_pseudo_SurfobsQ .or. l_PBL_pseudo_SurfobsUV) then
          call load_gsdpbl_hgt(mype)
       end if
-   endif							      
+   endif   
 
 
 ! Compute derived quantities on grid
@@ -390,7 +412,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
            if(mype == mype_diaghdr(is)) then
-              write(6,*) 'SETUPALL:,obstype,isis,nreal,nchanl=',obstype,isis,nreal,nchanl
+              write(6,300) obstype,isis,nreal,nchanl
+ 300          format(' SETUPALL:,obstype,isis,nreal,nchanl=',a12,a20,i7,i7)
            endif
            if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
            nele=nreal+nchanl
@@ -477,6 +500,38 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up conventional pbl height data
               else if(obstype=='pblh' .and. getindex(svars2d,'pblh')>0) then
                  call setuppblh(lunin,mype,bwork,awork(1,i_pblh),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional wspd10m data
+              else if(obstype=='wspd10m' .and. getindex(svars2d,'wspd10m')>0) then
+                 call setupwspd10m(lunin,mype,bwork,awork(1,i_wspd10m),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional td2m data
+              else if(obstype=='td2m' .and. getindex(svars2d,'td2m')>0) then
+                 call setuptd2m(lunin,mype,bwork,awork(1,i_td2m),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional mxtm data
+              else if(obstype=='mxtm' .and. getindex(svars2d,'mxtm')>0) then
+                 call setupmxtm(lunin,mype,bwork,awork(1,i_mxtm),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional mitm data
+              else if(obstype=='mitm' .and. getindex(svars2d,'mitm')>0) then
+                 call setupmitm(lunin,mype,bwork,awork(1,i_mitm),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional pmsl data
+              else if(obstype=='pmsl' .and. getindex(svars2d,'pmsl')>0) then
+                 call setuppmsl(lunin,mype,bwork,awork(1,i_pmsl),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional howv data
+              else if(obstype=='howv' .and. getindex(svars2d,'howv')>0) then
+                 call setuphowv(lunin,mype,bwork,awork(1,i_howv),nele,nobs,is,conv_diagsave)
+
+!             Set up total cloud amount data
+              else if(obstype=='tcamt' .and. getindex(svars2d,'tcamt')>0) then
+                 call setuptcamt(lunin,mype,bwork,awork(1,i_tcamt),nele,nobs,is,conv_diagsave)
+
+!             Set up base height of lowest cloud seen
+              else if(obstype=='lcbas' .and. getindex(svars2d,'lcbas')>0) then
+                 call setuplcbas(lunin,mype,bwork,awork(1,i_lcbas),nele,nobs,is,conv_diagsave)
 
 !             skip this kind of data because they are not used in the var analysis
               else if(obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
@@ -609,12 +664,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    Compute and print statistics for "conventional" data
      call statsconv(mype,&
           i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-          i_gust,i_vis,i_pblh,i_ref,bwork1,awork1,ndata)
+          i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
+          i_tcamt,i_lcbas,i_ref,bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >
 
   deallocate(awork1)
-  call rhs_dealloc()	! destroy the workspace: awork, bwork, etc.
+  call rhs_dealloc()   ! destroy the workspace: awork, bwork, etc.
 ! Print Jo table
   nprt=2
   llouter=.true.

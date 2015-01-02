@@ -93,18 +93,18 @@ subroutine stp3dvar(dirx,dir_dt)
   implicit none
 
 ! Declare passed variables
-  type(gsi_bundle), intent(inout) :: dirx
+  type(gsi_bundle), intent(in   ) :: dirx
   type(gsi_bundle), intent(  out) :: dir_dt
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  real(r_kind),pointer,dimension(:,:,:)::dirx_u=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_v=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_t=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_q=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_oz=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_cw=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::dirx_prse=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_u
+  real(r_kind),pointer,dimension(:,:,:)::dirx_v
+  real(r_kind),pointer,dimension(:,:,:)::dirx_t
+  real(r_kind),pointer,dimension(:,:,:)::dirx_q
+  real(r_kind),pointer,dimension(:,:,:)::dirx_oz
+  real(r_kind),pointer,dimension(:,:,:)::dirx_cw
+  real(r_kind),pointer,dimension(:,:,:)::dirx_prse
 
   real(r_kind),pointer,dimension(:,:,:)::dir_dt_u=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::dir_dt_v=>NULL()

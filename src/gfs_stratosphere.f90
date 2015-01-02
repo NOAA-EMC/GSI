@@ -65,7 +65,7 @@ module gfs_stratosphere
    real(r_kind),dimension(:),allocatable:: deta2_save,aeta2_save,eta2_save          
    real(r_kind),dimension(:),allocatable :: ak5,bk5
    real(r_kind),dimension(:),allocatable:: blend_rm,blend_gm
-   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r_g,gesq_r_g,ges_u_r_g,ges_v_r_g, &
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r_g,ges_u_r_g,ges_v_r_g, &
                                                  ges_tsen_r_g,ges_oz_r_g,ges_q_r_g
    real(r_kind),dimension(:,:,:,:),allocatable:: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,& 
                                                  ges_qs_r_g,ges_qg_r_g,ges_qh_r_g

@@ -1,7 +1,7 @@
-subroutine state2ensctl(eval,mval,grad)
+subroutine ensctl2model_ad(eval,mval,grad)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    state2ensctl
+! subprogram:    ensctl2model
 !   prgmmr: kleist
 !
 ! abstract:  Contribution from state space to ensemble control vector
@@ -9,8 +9,7 @@ subroutine state2ensctl(eval,mval,grad)
 ! program history log:
 !   2011-11-17  kleist - initial code
 !   2013-10-28  todling - rename p3d to prse
-!   2013-11-22  kleist - add option for q perturbations
-!   2014-04-11  mkim   - add access to GFS moisture physics in the minimization
+!   Todling: this routine is simply a PLACE HOLDER for now - not working yet
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -24,9 +23,11 @@ subroutine state2ensctl(eval,mval,grad)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens,q_hyb_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
+use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
+use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult
 use balmod, only: strong_bk_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -40,10 +41,6 @@ use constants, only: zero,max_varname_length
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
-use jfunc, only: nsclen,npclen,do_gfsphys
-use cwhydromod, only: cw2hydro_ad
-use gfs_moistphys_mod, only: moistphys_ad
 use timermod, only: timer_ini,timer_fnl
 implicit none
 
@@ -53,33 +50,33 @@ type(gsi_bundle)    , intent(inout) :: mval
 type(gsi_bundle)    , intent(in   ) :: eval(ntlevs_ens)
 
 ! Declare local variables
-character(len=*),parameter::myname='state2ensctl'
+character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds,ierr
+integer(i_kind) :: ii,jj,ic,id,istatus,nclouds,nn
 
-integer(i_kind), parameter :: ncvars = 6
+integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
+type(gsi_bundle),allocatable :: ebundle(:)
+real(r_kind) :: grade(nval_lenz_en)
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ', 'cw '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
+                               'q  '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
 real(r_kind),pointer,dimension(:,:)   :: cv_ps
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv,cv_cw
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 7
+integer(i_kind), parameter :: nsvars = 5
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                   'u   ', 'v   ', 'prse', 'q   ', 'tsen','ql  ','qi  ' /)
-logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen' /)
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
-real(r_kind),pointer,dimension(:,:,:) :: rv_ql,rv_qi,rv_qc
-
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
-logical :: do_cw_to_hydro_ad,do_tsen_to_tv_ad !mjk
+
 !****************************************************************************
 
 ! Initialize timer
@@ -96,35 +93,36 @@ endif
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (grad%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
-lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
+lc_t  =icps(4)>0; lc_rh =icps(5)>0
 
 ! Since each internal vector of grad has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
-ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
-do_normal_rh_to_q_ad=(.not.q_hyb_ens).and.&
-                     lc_t .and.lc_rh.and.ls_prse.and.ls_q
+do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_prse.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
-do_tsen_to_tv_ad    = do_gfsphys
 
 ! Initialize
 mval%values=zero
 
-
-do_cw_to_hydro_ad=.false.
-if (regional) then
-   do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
-else
-   do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
-endif
-
 do jj=1,ntlevs_ens
+
+   !allocate(grade(nval_lenz_en))
+   allocate(ebundle(n_ens))
+   do nn=1,n_ens
+      call gsi_bundlecreate (ebundle(nn),grad%aens(1,1),'m2c ensemble work',istatus)
+      if(istatus/=0) then
+         write(6,*) trim(myname), ': trouble creating work ens-bundle'
+         call stop2(999)
+      endif
+   enddo
+
 !  Create a temporary bundle similar to grad, and copy contents of grad into it
    call gsi_bundlecreate ( wbundle_c, grad%step(1), 'stat2ensctl work', istatus )
    if(istatus/=0) then
@@ -138,9 +136,6 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
    call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
-   call gsi_bundlegetpointer (wbundle_c,'cw',cv_cw,istatus)
-
-!!   end if
 
 ! Get sv pointers here
 !  Get pointers to required state variables
@@ -154,25 +149,26 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
 
+
 !  Calculate sensible temperature
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
-! If calling TLNMC, already have u,v (so set last argument to true)
+!  If calling TLNMC, already have u,v (so set last argument to true)
    if(lstrong_bk_vars) then
       if ( (tlnmc_option==3) .or. &
          (jj==ibin_anl .and. tlnmc_option==2) ) then
 
-!  Adjoint of consistency for 3d pressure and sensible temperature
-!  Calculate sensible temperature
+!        Adjoint of consistency for 3d pressure and sensible temperature
+!        Calculate sensible temperature
          if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
-!  Adjoint to convert ps to 3-d pressure
+!        Adjoint to convert ps to 3-d pressure
          if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
-!  Adjoint of strong_bk
+!        Adjoint of strong_bk
          call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
       end if
    end if
@@ -180,38 +176,19 @@ do jj=1,ntlevs_ens
    call self_add(mval,eval(jj))
 
 !  Adjoint of control to initial state
-   if (do_tsen_to_tv_ad) then
-      call gsi_bundleputvar ( wbundle_c, 't' ,  zero,  istatus )
-   else
-      call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
-   endif
-   call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk
+   call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
 
-   if (do_cw_to_hydro_ad) then
-!     Case when cloud-vars do not map one-to-one
-!     e.g. cw-to-ql&qi
-      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
-      call cw2hydro_ad(eval(jj),wbundle_c,rv_tsen,clouds,nclouds)
-      if(.not. do_tv_to_tsen_ad) then
-         call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
-         deallocate(rv_tsen)
-      end if
-   else
 !  Since cloud-vars map one-to-one, take care of them together
-    do ic=1,nclouds
+   do ic=1,nclouds
       id=getindex(cvars3d,clouds(ic))
       if (id>0) then
           call gsi_bundlegetpointer (eval(jj),clouds(ic),rv_rank3,istatus)
           call gsi_bundleputvar     (wbundle_c, clouds(ic),rv_rank3,istatus)
       endif
-    enddo
-   endif
-
-   if (do_tsen_to_tv_ad) call tsen_to_tv_ad(rv_tsen,rv_q,rv_tv)
-   if (do_gfsphys)       call moistphys_ad(rv_tsen,rv_q,cv_cw)
+   enddo
 
 !  Convert RHS calculations for u,v to st/vp
    if (do_getuv) then
@@ -229,23 +206,46 @@ do jj=1,ntlevs_ens
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
    if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
-!  Else q option
-   if(q_hyb_ens) call gsi_bundleputvar ( wbundle_c, 'q', rv_q, istatus )
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
 
+   do nn=1,n_ens
+      ebundle(nn)%values=grad%aens(jj,nn)%values
+   enddo
    if(dual_res) then
-      call ensemble_forward_model_ad_dual_res(wbundle_c,grad%aens(1,:),jj)
+      call ensemble_forward_model_ad_dual_res(wbundle_c,ebundle,jj)
    else
-      call ensemble_forward_model_ad(wbundle_c,grad%aens(1,:),jj)
+      call ensemble_forward_model_ad(wbundle_c,ebundle,jj)
    end if
+   call sqrt_beta1mult(wbundle_c)
+
+!  Apply square-root of ensemble error covariance
+   call sqrt_beta2mult(ebundle)
+   call ckgcov_a_en_new_factorization_ad(grade,ebundle)
 
    call gsi_bundledestroy(wbundle_c,istatus)
    if (istatus/=0) then
       write(6,*) trim(myname),': trouble destroying work bundle'
       call stop2(999)
    endif
+
+   do ii=1,n_ens
+      grad%aens(jj,ii)%values=grad%aens(jj,ii)%values + grade
+   enddo
+!  do ii=1,nval_lenz_en
+!     grad%aens(jj,1)%values(ii)=grad%aens(jj,1)%values(ii)+grade(ii)
+!  enddo
+
+   do nn=n_ens,1,-1 ! first in; last out
+      call gsi_bundledestroy(ebundle(nn),istatus)
+      if(istatus/=0) then
+         write(6,*) trim(myname), ': trouble destroying work ens bundle', nn, istatus
+         call stop2(999)
+      endif
+   enddo
+   deallocate(ebundle)
+!  deallocate(grade)
 
 end do
 
@@ -255,4 +255,4 @@ if (nclouds>0) deallocate(clouds)
 call timer_fnl(trim(myname))
 
 return 
-end subroutine state2ensctl
+end subroutine ensctl2model_ad

@@ -363,7 +363,7 @@ open(luin,file=rcname,form='formatted')
 ! Scan file for desired table first
 ! and get size of table
 call gettablesize(tbname,luin,ntot,nmguess)
-if(nmguess==0) then
+if(nmguess<=0) then
    close(luin)
    return
 endif
@@ -389,12 +389,22 @@ do ii=1,nmguess
    endif
 enddo
 
-allocate(mguess3d(ng3d),mguess2d(ng2d), &
-         metsty3d(ng3d),metsty2d(ng2d), &
-         i4crtm3d(ng3d),i4crtm2d(ng2d), &
-         levels3d(ng3d),levels2d(ng2d), &
-         usrname3d(ng3d),usrname2d(ng2d), &
-         levels(nmguess),i4crtm(nmguess),usrname(nmguess),&
+if(ng3d > 0)then
+   allocate(mguess3d(ng3d), &
+            metsty3d(ng3d), &
+            i4crtm3d(ng3d), &
+            levels3d(ng3d), &
+            usrname3d(ng3d))
+end if
+if(ng2d > 0)then
+   allocate(mguess2d(ng2d), &
+            metsty2d(ng2d), &
+            i4crtm2d(ng2d), &
+            levels2d(ng2d), &
+            usrname2d(ng2d))
+end if
+
+   allocate(levels(nmguess),i4crtm(nmguess),usrname(nmguess),&
          mguess(nmguess),metstype(nmguess))
 
 ! Now load information from table

@@ -1217,7 +1217,7 @@ contains
     
     use constants, only: r1000,fv,one,zero
   
-    use mpimod, only: mpi_rtype,mpi_rtype4
+    use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: npe

@@ -149,17 +149,6 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (wbundle_c,'cw',cv_cw,istatus)
 !  end if
 
-! Get sv pointers here
-!  Get pointers to required state variables
-   call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
-   call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
-   call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
-   call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-   call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
-   call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
 
    if(dual_res) then
       call ensemble_forward_model_dual_res(wbundle_c,xhat%aens(1,:),jj)
@@ -167,6 +156,33 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
    end if
 
+!$omp parallel sections
+
+!$omp section
+
+! Get sv pointers here
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
+   call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
+!  Convert streamfunction and velocity potential to u,v
+   if(do_getuv) then
+      if(uv_hyb_ens) then
+         call gsi_bundlegetvar ( wbundle_c, 'sf', sv_u, istatus )
+         call gsi_bundlegetvar ( wbundle_c, 'vp', sv_v, istatus )
+      else
+         call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
+      end if
+   end if
+
+!$omp section
+
+! Get sv pointers here
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
+   call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
+   call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_prse)
 
@@ -178,24 +194,19 @@ do jj=1,ntlevs_ens
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
 
-!  Convert streamfunction and velocity potential to u,v
-   if(do_getuv) then
-      if(uv_hyb_ens) then
-         call gsi_bundlegetvar ( wbundle_c, 'sf', sv_u, istatus )
-         call gsi_bundlegetvar ( wbundle_c, 'vp', sv_v, istatus )
-      else
-         call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
-      end if
-   end if
-
    if (do_gfsphys) call moistphys_tl(sv_tsen,sv_q,cv_cw)
    if (do_tsen_to_tv) call tsen_to_tv(sv_tsen,sv_q,sv_tv)
 
 !  Copy variables
    if (.not. do_tsen_to_tv) &
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
-   call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
+
+!$omp section
+
+   call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
+   call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
+   call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
 
    if (do_cw_to_hydro) then
@@ -217,6 +228,7 @@ do jj=1,ntlevs_ens
       endif
     enddo
    endif
+!$omp end parallel sections
 
 ! Add contribution from static B, if necessary
    call self_add(eval(jj),mval)

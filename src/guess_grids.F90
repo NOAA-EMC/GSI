@@ -142,6 +142,7 @@ module guess_grids
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
+  public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
 
@@ -234,6 +235,7 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                           ! Guess Fields ...
+  real(r_kind),allocatable,dimension(:,:):: wgt_lcbas     ! weight given to base height of lowest cloud seen
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl  ! layer midpoint pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsl! log(layer midpoint pressure)
@@ -420,6 +422,7 @@ contains
 !   2011-02-09  zhu     - add ges_gust,ges_vis,ges_pblh
 !   2012-05-14  todling - revisit cw check to check also on some hydrometeors
 !   2013-10-19  todling - revisit initialization of certain vars wrt ESMF
+!   2014-06-09  carley/zhu - add wgt_lcbas
 !
 ! !REMARKS:
 !   language: f90
@@ -455,7 +458,7 @@ contains
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
-            pbl_height(lat2,lon2,nfldsig),&
+            pbl_height(lat2,lon2,nfldsig),wgt_lcbas(lat2,lon2), &
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -510,6 +513,12 @@ contains
                    geop_hgti(i,j,k,n)=zero
                 end do
              end do
+          end do
+       end do
+
+       do j=1,lon2
+          do i=1,lat2
+             wgt_lcbas(i,j)=0.01_r_kind
           end do
        end do
 
@@ -789,7 +798,7 @@ contains
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
-         tropprs,fact_tv,pbl_height,ges_qsat,stat=istatus)
+         tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
          istatus
@@ -847,13 +856,17 @@ contains
     if (istatus/=0) &
          write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
          istatus
-#ifndef HAVE_ESMF
-    deallocate(isli,fact10,dsfct,sfct,sno,veg_type,veg_frac,soil_type,&
-         sfc_rough,soil_temp,soil_moi,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
-         istatus
-#endif /* HAVE_ESMF */
+    if(allocated(isli))deallocate(isli)
+    if(allocated(fact10))deallocate(fact10)
+    if(allocated(sfct))deallocate(sfct)
+    if(allocated(sno))deallocate(sno)
+    if(allocated(veg_type))deallocate(veg_type)
+    if(allocated(veg_frac))deallocate(veg_frac)
+    if(allocated(soil_type))deallocate(soil_type)
+    if(allocated(sfc_rough))deallocate(sfc_rough)
+    if(allocated(soil_temp))deallocate(soil_temp)
+    if(allocated(soil_moi))deallocate(soil_moi)
+    if(allocated(dsfct))deallocate(dsfct)
 
     return
   end subroutine destroy_sfc_grids

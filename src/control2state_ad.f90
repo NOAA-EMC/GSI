@@ -1,7 +1,7 @@
-subroutine state2control(rval,bval,grad)
+subroutine control2state_ad(rval,bval,grad)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    state2control
+! subprogram:    control2state_ad
 !   prgmmr: tremolet
 !
 ! abstract:  Converts variables from physical space to control space
@@ -28,14 +28,14 @@ subroutine state2control(rval,bval,grad)
 !   2011-07-12  zhu      - add do_cw_to_hydro_ad and cw2hydro_ad
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro_ad
 !   2012-02-08  kleist   - remove strong_bk_ad and ensemble_forward_model_ad and related parameters
-!   2012-12-10  eliu     - add calls to linearized GFS moisture physics, normalized RH total, an                                 
-!                          additional conversion of tsen to tv if linearized GFS moisture physics                           
-!                          is turned on
 !   2013-05-23  zhu      - add ntclen and predt for aircraft temperature bias correction
 !   2013-10-25  todling  - nullify work pointers
 !   2013-10-28  todling  - rename p3d to prse
 !   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
-!
+!   2014-03-19  pondeca  - add wspd10m
+!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca  - add howv
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !   input argument list:
 !     rval - State variable
 !     bval
@@ -49,12 +49,9 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig,twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen
-use jfunc, only: use_rhtot,do_gfsphys  
 use cwhydromod, only: cw2hydro_ad
-use gfs_moistphys_mod, only: moistphys_ad 
-use normal_rhtot_mod, only: normal_rhtot_ad,cw2hydro_beta_ad   
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -64,7 +61,6 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use mpimod, only: mype 
 use constants, only: max_varname_length
 
 implicit none
@@ -75,10 +71,10 @@ type(predictors)    , intent(in   ) :: bval
 type(control_vector), intent(inout) :: grad
 
 ! Declare local variables
-character(len=*),parameter::myname='state2control'
+character(len=*),parameter::myname='control2state_ad'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus,istatus_oz,ierr 
+integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle) :: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -86,18 +82,21 @@ type(gsi_bundle) :: wbundle ! work bundle
 !       this routines knows how to handle.
 integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis,icoz
+integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m
+integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
+integer(i_kind) :: ictcamt,iclcbas,icsfwter,icvpwter
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw ', 'ql ', 'qi '/)
-logical :: pdf   
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
-real(r_kind),pointer,dimension(:,:,:) :: cv_cw=>NULL() 
+real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
@@ -106,16 +105,15 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ', 'qi  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh
+real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh,rv_wspd10m,rv_tcamt,rv_lcbas
+real(r_kind),pointer,dimension(:,:)   :: rv_td2m,rv_mxtm,rv_mitm,rv_pmsl,rv_howv
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
-real(r_kind),pointer,dimension(:,:,:) :: rv_ql,rv_qi  
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
-real(r_kind),pointer,dimension(:,:,:) :: rv_qc  
+
+real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_cw_to_hydro_ad
-logical :: do_normal_rhtot_to_q_hydro_ad 
-logical :: do_tsen_to_tv_ad !only involves this when turn do_gfsphys is true    
 
 !******************************************************************************
 
@@ -155,7 +153,6 @@ do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
 do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_prse.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
-do_tsen_to_tv_ad    =(do_gfsphys .and. lc_cw) .or. (do_gfsphys .and. use_rhtot)
 
 do_cw_to_hydro_ad=.false.
 if (regional) then
@@ -163,20 +160,27 @@ if (regional) then
 else
    do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi.and.(.not.lc_ql) !ncep global
 endif
-do_normal_rhtot_to_q_hydro_ad=(lc_rh.and.lc_t.and.ls_prse).and.(.not.lc_cw).and. &            
-                              (ls_q.and.ls_ql.and.ls_qi.and.ls_tsen).and.use_rhtot         
 
 call gsi_bundlegetpointer (grad%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
-
+call gsi_bundlegetpointer (grad%step(1),'wspd10m',icwspd10m,istatus)
+call gsi_bundlegetpointer (grad%step(1),'td2m',ictd2m,istatus)
+call gsi_bundlegetpointer (grad%step(1),'mxtm',icmxtm,istatus)
+call gsi_bundlegetpointer (grad%step(1),'mitm',icmitm,istatus)
+call gsi_bundlegetpointer (grad%step(1),'pmsl',icpmsl,istatus)
+call gsi_bundlegetpointer (grad%step(1),'howv',ichowv,istatus)
+call gsi_bundlegetpointer (grad%step(1),'sfwter',icsfwter,istatus)
+call gsi_bundlegetpointer (grad%step(1),'vpwter',icvpwter,istatus)
+call gsi_bundlegetpointer (grad%step(1),'tcamt',ictcamt,istatus)
+call gsi_bundlegetpointer (grad%step(1),'lcbas',iclcbas,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
 
 !  Create a work bundle similar to grad control vector's bundle
-   call gsi_bundlecreate ( wbundle, grad%step(jj), 'state2control work', istatus )
+   call gsi_bundlecreate ( wbundle, grad%step(jj), 'control2state_ad work', istatus )
    if (istatus/=0) then
       write(6,*) trim(myname),': trouble creating work bundle'
       call stop2(999)
@@ -189,7 +193,9 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis>0) call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
-   if (lc_cw) call gsi_bundlegetpointer (wbundle,'cw',cv_cw,istatus)    
+   if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter', cv_sfwter,istatus)
+   if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter', cv_vpwter,istatus)
+   if (iclcbas>0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
 
 !  Get pointers to this subwin require state variables
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
@@ -201,26 +207,11 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
 !  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
-   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
-   if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
-   if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
-   if (icpblh>0) call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
-
-   if (do_normal_rhtot_to_q_hydro_ad) then
-      ierr=0
-      if(ls_ql) call gsi_bundlegetpointer (rval(jj),'ql',rv_ql,istatus); ierr=ierr+istatus                            
-      if(ls_qi) call gsi_bundlegetpointer (rval(jj),'qi',rv_qi,istatus); ierr=ierr+istatus                       
-      if (ierr/=0) write(6,*)'state2control: can not get pointers for rv_ql &rv_qi'      
-   endif
 
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
-   if (do_tsen_to_tv_ad) then
-      call gsi_bundleputvar ( wbundle, 't' ,  zero,  istatus )
-   else
-      call gsi_bundleputvar ( wbundle, 't' ,  rv_tv,  istatus )  
-   endif
+   call gsi_bundleputvar ( wbundle, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
    if (icoz>0) then
@@ -228,10 +219,6 @@ do jj=1,nsubwin
    else
       if(istatus_oz==0) rv_oz=zero 
    end if
-   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
-   if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
-   if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
-   if (icpblh>0) call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
 
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
@@ -254,6 +241,48 @@ do jj=1,nsubwin
       enddo
    end if
 
+!$omp parallel sections
+
+!$omp section
+
+!  Convert RHS calculations for u,v to st/vp for application of
+!  background error
+   if (do_getuv) then
+       if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
+           allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
+                    uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
+
+           uland=zero ; uwter=zero
+           vland=zero ; vwter=zero
+
+           call landlake_uvmerge(rv_u,rv_v,uland,vland,uwter,vwter,0)
+
+           call getuv(uwter,vwter,cv_sfwter,cv_vpwter,1)
+           call getuv(uland,vland,cv_sf,cv_vp,1)
+           deallocate(uland,vland,uwter,vwter)
+         else
+           call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
+       endif
+   endif
+
+!$omp section
+
+!  Calculate sensible temperature
+   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
+
+!  Adjoint of convert input normalized RH to q to add contribution of moisture
+!  to t, p , and normalized rh
+   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
+
+!  Adjoint to convert ps to 3-d pressure
+   if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_prse)
+
+
+!$omp section
+
+   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
+   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
+
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
@@ -268,39 +297,56 @@ do jj=1,nsubwin
       endif
    enddo
 
-!  Adjoint of converting input normalized rhtot to q and hydrometeors
-   if (do_normal_rhtot_to_q_hydro_ad) then
-      pdf=.true.
-      allocate(rv_qc(lat2,lon2,nsig))
-      if (do_gfsphys) &
-      call tsen_to_tv_ad(rv_tsen,rv_q,rv_tv)
-      call cw2hydro_beta_ad(rv_qc,rv_tsen,rv_ql,rv_qi)
-      if (do_tsen_to_tv_ad) &
-      call moistphys_ad(rv_tsen,rv_q,rv_qc)
-      call normal_rhtot_ad(cv_rh,cv_t,rv_prse,rv_q,rv_qc,rv_tsen,pdf)
-      deallocate(rv_qc)
-   else
-      if (do_tsen_to_tv_ad .and. lc_cw) call tsen_to_tv_ad(rv_tsen,rv_q,rv_tv)
-      if (do_gfsphys) call moistphys_ad(rv_tsen,rv_q,cv_cw)
-   endif
+   if (icgust>0) then
+      call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
+      call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
+   end if
+   if (icvis >0) then
+      call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
+      call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
+      !  Adjoint of convert logvis to vis
+      call logvis_to_vis_ad(cv_vis,rv_vis)
+   end if
+   if (icpblh>0)then
+      call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
+      call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
+   end if
+   if (icwspd10m>0) then
+      call gsi_bundlegetpointer (rval(jj),'wspd10m' ,rv_wspd10m, istatus)
+      call gsi_bundleputvar ( wbundle, 'wspd10m', rv_wspd10m, istatus )
+   end if
+   if (ictd2m>0) then
+      call gsi_bundlegetpointer (rval(jj),'td2m' ,rv_td2m, istatus)
+      call gsi_bundleputvar ( wbundle, 'td2m', rv_td2m, istatus )
+   end if
+   if (icmxtm>0) then
+      call gsi_bundlegetpointer (rval(jj),'mxtm' ,rv_mxtm, istatus)
+      call gsi_bundleputvar ( wbundle, 'mxtm', rv_mxtm, istatus )
+   end if
+   if (icmitm>0) then
+      call gsi_bundlegetpointer (rval(jj),'mitm' ,rv_mitm, istatus)
+      call gsi_bundleputvar ( wbundle, 'mitm', rv_mitm, istatus )
+   end if
+   if (icpmsl>0) then
+      call gsi_bundlegetpointer (rval(jj),'pmsl' ,rv_pmsl, istatus)
+      call gsi_bundleputvar ( wbundle, 'pmsl', rv_pmsl, istatus )
+   end if
+   if (ichowv>0) then
+      call gsi_bundlegetpointer (rval(jj),'howv' ,rv_howv, istatus)
+      call gsi_bundleputvar ( wbundle, 'howv', rv_howv, istatus )
+   end if
+   if (ictcamt>0) then
+      call gsi_bundlegetpointer (rval(jj),'tcamt',rv_tcamt, istatus)
+      call gsi_bundleputvar ( wbundle, 'tcamt', rv_tcamt, istatus )
+   end if
+   if (iclcbas>0) then
+      call gsi_bundlegetpointer (rval(jj),'lcbas',rv_lcbas, istatus)
+      call gsi_bundleputvar ( wbundle, 'lcbas', zero, istatus )
+      !  Adjoint of convert loglcbas to lcbas
+      call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
+   end if
 
-!  Convert RHS calculations for u,v to st/vp for application of
-!  background error
-   if (do_getuv) call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
-
-!  Calculate sensible temperature
-!  if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-   if(do_tv_to_tsen_ad .and. .not. do_normal_rhtot_to_q_hydro_ad ) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)                  
-
-!  Adjoint of convert input normalized RH to q to add contribution of moisture
-!  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
-
-!  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_prse)
-
-!  Adjoint of convert logvis to vis
-   if(icvis >0) call logvis_to_vis_ad(cv_vis,rv_vis)
+!$omp end parallel sections
 
 !  Adjoint of transfer variables
 
@@ -335,4 +381,4 @@ endif
 if (nclouds>0) deallocate(clouds)
 
 return
-end subroutine state2control
+end subroutine control2state_ad

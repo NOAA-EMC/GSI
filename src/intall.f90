@@ -145,6 +145,9 @@ subroutine intall(sval,sbias,rval,rbias)
 !   2007-04-13  tremolet - split Jo and 3dvar components into intjo and int3dvar
 !   2007-10-01  todling  - add timers
 !   2011-10-20  todling  - observation operators refer to state- not control-vec (cvars->svars)
+!   2014-03-19  pondeca -  Add RHS calculation for wspd10m constraint
+!   2014-05-07  pondeca -  Add RHS calculation for howv constraint
+!   2014-06-17  carley/zhu  - Add RHS calculation for lcbas constraint
 !
 !   input argument list:
 !     sval     - solution on grid
@@ -174,8 +177,8 @@ subroutine intall(sval,sbias,rval,rbias)
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
-  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,&
-      intjcpdry,intjcdfi
+  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,&
+      intliml,intjcpdry,intjcdfi
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
@@ -238,6 +241,16 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for pblh constraint
      if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
+
+! RHS for wspd10m constraint
+     if (getindex(svars2d,'wspd10m')>0) call intlimw10m(rval(1),sval(1))
+
+! RHS for howv constraint
+     if (getindex(svars2d,'howv')>0) call intlimhowv(rval(1),sval(1))
+
+! RHS for lcbas constraint
+     if (getindex(svars2d,'lcbas')>0) call intliml(rval(1),sval(1))
+
   end if
 
 ! RHS for dry ps constraint
@@ -254,11 +267,13 @@ subroutine intall(sval,sbias,rval,rbias)
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
 
-! RHS calculation for Jc and other 3D-Var terms
-  call int3dvar(rval(1),dhat_dt)
+  if(l_foto) then
+!    RHS calculation for Jc and other 3D-Var terms
+     call int3dvar(rval(1),dhat_dt)
 
 ! Release local memory
-  if (l_foto) call deallocate_state(dhat_dt)
+     call deallocate_state(dhat_dt)
+   end if
 
 ! Finalize timer
   call timer_fnl('intall')
