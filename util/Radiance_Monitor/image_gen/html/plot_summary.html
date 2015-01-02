@@ -37,76 +37,92 @@
             var url    = window.location.href;
             var src    = new Uri( url ).getQueryParamValue('src');
 
-            log( src );
+            //log( src );
 
 
-            /************************************
-             ************************************
+            /******************************************
+             ******************************************
              *
-             *  drawCharts, main drawing program
+             *  drawCharts()
              *
-             ************************************
-             ************************************/
+             *    top level drawing function
+             *
+             ******************************************
+             ******************************************/
             function drawCharts() {
 
-                /*****************************************************
-                 * loadCSV loads data from comma separated value file
-                 *****************************************************/
+
+                /***********************************************************************************************
+                 * loadCSV()
+                 *
+                 *   loads data from the input comma separated value file
+                 ***********************************************************************************************/
                 function loadCSV(file) {
+                    var request;
 
                     if (window.XMLHttpRequest) {
                         // IE7+, Firefox, Chrome, Opera, Safari
-                        var request = new XMLHttpRequest();
+                        request = new XMLHttpRequest();
                     }
                     else {
                         // code for IE6, IE5
-                        var request = new ActiveXObject('Microsoft.XMLHTTP');
+                        request = new ActiveXObject('Microsoft.XMLHTTP');
                     }
 
 
                     // load file
-                    //   NOTE:  This request.open with false for the async param (meaning synchronous request)
-                    //          is reported as deprecated when used on the main thread due to negative user
-                    //          experience (forced wait time).
+                    //   The request object is used to get the file from the server.  Note that this is Object Oriented
+                    //   programming, not sequential.
                     //
-                    //          Issue is that with asynchronous request, js execution proceeds before the data
-                    //          is returned from the request.open() call.  This means the dataProvider is not
-                    //          loaded, because the data isn't available yet.  I've tried implementing a crude
-                    //          sort of sleep function (js doesn't have one) but I still have timing problems
-                    //          and end up loading my dataProvider before the request data is back.
+                    //   The request.open sets the server instruction to get the requested data file asynchronously.
+                    //   Synchronous requests are still possible but most browsers have deprecated that option and will
+                    //   eventually remove it.
                     //
-                    //          I think the way around this is to restructure the code so that loading the
-                    //          dataProvider (and all things downstream of that) is triggered by a callback from
-                    //          the request.
+                    //   The request.onload() function specifies the actions to take when the data file is loaded;
+                    //   the request.status of 200 indicates the load was successful, and request.readystate 4
+                    //   indicates the transaction is complete.  The readyState test is included as a sanity check;
+                    //   the onload function should only fire when the load is complete.  But the check on request.status
+                    //   is needed; there's no guarantee that the request was successful.  A warning is dumped to the
+                    //   log in the event of failure, but unless the user has a web console open s/he won't see it.
+                    //
+                    //   The request.send() method actually initiates the processing of the request.
 
-                    //request.addEventListener("loadend", loadEnd(), false);
-                    request.open('GET', file, false);
-                    //request.onload( loadEnd() );
+                    request.open('GET', file, true);
+                    request.onload = function(e) {
+                        if( request.status === 200 && request.readyState === 4 ) {
+                            parseCSV( request.responseText);
+                            fillData();
+                            fillCharts();
+                        }
+                        else {
+                            log (" Failured to load " + file + " ; request.status = " + request.status );
+                        }
+                    }
                     request.send();
-
-                    parseCSV(request.responseText);
                 }
 
 
-                /*****************************************************
-                 *  parseCSV puts file data into dataProvider[] array
-                 *****************************************************/
-                function parseCSV(data){
+                /************************************************************************************
+                 *  parseCSV()
+                 *
+                 *    load the comma separated value (CSV) file data into the dataProvider[] array.
+                 ************************************************************************************/
+                function parseCSV(data) {
 
+                    //log("--> parseCSV ");
                     //replace UNIX new lines
-                    data = data.replace (/\r\n/g, "\n");
+                    data = data.replace(/\r\n/g, "\n");
                     //replace MAC new lines
-                    data = data.replace (/\r/g, "\n");
+                    data = data.replace(/\r/g, "\n");
                     //split into rows
                     var rows = data.split("\n");
                     //log( rows.length );
                     var nchanl = 0;
 
-
                     // load line 0, which includes the number of channels, and 4 10-digit cycle times
-                    if( rows[0]) {
+                    if (rows[0]) {
                         var column = rows[0].split(",");
-                        var nchanl  = parseInt(column[0]);
+                        var nchanl = parseInt(column[0]);
                         var cycle1 = column[1];
                         var cycle2 = column[2];
                         var cycle3 = column[3];
@@ -114,14 +130,14 @@
                         //log (cycle4);
 
                         // create object which contains all these items:
-                        var dataObject = {nchanl:nchanl, cycle1:cycle1, cycle2:cycle2, cycle3:cycle3, cycle4:cycle4};
+                        var dataObject = {nchanl: nchanl, cycle1: cycle1, cycle2: cycle2, cycle3: cycle3, cycle4: cycle4};
 
                         // add object to dataProvider array
                         dataProvider.push(dataObject);
                     }
 
                     // loop through rows 1 - nchanl to load the count data (chart 1)
-                    for (var i = 1; i <= nchanl; i++){
+                    for (var i = 1; i <= nchanl; i++) {
                         // this line helps to skip empty rows
                         if (rows[i]) {
                             // our columns are separated by comma
@@ -129,44 +145,44 @@
 
                             // data element order is channel, use flag, cnt cycle1, cnt cycle2, cnt cycl3, cnt cycl4
                             //   items 1-nchan + 1 are the cycle counts for ges data
-                            var chan    = Number(column[0]);
-                            var use     = Number(column[1]);
+                            var chan = Number(column[0]);
+                            var use = Number(column[1]);
                             var assim;
                             var notassim;
-                            if( use === 1 ){
+                            if (use === 1) {
                                 assim = 1;
                                 notassim = undefined;
                             }
-                            else{
+                            else {
                                 assim = undefined;
                                 notassim = 1;
                             }
 
-                            var gcyc1   = Number(column[2]);
-                            var gcyc2   = Number(column[3]);
-                            var gcyc3   = Number(column[4]);
-                            var gcyc4   = Number(column[5]);
-                            var acyc1   = Number(column[6]);
-                            var acyc2   = Number(column[7]);
-                            var acyc3   = Number(column[8]);
-                            var acyc4   = Number(column[9]);
+                            var gcyc1 = Number(column[2]);
+                            var gcyc2 = Number(column[3]);
+                            var gcyc3 = Number(column[4]);
+                            var gcyc4 = Number(column[5]);
+                            var acyc1 = Number(column[6]);
+                            var acyc2 = Number(column[7]);
+                            var acyc3 = Number(column[8]);
+                            var acyc4 = Number(column[9]);
 
                             // create object which contains all these items, plus undefined entries for
                             // chart2-4 data:
-                            var dataObject = {chan:chan, use:use, assim:assim, notassim:notassim,
-                                              gcyc1:gcyc1, gcyc2:gcyc2, gcyc3:gcyc3, gcyc4:gcyc4,
-                                              acyc1:acyc1, acyc2:acyc2, acyc3:acyc3, acyc4:acyc4,
-                                              // chart 2
-                                              gtcor1cyc:undefined, gtcor1day:undefined, gtcor30day:undefined,
-                                              atcor1cyc:undefined, atcor1day:undefined, atcor30day:undefined,
-                                              // chart 3
-                                              avg_omgbc_1cyc:undefined, sdv_omgbc_1cyc:undefined,
-                                              avg_omgbc_30day:undefined, sdv_omgbc_30day:undefined,
-                                              avg_omabc_1cyc:undefined, sdv_omabc_1cyc:undefined,
-                                              avg_omabc_30day:undefined, sdv_omabc_30day:undefined,
-                                              // chart 4
-                                              ges_pen_1cyc:undefined, ges_pen_1day:undefined, ges_pen_30day:undefined,
-                                              anl_pen_1cyc:undefined, anl_pen_1day:undefined, anl_pen_30day:undefined};
+                            var dataObject = {chan: chan, use: use, assim: assim, notassim: notassim,
+                                gcyc1: gcyc1, gcyc2: gcyc2, gcyc3: gcyc3, gcyc4: gcyc4,
+                                acyc1: acyc1, acyc2: acyc2, acyc3: acyc3, acyc4: acyc4,
+                                // chart 2
+                                gtcor1cyc: undefined, gtcor1day: undefined, gtcor30day: undefined,
+                                atcor1cyc: undefined, atcor1day: undefined, atcor30day: undefined,
+                                // chart 3
+                                avg_omgbc_1cyc: undefined, sdv_omgbc_1cyc: undefined,
+                                avg_omgbc_30day: undefined, sdv_omgbc_30day: undefined,
+                                avg_omabc_1cyc: undefined, sdv_omabc_1cyc: undefined,
+                                avg_omabc_30day: undefined, sdv_omabc_30day: undefined,
+                                // chart 4
+                                ges_pen_1cyc: undefined, ges_pen_1day: undefined, ges_pen_30day: undefined,
+                                anl_pen_1cyc: undefined, anl_pen_1day: undefined, anl_pen_30day: undefined};
 
                             // add object to dataProvider array
                             dataProvider.push(dataObject);
@@ -174,25 +190,25 @@
                     }
 
                     // loop through rows nchanl+1 - 2*nchanl to load the total bias correction data (chart 2)
-                    for (var i = nchanl+1; i <= 2*nchanl; i++) {
+                    for (var i = nchanl + 1; i <= 2 * nchanl; i++) {
                         // this line helps to skip empty rows
                         if (rows[i]) {
                             var column = rows[i].split(",");
                             // data element order is channel, use flag, ges:tot_cor:1cycle, ges:tot_cor:4 cycles,
                             //   ges:tot_cor:120 cycles, anl:tot_cor:1 cycle, anl:tot_cor:4 anl:tot_cor:120 cycles
 
-                            dataProvider[i-nchanl].gtcor1cyc  = Number(column[2]);
-                            dataProvider[i-nchanl].gtcor1day  = Number(column[3]);
-                            dataProvider[i-nchanl].gtcor30day = Number(column[4]);
-                            dataProvider[i-nchanl].atcor1cyc  = Number(column[5]);
-                            dataProvider[i-nchanl].atcor1day  = Number(column[6]);
-                            dataProvider[i-nchanl].atcor30day = Number(column[7]);
+                            dataProvider[i - nchanl].gtcor1cyc = Number(column[2]);
+                            dataProvider[i - nchanl].gtcor1day = Number(column[3]);
+                            dataProvider[i - nchanl].gtcor30day = Number(column[4]);
+                            dataProvider[i - nchanl].atcor1cyc = Number(column[5]);
+                            dataProvider[i - nchanl].atcor1day = Number(column[6]);
+                            dataProvider[i - nchanl].atcor30day = Number(column[7]);
 
                         }
                     }
 
                     // loop through rows nchan*2+1 - 3*nchanl to load the ob[g|a]bc data (chart 3)
-                    for (var i = (2*nchanl)+1; i<=3*nchanl; i++) {
+                    for (var i = (2 * nchanl) + 1; i <= 3 * nchanl; i++) {
                         // this line helps to skip empty rows
                         if (rows[i]) {
                             var column = rows[i].split(",");
@@ -200,348 +216,370 @@
                             //   avg_omgbc:120 cycles, sdv_omgbc:120 cycles, avg_omabc:1 cycle, sdv_omabc: 1 cycle,
                             //   avg_omabc:120 cycles, sdv_omabc:120 cycles
 
-                            dataProvider[i-nchanl*2].avg_omgbc_1cyc  = Number(column[2]);
-                            dataProvider[i-nchanl*2].sdv_omgbc_1cyc  = Number(column[3]);
-                            dataProvider[i-nchanl*2].avg_omgbc_30day = Number(column[4]);
-                            dataProvider[i-nchanl*2].sdv_omgbc_30day = Number(column[5]);
-                            dataProvider[i-nchanl*2].avg_omabc_1cyc  = Number(column[6]);
-                            dataProvider[i-nchanl*2].sdv_omabc_1cyc  = Number(column[7]);
-                            dataProvider[i-nchanl*2].avg_omabc_30day = Number(column[8]);
-                            dataProvider[i-nchanl*2].sdv_omabc_30day = Number(column[9]);
+                            dataProvider[i - nchanl * 2].avg_omgbc_1cyc = Number(column[2]);
+                            dataProvider[i - nchanl * 2].sdv_omgbc_1cyc = Number(column[3]);
+                            dataProvider[i - nchanl * 2].avg_omgbc_30day = Number(column[4]);
+                            dataProvider[i - nchanl * 2].sdv_omgbc_30day = Number(column[5]);
+                            dataProvider[i - nchanl * 2].avg_omabc_1cyc = Number(column[6]);
+                            dataProvider[i - nchanl * 2].sdv_omabc_1cyc = Number(column[7]);
+                            dataProvider[i - nchanl * 2].avg_omabc_30day = Number(column[8]);
+                            dataProvider[i - nchanl * 2].sdv_omabc_30day = Number(column[9]);
                         }
                     }
 
                     // loop through rows nchan*3+1 - 4*nchanl to load the penalty data (chart 4)
-                    for (var i = (3*nchanl)+1; i<=4*nchanl; i++) {
+                    for (var i = (3 * nchanl) + 1; i <= 4 * nchanl; i++) {
                         // this line helps to skip empty rows
                         if (rows[i]) {
                             var column = rows[i].split(",");
                             // data element order is channel, use flag, ges pen:1cycle, ges pen:1 day,
                             //   ges pen:120 cycles, anl pen:1 cycle, anl pen:1 day, anl pen:120 cycles
-                            dataProvider[i-nchanl*3].ges_pen_1cyc  = Number(column[2]);
-                            dataProvider[i-nchanl*3].ges_pen_1day  = Number(column[3]);
-                            dataProvider[i-nchanl*3].ges_pen_30day = Number(column[4]);
-                            dataProvider[i-nchanl*3].anl_pen_1cyc  = Number(column[5]);
-                            dataProvider[i-nchanl*3].anl_pen_1day  = Number(column[6]);
-                            dataProvider[i-nchanl*3].anl_pen_30day = Number(column[7]);
+                            dataProvider[i - nchanl * 3].ges_pen_1cyc = Number(column[2]);
+                            dataProvider[i - nchanl * 3].ges_pen_1day = Number(column[3]);
+                            dataProvider[i - nchanl * 3].ges_pen_30day = Number(column[4]);
+                            dataProvider[i - nchanl * 3].anl_pen_1cyc = Number(column[5]);
+                            dataProvider[i - nchanl * 3].anl_pen_1day = Number(column[6]);
+                            dataProvider[i - nchanl * 3].anl_pen_30day = Number(column[7]);
                         }
                     }
+                    //log("<-- parseCSV");
                 }
 
+                //----------------------------------------------------------------------------------------
+                // fillData()
+                //
+                //    fill the data, data2, data3, and data4 objects using the dataProvider object.
+                //----------------------------------------------------------------------------------------
+                function fillData() {
+                    //log( "--> fillData" );
 
+                    // data is the container for the first chart's information.
+                    data = new google.visualization.DataTable();
+                    data.addColumn('number', 'chan');
+                    data.addColumn('number', 'ges ' + dataProvider[0].cycle1);
+                    data.addColumn('number', 'ges ' + dataProvider[0].cycle2);
+                    data.addColumn('number', 'ges ' + dataProvider[0].cycle3);
+                    data.addColumn('number', 'ges ' + dataProvider[0].cycle4);
+                    data.addColumn('number', 'anl ' + dataProvider[0].cycle1);
+                    data.addColumn('number', 'anl ' + dataProvider[0].cycle2);
+                    data.addColumn('number', 'anl ' + dataProvider[0].cycle3);
+                    data.addColumn('number', 'anl ' + dataProvider[0].cycle4);
+                    data.addColumn('number', 'assim');
+                    data.addColumn('number', 'not_assim');
 
-            /************************************
-             *---------------------------------
-             *  loadChart code begins here.
-             *---------------------------------
-             ************************************/
-            var cntFile='./pngs/summary/' + src + '.sum.txt';
-
-            // load data if this is the first time through this routine otherwise
-            // skip if we're redrawing things.
-            if( dataProvider.length <= 0 ) {
-                loadCSV(cntFile);
-
-                // data is the container for the first chart's information.
-                data = new google.visualization.DataTable();
-                data.addColumn('number', 'chan');
-                data.addColumn('number', 'ges ' + dataProvider[0].cycle1);
-                data.addColumn('number', 'ges ' + dataProvider[0].cycle2);
-                data.addColumn('number', 'ges ' + dataProvider[0].cycle3);
-                data.addColumn('number', 'ges ' + dataProvider[0].cycle4);
-                data.addColumn('number', 'anl ' + dataProvider[0].cycle1);
-                data.addColumn('number', 'anl ' + dataProvider[0].cycle2);
-                data.addColumn('number', 'anl ' + dataProvider[0].cycle3);
-                data.addColumn('number', 'anl ' + dataProvider[0].cycle4);
-                data.addColumn('number', 'assim');
-                data.addColumn('number', 'not_assim');
-
-                for (var ii = 1; ii < dataProvider.length; ii++) {
-                    data.addRows([
-                        [Number(dataProvider[ii].chan),
-                            Number(dataProvider[ii].gcyc1), Number(dataProvider[ii].gcyc2),
-                            Number(dataProvider[ii].gcyc3), Number(dataProvider[ii].gcyc4),
-                            Number(dataProvider[ii].acyc1), Number(dataProvider[ii].acyc2),
-                            Number(dataProvider[ii].acyc3), Number(dataProvider[ii].acyc4),
-                            Number(dataProvider[ii].assim), Number(dataProvider[ii].notassim)
+                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                        data.addRows([
+                            [Number(dataProvider[ii].chan),
+                                Number(dataProvider[ii].gcyc1), Number(dataProvider[ii].gcyc2),
+                                Number(dataProvider[ii].gcyc3), Number(dataProvider[ii].gcyc4),
+                                Number(dataProvider[ii].acyc1), Number(dataProvider[ii].acyc2),
+                                Number(dataProvider[ii].acyc3), Number(dataProvider[ii].acyc4),
+                                Number(dataProvider[ii].assim), Number(dataProvider[ii].notassim)
                             ]
-                    ]);
+                        ]);
 
 
+                    }
+
+                    // load data2 for chart2
+                    data2 = new google.visualization.DataTable();
+                    data2.addColumn('number', 'chan');
+                    data2.addColumn('number', 'ges 1cyc');
+                    data2.addColumn('number', 'ges 1day');
+                    data2.addColumn('number', 'ges 30day');
+                    data2.addColumn('number', 'anl 1cyc');
+                    data2.addColumn('number', 'anl 1day');
+                    data2.addColumn('number', 'anl 30day');
+                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                        data2.addRows([
+                            [Number(dataProvider[ii].chan),
+                                Number(dataProvider[ii].gtcor1cyc), Number(dataProvider[ii].gtcor1day),
+                                Number(dataProvider[ii].gtcor30day), Number(dataProvider[ii].atcor1cyc),
+                                Number(dataProvider[ii].atcor1day), Number(dataProvider[ii].atcor30day)]
+                        ]);
+                    }
+
+                    // load data3 for chart3
+                    data3 = new google.visualization.DataTable();
+                    data3.addColumn('number', 'chan');
+                    data3.addColumn('number', 'avg omgbc 1cyc');
+                    data3.addColumn('number', 'sdv omgbc 1cyc');
+                    data3.addColumn('number', 'avg omgbc 30day');
+                    data3.addColumn('number', 'sdv omgbc 30day');
+                    data3.addColumn('number', 'avg omabc 1cyc');
+                    data3.addColumn('number', 'sdv omabc 1cyc');
+                    data3.addColumn('number', 'avg omabc 30day');
+                    data3.addColumn('number', 'sdv omabc 30day');
+
+                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                        data3.addRows([
+                            [Number(dataProvider[ii].chan),
+                                Number(dataProvider[ii].avg_omgbc_1cyc), Number(dataProvider[ii].sdv_omgbc_1cyc),
+                                Number(dataProvider[ii].avg_omgbc_30day), Number(dataProvider[ii].sdv_omgbc_30day),
+                                Number(dataProvider[ii].avg_omabc_1cyc), Number(dataProvider[ii].sdv_omabc_1cyc),
+                                Number(dataProvider[ii].avg_omabc_30day), Number(dataProvider[ii].sdv_omabc_30day)]
+                        ]);
+                    }
+
+                    // load data4 for chart4
+                    data4 = new google.visualization.DataTable();
+                    data4.addColumn('number', 'chan');
+                    data4.addColumn('number', 'ges_1cyc');
+                    data4.addColumn('number', 'ges_1day');
+                    data4.addColumn('number', 'ges_30day');
+                    data4.addColumn('number', 'anl_1cyc');
+                    data4.addColumn('number', 'anl_1day');
+                    data4.addColumn('number', 'anl_30day');
+
+                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                        data4.addRows([
+                            [Number(dataProvider[ii].chan),
+                                Number(dataProvider[ii].ges_pen_1cyc), Number(dataProvider[ii].ges_pen_1day),
+                                Number(dataProvider[ii].ges_pen_30day), Number(dataProvider[ii].anl_pen_1cyc),
+                                Number(dataProvider[ii].anl_pen_1day), Number(dataProvider[ii].anl_pen_30day)]
+                        ]);
+                    }
+                    //log( "<-- fillData" );
                 }
 
-                // load data2 for chart2
-                data2 = new google.visualization.DataTable();
-                data2.addColumn('number', 'chan');
-                data2.addColumn('number', 'ges 1cyc');
-                data2.addColumn('number', 'ges 1day');
-                data2.addColumn('number', 'ges 30day');
-                data2.addColumn('number', 'anl 1cyc');
-                data2.addColumn('number', 'anl 1day');
-                data2.addColumn('number', 'anl 30day');
-                for (var ii = 1; ii < dataProvider.length; ii++){
-                    data2.addRows([
-                        [Number(dataProvider[ii].chan),
-                         Number(dataProvider[ii].gtcor1cyc),  Number(dataProvider[ii].gtcor1day),
-                         Number(dataProvider[ii].gtcor30day), Number(dataProvider[ii].atcor1cyc),
-                         Number(dataProvider[ii].atcor1day),  Number(dataProvider[ii].atcor30day)]
-                    ]);
+
+                //---------------------------------------------------------------------------------------
+                // fillCharts()
+                //   using the loaded data set, construct views (limited data sets) according to the
+                //   state of the various checkboxes in the user interface.
+                //---------------------------------------------------------------------------------------
+                function fillCharts() {
+                    //log( "-->fillCharts");
+
+                    /*
+                     * options are display options for entire chart
+                     * including title, vertical axis label format and scale
+                     */
+                    var options = {
+                        title: 'Number of Observations Passing QC',
+                        titleTextStyle:{ fontSize: 20 },
+                        vAxis:{ format          : '0.##E+0',
+                            logScale        : 'true'},
+                        hAxis:{ title           : 'Channel',
+                            format          :  '##',
+                            showTextEvery   :  1
+                        }
+                    };
+
+                    // chart is the count line chart.
+                    var chart1 = new google.visualization.LineChart(
+                            document.getElementById('sum_count'));
+
+                    window.myValue = data;
+
+                    // add callback for mouse events
+                    //google.visualization.events.addListener(chart1, 'select', selectHandler);
+
+                    // create a view for the display of only selected values
+                    var myView = new google.visualization.DataView( window.myValue );
+
+                    //
+                    // Poll all the checkboxes and set the columns of myView accordingly
+                    //
+                    var CkBxGes  = document.getElementById( "ckboxGes"  ).checked;
+                    var CkBxAnl  = document.getElementById( "ckboxAnl"  ).checked;
+                    var CkBxCyc1 = document.getElementById( "ckboxCyc1" ).checked;
+                    var CkBxCyc2 = document.getElementById( "ckboxCyc2" ).checked;
+                    var CkBxCyc3 = document.getElementById( "ckboxCyc3" ).checked;
+                    var CkBxCyc4 = document.getElementById( "ckboxCyc4" ).checked;
+                    myView.hideColumns([9]);
+                    myView.hideColumns([10]);
+
+                    if( ! CkBxGes )  {
+                        myView.hideColumns([1,2,3,4]);
+                    }
+                    if( ! CkBxAnl )  {
+                        myView.hideColumns([5,6,7,8]);
+                    }
+                    if( !CkBxCyc1 ) {
+                        myView.hideColumns([1,5]);
+                    }
+                    if( !CkBxCyc2 ) {
+                        myView.hideColumns([2,6]);
+                    }
+                    if( !CkBxCyc3 ) {
+                        myView.hideColumns([3,7]);
+                    }
+                    if( !CkBxCyc4 ) {
+                        myView.hideColumns([4,8]);
+                    }
+
+
+                    // display the chart
+                    chart1.draw(myView, options);
+
+                    // rename the ckboxCyc1-4 labels using the input cycle times
+                    document.getElementById( "labCyc1" ).innerHTML = dataProvider[0].cycle1;
+                    document.getElementById( "labCyc2" ).innerHTML = dataProvider[0].cycle2;
+                    document.getElementById( "labCyc3" ).innerHTML = dataProvider[0].cycle3;
+                    document.getElementById( "labCyc4" ).innerHTML = dataProvider[0].cycle4;
+
+
+                    /******************************************
+                     *  chart2 is the total correction plot
+                     ******************************************/
+                    var options2 = {
+                        title: 'Total Bias Correction (K)',
+                        titleTextStyle:{ fontSize: 20 },
+                        vAxis:{ format          : '0.##',
+                            logScale        : 'false'},
+                        hAxis:{ title           : 'Channel',
+                            format          :  '##',
+                            showTextEvery   :  1
+                        }
+                    };
+                    var chart2 = new google.visualization.LineChart(
+                            document.getElementById('total_bias_correction'));
+
+                    // create a view for the display of only selected values
+                    var myView2 = new google.visualization.DataView( data2 );
+
+                    var CkBx1Cyc  = document.getElementById( "ckbox1Cyc" ).checked;
+                    var CkBx1Day  = document.getElementById( "ckbox1Day").checked;
+                    var CkBx30Day = document.getElementById( "ckbox30Day").checked;
+
+                    if( ! CkBxGes ){
+                        myView2.hideColumns([1,2,3]);
+                    }
+                    if( ! CkBxAnl ){
+                        myView2.hideColumns([4,5,6]);
+                    }
+                    if( ! CkBx1Cyc ){
+                        myView2.hideColumns([1,4]);
+                    }
+                    if( ! CkBx1Day ){
+                        myView2.hideColumns([2,5]);
+                    }
+                    if( ! CkBx30Day){
+                        myView2.hideColumns([3,6]);
+                    }
+
+                    //google.visualization.events.addListener(chart2, 'select', selectHandler);
+                    chart2.draw(myView2, options2);
+
+
+                    /******************************************************
+                     *  chart3 is the om[g|a] plot for 1 cyc and 30 days
+                     ******************************************************/
+                    var options3 = {
+                        title: 'Ges|Anl (with Bias Cor) - Observed (K)',
+                        titleTextStyle:{ fontSize: 20 },
+                        vAxis:{ format          : '0.##',
+                            logScale        : 'false'},
+                        hAxis:{ title           : 'Channel',
+                            format          :  '##',
+                            showTextEvery   :  1
+                        }
+                    };
+                    var chart3 = new google.visualization.LineChart(
+                            document.getElementById('ges_anl_m_obs_w_bias_cor'));
+
+                    //-------------------------------------------------------
+                    // create a view for the display of only selected values
+                    var myView3 = new google.visualization.DataView( data3 );
+
+                    //-------------------------------------------------------------------
+                    // Poll all the checkboxes and set the columns of myView accordingly
+                    //
+                    var CkBx1CycAvg  = document.getElementById( "ckbox1CycAvg").checked;
+                    var CkBx1CycSdv  = document.getElementById( "ckbox1CycSdv").checked;
+                    var CkBx30DayAvg = document.getElementById( "ckbox30DayAvg").checked;
+                    var CkBx30DaySdv = document.getElementById( "ckbox30DaySdv").checked;
+
+                    if( ! CkBxGes ){
+                        myView3.hideColumns([1,2,3,4]);
+                    }
+                    if( ! CkBxAnl ){
+                        myView3.hideColumns([5,6,7,8]);
+                    }
+                    if( !CkBx1CycAvg) {
+                        myView3.hideColumns([1,5]);
+                    }
+                    if( !CkBx1CycSdv){
+                        myView3.hideColumns([2,6]);
+                    }
+                    if( !CkBx30DayAvg ){
+                        myView3.hideColumns([3,7]);
+                    }
+                    if( !CkBx30DaySdv ){
+                        myView3.hideColumns([4,8]);
+                    }
+
+                    //google.visualization.events.addListener(chart2, 'select', selectHandler);
+                    chart3.draw(myView3, options3);
+
+
+                    /***************************************************************************
+                     *  chart4 is the contriubtion to penalty plot for 1 cyc, 1 day and 30 days
+                     ***************************************************************************/
+                    var options4 = {
+                        title: 'Contribution to Penalty',
+                        titleTextStyle:{ fontSize: 20 },
+                        vAxis:{ format          : '0.##',
+                            logScale        : 'false'},
+                        hAxis:{ title           : 'Channel',
+                            format          :  '##',
+                            showTextEvery   :  1
+                        }
+                    };
+                    var chart4 = new google.visualization.LineChart(
+                            document.getElementById('contribution_to_penalty'));
+
+                    // create a view for the display of only selected values
+                    var myView4 = new google.visualization.DataView( data4 );
+
+                    var CkBxPen1Cyc  = document.getElementById( "ckboxPen1Cyc" ).checked;
+                    var CkBxPen1Day  = document.getElementById( "ckboxPen1Day").checked;
+                    var CkBxPen30Day = document.getElementById( "ckboxPen30Day").checked;
+
+                    if( ! CkBxGes ){
+                        myView4.hideColumns([1,2,3]);
+                    }
+                    if( ! CkBxAnl ){
+                        myView4.hideColumns([4,5,6]);
+                    }
+                    if( ! CkBxPen1Cyc ){
+                        myView4.hideColumns([1,4]);
+                    }
+                    if( !CkBxPen1Day){
+                        myView4.hideColumns([2,5]);
+                    }
+                    if( ! CkBxPen30Day){
+                        myView4.hideColumns([3,6]);
+                    }
+
+                    //google.visualization.events.addListener(chart2, 'select', selectHandler);
+                    chart4.draw(myView4, options4);
+
+                    document.getElementById('title').innerHTML = 'Summary Plot   ' + src;
+                    document.getElementById('valid').innerHTML = 'Valid:  ' + dataProvider[0].cycle1 ;
+
+                    //log( "<-- fillCharts");
                 }
 
-                // load data3 for chart3
-                data3 = new google.visualization.DataTable();
-                data3.addColumn('number', 'chan');
-                data3.addColumn('number', 'avg omgbc 1cyc');
-                data3.addColumn('number', 'sdv omgbc 1cyc');
-                data3.addColumn('number', 'avg omgbc 30day');
-                data3.addColumn('number', 'sdv omgbc 30day');
-                data3.addColumn('number', 'avg omabc 1cyc');
-                data3.addColumn('number', 'sdv omabc 1cyc');
-                data3.addColumn('number', 'avg omabc 30day');
-                data3.addColumn('number', 'sdv omabc 30day');
+                /************************************
+                 *---------------------------------
+                 *  drawCharts code begins here.
+                 *---------------------------------
+                 ************************************/
+                var cntFile = './pngs/summary/' + src + '.sum.txt';
 
-                for (var ii = 1; ii < dataProvider.length; ii++){
-                    data3.addRows([
-                        [Number(dataProvider[ii].chan),
-                            Number(dataProvider[ii].avg_omgbc_1cyc),  Number(dataProvider[ii].sdv_omgbc_1cyc),
-                            Number(dataProvider[ii].avg_omgbc_30day), Number(dataProvider[ii].sdv_omgbc_30day),
-                            Number(dataProvider[ii].avg_omabc_1cyc),  Number(dataProvider[ii].sdv_omabc_1cyc),
-                            Number(dataProvider[ii].avg_omabc_30day), Number(dataProvider[ii].sdv_omabc_30day)]
-                    ]);
+                // load data if this is the first time through this routine otherwise
+                // skip if we're redrawing things.
+                if (dataProvider.length <= 0) {
+                    loadCSV(cntFile);
+
                 }
-
-                // load data4 for chart4
-                data4 = new google.visualization.DataTable();
-                data4.addColumn('number','chan');
-                data4.addColumn('number', 'ges_1cyc');
-                data4.addColumn('number', 'ges_1day');
-                data4.addColumn('number', 'ges_30day');
-                data4.addColumn('number', 'anl_1cyc');
-                data4.addColumn('number', 'anl_1day');
-                data4.addColumn('number', 'anl_30day');
-
-                for (var ii = 1; ii < dataProvider.length; ii++){
-                    data4.addRows([
-                        [Number(dataProvider[ii].chan),
-                            Number(dataProvider[ii].ges_pen_1cyc),  Number(dataProvider[ii].ges_pen_1day),
-                            Number(dataProvider[ii].ges_pen_30day), Number(dataProvider[ii].anl_pen_1cyc),
-                            Number(dataProvider[ii].anl_pen_1day),  Number(dataProvider[ii].anl_pen_30day)]
-                    ]);
+                else{
+                    fillCharts();
                 }
-            }
+            }                   // end drawCharts
 
-            /*
-             * options are display options for entire chart
-             * including title, vertical axis label format and scale
-             */
-            var options = {
-                title: 'Number of Observations Passing QC',
-                titleTextStyle:{ fontSize: 20 },
-                vAxis:{ format          : '0.##E+0',
-                        logScale        : 'true'},
-                hAxis:{ title           : 'Channel',
-                        format          :  '##',
-                        showTextEvery   :  1
-                }
-            };
-
-            // chart is the count line chart.
-            var chart1 = new google.visualization.LineChart(
-                    document.getElementById('sum_count'));
-
-            window.myValue = data;
-
-            // add callback for mouse events
-            //google.visualization.events.addListener(chart1, 'select', selectHandler);
-
-            // create a view for the display of only selected values
-            var myView = new google.visualization.DataView( window.myValue );
-
-            //
-            // Poll all the checkboxes and set the columns of myView accordingly
-            //
-            var CkBxGes  = document.getElementById( "ckboxGes"  ).checked;
-            var CkBxAnl  = document.getElementById( "ckboxAnl"  ).checked;
-            var CkBxCyc1 = document.getElementById( "ckboxCyc1" ).checked;
-            var CkBxCyc2 = document.getElementById( "ckboxCyc2" ).checked;
-            var CkBxCyc3 = document.getElementById( "ckboxCyc3" ).checked;
-            var CkBxCyc4 = document.getElementById( "ckboxCyc4" ).checked;
-            myView.hideColumns([9]);
-            myView.hideColumns([10]);
-
-            if( ! CkBxGes )  {
-                myView.hideColumns([1,2,3,4]);
-            }
-            if( ! CkBxAnl )  {
-                myView.hideColumns([5,6,7,8]);
-            }
-            if( !CkBxCyc1 ) {
-                myView.hideColumns([1,5]);
-            }
-            if( !CkBxCyc2 ) {
-                myView.hideColumns([2,6]);
-            }
-            if( !CkBxCyc3 ) {
-                myView.hideColumns([3,7]);
-            }
-            if( !CkBxCyc4 ) {
-                myView.hideColumns([4,8]);
-            }
-
-
-            // display the chart
-            chart1.draw(myView, options);
-
-            // rename the ckboxCyc1-4 labels using the input cycle times
-            document.getElementById( "labCyc1" ).innerHTML = dataProvider[0].cycle1;
-            document.getElementById( "labCyc2" ).innerHTML = dataProvider[0].cycle2;
-            document.getElementById( "labCyc3" ).innerHTML = dataProvider[0].cycle3;
-            document.getElementById( "labCyc4" ).innerHTML = dataProvider[0].cycle4;
-
-
-            /******************************************
-             *  chart2 is the total correction plot
-             ******************************************/
-            var options2 = {
-                title: 'Total Bias Correction (K)',
-                titleTextStyle:{ fontSize: 20 },
-                vAxis:{ format          : '0.##',
-                    logScale        : 'false'},
-                hAxis:{ title           : 'Channel',
-                    format          :  '##',
-                    showTextEvery   :  1
-                }
-            };
-            var chart2 = new google.visualization.LineChart(
-                    document.getElementById('total_bias_correction'));
-
-            // create a view for the display of only selected values
-            var myView2 = new google.visualization.DataView( data2 );
-
-            var CkBx1Cyc  = document.getElementById( "ckbox1Cyc" ).checked;
-            var CkBx1Day  = document.getElementById( "ckbox1Day").checked;
-            var CkBx30Day = document.getElementById( "ckbox30Day").checked;
-
-            if( ! CkBxGes ){
-                myView2.hideColumns([1,2,3]);
-            }
-            if( ! CkBxAnl ){
-                myView2.hideColumns([4,5,6]);
-            }
-            if( ! CkBx1Cyc ){
-                myView2.hideColumns([1,4]);
-            }
-            if( ! CkBx1Day ){
-                myView2.hideColumns([2,5]);
-            }
-            if( ! CkBx30Day){
-                myView2.hideColumns([3,6]);
-            }
-
-            //google.visualization.events.addListener(chart2, 'select', selectHandler);
-            chart2.draw(myView2, options2);
-
-
-            /******************************************************
-             *  chart3 is the om[g|a] plot for 1 cyc and 30 days
-             ******************************************************/
-            var options3 = {
-                title: 'Ges|Anl (with Bias Cor) - Observed (K)',
-                titleTextStyle:{ fontSize: 20 },
-                vAxis:{ format          : '0.##',
-                    logScale        : 'false'},
-                hAxis:{ title           : 'Channel',
-                    format          :  '##',
-                    showTextEvery   :  1
-                }
-            };
-            var chart3 = new google.visualization.LineChart(
-                        document.getElementById('ges_anl_m_obs_w_bias_cor'));
-
-            //-------------------------------------------------------
-            // create a view for the display of only selected values
-            var myView3 = new google.visualization.DataView( data3 );
-
-            //-------------------------------------------------------------------
-            // Poll all the checkboxes and set the columns of myView accordingly
-            //
-            var CkBx1CycAvg  = document.getElementById( "ckbox1CycAvg").checked;
-            var CkBx1CycSdv  = document.getElementById( "ckbox1CycSdv").checked;
-            var CkBx30DayAvg = document.getElementById( "ckbox30DayAvg").checked;
-            var CkBx30DaySdv = document.getElementById( "ckbox30DaySdv").checked;
-
-            if( ! CkBxGes ){
-                myView3.hideColumns([1,2,3,4]);
-            }
-            if( ! CkBxAnl ){
-                myView3.hideColumns([5,6,7,8]);
-            }
-            if( !CkBx1CycAvg) {
-                myView3.hideColumns([1,5]);
-            }
-            if( !CkBx1CycSdv){
-                myView3.hideColumns([2,6]);
-            }
-            if( !CkBx30DayAvg ){
-                myView3.hideColumns([3,7]);
-            }
-            if( !CkBx30DaySdv ){
-                myView3.hideColumns([4,8]);
-            }
-
-            //google.visualization.events.addListener(chart2, 'select', selectHandler);
-            chart3.draw(myView3, options3);
-
-
-            /***************************************************************************
-             *  chart4 is the contriubtion to penalty plot for 1 cyc, 1 day and 30 days
-             ***************************************************************************/
-            var options4 = {
-                title: 'Contribution to Penalty',
-                titleTextStyle:{ fontSize: 20 },
-                vAxis:{ format          : '0.##',
-                    logScale        : 'false'},
-                hAxis:{ title           : 'Channel',
-                    format          :  '##',
-                    showTextEvery   :  1
-                }
-            };
-                var chart4 = new google.visualization.LineChart(
-                        document.getElementById('contribution_to_penalty'));
-
-                // create a view for the display of only selected values
-                var myView4 = new google.visualization.DataView( data4 );
-
-                var CkBxPen1Cyc  = document.getElementById( "ckboxPen1Cyc" ).checked;
-                var CkBxPen1Day  = document.getElementById( "ckboxPen1Day").checked;
-                var CkBxPen30Day = document.getElementById( "ckboxPen30Day").checked;
-
-                if( ! CkBxGes ){
-                    myView4.hideColumns([1,2,3]);
-                }
-                if( ! CkBxAnl ){
-                    myView4.hideColumns([4,5,6]);
-                }
-                if( ! CkBxPen1Cyc ){
-                    myView4.hideColumns([1,4]);
-                }
-                if( !CkBxPen1Day){
-                    myView4.hideColumns([2,5]);
-                }
-                if( ! CkBxPen30Day){
-                    myView4.hideColumns([3,6]);
-                }
-
-                //google.visualization.events.addListener(chart2, 'select', selectHandler);
-                chart4.draw(myView4, options4);
-
-                //new_title = src + ' Summary Plot';
-                //log( new_title );
-
-                document.getElementById('title').innerHTML = 'Summary Plot   ' + src;
-                document.getElementById('valid').innerHTML = 'Valid:  ' + dataProvider[0].cycle1 ;
-
-            }
 
         /*********************************************************************************
          * log
