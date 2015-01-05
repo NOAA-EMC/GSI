@@ -1,12 +1,9 @@
+<!doctype html>
 <HTML>
-    <!DOCTYPE HTML>
+
     <!--====================================================================================
     == 12/2014, per WebStorm this document is now HTML5 compliant, using an embedded
     == ccs (cascading style sheet) to replace all deprecated html presentation tags.
-    == There remains a problem at line ~68 with the request.open synchronous flag though.
-    ==   The solution for that is to restructure the drawing function to initiate the draw
-    ==   as a response to one or more events wired to the request object, rather than,
-    ==   as currently written, accomplishing the draw in a sequential manner.
     =====================================================================================-->
 
     <head>
@@ -40,15 +37,15 @@
             //log( src );
 
 
-            /******************************************
-             ******************************************
+            /****************************************************************************************
+             ****************************************************************************************
              *
              *  drawCharts()
              *
-             *    top level drawing function
-             *
-             ******************************************
-             ******************************************/
+             *    Top level drawing function, fired by initial page load and any user change in the
+             *    check boxes.
+             ****************************************************************************************
+             ****************************************************************************************/
             function drawCharts() {
 
 
@@ -71,8 +68,8 @@
 
 
                     // load file
-                    //   The request object is used to get the file from the server.  Note that this is Object Oriented
-                    //   programming, not sequential.
+                    //   The request object is used to get the file from the server.  Note that this is object oriented
+                    //   programming, not procedural.
                     //
                     //   The request.open sets the server instruction to get the requested data file asynchronously.
                     //   Synchronous requests are still possible but most browsers have deprecated that option and will
@@ -81,9 +78,10 @@
                     //   The request.onload() function specifies the actions to take when the data file is loaded;
                     //   the request.status of 200 indicates the load was successful, and request.readystate 4
                     //   indicates the transaction is complete.  The readyState test is included as a sanity check;
-                    //   the onload function should only fire when the load is complete.  But the check on request.status
-                    //   is needed; there's no guarantee that the request was successful.  A warning is dumped to the
-                    //   log in the event of failure, but unless the user has a web console open s/he won't see it.
+                    //   the onload function should only fire when the load is complete or terminated.  The check
+                    //   on request.status is necessary; there's no guarantee that the request was successful.
+                    //   A warning is dumped to the log in the event of failure, but unless the user has a web
+                    //   console (term may vary with browser) open s/he won't see it.
                     //
                     //   The request.send() method actually initiates the processing of the request.
 
@@ -95,7 +93,7 @@
                             fillCharts();
                         }
                         else {
-                            log (" Failured to load " + file + " ; request.status = " + request.status );
+                            log (" Failed to load " + file + " ; request.status = " + request.status );
                         }
                     }
                     request.send();
