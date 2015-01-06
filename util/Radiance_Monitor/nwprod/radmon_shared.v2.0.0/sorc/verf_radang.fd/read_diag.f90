@@ -84,88 +84,88 @@ module read_diag
      integer(i_kind) :: angord           ! order of polynomial for adp_anglebc option
      integer(i_kind) :: iversion         ! radiance diagnostic file version number
      integer(i_kind) :: inewpc           ! indicator of newpc4pred (1 on, 0 off)
-        integer(i_kind) :: isens            ! sensitivity index
-        end type diag_header_fix_list
+     integer(i_kind) :: isens            ! sensitivity index
+  end type diag_header_fix_list
 
-        type diag_data_name_list
-        character(len=10),dimension(ireal_radiag) :: fix
-        character(len=10),dimension(:),allocatable :: chn
-        end type diag_data_name_list
+  type diag_data_name_list
+     character(len=10),dimension(ireal_radiag) :: fix
+     character(len=10),dimension(:),allocatable :: chn
+  end type diag_data_name_list
+  
+  type diag_header_chan_list
+     real(r_single) :: freq              ! frequency (Hz)
+     real(r_single) :: polar             ! polarization
+     real(r_single) :: wave              ! wave number (cm^-1)
+     real(r_single) :: varch             ! error variance (or SD error?)
+     real(r_single) :: tlapmean          ! mean lapse rate
+     integer(i_kind):: iuse              ! use flag
+     integer(i_kind):: nuchan            ! sensor relative channel number
+     integer(i_kind):: iochan            ! satinfo relative channel number
+  end type diag_header_chan_list
 
-        type diag_header_chan_list
-real(r_single) :: freq              ! frequency (Hz)
-        real(r_single) :: polar             ! polarization
-        real(r_single) :: wave              ! wave number (cm^-1)
-real(r_single) :: varch             ! error variance (or SD error?)
-        real(r_single) :: tlapmean          ! mean lapse rate
-        integer(i_kind):: iuse              ! use flag
-        integer(i_kind):: nuchan            ! sensor relative channel number
-        integer(i_kind):: iochan            ! satinfo relative channel number
-        end type diag_header_chan_list
+  type diag_data_fix_list
+     real(r_single) :: lat               ! latitude (deg)
+     real(r_single) :: lon               ! longitude (deg)
+     real(r_single) :: zsges             ! guess elevation at obs location (m)
+     real(r_single) :: obstime           ! observation time relative to analysis
+     real(r_single) :: senscn_pos        ! sensor scan position (integer(i_kind))
+     real(r_single) :: satzen_ang        ! satellite zenith angle (deg)
+     real(r_single) :: satazm_ang        ! satellite azimuth angle (deg)
+     real(r_single) :: solzen_ang        ! solar zenith angle (deg)
+     real(r_single) :: solazm_ang        ! solar azimumth angle (deg)
+     real(r_single) :: sungln_ang        ! sun glint angle (deg)
+     real(r_single) :: water_frac        ! fractional coverage by water
+     real(r_single) :: land_frac         ! fractional coverage by land
+     real(r_single) :: ice_frac          ! fractional coverage by ice
+     real(r_single) :: snow_frac         ! fractional coverage by snow
+     real(r_single) :: water_temp        ! surface temperature over water (K)
+     real(r_single) :: land_temp         ! surface temperature over land (K)
+     real(r_single) :: ice_temp          ! surface temperature over ice (K)
+     real(r_single) :: snow_temp         ! surface temperature over snow (K)
+     real(r_single) :: soil_temp         ! soil temperature (K)
+     real(r_single) :: soil_mois         ! soil moisture 
+     real(r_single) :: land_type         ! land type (integer(i_kind))
+     real(r_single) :: veg_frac          ! vegetation fraction
+     real(r_single) :: snow_depth        ! snow depth
+     real(r_single) :: sfc_wndspd        ! surface wind speed
+     real(r_single) :: qcdiag1           ! ir=cloud fraction, mw=cloud liquid water
+     real(r_single) :: qcdiag2           ! ir=cloud top pressure, mw=total column water
+     real(r_single) :: tref              ! reference temperature (Tr) in NSST
+     real(r_single) :: dtw               ! dt_warm at zob
+     real(r_single) :: dtc               ! dt_cool at zob
+     real(r_single) :: tz_tr             ! d(Tz)/d(Tr)
+  end type diag_data_fix_list
 
-        type diag_data_fix_list
-        real(r_single) :: lat               ! latitude (deg)
-        real(r_single) :: lon               ! longitude (deg)
-real(r_single) :: zsges             ! guess elevation at obs location (m)
-        real(r_single) :: obstime           ! observation time relative to analysis
-        real(r_single) :: senscn_pos        ! sensor scan position (integer(i_kind))
-        real(r_single) :: satzen_ang        ! satellite zenith angle (deg)
-        real(r_single) :: satazm_ang        ! satellite azimuth angle (deg)
-        real(r_single) :: solzen_ang        ! solar zenith angle (deg)
-        real(r_single) :: solazm_ang        ! solar azimumth angle (deg)
-real(r_single) :: sungln_ang        ! sun glint angle (deg)
-        real(r_single) :: water_frac        ! fractional coverage by water
-        real(r_single) :: land_frac         ! fractional coverage by land
-        real(r_single) :: ice_frac          ! fractional coverage by ice
-        real(r_single) :: snow_frac         ! fractional coverage by snow
-        real(r_single) :: water_temp        ! surface temperature over water (K)
-        real(r_single) :: land_temp         ! surface temperature over land (K)
-        real(r_single) :: ice_temp          ! surface temperature over ice (K)
-        real(r_single) :: snow_temp         ! surface temperature over snow (K)
-real(r_single) :: soil_temp         ! soil temperature (K)
-        real(r_single) :: soil_mois         ! soil moisture 
-real(r_single) :: land_type         ! land type (integer(i_kind))
-        real(r_single) :: veg_frac          ! vegetation fraction
-        real(r_single) :: snow_depth        ! snow depth
-        real(r_single) :: sfc_wndspd        ! surface wind speed
-        real(r_single) :: qcdiag1           ! ir=cloud fraction, mw=cloud liquid water
-        real(r_single) :: qcdiag2           ! ir=cloud top pressure, mw=total column water
-        real(r_single) :: tref              ! reference temperature (Tr) in NSST
-        real(r_single) :: dtw               ! dt_warm at zob
-        real(r_single) :: dtc               ! dt_cool at zob
-real(r_single) :: tz_tr             ! d(Tz)/d(Tr)
-        end type diag_data_fix_list
+  type diag_data_chan_list
+     real(r_single) :: tbobs              ! Tb (obs) (K)
+     real(r_single) :: omgbc              ! Tb_(obs) - Tb_(simulated w/ bc)  (K)
+     real(r_single) :: omgnbc             ! Tb_(obs) - Tb_(simulated_w/o bc) (K)
+     real(r_single) :: errinv             ! inverse error (K**(-1))
+     real(r_single) :: qcmark             ! quality control mark
+     real(r_single) :: emiss              ! surface emissivity
+     real(r_single) :: tlap               ! temperature lapse rate
+     real(r_single) :: tb_tz              ! d(Tb)/d(Tz)
+     real(r_single) :: bicons             ! constant bias correction term
+     real(r_single) :: biang              ! scan angle bias correction term
+     real(r_single) :: biclw              ! CLW bias correction term
+     real(r_single) :: bilap2             ! square lapse rate bias correction term
+     real(r_single) :: bilap              ! lapse rate bias correction term
+     real(r_single) :: bicos              ! node*cos(lat) bias correction term
+     real(r_single) :: bisin              ! sin(lat) bias correction term
+     real(r_single) :: biemis             ! emissivity sensitivity bias correction term
+     real(r_single),dimension(:),allocatable :: bifix          ! angle dependent bias
+     real(r_single) :: bisst              ! SST bias correction term
+  end type diag_data_chan_list
 
-        type diag_data_chan_list
-        real(r_single) :: tbobs              ! Tb (obs) (K)
-        real(r_single) :: omgbc              ! Tb_(obs) - Tb_(simulated w/ bc)  (K)
-        real(r_single) :: omgnbc             ! Tb_(obs) - Tb_(simulated_w/o bc) (K)
-real(r_single) :: errinv             ! inverse error (K**(-1))
-        real(r_single) :: qcmark             ! quality control mark
-        real(r_single) :: emiss              ! surface emissivity
-        real(r_single) :: tlap               ! temperature lapse rate
-real(r_single) :: tb_tz              ! d(Tb)/d(Tz)
-        real(r_single) :: bicons             ! constant bias correction term
-        real(r_single) :: biang              ! scan angle bias correction term
-        real(r_single) :: biclw              ! CLW bias correction term
-        real(r_single) :: bilap2             ! square lapse rate bias correction term
-        real(r_single) :: bilap              ! lapse rate bias correction term
-        real(r_single) :: bicos              ! node*cos(lat) bias correction term
-        real(r_single) :: bisin              ! sin(lat) bias correction term
-        real(r_single) :: biemis             ! emissivity sensitivity bias correction term
-        real(r_single),dimension(:),allocatable :: bifix          ! angle dependent bias
-        real(r_single) :: bisst              ! SST bias correction term
-        end type diag_data_chan_list
+  type diag_data_extra_list
+     real(r_single) :: extra              ! extra information
+  end type diag_data_extra_list
 
-        type diag_data_extra_list
-        real(r_single) :: extra              ! extra information
-        end type diag_data_extra_list
-
-integer(i_kind),save     :: iversion_radiag             ! Current version (see set routine)
-        integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
-        integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
-        integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
-        integer(i_kind),parameter:: iversion_radiag_4 = 30303   ! Version when emissivity predictor added
+  integer(i_kind),save     :: iversion_radiag             ! Current version (see set routine)
+  integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
+  integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
+  integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
+  integer(i_kind),parameter:: iversion_radiag_4 = 30303   ! Version when emissivity predictor added
 
   real(r_single),parameter::  rmiss_radiag    = -9.9e11_r_single
 
@@ -250,13 +250,26 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 ! Read header (fixed_part).
   read(ftin,IOSTAT=iflag)  sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
           ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc,isens
+  if (iflag/=0) then
+     rewind(ftin)
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc
+     isens=0
+  end if
 
   if (iflag/=0) then
-
      rewind(ftin)
-     read(ftin,IOSTAT=iflag)  sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
-          ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc
-     isens = 0
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra
+     idiag=ipchan+npred+1
+     angord=0
+     iversion=0
+     inewpc=0
+     isens=0
+     if (iflag/=0) then
+        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
+        return
+     endif
   endif
 
   header_fix%isis    = sensat
@@ -275,33 +288,6 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   header_fix%iversion= iversion
   header_fix%inewpc  = inewpc
   header_fix%isens   = isens
-
-  if (iflag/=0) then
-     rewind(ftin)
-     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
-          ireal,ipchan,iextra,jextra
-
-     if (iflag/=0) then
-        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
-        return
-     endif
-     header_fix%isis    = sensat
-     header_fix%id      = satid
-     header_fix%obstype = sentype
-     header_fix%jiter   = jiter
-     header_fix%nchan   = nchanl
-     header_fix%npred   = npred
-     header_fix%idate   = ianldate
-     header_fix%ireal   = ireal
-     header_fix%ipchan  = ipchan
-     header_fix%iextra  = iextra
-     header_fix%jextra  = jextra
-     header_fix%idiag   = ipchan+npred+1
-     header_fix%angord  = 0
-     header_fix%iversion= 0
-     header_fix%inewpc  = 0
-     header_fix%isens   = 0
-  endif
 
   if (loutall) then
      write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&

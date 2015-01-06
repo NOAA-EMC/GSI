@@ -48,10 +48,6 @@ parent.fmain.document.location.href=parentnew
 
 <TR><TD ALIGN=LEFT><B> Select Platform:<br>
 <SELECT NAME="sat" size=1 >
-<!--
-<OPTION VALUE="sndr_g11">GOES-11 SNDRD(5X5)
-<OPTION VALUE="sndr_g12">GOES-12 SNDRD(5X5)
--->
 <OPTION VALUE="sndrd1_g11">GOES-11 SNDRD1
 <OPTION VALUE="sndrd2_g11">GOES-11 SNDRD2
 <OPTION VALUE="sndrd3_g11">GOES-11 SNDRD3
@@ -92,6 +88,13 @@ parent.fmain.document.location.href=parentnew
 <OPTION VALUE="lapse">Lapse rate
 <OPTION VALUE="lapse2">(Lapse rate)**2
 <OPTION VALUE="clw">Cloud liquid water
+<OPTION VALUE="cos_ssmis">Cosin for SSMIS
+<OPTION VALUE="sin_ssmis">Sin for SSMIS
+<OPTION VALUE="emiss">Emissivity sensitivity
+<OPTION VALUE="ordang1">1st order angle
+<OPTION VALUE="ordang2">2nd order angle
+<OPTION VALUE="ordang3">3rd order angle
+<OPTION VALUE="ordang4">4th order angle
 </SELECT><P>
 </TD></TR>
 

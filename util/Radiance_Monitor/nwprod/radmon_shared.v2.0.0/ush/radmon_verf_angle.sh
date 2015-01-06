@@ -3,15 +3,15 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         radmon_verf_bcor.sh
-# Script description:  Extract bias correction data from radiance diagnostic 
-#                      files.
+# Script name:         radmon_verf_angle.sh
+# Script description:  Extract angle dependent data from radiance
+#                      diagnostic files.
 #
 # Author:        Ed  Safford       Org: NP23         Date: 2012-02-02
 #
-# Abstract:  This script extracts bias correction related data from radiance 
-#            diagnostic files (which are an output from GSI runs), storing the 
-#            extracted data in small binary files. 
+# Abstract:  This script extracts angle dependent data from radiance
+#            diagnostic files (which are an output from GSI runs),
+#            storing the extracted data in small binary files.
 #
 #            This script is a child script of exgdas_vrfyrad.sh.sms.  The parent
 #            script opens and uncompresses the radiance diagnostic file and copies
@@ -21,7 +21,7 @@
 # Script history log:
 # 2012-02-02  Safford  initial script
 #
-# Usage:  radmon_verf_time.sh PDATE
+# Usage:  radmon_verf_angle.sh PDATE
 #
 #   Input script positional parameters:
 #     PDATE             processing date
@@ -34,9 +34,9 @@
 #                       defaults to 1 (on)
 #     MAKE_DATA         switch to construct the binary data file
 #                       defaults to 1 (on)
-#     EXECgfs           executable directory
+#     EXECradmon        executable directory
 #                       defaults to current directory
-#     FIXgfs            fixed data directory
+#     FIXradmon         fixed data directory
 #                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
@@ -54,8 +54,10 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
-#     LITTLE_ENDIAN     flag for little endian machine
+#     LITTLE_ENDIAN     flag to indicate LE machine
 #                       defaults to 0 (big endian)
+#     USE_ANL           use analysis files as inputs in addition to 
+#                         the ges files.  Default is 0 (ges only)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -67,15 +69,15 @@
 #                  $ENDSCRIPT
 #
 #     programs   : $NCP
-#                  $bcor_exec
+#                  $angle_exec
 #
-#     fixed data : none
+#     fixed data : $scaninfo
 #
 #     input data : $data_file
-#                  
-#     output data: $bcor_file
-#                  $bcor_ctl
-#                  $bcor_stdout
+#
+#     output data: $angle_file
+#                  $angle_ctl
+#                  $angle_stdout
 #
 # Remarks:
 #
@@ -92,13 +94,12 @@
 #   Language: POSIX shell
 #   Machine: IBM SP
 ####################################################################
-
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
 # Directories
-FIXgfs=${FIXgfs:-$(pwd)}
-EXECgfs=${EXECgfs:-$(pwd)}
+FIXradmon=${FIXradmon:-$(pwd)}
+EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
@@ -115,19 +116,6 @@ SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
-#bcor_exec=radmon_bcor.${RAD_AREA}
-bcor_exec=radmon_bcor
-err=0
-
-if [[ "$VERBOSE" = "YES" ]]; then
-   set -ax
-   echo "$(date) executing $0 $* >&2"
-fi
-
-################################################################################
-#  Preprocessing
-$INISCRIPT
-$LOGSCRIPT
 
 if [[ $USE_ANL -eq 1 ]]; then
    gesanl="ges anl"
@@ -135,17 +123,29 @@ else
    gesanl="ges"
 fi
 
+err=0
+angle_exec=radmon_angle
+scaninfo=scaninfo.txt
+
+if [[ "$VERBOSE" = "YES" ]]; then
+   set -ax
+   echo "$(date) executing $0 $* >&2"
+fi
+################################################################################
+#  Preprocessing
+$INISCRIPT
+$LOGSCRIPT
+
 
 #--------------------------------------------------------------------
-#   Copy extraction program to working directory
+#   Copy extraction program and supporting files to working directory
 
-$NCP ${EXECgfs}/${bcor_exec}  ./${bcor_exec}
+$NCP ${EXECradmon}/${angle_exec}  ./
+$NCP $FIXradmon/gdas_radmon_scaninfo.txt  ./${scaninfo}
 
-if [[ ! -s ./${bcor_exec} ]]; then
-   err=6
+if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
+   err=2
 else
-
-
 #--------------------------------------------------------------------
 #   Run program for given time
 
@@ -165,23 +165,23 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
+            angl_file=angle.${data_file}
             ctl_file=${type}_anl.ctl
-            bcor_ctl=bcor.${ctl_file}
+            angl_ctl=angle.${ctl_file}
             stdout_file=stdout.${type}_anl
-            bcor_stdout=bcor.${stdout_file}
+            angl_stdout=angle.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
+            angl_file=angle.${data_file}
             ctl_file=${type}.ctl
-            bcor_ctl=bcor.${ctl_file}
+            angl_ctl=angle.${ctl_file}
             stdout_file=stdout.${type}
-            bcor_stdout=bcor.${stdout_file}
+            angl_stdout=angle.${stdout_file}
          fi
-      rm input
 
-      nchanl=-999
+         rm input
 
+         nchanl=-999
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -200,41 +200,36 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-      $TIMEX ./${bcor_exec} < input >   stdout.$type
-      ./${bcor_exec} < input >   stdout.$type
-      if [[ $? -ne 0 ]]; then
-          fail=`expr $fail + 1`
-      fi
- 
-
+         $TIMEX ./${angle_exec} < input >   ${stdout_file}
+         if [[ $? -ne 0 ]]; then
+             fail=`expr $fail + 1`
+         fi
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #
+         if [[ -s ${data_file} ]]; then
+            mv ${data_file} ${angl_file}
+            mv ${angl_file} $TANKverf_rad/.
+            ${COMPRESS} -f $TANKverf_rad/${angl_file}
+         fi
 
-      if [[ -s ${data_file} ]]; then
-         mv ${data_file} ${bcor_file}
-         mv ${bcor_file} $TANKverf_rad/.
-         ${COMPRESS} -f $TANKverf_rad/${bcor_file}
-      fi
+         if [[ -s ${ctl_file} ]]; then
+            mv ${ctl_file} ${angl_ctl}
+            mv ${angl_ctl}  ${TANKverf_rad}/.
+            ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
+         fi 
 
-      if [[ -s ${ctl_file} ]]; then
-         mv ${ctl_file} ${bcor_ctl}
-         mv ${bcor_ctl}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
-      fi
+         if [[ -s ${stdout_file} ]]; then
+            mv ${stdout_file} ${angl_stdout}
+            mv ${angl_stdout}  ${TANKverf_rad}/.
+            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
+         fi
 
-      if [[ -s ${stdout_file} ]]; then
-         mv ${stdout_file} ${bcor_stdout}
-         mv ${bcor_stdout}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
-      fi
-
-      done  # dtype in $gesanl loop
-   done     # type in $SATYPE loop
-
+      done    # for dtype in ${gesanl} loop
+   done    # for type in ${SATYPE} loop
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
-      err=7
+      err=3
    fi
 fi
 
@@ -248,4 +243,3 @@ if [[ "$VERBOSE" = "YES" ]]; then
 fi
 
 exit ${err}
-

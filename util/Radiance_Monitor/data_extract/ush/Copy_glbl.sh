@@ -48,6 +48,12 @@ echo DATE   = $DATE
 
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
 
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
@@ -64,7 +70,7 @@ else
 fi
 
 . ${DE_PARM}/data_extract_config
-export USHgfs=${USHgfs:-$HOMEgfs/ush}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
 #--------------------------------------------------------------------
@@ -186,7 +192,7 @@ if [[ $exit_value == 0 ]]; then
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
    $NCP $DE_SCRIPTS/radmon_err_rpt.sh      ${test_dir}/.
-   $NCP $USHgfs/radmon_getchgrp.pl           ${test_dir}/.
+   $NCP $USHradmon/radmon_getchgrp.pl           ${test_dir}/.
 
    prev_bad_pen=${TANKverf}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}
