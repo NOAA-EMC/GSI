@@ -19,7 +19,7 @@
 # Script history log:
 # 2012-02-02  Safford  initial script
 #
-# Usage:  radmon_verf_bcoef.sh PDATE
+# Usage:  radmon_ck_stdout.sh outfile
 #
 #   Input script positional parameters:
 #     outfile           output file name

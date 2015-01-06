@@ -1,8 +1,13 @@
 # *****************************************************************
 #  makefile
 #
-#  Make the radmon_time.glb executable.  The executable will extract
-#  time radiance data from a diagnostic file from a global run.  
+#  Make the validate_time.x executable.  This is not normally needed
+#  for normal use.  It re-validates data in an extracted *.ieee_d
+#  file, applying a different set of historic base files in the
+#  validation. 
+#
+#  If needed, run make on this directory and move the executable
+#  over to the data_extract/exec directory.
 #
 # *****************************************************************
 SHELL=/bin/sh
@@ -30,10 +35,11 @@ all:  $(CMD)
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb
+	rm -f validate_time.x 
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../../exec/.
 
 bad_obs.o : bad_obs.f90
 	$(CF) $(FFLAGS) -c $(*).f90
