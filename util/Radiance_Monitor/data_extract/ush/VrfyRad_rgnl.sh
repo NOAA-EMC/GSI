@@ -78,6 +78,14 @@ fi
 
 
 top_parm=${this_dir}/../../parm
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
+
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
 if [[ -s ${RADMON_CONFIG} ]]; then
@@ -204,7 +212,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    HH12=`echo $DATEM12 | cut -c 9-10`
 
    radstat=$com/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12
+   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbiasc.tm12
 
    echo RADSTAT = $radstat
    echo BIASCR  = $biascr
@@ -286,9 +294,9 @@ if [ -s $radstat -a -s $biascr ]; then
    logfile=$LOGdir/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgdasradmon}/jobs/JGDAS_VERFRAD
    fi
 
 fi

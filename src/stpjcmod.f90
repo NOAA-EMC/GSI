@@ -8,6 +8,9 @@ module stpjcmod
 !
 ! program history log:
 !   2012-01-21  kleist - consolidation of Jc step routines into single module
+!   2014-03-19  pondeca - add stepzise calculation for wspd10m weak constraint term
+!   2014-05-07  pondeca - add stepzise calculation for howv weak constraint term
+!   2014-06-17  carley/zhu - add stepzise calculation for lcbas weak constraint term
 !
 ! subroutines included:
 !
@@ -25,7 +28,7 @@ use gsi_metguess_mod, only: gsi_metguess_bundle
 implicit none
 
 PRIVATE
-PUBLIC stplimq,stplimg,stplimp,stplimv,stpjcdfi,stpjcpdry
+PUBLIC stplimq,stplimg,stplimp,stplimv,stplimw10m,stplimhowv,stpliml,stpjcdfi,stpjcpdry
 
 contains
 
@@ -373,7 +376,233 @@ subroutine stplimv(rval,sval,sges,out,nstep)
   end do
   return
 end subroutine stplimv
+
+subroutine stplimw10m(rval,sval,sges,out,nstep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    stplimw10m     calculate penalty and stepsize for limit of q
+!   prgmmr: derber           org: np23                date: 1996-11-19
+!
+! abstract: calculate stepsize contribution and penalty for limiting wspd10m
+!
+! program history log:
+!   2014-03-19  pondeca
+!
+!   input argument list:
+!     rg       - search direction
+!     sg       - increment in grid space
+!     sges     - step size estimates (4)
+!     nstep    - number of step size estimates if == 0 then just do outer loop
+!
+!   output argument list:
+!     out(1:nstep)  - current penalty for negative wspd10m sges(1:nstep)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use jfunc, only: factw10m
+  use derivsmod, only: w10mgues
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+
+! Declare local variables
+  integer(i_kind) i,j,k,kk,ier,istatus
+  real(r_kind) wspd10m,gx
+  real(r_kind),pointer,dimension(:,:) :: rg,sg
+
+  out=zero_quad
+
+  if (factw10m==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'wspd10m',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'wspd10m',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+! Loop over interior of subdomain
+  if(nstep > 0)then
+     do j = 2,lon1+1
+        do i = 2,lat1+1
+
+!          Values for wspd10m using stepsizes
+           wspd10m  = w10mgues(i,j) + sg(i,j)
+           do kk=1,nstep
+              gx = wspd10m + sges(kk)*rg(i,j)
+              if(gx < zero)then
+                 out(kk)=out(kk)+factw10m*gx*gx/(w10mgues(i,j)*w10mgues(i,j))
+              end if
+           end do
+        end do
+     end do
+  end if
+
+  do kk=2,nstep
+     out(kk)=out(kk)-out(1)
+  end do
+  return
+end subroutine stplimw10m
+
+subroutine stplimhowv(rval,sval,sges,out,nstep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    stplimhowv     calculate penalty and stepsize for limit of howv
+!   prgmmr: pondeca           org: np23                date: 2014-05-07
+!
+! abstract: calculate stepsize contribution and penalty for limiting howv
+!
+! program history log:
+!   2014-05-07  pondeca
+!
+!   input argument list:
+!     rg       - search direction
+!     sg       - increment in grid space
+!     sges     - step size estimates (4)
+!     nstep    - number of step size estimates if == 0 then just do outer loop
+!
+!   output argument list:
+!     out(1:nstep)  - current penalty for negative howv sges(1:nstep)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use jfunc, only: facthowv
+  use derivsmod, only: howvgues
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+
+! Declare local variables
+  integer(i_kind) i,j,k,kk,ier,istatus
+  real(r_kind) howv,gx
+  real(r_kind),pointer,dimension(:,:) :: rg,sg
+
+  out=zero_quad
+
+  if (facthowv==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'howv',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'howv',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+! Loop over interior of subdomain
+  if(nstep > 0)then
+     do j = 2,lon1+1
+        do i = 2,lat1+1
+
+!          Values for howv using stepsizes
+           howv  = howvgues(i,j) + sg(i,j)
+           do kk=1,nstep
+              gx = howv + sges(kk)*rg(i,j)
+              if(gx < zero)then
+                 out(kk)=out(kk)+facthowv*gx*gx/(howvgues(i,j)*howvgues(i,j))
+              end if
+           end do
+        end do
+     end do
+  end if
+
+  do kk=2,nstep
+     out(kk)=out(kk)-out(1)
+  end do
+  return
+end subroutine stplimhowv
  
+ 
+subroutine stpliml(rval,sval,sges,out,nstep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    stpliml     calculate penalty and stepsize for limit of q 
+!   prgmmr: derber           org: np23                date: 1996-11-19
+!
+! abstract: calculate stepsize contribution and penalty for limiting q
+!
+! program history log:
+!   2012-04-23  zhu
+!
+!   input argument list:
+!     rg       - search direction                               
+!     sg       - increment in grid space
+!     sges     - step size estimates (4)
+!     nstep    - number of step size estimates if == 0 then just do outer loop
+!
+!   output argument list:
+!     out(1:nstep)  - current penalty for negative lcbas sges(1:nstep)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use jfunc, only: factl
+  use derivsmod, only: lgues
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+
+! Declare local variables
+  integer(i_kind) i,j,k,kk,ier,istatus
+  real(r_kind) lcbas,vx
+  real(r_kind),pointer,dimension(:,:) :: rg,sg
+  
+  out=zero_quad
+
+  if (factl==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'lcbas',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'lcbas',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+! Loop over interior of subdomain          
+  if(nstep > 0)then
+     do j = 2,lon1+1
+        do i = 2,lat1+1
+
+!          Values for lcbas using stepsizes
+           lcbas  = lgues(i,j) + sg(i,j)
+           do kk=1,nstep
+              vx = lcbas + sges(kk)*rg(i,j)
+              if(vx < zero)then
+                 out(kk)=out(kk)+factl*vx*vx/(lgues(i,j)*lgues(i,j))
+              end if
+           end do
+        end do
+     end do
+  end if
+
+  do kk=2,nstep
+     out(kk)=out(kk)-out(1)
+  end do
+  return
+end subroutine stpliml
+
 subroutine stpjcpdry(rval,sval,pen,b,c)
 !$$$  subprogram documentation block
 !                .      .    .                                       .

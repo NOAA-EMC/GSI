@@ -17,6 +17,10 @@ subroutine setupyobs()
 !   2010-07-10  todling  - add aerosols pointer
 !   2010-10-15  pagowski  - add pm2_5 pointer
 !   2011-02-19  zhu      - add gust,vis,pblh pointers
+!   2014-03-19  pondeca  - add wspd10m
+!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca  - add howv
+!   2014-06-20  carley/zhu - add tcamt and lcbas pointers
 !
 !   input argument list:
 !
@@ -29,9 +33,11 @@ subroutine setupyobs()
 !$$$ end documentation block
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
-                & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
-                & ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
-                & aerolhead, pm2_5head, gusthead, vishead, pblhhead, yobs
+                  dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
+                  ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
+                  aerolhead, pm2_5head, gusthead, vishead, pblhhead, wspd10mhead, & 
+                  td2mhead, mxtmhead, mitmhead, pmslhead, howvhead, tcamthead, &
+                  lcbashead, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
@@ -65,6 +71,14 @@ do ii=1,nobs_bins
    yobs(ii)%gust=>gusthead(ii)%head
    yobs(ii)%vis=>vishead(ii)%head
    yobs(ii)%pblh=>pblhhead(ii)%head
+   yobs(ii)%wspd10m=>wspd10mhead(ii)%head
+   yobs(ii)%td2m=>td2mhead(ii)%head
+   yobs(ii)%mxtm=>mxtmhead(ii)%head
+   yobs(ii)%mitm=>mitmhead(ii)%head
+   yobs(ii)%pmsl=>pmslhead(ii)%head
+   yobs(ii)%howv=>howvhead(ii)%head
+   yobs(ii)%tcamt=>tcamthead(ii)%head
+   yobs(ii)%lcbas=>lcbashead(ii)%head
 end do
 
 return

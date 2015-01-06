@@ -155,7 +155,11 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-10-15  pagowski - add intpm2_5 call
 !   2010-10-20  hclin    - added aod
 !   2011-02-20  zhu      - add intgust,intvis,intpblh calls
-!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction 
+!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction
+!   2014-06-18  carley/zhu - add lcbas and tcamt 
+!   2014-03-19  pondeca  - add intwspd10m
+!   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
+!   2014-05-07  pondeca  - add inthowv
 !
 !   input argument list:
 !     ibin
@@ -214,6 +218,14 @@ use intlagmod, only: intlag
 use intgustmod, only: intgust
 use intvismod, only: intvis
 use intpblhmod, only: intpblh
+use intwspd10mmod, only: intwspd10m
+use inttd2mmod, only: inttd2m
+use intmxtmmod, only: intmxtm
+use intmitmmod, only: intmitm
+use intpmslmod, only: intpmsl
+use inthowvmod, only: inthowv
+use inttcamtmod, only: inttcamt
+use intlcbasmod, only: intlcbas
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -313,6 +325,30 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS for conventional pblh observations
   call intpblh(yobs%pblh,rval,sval)
+
+! RHS for conventional wspd10m observations
+  call intwspd10m(yobs%wspd10m,rval,sval)
+
+! RHS for conventional td2m observations
+  call inttd2m(yobs%td2m,rval,sval)
+
+! RHS for conventional mxtm observations
+  call intmxtm(yobs%mxtm,rval,sval)
+
+! RHS for conventional mitm observations
+  call intmitm(yobs%mitm,rval,sval)
+
+! RHS for conventional pmsl observations
+  call intpmsl(yobs%pmsl,rval,sval)
+
+! RHS for conventional howv observations
+  call inthowv(yobs%howv,rval,sval)
+
+! RHS for tcamt observations
+  call inttcamt(yobs%tcamt,rval,sval)
+
+! RHS for lcbas observations
+  call intlcbas(yobs%lcbas,rval,sval)
 
 ! Take care of background error for bias correction terms
 

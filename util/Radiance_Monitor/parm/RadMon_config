@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_432/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/nbns}
 if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
       export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
@@ -55,7 +55,7 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=${MY_MACHINE:-wcoss}
+export MY_MACHINE=wcoss
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
@@ -104,7 +104,8 @@ export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
 export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
-export HOMEgfs=${HOMEgfs:-${MY_RADMON}/nwprod}
+export HOMEgdasradmon=${HOMEgdasradmon:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
+export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.v${radmon_shared_ver}}
 
 
 #

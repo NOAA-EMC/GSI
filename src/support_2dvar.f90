@@ -22,6 +22,10 @@ subroutine convert_binary_2d
 !                         station location. used for qc purposes in 2dvar.
 !   2009-02-27  pondeca - add fgat to 2dvar
 !   2011-02-09  zhu     - add gust,vis and pblh
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-16  carley/zhu - add tcamt and ceiling
 !
 !   input argument list:
 !
@@ -150,7 +154,7 @@ subroutine convert_binary_2d
      write(lendian_out)field2
  
 
-     read(in_unit)field2             !  T  ! POT TEMP (sensible??)
+     read(in_unit)field2             !  T  (sensible)
      write(6,*)' convert_binary_2d: max,min,mid T=',&
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
@@ -238,18 +242,6 @@ subroutine convert_binary_2d
      write(lendian_out)field2
  
 
-     read(in_unit)field2             !  U10
-     write(6,*)' convert_binary_2d: max,min U10=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid U10=',field2(nlon_regional/2,nlat_regional/2)
-     write(lendian_out)field2
-
-
-     read(in_unit)field2             !  V10
-     write(6,*)' convert_binary_2d: max,min V10=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid V10=',field2(nlon_regional/2,nlat_regional/2)
-     write(lendian_out)field2
- 
-
      read(in_unit)field2             !  SMOIS
      write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
      write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
@@ -282,6 +274,46 @@ subroutine convert_binary_2d
      write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
      write(lendian_out)field2
 
+     read(in_unit)field2             !  WSPD10M
+     write(6,*)' convert_binary_2d: max,min WSPD10M=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid WSPD10M=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  TD2M
+     write(6,*)' convert_binary_2d: max,min TD2M=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid TD2M=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  MXTM
+     write(6,*)' convert_binary_2d: max,min MXTM=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid MXTM=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  MITM
+     write(6,*)' convert_binary_2d: max,min MITM=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid MITM=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  PMSL
+     write(6,*)' convert_binary_2d: max,min PMSL=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid PMSL=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  HOWV
+     write(6,*)' convert_binary_2d: max,min HOWV=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid HOWV=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  TCAMT
+     write(6,*)' convert_binary_2d: max,min TCAMT=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid TCAMT=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  LCBAS
+     write(6,*)' convert_binary_2d: max,min LCBAS=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid LCBAS=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
      close(in_unit)
      close(lendian_out)
 
@@ -309,7 +341,7 @@ subroutine read_2d_files(mype)
 !   2008-04-03  safford    - remove uses mpi_status_size, zero_single (not used)
 !   2009-10-09  pondeca - with the adding of 4dvar to the gsi, the time reference for the
 !                         obs changed. Adjust guess times accordingly by using time_offset
-!                         an thus ensure that fgat works properly
+!                         and thus ensure that fgat works properly
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
 !
 !   input argument list:
@@ -357,7 +389,8 @@ subroutine read_2d_files(mype)
   if(nhr_half*2<nhr_assimilation) nhr_half=nhr_half+1
   npem1=npe-1
 
-  if(mype == 0)print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=',nhr_assimilation,nhr_half,time_offset
+  if(mype == 0)print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=', &
+                                         nhr_assimilation,nhr_half,time_offset
 
   do i=1,202
      time_ges(i) = 999._r_kind
@@ -488,6 +521,10 @@ subroutine read_2d_guess(mype)
 !   2011-05-01  todling - introduce met-guess (cwmr no longer in guess-grids)
 !   2013-10-19  todling - metguess now holds background
 !                         remove reference to tv and q derivatives
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-16  carley/zhu - add tcamt and ceiling
 !
 !   input argument list:
 !     mype     - pe number
@@ -526,7 +563,7 @@ subroutine read_2d_guess(mype)
 ! other internal variables
   character(len=*),parameter::myname='read_2d_guess'
   real(r_single) tempa(itotsub)
-  real(r_single),allocatable::temp1(:,:),temp1u(:,:),temp1v(:,:)
+  real(r_single),allocatable::temp1(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
   integer(i_kind),allocatable::itemp1(:,:)
   integer(i_kind),allocatable::igtype(:),jsig_skip(:)
@@ -536,16 +573,26 @@ subroutine read_2d_guess(mype)
   integer(i_kind) ifld,im,jm,lm,num_2d_fields
   integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
   integer(i_kind) i,icount,icount_prev,it,j,k
-  integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
+  integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
+  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
-  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all,icwmr,ier,istatus
-  logical ihave_gust,ihave_pblh,ihave_vis
+  integer(i_kind) icwmr,ier,istatus
+  logical ihave_gust,ihave_pblh,ihave_vis,ihave_tcamt,ihave_lcbas
+  logical ihave_wspd10m,ihave_td2m,ihave_mxtm,ihave_mitm,ihave_pmsl,ihave_howv
 
-  real(r_kind),pointer,dimension(:,:  )::ges_gust  =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_vis   =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_pblh  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_gust   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_vis    =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_pblh   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_wspd10m=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_td2m   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_mxtm   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_mitm   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_pmsl   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_howv   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_tcamt    =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_lcbas    =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_ps_it  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_z_it   =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_u_it   =>NULL()
@@ -559,12 +606,11 @@ subroutine read_2d_guess(mype)
 
 !  RESTART FILE input grid dimensions in module gridmod
 !      These are the following:
-!          im -- number of x-points on C-grid
-!          jm -- number of y-points on C-grid
+!          im -- number of x-points on A-grid
+!          jm -- number of y-points on A-grid
 !          lm -- number of vertical levels ( = nsig for now)
 
 
-  num_doubtful_sfct=0
 ! if(mype==0) write(6,*)' at 0 in read_2d_guess'
 
 
@@ -577,7 +623,7 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=21! Adjust once exact content of RTMA restart file is known
+  num_2d_fields=27! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
 ! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
@@ -599,22 +645,21 @@ subroutine read_2d_guess(mype)
   allocate(igtype(num_2d_fields))
   allocate(identity(num_2d_fields))
 
-! igtype is a flag indicating whether each input field is h-, u-, or v-grid
-! and whether integer or real
-!  abs(igtype)=1 for h-grid
-!             =2 for u-grid
-!             =3 for v-grid
-!  igtype < 0 for integer field
+! igtype is a flag indicating whether each input field is integer or real
+! igtype > 0 for real field
+! igtype < 0 for integer field
 
   i=0
   i=i+1 ; i_psfc=i                                            ! psfc
   write(identity(i),'("record ",i3,"--psfc")')i
   jsig_skip(i)=3     ! number of files to skip before getting to psfc
   igtype(i)=1
+
   i=i+1 ; i_fis=i                                             ! sfc geopotential
   write(identity(i),'("record ",i3,"--fis")')i
   jsig_skip(i)=0
   igtype(i)=1
+
   i_t=i+1
   do k=1,lm
      i=i+1                                                    ! t(k)  (sensible temp)
@@ -622,73 +667,115 @@ subroutine read_2d_guess(mype)
      jsig_skip(i)=0
      igtype(i)=1
   end do
+
   i_q=i+1
   do k=1,lm
      i=i+1                                                    ! q(k)
      write(identity(i),'("record ",i3,"--q(",i2,")")')i,k
      jsig_skip(i)=0 ; igtype(i)=1
   end do
+
   i_u=i+1
   do k=1,lm
      i=i+1                                                    ! u(k)
      write(identity(i),'("record ",i3,"--u(",i2,")")')i,k
      jsig_skip(i)=0 ; igtype(i)=2
   end do
+
   i_v=i+1
   do k=1,lm
      i=i+1                                                    ! v(k)
      write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
      jsig_skip(i)=0 ; igtype(i)=3
   end do
+
   i=i+1   ; i_sm=i                                            ! landmask
   write(identity(i),'("record ",i3,"--sm")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_xice=i                                            ! xice
   write(identity(i),'("record ",i3,"--xice")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_sst=i                                             ! sst
   write(identity(i),'("record ",i3,"--sst")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_ivgtyp=i                                          ! ivgtyp
   write(identity(i),'("record ",i3,"--ivgtyp")')i
   jsig_skip(i)=0 ; igtype(i)=-1
+
   i=i+1 ; i_isltyp=i                                          ! isltyp
   write(identity(i),'("record ",i3,"--isltyp")')i
   jsig_skip(i)=0 ; igtype(i)=-1
+
   i=i+1 ; i_vegfrac=i                                         ! vegfrac
   write(identity(i),'("record ",i3,"--vegfrac")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_sno=i                                             ! sno
   write(identity(i),'("record ",i3,"--sno")')i
   jsig_skip(i)=0 ; igtype(i)=1
-  i=i+1 ; i_u10=i                                             ! u10
-  write(identity(i),'("record ",i3,"--u10")')i
-  jsig_skip(i)=0 ; igtype(i)=1
-  i=i+1 ; i_v10=i                                             ! v10
-  write(identity(i),'("record ",i3,"--v10")')i
-  jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_smois=i                                           ! smois
   write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_tslb=i                                            ! tslb
   write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_tsk=i                                             ! tsk
   write(identity(i),'("record ",i3,"--sst")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_gust=i                                            ! gust
   write(identity(i),'("record ",i3,"--gust")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_vis=i                                             ! vis
   write(identity(i),'("record ",i3,"--vis")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_pblh=i                                            ! pblh
   write(identity(i),'("record ",i3,"--pblh")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
+  i=i+1 ; i_wspd10m=i                                         ! wspd10m
+  write(identity(i),'("record ",i3,"--wspd10m")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_td2m=i                                            ! td2m
+  write(identity(i),'("record ",i3,"--td2m")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_mxtm=i                                            ! mxtm
+  write(identity(i),'("record ",i3,"--mxtm")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_mitm=i                                            ! mitm
+  write(identity(i),'("record ",i3,"--mitm")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_pmsl=i                                            ! pmsl
+  write(identity(i),'("record ",i3,"--pmsl")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_howv=i                                            ! howv
+  write(identity(i),'("record ",i3,"--howv")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_tcamt=i                                           ! tcamt
+  write(identity(i),'("record ",i3,"--tcamt")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_lcbas=i                                           ! lcbas
+  write(identity(i),'("record ",i3,"--lcbas")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
 ! End of stuff from 2D restart file
 
-  allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
+  allocate(temp1(im,jm),itemp1(im,jm))
 
   do i=1,npe
      irc_s_reg(i)=ijn_s(mype+1)
@@ -720,7 +807,7 @@ subroutine read_2d_guess(mype)
            end do
         end if
         if(mype==mod(icount-1,npe)) then
-           if(igtype(ifld)==1 .or. igtype(ifld)==2 .or. igtype(ifld)==3) then
+           if(igtype(ifld) > 0) then
               read(nfcst)((temp1(i,j),i=1,im),j=1,jm)
               if(mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
               call fill_mass_grid2t(temp1,im,jm,tempa,1)
@@ -748,11 +835,6 @@ subroutine read_2d_guess(mype)
      end do
      close(nfcst)
   end do
-!  do kv=i_v,i_v+nsig-1
-!  if(mype==0) write(6,*)' at 1.15, kv,mype,j,i,v=', &
-!       kv,mype,2,1,all_loc(2,1,kv)
-!  end do
-
 
 ! Next do conversion of units as necessary and
 ! reorganize into WeiYu's format--
@@ -802,7 +884,7 @@ subroutine read_2d_guess(mype)
         do j=1,lat1+2
            ges_z_it(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
 
-!          convert input psfc to psfc in mb, and then to log(psfc) in cb
+!          convert input psfc to psfc in mb, and then to cb
 
            psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
            ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
@@ -811,12 +893,6 @@ subroutine read_2d_guess(mype)
            soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
         end do
      end do
-
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
-!       minval(soil_moi),maxval(soil_moi)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
-!       minval(soil_temp),maxval(soil_temp)
-
 
 !    Convert sensible temp to virtual temp
      do k=1,nsig
@@ -836,12 +912,41 @@ subroutine read_2d_guess(mype)
 
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,icwmr)
         if(icwmr==0) ges_cwmr_it=zero
+
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ges_gust,ier)
         ihave_gust=ier==0
+
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ges_vis,ier)
         ihave_vis =ier==0
+
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ges_pblh,ier)
         ihave_pblh=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'wspd10m',ges_wspd10m,ier)
+        ihave_wspd10m=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'td2m',ges_td2m,ier)
+        ihave_td2m=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mxtm',ges_mxtm,ier)
+        ihave_mxtm=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mitm',ges_mitm,ier)
+        ihave_mitm=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pmsl',ges_pmsl,ier)
+        ihave_pmsl=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'howv',ges_howv,ier)
+        ihave_howv=ier==0
+
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tcamt',ges_tcamt,ier)
+        ihave_tcamt =ier==0
+
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'lcbas',ges_lcbas,ier)
+        ihave_lcbas =ier==0
+
+
 
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
@@ -862,49 +967,48 @@ subroutine read_2d_guess(mype)
 
               sfct(j,i,it)=all_loc(j,i,i_0+i_sst)
               if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
-              if(sfct(j,i,it) < one) then
-
-!             For now, replace missing skin temps with 1st sigma level temp
-                 sfct(j,i,it)=all_loc(j,i,i_0+i_t)
-!                write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
-!                     j,i,mype,sfct(j,i,it)
-                 num_doubtful_sfct=num_doubtful_sfct+1
-              end if
 
               if(ihave_gust) &
-              ges_gust(j,i)=all_loc(j,i,i_0+i_gust)
+                 ges_gust(j,i)=all_loc(j,i,i_0+i_gust)
 
               if (ihave_vis) then
                  ges_vis(j,i)=all_loc(j,i,i_0+i_vis)
-                 if (ges_vis(j,i)<=zero) ges_vis(j,i)=0.1_r_kind
+                 if (ges_vis(j,i)<=zero) ges_vis(j,i)=one_tenth
                  if (ges_vis(j,i)>20000.0_r_kind) ges_vis(j,i)=20000.0_r_kind
               endif
 
               if(ihave_pblh) &
-              ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
+                 ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
+
+              if (ihave_wspd10m) & 
+                 ges_wspd10m(j,i)=all_loc(j,i,i_0+i_wspd10m)
+
+              if(ihave_td2m) &
+                 ges_td2m(j,i)=all_loc(j,i,i_0+i_td2m)
+
+              if(ihave_mxtm) &
+                 ges_mxtm(j,i)=all_loc(j,i,i_0+i_mxtm)
+
+              if(ihave_mitm) &
+                 ges_mitm(j,i)=all_loc(j,i,i_0+i_mitm)
+
+              if(ihave_pmsl) &
+                 ges_pmsl(j,i)=one_tenth*r0_01*all_loc(j,i,i_0+i_pmsl)    !  convert from Pa to cb
+
+              if(ihave_howv) &
+                 ges_howv(j,i)=all_loc(j,i,i_0+i_howv)
+
+              if (ihave_tcamt) &
+                 ges_tcamt(j,i)=all_loc(j,i,i_0+i_tcamt)
+
+              if (ihave_lcbas) & 
+                 ges_lcbas(j,i)=max(min(all_loc(j,i,i_0+i_lcbas),20000.0_r_kind),one_tenth) !Enforce upper and lower bounds on lowest cloud base
 
            end do
         end do
      end do
 
-     call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
-          0,mpi_comm_world,ierror)
-!    if(mype==0)     write(6,*)' in read_2d_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(sfct)=', &
-!         minval(sfct),maxval(sfct)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_type)=', &
-!         minval(veg_type),maxval(veg_type)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_frac)=', &
-!         minval(veg_frac),maxval(veg_frac)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_type)=', &
-!         minval(soil_type),maxval(soil_type)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(isli)=', &
-!         minval(isli),maxval(isli)
-!    if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_gust)=', &
-!         minval(ges_gust),maxval(ges_gust)
-
      deallocate(all_loc,jsig_skip,igtype,identity)
-     deallocate(temp1,itemp1,temp1u,temp1v)
 
 
      return
@@ -934,6 +1038,11 @@ subroutine wr2d_binary(mype)
 !   2013-10-19  todling - metguess now holds background
 !                         correct reference to svars rather than cvars
 !   2013-10-24  todling - general interface to strip
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-16  carley/zhu - add tcamt and ceiling
+!   2014-06-27  carley - slight change to specification of num_2d_fields
 !
 !   input argument list:
 !     mype     - pe number
@@ -972,21 +1081,24 @@ subroutine wr2d_binary(mype)
 
   character(len=*),parameter::myname='wr2d_binary'
   integer(i_kind) im,jm,lm
-  real(r_single),allocatable::temp1(:),temp1u(:),temp1v(:),tempa(:),tempb(:)
+  real(r_single),allocatable::temp1(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
   character(6) filename
   character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus
+  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas
+  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
-  real(r_single),allocatable::all_loc_ps(:,:),temp1_ps(:)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
-
+  
+  integer(i_kind) iaux(100),kaux
+  character(15) caux(100)
+  
   real(r_kind),dimension(:,:  ),pointer:: ptr2d    =>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_ps_it=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_u_it =>NULL()
@@ -996,14 +1108,6 @@ subroutine wr2d_binary(mype)
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
-
-  num_2d_fields=6+4*lm
-  num_all_fields=num_2d_fields
-  num_all_pad=num_all_fields
-  allocate(all_loc(lat1+2,lon1+2,num_all_pad))
-  allocate(strp(lat1*lon1))
-  allocate(all_loc_ps(lat1+2,lon1+2))
-  allocate(all_loc_qsatg(lat1+2,lon1+2,nsig),all_loc_prh(lat1+2,lon1+2,nsig))
 
   i_psfc=1
   i_t=2
@@ -1015,9 +1119,27 @@ subroutine wr2d_binary(mype)
   i_gust=i_skt+1
   i_vis=i_gust+1
   i_pblh=i_vis+1
+  i_wspd10m=i_pblh+1
+  i_td2m=i_wspd10m+1
+  i_mxtm= i_td2m+1
+  i_mitm= i_mxtm+1
+  i_pmsl= i_mitm+1
+  i_howv= i_pmsl+1
+  i_tcamt=i_howv+1
+  i_lcbas=i_tcamt+1
+  
+  num_2d_fields=i_lcbas        ! - should always equal the last integer from the
+                               ! -   preceding list
+  num_all_fields=num_2d_fields
+  num_all_pad=num_all_fields
 
-  allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
-  allocate(temp1_ps(im*jm))
+  allocate(all_loc(lat1+2,lon1+2,num_all_pad))
+  allocate(strp(lat1*lon1))
+  allocate(all_loc_qsatg(lat1+2,lon1+2,nsig),all_loc_prh(lat1+2,lon1+2,nsig))
+
+
+
+  allocate(temp1(im*jm))
   allocate(temp1_prh(im*jm))
 
 ! if(mype == 0) write(6,*)' at 2 in wr2d_binary'
@@ -1048,7 +1170,6 @@ subroutine wr2d_binary(mype)
   if(ier/=0) call die(myname,'missing fields, ier= ', ier)
 
 ! Create all_loc from ges_*
-! if(mype == 0) write(6,*)' at 3 in wr2d_binary'
   all_loc=zero_single
   kt=i_t-1
   kq=i_q-1
@@ -1074,7 +1195,6 @@ subroutine wr2d_binary(mype)
      do j=1,lat2
         psfc_this=r10*ges_ps_it(j,i)   ! convert from cb to mb
         all_loc(j,i,i_psfc)=r100*psfc_this
-        all_loc_ps(j,i)=ges_ps_it(j,i)
      end do
   end do
 
@@ -1093,7 +1213,6 @@ subroutine wr2d_binary(mype)
   allocate(tempa(itotsub),tempb(itotsub))
   if(mype == 0) then
      read(iog)temp1
-     temp1_ps=log(temp1/r100/r10)
   endif
   call strip(all_loc(:,:,i_psfc),strp)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
@@ -1105,18 +1224,6 @@ subroutine wr2d_binary(mype)
      end do
      call unfill_mass_grid2t(tempa,im,jm,temp1)
      write(ioan)temp1
-  end if
-
-  call strip(all_loc_ps,strp)
-  call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-       tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-  if(mype == 0) then
-     call fill_mass_grid2t(temp1_ps,im,jm,tempb,2)
-     do i=1,iglobal
-        tempa(i)=tempa(i)-tempb(i)
-     end do
-     temp1_ps=zero_single
-     call unfill_mass_grid2t(tempa,im,jm,temp1_ps)
   end if
 
 !  FIS read/write
@@ -1221,170 +1328,63 @@ subroutine wr2d_binary(mype)
   end do
 
   if (mype==0) then
-     write(ioan)temp1_ps !increment of ps
      write(ioan)temp1_prh  !increment of pseudo RH
   endif
 
-! Load updated skin temperature array if writing out to analysis file
-  if (update_regsfc) then ! set to .false.
-     do i=1,lon1+2
-        do j=1,lat1+2
-           all_loc(j,i,i_sst)=sfct(j,i,ntguessfc)
-           all_loc(j,i,i_skt)=sfct(j,i,ntguessfc)
-        end do
-     end do
-  end if
-
-  if(mype == 0) then
-! SM
-     read(iog)temp1
-     write(ioan)temp1
-! SICE
-     read(iog)temp1
-     write(ioan)temp1
-  end if
-
-! SST
-  if(update_regsfc) then
-     if (mype==0) read(iog)temp1
-!    if (mype==0) write(6,*)' at 9.1 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip(all_loc(:,:,i_sst),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-!       if(mype == 0) write(6,*)' at 9.2 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           if(tempb(i) < (r225)) then
-              tempa(i)=zero_single
-           else
-              tempa(i)=tempa(i)-tempb(i)
-           end if
-        end do
-!       if(mype == 0) write(6,*)' at 9.4 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-!       write(6,*)' at 9.6 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-        write(ioan)temp1
-     end if     !endif mype==0
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  end if   !end if check updatesfc
-
-! REST OF FIELDS
   if (mype == 0) then
-     do k=4,11
+     do k=7,16 ! SM,SICE,SST,IVGTYP,ISLTYP,VEGFRA,SNOW,SMOIS,TSLB,TSK
         read(iog)temp1
         write(ioan)temp1
      end do
   end if
 
-! Update SKIN TEMP
-  if(update_regsfc) then
-     if (mype==0) read(iog)temp1
-!    if (mype==0) write(6,*)' at 10.0 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip(all_loc(:,:,i_skt),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           if(tempb(i) < (r225)) then
-              tempa(i)=zero_single
-           else
+  caux(1)='gust'    ; iaux(1)=i_gust 
+  caux(2)='vis'     ; iaux(2)=i_vis
+  caux(3)='pblh'    ; iaux(3)=i_pblh
+  caux(4)='wspd10m' ; iaux(4)=i_wspd10m
+  caux(5)='td2m'    ; iaux(5)=i_td2m
+  caux(6)='mxtm'    ; iaux(6)=i_mxtm
+  caux(7)='mitm'    ; iaux(7)=i_mitm
+  caux(8)='pmsl'    ; iaux(8)=i_pmsl
+  caux(9)='howv'    ; iaux(9)=i_howv
+  caux(10)='tcamt'  ; iaux(10)=i_tcamt 
+  caux(11)='lcbas'  ; iaux(11)=i_lcbas
+
+  kaux=11  !Adjust as you add variables
+
+  do k=1,kaux
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
+     if (ier==0) then
+
+        do i=1,lon2
+           do j=1,lat2
+              if (trim(caux(k))=='pmsl') then 
+                 all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
+               else
+                 all_loc(j,i,iaux(k))=ptr2d(j,i)
+               endif
+           end do
+        end do
+
+        if(mype==0) read(iog)temp1
+        call strip(all_loc(:,:,iaux(k)),strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
+           do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
-           end if
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(ioan)temp1
-     end if
-  else
-     if (mype == 0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  end if
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust', ptr2d, ier)
-  if (ier==0) then
-     do i=1,lon2
-        do j=1,lat2
-           all_loc(j,i,i_gust)=ptr2d(j,i)
-        end do
-     end do
-     if(mype==0) read(iog)temp1
-     call strip(all_loc(:,:,i_gust),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(ioan)temp1
-     end if
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  endif
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis', ptr2d, ier)
-  if (ier==0) then
-     do i=1,lon2
-        do j=1,lat2
-           all_loc(j,i,i_vis)=ptr2d(j,i)
-        end do
-     end do
-     if(mype == 0) read(iog)temp1
-     call strip(all_loc(:,:,i_vis),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(ioan)temp1
-     end if
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  endif
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh', ptr2d, ier)
-  if (ier==0) then
-     do i=1,lon2
-        do j=1,lat2
-           all_loc(j,i,i_pblh)=ptr2d(j,i)
-        end do
-     end do
-     if(mype==0) read(iog)temp1
-     call strip(all_loc(:,:,i_pblh),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(ioan)temp1
-     end if
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  endif
-
+           end do
+           call unfill_mass_grid2t(tempa,im,jm,temp1)
+           write(ioan)temp1
+        end if
+     else
+        if(mype==0) then
+           read(iog)temp1
+           write(ioan)temp1
+        end if
+     endif
+  enddo
   if (mype==0) then
      close(iog)
      close(ioan)
@@ -1405,13 +1405,9 @@ subroutine wr2d_binary(mype)
   end do
 
   deallocate(all_loc)
-  deallocate(all_loc_ps)
-  deallocate(temp1_ps)
   deallocate(temp1)
   deallocate(tempa)
   deallocate(tempb)
-  deallocate(temp1u)
-  deallocate(temp1v)
   deallocate(temp1_prh)
   deallocate(all_loc_qsatg)
   deallocate(all_loc_prh)
@@ -1446,6 +1442,8 @@ module ndfdgrids
 !   sub grid_to_latlon0
 !   sub relocsfcob
 !   sub adjust_error
+!   sub mkvalley_file
+!   sub valley_adjustment
 !   sub destroy_ndfdgrid
 !
 ! variable definitions:
@@ -1457,6 +1455,7 @@ module ndfdgrids
 !$$$ end documentation block
 
   use kinds, only: i_kind,r_single,r_kind
+  use mpimod, only: mype
 
   implicit none
 
@@ -1469,6 +1468,8 @@ module ndfdgrids
   public :: grid_to_latlon0
   public :: adjust_error
   public :: relocsfcob
+  public :: mkvalley_file 
+  public :: valley_adjustment
   public :: destroy_ndfdgrid
 
   integer(i_kind),parameter::lunreloc=77
@@ -1477,7 +1478,9 @@ module ndfdgrids
   integer(i_kind) nx,ny
   real(r_single),allocatable::slmask(:,:)
   real(r_single),allocatable::terrain(:,:)
+  real(r_single),allocatable::valleys(:,:)
   real(r_kind) da8,alat18,elon18,elonv8,alatan8
+
 
   real(r_kind) oberrinflfact,slmland
   integer(i_kind) ineighbour,jneighbour
@@ -1485,6 +1488,7 @@ module ndfdgrids
   logical fexist
   logical lshoreline
   logical,save :: relocfile_opnd=.false.
+  logical valleygcheck
 
 contains
 
@@ -1515,7 +1519,7 @@ subroutine init_ndfdgrid
 
   character(3) clun33
 
-  namelist/parmcardreadprepb/cgrid,ladjusterr,oberrinflfact, & 
+  namelist/parmcardreadprepb/cgrid,ladjusterr,oberrinflfact,valleygcheck, & 
                              ineighbour,jneighbour,slmland,lshoreline
 
   cgrid='conus'
@@ -1525,12 +1529,15 @@ subroutine init_ndfdgrid
   ineighbour=3
   jneighbour=3
   slmland=0.51_r_kind
+  valleygcheck=.false.
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
      open(55,file='parmcard_input',form='formatted')
      read(55,parmcardreadprepb)
      close(55)
+  else
+     print*,'init_ndfdgrid: WARNING - MISSING RTMA NAMELIST FILE: parmcard_input.  RUNNING WITH DEFAULT SETTINGS'
   endif
 
   print*,'in init_ndfdgrid: cgrid=',cgrid
@@ -1540,6 +1547,7 @@ subroutine init_ndfdgrid
   print*,'in init_ndfdgrid: jneighbour=',jneighbour
   print*,'in init_ndfdgrid: lshoreline=',lshoreline
   print*,'in init_ndfdgrid: slmland=',slmland
+  print*,'in init_ndfdgrid: valleygcheck=',valleygcheck
 
   call ndfdgrid_info
 
@@ -1556,6 +1564,11 @@ subroutine init_ndfdgrid
   open (55,file='rtma_terrain.dat',form='unformatted')
   read(55) terrain
   close(55)
+
+  allocate(valleys(nx,ny))
+
+  valleys=1._r_single
+  if (valleygcheck) call mkvalley_file
 
   if (.not.relocfile_opnd) then
      write(clun33,'(i3.3)') mype
@@ -1676,6 +1689,15 @@ subroutine ndfdgrid_info
      elonv8=265.000_r_kind
      alatan8=25.000_r_kind
 
+  elseif (trim(cgrid) == 'cohreswexp') then
+     nx=2345
+     ny=1597
+     alat18=19.228976_r_kind
+     elon18=233.723448_r_kind
+     da8=2539.703_r_kind
+     elonv8=265.000_r_kind
+     alatan8=25.000_r_kind
+
   elseif (trim(cgrid) == 'juneau') then
      nx=655
      ny=855
@@ -1727,7 +1749,8 @@ subroutine latlon_to_grid0(rlat8,rlon8,xx8,yy8)
   logical lmercator
 
 
-  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or.trim(cgrid)=='cohresext'
+  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or. &
+              trim(cgrid)=='cohresext'.or.trim(cgrid)=='cohreswexp'
   polarstereo=trim(cgrid)=='alaska'.or.trim(cgrid)=='akhres'.or.trim(cgrid)=='juneau'
   lmercator=trim(cgrid)=='hawaii'.or.trim(cgrid)=='guam'.or.trim(cgrid)=='prico'
   
@@ -1774,7 +1797,8 @@ subroutine grid_to_latlon0(xx8,yy8,rlat8,rlon8)
   logical lmercator
 
 
-  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or.trim(cgrid)=='cohresext'
+  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or. &
+              trim(cgrid)=='cohresext'.or.trim(cgrid)=='cohreswexp'
   polarstereo=trim(cgrid)=='alaska'.or.trim(cgrid)=='akhres'.or.trim(cgrid)=='juneau'
   lmercator=trim(cgrid)=='hawaii'.or.trim(cgrid)=='guam'.or.trim(cgrid)=='prico'
 
@@ -1842,7 +1866,8 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
   lcase1=(rlon8>=-122._r_kind .and. rlon8<=-117._r_kind & 
             .and. rlat8>=32._r_kind .and. rlat8<=35._r_kind)
 
-  if (trim(cgrid)=='conus' .or. trim(cgrid)=='cohres' .or. trim(cgrid)=='cohresext') then
+  if (trim(cgrid)=='conus' .or. trim(cgrid)=='cohres' .or. &
+      trim(cgrid)=='cohresext' .or. trim(cgrid)=='cohreswexp') then
      if(lcase1) return
   endif
 
@@ -2041,6 +2066,102 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
 end subroutine relocsfcob
 !****************************************************************
 !****************************************************************
+subroutine mkvalley_file
+
+  use anisofilter, only: smther_one
+
+  implicit none
+
+  real(r_single) radius0,hdiff0
+  real(r_single) hmean,hmin,hmax,hdiff
+  integer(i_kind) i,j,ijdel,ii,jj,ncount
+  integer(i_kind) npassvalley
+
+  data radius0/100000./  !meters
+  data hdiff0/2000./     !meters
+  data npassvalley/20/   !# of smoothing passes
+
+  ijdel=int(radius0/real(da8,kind=r_single))
+
+  print*,'in mkvalley_file: radius0,hdiff0,ijdel=',radius0,hdiff0,ijdel
+
+  print*,'in mkvalley_file: terrain,min,max=',minval(terrain),maxval(terrain)
+
+  valleys(:,:)=1._r_single
+  do j=1,ny
+  do i=1,nx
+     hmean=0._r_single; ncount=0 
+     hmin=+huge(hmin) ; hmax=-huge(hmax)
+     do jj=max(1,j-ijdel),min(ny,j+ijdel)
+     do ii=max(1,i-ijdel),min(nx,i+ijdel)
+        hmean=hmean+terrain(ii,jj)
+        ncount=ncount+1
+        hmin=min(hmin,terrain(ii,jj))
+        hmax=max(hmax,terrain(ii,jj))
+     enddo
+     enddo
+     hmean=hmean/max(1.,float(ncount))
+
+     if ((hmax-hmin)>=hdiff0 .and. terrain(i,j)<hmean) & 
+         valleys(i,j)=terrain(i,j)/hmean   
+  enddo
+  enddo
+
+  call smther_one(valleys,1,nx,1,ny,npassvalley)
+
+  print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+
+  if (mype==0) then 
+    open (55,file='valley_map.dat',form='unformatted')
+    write(55) valleys
+    close(55)
+  endif
+
+end subroutine mkvalley_file
+!****************************************************************
+!****************************************************************
+subroutine valley_adjustment(xob,yob,usage_rj)
+!================================================================     
+!           (im,jp)      (i,jp)       ip,jp)
+!              --------------------------
+!              |           |            |
+!              |           |            |
+!              |           |            |
+!              |           |            |
+!        (im,j)----------(i,j)----------- (ip.j)
+!              |           |            |
+!              |           |            |
+!              |           |            |
+!              |           |            |
+!              --------------------------
+!           (im,jm)      (i,jm)       ip,jm)
+!================================================================     
+  implicit none
+
+!Declare passed variables
+  real(r_kind),intent(in):: xob,yob
+  real(r_kind),intent(inout):: usage_rj
+
+!Declare local parameters
+  real(r_single),parameter:: sone=1._r_single
+  real(r_kind),parameter:: dusage=0.25_r_kind
+
+!Declare local variables
+  integer(i_kind) i,j,im,jm,ip,jp
+
+  if (valleygcheck) then
+     i=int(xob) ; im=max(1,i-1) ; ip=min(nx,i+1) 
+     j=int(yob) ; jm=max(1,j-1) ; jp=min(ny,j+1)
+
+     if (valleys(i,j )<sone .or. valleys(im,j) < sone .or. valleys(ip,j)<sone .or. & 
+         valleys(i,jm)<sone .or. valleys(i,jp)<sone .or. & 
+         valleys(im,jm)<sone .or. valleys(ip,jm)<sone .or. & 
+         valleys(im,jp)<sone .or. valleys(ip,jp)<sone ) usage_rj=usage_rj+dusage
+  endif
+  
+end subroutine valley_adjustment
+!****************************************************************
+!****************************************************************
 subroutine  destroy_ndfdgrid
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2065,6 +2186,7 @@ subroutine  destroy_ndfdgrid
 
   deallocate(slmask)
   deallocate(terrain)
+  deallocate(valleys)
   if (relocfile_opnd) close (lunreloc)
 end subroutine destroy_ndfdgrid
 
@@ -2099,7 +2221,12 @@ module hilbertcurve
 !                         than one processor handling the same ob type or if the
 !                         same processor handles more than one ob-type. This
 !                         poses no threat to the RTMA so far, but nonetheless it is
-!                         something that will have to be dealt with in the future. 
+!                         something that will have to be dealt with in the future.
+!   2014-06-16  carley - add tcamt and lcbas
+!   2014-03-19  pondeca - add cross-validation for wspd10m, replace
+!                         tobs,qobs,vobs,etc., wih obstype
+!   2014-04-10  pondeca - add cross-validation for td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add cross-validation for howv
 !                        
 !
 ! subroutines included:
@@ -2152,6 +2279,14 @@ module hilbertcurve
   integer(i_kind) ngrps_sstob
   integer(i_kind) ngrps_gustob
   integer(i_kind) ngrps_visob
+  integer(i_kind) ngrps_wspd10mob
+  integer(i_kind) ngrps_td2mob
+  integer(i_kind) ngrps_mxtmob
+  integer(i_kind) ngrps_mitmob
+  integer(i_kind) ngrps_pmslob
+  integer(i_kind) ngrps_howvob
+  integer(i_kind) ngrps_tcamtob
+  integer(i_kind) ngrps_lcbasob
 
   logical random_cvgrp
   real(r_kind) usagecv
@@ -2168,6 +2303,7 @@ subroutine init_hilbertcurve(maxobs)
 !
 ! program history log:
 !   2009-10-01  lueken - added subprogram doc block
+!   2014-06-16  carley - add tcamt and lcbas
 !
 !   input argument list:
 !    maxobs
@@ -2191,7 +2327,8 @@ subroutine init_hilbertcurve(maxobs)
 
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
-                    ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob
+                    ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
+                    ngrps_tcamtob,ngrps_lcbasob
 
   random_cvgrp=.false.
   usagecv=3._r_kind
@@ -2204,13 +2341,24 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_sstob=0
   ngrps_gustob=8
   ngrps_visob=8
+  ngrps_td2mob=5
+  ngrps_mxtmob=8
+  ngrps_mitmob=8
+  ngrps_pmslob=8
+  ngrps_howvob=8
+  ngrps_tcamtob=8
+  ngrps_lcbasob=8
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
      open(55,file='parmcard_input',form='formatted')
      read(55,parmcardhcurve)
      close(55)
+  else
+     print*,'init_hilbertcurve: WARNING - MISSING RTMA NAMELIST FILE: parmcard_input.  RUNNING WITH DEFAULT SETTINGS'
   endif
+
+  ngrps_wspd10mob=ngrps_uvob
 
   if(mype == 0)then
     print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
@@ -2222,9 +2370,18 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_qob=',ngrps_qob
     print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
     print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
+    print*,'in init_hilbertcurve: ngrps_gustob=',ngrps_gustob
+    print*,'in init_hilbertcurve: ngrps_visob=',ngrps_visob
+    print*,'in init_hilbertcurve: ngrps_wspd10mob=',ngrps_wspd10mob
+    print*,'in init_hilbertcurve: ngrps_td2mob=',ngrps_td2mob
+    print*,'in init_hilbertcurve: ngrps_mxtmob=',ngrps_mxtmob
+    print*,'in init_hilbertcurve: ngrps_mitmob=',ngrps_mitmob
+    print*,'in init_hilbertcurve: ngrps_pmslob=',ngrps_pmslob
+    print*,'in init_hilbertcurve: ngrps_howvob=',ngrps_howvob
+    print*,'in init_hilbertcurve: ngrps_tcamtob=',ngrps_tcamtob
+    print*,'in init_hilbertcurve: ngrps_lcbasob=',ngrps_lcbasob
   end if
-  print*,'in init_hilbertcurve: ngrps_gustob=',ngrps_gustob
-  print*,'in init_hilbertcurve: ngrps_visob=',ngrps_visob
+
 
   ncross=0
 
@@ -2314,9 +2471,9 @@ subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
 
 end subroutine accum_hilbertcurve
 
-subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdob, & 
-                              psob,kpsob,qob,kqob,pwob,kpwob,sstob,ksstob, & 
-                              gustob,kgustob,visob,kvisob)
+
+subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
+
 !$$$  subprogram documentation block
 !                .      .    .                                      .
 ! subprogram:    apply_hilbertcurve
@@ -2326,21 +2483,24 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 !
 ! program history log:
 !   2009-10-01  lueken - added subprogram doc block
+!   2014-06-16  carley - add tcamt and lcbas
+!   2014-06-26  carley - reorganized use of cdata_usage array
+! 
 !
 !   input argument list:
-!    tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
-!    ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob
-!    maxobs,k1,k2
-!    cdata
+!    maxobs
+!    obstype   
+!    cdata_usage
 !
 !   output argument list:
-!    cdata
+!    cdata_usage
 !
 ! attributes:
 !   language: f90
 !   machine:
 !
 !$$$ end documentation block
+  use constants, only: zero
   use convinfo, only:  ncmiter,ncgroup,ncnumgrp
   use  gridmod, only: nlon,nlat
 
@@ -2348,10 +2508,10 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
 
 !Declare passed variables
-  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
-  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob
-  integer(i_kind),intent(in   ) :: maxobs,k1,k2
-  real(r_kind)   ,intent(inout) :: cdata(k1:k2,maxobs)
+
+  character(len=*),intent(in  ) :: obstype
+  integer(i_kind),intent(in   ) :: maxobs
+  real(r_kind)   ,intent(inout) :: cdata_usage(maxobs)
 
 !Declare local parameter
   real(r_kind),parameter::usage_dup=8.
@@ -2375,9 +2535,15 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
   allocate(ipoint(maxobs))
   allocate(hildlon(maxobs))
   allocate(hildlat(maxobs))
+      
 
-      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
-                                     tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+
+      !initialize hildlon and hildlat (prevents floating point failure when run in debug mode)
+      hildlon=zero
+      hildlat=zero
+
+      print*,'in apply_hilbertcurve: obstype=',obstype
+
 
       nt=ncross
       if(nt.gt.0) then
@@ -2429,15 +2595,23 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
         allocate(test_set(ncross))
 
         if (random_cvgrp) then 
-            if(tob)   ncnumgrp0=ngrps_tob
-            if(uvob)  ncnumgrp0=ngrps_uvob
-            if(spdob) ncnumgrp0=ngrps_spdob
-            if(psob)  ncnumgrp0=ngrps_psob
-            if(qob)   ncnumgrp0=ngrps_qob
-            if(pwob)  ncnumgrp0=ngrps_pwob
-            if(sstob) ncnumgrp0=ngrps_sstob
-            if(gustob)ncnumgrp0=ngrps_gustob
-            if(visob) ncnumgrp0=ngrps_visob
+            if(obstype =='t'       ) ncnumgrp0=ngrps_tob
+            if(obstype == 'uv'     ) ncnumgrp0=ngrps_uvob
+            if(obstype == 'spd'    ) ncnumgrp0=ngrps_spdob
+            if(obstype == 'ps'     ) ncnumgrp0=ngrps_psob
+            if(obstype == 'q'      ) ncnumgrp0=ngrps_qob
+            if(obstype == 'pw'     ) ncnumgrp0=ngrps_pwob
+            if(obstype == 'sst'    ) ncnumgrp0=ngrps_sstob
+            if(obstype == 'gust'   ) ncnumgrp0=ngrps_gustob
+            if(obstype == 'vis'    ) ncnumgrp0=ngrps_visob
+            if(obstype == 'wspd10m') ncnumgrp0=ngrps_wspd10mob
+            if(obstype == 'td2m'   ) ncnumgrp0=ngrps_td2mob
+            if(obstype == 'mxtm'   ) ncnumgrp0=ngrps_mxtmob
+            if(obstype == 'mitm'   ) ncnumgrp0=ngrps_mitmob
+            if(obstype == 'pmsl'   ) ncnumgrp0=ngrps_pmslob
+            if(obstype == 'howv'   ) ncnumgrp0=ngrps_howvob
+            if(obstype == 'tcamt'  )ncnumgrp0=ngrps_tcamtob
+            if(obstype == 'lcbas'  )ncnumgrp0=ngrps_lcbasob
           else
             ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
                                                ! chosen to be the last "number of groups" 
@@ -2464,15 +2638,7 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
               if (     random_cvgrp) usage=usagecv           !3.
               if (.not.random_cvgrp) usage=ncmiter(hilikx(i))
 
-              if(tob)   cdata(ktob,hili(i))=usage
-              if(uvob)  cdata(kuvob,hili(i))=usage
-              if(spdob) cdata(kspdob,hili(i))=usage
-              if(psob)  cdata(kpsob,hili(i))=usage
-              if(qob)   cdata(kqob,hili(i))=usage
-              if(pwob)  cdata(kpwob,hili(i))=usage
-              if(sstob) cdata(ksstob,hili(i))=usage
-              if(gustob)cdata(kgustob,hili(i))=usage
-              if(visob) cdata(kvisob,hili(i))=usage
+              cdata_usage(hili(i))=usage
 
               j=ipoint(i)
               do n=1,nt
@@ -2480,15 +2646,7 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
                  ldup=abs(hil_dlon(j)-hil_dlon(n))<epsilon .and. &
                       abs(hil_dlat(j)-hil_dlat(n))<epsilon  
                  if ( ldup ) then 
-                    if(tob)   cdata(ktob,hil_i(n))=usage_dup
-                    if(uvob)  cdata(kuvob,hil_i(n))=usage_dup
-                    if(spdob) cdata(kspdob,hil_i(n))=usage_dup
-                    if(psob)  cdata(kpsob,hil_i(n))=usage_dup
-                    if(qob)   cdata(kqob,hil_i(n))=usage_dup
-                    if(pwob)  cdata(kpwob,hil_i(n))=usage_dup
-                    if(sstob) cdata(ksstob,hil_i(n))=usage_dup
-                    if(gustob)cdata(kgustob,hil_i(n))=usage_dup
-                    if(visob) cdata(kvisob,hil_i(n))=usage_dup
+                    cdata_usage(hil_i(n))=usage_dup
                  endif
               enddo
            endif
@@ -2499,8 +2657,7 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
       if(ncross.gt.0) then
         ! count number of obs in each cross-validation dataset
-        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
-                ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+        print*,'obstype,ncnumgrp0=',obstype,ncnumgrp0
         ncvcount=0
         do n=1,ncnumgrp0
            do i=1,ncross
@@ -2512,14 +2669,21 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
         enddo
 
         ! write all groups to a file
-        if(tob)   outfile='tobs_allcv_groups'
-        if(uvob)  outfile='uvobs_allcv_groups'
-        if(spdob) outfile='spdobs_allcv_groups'
-        if(psob)  outfile='psobs_allcv_groups'
-        if(qob)   outfile='qobs_allcv_groups'
-        if(gustob)outfile='gustobs_allcv_groups'
-        if(visob) outfile='visobs_allcv_groups'
-
+        if(obstype=='t')       outfile='tobs_allcv_groups'
+        if(obstype=='uv')      outfile='uvobs_allcv_groups'
+        if(obstype=='spd')     outfile='spdobs_allcv_groups'
+        if(obstype=='ps')      outfile='psobs_allcv_groups'
+        if(obstype=='q')       outfile='qobs_allcv_groups'
+        if(obstype=='gust')    outfile='gustobs_allcv_groups'
+        if(obstype=='vis')     outfile='visobs_allcv_groups'
+        if(obstype=='wspd10m') outfile='wspd10mobs_allcv_groups'
+        if(obstype=='td2m')    outfile='td2mobs_allcv_groups'
+        if(obstype=='mxtm')    outfile='mxtmobs_allcv_groups'
+        if(obstype=='mitm')    outfile='mitmobs_allcv_groups'
+        if(obstype=='pmsl')    outfile='pmslobs_allcv_groups'
+        if(obstype=='howv')    outfile='howvobs_allcv_groups'
+        if(obstype=='tcamt')   outfile='tcamtobs_allcv_groups'
+        if(obstype=='lcbas')   outfile='lcbasobs_allcv_groups'
         open (92,file=trim(outfile),form='unformatted')
 
         write(92) ncross,ncnumgrp0,ncgroup0
@@ -2591,7 +2755,6 @@ subroutine destroy_hilbertcurve
   if (ncross>0) deallocate(test_set)
 
 end subroutine destroy_hilbertcurve
-
 end module hilbertcurve
 !------------------------------------------------------
       subroutine bilinear_2d0(rffcst,ix,jx,rfobs,xx,yy)
@@ -2824,3 +2987,200 @@ subroutine shuffle(ngrps,ngrp0)
 
 end subroutine shuffle
 !===========================================================================
+subroutine landlake_uvmerge_original(u,v,uland,vland,uwter,vwter,iflg)
+!$$$  subprogram documentation block
+!                .      .    .                                       
+! subprogram:    landlake_uvmerge merge
+!   prgmmr: pondeca          org: np22                date: 2013-07-15
+!
+! abstract: merge land and lake u,v increments together (iflg=1) or perform
+!           the adjoint operation (iflg=0)
+!
+! program history log:
+!   2013-07-15 pondeca
+!
+!   input argument list:
+!     u         - u grid values
+!     v         - v grid values
+!     uland     - land u grid values
+!     vland     - land v grid values
+!     uwter     - lake u grid values
+!     vwter     - lake v grid values
+!     iflg      - flag for u,v manipulation
+!               0: u,v --> uland,vland,uwter,vwter
+!               1: uland,vland,uwter,vwter --> u,v
+!
+!   output argument list:
+!     u         - u grid values
+!     v         - v grid values
+!     uland     - land u grid values
+!     vland     - land v grid values
+!     uwter     - lake u grid values
+!     vwter     - lake v grid values
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig
+  use guess_grids, only: isli2
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: u,v,uland,vland,uwter,vwter
+
+! Declare local variables
+  integer(i_kind) i,j,k
+
+  if (iflg == 0) then 
+        do j=1,lon2
+           do i=1,lat2
+              if(isli2(i,j) == 1) then
+                 do k=1,nsig                           !note: this subroutine is always called with nsig=1
+                    uland(i,j,k)=+u(i,j,k)
+                    vland(i,j,k)=+v(i,j,k)
+                 enddo
+               else
+                 do k=1,nsig
+                    uwter(i,j,k)=+u(i,j,k)
+                    vwter(i,j,k)=+v(i,j,k)
+                 enddo
+              end if
+           enddo
+        enddo
+
+     else
+   
+        do j=1,lon2
+           do i=1,lat2
+              if(isli2(i,j) == 1) then
+                 do k=1,nsig
+                    u(i,j,k)=uland(i,j,k)
+                    v(i,j,k)=vland(i,j,k)
+                 enddo
+               else
+                 do k=1,nsig
+                    u(i,j,k)=uwter(i,j,k)
+                    v(i,j,k)=vwter(i,j,k)
+                 enddo
+              end if
+           enddo
+        enddo
+  endif
+end subroutine landlake_uvmerge_original
+!===========================================================================
+subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
+!$$$  subprogram documentation block
+!                .      .    .                                       
+! subprogram:    landlake_uvmerge merge
+!   prgmmr: pondeca          org: np22                date: 2013-07-15
+!
+! abstract: merge land and lake u,v increments together (iflg=1) or perform
+!           the adjoint operation (iflg=0)
+!
+! program history log:
+!   2013-07-15 pondeca
+!
+!   input argument list:
+!     u         - u grid values
+!     v         - v grid values
+!     uland     - land u grid values
+!     vland     - land v grid values
+!     uwter     - lake u grid values
+!     vwter     - lake v grid values
+!     iflg      - flag for u,v manipulation
+!               0: u,v --> uland,vland,uwter,vwter
+!               1: uland,vland,uwter,vwter --> u,v
+!
+!   output argument list:
+!     u         - u grid values
+!     v         - v grid values
+!     uland     - land u grid values
+!     vland     - land v grid values
+!     uwter     - lake u grid values
+!     vwter     - lake v grid values
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig,region_lat,region_lon, & 
+                     nlon_regional,nlat_regional,istart,jstart
+  use guess_grids, only: isli2
+  use mpimod, only: mype
+  use constants, only: rad2deg
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: u,v,uland,vland,uwter,vwter
+
+! Declare local variables
+  integer(i_kind) i,j,k
+  integer(i_kind) iglob,jglob
+  integer(i_kind) mm1
+  real(r_kind) flon,flat
+  logical glerlarea
+
+  real(r_kind),parameter::flon1=-93._r_kind
+  real(r_kind),parameter::flon2=-75._r_kind
+  real(r_kind),parameter::flat1=40.5_r_kind
+  real(r_kind),parameter::flat2=49.5_r_kind
+
+  mm1=mype+1
+
+  if (iflg == 0) then 
+        do j=1,lon2
+           jglob=max(1,min(j+jstart(mm1)-2,nlon_regional))
+           do i=1,lat2
+              iglob=max(1,min(i+istart(mm1)-2,nlat_regional))
+              flat=region_lat(iglob,jglob)*rad2deg
+              flon=region_lon(iglob,jglob)*rad2deg
+              glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+
+              if(isli2(i,j) == 1 .or. .not.glerlarea) then
+                 do k=1,nsig                           !note: this subroutine is always called with nsig=1
+                    uland(i,j,k)=+u(i,j,k)
+                    vland(i,j,k)=+v(i,j,k)
+                 enddo
+               else
+                 do k=1,nsig
+                    uwter(i,j,k)=+u(i,j,k)
+                    vwter(i,j,k)=+v(i,j,k)
+                 enddo
+              end if
+           enddo
+        enddo
+
+     else
+   
+        do j=1,lon2
+           jglob=max(1,min(j+jstart(mm1)-2,nlon_regional))
+           do i=1,lat2
+              iglob=max(1,min(i+istart(mm1)-2,nlat_regional))
+              flat=region_lat(iglob,jglob)*rad2deg
+              flon=region_lon(iglob,jglob)*rad2deg
+              glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+
+              if(isli2(i,j) == 1 .or. .not.glerlarea) then
+                 do k=1,nsig
+                    u(i,j,k)=uland(i,j,k)
+                    v(i,j,k)=vland(i,j,k)
+                 enddo
+               else
+                 do k=1,nsig
+                    u(i,j,k)=uwter(i,j,k)
+                    v(i,j,k)=vwter(i,j,k)
+                 enddo
+              end if
+           enddo
+        enddo
+  endif
+end subroutine landlake_uvmerge
