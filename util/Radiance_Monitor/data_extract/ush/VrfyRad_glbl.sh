@@ -6,9 +6,9 @@
 #  Verification and data extraction script for global (GDAS) radiance
 #  diagnostic data.
 #
-#  This script verifies data is available and submits the 
-#  JGDAS_VRFYRAD.sms.prod job, which performs the data extraction 
-#  and validation checks. 
+#  This script verifies data is available and submits the
+#  JGDAS_VERFRAD job, which performs the data extraction and
+#  validation checks. 
 #--------------------------------------------------------------------
 set -ax
 echo start VrfyRad_glbl.sh
@@ -80,14 +80,22 @@ fi
 
 
 top_parm=${this_dir}/../../parm
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
 
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
    echo "Unable to source ${RADMON_CONFIG} file"
    exit 2
 fi
+
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -248,10 +256,10 @@ if [[ -e ${radstat} ]]; then
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
    fi
   
 fi
