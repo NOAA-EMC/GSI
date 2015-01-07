@@ -79,9 +79,9 @@ export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
 #  Job queue check definition
 #
 if [[ $MY_MACHINE = "wcoss" ]]; then
-  export CHECKQ="bjobs"
+  export CHECKQ=${CHECKQ:-"bjobs"}
 else
-  export CHECKQ="showq -u $LOGNAME"
+  export CHECKQ=${CHECKQ:-"showq -u $LOGNAME"}
 fi
 
 
@@ -100,7 +100,9 @@ export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
 export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
-export HOMEgfs=${HOMEgfs:-${MY_RADMON}/nwprod}
+export HOMEgdasradmon=${HOMEgdasradmon:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
+export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.v${radmon_shared_ver}}
+ 
 
 #
 #  Definitions for parm files.  This allows users to swap in 

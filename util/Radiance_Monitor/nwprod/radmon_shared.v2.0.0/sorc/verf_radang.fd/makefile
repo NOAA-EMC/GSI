@@ -32,7 +32,7 @@ all:  $(CMD)
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb
+	rm -f radmon_angle
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)

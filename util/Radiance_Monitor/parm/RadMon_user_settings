@@ -10,7 +10,7 @@
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
 #  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-ada}
+export ACCOUNT=${ACCOUNT:-}
 
 #
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
@@ -42,7 +42,7 @@ export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
 #    0 = off, 1 = on
 #
-export USE_ANL=${USE_ANL:-0}
+export USE_ANL=${USE_ANL:-1}
 
 #
 #  PLOT_ALL_REGIONS switches on/off plotting of all 5 regions (global, land, 

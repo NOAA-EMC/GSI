@@ -3,15 +3,15 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         radmon_verf_bcor.sh
-# Script description:  Extract bias correction data from radiance diagnostic 
-#                      files.
+# Script name:         radmon_verf_bcoef.sh
+# Script description:  Extract bias correction coefficients data from radiance 
+#                      diagnostic files.
 #
 # Author:        Ed  Safford       Org: NP23         Date: 2012-02-02
 #
-# Abstract:  This script extracts bias correction related data from radiance 
-#            diagnostic files (which are an output from GSI runs), storing the 
-#            extracted data in small binary files. 
+# Abstract:  This script extracts bias correction coefficient related data from 
+#            radiance diagnostic files (which are an output from GSI runs), 
+#            storing the extracted data in small binary files.
 #
 #            This script is a child script of exgdas_vrfyrad.sh.sms.  The parent
 #            script opens and uncompresses the radiance diagnostic file and copies
@@ -21,7 +21,7 @@
 # Script history log:
 # 2012-02-02  Safford  initial script
 #
-# Usage:  radmon_verf_time.sh PDATE
+# Usage:  radmon_verf_bcoef.sh PDATE
 #
 #   Input script positional parameters:
 #     PDATE             processing date
@@ -34,9 +34,9 @@
 #                       defaults to 1 (on)
 #     MAKE_DATA         switch to construct the binary data file
 #                       defaults to 1 (on)
-#     EXECgfs           executable directory
+#     EXECradmon        executable directory
 #                       defaults to current directory
-#     FIXgfs            fixed data directory
+#     FIXradmon         fixed data directory
 #                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
@@ -54,7 +54,7 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
-#     LITTLE_ENDIAN     flag for little endian machine
+#     LITTLE_ENDIAN     flag for LE machine
 #                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
@@ -67,15 +67,15 @@
 #                  $ENDSCRIPT
 #
 #     programs   : $NCP
-#                  $bcor_exec
+#                  $bcoef_exec
 #
-#     fixed data : none
+#     fixed data : $biascr
 #
 #     input data : $data_file
-#                  
-#     output data: $bcor_file
-#                  $bcor_ctl
-#                  $bcor_stdout
+#
+#     output data: $bcoef_file
+#                  $bcoef_ctl
+#                  $bcoef_stdout
 #
 # Remarks:
 #
@@ -92,13 +92,12 @@
 #   Language: POSIX shell
 #   Machine: IBM SP
 ####################################################################
-
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
 # Directories
-FIXgfs=${FIXgfs:-$(pwd)}
-EXECgfs=${EXECgfs:-$(pwd)}
+FIXradmon=${FIXradmon:-$(pwd)}
+EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
@@ -115,15 +114,14 @@ SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
-#bcor_exec=radmon_bcor.${RAD_AREA}
-bcor_exec=radmon_bcor
 err=0
+#bcoef_exec=radmon_bcoef.${RAD_AREA}
+bcoef_exec=radmon_bcoef
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
    echo "$(date) executing $0 $* >&2"
 fi
-
 ################################################################################
 #  Preprocessing
 $INISCRIPT
@@ -135,14 +133,14 @@ else
    gesanl="ges"
 fi
 
-
 #--------------------------------------------------------------------
-#   Copy extraction program to working directory
+#   Copy extraction program and supporting files to working directory
 
-$NCP ${EXECgfs}/${bcor_exec}  ./${bcor_exec}
+$NCP $EXECradmon/${bcoef_exec}              ./${bcoef_exec}
+$NCP ${biascr}                              ./biascr.txt
 
-if [[ ! -s ./${bcor_exec} ]]; then
-   err=6
+if [[ ! -s ./${bcoef_exec} || ! -s ./biascr.txt ]]; then
+   err=4
 else
 
 
@@ -158,85 +156,84 @@ else
    fail=0
 
    for type in ${SATYPE}; do
-
       for dtype in ${gesanl}; do
-
-         ctr=`expr $ctr + 1`
+      ctr=`expr $ctr + 1`
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
+            bcoef_file=bcoef.${data_file}
             ctl_file=${type}_anl.ctl
-            bcor_ctl=bcor.${ctl_file}
+            bcoef_ctl=bcoef.${ctl_file}
             stdout_file=stdout.${type}_anl
-            bcor_stdout=bcor.${stdout_file}
+            bcoef_stdout=bcoef.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
+            bcoef_file=bcoef.${data_file}
             ctl_file=${type}.ctl
-            bcor_ctl=bcor.${ctl_file}
+            bcoef_ctl=bcoef.${ctl_file}
             stdout_file=stdout.${type}
-            bcor_stdout=bcor.${stdout_file}
-         fi
+            bcoef_stdout=bcoef.${stdout_file}
+         fi 
+
       rm input
 
       nchanl=-999
+      npredr=5
 
 cat << EOF > input
  &INPUT
   satname='${type}',
+  npredr=${npredr},
+  nchanl=${nchanl},
   iyy=${iyy},
   imm=${imm},
   idd=${idd},
   ihh=${ihh},
   idhh=-720,
   incr=6,
-  nchanl=${nchanl},
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
-  rad_area='${RAD_AREA}',
  /
 EOF
-      ./${bcor_exec} < input >   stdout.$type
-      ./${bcor_exec} < input >   stdout.$type
+      $TIMEX ./${bcoef_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
- 
+
 
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #
 
       if [[ -s ${data_file} ]]; then
-         mv ${data_file} ${bcor_file}
-         mv ${bcor_file} $TANKverf_rad/.
-         ${COMPRESS} -f $TANKverf_rad/${bcor_file}
+         mv ${data_file} ${bcoef_file}
+         mv ${bcoef_file} $TANKverf_rad/.
+         ${COMPRESS} -f $TANKverf_rad/${bcoef_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
-         mv ${ctl_file} ${bcor_ctl}
-         mv ${bcor_ctl}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
+         mv ${ctl_file} ${bcoef_ctl}
+         mv ${bcoef_ctl}  ${TANKverf_rad}/.
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_ctl}
       fi
 
       if [[ -s ${stdout_file} ]]; then
-         mv ${stdout_file} ${bcor_stdout}
-         mv ${bcor_stdout}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
+         mv ${stdout_file} ${bcoef_stdout}
+         mv ${bcoef_stdout}  ${TANKverf_rad}/.
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
       done  # dtype in $gesanl loop
    done     # type in $SATYPE loop
 
-
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
-      err=7
+      err=5
    fi
 fi
+
 
 ################################################################################
 #  Post processing
@@ -244,8 +241,7 @@ $ENDSCRIPT
 set +x
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo $(date) EXITING $0 error code ${err} >&2
+   echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
 exit ${err}
-
