@@ -39,6 +39,8 @@ WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_i
 
 NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
 INCnetcdf  = $(NETCDFPATH)/include
+LIBnetcdf  = -L$(NETCDFPATH)/lib -lnetcdf
+
 
 
 
@@ -129,7 +131,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 		-lsfcio_v$(SFCIO_VERSION)_4 -lbufr_v$(BUFR_VERSION)_d_64 \
 		-lw3nco_v$(W3NCO_VERSION)_d -lw3emc_v$(W3EMC_VERSION)_d \
 		$(WRFLIB) -L$(CRTM_PATH) -lcrtm_v$(CRTM_VERSION) \
-		-L$(NETCDFPATH)/lib -lnetcdf
+		$(LIBnetcdf)
 #               -L../lib/GSD/gsdcloud4nmmb -lgsdcloud
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
