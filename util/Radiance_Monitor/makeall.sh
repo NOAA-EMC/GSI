@@ -67,7 +67,7 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    #------------------------------------------------------------------
    #  make image generation executables
    #------------------------------------------------------------------
-   executables="horiz"
+   executables="horiz summary time"
 
    cd ${top_level}/image_gen/src
    echo "Making image_gen/src:"
