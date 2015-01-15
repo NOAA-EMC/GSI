@@ -47,25 +47,26 @@ echo DATE   = $DATE
 #--------------------------------------------------------------------
 
 top_parm=${this_dir}/../../parm
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
 if [[ -s ${RADMON_VERSION} ]]; then
    . ${RADMON_VERSION}
 else
-   echo "Unable to source ${RADMON_VERSION} file"
+   echo "Unable to source ${RADMON_VERSION} (radmon version) file"
    exit 2
 fi
 
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
-   echo "Unable to source ${RADMON_CONFIG} file"
+   echo "Unable to source ${RADMON_CONFIG} (radmon config) file"
    exit 2
 fi
 
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source ${RADMON_USER_SETTINGS} file"
+   echo "Unable to source ${RADMON_USER_SETTINGS} (radmon user settings) file"
    exit 3
 fi
 
