@@ -25,6 +25,7 @@ subroutine read_gfs_ozone_for_regional
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
 !   2014-12-05  wu      - read in just one GFS for ozone even when nfldsig > 1
+!   2015-01-14  wu      - use the same ges_oz in all time levels              
 !
 !   input argument list:
 !
@@ -107,6 +108,7 @@ subroutine read_gfs_ozone_for_regional
 
 ! Determine input GFS filenames
   it_beg=1
+!!  for now use just one time level for global ozone input
   it_end=1
   allocate(infiles(nfldsig))
   do it=it_beg,it_end
@@ -462,6 +464,11 @@ subroutine read_gfs_ozone_for_regional
              glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
   enddo it_loop
+
+!!  for now use just one time level for global ozone input
+  do it=2,nfldsig
+   ges_oz(:,:,:,it)=ges_oz(:,:,:,1)
+  enddo
 
 ! copy ges_oz to met-bundle ...
   call copy_vars_
