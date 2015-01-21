@@ -98,6 +98,8 @@ module obsmod
 !   2014-05-07  pondeca  - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-10-06  carley - add obs_sub_comm
+!   2014-12-03  derber  - ensure obsdiag used for 4dvar and non-pcgsoi
+!                         minimizations
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -304,7 +306,7 @@ module obsmod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
-  use gsi_4dvar, only: l4dvar
+  use gsi_4dvar, only: l4dvar,lsqrtb,lbicg
   use constants, only:  zero,one,two,three,four,five
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
   implicit none
@@ -378,7 +380,7 @@ module obsmod
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
   public :: use_limit,lrun_subdirs
-  public :: l_foreaft_thin
+  public :: l_foreaft_thin,luse_obsdiag
 
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
@@ -400,6 +402,7 @@ module obsmod
   real(r_kind), parameter:: bmiss = 1.0e9_r_kind
 #endif
 
+  logical luse_obsdiag
 ! Declare types
 
   integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
@@ -1684,6 +1687,7 @@ contains
     lwrite_peakwt    = .false.
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
+    luse_obsdiag     = .false.
 
     return
   end subroutine init_obsmod_dflts
@@ -1763,6 +1767,16 @@ contains
     if (l4dvar) then
        offtime_data = .true.   ! .true. = ignore difference in obs ref time
     endif
+    if (l4dvar .or. lsqrtb .or. lbicg) then
+       luse_obsdiag = .true.
+    endif
+    if(.not. luse_obsdiag) then
+      if(lsaveobsens .or. lobsdiagsave)then
+          write(6,*)'incompatabile luse_obsdiag and lsaveobsens or lobsdiagsave ', &
+             luse_obsdiag,lsaveobsens,lobsdiagsave
+          call stop2(843)
+      end if
+    end if
 
     allocate (nsat1(ndat),mype_diaghdr(ndat),obs_sub_comm(ndat))
 
@@ -1835,7 +1849,7 @@ contains
 
     ALLOCATE(yobs(nobs_bins))
 
-    ALLOCATE(obsdiags(nobs_type,nobs_bins))
+    if(luse_obsdiag)ALLOCATE(obsdiags(nobs_type,nobs_bins))
 
     return
   end subroutine create_obsmod_vars
@@ -1996,6 +2010,7 @@ contains
     if (present(skipit)) then
        skipit_=skipit
     endif
+    if(.not. luse_obsdiag)skipit_ = .true.
     if (.not. skipit_) then
        do ii=1,nobs_bins
           do jj=1,nobs_type
@@ -2010,7 +2025,6 @@ contains
        enddo
        lobsdiag_allocated=.false.
     endif
-
 
     do ii=1,nobs_bins
        ttail(ii)%head => thead(ii)%head
@@ -2123,7 +2137,7 @@ contains
           deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
                      oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
                      oztail(ii)%head%prs,oztail(ii)%head%ipos, &
-                     oztail(ii)%head%apriori, oztail(ii)%head%diags,&
+                     oztail(ii)%head%apriori,&
                      oztail(ii)%head%efficiency, stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
           deallocate(oztail(ii)%head,stat=istatus)
@@ -2308,7 +2322,7 @@ contains
           radhead(ii)%head => radtail(ii)%head%llpoint
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
-                     radtail(ii)%head%dtb_dvar,radtail(ii)%head%diags, &
+                     radtail(ii)%head%dtb_dvar,&
                      radtail(ii)%head%ich, &
                      radtail(ii)%head%icx,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus

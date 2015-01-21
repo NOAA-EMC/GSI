@@ -17,7 +17,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: ttail,thead,sfcmodel,perturb_obs,oberror_tune,&
        i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: t_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
@@ -145,7 +145,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
 !   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
+!   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !   2014-10-06  carley  - add call to buddy check for twodvar_regional option
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 ! !REMARKS:
 !   language: f90
@@ -322,7 +324,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=19
      if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
-          nreal=nreal+npredt+1
+          nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
@@ -369,50 +371,52 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_t_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_t_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupt: failure to allocate obsdiags',istat
-              call stop2(298)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_t_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_t_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupt: failure to allocate obsdiags',istat
+                 call stop2(298)
+              end if
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_t_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupt: failure to allocate obsdiags',istat
+                 call stop2(298)
+              end if
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_t_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupt: failure to allocate obsdiags',istat
-              call stop2(298)
-           end if
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_t_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_t_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_t_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_t_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_t_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_t_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_t_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_t_ob_type,ibin)%tail%obssen(:)=zero
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_t_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_t_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_t_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_t_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_t_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_t_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_t_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_t_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_t_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-     else
-        if (.not.associated(obsdiags(i_t_ob_type,ibin)%tail)) then
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_t_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
         else
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_t_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupt: index error'
-           call stop2(300)
-        end if
+           if (.not.associated(obsdiags(i_t_ob_type,ibin)%tail)) then
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           else
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
+           end if
+           if (obsdiags(i_t_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupt: index error'
+              call stop2(300)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -427,7 +431,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    aircraftobst = itype>129.and.itype<140
-     aircraftobst = (itype==131) .or. (itype==133)
+     aircraftobst = (itype==131) .or. (itype==133) .or. (itype==130)
      ix = 0
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext)) then 
         ix = data(idx,i)
@@ -648,7 +652,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
-     if (nobskeep>0) muse(i)=obsdiags(i_t_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_t_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Oberror Tuning and Perturb Obs
      if(muse(i)) then
@@ -714,10 +718,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    Fill obs diagnostics structure
-     obsdiags(i_t_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_t_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_t_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-     obsdiags(i_t_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     if(luse_obsdiag)then
+        obsdiags(i_t_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_t_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_t_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+        obsdiags(i_t_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
@@ -734,10 +740,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head => ttail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) +1
-	my_head => ttail(ibin)%head
-	my_head%idv = is
-	my_head%iob = i
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => ttail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
         allocate(ttail(ibin)%head%pred(npredt))
 
@@ -811,17 +817,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            endif
         endif
 
-        ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
 
-        my_head => ttail(ibin)%head
-        my_diag => ttail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-           my_head%iob /= my_diag%iob ) then
-           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                 (/is,i,ibin/))
-           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-           call die(myname)
+           my_head => ttail(ibin)%head
+           my_diag => ttail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                    (/is,i,ibin/))
+              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+              call die(myname)
+           endif
         endif
 
      endif
@@ -876,8 +884,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
            rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+           rdiagbuf(21,ii) = data(ivvlc,i)      ! data vertical velocity
            do j=1,npredt
-              rdiagbuf(20+j,ii) = predbias(j)
+              rdiagbuf(21+j,ii) = predbias(j)
            end do
         end if
         idia=idia0

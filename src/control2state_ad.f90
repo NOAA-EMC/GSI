@@ -36,6 +36,8 @@ subroutine control2state_ad(rval,bval,grad)
 !   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca  - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
+!   2014-12-03  derber   - introduce parallel regions for optimization
+!
 !   input argument list:
 !     rval - State variable
 !     bval
@@ -186,65 +188,18 @@ do jj=1,nsubwin
       call stop2(999)
    endif
 
-!  Get pointers to required control variables
-   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
-   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
-   call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
-   call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
-   call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
-   if (icvis>0) call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
-   if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter', cv_sfwter,istatus)
-   if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter', cv_vpwter,istatus)
-   if (iclcbas>0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
-
-!  Get pointers to this subwin require state variables
-   call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
-   call gsi_bundlegetpointer (rval(jj),'v'   ,rv_v,   istatus)
-   call gsi_bundlegetpointer (rval(jj),'ps'  ,rv_ps,  istatus)
-   call gsi_bundlegetpointer (rval(jj),'prse',rv_prse,istatus)
-   call gsi_bundlegetpointer (rval(jj),'tv'  ,rv_tv,  istatus)
-   call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
-   call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
-!  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
-   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
-
-!  Adjoint of control to initial state
-   call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
-   call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
-   call gsi_bundleputvar ( wbundle, 't' ,  rv_tv,  istatus )
-   call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
-   call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
-   if (icoz>0) then
-      call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
-   else
-      if(istatus_oz==0) rv_oz=zero 
-   end if
-
-   if (do_cw_to_hydro_ad) then
-!     Case when cloud-vars do not map one-to-one
-!     e.g. cw-to-ql&qi
-      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
-      call cw2hydro_ad(rval(jj),wbundle,rv_tsen,clouds,nclouds)
-      if(.not. do_tv_to_tsen_ad) then
-         call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-         deallocate(rv_tsen)
-      end if
-   else
-!     Case when cloud-vars map one-to-one, take care of them together
-!     e.g. cw-to-cw
-      do ic=1,nclouds
-         id=getindex(cvars3d,clouds(ic))
-         if (id>0) then
-            call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
-            call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
-         endif
-      enddo
-   end if
-
-!$omp parallel sections
+!$omp parallel sections private(istatus)
 
 !$omp section
 
+   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
+   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
+   call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
+   call gsi_bundlegetpointer (rval(jj),'v'   ,rv_v,   istatus)
+   if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter', cv_sfwter,istatus)
+   if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter', cv_vpwter,istatus)
+   call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
+   call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
 !  Convert RHS calculations for u,v to st/vp for application of
 !  background error
    if (do_getuv) then
@@ -265,8 +220,58 @@ do jj=1,nsubwin
        endif
    endif
 
+   if(jj == 1)then
+      do ii=1,nsclen
+        grad%predr(ii)=bval%predr(ii)
+      enddo
+      do ii=1,npclen
+        grad%predp(ii)=bval%predp(ii)
+      enddo
+      if (ntclen>0) then 
+         do ii=1,ntclen
+           grad%predt(ii)=bval%predt(ii)
+         enddo
+      end if
+   end if
+
 !$omp section
 
+!  Get pointers to required control variables
+   call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
+   call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
+   call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
+
+!  Get pointers to this subwin require state variables
+   call gsi_bundlegetpointer (rval(jj),'ps'  ,rv_ps,  istatus)
+   call gsi_bundlegetpointer (rval(jj),'prse',rv_prse,istatus)
+   call gsi_bundlegetpointer (rval(jj),'tv'  ,rv_tv,  istatus)
+   call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
+   call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
+
+!  Adjoint of control to initial state
+   call gsi_bundleputvar ( wbundle, 't' ,  rv_tv,  istatus )
+   call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
+   call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
+   if (do_cw_to_hydro_ad) then
+!     Case when cloud-vars do not map one-to-one
+!     e.g. cw-to-ql&qi
+      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
+      call cw2hydro_ad(rval(jj),wbundle,rv_tsen,clouds,nclouds)
+      if(.not. do_tv_to_tsen_ad) then
+         call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
+         deallocate(rv_tsen)
+      end if
+   else
+!     Case when cloud-vars map one-to-one, take care of them together
+!     e.g. cw-to-cw
+      do ic=1,nclouds
+         id=getindex(cvars3d,clouds(ic))
+         if (id>0) then
+            call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
+            call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
+         endif
+      enddo
+   end if
 !  Calculate sensible temperature
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
 
@@ -282,6 +287,15 @@ do jj=1,nsubwin
 
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
    call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
+
+!  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
+   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
+
+   if (icoz>0) then
+      call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
+   else
+      if(istatus_oz==0) rv_oz=zero 
+   end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
@@ -302,6 +316,7 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    end if
    if (icvis >0) then
+      call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
       call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
       call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
       !  Adjoint of convert logvis to vis
@@ -340,6 +355,7 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'tcamt', rv_tcamt, istatus )
    end if
    if (iclcbas>0) then
+      call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
       call gsi_bundlegetpointer (rval(jj),'lcbas',rv_lcbas, istatus)
       call gsi_bundleputvar ( wbundle, 'lcbas', zero, istatus )
       !  Adjoint of convert loglcbas to lcbas
@@ -361,22 +377,8 @@ do jj=1,nsubwin
 
 end do
 
-do ii=1,nsclen
-  grad%predr(ii)=bval%predr(ii)
-enddo
-do ii=1,npclen
-  grad%predp(ii)=bval%predp(ii)
-enddo
-if (ntclen>0) then 
-   do ii=1,ntclen
-     grad%predt(ii)=bval%predt(ii)
-   enddo
-end if
-
 ! Clean up
-if (ngases>0) then
-    deallocate(gases)
-endif
+if (ngases>0) deallocate(gases)
 
 if (nclouds>0) deallocate(clouds)
 

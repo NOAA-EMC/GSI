@@ -47,6 +47,7 @@ subroutine inttcp_(tcphead,rval,sval)
 ! program history log:
 !   2009-02-02  kleist
 !   2010-05-13  todling - update to use gsi_bundle; update interface
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     tcphead - obs type pointer to obs structure
@@ -64,7 +65,7 @@ subroutine inttcp_(tcphead,rval,sval)
 
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,xhat_dt,dhat_dt,l_foto
@@ -123,17 +124,17 @@ subroutine inttcp_(tcphead,rval,sval)
           w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_tcp
      end if
 
-     if (lsaveobsens) then
-        tcpptr%diags%obssen(jiter) = val*tcpptr%raterr2*tcpptr%err2
-     else
-        if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*tcpptr%raterr2*tcpptr%err2
+           tcpptr%diags%obssen(jiter) = grad
+        else
+           if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if(l_do_adjoint)then
-        if (lsaveobsens) then
-           grad = tcpptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs ) val=val-tcpptr%res
 !          gradient of nonlinear operator
  
