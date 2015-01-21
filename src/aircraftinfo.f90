@@ -162,7 +162,7 @@ contains
     character(len=1):: cflg
     character(len=1):: cb,cb0
     character(len=10):: tailwk
-    character(len=126):: crecord
+    character(len=150):: crecord
     logical pcexist
 
     data lunin / 49 /
@@ -231,8 +231,8 @@ contains
        end do
     end do
     close(lunin)
-100 format(a1,a126)
-110 format(a10,1x,i5,10(1x,f10.4))
+100 format(a1,a150)
+110 format(a10,1x,i5,10(1x,f12.6))
 
 !   Do not update aircraft temperature bias at 6Z and 18Z
     if (.not. upd_aircraft) then 
@@ -338,7 +338,7 @@ contains
 
     do jj=1,ntail_update-obsolete
        j = idx_csort(jj)
-       write(lunout,'(1x,a10,1x,i5,9(1x,f10.4),1x,i7)') &
+       write(lunout,'(1x,a10,1x,i5,9(1x,f12.6),1x,i7)') &
             taillist(j),jj,(predt(i,j),i=1,npredt), &
             (ostats_t(i,j),i=1,npredt),(varA_t(i,j),i=1,npredt),timelist(j)
     end do

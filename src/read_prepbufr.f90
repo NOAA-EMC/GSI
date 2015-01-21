@@ -123,6 +123,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2014-05-07  pondeca - add significant wave height (howv)
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-06-26  carley - simplify call to apply_hilbertcurve 
+!   2014-11-20  zhu  - added code for aircraft temperature kx=130
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -230,6 +231,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) prvstr,sprvstr     
   character(8) c_prvstg,c_sprvstg 
   character(8) c_station_id
+  character(8) cc_station_id
   character(1) sidchr(8)
   character(8) stnid
   character(10) aircraftstr
@@ -976,12 +978,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(ext_sonde .and. kx==120) call sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levs,kx,vtcd)
 
            nread=nread+levs
+           aircraftobst = .false.
            if(uvob)then
               nread=nread+levs
            else if(tob) then
 !             aircraft temperature data
 !             aircraftobst = kx>129.and.kx<140
-              aircraftobst = (kx==131) .or. (kx==133)
+              aircraftobst = (kx==131) .or. (kx==133) .or. (kx==130)
 
               aircraftwk = bmiss
               if (aircraftobst) then
@@ -991,7 +994,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else if (aircraft_t_bc_pof) then
                     call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
                     aircraftwk(2,:) = bmiss
-              
+                    if (kx==130) aircraftwk(1,:) = 3.0_r_kind 
                  else if (aircraft_t_bc_ext) then
                     call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
                     aircraftwk(2,:) = bmiss
@@ -1060,7 +1063,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                 aircraft_t_bc .or. aircraft_t_bc_ext)) then
 !             Determine if the tail number is included in the taillist
               do j=1,nsort
-                 cb = c_station_id(1:1)
+!                special treatment since kx130 has only flight NO. info, no
+!                aircraft type info
+                 if (kx==130) then
+                    cc_station_id = 'KX130'
+                 else
+                    cc_station_id = c_station_id
+                 end if
+                 cb = cc_station_id(1:1)
                  if (cb==itail_sort(j)) then
                     start = idx_sort(j)
                     if (j==nsort) then
@@ -1069,7 +1079,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        next=idx_sort(j+1)-1
                     end if
                     do jj=start,next
-                       if (trim(c_station_id)==trim(taillist(jj))) then
+                       if (trim(cc_station_id)==trim(taillist(jj))) then
                           idx = jj
                           if (timelist(jj)/=iyyyymm) timelist(jj) = iyyyymm
                           exit
@@ -1080,7 +1090,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
               if (idx==0 .and. ntail_update>ntail) then
                  do j = ntail+1,ntail_update
-                    if (c_station_id == trim(taillist(j))) then
+                    if (cc_station_id == trim(taillist(j))) then
                        idx = j
                        exit
                     end if
@@ -1094,7 +1104,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             tail number.
               if (idx == 0) then
                  ntail_update = ntail_update+1
-!                print*, c_station_id, ' ntail_update=',ntail_update,'
+!                print*, cc_station_id, ' ntail_update=',ntail_update,'
 !                ntail=',ntail
                  if (ntail_update > max_tail) then
                     write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
@@ -1102,7 +1112,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     call stop2(341)
                  end if
                  idx_tail(ntail_update) = ntail_update
-                 taillist(ntail_update) = c_station_id
+                 taillist(ntail_update) = cc_station_id
                  timelist(ntail_update) = iyyyymm
                  do j = 1,npredt
                     predt(j,ntail_update) = zero

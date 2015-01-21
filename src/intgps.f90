@@ -71,6 +71,7 @@ subroutine intgps_(gpshead,rval,sval)
 !   2008-11-26  todling  - add 4dvar and GSI adjoint capability (obs binning, obsens, etc) 
 !   2008-11-26  todling - turned FOTO optional; changed ptr%time handle
 !   2010-05-13  todling - update to use gsi_bundle; update interface
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !   
 !   input argument list:
 !     gpshead  - obs type pointer to obs structure
@@ -90,7 +91,7 @@ subroutine intgps_(gpshead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: gps_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: gps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,nsig,latlon1n1
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
@@ -180,19 +181,19 @@ subroutine intgps_(gpshead,rval,sval)
         val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
      end do
 
-     if (lsaveobsens) then
-        gpsptr%diags%obssen(jiter) = val*gpsptr%raterr2*gpsptr%err2
-     else
-        if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
+     if (luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*gpsptr%raterr2*gpsptr%err2
+           gpsptr%diags%obssen(jiter) = grad
+        else
+           if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
+        endif
      endif
 
 !    Do adjoint
      if (l_do_adjoint) then
 
-        if (lsaveobsens) then
-           grad=gpsptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs)  val=val-gpsptr%res
  
 !          needed for gradient of nonlinear qc operator

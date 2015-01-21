@@ -45,6 +45,7 @@ use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc
 use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only: xhatsave
+use jfunc, only: nrclen,nsclen,npclen,ntclen
 use jcmod, only: ljcdfi
 use gridmod, only: lat2,lon2,nsig,twodvar_regional
 use hybrid_ensemble_parameters, only: l_hyb_ens,ntlevs_ens
@@ -64,6 +65,7 @@ use gsi_bundlemod, only: gsi_bundleDestroy
 use gsi_bundlemod, only: self_add,assignment(=)
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use mpeu_util, only: die
+use mpl_allreducemod, only: mpl_allreduce
 
 implicit none
 
@@ -84,10 +86,11 @@ type(gsi_bundle),dimension(nobs_bins) :: adtest_sval, adtest_rval
 type(gsi_bundle),dimension(nsubwin  ) :: adtest_mval
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
-integer(i_kind) :: ii,iobs,ibin
+integer(i_kind) :: ii,iobs,ibin,i
 logical :: llprt,llouter
 logical,parameter:: pertmod_adtest=.true.
 character(len=255) :: seqcalls
+real(r_quad),dimension(max(1,nrclen)) :: qpred
 
 !**********************************************************************
 
@@ -183,10 +186,26 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
+qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins
-   call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
 end do
+! Take care of background error for bias correction terms
+
+call mpl_allreduce(nrclen,qpvals=qpred)
+
+do i=1,nsclen
+  rbias%predr(i)=rbias%predr(i)+qpred(i)
+end do
+do i=1,npclen
+   rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
+end do
+if (ntclen>0) then
+   do i=1,ntclen
+      rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
+   end do
+end if
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)

@@ -24,6 +24,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 !                          tintrp3 to tintrp31v, intrp2a to intrp2a1. (for successful debug compile on WCOSS)
 !   2013-10-19  todling - metguess now holds background
 !   2013-11-26  guo     - removed nkeep==0 escaping to allow more than one obstype sources.
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -61,7 +62,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : colvk_ob_type
-  use obsmod, only : obs_diag
+  use obsmod, only : obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -465,13 +466,13 @@ if(in_curbin) then
               colvktail(ibin)%head => colvktail(ibin)%head%llpoint
            end if
 
-	   m_alloc(ibin) = m_alloc(ibin) +1
-	   my_head => colvktail(ibin)%head
-	   my_head%idv = is
-	   my_head%iob = i
+           m_alloc(ibin) = m_alloc(ibin) +1
+           my_head => colvktail(ibin)%head
+           my_head%idv = is
+           my_head%iob = i
 
            nlevp=max(nlev,1)
-           allocate(colvktail(ibin)%head%res(nlev),colvktail(ibin)%head%diags(nlev),&
+           allocate(colvktail(ibin)%head%res(nlev),&
                     colvktail(ibin)%head%err2(nlev),colvktail(ibin)%head%raterr2(nlev),&
                     colvktail(ibin)%head%prs(nlevp), &
                     colvktail(ibin)%head%wij(8,nsig), &
@@ -480,6 +481,7 @@ if(in_curbin) then
                     colvktail(ibin)%head%ap(nlev), &
                     colvktail(ibin)%head%wkk1(nlev), &
                     colvktail(ibin)%head%wkk2(nlev), stat=istatus)
+           if(luse_obsdiag) allocate(colvktail(ibin)%head%diags(nlev))
                     
            if (istatus/=0) write(6,*)'SETUPCO:  allocate error for co_point, istatus=',istatus
 
@@ -529,82 +531,88 @@ if(in_curbin) then
            endif
 
         endif ! < .not.last >
-endif	! (in_curbin)
+endif   ! (in_curbin)
 
 !       Link obs to diagnostics structure
         do k=1,nlevs
-           if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%head)) then
-                 allocate(obsdiags(i_colvk_ob_type,ibin)%head,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupco: failure to allocate obsdiags',istat
-                    call stop2(260)
+           if(luse_obsdiag)then
+              if (.not.lobsdiag_allocated) then
+                 if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%head)) then
+                    allocate(obsdiags(i_colvk_ob_type,ibin)%head,stat=istat)
+                    if (istat/=0) then
+                       write(6,*)'setupco: failure to allocate obsdiags',istat
+                       call stop2(260)
+                    end if
+                    obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
+                 else
+                    allocate(obsdiags(i_colvk_ob_type,ibin)%tail%next,stat=istat)
+                    if (istat/=0) then
+                       write(6,*)'setupco: failure to allocate obsdiags',istat
+                       call stop2(261)
+                    end if
+                    obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
                  end if
-                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
+
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%muse(miter+1))
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(miter+1))
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(miter))
+                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%obssen(miter))
+                 obsdiags(i_colvk_ob_type,ibin)%tail%indxglb=i
+                 obsdiags(i_colvk_ob_type,ibin)%tail%nchnperobs=-99999
+                 obsdiags(i_colvk_ob_type,ibin)%tail%luse=.false.
+                 obsdiags(i_colvk_ob_type,ibin)%tail%muse(:)=.false.
+
+                 obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+                 obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(:)=zero
+                 obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo=-huge(zero)
+                 obsdiags(i_colvk_ob_type,ibin)%tail%obssen(:)=zero
+
+                 n_alloc(ibin) = n_alloc(ibin) +1
+                 my_diag => obsdiags(i_colvk_ob_type,ibin)%tail
+                 my_diag%idv = is
+                 my_diag%iob = i
+                 my_diag%ich = k
               else
-                 allocate(obsdiags(i_colvk_ob_type,ibin)%tail%next,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupco: failure to allocate obsdiags',istat
-                    call stop2(261)
+                 if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
+                    obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
+                 else
+                    obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
                  end if
-                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-              end if
-
-              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_colvk_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_colvk_ob_type,ibin)%tail%indxglb=i
-              obsdiags(i_colvk_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_colvk_ob_type,ibin)%tail%luse=.false.
-              obsdiags(i_colvk_ob_type,ibin)%tail%muse(:)=.false.
-
-              obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_colvk_ob_type,ibin)%tail%obssen(:)=zero
-
-	      n_alloc(ibin) = n_alloc(ibin) +1
-	      my_diag => obsdiags(i_colvk_ob_type,ibin)%tail
-	      my_diag%idv = is
-	      my_diag%iob = i
-	      my_diag%ich = k
-           else
-              if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
-                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
-              else
-                 obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-              end if
-              if (obsdiags(i_colvk_ob_type,ibin)%tail%indxglb/=i) then
-                 write(6,*)'setupco: index error'
-                 call stop2(262)
+                 if (obsdiags(i_colvk_ob_type,ibin)%tail%indxglb/=i) then
+                    write(6,*)'setupco: index error'
+                    call stop2(262)
+                 end if
+              endif
+              if(in_curbin)then
+                 obsdiags(i_colvk_ob_type,ibin)%tail%luse=luse(i)
+                 obsdiags(i_colvk_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
+                 obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
+                 obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
               end if
            endif
 
 if(in_curbin) then
-           obsdiags(i_colvk_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_colvk_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
-           obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
-           obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
  
            if (.not. last .and. ikeep==1) then
               colvktail(ibin)%head%ipos(k)    = ipos(k)
               colvktail(ibin)%head%res(k)     = co_inv(k)
               colvktail(ibin)%head%err2(k)    = varinv3(k)
               colvktail(ibin)%head%raterr2(k) = ratio_errors(k)**2
-              colvktail(ibin)%head%diags(k)%ptr => obsdiags(i_colvk_ob_type,ibin)%tail
+              if(luse_obsdiag)then
+                 colvktail(ibin)%head%diags(k)%ptr => obsdiags(i_colvk_ob_type,ibin)%tail
 
-	      my_head => colvktail(ibin)%head
-	      my_diag => colvktail(ibin)%head%diags(k)%ptr
-              if(my_head%idv /= my_diag%idv .or. &
-	         my_head%iob /= my_diag%iob .or. &
-	                   k /= my_diag%ich ) then
-	        call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-	  	      (/is,i,k,ibin/))
-	        call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
-	        call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-	        call die(myname)
-	      endif
+                 my_head => colvktail(ibin)%head
+                 my_diag => colvktail(ibin)%head%diags(k)%ptr
+                 if(my_head%idv /= my_diag%idv .or. &
+                    my_head%iob /= my_diag%iob .or. &
+                              k /= my_diag%ich ) then
+                   call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                         (/is,i,k,ibin/))
+                   call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
+                   call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                   call die(myname)
+                 endif
+              endif
            endif
 
            if (co_diagsave.and.lobsdiagsave) then
@@ -630,7 +638,7 @@ if(in_curbin) then
                  rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%obssen(jj)
               enddo
            endif
-endif	! (in_curbin)
+endif   ! (in_curbin)
 
         enddo ! < over nlevs >
 
@@ -640,7 +648,7 @@ if(in_curbin) then
         if (co_diagsave.and.lobsdiagsave) then
            rdiagbuf(4:irdim1,1:nlevs,ii) = zero
         endif
-endif	! (in_curbin)
+endif   ! (in_curbin)
  
      endif ! < l_may_be_passive >
 

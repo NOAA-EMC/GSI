@@ -12,6 +12,8 @@
 ! program history log:
 !   2010-02-25  parrish
 !   2010-03-29  todling - add prologue; load_grid now in commvars
+!   2014-12-03  derber - simplify if structure and use guess surface height
+!               directly
 !
 !   input argument list:
 !
@@ -85,7 +87,7 @@
     nlatm2=grd%nlat-2
     itotflds=6*grd%nsig+2  ! Hardwired for now!  vor,div,tv,q,oz,cwmr,ps,z
     lloop=.true.
-
+ 
 !   Set guess file name
     write(fname_ges,100) ifilesig(ntguessig)
 100    format('sigf',i2.2)
@@ -93,14 +95,16 @@
 
     i=1
 ! Have all files open ges and read header for now with RanRead
-    call sigio_rropen(lunges,fname_ges,iret)
-    call sigio_rrhead(lunges,sigges_head,iret)
+    if(mype < itotflds .or. mype == mype_out)then
+      call sigio_rropen(lunges,fname_ges,iret)
+      call sigio_rrhead(lunges,sigges_head,iret)
 
 ! All tasks should also open output file for random write
-    call sigio_rwopen(lunanl,filename,iret_write)
-    call sigio_alhead(siganl_head,iret,levs=sigges_head%levs, &
-       nvcoord=sigges_head%nvcoord,ntrac=sigges_head%ntrac,idvm=sigges_head%idvm)
-    if (iret_write /=0) goto 1000
+      call sigio_rwopen(lunanl,filename,iret_write)
+      call sigio_alhead(siganl_head,iret,levs=sigges_head%levs, &
+         nvcoord=sigges_head%nvcoord,ntrac=sigges_head%ntrac,idvm=sigges_head%idvm)
+      if (iret_write /=0) goto 1000
+    end if
 
 ! Load date
        if (.not.lwrite4danl) then
@@ -197,65 +201,72 @@
               sub_cwmr,icount,ivar,ilev,work)
 
        do k=1,npe  ! loop over pe distributed data
-          klev=ilev(k)
           kvar=ivar(k)
 
+          if(mype == k-1 .and. kvar > 0)then
 ! HS
-          if ( kvar==1 .and. (mype==k-1) ) then
-             sigdati%i = 1                                        ! hs
+            klev=ilev(k)
+            if ( kvar==1) then
+               sigdati%i = 1                                        ! hs
 ! PS
-          else if ( kvar==2 .and. (mype==(k-1)) ) then
-             sigdati%i = 2                                        ! ps
+            else if ( kvar==2 ) then
+               sigdati%i = 2                                        ! ps
 ! TV
-          else if ( kvar==3 .and. (mype==(k-1)) ) then
-             sigdati%i = 2+klev                                   ! temperature
+            else if ( kvar==3 ) then
+               sigdati%i = 2+klev                                   ! temperature
 !  Z
-          else if ( kvar==4 .and. (mype==(k-1)) ) then
-             sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 2      ! vorticity
+            else if ( kvar==4 ) then
+               sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 2      ! vorticity
 !  D
-          else if ( kvar==5 .and. (mype==(k-1)) ) then
-             sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 1      ! divergence
+            else if ( kvar==5 ) then
+               sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 1      ! divergence
 !  Q
-          else if ( kvar==6 .and. (mype==(k-1)) ) then
-             sigdati%i = siganl_head%levs * (2+1) + 2 + klev          ! q
+            else if ( kvar==6 ) then
+               sigdati%i = siganl_head%levs * (2+1) + 2 + klev          ! q
 ! OZ
-          else if ( kvar==7 .and. (mype==(k-1)) ) then
-             sigdati%i = siganl_head%levs * (2+2) + 2 + klev          ! oz
+            else if ( kvar==7 ) then
+               sigdati%i = siganl_head%levs * (2+2) + 2 + klev          ! oz
 ! CW
-          else if ( kvar==8 .and. (mype==(k-1)) ) then
-             sigdati%i = siganl_head%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
-          end if
+            else if ( kvar==8 ) then
+               sigdati%i = siganl_head%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
+            end if
 
-          if ( klev>0 .and. (mype==k-1) ) then
-             sigdati%f => specges_4
-             call sigio_rrdbti(lunges,sigges_head,sigdati,iret)
-             call load_grid(work,grid)
-             do i=1,sp_b%nc
-                spec_work(i) = specges_4(i)
-                if(sp_b%factsml(i))spec_work(i)=zero
-             end do
-             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
-             grid=grid-grid2
-             call general_sptez_s(sp_a,spec_work_sm,grid,-1)
-             call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
-             if (kvar/=4 .and. kvar/=5) then
-                do i=1,sp_b%nc
-                   specges_4(i)=specges_4(i)+spec_work(i)
-                   if(sp_b%factsml(i))specges_4(i)=zero_single
-                end do
-             else
-                do i=1,sp_b%nc
-                   specges_4(i)=specges_4(i)+spec_work(i)
-                   if(sp_b%factvml(i))specges_4(i)=zero_single
-                end do
-             endif
+            if ( klev>0 ) then
+                sigdati%f => specges_4
+                call sigio_rrdbti(lunges,sigges_head,sigdati,iret)
+                if(kvar /= 1)then                      ! if sfc elevation field just write out
+                  call load_grid(work,grid)
+                  do i=1,sp_b%nc
+                     spec_work(i) = specges_4(i)
+                  end do
+                  do i=1,sp_b%nc
+                     if(sp_b%factsml(i))spec_work(i)=zero
+                  end do
+                  call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
+                  grid=grid-grid2
+                  call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+                  call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
+                  do i=1,sp_b%nc
+                     specges_4(i)=specges_4(i)+spec_work(i)
+                  end do
+                  if (kvar/=4 .and. kvar/=5) then
+                     do i=1,sp_b%nc
+                        if(sp_b%factsml(i))specges_4(i)=zero_single
+                     end do
+                  else
+                     do i=1,sp_b%nc
+                        if(sp_b%factvml(i))specges_4(i)=zero_single
+                     end do
+                  endif
+                end if
 
 
 ! Write out using RanWrite
-             call sigio_rwdbti(lunanl,siganl_head,sigdati,iret)
-             iret_write=iret_write+iret
+                call sigio_rwdbti(lunanl,siganl_head,sigdati,iret)
+                iret_write=iret_write+iret
 
-          endif ! end if pe and ivar check
+            endif ! end if pe and ivar check
+          end if
 
        end do  !end do over pes
 
@@ -265,11 +276,6 @@
        end if
 
     end do gfsfields
-    deallocate(siganl_head%vcoord,siganl_head%cfvars)
-    call sigio_rclose(lunges,iret)
-    call sigio_rclose(lunanl,iret)
-    iret_write=iret_write+iret
-    if (iret_write /=0) goto 1000
 
 !   Print date/time stamp
     if (mype==mype_out) then
@@ -278,7 +284,16 @@
 700    format('GENERAL_WRITE_GFSATM:  anl write, jcap,lonb,latb,levs=',&
             4i6,', hour=',f10.1,', idate=',4i5)
     endif
+
+    if(mype < itotflds .or. mype == mype_out)then
+       deallocate(siganl_head%vcoord,siganl_head%cfvars)
+       call sigio_rclose(lunges,iret)
+       call sigio_rclose(lunanl,iret)
+       iret_write=iret_write+iret
+       if (iret_write /=0) goto 1000
+    end if
     return
+
 
 !   ERROR detected while reading file
 1000 continue

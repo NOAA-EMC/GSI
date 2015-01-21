@@ -89,6 +89,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-0-16   carley/zhu - add tcamt and lcbas
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -106,12 +107,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind,r_quad,r_single
   use constants, only: zero,one,fv,zero_quad
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tsen,nfldsig
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
-       nchan_total,ndat,obs_setup,&
+       nchan_total,ndat,obs_setup,luse_obsdiag,&
        dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
   use obs_sensitivity, only: lobsensfc, lsensrecompute
@@ -231,11 +232,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
+  integer(i_kind) :: i
 
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
 ! Initialize timer
   call timer_ini('setuprhsall')
+
+
 
 ! Initialize variables and constants.
   first = jiter == jiterstart   ! .true. on first outer iter
@@ -360,6 +364,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
 
+
      ! Init for Lagrangian data assimilation (gather winds and NL integration)
      call lag_presetup()
      ! Save state for inner loop if in 4Dvar observer mode
@@ -368,11 +373,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      end if
 
 !    Reset observation pointers
-     do ii=1,nobs_bins
-        do jj=1,nobs_type
-           obsdiags(jj,ii)%tail => NULL()
+     if(luse_obsdiag)then
+        do ii=1,nobs_bins
+           do jj=1,nobs_type
+              obsdiags(jj,ii)%tail => NULL()
+           enddo
         enddo
-     enddo
+     end if
 
      lunin=1
      open(lunin,file=obs_setup,form='unformatted')
@@ -615,6 +622,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
      call mpl_allreduce(npredt,ntail,ostats_t)
      call mpl_allreduce(npredt,ntail,rstats_t)
+  end if
+
+  if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
      call reset_predictors_var
   end if
 
@@ -674,7 +684,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Print Jo table
   nprt=2
   llouter=.true.
-  call evaljo(zjo,iobs,nprt,llouter)
+  if(luse_obsdiag)call evaljo(zjo,iobs,nprt,llouter)
 
 ! If only performing sst retrieval, end program execution
   if(retrieval)then
