@@ -1022,6 +1022,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
       if ( nst_gsi > 0 ) then
         call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
 
+!       if ( l_hyb_ens .and. nst_gsi == 3 ) then
         if ( l_hyb_ens ) then
           call write_ens_dsfct(mype,mype_sfc,dsfct(1,1,ntguessfc))
         endif
