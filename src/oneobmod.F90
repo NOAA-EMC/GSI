@@ -13,6 +13,8 @@ module oneobmod
 !   2005-04-04  todling, fixed little endian ouput of prepqc file
 !   2009-04-28  sienkiewicz - add text output for ozone level obs testing
 !   2012-07-14  todling - only do it once (in observer mode)
+!   2014-05-29  thomas - add lsingleradob parameter for single radiance
+!                        assimilation (originally of mccarty)
 !
 ! subroutines included:
 !   sub init_oneobmod
@@ -47,6 +49,7 @@ module oneobmod
 ! set passed variables to public
   public :: oneobtest,oneob_type,magoberr,pctswitch,maginnov
   public :: oblat,oblon,obpres,obdattim,obhourset
+  public :: lsingleradob, obchan
 
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
@@ -54,6 +57,8 @@ module oneobmod
   character(10) oneob_type
   logical oneobtest
   logical pctswitch
+  logical lsingleradob
+  integer(i_kind) obchan
 
   logical :: oneobmade
 
@@ -93,6 +98,8 @@ contains
     obdattim=2000010100
     obhourset=zero
     pctswitch=.false.
+    lsingleradob=.false.
+    obchan=zero
 
     oneobmade=.false.
     return
@@ -111,6 +118,8 @@ contains
 !   2004-05-13  kleist  documentation
 !   2006-04-06  middlecoff - changed lumk from 52 to lendian_in so one-obs prepqc 
 !                            file can be read as little endian
+!   2014-08-04  carley - modify for tcamt and howv obs
+!   2014-08-18  carley - added td2m, mxtm, mitm, pmsl, and wsdp10m
 !
 !   input argument list:
 !
@@ -135,14 +144,18 @@ contains
     real(r_kind),dimension(1,1):: pqm,qqm,tqm,zqm,wqm
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
-    real(r_kind),dimension(1,1):: pob
+    real(r_kind),dimension(1,1):: pob    
     integer(i_kind) n,k,iret
-    real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
+    real(r_kind) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
+                 cldseq(3,10),owave(1,255),maxtmint(2,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
-    character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
-    character(80):: qmsstr='PQM QQM TQM ZQM WQM'
+    character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT PWO MXGS HOVI PRSS TDO PMO'
+    character(80):: qmsstr='PQM QQM TQM ZQM WQM PWQ PMQ'
     character(80):: errstr='POE QOE TOE WOE'
-
+    character(80):: cld2seqstr='TOCC HBLCS'      ! total cloud cover and height above surface of base of lowest cloud seen
+    character(80):: cldseqstr='VSSO CLAM HOCB'   ! vertical significance, cloud amount and cloud base height
+    character(80):: owavestr='HOWV'              ! significant wave height
+    character(80):: maxtmintstr='MXTM MITM'      ! Max T and Min T
     if (oneobmade) return
 
     if (oneob_type == 'o3lev') then
@@ -167,6 +180,10 @@ contains
     zob=zero
     uob=five
     vob=five
+    owave=bmiss
+    maxtmint=bmiss
+    cld2seq=bmiss
+    cldseq=bmiss
     pqm=one
     qqm=one
     tqm=one
@@ -174,6 +191,41 @@ contains
     wqm=one
     offtime_data=.true.
     if (oneob_type=='ps') then
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+    else if (oneob_type=='tcamt') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       cld2seq(1,1)=25._r_kind !TOCC - total cloud amount (%)       
+    else if (oneob_type=='howv') then
+       subset='SFCSHP'
+       typ(1)=80._r_kind
+       cat(1,1)=zero
+       owave(1,1)=4._r_kind !Significant wave height (m - includes wind+swell waves)
+    else if (oneob_type=='td2m') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       obs(12,1)=280.0_r_kind !Dewpoint in Kelvin
+    else if (oneob_type=='mxtm') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       maxtmint(1,1)=280.0_r_kind !Max T in Kelvin
+    else if (oneob_type=='mitm') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       maxtmint(2,1)=273.15_r_kind !Min T in Kelvin
+    else if (oneob_type=='pmsl') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       obs(13,1)=1008.10_r_kind !PMSL in MB
+       qms(7,1)=one
+    else if (oneob_type=='wspd10m') then !10m AGL wind speed - need to store both u and v (already by this point done)
+       subset='ADPSFC'
        typ(1)=87._r_kind
        cat(1,1)=zero
     else
@@ -220,9 +272,17 @@ contains
        enddo
        call openmb(lendian_in,subset,idate)
        call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
-       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,obs,13,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
+       if (oneob_type=='tcamt') then
+         call ufbint(lendian_in,cldseq,3,10,iret,cldseqstr)
+         call ufbint(lendian_in,cld2seq,2,1,iret,cld2seqstr)
+       else if (oneob_type=='howv') then
+         call ufbint(lendian_in,owave,1,nlev,iret,owavestr)
+       else if ( oneob_type=='mxtm' .or. oneob_type=='mitm') then
+         call ufbint(lendian_in,maxtmint,2,nlev,iret,maxtmintstr)
+       end if                              
        call writsb(lendian_in)
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
@@ -244,7 +304,7 @@ contains
        enddo
        call openmb(lendian_in,subset,idate)
        call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
-       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,obs,13,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)

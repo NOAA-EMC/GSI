@@ -67,6 +67,7 @@ subroutine intps_(pshead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundlemod; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -83,7 +84,7 @@ subroutine intps_(pshead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -143,17 +144,17 @@ subroutine intps_(pshead,rval,sval)
            w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_ps
      endif
 
-     if (lsaveobsens) then
-        psptr%diags%obssen(jiter) = val*psptr%raterr2*psptr%err2
-     else
-        if (psptr%luse) psptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*psptr%raterr2*psptr%err2
+           psptr%diags%obssen(jiter) = grad
+        else
+           if (psptr%luse) psptr%diags%tldepart(jiter)=val
+        endif
      endif
   
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = psptr%diags%obssen(jiter)
-  
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &

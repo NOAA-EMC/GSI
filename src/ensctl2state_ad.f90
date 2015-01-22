@@ -10,6 +10,7 @@ subroutine ensctl2state_ad(eval,mval,grad)
 !   2011-11-17  kleist - initial code
 !   2013-10-28  todling - rename p3d to prse
 !   2013-11-22  kleist - add option for q perturbations
+!   2014-12-03  derber   - introduce parallel regions for optimization
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -76,7 +77,7 @@ logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_b
 !****************************************************************************
 
 ! Initialize timer
-call timer_ini(trim(myname))
+!call timer_ini(trim(myname))
 
 ! Inquire about chemistry
 call gsi_metguess_get('clouds::3d',nclouds,istatus)
@@ -107,21 +108,15 @@ do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 ! Initialize
 mval%values=zero
+!  Create a temporary bundle similar to grad, and copy contents of grad into it
+call gsi_bundlecreate ( wbundle_c, grad%step(1), 'ensctl2state_ad work', istatus )
+if(istatus/=0) then
+   write(6,*) trim(myname), ': trouble creating work bundle'
+   call stop2(999)
+endif
 
 do jj=1,ntlevs_ens
-!  Create a temporary bundle similar to grad, and copy contents of grad into it
-   call gsi_bundlecreate ( wbundle_c, grad%step(1), 'ensctl2state_ad work', istatus )
-   if(istatus/=0) then
-      write(6,*) trim(myname), ': trouble creating work bundle'
-      call stop2(999)
-   endif
    wbundle_c%values=zero
-
-   call gsi_bundlegetpointer (wbundle_c,'sf' ,cv_sf ,istatus)
-   call gsi_bundlegetpointer (wbundle_c,'vp' ,cv_vp ,istatus)
-   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
-   call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
-   call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
 
 ! Get sv pointers here
 !  Get pointers to required state variables
@@ -169,6 +164,8 @@ do jj=1,ntlevs_ens
          call gsi_bundleputvar ( wbundle_c, 'sf', rv_u, istatus )
          call gsi_bundleputvar ( wbundle_c, 'vp', rv_v, istatus )
       else
+         call gsi_bundlegetpointer (wbundle_c,'sf' ,cv_sf ,istatus)
+         call gsi_bundlegetpointer (wbundle_c,'vp' ,cv_vp ,istatus)
          call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
       end if
    end if
@@ -179,16 +176,24 @@ do jj=1,ntlevs_ens
    call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
 !  Calculate sensible temperature
+   call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
+   if(do_normal_rh_to_q_ad) then
+      call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
+      call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
+   else
 !  Else q option
-   if(q_hyb_ens) call gsi_bundleputvar ( wbundle_c, 'q', rv_q, istatus )
+      if(q_hyb_ens) call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
+   end if
 
 !  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
+   if(do_getprs_ad) then
+     call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
+     call getprs_ad(cv_ps,cv_tv,rv_prse)
+   end if
 
 !$omp section
 !  Since cloud-vars map one-to-one, take care of them together
@@ -212,18 +217,18 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model_ad(wbundle_c,grad%aens(1,:),jj)
    end if
 
-   call gsi_bundledestroy(wbundle_c,istatus)
-   if (istatus/=0) then
-      write(6,*) trim(myname),': trouble destroying work bundle'
-      call stop2(999)
-   endif
-
 end do
+
+call gsi_bundledestroy(wbundle_c,istatus)
+if (istatus/=0) then
+   write(6,*) trim(myname),': trouble destroying work bundle'
+   call stop2(999)
+endif
 
 if (nclouds>0) deallocate(clouds)
 
 ! Finalize timer
-call timer_fnl(trim(myname))
+!call timer_fnl(trim(myname))
 
 return 
 end subroutine ensctl2state_ad

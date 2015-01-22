@@ -79,10 +79,10 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
                        -O3 -fp-model source -convert big_endian -assume byterecl \
                        -implicitnone $(OMP)
 
-  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
-  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
-  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF)
-  FFLAGS    = $(FFLAGS_N) $(PROF)
+  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF) 
+  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF) 
+  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF) 
+  FFLAGS    = $(FFLAGS_N) $(PROF) 
 
 
 #--- Debug mode options

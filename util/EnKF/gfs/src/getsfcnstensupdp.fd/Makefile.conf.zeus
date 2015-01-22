@@ -25,7 +25,8 @@ INCsfcio = $(COREINC)/sfcio_4
   PROF= #-pg
   OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
+  FFLAGS_F90    = -convert big_endian -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
+# FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
   FFLAGS_COM_N  = -I $(INCsfcio)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
@@ -53,7 +54,7 @@ INCsfcio = $(COREINC)/sfcio_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF) 
+  LD            = $(CF)
 
 #--- Normal mode options
   LIBS_N        = -L$(CORELIB) -lw3lib-2.0_4 -lsfcio_4 -lmpi
