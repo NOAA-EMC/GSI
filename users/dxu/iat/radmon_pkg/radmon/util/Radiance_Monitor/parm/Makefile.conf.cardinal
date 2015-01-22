@@ -13,7 +13,8 @@
   CF            = ifort
   FC            = $(CF)
 
-  FFLAGS        = -O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl
+ # FFLAGS        = -O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl
+  FFLAGS        = -O3 -fp-model strict -D_REAL8_ -traceback -convert little_endian -assume byterecl
 
 # ------------------
 # Linker and options
