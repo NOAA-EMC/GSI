@@ -39,7 +39,7 @@ module ncepgfs_io
 !   machine:
 !
 !$$$ end documentation block
-
+  use sigio_module, only: sigio_head
   implicit none
 
   private
@@ -52,6 +52,9 @@ module ncepgfs_io
   public write_gfs_sfc_nst
   public sfc_interpolate
   public sigio_cnvtdv8
+  public sighead 
+
+  type(sigio_head) :: sighead 
 
 contains
 
@@ -99,7 +102,7 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
-    logical:: l_cld_derived,zflag
+    logical:: l_cld_derived,zflag,inithead
     integer(i_kind):: it,nlon_b
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
@@ -141,6 +144,7 @@ contains
     endif
 
     zflag=.true.
+    inithead=.true.
     do it=1,nfldsig
 
        write(filename,100) ifilesig(it)
@@ -155,7 +159,7 @@ contains
                aux_vor,aux_div,&
                aux_u,aux_v,&
                aux_tv,aux_q,&
-               aux_cwmr,aux_oz,iret)
+               aux_cwmr,aux_oz,inithead,iret)
 
        else
 
@@ -166,8 +170,9 @@ contains
                aux_vor,aux_div,&
                aux_u,aux_v,&
                aux_tv,aux_q,&
-               aux_cwmr,aux_oz,iret)
+               aux_cwmr,aux_oz,inithead,iret)
        endif
+       inithead=.false.
        zflag=.false.
 
 !      Set values to actual MetGuess fields
@@ -959,6 +964,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
 
+    logical :: inithead
     type(spec_vars):: sp_b
 
 !   Write atmospheric analysis file
@@ -979,6 +985,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     aux_oz=zero
     aux_cwmr=zero
 
+    inithead=.true.
     do it=1,ntlevs
        if (increment>0) then
           filename='siginc'
@@ -1011,7 +1018,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_tv,aux_q,&
-               aux_oz,aux_cwmr,it,&
+               aux_oz,aux_cwmr,it,inithead,&
                iret_write)
 
           call general_destroy_spec_vars(sp_b)
@@ -1022,9 +1029,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_tv,aux_q,&
-               aux_oz,aux_cwmr,it,&
+               aux_oz,aux_cwmr,it,inithead,&
                iret_write)
        endif
+       inithead=.false.
     end do ! end do over ntlevs
 
 !   Write surface analysis file

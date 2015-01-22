@@ -1,6 +1,6 @@
 subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zflag, &
        g_z,g_ps,g_vor,g_div,g_u,g_v,&
-       g_tv,g_q,g_cwmr,g_oz,iret_read)
+       g_tv,g_q,g_cwmr,g_oz,inithead,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm  adaptation of read_gfsatm for general resolutions
@@ -30,6 +30,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
 !     zflag    - logical to determine if surface height field should be output
+!     inithead - logical to read header record.  Usually .true. unless
+!                repeatedly reading similar files(e.g., ensembles)
 !
 !   output argument list:
 !     g_*      - guess fields
@@ -48,10 +50,10 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     use general_specmod, only: spec_vars
     use mpimod, only: npe
     use constants, only: zero,one,fv,r0_01
-    use sigio_module, only: sigio_intkind,sigio_head,sigio_alhead
+    use sigio_module, only: sigio_intkind
     use sigio_r_module, only: sigio_dbti,sigio_rrhead,sigio_rropen,&
-        sigio_axdbti,sigio_rrdbti,sigio_aldbti,sigio_rclose
-    use ncepgfs_io, only: sigio_cnvtdv8
+        sigio_rrdbti,sigio_rclose
+    use ncepgfs_io, only: sigio_cnvtdv8,sighead
 
     implicit none
     
@@ -64,7 +66,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
     character(*)                          ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
-    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag
+    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,inithead
     integer(i_kind)                       ,intent(  out) :: iret_read
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_ps
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(inout) :: g_z
@@ -84,7 +86,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     real(r_kind),allocatable,dimension(:):: spec_div
     real(r_kind),allocatable,dimension(:,:):: grid_v
         
-    type(sigio_head):: sighead
     type(sigio_dbti):: sigdati
 
 !******************************************************************************  
@@ -102,10 +103,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !   All tasks open and read header with RanRead
        rewind(lunges)
        call sigio_rropen(lunges,filename,iret)
-       call sigio_rrhead(lunges,sighead,iret_read)
+       if(inithead .or. mype == 0)then
+         call sigio_rrhead(lunges,sighead,iret_read)
+         if (iret_read /=0) goto 1000
+       end if
        nlevs=sighead%levs
        if(nlevs /= grd%nsig)go to 1000
-       if (iret_read /=0) goto 1000
     end if
 
     icount=0
@@ -422,8 +425,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     if(mype < nflds)then
 !     Deallocate sigio data array
       call sigio_rclose(lunges,iret)
-      deallocate(sighead%vcoord,sighead%cfvars)
     end if
+    if(inithead .or. mype == 0)deallocate(sighead%vcoord,sighead%cfvars)
 
 !   Surface pressure.
 !   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5

@@ -276,10 +276,10 @@ subroutine read_gfs_ozone_for_regional
 
   if (hires) then
      call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,iret)
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
   else
      call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,iret)
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
   end if
 
 ! test

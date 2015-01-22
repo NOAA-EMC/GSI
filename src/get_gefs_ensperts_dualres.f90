@@ -76,7 +76,7 @@ subroutine get_gefs_ensperts_dualres
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
 ! integer(i_kind) il,jl
   character(70) filename
-  logical ice,zflag
+  logical ice,zflag,inithead
   integer(i_kind) :: lunges=11
 
   allocate(en_bar(ntlevs_ens))
@@ -114,6 +114,7 @@ subroutine get_gefs_ensperts_dualres
   end do
 
   zflag=.false.
+  inithead = .true.
   do m=1,ntlevs_ens
      en_bar(m)%values=zero
      do n=1,n_ens
@@ -159,7 +160,8 @@ subroutine get_gefs_ensperts_dualres
           if (use_gfs_ens) then
              if (mype==npe)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
              call general_read_gfsatm(grd_ens,sp_ens,sp_ens,filename,mype,uv_hyb_ens,.false., &
-                 zflag,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+                 zflag,z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+             inithead=.false.
           else
              call gsi_enscoupler_get_user_ens(grd_ens,n,m,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
           endif

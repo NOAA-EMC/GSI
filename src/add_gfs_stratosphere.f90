@@ -297,10 +297,10 @@ subroutine add_gfs_stratosphere
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if (hires) then
         call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
      else
         call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
      end if
         
 !test

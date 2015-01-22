@@ -1728,7 +1728,7 @@ end subroutine normal_new_factorization_rf_y
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model'
     logical nogood
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
-    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
     im=cvec%grid%im
     jm=cvec%grid%jm
@@ -1755,8 +1755,7 @@ end subroutine normal_new_factorization_rf_y
       call stop2(999)
     endif
  
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
 
 !$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic)
     do k=1,km
@@ -1886,7 +1885,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),istatus
 
 !   Request ensemble-corresponding fields from control vector
 !    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
@@ -1918,8 +1917,7 @@ end subroutine normal_new_factorization_rf_y
     endif
 
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
     im=work_ens%grid%im
     jm=work_ens%grid%jm
     km=work_ens%grid%km
@@ -2061,7 +2059,7 @@ end subroutine normal_new_factorization_rf_y
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad'
     logical nogood
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
-    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
     im=cvec%grid%im
     jm=cvec%grid%jm
@@ -2087,8 +2085,7 @@ end subroutine normal_new_factorization_rf_y
       call stop2(999)
     endif
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
 !$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
     do n=1,n_ens
        do ic3=1,nc3d
@@ -2198,7 +2195,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),istatus
 
 !   Request ensemble-corresponding fields from control vector
 !    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
@@ -2243,8 +2240,7 @@ end subroutine normal_new_factorization_rf_y
        call stop2(999)
     endif
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
     im=a_en(1)%grid%im
     jm=a_en(1)%grid%jm
     km=a_en(1)%grid%km

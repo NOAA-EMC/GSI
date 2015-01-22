@@ -100,7 +100,7 @@ subroutine get_gefs_for_regional
   integer(i_kind) istatus
   real(r_kind) rdog,h,dz
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
-  logical add_bias_perturbation
+  logical add_bias_perturbation,inithead
   integer(i_kind) n_ens_temp
   real(r_kind),allocatable::psfc_out(:,:)
   integer(i_kind) ilook,jlook,ier
@@ -284,6 +284,7 @@ subroutine get_gefs_for_regional
 !                begin loop over ensemble members
 
   rewind(10)
+  inithead=.true.
   do n=1,n_ens
      read(10,'(a)',err=20,end=20)filename 
      filename=trim(filename)
@@ -305,7 +306,8 @@ subroutine get_gefs_for_regional
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
-            z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+            z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+     inithead = .false.
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
