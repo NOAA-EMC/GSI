@@ -26,7 +26,7 @@
    #
    #  zeus is the only little endian machine
    # 
-   my $little_endian = "export LITTLE_ENDIAN=0";
+   my $little_endian = "export LITTLE_ENDIAN=1";
    if( $machine eq "zeus" ) {
       $little_endian = "export LITTLE_ENDIAN=1";   
    }
@@ -66,7 +66,7 @@
       $tankdir = "/data/dxu/radmon_workspace/data/output/radmon_tank";
    }
    elsif( $machine eq "cardinal" ) {
-      $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
+      $tankdir = "/data/users/dxu/workspace/radmon_workspace/data/output/radmon_tank";
    }
    elsif( $machine eq "jibb" ) {
       $tankdir = "/jcsda/nobackup/vkrishn1/radmon_workspace/data/output/radmon_tank";
@@ -165,8 +165,8 @@
       $my_stmp="export STMP=/data/dxu/radmon_workspace/run";
    } 
    if( $machine eq "cardinal" ) {
-      $my_ptmp="export PTMP=/data/users/dxu/radmon_workspace/log";
-      $my_stmp="export STMP=/data/users/dxu/radmon_workspace/run";
+      $my_ptmp="export PTMP=/data/users/dxu/workspace/radmon_workspace/log";
+      $my_stmp="export STMP=/data/users/dxu/workspace/radmon_workspace/run";
    } 
    if( $machine eq "jibb" ) {
       $my_ptmp="export PTMP=/jcsda/nobackup/vkrishn1/radmon_workspace/log";
