@@ -1,5 +1,5 @@
 subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
-                        prsl_full)
+                        prsl_full,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_goesimgr_skycover                    read GOES Imager sky cover product
@@ -30,6 +30,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !     nread    - number of obs read 
 !     ndata    - number of obs retained for further processing
 !     nodata   - number of obs retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f95/2003
@@ -52,6 +53,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   use obsmod, only: iadate,bmiss,oberrflg,perturb_obs,perturb_fact,ran01dom
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use adjust_cloudobs_mod, only: adjust_goescldobs
+  use mpimod, only: npe
 
   implicit none
 
@@ -60,6 +62,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe)        ,intent(inout) :: nobs
   real(r_kind)                          ,intent(in   ) :: twind,gstime
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
@@ -83,16 +86,16 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   character(len=8) :: c_prvstg,c_sprvstg ,c_station_id
 
 
-  integer(i_kind) :: nmsub,ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,nrep,ntb
-  integer(i_kind) :: iret,kx,minobs,minan,pflag,nlevp,nmind,levs,idomsfc
+  integer(i_kind) :: nmsub,ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,ntb
+  integer(i_kind) :: iret,kx,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
   integer(i_kind) :: iout,ntmp,iiout,maxobs,icount,itx,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
   integer(i_kind),allocatable,dimension(:):: isort,iloc
-  real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,rtime,toff,t4dv
+  real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
   real(r_kind) :: dx,dx1,dy,dy1,w00,w10,w01,w11,crit1,timedif,tdiff
-  real(r_kind) :: zeps,rmesh,pmesh,xmesh,tcamt,tcamt_oe,ff10,tsavg
+  real(r_kind) :: rmesh,pmesh,xmesh,tcamt,tcamt_oe,ff10,tsavg
   real(r_kind) :: rminobs,ppb
   real(r_kind) :: low_cldamt,mid_cldamt,hig_cldamt,usage,zz,sfcr,rstation_id
   real(r_kind),allocatable,dimension(:):: presl_thin
@@ -402,6 +405,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   end do
   deallocate(iloc,isort,cdata_all)
  
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) cdata_out
 

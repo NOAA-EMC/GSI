@@ -32,7 +32,10 @@ use kinds, only: i_kind
 implicit none
 
 PRIVATE
-PUBLIC intrad
+PUBLIC intrad,setrad
+PUBLIC itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+PUBLIC luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+       luseqr,luseqs,lusesst
 
 interface intrad; module procedure &
           intrad_
@@ -42,10 +45,12 @@ integer(i_kind) :: itv,iqv,ioz,icw,ius,ivs,isst
 integer(i_kind) :: iqg,iqh,iqi,iql,iqr,iqs
 logical :: done_setting = .false.
 logical :: lgoback
+logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+        luseqr,luseqs,lusesst
 
 contains
 
-subroutine set_(sval)
+subroutine setrad(sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    set_  sat radiance operator setting
@@ -173,10 +178,24 @@ subroutine set_(sval)
   iqs=-1
   if(look) iqs =radjacindxs(indx)
 
+  luseu=ius>=0
+  lusev=ivs>=0
+  luset=itv>=0
+  luseq=iqv>=0
+  luseoz=ioz>=0
+  lusecw=icw>=0
+  luseql=iql>=0
+  luseqi=iqi>=0
+  luseqh=iqh>=0
+  luseqg=iqg>=0
+  luseqr=iqr>=0
+  luseqs=iqs>=0
+  lusesst=isst>=0
+
   done_setting = .true.
 
   return
-end subroutine set_
+end subroutine setrad
 
 subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$  subprogram documentation block
@@ -286,8 +305,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
-  logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
-          luseqr,luseqs,lusesst
 
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
@@ -299,22 +316,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !  If no rad observations return
   if(.not.associated(radhead)) return
 ! Set required parameters
-  call set_(sval)
+  call setrad(sval)
   if(lgoback) return
 
-  luseu=ius>=0
-  lusev=ivs>=0
-  luset=itv>=0
-  luseq=iqv>=0
-  luseoz=ioz>=0
-  lusecw=icw>=0
-  luseql=iql>=0
-  luseqi=iqi>=0
-  luseqh=iqh>=0
-  luseqg=iqg>=0
-  luseqr=iqr>=0
-  luseqs=iqs>=0
-  lusesst=isst>=0
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0

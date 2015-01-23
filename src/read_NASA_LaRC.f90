@@ -24,6 +24,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 !   output argument list:
 !     nread    - number of type "obstype" observations read
 !     ndata    - number of type "obstype" observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! USAGE:
 !   INPUT FILES:  NASALaRCCloudInGSI.bufr

@@ -5014,7 +5014,7 @@ subroutine get_hwllp_lcbas_subdomain_option(mype)
 
 ! Declare local variables
   integer(i_kind) i,j,k,mm1
-  integer(i_kind) n,iloc,jloc
+  integer(i_kind) iloc,jloc
   integer(i_kind) kds0,kde0,kps0,kpe0
   integer(i_kind) nvars0
   integer(i_kind),allocatable::idvar0(:),kvar_start0(:),kvar_end0(:)

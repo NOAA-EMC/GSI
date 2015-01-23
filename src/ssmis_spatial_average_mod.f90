@@ -23,17 +23,16 @@ Module SSMIS_Spatial_Average_Mod
 
 CONTAINS 
 
-  SUBROUTINE SSMIS_Spatial_Average(Mype, Mype_Sub, BufrSat, Method, Num_Obs, NChanl,  &
-                                   FOV, Scan , Node_InOut, Time, Lat, Lon, BT_InOut, Error_status)
+  SUBROUTINE SSMIS_Spatial_Average(BufrSat, Method, Num_Obs, NChanl,  &
+                                   FOV, Node_InOut, Time, Lat, Lon, BT_InOut, Error_status)
 
     IMPLICIT NONE
     
     ! Declare passed variables
-    integer(i_kind) ,intent(in   ) :: Mype,Mype_Sub,BufrSat  
+    integer(i_kind) ,intent(in   ) :: BufrSat  
     integer(i_kind) ,intent(in   ) :: Method           ! 1=simple(1)  2=simple(2) 3=AAPP 
     integer(i_kind) ,intent(in   ) :: Num_Obs, NChanl
     integer(i_kind) ,intent(in   ) :: Fov(num_obs)
-    integer(i_kind) ,intent(in   ) :: Scan(num_obs)
     integer(i_kind) ,intent(inout) :: Node_InOut(num_obs)
     real(r_kind)    ,intent(in   ) :: Time(Num_Obs)
     real(r_kind)    ,intent(in   ) :: Lat(Num_Obs)
@@ -598,7 +597,7 @@ CONTAINS
           ! (otherwise bt_inout just keeps the same value):
           IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
 
-             CALL MODIFY_BEAMWIDTH ( MYPE, max_fov, max_scan, bt_image1, &
+             CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image1, &
                   sampling_distx, sampling_disty, beamwidth(ichan), newwidth(ichan), &
                   cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
                   qc_distx(ichan), qc_disty(ichan), IOS)
@@ -626,7 +625,7 @@ CONTAINS
 END Subroutine SSMIS_Spatial_Average
 
 
-SUBROUTINE MODIFY_BEAMWIDTH ( MYPE, nx, ny, image, sampling_distx, sampling_disty, & 
+SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, & 
      beamwidth, newwidth, mtfcutoff, nxaverage, nyaverage, qc_distx, qc_disty, &
      Error)
      
@@ -682,7 +681,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( MYPE, nx, ny, image, sampling_distx, sampling_dist
       PARAMETER (maxval=400.0) !Values greater than this are treated as missing
 
 ! Arguments
-      INTEGER(I_KIND), INTENT(IN)  :: MYPE         
       INTEGER(I_KIND), INTENT(IN)  :: nx, ny         !Size of image
       REAL(R_KIND), INTENT(INOUT)  :: image(nx,ny)   !BT or radiance image
       REAL(R_KIND), INTENT(IN)     :: sampling_distx !typically degrees

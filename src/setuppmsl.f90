@@ -71,7 +71,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   real(r_double) rstation_id
 
-  real(r_kind) pmslges,dlat,dlon,ddiff,dtime,dpres,error
+  real(r_kind) pmslges,dlat,dlon,ddiff,dtime,error
   real(r_kind) val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,rwgt
@@ -84,7 +84,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
 
-  integer(i_kind) ier,ilon,ilat,ipres,ipmsl,ihgt,itemp,id,itime,ikx,iqt,iqc,iskint,iff10
+  integer(i_kind) ier,ilon,ilat,ipres,ipmsl,ihgt,itemp,id,itime,ikx,iqc,iskint,iff10
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,isfcr,izz,iprvd,isprvd
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
@@ -516,7 +516,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
-  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
 

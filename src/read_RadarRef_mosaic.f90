@@ -1,4 +1,4 @@
-subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
+subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  read_RadarRef_mosaic     Reading in reflectivity mosaic in RR grid
@@ -23,6 +23,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 !   output argument list:
 !     nread    - number of type "obstype" observations read
 !     ndata    - number of type "obstype" observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! USAGE:
 !   INPUT FILES:  refInGSI
@@ -44,6 +45,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
+  use mpimod, only: npe
 
   implicit none
 !
@@ -51,6 +53,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   character(len=*), intent(in)    :: infile,obstype
   integer(i_kind),  intent(in)    :: lunout
   integer(i_kind),  intent(inout) :: nread,ndata
+  integer(i_kind),dimension(npe),  intent(inout) :: nobs
   real(r_kind),     intent(in   ) :: twind
   character(20),    intent(in)    :: sis
 !
@@ -186,6 +189,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numref
       nreal=maxlvl+2
       if(numref > 0 ) then
+        call count_obs(ndata,nreal,ilat,ilon,ref3d_column(1,:),nobs)
         write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
         write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
         deallocate(ref3d_column)
