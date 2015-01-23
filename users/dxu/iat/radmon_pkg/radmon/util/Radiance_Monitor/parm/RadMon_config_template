@@ -7,7 +7,6 @@
 #
 ##################################################################
 
-source ./radmon_gui.config
 
   echo "begin RadMon_config"
 
