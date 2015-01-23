@@ -193,7 +193,7 @@ if [[ $exit_value == 0 ]]; then
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
    $NCP $DE_SCRIPTS/radmon_err_rpt.sh      ${test_dir}/.
-   $NCP $USHradmon/radmon_getchgrp.pl           ${test_dir}/.
+   $NCP $HOMEradmon/ush/radmon_getchgrp.pl ${test_dir}/.
 
    prev_bad_pen=${TANKverf}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}
@@ -286,7 +286,7 @@ if [[ $exit_value == 0 ]]; then
    #--------------------------------------------------------------------
    #  Penalty report processing
    #--------------------------------------------------------------------
-   end=`grep -n '============ ======= ======      Cycle                 Penalty          Bound' ${opr_log}`
+   end=`grep -n '============ ======= ======      Cycle                 Penalty          Bound' ${opr_log} | tail -1`
    opr_log_end=`echo $end | sed 's/:/ /g' | gawk '{print $1}'`
 
    if [[ $opr_log_end -gt 1 ]]; then
@@ -347,9 +347,9 @@ if [[ $exit_value == 0 ]]; then
 
    $NCP ./$new_log ${LOGdir}/data_extract.${day}.${cycle}.log
 
-   rm -f $new_log
+   #rm -f $new_log
    rm -f $opr_log 
-   rm -f $new_diag $tmp_diag
+   #rm -f $new_diag $tmp_diag
    rm -f $tmp_log
 
    $compress *.ctl
