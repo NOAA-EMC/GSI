@@ -100,6 +100,7 @@ export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
 export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
+. $RADMON_PARM/radmon.ver
 export HOMEgdasradmon=${HOMEgdasradmon:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
 export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.v${radmon_shared_ver}}
  
