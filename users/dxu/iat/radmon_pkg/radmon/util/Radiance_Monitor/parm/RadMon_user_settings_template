@@ -5,7 +5,6 @@
 #
 #  Modify this file in order to change behavior of the RadMon package 
 #------------------------------------------------------------------------------
-source ./radmon_gui.config 
 
 #
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
