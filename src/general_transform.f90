@@ -996,8 +996,8 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
            ijs = jj*sp_a%js + sp_a%ioffset
            do i=1,sp_a%imax
               ii   = ifact*(i-1)+1
-              gridu(ijn)=g(ii,1)
-              gridu(ijs)=g(ii,2)
+              gridu(ijn+i)=g(ii,1)
+              gridu(ijs+i)=g(ii,2)
            enddo
            if(j == sp_a%jb)then
               call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &

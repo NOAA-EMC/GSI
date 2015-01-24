@@ -638,7 +638,7 @@ end subroutine write_ghg_grid
 !$$$
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
-    use guess_grids, only: nfldsfc
+    use guess_grids, only: nfldsfc,sfcmod_mm5,sfcmod_gfs
     use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
     use constants, only: zero
     implicit none
@@ -672,7 +672,11 @@ end subroutine write_ghg_grid
     call mpi_bcast(sfct,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(fact10,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(sno,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfc_rough,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    if(sfcmod_mm5 .or. sfcmod_gfs)then
+       call mpi_bcast(sfc_rough,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    else
+       sfc_rough = zero
+    end if
     call mpi_bcast(terrain,npts,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(isli,npts,mpi_itype,iope,mpi_comm_world,iret)
     if(use_sfc_any)then

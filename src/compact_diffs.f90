@@ -292,15 +292,20 @@ contains
      end do
   end do
   
+!$omp parallel sections
+!$omp section
   call xdcirdp(a,grid1,coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2),&
        nlon,ny,noq,nxh)
+!$omp section
   call xdcirdp(b,grid3,coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2),&
        nlon,ny,noq,nxh)
-  
+!$omp section
   call ydsphdp(a,grid2,coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2),&
        nlon,ny,noq)
+!$omp section
   call ydsphdp(b,grid4,coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2),&
        nlon,ny,noq)
+!$omp end parallel sections
 
 !  make corrections for convergence of meridians:
   do ix=1,nlon
@@ -827,9 +832,25 @@ end subroutine uv2vordiv
      end do
   end do
 
+!$omp parallel sections
+!$omp section
   call xdcirdp(grid3,b, &
        coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2), &
        nlon,ny,noq,nxh)
+  call tydsphdp(b,grid4, &
+       coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
+       nlon,ny,noq)
+  do j=1,nlon
+     do i=1,nlat
+        if(i /= 1 .and. i /= nlat)then
+!          NOTE:  Adjoint of first derivative is its negative
+           work(2,i,j)=-b(i-1,j)
+        else
+           work(2,i,j)=zero
+        end if
+     end do
+  end do
+!$omp section
 
   call xdcirdp(grid1,a, &
        coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2), &
@@ -838,23 +859,19 @@ end subroutine uv2vordiv
   call tydsphdp(a,grid2, &
        coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
        nlon,ny,noq)
-
-  call tydsphdp(b,grid4, &
-       coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
-       nlon,ny,noq)
-
   do j=1,nlon
      do i=1,nlat
         if(i /= 1 .and. i /= nlat)then
 !          NOTE:  Adjoint of first derivative is its negative
            work(1,i,j)=-a(i-1,j)
-           work(2,i,j)=-b(i-1,j)
         else
            work(1,i,j)=zero
-           work(2,i,j)=zero
         end if
      end do
   end do
+!$omp end parallel sections
+
+
   
   return
   end subroutine tstvp2uv

@@ -157,7 +157,6 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
            end if
         end do
      end if
-!       !$omp parallel do private(k,vector)      ! ????????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
         do j=1,nlon
@@ -166,12 +165,17 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
               vpx(i,j)=hwork(2,i,j,k)
            end do
         end do
+!$omp parallel sections
+!$omp section
         call compact_dlon(stx,hwork_x(1,:,:,k),vector)
+!$omp section
         call compact_dlat(stx,hwork_y(1,:,:,k),vector)
+!$omp section
         call compact_dlon(vpx,hwork_x(2,:,:,k),vector)
+!$omp section
         call compact_dlat(vpx,hwork_y(2,:,:,k),vector)
+!$omp end parallel sections
      end do
-!       !$omp end parallel do                        ! ???fix later
   end if
 
   call general_grid2sub(s2g4,hwork,hwork_sub)
@@ -443,10 +447,14 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !       !$omp parallel do private(k,vector)      ! ????????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
+!$omp parallel sections
+!$omp section
         call tcompact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
         call tcompact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+!$omp section
         call tcompact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
         call tcompact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
+!$omp end parallel sections
      end do
 !       !$omp end parallel do                        ! ???fix later
      if(.not. uvflag)then
