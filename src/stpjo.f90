@@ -225,139 +225,142 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 ! Declare local variables
 
+  integer(i_kind) :: ll
 !************************************************************************************  
-!$omp parallel sections
 
-!$omp section
+!$omp parallel do  schedule(dynamic,1) private(ll)
+    do ll=1,28
 !   penalty, b, and c for radiances
-    call stprad(yobs%rad,dval,xval,dbias%predr,xbias%predr,&
+       if(ll == 1)then
+          call stprad(yobs%rad,dval,xval,dbias%predr,xbias%predr,&
                 pbcjo(1,i_rad_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for temperature
-    if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
-       call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
-    else
-       call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep, &
+       else if(ll == 2) then
+          if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+             call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
+          else
+             call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep, &
                  dbias%predt,xbias%predt) 
-    end if
+          end if
 
-!$omp section
 !   penalty, b, and c for winds
-    call stpw(yobs%w,dval,xval,pbcjo(1,i_w_ob_type),sges,nstep)
+       else if(ll == 3) then
+          call stpw(yobs%w,dval,xval,pbcjo(1,i_w_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for precipitable water
-    call stppw(yobs%pw,dval,xval,pbcjo(1,i_pw_ob_type),sges,nstep)
+       else if(ll == 4) then
+          call stppw(yobs%pw,dval,xval,pbcjo(1,i_pw_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for ozone
-    call stpco(yobs%colvk,dval,xval,pbcjo(1,i_colvk_ob_type),sges,nstep)
+       else if(ll == 5) then
+          call stpco(yobs%colvk,dval,xval,pbcjo(1,i_colvk_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for ozone
-    call stppm2_5(yobs%pm2_5,dval,xval,pbcjo(1,i_pm2_5_ob_type),sges,nstep)
+       else if(ll == 6) then
+          call stppm2_5(yobs%pm2_5,dval,xval,pbcjo(1,i_pm2_5_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for wind lidar
-    call stpdw(yobs%dw,dval,xval,pbcjo(1,i_dw_ob_type),sges,nstep) 
+       else if(ll == 7) then
+          call stpdw(yobs%dw,dval,xval,pbcjo(1,i_dw_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for radar
-    call stprw(yobs%rw,dval,xval,pbcjo(1,i_rw_ob_type),sges,nstep) 
+       else if(ll == 8) then
+          call stprw(yobs%rw,dval,xval,pbcjo(1,i_rw_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for moisture
-    call stpq(yobs%q,dval,xval,pbcjo(1,i_q_ob_type),sges,nstep)
+       else if(ll == 9) then
+          call stpq(yobs%q,dval,xval,pbcjo(1,i_q_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for ozone
-    call stpoz(yobs%oz,yobs%o3l,dval,xval,pbcjo(1,i_oz_ob_type),sges,nstep)
+       else if(ll == 10) then
+          call stpoz(yobs%oz,yobs%o3l,dval,xval,pbcjo(1,i_oz_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for radar superob wind
-    call stpsrw(yobs%srw,dval,xval,pbcjo(1,i_srw_ob_type),sges,nstep)
+       else if(ll == 11) then
+          call stpsrw(yobs%srw,dval,xval,pbcjo(1,i_srw_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for GPS local observation
-    call stpgps(yobs%gps,dval,xval,pbcjo(1,i_gps_ob_type),sges,nstep) 
+       else if(ll == 12) then
+          call stpgps(yobs%gps,dval,xval,pbcjo(1,i_gps_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for conventional sst
-    call stpsst(yobs%sst,dval,xval,pbcjo(1,i_sst_ob_type),sges,nstep)
+       else if(ll == 13) then
+          call stpsst(yobs%sst,dval,xval,pbcjo(1,i_sst_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for wind speed
-    call stpspd(yobs%spd,dval,xval,pbcjo(1,i_spd_ob_type),sges,nstep) 
+       else if(ll == 14) then
+          call stpspd(yobs%spd,dval,xval,pbcjo(1,i_spd_ob_type),sges,nstep) 
 
-!$omp section
 !   penalty, b, and c for precipitation
-    call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
+       else if(ll == 15) then
+          call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for surface pressure
-    call stpps(yobs%ps,dval,xval,pbcjo(1,i_ps_ob_type),sges,nstep)
+       else if(ll == 16) then
+          call stpps(yobs%ps,dval,xval,pbcjo(1,i_ps_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for MSLP TC obs
-    call stptcp(yobs%tcp,dval,xval,pbcjo(1,i_tcp_ob_type),sges,nstep)
+       else if(ll == 17) then
+          call stptcp(yobs%tcp,dval,xval,pbcjo(1,i_tcp_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional gust
-    if (getindex(cvars2d,'gust')>0) &
-    call stpgust(yobs%gust,dval,xval,pbcjo(1,i_gust_ob_type),sges,nstep)
+       else if(ll == 18) then
+          if (getindex(cvars2d,'gust')>0) &
+          call stpgust(yobs%gust,dval,xval,pbcjo(1,i_gust_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional vis
-    if (getindex(cvars2d,'vis')>0) &
-    call stpvis(yobs%vis,dval,xval,pbcjo(1,i_vis_ob_type),sges,nstep)
+       else if(ll == 19) then
+          if (getindex(cvars2d,'vis')>0) &
+          call stpvis(yobs%vis,dval,xval,pbcjo(1,i_vis_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional pblh
-    if (getindex(cvars2d,'pblh')>0) &
-    call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
+       else if(ll == 20) then
+          if (getindex(cvars2d,'pblh')>0) &
+          call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional wspd10m
-    if (getindex(cvars2d,'wspd10m')>0) &
-    call stpwspd10m(yobs%wspd10m,dval,xval,pbcjo(1,i_wspd10m_ob_type),sges,nstep)
+       else if(ll == 21) then
+          if (getindex(cvars2d,'wspd10m')>0) &
+          call stpwspd10m(yobs%wspd10m,dval,xval,pbcjo(1,i_wspd10m_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional td2m
-    if (getindex(cvars2d,'td2m')>0) &
-    call stptd2m(yobs%td2m,dval,xval,pbcjo(1,i_td2m_ob_type),sges,nstep)
+       else if(ll == 22) then
+          if (getindex(cvars2d,'td2m')>0) &
+          call stptd2m(yobs%td2m,dval,xval,pbcjo(1,i_td2m_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional mxtm
-    if (getindex(cvars2d,'mxtm')>0) &
-    call stpmxtm(yobs%mxtm,dval,xval,pbcjo(1,i_mxtm_ob_type),sges,nstep)
+       else if(ll == 23) then
+          if (getindex(cvars2d,'mxtm')>0) &
+          call stpmxtm(yobs%mxtm,dval,xval,pbcjo(1,i_mxtm_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional mitm
-    if (getindex(cvars2d,'mitm')>0) &
-    call stpmitm(yobs%mitm,dval,xval,pbcjo(1,i_mitm_ob_type),sges,nstep)
+       else if(ll == 24) then
+          if (getindex(cvars2d,'mitm')>0) &
+          call stpmitm(yobs%mitm,dval,xval,pbcjo(1,i_mitm_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional pmsl
-    if (getindex(cvars2d,'pmsl')>0) &
-    call stppmsl(yobs%pmsl,dval,xval,pbcjo(1,i_pmsl_ob_type),sges,nstep)
+       else if(ll == 25) then
+          if (getindex(cvars2d,'pmsl')>0) &
+          call stppmsl(yobs%pmsl,dval,xval,pbcjo(1,i_pmsl_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for conventional howv
-    if (getindex(cvars2d,'howv')>0) &
-    call stphowv(yobs%howv,dval,xval,pbcjo(1,i_howv_ob_type),sges,nstep)
+       else if(ll == 26) then
+          if (getindex(cvars2d,'howv')>0) &
+          call stphowv(yobs%howv,dval,xval,pbcjo(1,i_howv_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for total cloud amount
-    if (getindex(cvars2d,'tcamt')>0) &
-    call stptcamt(yobs%tcamt,dval,xval,pbcjo(1,i_tcamt_ob_type),sges,nstep)
+       else if(ll == 27) then
+          if (getindex(cvars2d,'tcamt')>0) &
+          call stptcamt(yobs%tcamt,dval,xval,pbcjo(1,i_tcamt_ob_type),sges,nstep)
 
-!$omp section
 !   penalty, b, and c for cloud base of lowest cloud
-    if (getindex(cvars2d,'lcbas')>0) &
-    call stplcbas(yobs%lcbas,dval,xval,pbcjo(1,i_lcbas_ob_type),sges,nstep)
+       else if(ll == 28) then
+          if (getindex(cvars2d,'lcbas')>0) &
+          call stplcbas(yobs%lcbas,dval,xval,pbcjo(1,i_lcbas_ob_type),sges,nstep)
 
-!$omp end parallel sections
+       end if
+    end do
 
   return
 end subroutine stpjo
