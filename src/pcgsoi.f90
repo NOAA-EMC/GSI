@@ -240,7 +240,7 @@ subroutine pcgsoi()
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   if ( ltlint ) nlnqc_iter=.false.
-! call stpjo_setup(yobs,nobs_bins)
+  call stpjo_setup(yobs,nobs_bins)
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)

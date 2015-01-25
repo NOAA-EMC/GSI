@@ -387,6 +387,7 @@ module obsmod
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
   public :: nobs_sub
+  public :: ll_jo,ib_jo,stpcnt
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -1447,7 +1448,7 @@ module obsmod
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
-  integer(i_kind) nlco,use_limit 
+  integer(i_kind) nlco,use_limit,stpcnt
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
@@ -1464,6 +1465,7 @@ module obsmod
   integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
   integer(i_kind),allocatable :: nobs_sub(:,:)
+  integer(i_kind),allocatable,dimension(:)::ll_jo,ib_jo
   integer(i_kind),allocatable :: obscounts(:,:)
   integer(i_kind),allocatable :: obs_sub_comm(:)
   
@@ -1852,6 +1854,10 @@ contains
     ALLOCATE(lcbastail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
+    allocate(ll_jo(nobs_bins*nobs_type),ib_jo(nobs_bins*nobs_type))
+    ll_jo=0
+    ib_jo=0
+    stpcnt=0
 
     if(luse_obsdiag)ALLOCATE(obsdiags(nobs_type,nobs_bins))
 

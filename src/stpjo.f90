@@ -1,4 +1,4 @@
-subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
+subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -177,7 +177,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
                   & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
                   & i_wspd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    nobs_type
+                    nobs_type,stpcnt,ll_jo,ib_jo
   use stptmod, only: stpt
   use stpwmod, only: stpw
   use stppsmod, only: stpps
@@ -214,153 +214,417 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   implicit none
 
 ! Declare passed variables
-  type(obs_handle)                    ,intent(in   ) :: yobs
-  type(gsi_bundle)                    ,intent(in   ) :: dval
-  type(predictors)                    ,intent(in   ) :: dbias
-  type(gsi_bundle)                    ,intent(in   ) :: xval
-  type(predictors)                    ,intent(in   ) :: xbias
-  integer(i_kind)                     ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(4,nobs_type)    ,intent(inout) :: pbcjo
+  type(obs_handle),dimension(nobs_bins),intent(in   ) :: yobs
+  type(gsi_bundle),dimension(nobs_bins),intent(in   ) :: dval
+  type(predictors)                     ,intent(in   ) :: dbias
+  type(gsi_bundle),dimension(nobs_bins),intent(in   ) :: xval
+  type(predictors)                     ,intent(in   ) :: xbias
+  integer(i_kind)                      ,intent(in   ) :: nstep,nobs_bins
+  real(r_kind),dimension(max(1,nstep)) ,intent(in   ) :: sges
+  real(r_quad),dimension(4,nobs_type,nobs_bins)  ,intent(inout) :: pbcjo
 
 ! Declare local variables
 
-  integer(i_kind) :: ll
+  integer(i_kind) :: ll,mm,ib
 !************************************************************************************  
 
-!$omp parallel do  schedule(dynamic,1) private(ll)
-    do ll=1,28
+!$omp parallel do  schedule(dynamic,1) private(ll,mm,ib)
+    do mm=1,stpcnt
+       ll=ll_jo(mm)
+       ib=ib_jo(mm)
 !   penalty, b, and c for radiances
        if(ll == 1)then
-          call stprad(yobs%rad,dval,xval,dbias%predr,xbias%predr,&
-                pbcjo(1,i_rad_ob_type),sges,nstep)
+          call stprad(yobs(ib)%rad,dval(ib),xval(ib),dbias%predr,xbias%predr,&
+                pbcjo(1,i_rad_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for temperature
        else if(ll == 2) then
           if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
-             call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
+             call stpt(yobs(ib)%t,dval(ib),xval(ib),pbcjo(1,i_t_ob_type,ib),sges,nstep) 
           else
-             call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep, &
+             call stpt(yobs(ib)%t,dval(ib),xval(ib),pbcjo(1,i_t_ob_type,ib),sges,nstep, &
                  dbias%predt,xbias%predt) 
           end if
 
 !   penalty, b, and c for winds
        else if(ll == 3) then
-          call stpw(yobs%w,dval,xval,pbcjo(1,i_w_ob_type),sges,nstep)
+          call stpw(yobs(ib)%w,dval(ib),xval(ib),pbcjo(1,i_w_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for precipitable water
        else if(ll == 4) then
-          call stppw(yobs%pw,dval,xval,pbcjo(1,i_pw_ob_type),sges,nstep)
+          call stppw(yobs(ib)%pw,dval(ib),xval(ib),pbcjo(1,i_pw_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for ozone
        else if(ll == 5) then
-          call stpco(yobs%colvk,dval,xval,pbcjo(1,i_colvk_ob_type),sges,nstep)
+          call stpco(yobs(ib)%colvk,dval(ib),xval(ib),pbcjo(1,i_colvk_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for ozone
        else if(ll == 6) then
-          call stppm2_5(yobs%pm2_5,dval,xval,pbcjo(1,i_pm2_5_ob_type),sges,nstep)
+          call stppm2_5(yobs(ib)%pm2_5,dval(ib),xval(ib),pbcjo(1,i_pm2_5_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for wind lidar
        else if(ll == 7) then
-          call stpdw(yobs%dw,dval,xval,pbcjo(1,i_dw_ob_type),sges,nstep) 
+          call stpdw(yobs(ib)%dw,dval(ib),xval(ib),pbcjo(1,i_dw_ob_type,ib),sges,nstep) 
 
 !   penalty, b, and c for radar
        else if(ll == 8) then
-          call stprw(yobs%rw,dval,xval,pbcjo(1,i_rw_ob_type),sges,nstep) 
+          call stprw(yobs(ib)%rw,dval(ib),xval(ib),pbcjo(1,i_rw_ob_type,ib),sges,nstep) 
 
 !   penalty, b, and c for moisture
        else if(ll == 9) then
-          call stpq(yobs%q,dval,xval,pbcjo(1,i_q_ob_type),sges,nstep)
+          call stpq(yobs(ib)%q,dval(ib),xval(ib),pbcjo(1,i_q_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for ozone
        else if(ll == 10) then
-          call stpoz(yobs%oz,yobs%o3l,dval,xval,pbcjo(1,i_oz_ob_type),sges,nstep)
+          call stpoz(yobs(ib)%oz,yobs(ib)%o3l,dval(ib),xval(ib),pbcjo(1,i_oz_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for radar superob wind
        else if(ll == 11) then
-          call stpsrw(yobs%srw,dval,xval,pbcjo(1,i_srw_ob_type),sges,nstep)
+          call stpsrw(yobs(ib)%srw,dval(ib),xval(ib),pbcjo(1,i_srw_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for GPS local observation
        else if(ll == 12) then
-          call stpgps(yobs%gps,dval,xval,pbcjo(1,i_gps_ob_type),sges,nstep) 
+          call stpgps(yobs(ib)%gps,dval(ib),xval(ib),pbcjo(1,i_gps_ob_type,ib),sges,nstep) 
 
 !   penalty, b, and c for conventional sst
        else if(ll == 13) then
-          call stpsst(yobs%sst,dval,xval,pbcjo(1,i_sst_ob_type),sges,nstep)
+          call stpsst(yobs(ib)%sst,dval(ib),xval(ib),pbcjo(1,i_sst_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for wind speed
        else if(ll == 14) then
-          call stpspd(yobs%spd,dval,xval,pbcjo(1,i_spd_ob_type),sges,nstep) 
+          call stpspd(yobs(ib)%spd,dval(ib),xval(ib),pbcjo(1,i_spd_ob_type,ib),sges,nstep) 
 
 !   penalty, b, and c for precipitation
        else if(ll == 15) then
-          call stppcp(yobs%pcp,dval,xval,pbcjo(1,i_pcp_ob_type),sges,nstep)
+          call stppcp(yobs(ib)%pcp,dval(ib),xval(ib),pbcjo(1,i_pcp_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for surface pressure
        else if(ll == 16) then
-          call stpps(yobs%ps,dval,xval,pbcjo(1,i_ps_ob_type),sges,nstep)
+          call stpps(yobs(ib)%ps,dval(ib),xval(ib),pbcjo(1,i_ps_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for MSLP TC obs
        else if(ll == 17) then
-          call stptcp(yobs%tcp,dval,xval,pbcjo(1,i_tcp_ob_type),sges,nstep)
+          call stptcp(yobs(ib)%tcp,dval(ib),xval(ib),pbcjo(1,i_tcp_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional gust
        else if(ll == 18) then
           if (getindex(cvars2d,'gust')>0) &
-          call stpgust(yobs%gust,dval,xval,pbcjo(1,i_gust_ob_type),sges,nstep)
+          call stpgust(yobs(ib)%gust,dval(ib),xval(ib),pbcjo(1,i_gust_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional vis
        else if(ll == 19) then
           if (getindex(cvars2d,'vis')>0) &
-          call stpvis(yobs%vis,dval,xval,pbcjo(1,i_vis_ob_type),sges,nstep)
+          call stpvis(yobs(ib)%vis,dval(ib),xval(ib),pbcjo(1,i_vis_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional pblh
        else if(ll == 20) then
           if (getindex(cvars2d,'pblh')>0) &
-          call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
+          call stppblh(yobs(ib)%pblh,dval(ib),xval(ib),pbcjo(1,i_pblh_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional wspd10m
        else if(ll == 21) then
           if (getindex(cvars2d,'wspd10m')>0) &
-          call stpwspd10m(yobs%wspd10m,dval,xval,pbcjo(1,i_wspd10m_ob_type),sges,nstep)
+          call stpwspd10m(yobs(ib)%wspd10m,dval(ib),xval(ib),pbcjo(1,i_wspd10m_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional td2m
        else if(ll == 22) then
           if (getindex(cvars2d,'td2m')>0) &
-          call stptd2m(yobs%td2m,dval,xval,pbcjo(1,i_td2m_ob_type),sges,nstep)
+          call stptd2m(yobs(ib)%td2m,dval(ib),xval(ib),pbcjo(1,i_td2m_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional mxtm
        else if(ll == 23) then
           if (getindex(cvars2d,'mxtm')>0) &
-          call stpmxtm(yobs%mxtm,dval,xval,pbcjo(1,i_mxtm_ob_type),sges,nstep)
+          call stpmxtm(yobs(ib)%mxtm,dval(ib),xval(ib),pbcjo(1,i_mxtm_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional mitm
        else if(ll == 24) then
           if (getindex(cvars2d,'mitm')>0) &
-          call stpmitm(yobs%mitm,dval,xval,pbcjo(1,i_mitm_ob_type),sges,nstep)
+          call stpmitm(yobs(ib)%mitm,dval(ib),xval(ib),pbcjo(1,i_mitm_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional pmsl
        else if(ll == 25) then
           if (getindex(cvars2d,'pmsl')>0) &
-          call stppmsl(yobs%pmsl,dval,xval,pbcjo(1,i_pmsl_ob_type),sges,nstep)
+          call stppmsl(yobs(ib)%pmsl,dval(ib),xval(ib),pbcjo(1,i_pmsl_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for conventional howv
        else if(ll == 26) then
           if (getindex(cvars2d,'howv')>0) &
-          call stphowv(yobs%howv,dval,xval,pbcjo(1,i_howv_ob_type),sges,nstep)
+          call stphowv(yobs(ib)%howv,dval(ib),xval(ib),pbcjo(1,i_howv_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for total cloud amount
        else if(ll == 27) then
           if (getindex(cvars2d,'tcamt')>0) &
-          call stptcamt(yobs%tcamt,dval,xval,pbcjo(1,i_tcamt_ob_type),sges,nstep)
+          call stptcamt(yobs(ib)%tcamt,dval(ib),xval(ib),pbcjo(1,i_tcamt_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for cloud base of lowest cloud
        else if(ll == 28) then
           if (getindex(cvars2d,'lcbas')>0) &
-          call stplcbas(yobs%lcbas,dval,xval,pbcjo(1,i_lcbas_ob_type),sges,nstep)
+          call stplcbas(yobs(ib)%lcbas,dval(ib),xval(ib),pbcjo(1,i_lcbas_ob_type,ib),sges,nstep)
 
        end if
     end do
 
   return
 end subroutine stpjo
+subroutine stpjo_setup(yobs,nobs_bins)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    stpjo_setup     setup loops for stpjo
+!   prgmmr: derber           org: np23                date: 2003-12-18
+!
+! abstract: setup parallel loops for stpjo
+!
+! program history log:
+!   2015-01-18  derber,j.
+!
+!   input argument list:
+!     yobs
+!     nobs_bins - number of obs bins
+!
+!   output argument list:
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: i_kind,r_kind,r_quad
+  use obsmod, only: obs_handle, nobs_type,stpcnt,ll_jo,ib_jo
+  use gsi_bundlemod, only: gsi_bundle
+  implicit none
+
+! Declare passed variables
+  type(obs_handle),dimension(nobs_bins),intent(in   ) :: yobs
+  integer(i_kind),intent(in   )  :: nobs_bins
+
+! Declare local variables
+
+  integer(i_kind) ll,ib
+!************************************************************************************
+    stpcnt = 0
+    do ll = 1, nobs_type
+     do ib = 1,nobs_bins
+
+       if(ll == 1)then
+!         penalty, b, and c for radiances
+          if(associated(yobs(ib)%rad)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 2)then
+!         penalty, b, and c for temperature
+          if(associated(yobs(ib)%t)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 3)then
+!         penalty, b, and c for winds
+          if(associated(yobs(ib)%w)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 4)then
+!         penalty, b, and c for precipitable water
+          if(associated(yobs(ib)%pw)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 5)then
+!         penalty, b, and c for ozone
+          if(associated(yobs(ib)%colvk)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 6)then
+!         penalty, b, and c for ozone
+          if(associated(yobs(ib)%pm2_5)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 7)then
+!         penalty, b, and c for wind lidar
+          if(associated(yobs(ib)%dw)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 8)then
+!         penalty, b, and c for radar
+          if(associated(yobs(ib)%rw)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 9)then
+!         penalty, b, and c for moisture
+          if(associated(yobs(ib)%q)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 10)then
+!         penalty, b, and c for ozone
+          if(associated(yobs(ib)%oz)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 11)then
+!         penalty, b, and c for radar superob wind
+          if(associated(yobs(ib)%srw)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 12)then
+!         penalty, b, and c for GPS local observation
+          if(associated(yobs(ib)%gps)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 13)then
+!         penalty, b, and c for conventional sst
+          if(associated(yobs(ib)%sst)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 14)then
+!         penalty, b, and c for wind speed
+          if(associated(yobs(ib)%spd)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 15)then
+!         penalty, b, and c for precipitation
+          if(associated(yobs(ib)%pcp)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 16)then
+!         penalty, b, and c for surface pressure
+          if(associated(yobs(ib)%ps)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 17)then
+!         penalty, b, and c for MSLP TC obs
+          if(associated(yobs(ib)%tcp)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 18)then
+!         penalty, b, and c for conventional gust
+          if(associated(yobs(ib)%gust)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 19)then
+!         penalty, b, and c for conventional vis
+          if(associated(yobs(ib)%vis)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 20)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%pblh)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       else if (ll == 21)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%wspd10m)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 22)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%td2m)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 23)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%mxtm)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 24)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%mitm)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 25)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%pmsl)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 26)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%howv)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 27)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%tcamt)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 28)then
+!         penalty, b, and c for conventional pblh
+          if(associated(yobs(ib)%lcbas)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
+       end if
+     end do
+    end do
+!   write(6,*) 'stpjo - stpcnt = ',stpcnt,nobs_bins*nobs_type
+
+  return
+end subroutine stpjo_setup
+
+

@@ -250,7 +250,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
   integer(i_kind) istp_use,nstep,nsteptot
   real(r_quad),dimension(4,ipen):: pbc
-  real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
+  real(r_quad),dimension(4,nobs_type):: pbcjo 
+  real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
   real(r_quad),dimension(4):: pbcqmin,pbcqmax,pbcqmini,pbcqmaxi
   real(r_quad) :: dirx_yhat,diry_xhat,xhat_yhat,dirx_diry
   real(r_quad),dimension(3,ipenlin):: pstart 
@@ -462,13 +463,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
 
 !    penalties for Jo
+     pbcjoi=zero_quad 
+     call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 
      pbcjo=zero_quad
      do ibin=1,nobs_bins
-        pbcjoi=zero_quad 
-        call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbcjoi,nstep) 
         do j=1,nobs_type 
            do i=1,nstep 
-              pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j) 
+              pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j,ibin) 
            end do 
         end do 
      enddo
