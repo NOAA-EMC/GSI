@@ -19,6 +19,8 @@ subroutine add_gfs_stratosphere
 !   2013-10-19  todling - metguess now holds background
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
+!   2014-12-03  derber  - modify call to general_read_gfsatm to reduce reading
+!                         of unused variables
 !
 !   input argument list:
 !
@@ -36,7 +38,7 @@ subroutine add_gfs_stratosphere
   use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
   use constants,only: zero,one_tenth,half,one,ten,fv
   use mpimod, only: mype
-             use mpimod, only: mpi_comm_world
+  use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
   use mpeu_util, only: die
   use gsi_bundlemod, only : gsi_bundlegetpointer
@@ -294,10 +296,10 @@ subroutine add_gfs_stratosphere
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if (hires) then
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true., &
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
                                  z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
      else
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true., &
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
                                  z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
      end if
         
