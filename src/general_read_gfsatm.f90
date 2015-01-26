@@ -92,8 +92,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !   Initialize variables used below
     iret_read=0
     iret=0
-    nlatm2=grd%nlat-2
-    i=1
     nflds=5*grd%nsig+1
     if(zflag) nflds=nflds+1
     if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
@@ -385,9 +383,9 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !   Cloud condensate mixing ratio.
          if (sighead%ntrac>2 .or. sighead%ncldt>=1) then
 ! 
-          sigdati%i = nlevs * (2+3) + 2 + k    ! cw, 3rd tracer
-          sigdati%f => specwrk_4
-          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+            sigdati%i = nlevs * (2+3) + 2 + k    ! cw, 3rd tracer
+            sigdati%f => specwrk_4
+            call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
             do i=1,sp_b%nc
                spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
@@ -455,6 +453,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 
 !   Print date/time stamp 
     if(mype==0) then
+       nlatm2=grd%nlat-2
        write(6,700) sighead%lonb,sighead%latb,nlevs,grd%nlon,nlatm2,&
             sighead%fhour,sighead%idate
 700    format('GENERAL_READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&

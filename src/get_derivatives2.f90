@@ -81,6 +81,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 ! Local Variables
   integer(i_kind) k,i,j,kk,k2
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
+  real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_subx,hwork_suby
   real(r_kind),dimension(nlat,nlon):: stx,vpx
   logical vector
 
@@ -180,47 +181,11 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 
   call general_grid2sub(s2g4,hwork,hwork_sub)
   deallocate(hwork)
-  do kk=1,s2g4%num_fields
-     k=s2g4%lnames(1,kk)
-     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
-        do j=1,s2g4%lon2
-           do i=1,s2g4%lat2
-              u(i,j,k)=hwork_sub(1,i,j,kk)
-              v(i,j,k)=hwork_sub(2,i,j,kk)
-           end do
-        end do
-     end if
-  end do
-  call general_grid2sub(s2g4,hwork_x,hwork_sub)
+  allocate(hwork_subx(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+  call general_grid2sub(s2g4,hwork_x,hwork_subx)
   deallocate(hwork_x)
-  do kk=1,s2g4%num_fields
-     k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
-     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
-        do j=1,s2g4%lon2
-           do i=1,s2g4%lat2
-              u_x(i,j,k)=hwork_sub(1,i,j,kk)
-              v_x(i,j,k)=hwork_sub(2,i,j,kk)
-           end do
-        end do
-     else
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 p3d_x(i,j,k)=hwork_sub(1,i,j,kk)
-              end do
-           end do
-        else
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 p3d_x(i,j,k)=hwork_sub(1,i,j,kk)
-                 t_x(i,j,k)=hwork_sub(2,i,j,kk)
-              end do
-           end do
-        end if
-     end if
-  end do
-  call general_grid2sub(s2g4,hwork_y,hwork_sub)
+  allocate(hwork_suby(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+  call general_grid2sub(s2g4,hwork_y,hwork_suby)
   deallocate(hwork_y)
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
@@ -228,28 +193,35 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
      if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
         do j=1,s2g4%lon2
            do i=1,s2g4%lat2
-              u_y(i,j,k)=hwork_sub(1,i,j,kk)
-              v_y(i,j,k)=hwork_sub(2,i,j,kk)
+              u(i,j,k)=hwork_sub(1,i,j,kk)
+              v(i,j,k)=hwork_sub(2,i,j,kk)
+              u_x(i,j,k)=hwork_subx(1,i,j,kk)
+              v_x(i,j,k)=hwork_subx(2,i,j,kk)
+              u_y(i,j,k)=hwork_suby(1,i,j,kk)
+              v_y(i,j,k)=hwork_suby(2,i,j,kk)
            end do
         end do
      else
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
-                 p3d_y(i,j,k)=hwork_sub(1,i,j,kk)
+                 p3d_x(i,j,k)=hwork_subx(1,i,j,kk)
+                 p3d_y(i,j,k)=hwork_suby(1,i,j,kk)
               end do
            end do
         else
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
-                 p3d_y(i,j,k)=hwork_sub(1,i,j,kk)
-                 t_y(i,j,k)=hwork_sub(2,i,j,kk)
+                 p3d_x(i,j,k)=hwork_subx(1,i,j,kk)
+                 t_x(i,j,k)=hwork_subx(2,i,j,kk)
+                 p3d_y(i,j,k)=hwork_suby(1,i,j,kk)
+                 t_y(i,j,k)=hwork_suby(2,i,j,kk)
               end do
            end do
         end if
      end if
   end do
-  deallocate(hwork_sub)
+  deallocate(hwork_sub,hwork_subx,hwork_suby)
 
 
   return
@@ -320,76 +292,15 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 ! Local Variables
   integer(i_kind) k,i,j,kk,k2
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
+  real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_subx,hwork_suby
   real(r_kind),dimension(nlat,nlon):: ux,vx
   logical vector
 
   allocate(hwork_sub(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+  allocate(hwork_subx(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+  allocate(hwork_suby(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
 
-  do kk=1,s2g4%num_fields
-     k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
-     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
-        do j=1,s2g4%lon2
-           do i=1,s2g4%lat2
-              hwork_sub(1,i,j,kk)=u_x(i,j,k)
-              hwork_sub(2,i,j,kk)=v_x(i,j,k)
-           end do
-        end do
-     else
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_sub(2,i,j,kk)=zero
-              end do
-           end do
-        else
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_sub(2,i,j,kk)=t_x(i,j,k)
-              end do
-           end do
-        end if
-     end if
-  end do
-  allocate(hwork_x(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
-  call general_sub2grid(s2g4,hwork_sub,hwork_x)
-  p3d_x=zero
-  t_x=zero
-
-  do kk=1,s2g4%num_fields
-     k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
-     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
-        do j=1,s2g4%lon2
-           do i=1,s2g4%lat2
-              hwork_sub(1,i,j,kk)=u_y(i,j,k)
-              hwork_sub(2,i,j,kk)=v_y(i,j,k)
-           end do
-        end do
-     else
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_y(i,j,k)
-                 hwork_sub(2,i,j,kk)=zero
-              end do
-           end do
-        else
-           do j=1,s2g4%lon2
-              do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_y(i,j,k)
-                 hwork_sub(2,i,j,kk)=t_y(i,j,k)
-              end do
-           end do
-        end if
-     end if
-  end do
-  allocate(hwork_y(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
-  call general_sub2grid(s2g4,hwork_sub,hwork_y)
-
-
+  hwork_sub = zero
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
      k2=s2g4%lnames(2,kk)
@@ -398,30 +309,44 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
            do i=1,s2g4%lat2
               hwork_sub(1,i,j,kk)=u(i,j,k)
               hwork_sub(2,i,j,kk)=v(i,j,k)
+              hwork_subx(1,i,j,kk)=u_x(i,j,k)
+              hwork_subx(2,i,j,kk)=v_x(i,j,k)
+              hwork_suby(1,i,j,kk)=u_y(i,j,k)
+              hwork_suby(2,i,j,kk)=v_y(i,j,k)
            end do
         end do
      else
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_sub(2,i,j,kk)=zero
+                 hwork_subx(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_subx(2,i,j,kk)=zero
+                 hwork_suby(1,i,j,kk)=p3d_y(i,j,k)
+                 hwork_suby(2,i,j,kk)=zero
               end do
            end do
         else
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
-                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_sub(2,i,j,kk)=t_x(i,j,k)
+                 hwork_subx(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_subx(2,i,j,kk)=t_x(i,j,k)
+                 hwork_suby(1,i,j,kk)=p3d_y(i,j,k)
+                 hwork_suby(2,i,j,kk)=t_y(i,j,k)
               end do
            end do
         end if
      end if
   end do
+  allocate(hwork_x(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  call general_sub2grid(s2g4,hwork_subx,hwork_x)
+  deallocate(hwork_subx)
+  allocate(hwork_y(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  call general_sub2grid(s2g4,hwork_suby,hwork_y)
+  deallocate(hwork_suby)
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
   allocate(hwork(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
-  hwork=zero      ! ??? do I need this ???
+  hwork = zero
   call general_sub2grid(s2g4,hwork_sub,hwork)
 
   if(regional)then
