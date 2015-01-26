@@ -145,6 +145,9 @@ subroutine intall(sval,sbias,rval,rbias)
 !   2007-04-13  tremolet - split Jo and 3dvar components into intjo and int3dvar
 !   2007-10-01  todling  - add timers
 !   2011-10-20  todling  - observation operators refer to state- not control-vec (cvars->svars)
+!   2014-03-19  pondeca -  Add RHS calculation for wspd10m constraint
+!   2014-05-07  pondeca -  Add RHS calculation for howv constraint
+!   2014-06-17  carley/zhu  - Add RHS calculation for lcbas constraint
 !
 !   input argument list:
 !     sval     - solution on grid
@@ -165,23 +168,25 @@ subroutine intall(sval,sbias,rval,rbias)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: i_kind
+  use kinds, only: i_kind,r_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
-  use constants, only: zero
+  use constants, only: zero,zero_quad
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use jfunc, only: l_foto,dhat_dt
+  use jfunc, only: nrclen,nsclen,npclen,ntclen
   use obsmod, only: yobs
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
-  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,&
-      intjcpdry,intjcdfi
+  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,&
+      intliml,intjcpdry1,intjcpdry2,intjcdfi
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
   use guess_grids, only: ntguessig,nfldsig
+  use mpl_allreducemod, only: mpl_allreduce
   implicit none
 
 ! Declare passed variables
@@ -189,9 +194,11 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(in   ) :: sbias
   type(gsi_bundle), intent(inout) :: rval(nobs_bins)
   type(predictors), intent(inout) :: rbias
+  real(r_quad),dimension(max(1,nrclen)) :: qpred
+  real(r_quad),dimension(2*nobs_bins) :: mass
 
 ! Declare local variables
-  integer(i_kind) :: ibin,ii,it
+  integer(i_kind) :: ibin,ii,it,i
 
 !******************************************************************************
 ! Initialize timer
@@ -210,10 +217,12 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Compute RHS in physical space
 
+  qpred=zero_quad
 ! RHS for Jo
   do ibin=1,nobs_bins
-     call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+     call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
   end do
+
 
   if(.not.ltlint)then
 ! RHS for moisture constraint
@@ -238,27 +247,67 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for pblh constraint
      if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
+
+! RHS for wspd10m constraint
+     if (getindex(svars2d,'wspd10m')>0) call intlimw10m(rval(1),sval(1))
+
+! RHS for howv constraint
+     if (getindex(svars2d,'howv')>0) call intlimhowv(rval(1),sval(1))
+
+! RHS for lcbas constraint
+     if (getindex(svars2d,'lcbas')>0) call intliml(rval(1),sval(1))
+
   end if
 
-! RHS for dry ps constraint
+! RHS for dry ps constraint: part 1
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
-      call intjcpdry(rval(ibin_anl),sval(ibin_anl))
+      call intjcpdry1(sval(ibin_anl),1,mass)
     else 
-      do ibin=1,nobs_bins
-         call intjcpdry(rval(ibin),sval(ibin))
-      end do
+      call intjcpdry1(sval,nobs_bins,mass)
+    end if
+  end if
+
+! Put reduces together to minimize wait time
+! First, use MPI to get global mean increment
+  call mpl_allreduce(2*nobs_bins,qpvals=mass)
+
+! Take care of background error for bias correction terms
+
+  call mpl_allreduce(nrclen,qpvals=qpred)
+
+
+! RHS for dry ps constraint: part 2
+  if(ljcpdry)then
+    if (.not.ljc4tlevs) then
+      call intjcpdry2(rval(ibin_anl),1,mass)
+    else 
+      call intjcpdry2(rval,nobs_bins,mass)
     end if
   end if
 
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
 
-! RHS calculation for Jc and other 3D-Var terms
-  call int3dvar(rval(1),dhat_dt)
+  if(l_foto) then
+!    RHS calculation for Jc and other 3D-Var terms
+     call int3dvar(rval(1),dhat_dt)
 
 ! Release local memory
-  if (l_foto) call deallocate_state(dhat_dt)
+     call deallocate_state(dhat_dt)
+  end if
+
+  do i=1,nsclen
+     rbias%predr(i)=rbias%predr(i)+qpred(i)
+  end do
+  do i=1,npclen
+     rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
+  end do
+  if (ntclen>0) then
+     do i=1,ntclen
+        rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
+     end do
+  end if
 
 ! Finalize timer
   call timer_fnl('intall')

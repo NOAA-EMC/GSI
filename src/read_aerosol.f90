@@ -62,7 +62,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   implicit none
 !
 ! Declare local parameters
-  real(r_kind), parameter :: r6   = 6.0_r_kind
   real(r_kind), parameter :: r360 = 360.0_r_kind
 !
 ! Declare passed variables

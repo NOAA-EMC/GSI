@@ -120,7 +120,7 @@ public as2d        ! normalized scale factor for background error 2d-variables
 public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
 public an_amp0     ! multiplying factors on reference background error variances
 
-public nrf2_loc,nrf3_loc   ! what are these for??
+public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer
 
 type control_vector
@@ -147,7 +147,7 @@ logical :: lsqrtb
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
 logical,allocatable,dimension(:):: nrf_3d
-integer(i_kind),allocatable,dimension(:):: nrf2_loc,nrf3_loc
+integer(i_kind),allocatable,dimension(:):: nrf2_loc,nrf3_loc,nmotl_loc
 integer(i_kind) nrf,nvars
 integer(i_kind) ntracer
 
@@ -331,7 +331,7 @@ allocate(an_amp0(nvars))
 
 ! want to rid code from the following ...
 nrf=nc2d+nc3d
-allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d))
+allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d),nmotl_loc(mvars))
 
 ! Now load information from table
 nc3d=0;nc2d=0;mvars=0
@@ -341,6 +341,7 @@ do ii=1,nvars
    if(trim(adjustl(source))=='motley') then
        mvars=mvars+1
        cvarsmd(mvars)=trim(adjustl(var))
+       nmotl_loc(mvars)=ii
        atsfc_sdv(mvars)=aas
    else
       if(ilev==1) then
@@ -382,7 +383,7 @@ end subroutine init_anacv
 subroutine final_anacv
   implicit none
   deallocate(nrf_var)
-  deallocate(nrf_3d,nrf2_loc,nrf3_loc)
+  deallocate(nrf_3d,nrf2_loc,nrf3_loc,nmotl_loc)
   deallocate(as3d,as2d)
   deallocate(an_amp0)
   deallocate(atsfc_sdv)

@@ -17,6 +17,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !            250: JMA WV deep layer. 251:GOES visible, 252: JMA IR winds
 !            253: EUMETSAT IR winds, 254: EUMETSAT WV deep layer winds
 !            257,258,259: MODIS IR,WV cloud top, WV deep layer winds
+!            260: VIIR IR winds
 !            respectively
 !            For satellite subtype: 50-70 from EUMETSAT geostationary satellites(METEOSAT) 
 !                                   100-199 from JMA geostationary satellites(MTSAT)
@@ -50,6 +51,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !   2013-08-26 McCarty -modified to remove automatic rejection of AVHRR winds
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
+!   2014-07-16  Su      - read VIIRS winds 
 
 !
 !   input argument list:
@@ -117,6 +119,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: r600=600.0_r_kind
   real(r_kind),parameter:: r700=700.0_r_kind
+  real(r_kind),parameter:: r850=850.0_r_kind
   real(r_kind),parameter:: r199=199.0_r_kind
   real(r_kind),parameter:: r299=299.0_r_kind
   real(r_kind),parameter:: r799=799.0_r_kind
@@ -179,7 +182,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),dimension(nsig):: presl
   
   real(r_double),dimension(13):: hdrdat
-  real(r_double),dimension(4):: obsdat,satqc
+  real(r_double),dimension(4):: obsdat
   real(r_double),dimension(3,5) :: heightdat
   real(r_double),dimension(6,4) :: derdwdat
   real(r_double),dimension(3,12) :: qcdat
@@ -213,6 +216,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! read observation error table
 
+  disterrmax=zero
+  vdisterrmax=zero
   allocate(etabl(300,33,6))
   etabl=1.e9_r_kind
   ietabl=19
@@ -250,8 +255,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=240 &
-             .and. ictype(nc) <=260) then
+     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and.  ictype(nc) >=240 &
+             .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
@@ -371,6 +376,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  itype=240
               endif
            endif
+        else if( trim(subset) == 'NC005090') then                   ! VIIRS winds 
+           if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
+              if(hdrdat(9) == one)  then                            ! VIIRS IR winds
+                 itype=260
+              endif
+           endif
          endif
 !  Match ob to proper convinfo type
         ncsave=0
@@ -478,7 +489,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(nc <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
            hdrdat=bmiss
            obsdat=bmiss
-           satqc=bmiss
            heightdat=bmiss
            derdwdat=bmiss
            qcdat=bmiss
@@ -501,7 +511,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
             .or. obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
            if(ppb >r10000) ppb=ppb/r100
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
-           if (twodvar_regional .and. ppb <r600) cycle loop_readsb
+           if (twodvar_regional .and. ppb <r850) cycle loop_readsb
 !   reject the data with bad quality mark from SDM
            if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
 !       Compare relative obs time with window.  If obs 
@@ -694,11 +704,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  c_prvstg='AVHRR'
                  if(hdrdat(9) == one)  then                            ! IR winds
                     itype=244
-!                   The following two lines have been commented out because they 
-!                   automatically disallow the AVHRR observations and we don't 
-!                   want that - should be controlled at satinfo level.
-!                   qm=15
-!                   pqm=15
                  else
                     write(6,*) 'READ_SATWND: wrong derived method value'
                  endif
@@ -709,9 +714,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
                        if(qcdat(2,j) ==  one  .and. qifn >r105) then
                           qifn=qcdat(3,j)
-                       else if(qcdat(2,j) ==  three .and. qify >105) then
+                       else if(qcdat(2,j) ==  three .and. qify >r105) then
                           qify=qcdat(3,j)
-                       else if( qcdat(2,j) == four .and. ee >105) then
+                       else if( qcdat(2,j) == four .and. ee >r105) then
                           ee=qcdat(3,j)
                        endif 
                     endif
@@ -723,7 +728,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! short wave IR winds
                     itype=240
-                    qm=15
                     c_station_id='IR'//stationid
                     c_sprvstg='IR'
                  endif
@@ -734,9 +738,32 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
                        if(qcdat(2,j) ==  one  .and. qifn >r105) then
                           qifn=qcdat(3,j)
-                       else if(qcdat(2,j) ==  three .and. qify >105) then
+                       else if(qcdat(2,j) ==  three .and. qify >r105) then
                           qify=qcdat(3,j)
-                       else if( qcdat(2,j) == four .and. ee >105) then
+                       else if( qcdat(2,j) == four .and. ee >r105) then
+                          ee=qcdat(3,j)
+                       endif
+                    endif
+                 enddo
+              endif
+           else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
+               if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
+                 c_prvstg='VIIRS'
+                 if(hdrdat(9) == one)  then                            ! VIIRS IR winds
+                    itype=260
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
+                 endif
+! get quality information
+                 call ufbrep(lunin,qcdat,3,8,iret,qcstr)
+                 do j=1,6
+                    if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
+                    if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
+                       if(qcdat(2,j) ==  one  .and. qifn >r105) then
+                          qifn=qcdat(3,j)
+                       else if(qcdat(2,j) ==  three .and. qify >r105) then
+                          qify=qcdat(3,j)
+                       else if( qcdat(2,j) == four .and. ee >r105) then
                           ee=qcdat(3,j)
                        endif
                     endif
@@ -831,7 +858,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
             if(itype==245 .or. itype==246) then
 !               obserr=obserr*two
 !  using  Santek quality control method,calculate the original ee value
-               if(ee <105.0_r_kind) then
+               if(ee <r105) then
                   ree=(ee-r100)/(-10.0_r_kind)
                   if(obsdat(4) >zero) then
                     ree=ree/obsdat(4)

@@ -48,15 +48,17 @@
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
-      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
+      buddycheck_t,buddydiag_save
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,&
+     factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
+     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -80,7 +82,8 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio,use_sp_eqspace,final_grid_vars,use_reflectivity
+     use_gfs_nemsio,use_sp_eqspace,final_grid_vars,use_reflectivity,&
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
@@ -284,6 +287,15 @@
 !                              grid than mass background grid
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
+!  05-29-2014 Thomas    add lsingleradob logical for single radiance ob test
+!                       (originally of mccarty)
+!  06-19-2014 carley/zhu  add factl and R_option for twodvar_regional lcbas/ceiling analysis
+!  08-05-2014 carley    add safeguard so that oneobtest disables hilbert_curve if user accidentally sets hilbert_curve=.true.
+!  08-18-2014 tong      add jcap_gfs to allow spectral transform to a coarser resolution grid,
+!                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
+!                       regional analysis
+!  10-07-2014 carley    added buddy check options under obsqc
+!  11-12-2014 pondeca   must read in from gridopts before calling obsmod_init_instr_table. swap order
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -439,14 +451,21 @@
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !     emiss_bc    - option to turn on emissivity bias predictor
+!     lsingleradob - logical for single radiance observation assimilation.
+!                   Uses existing bufr file and rejects all radiances that don't fall within a tight threshold around
+!                   oblat/oblon (SINGLEOB_TEST)
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
+!     R_option   - Option to use variable correlation length for lcbas based on data
+!                    density - follows Hayden and Purser (1995) (twodvar_regional only)
+!
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation, &
+       factv,factl,factp,factg,factw10m,facthowv,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
@@ -472,7 +491,7 @@
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
-       use_sp_eqspace,lnested_loops,use_reflectivity
+       use_sp_eqspace,lnested_loops,use_reflectivity,lsingleradob
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -502,6 +521,9 @@
 !     nvege_type - number of types of vegetation; old=24, IGBP=20
 !     nlayers    - number of sub-layers to break indicated model layer into
 !                  prior to calling radiative transfer model
+!     jcap_gfs   - spectral truncation used to transform high wavenumber
+!                  spectral coefficients to a coarser resolution grid,
+!                  when use_gfs_ozone = .true. or use_gfs_stratosphere = .true.   
 !     use_sp_eqspac     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                         poles.  if .false., then gaussian grid assumed for ensemble (global only)
 
@@ -509,7 +531,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -655,11 +677,15 @@
 !                          is used for predictor
 !     aircraft_t_bc  - logical for aircraft temperature bias correction
 !     aircraft_t_bc_ext - logical for reading aircraft temperature bias correction from external file
+!     buddycheck_t - When true, run buddy check algorithm on temperature observations
+!     buddydiag_save - When true, output files containing buddy check QC info for all
+!                      obs run through the buddy check
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
-       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
+       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
+       buddycheck_t,buddydiag_save
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -673,17 +699,20 @@
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
 !      magoberr   - magnitude of observational error
-!      oneob_type - observation type
-!      oblat      - observation latitude
-!      oblon      - observation longitude
+!      oneob_type - observation type (lsingleradob: platform type, i.e. 'airs')
+!      oblat      - observation latitude (lsingleradob: footprint cenlat)
+!      oblon      - observation longitude (lsingleradob: footprint cenlon)
 !      obpres     - observation pressure
 !      obdattim   - observation date
 !      obhourset  - observation delta time from analysis time
 !      pctswitch  - if .true. innovation & oberr are relative (%) of background value
 !                      (level ozone only)
+!      obchan     - if > 0, selects the channel number.  If <= zero, it will use
+!                   all channels that pass qc in setuprad.    
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
-       oblat,oblon,obpres,obdattim,obhourset,pctswitch
+       oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
+       obchan
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -927,8 +956,8 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  read(5,setup)
   call obsmod_init_instr_table(nhr_assimilation,ndat)
+  read(5,setup) 
   read(5,gridopts)
   read(5,bkgerr)
   read(5,anbkgerr)
@@ -945,10 +974,10 @@
 ! Initialize table of instruments and data types
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
-        if(ios/=0) call die(myname_,'read(setup)',ios)
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
+        if(ios/=0) call die(myname_,'read(setup)',ios)  
   read(11,gridopts,iostat=ios)
         if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,bkgerr,iostat=ios)
         if(ios/=0) call die(myname_,'read(bkgerr)',ios)
   read(11,anbkgerr,iostat=ios)
@@ -974,6 +1003,13 @@
   close(11)
 #endif
 
+  if(jcap > jcap_cut)then
+    jcap_cut = jcap+1
+    if(mype == 0)then
+      write(6,*) ' jcap_cut increased to jcap+1 = ', jcap+1
+      write(6,*) ' jcap_cut < jcap+1 not allowed '
+    end if
+  end if
   if (anisotropic) then
       call init_fgrid2agrid(pf2aP1)
       call init_fgrid2agrid(pf2aP2)
@@ -1012,7 +1048,7 @@
   endif
 
   call gsi_4dcoupler_setservices(rc=ier)
-         if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
+  if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
 
 
 ! Check user input for consistency among parameters for given setups.
@@ -1026,6 +1062,26 @@
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
                           use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
+! Given the requested resolution, set dependent resolution parameters
+  if(jcap_gfs == 1534)then
+     nlat_gfs=1538
+     nlon_gfs=3072
+  else if(jcap_gfs == 574)then
+     nlat_gfs=578
+     nlon_gfs=1152
+  else if(jcap_gfs == 382)then
+     nlat_gfs=386
+     nlon_gfs=768
+  else if(jcap_gfs == 126)then
+     nlat_gfs=130
+     nlon_gfs=256
+  else if(jcap_gfs == 62)then
+     nlat_gfs=96
+     nlon_gfs=192
+  else
+     if(mype == 0) write(6,*)' Invalid jcap_gfs'
+     call stop2(329)
+  end if
 
 !  reg_tlnmc_type=2 currently requires that 2*nvmodes_keep <= npe
   if(reg_tlnmc_type==2) then
@@ -1039,9 +1095,9 @@
 
   if (tlnmc_option>=2 .and. tlnmc_option<=4) then
      if (.not.l_hyb_ens) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
-	if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
-	tlnmc_option=1
+     if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
+     if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
+     tlnmc_option=1
      end if
   else if (tlnmc_option<0 .or. tlnmc_option>4) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
@@ -1184,6 +1240,10 @@
      dmesh=one
      factqmin=zero
      factqmax=zero
+     if (hilbert_curve) then
+        write(6,*) 'Disabling hilbert_curve cross validation when oneobtest=.true.'
+        hilbert_curve=.false.
+     end if
 #ifdef ibm_sp
      read(5,singleob_test)
 #else
@@ -1195,6 +1255,18 @@
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
      dsis(1)=dtype(1)
+  endif
+
+! Single radiance assimilation case
+  if (lsingleradob) then
+#ifdef ibm_sp 
+     read(5,singleob_test)
+#else 
+     open(11,file='gsiparm.anl')
+     read(11,singleob_test,iostat=ios)
+     if(ios/=0) call die(myname_,'read(singleob_test)',ios)
+     close(11)
+#endif 
   endif
 
 ! Write namelist output to standard out
@@ -1217,17 +1289,19 @@
      if(ngroup>0) then
        if (ngroup<size(dmesh)) then
           write(6,*)' ngroup = ',ngroup,' dmesh = ',(dmesh(i),i=1,ngroup)
+ 400      format(' ngroup = ',I5,' dmesh = ',(5f10.2))
        else
           call die(myname_,'dmesh size needs increasing',99)
        endif
      endif
      do i=1,ndat
-        write(6,*)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
+        write(6,401)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
+ 401    format(1x,a20,1x,a10,1x,a10,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
      end do
      write(6,superob_radar)
      write(6,lag_data)
      write(6,hybrid_ensemble)
-     write(6,rapidrefresh_cldsurf)	
+     write(6,rapidrefresh_cldsurf)
      write(6,chem)
      if (oneobtest) write(6,singleob_test)
   endif

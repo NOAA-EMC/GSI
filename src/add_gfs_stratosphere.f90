@@ -17,6 +17,10 @@ subroutine add_gfs_stratosphere
 !   2012-02-18  parrish, initial documentation
 !   2012-10-11  eliu - add FGAT capability for wrf_nmm_regional (HWRF) 
 !   2013-10-19  todling - metguess now holds background
+!   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
+!                         transformed to a coarser resolution grid
+!   2014-12-03  derber  - modify call to general_read_gfsatm to reduce reading
+!                         of unused variables
 !
 !   input argument list:
 !
@@ -31,10 +35,10 @@ subroutine add_gfs_stratosphere
   use gridmod, only: idsl5,regional,wrf_nmm_regional 
   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
-  use gridmod, only: use_gfs_ozone
+  use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
   use constants,only: zero,one_tenth,half,one,ten,fv
   use mpimod, only: mype
-             use mpimod, only: mpi_comm_world
+  use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
   use mpeu_util, only: die
   use gsi_bundlemod, only : gsi_bundlegetpointer
@@ -56,8 +60,8 @@ subroutine add_gfs_stratosphere
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
-  type(spec_vars) sp_gfs
-  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,pri_m,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
+  type(spec_vars) sp_gfs,sp_b
+  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
@@ -71,10 +75,10 @@ subroutine add_gfs_stratosphere
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
-  integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
-  integer(i_kind) nord_g2r
+  integer(i_kind) inner_vars,num_fields,nsig_gfs,jcap_gfs_test
+  integer(i_kind) nord_g2r,jcap_org,nlon_b
   logical,allocatable :: vector(:)
-  real(r_kind),parameter::  zero_001=0.001_r_kind
+  logical hires
   real(r_kind),allocatable,dimension(:) :: xspli_r,yspliu_r,yspliv_r,xsplo,xsplo_r,ysplou_r,ysplov_r
   real(r_kind),allocatable,dimension(:) :: xspli_g,yspliu_g,yspliv_g,ysplou_g,ysplov_g
   integer(i_kind) iyr,ihourg
@@ -232,23 +236,39 @@ subroutine add_gfs_stratosphere
   endif
 
   inner_vars=1
-  nlat_gfs=sighead%latf+2
-  nlon_gfs=sighead%lonf
+  jcap_org=sighead%jcap
   nsig_gfs=nsigg
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
+
+  nlon_b=((2*jcap_org+1)/nlon_gfs+1)*nlon_gfs
+  if (nlon_b > nlon_gfs) then
+     hires=.true.
+  else
+     hires=.false.
+     jcap_gfs=sighead%jcap
+     nlat_gfs=sighead%latf+2
+     nlon_gfs=sighead%lonf
+  end if 
+
   if(mype==0) write(6,*)' in add_gfs_stratosphere before general_sub2grid_create_info'                                                
   if(mype==0) write(6,*)' in add_gfs_stratosphere: num_fields = ', num_fields  
+  if(mype==0) write(6,*)' in add_gfs_stratosphere: jcap_org, jcap_gfs= ', &
+              jcap_org, jcap_gfs
+  if(mype==0) write(6,*)' in add_gfs_stratosphere: nlon_b, nlon_gfs, hires=', &
+                          nlon_b, nlon_gfs, hires
 
   allocate(vector(num_fields))
   vector=.false.
   vector(1:2*nsig_gfs)=.true.
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
-  jcap_gfs=sighead%jcap
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
+  if (hires) then
+      call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
+  end if
 
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
@@ -275,7 +295,17 @@ subroutine add_gfs_stratosphere
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     if (hires) then
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
+                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     else
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
+                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     end if
+        
+!test
+!     call grads3a(grd_gfs,u,oz,tv,q,ps,grd_gfs%nsig,mype,'gfsfields')
+
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
@@ -417,26 +447,26 @@ subroutine add_gfs_stratosphere
 
 !  IN THIS SECTION GET 3D PRESSURE FOR MERGED (TARGET) PRESSURE
 
-     allocate(pri_m(lat2,lon2,nsig+1))
-     do k=1,nsig+1
-        do j=1,lon2
-           do i=1,lat2
-              pri_m(i,j,k)=one_tenth*(eta1_ll(k)*pdtop_ll + &
-                              eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &        
-                              pt_ll)
-           end do
+! allocate(pri_m(lat2,lon2,nsig+1))
+! do k=1,nsig+1
+!    do j=1,lon2
+!       do i=1,lat2
+!          pri_m(i,j,k)=one_tenth*(eta1_ll(k)*pdtop_ll + &
+!                          eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &        
+!                          pt_ll)
+!       end do
+!    end do
+! end do
+  allocate(prsl_m(lat2,lon2,nsig))
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
+                           aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &       
+                           pt_ll)
         end do
      end do
-     allocate(prsl_m(lat2,lon2,nsig))
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
-                              aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &       
-                              pt_ll)
-           end do
-        end do
-     end do
+  end do
 
   allocate(xspli_r(nsig_save),yspliu_r(nsig_save),yspliv_r(nsig_save),xsplo(nsig))
   allocate(ysplou_r(nsig),ysplov_r(nsig),ysplou_g(nsig),ysplov_g(nsig))
@@ -647,7 +677,7 @@ subroutine add_gfs_stratosphere
   deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
   deallocate(xspli_g,yspliu_g,yspliv_g)
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
-  deallocate(pri_m)  
+! deallocate(pri_m)  
   deallocate(vector) 
 
   enddo it_loop       

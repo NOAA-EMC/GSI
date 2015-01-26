@@ -16,6 +16,8 @@ module ncepgfs_io
 !   2010-05-19 todling - add read_gfs_chem
 !   2011-04-08 li      - (1) add integer nst_gsi to control the mode of NSST 
 !                      - (2) add subroutine write_gfs_sfc_nst to save sfc and nst files
+!   2014-12-03 derber - modify for changes to general_read/write_gfsatm
+!   2014-12-03 derber - modify read_sfc routines to minimize communications/IO
 !
 ! Subroutines Included:
 !   sub read_gfs          - driver to read ncep gfs atmospheric ("sigma") files
@@ -84,7 +86,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -97,20 +99,20 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
-    logical:: l_cld_derived
+    logical:: l_cld_derived,zflag
     integer(i_kind):: it,nlon_b
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
-    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
-    real(r_kind),allocatable,dimension(:,:  ):: aux_z
-    real(r_kind),allocatable,dimension(:,:,:):: aux_u
-    real(r_kind),allocatable,dimension(:,:,:):: aux_v
-    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
-    real(r_kind),allocatable,dimension(:,:,:):: aux_div
-    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
-    real(r_kind),allocatable,dimension(:,:,:):: aux_q
-    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
-    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+    real(r_kind),dimension(lat2,lon2  ):: aux_ps
+    real(r_kind),dimension(lat2,lon2  ):: aux_z
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
@@ -128,9 +130,6 @@ contains
     type(spec_vars):: sp_b
 
 
-!   Get space for temporary arrays need to read file
-    call create_aux_
-
 !   If needed, initialize for hires_b transforms
     nlon_b=((2*jcap_b+1)/nlon+1)*nlon
     if (nlon_b /= sp_a%imax) then
@@ -141,6 +140,7 @@ contains
             sp_b%jcap,sp_b%imax,sp_b%jmax
     endif
 
+    zflag=.true.
     do it=1,nfldsig
 
        write(filename,100) ifilesig(it)
@@ -150,7 +150,7 @@ contains
 !         If hires_b, spectral to grid transform for background
 !         uses double FFT.   Need to pass in sp_a and sp_b
 
-          call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true., &
+          call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true.,.true.,zflag, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_u,aux_v,&
@@ -161,13 +161,14 @@ contains
 
 !         Otherwise, use standard transform.  Use sp_a in place of sp_b.
 
-          call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true., &
+          call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true.,.true.,zflag, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_u,aux_v,&
                aux_tv,aux_q,&
                aux_cwmr,aux_oz,iret)
        endif
+       zflag=.false.
 
 !      Set values to actual MetGuess fields
        call set_guess_
@@ -188,37 +189,9 @@ contains
 
     if (hires_b) call general_destroy_spec_vars(sp_b)
 
-!   Get rid of temporary arrays
-    call destroy_aux_
 
   contains
 
-  subroutine create_aux_
-!
-!   Description: this routine is here only temporarily. It serves to demonstrate
-!   the ability to use a single (meaningful) variable in the analysis, as for 
-!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
-!   fields, we need to allocate space to read them all, even though depending on
-!   metguess, some maybe excluded from being carried into the analysis. In the
-!   future, it would be better to recode read_gfsatm and have it deal with a
-!   single variable at a time; at that time, this routine and its destroy could 
-!   be removed.
-!
-!   2013-10-29  Todling Initial code.
-!
-  use gridmod, only: lat2,lon2,nsig
-  implicit none
-  allocate(aux_ps(lat2,lon2))
-  allocate(aux_z(lat2,lon2))
-  allocate(aux_u(lat2,lon2,nsig))
-  allocate(aux_v(lat2,lon2,nsig))
-  allocate(aux_vor(lat2,lon2,nsig))
-  allocate(aux_div(lat2,lon2,nsig))
-  allocate(aux_tv(lat2,lon2,nsig))
-  allocate(aux_q(lat2,lon2,nsig))
-  allocate(aux_oz(lat2,lon2,nsig))
-  allocate(aux_cwmr(lat2,lon2,nsig))
-  end subroutine create_aux_
 
   subroutine set_guess_
 
@@ -252,25 +225,6 @@ contains
   endif
 
   end subroutine set_guess_
-
-  subroutine destroy_aux_
-!
-!   Description: see create_aux_
-!
-!   2013-10-29  Todling Initial code.
-!
-  implicit none
-  deallocate(aux_cwmr)
-  deallocate(aux_oz)
-  deallocate(aux_q)
-  deallocate(aux_tv)
-  deallocate(aux_div)
-  deallocate(aux_vor)
-  deallocate(aux_v)
-  deallocate(aux_u)
-  deallocate(aux_z)
-  deallocate(aux_ps)
-  end subroutine destroy_aux_
 
   end subroutine read_gfs
 
@@ -488,7 +442,8 @@ subroutine write_ghg_grid(a,char_ghg,mype)
   return
 end subroutine write_ghg_grid
 
-  subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
+  subroutine read_sfc(fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
+           soil_moi,sfc_rough,terrain,isli,use_sfc_any)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_sfc
@@ -503,14 +458,9 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     lunges             - unit number to use for IO
-!     mype               - mpi task id
 !     filename           - gfs surface file to read
-!     iope               - mpi task to perform IO
 !
 !   output argument list:
-!     sfcdata (inout)    - sfc data structure to hold data
-!     sfchead (inout)    - sfc header structure to hold metadata
-!     iret               - return code (0 for successful completion)
 !
 ! attributes:
 !   language:  f90
@@ -518,64 +468,128 @@ end subroutine write_ghg_grid
 !
 !$$$ end documentation block
     ! read data from sfc file on a single task, bcast data to other tasks.
-    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data
+    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_intkind
+    use sfcio_module, only: sfcio_axdata,sfcio_sclose
     use kinds, only: i_kind,r_single,r_kind
-    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(*),intent(in) :: filename
-    type(sfcio_head), intent(inout) :: sfchead
-    type(sfcio_data), intent(inout):: sfcdata
-    integer(i_kind), intent(inout) :: iret
-    integer(i_kind), intent(in) :: iope,mype,lunges
-    integer(i_kind) idate(4),latb,lonb
-    real(r_single) fhour
-    ! read a file on a specified task, broadcast data to other tasks.
-    ! iope is task that does IO for this file.
-    if (mype == iope) then
-        call sfcio_srohdc(lunges,filename,sfchead,sfcdata,iret)
-        if (iret /= 0) print *,'error in read_sfc',trim(filename),iret
-        idate = sfchead%idate
-        lonb = sfchead%lonb
-        latb = sfchead%latb
-        fhour = sfchead%fhour
-    endif
-    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    sfchead%fhour   = fhour
-    sfchead%idate   = idate
-    sfchead%latb   = latb
-    sfchead%lonb   = lonb
-    if (mype /= iope) then
-       allocate(&
-         sfcdata%tsea(lonb,latb),&
-         sfcdata%smc(lonb,latb,1),&
-         sfcdata%sheleg(lonb,latb),&
-         sfcdata%stc(lonb,latb,1),&
-         sfcdata%slmsk(lonb,latb),&
-         sfcdata%zorl(lonb,latb),&
-         sfcdata%vfrac(lonb,latb),&
-         sfcdata%f10m(lonb,latb),&
-         sfcdata%vtype(lonb,latb),&
-         sfcdata%stype(lonb,latb),&
-         sfcdata%orog(lonb,latb))
-    endif
-    call mpi_bcast(sfcdata%tsea(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%smc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%stc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%sheleg(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%zorl(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%vfrac(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%slmsk(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%f10m(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%vtype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%stype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfcdata%orog(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldsfc,ifilesfc
+    integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
+         veg_type,soil_type,terrain
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) ::  &
+         fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
+    logical,                                    intent(in   ) :: use_sfc_any
+    integer(i_kind) :: latb,lonb
+    integer(i_kind) :: iret,n,i,j
+    type(sfcio_head) :: sfc_head
+    type(sfcio_data) :: sfc_data
+    real(r_kind),allocatable,dimension(:,:):: outtmp
+    integer(i_kind) :: nsfc,it
+    character(24) :: filename
+!   Declare local parameters
+    integer(sfcio_intkind):: lunges = 11
+    integer(i_kind),parameter:: nsfc_all = 11
+
+    do it=1,nfldsfc
+! read a surface file on the task
+       write(filename,200)ifilesfc(it)
+200    format('sfcf',i2.2)
+       call sfcio_srohdc(lunges,filename,sfc_head,sfc_data,iret)
+!      Check for possible problems
+       if (iret /= 0) then
+          write(6,*)'READ_SFC:  ***ERROR*** problem reading ',filename,&
+               ', iret=',iret
+          call sfcio_axdata(sfc_data,iret)
+          call stop2(80)
+       endif
+       lonb = sfc_head%lonb
+       latb = sfc_head%latb
+       if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
+            write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
+                 ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
+                    lonb,latb
+            call sfcio_axdata(sfc_data,iret)
+            call stop2(80)
+       endif
+       if(it == 1)then
+         nsfc=nsfc_all
+       else
+         nsfc=nsfc_all-4
+       end if
+!$omp parallel do private(n,i,j,outtmp)
+       do n=1,nsfc
+ 
+        if(n == 1)then                                  !skin temperature
+   
+          call tran_gfssfc(sfc_data%tsea,sfct(1,1,it),lonb,latb)                                 
+        else if(n == 2 .and. use_sfc_any) then          ! soil moisture
+
+          call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi(1,1,it),lonb,latb)  
+
+        else if(n == 3) then                            ! snow depth
+
+          call tran_gfssfc(sfc_data%sheleg,sno(1,1,it),lonb,latb)        
+
+        else if(n == 4 .and. use_sfc_any) then          ! soil temperature
+
+          call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp(1,1,it),lonb,latb)  
+
+        else if(n == 5 .and. use_sfc_any) then           ! vegetation cover 
+
+          call tran_gfssfc(sfc_data%vfrac,veg_frac(1,1,it),lonb,latb)                       
+
+        else if(n == 6) then                             ! 10m wind factor
+
+          call tran_gfssfc(sfc_data%f10m,fact10(1,1,it),lonb,latb)                           
+
+        else if(n == 7) then                             ! suface roughness
+
+          call tran_gfssfc(sfc_data%zorl,sfc_rough(1,1,it),lonb,latb)            
+
+
+        else if(n == 8 .and. use_sfc_any) then           ! vegetation type
+
+           call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
+
+        else if(n == 9 .and. use_sfc_any) then           ! soil type
+
+          call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
+
+        else if(n == 10) then                            ! sea/land/ice flag
+
+          allocate(outtmp(latb+2,lonb))
+          call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
+          do j=1,lonb
+            do i=1,latb+2
+               isli(i,j) = nint(outtmp(i,j))
+            end do
+          end do
+          deallocate(outtmp)
+
+        else if(n == 11) then                            ! terrain
+
+          call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
+
+        end if
+
+
+!         End of loop over data records
+       end do
+!   Print date/time stamp
+       write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
+700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
+            2i6,', hour=',f10.1,', idate=',4i5)
+       call sfcio_axdata(sfc_data,iret)
+       call sfcio_sclose(lunges,iret)
+!         End of loop over time levels
+    end do
+
   end subroutine read_sfc
 
 
-  subroutine read_gfssfc(filename,iope,mype,fact10,sfct,sno,veg_type,&
-       veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain)
+  subroutine read_gfssfc(iope,mype,fact10,sfct,sno,veg_type,&
+       veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain,&
+       use_sfc_any)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_gfssfc     read gfs surface file
@@ -617,125 +631,51 @@ end subroutine write_ghg_grid
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
-    use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
-         sfcio_srohdc,sfcio_axdata
+    use guess_grids, only: nfldsfc
+    use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
-    character(*)                               ,intent(in   ) :: filename
-    integer(i_kind)                             ,intent(in   ) :: iope
-    integer(i_kind)                             ,intent(in   ) :: mype
+    integer(i_kind)                      ,intent(in   ) :: iope
+    integer(i_kind)                      ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
-         veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough,terrain
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
+         veg_type,soil_type,terrain
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) :: &
+         fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
+    logical                              ,intent(in   ) :: use_sfc_any
 
-!   Declare local parameters
-    integer(sfcio_intkind):: lunges = 11
-    integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
-    integer(i_kind) i,j,latb,lonb,n
-    integer(sfcio_intkind):: irets,iret
-    real(r_kind),allocatable,dimension(:,:):: outtmp
-
-    type(sfcio_head):: sfc_head
-    type(sfcio_data):: sfc_data
+    integer(i_kind):: iret,npts,nptsall,nsfc
 
 !-----------------------------------------------------------------------------
-!   Read surface file
-    call read_sfc(lunges,filename,sfc_head,sfc_data,iope,mype,irets)
+!   Read surface file on processor iope
+    if(mype == iope)then
+      call read_sfc(fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
+           soil_moi,sfc_rough,terrain,isli,use_sfc_any)
+    end if
 
+!     Load onto all processors
 
-!   Check for possible problems
-    if (irets /= 0) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** problem reading ',filename,&
-            ', irets=',irets
-       call sfcio_axdata(sfc_data,iret)
-       call stop2(80)
-    endif
-    latb=sfc_head%latb
-    lonb=sfc_head%lonb
-    if ( (latb /= nlat_sfc-2) .or. &
-         (lonb /= nlon_sfc) ) then
-       write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
-               lonb,latb
-       call sfcio_axdata(sfc_data,iret)
-       call stop2(80)
-    endif
+    npts=nlat_sfc*nlon_sfc
+    nptsall=npts*nfldsfc
 
-!   Load surface fields into local work array
-
-!$omp parallel do private(n,i,j,outtmp)
-    do n=1,nsfc
-      if(n == 1)then                                  !skin temperature
-
-        call tran_gfssfc(sfc_data%tsea,sfct,lonb,latb)                                 
-
-      else if(n == 2) then                            ! soil moisture
-
-        call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi,lonb,latb)  
-
-      else if(n == 3) then                            ! snow depth
-
-        call tran_gfssfc(sfc_data%sheleg,sno,lonb,latb)        
-
-      else if(n == 4) then                            ! soil temperature
-
-        call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp,lonb,latb)  
-
-      else if(n == 5) then                            ! sea/land/ice mask
-
-        allocate(outtmp(latb+2,lonb))
-        call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
-        do j=1,lonb
-          do i=1,latb+2
-             isli(i,j) = nint(outtmp(i,j))
-          end do
-        end do
-        deallocate(outtmp)
-
-      else if(n == 6) then                             ! vegetation cover
-
-        call tran_gfssfc(sfc_data%vfrac,veg_frac,lonb,latb)                       
-
-      else if(n == 7) then                             ! 10m wind factor
-
-        call tran_gfssfc(sfc_data%f10m,fact10,lonb,latb)                           
-
-      else if(n == 8) then                             ! vegetation type
-
-        call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
-
-      else if(n == 9) then                             ! soil type
-
-        call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
-
-      else if(n == 10) then                            ! surface roughness length (cm)
-
-        call tran_gfssfc(sfc_data%zorl,sfc_rough,lonb,latb)            
-
-      else if(n == 11) then                            ! terrain
-
-        call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
-
-      end if
-
-
-!   End of loop over data records
-    end do
-
-    call sfcio_axdata(sfc_data,iret)
-
-
-!   Print date/time stamp
-    if(mype==iope) then
-       write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
-700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
-            2i6,', hour=',f10.1,', idate=',4i5)
+    call mpi_bcast(sfct,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(fact10,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sno,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfc_rough,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(terrain,npts,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli,npts,mpi_itype,iope,mpi_comm_world,iret)
+    if(use_sfc_any)then
+       call mpi_bcast(veg_frac,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_temp,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_moi,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
     end if
 
     return
@@ -979,11 +919,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use kinds, only: i_kind,r_kind
     use guess_grids, only: dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
+    use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
 
@@ -996,16 +937,16 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     character(24):: file_sfc,file_nst
 
-    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
-    real(r_kind),allocatable,dimension(:,:  ):: aux_z
-    real(r_kind),allocatable,dimension(:,:,:):: aux_u
-    real(r_kind),allocatable,dimension(:,:,:):: aux_v
-    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
-    real(r_kind),allocatable,dimension(:,:,:):: aux_div
-    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
-    real(r_kind),allocatable,dimension(:,:,:):: aux_q
-    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
-    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+    real(r_kind),dimension(lat2,lon2  ):: aux_ps
+    real(r_kind),dimension(lat2,lon2  ):: aux_z
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
@@ -1027,8 +968,16 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        ntlevs=nfldsig
     end if
 
-!   Get space for temporary arrays need to read file
-    call create_aux_
+    aux_ps=zero
+    aux_z=zero
+    aux_u=zero
+    aux_v=zero
+    aux_vor=zero
+    aux_div=zero
+    aux_tv=zero
+    aux_q=zero
+    aux_oz=zero
+    aux_cwmr=zero
 
     do it=1,ntlevs
        if (increment>0) then
@@ -1093,38 +1042,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
       endif
     endif
 
-!   Get rid of temporary arrays
-    call destroy_aux_
-
   contains
 
-  subroutine create_aux_
-!
-!   Description: this routine is here only temporarily. It serves to demonstrate
-!   the ability to use a single (meaningful) variable in the analysis, as for 
-!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
-!   fields, we need to allocate space to read them all, even though depending on
-!   metguess, some maybe excluded from being carried into the analysis. In the
-!   future, it would be better to recode read_gfsatm and have it deal with a
-!   single variable at a time; at that time, this routine and its destroy could 
-!   be removed.
-!
-!   2013-10-29  Todling Initial code.
-!
-  use gridmod, only: lat2,lon2,nsig
-  use constants, only: zero
-  implicit none
-  allocate(aux_ps(lat2,lon2)); aux_ps=zero
-  allocate(aux_z(lat2,lon2)); aux_z=zero
-  allocate(aux_u(lat2,lon2,nsig)); aux_u=zero
-  allocate(aux_v(lat2,lon2,nsig)); aux_v=zero
-  allocate(aux_vor(lat2,lon2,nsig)); aux_vor=zero
-  allocate(aux_div(lat2,lon2,nsig)); aux_div=zero
-  allocate(aux_tv(lat2,lon2,nsig)); aux_tv=zero
-  allocate(aux_q(lat2,lon2,nsig)); aux_q=zero
-  allocate(aux_oz(lat2,lon2,nsig)); aux_oz=zero
-  allocate(aux_cwmr(lat2,lon2,nsig)); aux_cwmr=zero
-  end subroutine create_aux_
 
   subroutine set_analysis_(it)
   implicit none
@@ -1152,25 +1071,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
   if(istatus==0) aux_cwmr = ges_cwmr_it
 
   end subroutine set_analysis_
-
-  subroutine destroy_aux_
-!
-!   Description: see create_aux_
-!
-!   2013-10-29  Todling Initial code.
-!
-  implicit none
-  deallocate(aux_cwmr)
-  deallocate(aux_oz)
-  deallocate(aux_q)
-  deallocate(aux_tv)
-  deallocate(aux_div)
-  deallocate(aux_vor)
-  deallocate(aux_v)
-  deallocate(aux_u)
-  deallocate(aux_z)
-  deallocate(aux_ps)
-  end subroutine destroy_aux_
 
   end subroutine write_gfs
 

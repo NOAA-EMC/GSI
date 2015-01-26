@@ -251,9 +251,9 @@ call read_preds(sbias,'preds_'//trim(filename))
 
 ! convert to control vector
 if (lsqrtb) then
-   call model2control(mval,sbias,xhat)
+   call control2model_ad(mval,sbias,xhat)
 else
-   call state2control(mval,sbias,xhat)
+   call control2state_ad(mval,sbias,xhat)
 endif
 
 ! Allocate local variables

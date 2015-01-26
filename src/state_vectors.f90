@@ -23,6 +23,7 @@ module state_vectors
 !   2013-10-22  todling  - revisit edge/general rank-3 (level) handle
 !   2013-10-28  todling  - rename p3d to prse
 !   2014-11-02  todling  - negative levs indicate rank-3 array
+!   2014-12-03  derber   - remove unused variables
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -48,11 +49,10 @@ use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
 use constants, only: one,zero,zero_quad,max_varname_length
 use mpimod, only: mype
 use file_utility, only : get_lun
-use mpl_allreducemod, only: mpl_allreduce
+use mpl_allreducemod, only: mpl_allreduce,mpl_reduce
 use GSI_BundleMod, only : GSI_BundleCreate
 use GSI_BundleMod, only : GSI_Bundle
 use GSI_BundleMod, only : GSI_BundleGetPointer
-use GSI_BundleMod, only : GSI_BundlePrint
 use GSI_BundleMod, only : dplevs => GSI_BundleDplevs
 use GSI_BundleMod, only : sum_mask => GSI_BundleSum
 use GSI_BundleMod, only : GSI_BundleDestroy
@@ -73,6 +73,7 @@ private
   public  prt_state_norms
   public  setup_state_vectors
   public  dot_product
+  public  dot_product_red
   public  set_random 
   public  inquire_state
   public  init_anasv
@@ -107,8 +108,13 @@ INTERFACE PRT_STATE_NORMS
 END INTERFACE
 
 INTERFACE DOT_PRODUCT
-MODULE PROCEDURE dot_prod_st
+MODULE PROCEDURE dot_prod_st_r0
 MODULE PROCEDURE dot_prod_st_r1
+END INTERFACE
+
+INTERFACE DOT_PRODUCT_RED                   ! same as DOT_PRODUCT except reduce to one processor rather than all
+MODULE PROCEDURE dot_prod_red_st_r0
+MODULE PROCEDURE dot_prod_red_st_r1
 END INTERFACE
 
 INTERFACE SET_RANDOM
@@ -581,21 +587,19 @@ real(r_quad) function dot_prod_st(xst,yst,which)
   type(gsi_bundle)         , intent(in) :: xst, yst
   character(len=*)  ,optional, intent(in) :: which  ! variable name
 
-  real(r_quad),allocatable :: zz(:)
-  integer(i_kind) :: i,ii,nv,ipntx,ipnty,irkx,irky,ier,ist
+  real(r_quad),dimension(1) :: zz
+  integer(i_kind) :: i,ii,ipntx,ipnty,irkx,irky,ier,ist
 
   if (.not.present(which)) then
 
-     nv=nvars
-     allocate(zz(nv))
-     zz=zero_quad
+     zz(1)=zero_quad
      ii=0
      do i = 1,ns3d
         ii=ii+1
         if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)then
-           zz(ii)= dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
         else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double)then
-           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
         else
            dot_prod_st=zero_quad
            return
@@ -604,9 +608,9 @@ real(r_quad) function dot_prod_st(xst,yst,which)
      do i = 1,ns2d
         ii=ii+1
         if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single)then
-           zz(ii)= dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
         else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double)then
-           zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
         else ! this is an error ...
            dot_prod_st=zero_quad
            return
@@ -625,9 +629,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 
      if(irkx==irky) then
 
-        nv=1
-        allocate(zz(nv))
-        zz=zero_quad
+        zz(1)=zero_quad
         if (irkx==2) then
            if(xst%r2(ipntx)%mykind==r_single .and. yst%r2(ipnty)%mykind==r_single) then
               zz(1)=dplevs(xst%r2(ipntx)%qr4,yst%r2(ipnty)%qr4,ihalo=1)
@@ -656,27 +658,44 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 
   endif
 
-  call mpl_allreduce(nv,qpvals=zz)
+  dot_prod_st=zz(1)
 
-  dot_prod_st=zero_quad
-  do ii=1,nv
-     dot_prod_st=dot_prod_st+zz(ii)
-  enddo
-
-  deallocate(zz)
   return
 end function dot_prod_st
-function dot_prod_st_r1(xst,yst,which) result(dotprod_)
+! ----------------------------------------------------------------------
+function dot_prod_st_r0(xst,yst,which) result(dotprod_red)
+!  Same as dot_prod_red_st_r0 except reduce to all processors.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  integer(i_kind):: nz
+  character(len=*),parameter::myname_=myname//'*dot_prod_st_r0'
+
+
+  nz=1
+  zz(1)=0._r_quad
+ 
+  zz(1)=dot_prod_st(xst,yst,which=which)
+  call mpl_allreduce(1,zz)
+  dotprod_red=zz(1)
+end function dot_prod_st_r0
+! ----------------------------------------------------------------------
+function dot_prod_st_r1(xst,yst,which) result(dotprod_red)
+!  Same as dot_prod_red_st_r1 except reduce to all processors.
   use mpeu_util, only: perr,die
   implicit none
   type(gsi_bundle), dimension(:), intent(in) :: xst, yst
   character(len=*), optional    , intent(in) :: which  ! variable component name
-  real(r_quad):: dotprod_
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
 
   integer(i_kind):: i
   character(len=*),parameter::myname_=myname//'*dot_prod_st_r1'
 
-  dotprod_=0._r_quad
   if(size(xst)/=size(yst)) then
     call perr(myname_,'size(xst)/=size(yst))')
     call perr(myname_,'size(xst) =',size(xst))
@@ -684,10 +703,69 @@ function dot_prod_st_r1(xst,yst,which) result(dotprod_)
     call die(myname_)
   endif
 
+  zz(1)=0._r_quad
+ 
   do i=1,size(xst)
-    dotprod_=dotprod_+dot_prod_st(xst(i),yst(i),which=which)
+    zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
   enddo
+  call mpl_allreduce(1,zz)
+  dotprod_red=zz(1)
 end function dot_prod_st_r1
+! ----------------------------------------------------------------------
+function dot_prod_red_st_r0(xst,yst,iroot,which) result(dotprod_red)
+!  Same as dot_prod_st_r0 except only reduce to one (iroot) processor.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  integer(i_kind)               , intent(in) :: iroot
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  character(len=*),parameter::myname_=myname//'*dot_prod_red_st_r1'
+
+  zz(1)=dot_prod_st(xst,yst,which=which)
+
+  call mpl_reduce(1,iroot,zz)
+  if(mype == iroot)then
+     dotprod_red=zz(1)
+  else
+     dotprod_red=0._r_quad
+  end if
+end function dot_prod_red_st_r0
+! ----------------------------------------------------------------------
+function dot_prod_red_st_r1(xst,yst,iroot,which) result(dotprod_red)
+!  Same as dot_prod_st_r1 except only reduce to one (iroot) processor.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), dimension(:), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  integer(i_kind)               , intent(in) :: iroot
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  integer(i_kind):: i
+  character(len=*),parameter::myname_=myname//'*dot_prod_red_st_r1'
+
+  if(size(xst)/=size(yst)) then
+    call perr(myname_,'size(xst)/=size(yst))')
+    call perr(myname_,'size(xst) =',size(xst))
+    call perr(myname_,'size(yst) =',size(yst))
+    call die(myname_)
+  endif
+
+  zz(1)=0._r_quad
+ 
+  do i=1,size(xst)
+    zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
+  enddo
+  call mpl_reduce(1,iroot,zz)
+  if(mype == iroot)then
+     dotprod_red=zz(1)
+  else
+    dotprod_red=0._r_quad
+  end if
+end function dot_prod_red_st_r1
 ! ----------------------------------------------------------------------
 subroutine set_random_st ( xst )
 !$$$  subprogram documentation block

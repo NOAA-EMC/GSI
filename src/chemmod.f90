@@ -229,13 +229,10 @@ contains
     
 ! declare local parameters
     
-    integer(i_kind), parameter :: nsid=1,nxob=2,&
-          nyob=3,ndhr=4,ntyp=5,ncopopm=6
 !see headr input format below
     
     integer(i_kind), parameter:: nchanl=0,nreal=ilone
     
-    real(r_kind),parameter :: r100 = 100.0_r_kind
     real(r_kind),parameter :: r360 = 360.0_r_kind
     
 ! declare local variables

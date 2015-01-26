@@ -56,7 +56,7 @@ module GSI_BundleMod
           module procedure create3_  !   merging two bundles
    end interface
    interface GSI_BundleDup           ! duplicate a bundle
-          module procedure dup_      !	dup(x,y)   -- y = x
+          module procedure dup_      ! dup(x,y)   -- y = x
           module procedure scl_dup_  !  dup(a,x,y) -- y = a*x
           module procedure sclR4_dup_ !  dup(a,x,y) -- y = a*x
    end interface
@@ -124,7 +124,7 @@ module GSI_BundleMod
           module procedure self_add_R8scal
    end interface
    interface gsi_bundleAddmul  ! I believe "addmul" is the conventional name
-   	! gs_bundleAddmul(y,a,x) := y+=a*x
+   ! gs_bundleAddmul(y,a,x) := y+=a*x
           module procedure self_add_R4scal
           module procedure self_add_R8scal
    end interface
@@ -1495,18 +1495,18 @@ CONTAINS
 
     if(present(name)) then
       call create2_(Bundo,Bundi,name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+         'create2_(name="'//trim(name)//'"), istatus =',ier)
     else
       call create2_(Bundo,Bundi,Bundi%name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+             'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
     endif
-      		if(ier/=0) then
-		  if(.not.present(istatus)) call die(myname_)
-		  istatus=ier
-		  return
-		endif
+    if(ier/=0) then
+      if(.not.present(istatus)) call die(myname_)
+      istatus=ier
+      return
+    endif
 
     call copy_(Bundo,Bundi)
   end subroutine dup_
@@ -1552,18 +1552,18 @@ CONTAINS
 
     if(present(name)) then
       call create2_(Bundo,Bundi,name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+          'create2_(name="'//trim(name)//'"), istatus =',ier)
     else
       call create2_(Bundo,Bundi,Bundi%name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+          'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
     endif
-      		if(ier/=0) then
-		  if(.not.present(istatus)) call die(myname_)
-		  istatus=ier
-		  return
-		endif
+    if(ier/=0) then
+       if(.not.present(istatus)) call die(myname_)
+       istatus=ier
+       return
+    endif
 
     call gsi_bundleAssign(Bundo,0._r_double)
     call gsi_bundleAddmul(Bundo,a,Bundi)
@@ -1610,18 +1610,18 @@ CONTAINS
 
     if(present(name)) then
       call create2_(Bundo,Bundi,name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+          'create2_(name="'//trim(name)//'"), istatus =',ier)
     else
       call create2_(Bundo,Bundi,Bundi%name,istatus=ier)
-      		if(ier/=0) call perr(myname_, &
-		  'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
+      if(ier/=0) call perr(myname_, &
+           'create2_(name="'//trim(Bundi%name)//'"), istatus =',ier)
     endif
-      		if(ier/=0) then
-		  if(.not.present(istatus)) call die(myname_)
-		  istatus=ier
-		  return
-		endif
+    if(ier/=0) then
+       if(.not.present(istatus)) call die(myname_)
+       istatus=ier
+       return
+    endif
 
     call gsi_bundleAssign(Bundo,0._r_single)
     call gsi_bundleAddmul(Bundo,a,Bundi)

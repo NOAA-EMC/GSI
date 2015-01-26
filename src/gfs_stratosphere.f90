@@ -62,9 +62,9 @@ module gfs_stratosphere
    real(r_kind),dimension(:),allocatable:: deta2_save,aeta2_save,eta2_save          
    real(r_kind),dimension(:),allocatable :: ak5,bk5
    real(r_kind),dimension(:),allocatable:: blend_rm,blend_gm
-   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r_g,gesq_r_g,ges_u_r_g,ges_v_r_g, &
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r_g,ges_u_r_g,ges_v_r_g, &
                                                  ges_tsen_r_g,ges_oz_r_g,ges_q_r_g
-   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r  ,gesq_r  ,ges_u_r  ,ges_v_r  , &
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r  ,ges_u_r  ,ges_v_r  , &
                                                  ges_tsen_r  ,ges_oz_r,ges_q_r
    logical use_gfs_stratosphere
    logical good_o3mr

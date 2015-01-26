@@ -1,10 +1,10 @@
 module m_stats
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_stats
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_stats
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract: summarize contents of input vectors
 !
@@ -52,22 +52,22 @@ contains
 
 ! Usecase 1 example:
 !
-!	use m_stats,only : stats_sum
-!	use m_stats,only : stats_allreduce
+!    use m_stats,only : stats_sum
+!    use m_stats,only : stats_allreduce
 !
-!	type vectors
-!	  real,dimension(:),pointer :: v
-!	endtype vectors
-!	type(vectors),dimension(:) :: a
+!    type vectors
+!      real,dimension(:),pointer :: v
+!    endtype vectors
+!    type(vectors),dimension(:) :: a
 !
-!	real :: vdot,vsum,vmin,vmax
-!	integer :: vnum
+!    real :: vdot,vsum,vmin,vmax
+!    integer :: vnum
 !
-!	do i=1,size(a)
-!	  call stats_sum(a(i)%v,vdot,vsum,vmin,vmax,vnum,add=i>1)
-!	enddo
-!	call stats_allreduce(vdot,vsum,vmin,vmax,vnum,comm)
-!	
+!    do i=1,size(a)
+!      call stats_sum(a(i)%v,vdot,vsum,vmin,vmax,vnum,add=i>1)
+!    enddo
+!    call stats_allreduce(vdot,vsum,vmin,vmax,vnum,comm)
+!
 
 subroutine sum_(v,vdot,vsum,vmin,vmax,vdim,add)
 !$$$  subprogram documentation block

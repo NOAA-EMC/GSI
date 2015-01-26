@@ -45,7 +45,7 @@ subroutine compute_derived(mype,init_pass)
 !   2008-11-03  sato - add anisotropic mode procedures
 !   2008-12-08  todling - move 3dprs/geop-hght calculation from here into setuprhsall
 !   2009-08-19  guo     - add verifications of drv_initialized and tnd_initialized
-!			  before the use of related module variables.
+!                         before the use of related module variables.
 !   2009-10-15  parrish - add rescale of ensemble rh perturbations
 !                           (currently for internal generated ensemble only)
 !   2010-03-11  derber/zhu - add qvar3d to prewgt and prewgt_reg, remove rescale_ensemble_rh_perturbations
@@ -64,6 +64,9 @@ subroutine compute_derived(mype,init_pass)
 !                       - unlike original code, now all derivates available at all time slots
 !   2013-10-30  jung    - add test and removal of supersaturation
 !   2014-04-18  todling - revisit interface to q_diag
+!   2014-03-19  pondeca - add "load wspd10m guess"
+!   2014-05-07  pondeca - add "load howv guess"
+!   2014-06-19  carley/zhu - add lgues and dlcbasdlog
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -91,8 +94,8 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: drv_initialized
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
-  use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,&
-       dvisdlog,cwgues
+  use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,lgues,dlcbasdlog,&
+       dvisdlog,w10mgues,howvgues,cwgues
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
@@ -162,7 +165,7 @@ subroutine compute_derived(mype,init_pass)
   real(r_kind):: factor,factk,hswgtsum
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
-	call die(myname,'invalid init_pass, ntguessig =',ntguessig)
+     call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
@@ -259,7 +262,7 @@ subroutine compute_derived(mype,init_pass)
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
-		call die(myname,'unexpected drv_initialized =',drv_initialized)
+          call die(myname,'unexpected drv_initialized =',drv_initialized)
 
 !       Instead, update gradients of all guess fields.  these will
 !       be used for forward models that need gradient of background field,
@@ -274,11 +277,11 @@ subroutine compute_derived(mype,init_pass)
 
         if(.not. wrf_mass_regional .and. tendsflag)then
           if(.not.tnd_initialized) &
-		call die(myname,'unexpected tnd_initialized =',tnd_initialized)
+            call die(myname,'unexpected tnd_initialized =',tnd_initialized)
 
 
 ! now that we have derivs, get time tendencies if necessary
-	  if(init_pass) then
+          if(init_pass) then
 
            if(allocated(ges_ps)) call getprs(ges_ps,ges_3dp)
 
@@ -297,7 +300,7 @@ subroutine compute_derived(mype,init_pass)
 
               call final_vars_('tendency')
            end if
-          end if	! (init_pass)
+          end if       ! (init_pass)
         end if
      end if
 
@@ -312,9 +315,9 @@ subroutine compute_derived(mype,init_pass)
 
        if(regional)then
           call tpause(mype,'temp')
-       else	! (regional)
+       else     ! (regional)
           call tpause(mype,'pvoz')
-       end if	! (regional)
+       end if   ! (regional)
   
      endif       ! (init_pass)
 
@@ -335,7 +338,7 @@ subroutine compute_derived(mype,init_pass)
      end do
   end if
 
-! Load guess gust, vis & pblh for use in limg, limv & limp.
+! Load guess gust, vis, pblh, & lcbas for use in limg, limv, limp, & liml.
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'gust',ptr2d,istatus)
   if (istatus==0) then
      do j=1,lon2
@@ -361,7 +364,31 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end if
-
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'wspd10m',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           w10mgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'howv',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           howvgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'lcbas',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           lgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
+           dlcbasdlog(i,j)=log(ten)*ptr2d(i,j)  !d(lcbas)/d(log(lcbas))
+        end do
+     end do
+  end if
 
   if(allocated(ges_tv).and.allocated(ges_ps)) then
 

@@ -21,6 +21,8 @@ module general_specmod
 !                           type(spec_vars) variables passed in through init_spec_vars.  also
 !                           remove init_spec, since not really necessary.
 !   2011-05-01  rancic  - add parameters jcap_trunc, nc_trunc
+!   2014-12-03  derber  - add alp0 array to spectral structures to eliminate
+!                         repeated calculations
 !
 ! subroutines included:
 !   sub general_init_spec_vars
@@ -64,7 +66,9 @@ module general_specmod
   public :: general_destroy_spec_vars
 ! set passed variables to public
   public :: spec_vars
+  public :: spec_cut
 
+  integer(i_kind) :: spec_cut
   type spec_vars
 
      integer(i_kind) jcap
@@ -103,8 +107,10 @@ module general_specmod
      real(r_kind),  pointer :: rlons(:)     => NULL()
      real(r_kind),  pointer :: slons(:)     => NULL()
      real(r_kind),  pointer :: clons(:)     => NULL()
+     real(r_kind),  pointer :: alp0(:)     => NULL()
      real(r_double),pointer :: afft(:)      => NULL()
      logical:: lallocated = .false.
+     logical:: precalc_pln = .true.
 
   end type spec_vars
 
@@ -147,7 +153,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: zero,half,one,two,pi
+    use constants, only: zero,half,one,two,pi,three
     implicit none
 
 !   Declare passed variables
@@ -156,10 +162,12 @@ contains
     logical,optional,intent(in   ) :: eqspace
 
 !   Declare local variables    
-    integer(i_kind) i,ii1,j,l,m
+    integer(i_kind) i,ii1,j,l,m,jhe,n
     integer(i_kind) :: ldafft
     real(r_kind) :: dlon_a,half_pi,two_pi
-
+    real(r_kind),dimension(nlat_a-2) :: wlatx,slatx
+    real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
+    real(r_kind) :: fnum, fden
 
 !   Set constants used in transforms for analysis grid
     sp%jcap=jcap
@@ -188,7 +196,7 @@ contains
     if(sp%lallocated) then
        deallocate(sp%factsml,sp%factvml,sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop)
        deallocate(sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop,sp%test_mask,sp%afft)
-       deallocate(sp%rlats,sp%clats,sp%slats)
+       deallocate(sp%rlats,sp%clats,sp%slats,sp%alp0)
        deallocate(sp%rlons,sp%clons,sp%slons)
     end if
     allocate(sp%factsml(sp%nc),sp%factvml(sp%nc),sp%test_mask(sp%nc))
@@ -223,17 +231,38 @@ contains
     allocate( sp%clat(sp%jb:sp%je) )
     allocate( sp%slat(sp%jb:sp%je) ) 
     allocate( sp%wlat(sp%jb:sp%je) ) 
-    allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
-    allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
-    call sptranf0(sp%iromb,sp%jcap,sp%idrt,sp%imax,sp%jmax,sp%jb,sp%je, &
-       sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop, &
-       sp%afft,sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop)
+    call spwget(sp%iromb,sp%jcap,sp%eps,sp%epstop,sp%enn1, &
+          sp%elonn1,sp%eon,sp%eontop)
+    call spffte(sp%imax,(sp%imax+2)/2,sp%imax,2,0.,0.,0,sp%afft)
+    call splat(sp%idrt,sp%jmax,slatx,wlatx)
+    jhe=(sp%jmax+1)/2
+    if(jhe > sp%jmax/2)wlatx(jhe)=wlatx(jhe)/2
+    do j=sp%jb,sp%je
+      sp%clat(j)=sqrt(1.-slatx(j)**2)
+      sp%slat(j)=slatx(j)
+      sp%wlat(j)=wlatx(j)
+    end do
+    if(sp%jcap < spec_cut)then
+      sp%precalc_pln=.true.
+      allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
+      allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
+      do j=sp%jb,sp%je
+        call splegend(sp%iromb,sp%jcap,sp%slat(j),sp%clat(j),sp%eps, &
+          sp%epstop,sp%pln(1,j),sp%plntop(1,j))
+      end do
+    else
+      sp%precalc_pln=.false.
+      allocate( sp%pln(sp%ncd2,1) )
+      allocate( sp%plntop(sp%jcap+1,1) )
+    end if
+      
 !     obtain rlats and rlons
     half_pi=half*pi
     two_pi=two*pi
     allocate(sp%rlats(nlat_a),sp%rlons(nlon_a))
     allocate(sp%clats(nlat_a),sp%clons(nlon_a))
     allocate(sp%slats(nlat_a),sp%slons(nlon_a))
+    allocate(sp%alp0(0:sp%jcap))
     sp%rlats=zero
     sp%clats=zero
     sp%slats=zero
@@ -257,6 +286,21 @@ contains
        sp%clons(j)=cos(sp%rlons(j))
        sp%slons(j)=sin(sp%rlons(j))
     end do
+!  Compute epsilon for m=0.
+    epsi0(0)=zero
+    do n=1,sp%jcap
+       fnum=real(n**2)
+       fden=real(4*n**2-1)
+       epsi0(n)=sqrt(fnum/fden)
+    enddo
+!
+!  Compute Legendre polynomials for m=0 at North Pole
+    sp%alp0(0)=sqrt(half)
+    sp%alp0(1)=sqrt(three)*sp%alp0(0)
+    do n=2,sp%jcap
+       sp%alp0(n)=(sp%alp0(n-1)-epsi0(n-1)*sp%alp0(n-2))/epsi0(n)
+    enddo
+
     sp%lallocated=.true.
 
     return
@@ -292,7 +336,13 @@ contains
     if(sp%lallocated) then
        deallocate(sp%factsml,sp%factvml)
        deallocate(sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop,sp%afft,&
-          sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop)
+          sp%clat,sp%slat,sp%wlat)
+       deallocate(sp%pln)
+       deallocate(sp%plntop)
+       deallocate(sp%rlats,sp%rlons)
+       deallocate(sp%clats,sp%clons)
+       deallocate(sp%slats,sp%slons)
+       deallocate(sp%alp0)
        sp%lallocated=.false.
     end if
 

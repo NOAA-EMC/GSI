@@ -1,10 +1,10 @@
 module m_dtime
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module background
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:    module background
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: background bin tester
 !
@@ -37,18 +37,18 @@ module m_dtime
 ! Revision history:
 !   2010-03-22  jing    - added this document block
 !   2009-08-19  jing    - created to support multi-pass observation "setup"
-!			  processes.  This module is used by all observation
-!			  "setup" routines to check if a given data (specified
-!			  by argument _dtime_) is in the given analysis window
-!			  (in_anybin) and in the given background bin (in_curbin).
+!                         processes.  This module is used by all observation
+!                         "setup" routines to check if a given data (specified
+!                         by argument _dtime_) is in the given analysis window
+!                        (in_anybin) and in the given background bin (in_curbin).
 !! Usage:
-!!	call dtime_setup()
-!!	call dtime_check(dtime,in_curbin,in_anybin)
-!!	call dtime_show('setupt','t',i_t_ob_type)
+!!      call dtime_setup()
+!!      call dtime_check(dtime,in_curbin,in_anybin)
+!!      call dtime_show('setupt','t',i_t_ob_type)
 
 !! This implementation is not thread-safe, because of these...
-  integer(i_kind),save:: nm,nl,nr,nt	! counts of in-time, early, late, and total
-  real   (r_kind),save:: am,al,ar,at	! means of in-time, early, late, and total
+  integer(i_kind),save:: nm,nl,nr,nt    ! counts of in-time, early, late, and total
+  real   (r_kind),save:: am,al,ar,at    ! means of in-time, early, late, and total
 
   character(len=*),parameter :: myname='m_dtime'
 contains
@@ -56,10 +56,10 @@ contains
 subroutine dtime_setup()
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 subroutine dtime_setup
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:     subroutine dtime_setup
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: 
 !
@@ -91,17 +91,17 @@ end subroutine dtime_setup
 subroutine dtime_check(dtime, in_curbin,in_anybin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 subroutine dtime_check
-!   prgmmr:	 jing  <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:    subroutine dtime_check
+!   prgmmr:      jing  <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: determine of dtime is in current bin and/or in any bin
 !
 ! program history log:
 !   2010-03-22  jing    - added this document block
 !   2010-04-20  jing    - redefined in_curbin conditions for special cases.
-!			- removed extrap_intime.
+!                       - removed extrap_intime.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -120,11 +120,11 @@ subroutine dtime_check(dtime, in_curbin,in_anybin)
   use guess_grids, only: nfldsig_all, hrdifsig_all
   implicit none
   real(r_kind),intent(in):: dtime
-  logical,intent(out) :: in_curbin	! in current bins
-  logical,intent(out) :: in_anybin	! in any bin
+  logical,intent(out) :: in_curbin      ! in current bins
+  logical,intent(out) :: in_anybin      ! in any bin
   character(len=*),parameter :: myname_=myname//'::check'
 
-  	! for simple bookkeeping
+ ! for simple bookkeeping
   nt=nt+1
   at=at+(dtime-at)/nt
 
@@ -132,16 +132,13 @@ subroutine dtime_check(dtime, in_curbin,in_anybin)
 #ifdef ZERODIFFTEST
   if(hrdifsig(1)==hrdifsig_all(1)) in_curbin = in_curbin .or. dtime<=hrdifsig(1)
   if(hrdifsig(nfldsig)==hrdifsig_all(nfldsig_all)) in_curbin = in_curbin .or. dtime>hrdifsig(nfldsig)
-#else
-  in_curbin = in_curbin .or. nfldsig_all==1
-#endif
-
-#ifdef ZERODIFFTEST
   in_anybin = .true.
 #else
+  in_curbin = in_curbin .or. nfldsig_all==1
   in_anybin = in_curbin .or. &
       (dtime>hrdifsig_all(1) .and. dtime<=hrdifsig_all(nfldsig_all))
 #endif
+
 
   if(in_curbin) then
     nm=nm+1
@@ -166,10 +163,10 @@ end subroutine dtime_check
 subroutine dtime_show(who,what,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 subroutine dtime_show
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:    subroutine dtime_show
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: - show bin counters
 !
