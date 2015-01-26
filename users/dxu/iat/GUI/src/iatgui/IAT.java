@@ -5,23 +5,9 @@ import java.awt.*;
 import java.awt.event.*;
 
 import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.filechooser.*;
 import javax.swing.border.*;
 
 import java.beans.*;
-import java.util.Random;
-import java.util.Vector;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Enumeration;
-import java.text.NumberFormat;
-import java.net.*;
 
 public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		ItemListener, PropertyChangeListener {
@@ -50,6 +36,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	// 5. IAT choice and its components
 	private Choice theIAT_Choice = new Choice();
 	private Choice theVsdb_Choice = new Choice();
+	private Choice theRadmon_Choice = new Choice();
 
 	private JCheckBox theFcstDiffCbox = new JCheckBox("Fcst Diff (FcstDiff)",
 			false);
@@ -77,6 +64,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		// Add listener
 		theIAT_Choice.addItemListener(this);
 		theVsdb_Choice.addItemListener(this);
+		theRadmon_Choice.addItemListener(this);
 
 		theRunBtn.addActionListener(this);
 		theStatBtn.addActionListener(this);
@@ -105,7 +93,8 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		if (DirSetter.isLinux()) {
 			String aStr = null;
 			try {
-				// run "showJobStat.sh" under the current directory, which can not be changed.
+				// run "showJobStat.sh" under the current directory, which can
+				// not be changed.
 				Process prcs = Runtime.getRuntime().exec(
 						DirSetter.getGUI_Root() + "/showJobStat.sh");
 
@@ -133,7 +122,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 				theJobStat.setJobStat(aTxt.getText());
 
-				addJobStatPanel();
+				showJobStatPanel();
 
 			} catch (IOException e) {
 				JOptionPane.showMessageDialog(null, "exception thrown");
@@ -143,7 +132,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 			}
 		}
 
-		addJobStatPanel();
+		showJobStatPanel();
 	}
 
 	// Run IAT
@@ -186,8 +175,21 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 				}
 
 				if (theRadmonCbox.isSelected()) {
-
-					System.out.println("radmon is selected");
+					System.out.println("radmon is selected.");
+					if (DirSetter.isLinux()) {
+						try {
+							// Run vsdb main script in VSDB HOME directory.
+							Process prcs = Runtime.getRuntime().exec(
+									"./runRadmonByGUI.sh",
+									null,
+									new File(DirSetter.getRadmonRoot()+"/parm")
+											.getAbsoluteFile());
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							System.out.println("error in running radmon!!!");
+							e.printStackTrace();
+						}
+					}
 				}
 
 				if (theVsdbCbox.isSelected()) {
@@ -248,22 +250,22 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 				addVsdbTopLevelConfigPanel();
 				break;
 			case "step 1 config":
-				addVsdbstep_1_ConfigPanel();
+				addVsdbStep_1_ConfigPanel();
 				break;
 			case "step 2 config":
-				addVsdbstep_2_ConfigPanel();
+				addVsdbStep_2_ConfigPanel();
 				break;
 			case "step 3 config":
-				addVsdbstep_3_ConfigPanel();
+				addVsdbStep_3_ConfigPanel();
 				break;
 			case "step 4 config":
-				addVsdbstep_4_ConfigPanel();
+				addVsdbStep_4_ConfigPanel();
 				break;
 			case "step 5 config":
-				addVsdbstep_5_ConfigPanel();
+				addVsdbStep_5_ConfigPanel();
 				break;
 			case "step 6 config":
-				addVsdbstep_6_ConfigPanel();
+				addVsdbStep_6_ConfigPanel();
 				break;
 			default:
 				addVsdbTopLevelConfigPanel();
@@ -273,7 +275,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addJobStatPanel() {
+	private void showJobStatPanel() {
 		// ======================================
 		// Step 1: Set up theConfigPanel
 		// ======================================
@@ -383,6 +385,40 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
+	private void addRADMON_ConfigPanel() {
+		// ======================================
+		// Step 1: Set up theConfigPanel
+		// ======================================
+		// Wipe out stuff within theConfigPanel
+		theConfigPanel.removeAll();
+
+		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		theConfigPanel.add(theIAT_Choice);
+		theConfigPanel.add(theRadmon.theConfigPanel);
+
+		// Position theIAT_Choice within the config panel
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
+				.getConstraints(theIAT_Choice);
+		contraint_1.setX(Spring.constant(10));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
+
+		// Position theFcstDiffConfigPanel within the config panel
+		SpringLayout.Constraints contraint_2 = theConfigPanelLayout
+				.getConstraints(theRadmon.theConfigPanel);
+		contraint_2.setX(Spring.constant(10));
+		contraint_2.setY(Spring.constant(35));
+		contraint_2.setWidth(Spring.constant(PANEL_WIDTH));
+		contraint_2.setHeight(Spring.constant(PANEL_HEIGHT));
+
+		theRadmon.showRadmonConfigPanel();
+
+		// Now refresh theConfigPanel
+		theConfigPanel.revalidate();
+		theConfigPanel.repaint();
+	}
+
 	private void addVSDB_ConfigPanel() {
 		theConfigPanel.removeAll();
 
@@ -398,20 +434,17 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theFcstDiffConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Now refresh theConfigPanel
 		theConfigPanel.revalidate();
 		theConfigPanel.repaint();
 
-	}
-
-	private void addRADMON_ConfigPanel() {
 	}
 
 	private void addVsdbTopLevelConfigPanel() {
@@ -432,20 +465,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdb_Choice within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdb_Choice within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theTopLevelConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showTopLevelConfigPanel();
@@ -456,7 +489,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_1_ConfigPanel() {
+	private void addVsdbStep_1_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -474,20 +507,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep1ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep1ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep1ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep1ConfigPanel();
@@ -498,7 +531,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_2_ConfigPanel() {
+	private void addVsdbStep_2_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -516,20 +549,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep2ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep2ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep2ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep2ConfigPanel();
@@ -540,7 +573,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_3_ConfigPanel() {
+	private void addVsdbStep_3_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -558,20 +591,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep3ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep3ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep3ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep3ConfigPanel();
@@ -582,7 +615,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_4_ConfigPanel() {
+	private void addVsdbStep_4_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -600,20 +633,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep4ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep4ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep4ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep4ConfigPanel();
@@ -624,7 +657,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_5_ConfigPanel() {
+	private void addVsdbStep_5_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -642,20 +675,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep5ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep5ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep5ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep5ConfigPanel();
@@ -666,7 +699,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 	}
 
-	private void addVsdbstep_6_ConfigPanel() {
+	private void addVsdbStep_6_ConfigPanel() {
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
@@ -684,20 +717,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		iatChoiceCons.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep6ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbChoicelCons = theConfigPanelLayout
+		SpringLayout.Constraints contraint_1 = theConfigPanelLayout
 				.getConstraints(theVsdb_Choice);
-		vsdbChoicelCons.setX(Spring.constant(180));
-		vsdbChoicelCons.setY(Spring.constant(10));
-		vsdbChoicelCons.setWidth(Spring.constant(150));
-		vsdbChoicelCons.setHeight(Spring.constant(30));
+		contraint_1.setX(Spring.constant(180));
+		contraint_1.setY(Spring.constant(10));
+		contraint_1.setWidth(Spring.constant(150));
+		contraint_1.setHeight(Spring.constant(30));
 
 		// Position theVsdbStep6ConfigPanel within the config panel
-		SpringLayout.Constraints vsdbTopLevelConfigPanelCons = theConfigPanelLayout
+		SpringLayout.Constraints aConstraint = theConfigPanelLayout
 				.getConstraints(theVsdb.theStep6ConfigPanel);
-		vsdbTopLevelConfigPanelCons.setX(Spring.constant(10));
-		vsdbTopLevelConfigPanelCons.setY(Spring.constant(35));
-		vsdbTopLevelConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
-		vsdbTopLevelConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+		aConstraint.setX(Spring.constant(10));
+		aConstraint.setY(Spring.constant(35));
+		aConstraint.setWidth(Spring.constant(PANEL_WIDTH));
+		aConstraint.setHeight(Spring.constant(PANEL_HEIGHT));
 
 		// Redirect vsdb panel display to class Vsdb.
 		theVsdb.showStep6ConfigPanel();
@@ -881,6 +914,11 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		theVsdb_Choice.add("step 4 config");
 		theVsdb_Choice.add("step 5 config");
 		theVsdb_Choice.add("step 6 config");
+
+		// theIAT_Choice (pull-down options)
+		theRadmon_Choice.add("choose...");
+		theRadmon_Choice.add("step 1 config");
+		theRadmon_Choice.add("step 2 config");
 
 		// 4.1 add components into theConfigPanel
 		theConfigPanel.add(theIAT_Choice);
