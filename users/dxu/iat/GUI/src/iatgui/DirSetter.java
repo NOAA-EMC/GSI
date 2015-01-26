@@ -43,7 +43,7 @@ public final class DirSetter {
 			// Package HOME
 			theVsdbHome = theIAT_Home + "\\vsdb_pkg\\vsdb_v17";
 			theRadmonHome = theIAT_Home
-					+ "\\radmon_pkg\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
+					+ "\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
 			theGeHome = theIAT_Home + "\\ge_pkg\\ge_pkg\\ge";
 			theHitHome = theIAT_Home + "\\hit_pkg\\hit";
 			theFcstDiffHome = theIAT_Home + "\\fcstDiff_pkg\\fcstDiff";
@@ -67,7 +67,7 @@ public final class DirSetter {
 
 			theVsdbHome = theIAT_Home + "/vsdb_pkg/vsdb_v17";
 			theRadmonHome = theIAT_Home
-					+ "/radmon_pkg/radmon_pkg/radmon/util/Radiance_Monitor";
+					+ "/radmon_pkg/radmon/util/Radiance_Monitor";
 			theGeHome = theIAT_Home + "/ge_pkg/ge_pkg/ge/";
 			theHitHome = theIAT_Home + "/hit_pkg/hit";
 			theFcstDiffHome = theIAT_Home + "/fcstDiff_pkg/fcstDiff";

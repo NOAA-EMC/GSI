@@ -1,23 +1,17 @@
 package iatgui;
 
-import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.URL;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.Spring;
 import javax.swing.SpringLayout;
@@ -411,9 +405,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_TOP_LEVEL];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
@@ -446,29 +440,30 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			}
 
 			// Position labels
-			lblConsArr[index] = topLevelConfigPanelLayout
+			contraint_1_Arr[index] = topLevelConfigPanelLayout
 					.getConstraints(theTopLevelConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = topLevelConfigPanelLayout
+			contraint_2_Arr[index] = topLevelConfigPanelLayout
 					.getConstraints(theTopLevelConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			// Position Browse button
-			btnConsArr[index] = topLevelConfigPanelLayout
+			contraint_3_Arr[index] = topLevelConfigPanelLayout
 					.getConstraints(theTopLevelConfigBrowseBtnArr[index]);
-			btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-					+ TEXTAREA_WIDTH + SPACER));
-			btnConsArr[index].setY(Spring.constant(yPos));
-			btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
+			contraint_3_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER + TEXTAREA_WIDTH + SPACER));
+			contraint_3_Arr[index].setY(Spring.constant(yPos));
+			contraint_3_Arr[index].setWidth(Spring.constant(BUTTON_WIDTH));
+			contraint_3_Arr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -512,9 +507,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP1];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP1];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_STEP1];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP1];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP1];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_STEP1];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_STEP1; index++) {
@@ -535,29 +530,30 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			}
 
 			// Position labels
-			lblConsArr[index] = step1ConfigPanelLayout
+			contraint_1_Arr[index] = step1ConfigPanelLayout
 					.getConstraints(theStep1ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step1ConfigPanelLayout
+			contraint_2_Arr[index] = step1ConfigPanelLayout
 					.getConstraints(theStep1ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			// Position Browse button
-			btnConsArr[index] = step1ConfigPanelLayout
+			contraint_3_Arr[index] = step1ConfigPanelLayout
 					.getConstraints(theStep1ConfigBrowseBtnArr[index]);
-			btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-					+ TEXTAREA_WIDTH + SPACER));
-			btnConsArr[index].setY(Spring.constant(yPos));
-			btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
+			contraint_3_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER + TEXTAREA_WIDTH + SPACER));
+			contraint_3_Arr[index].setY(Spring.constant(yPos));
+			contraint_3_Arr[index].setWidth(Spring.constant(BUTTON_WIDTH));
+			contraint_3_Arr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -600,9 +596,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP2];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP2];
-		// SpringLayout.Constraints[] btnConsArr = new
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP2];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP2];
+		// SpringLayout.Constraints[] contraint_3_Arr = new
 		// SpringLayout.Constraints[SIZE_STEP2];
 
 		// Add Labels and TextAreas
@@ -619,20 +615,21 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep2ConfigPanel.add(theStep2ConfigTxtArr[index]);
 
 			// Position labels
-			lblConsArr[index] = step2ConfigPanelLayout
+			contraint_1_Arr[index] = step2ConfigPanelLayout
 					.getConstraints(theStep2ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step2ConfigPanelLayout
+			contraint_2_Arr[index] = step2ConfigPanelLayout
 					.getConstraints(theStep2ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -675,9 +672,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP3];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP3];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_STEP3];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP3];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP3];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_STEP3];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_STEP3; index++) {
@@ -698,29 +695,30 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			}
 
 			// Position labels
-			lblConsArr[index] = step3ConfigPanelLayout
+			contraint_1_Arr[index] = step3ConfigPanelLayout
 					.getConstraints(theStep3ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step3ConfigPanelLayout
+			contraint_2_Arr[index] = step3ConfigPanelLayout
 					.getConstraints(theStep3ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			// Position Browse button
-			btnConsArr[index] = step3ConfigPanelLayout
+			contraint_3_Arr[index] = step3ConfigPanelLayout
 					.getConstraints(theStep3ConfigBrowseBtnArr[index]);
-			btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-					+ TEXTAREA_WIDTH + SPACER));
-			btnConsArr[index].setY(Spring.constant(yPos));
-			btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
+			contraint_3_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER + TEXTAREA_WIDTH + SPACER));
+			contraint_3_Arr[index].setY(Spring.constant(yPos));
+			contraint_3_Arr[index].setWidth(Spring.constant(BUTTON_WIDTH));
+			contraint_3_Arr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -764,9 +762,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP4];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP4];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_STEP4];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP4];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP4];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_STEP4];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_STEP4; index++) {
@@ -782,20 +780,21 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep4ConfigPanel.add(theStep4ConfigTxtArr[index]);
 
 			// Position labels
-			lblConsArr[index] = step4ConfigPanelLayout
+			contraint_1_Arr[index] = step4ConfigPanelLayout
 					.getConstraints(theStep4ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step4ConfigPanelLayout
+			contraint_2_Arr[index] = step4ConfigPanelLayout
 					.getConstraints(theStep4ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -839,9 +838,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP5];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP5];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_STEP5];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP5];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP5];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_STEP5];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_STEP5; index++) {
@@ -862,29 +861,30 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			}
 
 			// Position labels
-			lblConsArr[index] = step5ConfigPanelLayout
+			contraint_1_Arr[index] = step5ConfigPanelLayout
 					.getConstraints(theStep5ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step5ConfigPanelLayout
+			contraint_2_Arr[index] = step5ConfigPanelLayout
 					.getConstraints(theStep5ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			// Position Browse button
-			btnConsArr[index] = step5ConfigPanelLayout
+			contraint_3_Arr[index] = step5ConfigPanelLayout
 					.getConstraints(theStep5ConfigBrowseBtnArr[index]);
-			btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-					+ TEXTAREA_WIDTH + SPACER));
-			btnConsArr[index].setY(Spring.constant(yPos));
-			btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
+			contraint_3_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER + TEXTAREA_WIDTH + SPACER));
+			contraint_3_Arr[index].setY(Spring.constant(yPos));
+			contraint_3_Arr[index].setWidth(Spring.constant(BUTTON_WIDTH));
+			contraint_3_Arr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -928,9 +928,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		int yPos = 5;
 
 		// Constraint to control positions of Label and TextArea
-		SpringLayout.Constraints[] lblConsArr = new SpringLayout.Constraints[SIZE_STEP6];
-		SpringLayout.Constraints[] txtConsArr = new SpringLayout.Constraints[SIZE_STEP6];
-		SpringLayout.Constraints[] btnConsArr = new SpringLayout.Constraints[SIZE_STEP6];
+		SpringLayout.Constraints[] contraint_1_Arr = new SpringLayout.Constraints[SIZE_STEP6];
+		SpringLayout.Constraints[] contraint_2_Arr = new SpringLayout.Constraints[SIZE_STEP6];
+		SpringLayout.Constraints[] contraint_3_Arr = new SpringLayout.Constraints[SIZE_STEP6];
 
 		// Add Labels and TextAreas
 		for (int index = 0; index < SIZE_STEP6; index++) {
@@ -951,29 +951,30 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			}
 
 			// Position labels
-			lblConsArr[index] = step6ConfigPanelLayout
+			contraint_1_Arr[index] = step6ConfigPanelLayout
 					.getConstraints(theStep6ConfigLblArr[index]);
-			lblConsArr[index].setX(Spring.constant(xPos));
-			lblConsArr[index].setY(Spring.constant(yPos));
-			lblConsArr[index].setWidth(Spring.constant(LBL_WIDTH));
-			lblConsArr[index].setHeight(Spring.constant(LBL_HEIGHT));
+			contraint_1_Arr[index].setX(Spring.constant(xPos));
+			contraint_1_Arr[index].setY(Spring.constant(yPos));
+			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
+			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			txtConsArr[index] = step6ConfigPanelLayout
+			contraint_2_Arr[index] = step6ConfigPanelLayout
 					.getConstraints(theStep6ConfigTxtArr[index]);
-			txtConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER));
-			txtConsArr[index].setY(Spring.constant(yPos));
-			txtConsArr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			txtConsArr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER));
+			contraint_2_Arr[index].setY(Spring.constant(yPos));
+			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
+			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
 
 			// Position Browse button
-			btnConsArr[index] = step6ConfigPanelLayout
+			contraint_3_Arr[index] = step6ConfigPanelLayout
 					.getConstraints(theStep6ConfigBrowseBtnArr[index]);
-			btnConsArr[index].setX(Spring.constant(xPos + LBL_WIDTH + SPACER
-					+ TEXTAREA_WIDTH + SPACER));
-			btnConsArr[index].setY(Spring.constant(yPos));
-			btnConsArr[index].setWidth(Spring.constant(BUTTON_WIDTH));
-			btnConsArr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
+			contraint_3_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+					+ SPACER + TEXTAREA_WIDTH + SPACER));
+			contraint_3_Arr[index].setY(Spring.constant(yPos));
+			contraint_3_Arr[index].setWidth(Spring.constant(BUTTON_WIDTH));
+			contraint_3_Arr[index].setHeight(Spring.constant(BUTTON_HEIGHT));
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -1007,6 +1008,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		// Get name of action component
 		String actName = e.getActionCommand();
+
+		System.out.println("actName is vsdb" + actName);
 
 		// Check if browse button clicked.
 		for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
@@ -1152,7 +1155,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	}
 
-	public int saveChanges(String aTitleString) {
+	public int saveChangesMsg(String aTitleString) {
 		int n = JOptionPane.showConfirmDialog(null, "Save changes?",
 				aTitleString, JOptionPane.YES_NO_OPTION);
 		if (n == 0) {
@@ -1170,10 +1173,14 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for top level config
 	public void saveChangesTopLevel() throws IOException {
-		int n = saveChanges("top level config");
+		int n = saveChangesMsg("top level config");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbTop_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbTop_gui.config";
+			else
+				filename = filename + "/" + "vsdbTop_gui.config";
 
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1187,31 +1194,36 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 				// Save values in GUI into file
 				String tmpString = "export " + theTopLevelConfigEnvArr[index]
-						+ "=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+						+ "=\"" + theTopLevelConfigTxtArr[index].getText()
+						+ "\"";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
-				
-				// Need to export VSDBHOME, WORKSPACE and gstat explicitly because they 
-				// are used to build some of ENV variables 
-				// export VSDBHOME  
-				if (index == 0){
-					tmpString = "export " + "VSDBHOME=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+
+				// Need to export VSDBHOME, WORKSPACE and gstat explicitly
+				// because they
+				// are used to build some of ENV variables
+				// export VSDBHOME
+				if (index == 0) {
+					tmpString = "export " + "VSDBHOME=\""
+							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);				
+					System.out.println(tmpString);
 				}
-				
+
 				// export WORKSPACE
-				if (index == 1){
-					tmpString = "export " + "WORKSPACE=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+				if (index == 1) {
+					tmpString = "export " + "WORKSPACE=\""
+							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);				
+					System.out.println(tmpString);
 				}
 
 				// export gstat
-				if (index == 6){
-					tmpString = "export " + "gstat=\"" + theTopLevelConfigTxtArr[index].getText() + "\"";
+				if (index == 6) {
+					tmpString = "export " + "gstat=\""
+							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);				
+					System.out.println(tmpString);
 				}
 
 			}
@@ -1223,10 +1235,15 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 1 config
 	public void saveChangesStep1() throws IOException {
-		int n = saveChanges("step1");
+		int n = saveChangesMsg("step1");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep1_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep1_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep1_gui.config";
+
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1252,10 +1269,15 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 2 config
 	public void saveChangesStep2() throws IOException {
-		int n = saveChanges("step2");
+		int n = saveChangesMsg("step2");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep2_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep2_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep2_gui.config";
+
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1281,10 +1303,15 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 3 config
 	public void saveChangesStep3() throws IOException {
-		int n = saveChanges("step3");
+		int n = saveChangesMsg("step3");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep3_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep3_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep3_gui.config";
+
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1310,10 +1337,15 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 4 config
 	public void saveChangesStep4() throws IOException {
-		int n = saveChanges("step4");
+		int n = saveChangesMsg("step4");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep4_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep4_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep4_gui.config";
+
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1339,10 +1371,15 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 5 config
 	public void saveChangesStep5() throws IOException {
-		int n = saveChanges("step5");
+		int n = saveChangesMsg("step5");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep5_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep5_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep5_gui.config";
+
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
@@ -1368,10 +1405,14 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 6 config
 	public void saveChangesStep6() throws IOException {
-		int n = saveChanges("step6");
+		int n = saveChangesMsg("step6");
 		if (n == 0) {
-			String filename = DirSetter.getVsdbRoot() + "/"
-					+ "vsdbStep6_gui.config";
+			String filename = DirSetter.getVsdbRoot();
+
+			if (DirSetter.isWindows())
+				filename = filename + "\\" + "vsdbStep6_gui.config";
+			else
+				filename = filename + "/" + "vsdbStep6_gui.config";
 			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
