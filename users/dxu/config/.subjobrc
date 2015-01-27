@@ -39,6 +39,8 @@ alias qstatme="   qstat | grep ${LOGNAME} "
 alias rserial=" qsub "                 # small job, followed by "    -N MyJob  a.sh"
 alias rsmp="    qsub -pe smp "         # medium job, followed by "48  -N MyJob  a.sh"
 alias rmpi="    qsub -pe mpi2_mpd "    # big job, followed by "192 -N MyJob  a.sh"
+alias jobstat=" qstat -u ${LOGNAME}  "
+alias jobqueue="showq -u ${LOGNAME}  "
 
 
 
