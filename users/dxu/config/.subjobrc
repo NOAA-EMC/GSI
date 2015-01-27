@@ -22,10 +22,11 @@ alias slurm_info='printf "$slurm_usage" '
 #
 qsub_usage=" \n\
 # \n\
-# qsub                  # Small job, followed by '48  -N MyJob  a.sh' \n\
+# qsub                  # Small job,  followed by '-N MyJob  a.sh' \n\
 # qsub -pe smp          # Medium job, followed by '48  -N MyJob  a.sh' \n\
-# qsub -pe mpi2_mpd     # Big job, followed by '192 -N MyJob  a.sh' \n\
+# qsub -pe mpi2_mpd     # Big job,    followed by '192 -N MyJob  a.sh' \n\
 # qstat -u  uid         # Check job status \n\
+# showq -u  uid         # Show job queues \n\
 # qstat -xml            # List job in xml format \n\
 # qacct -j your_job_id  # Info about a completed jobs \n\
 # qresub                # Resubmit a job \n\
@@ -38,5 +39,7 @@ alias qstatme="   qstat | grep ${LOGNAME} "
 alias rserial=" qsub "                 # small job, followed by "    -N MyJob  a.sh"
 alias rsmp="    qsub -pe smp "         # medium job, followed by "48  -N MyJob  a.sh"
 alias rmpi="    qsub -pe mpi2_mpd "    # big job, followed by "192 -N MyJob  a.sh"
+
+
 
 
