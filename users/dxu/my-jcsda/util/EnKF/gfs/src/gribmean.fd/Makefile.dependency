@@ -1,0 +1,1 @@
+gribmean.o : gribmean.f90

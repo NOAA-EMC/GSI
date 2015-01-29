@@ -94,6 +94,7 @@ subroutine intcolev_(colvkhead,rval,sval)
 !   1995-07-11  derber
 !   2010-06-07  tangborn - carbon monoxide based on ozone code
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     colvkhead  - level carbon monoxide obs type pointer to obs structure
@@ -109,7 +110,7 @@ subroutine intcolev_(colvkhead,rval,sval)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: colvk_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: colvk_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,xhat_dt,dhat_dt
   use constants, only: one,zero,r3600,zero_quad
@@ -213,17 +214,17 @@ subroutine intcolev_(colvkhead,rval,sval)
               val1=val1+colvkptr%ak(k,j)*vali(j)
            enddo 
 
-           if (lsaveobsens) then
-              colvkptr%diags(k)%ptr%obssen(jiter)=val1*colvkptr%err2(k)*colvkptr%raterr2(k)
-           else
-              if (colvkptr%luse) colvkptr%diags(k)%ptr%tldepart(jiter)=val1
+           if(luse_obsdiag)then
+              if (lsaveobsens) then
+                 valx=val1*colvkptr%err2(k)*colvkptr%raterr2(k)
+                 colvkptr%diags(k)%ptr%obssen(jiter)=valx
+              else
+                 if (colvkptr%luse) colvkptr%diags(k)%ptr%tldepart(jiter)=val1
+              endif
            endif
 
            if (l_do_adjoint) then
-              if (lsaveobsens) then
-                 valx = colvkptr%diags(k)%ptr%obssen(jiter)
-
-              else
+              if (.not. lsaveobsens) then
                  if( ladtest_obs ) then
                     valx = val1
                  else

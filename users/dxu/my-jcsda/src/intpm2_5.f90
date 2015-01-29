@@ -69,6 +69,7 @@ contains
 !   2010-05-13  todling  - update to use gsi_bundle; update interface 
 !   2010-10-15  pagowski  - convert for in-situ pm2_5
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     pm2_5head    - obs type pointer to obs structure
@@ -85,7 +86,7 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind
     use constants, only: half,one,tiny_r_kind,cg_term
-    use obsmod, only: pm2_5_ob_type,lsaveobsens,l_do_adjoint
+    use obsmod, only: pm2_5_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
     use qcmod, only: nlnqc_iter,varqc_iter
     use jfunc, only: jiter
     use gsi_bundlemod, only: gsi_bundle
@@ -140,17 +141,17 @@ contains
        val=w1* spm2_5(j1)+w2* spm2_5(j2)+w3* spm2_5(j3)+w4* spm2_5(j4)+ &
             w5* spm2_5(j5)+w6* spm2_5(j6)+w7* spm2_5(j7)+w8* spm2_5(j8)
        
-       if (lsaveobsens) then
-          pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
-       else
-          if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+       if(luse_obsdiag)then
+          if (lsaveobsens) then
+             grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+             pm2_5ptr%diags%obssen(jiter) = grad
+          else
+             if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+          endif
        endif
        
        if (l_do_adjoint) then
-          if (lsaveobsens) then
-             grad = pm2_5ptr%diags%obssen(jiter)
-             
-          else
+          if (.not. lsaveobsens) then
              if( .not. ladtest_obs ) val=val-pm2_5ptr%res
              
 !          gradient of nonlinear operator
