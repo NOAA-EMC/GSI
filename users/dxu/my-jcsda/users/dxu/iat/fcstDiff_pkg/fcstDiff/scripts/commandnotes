@@ -1,0 +1,1 @@
+fgrep -f nam -v gfs > diff  !writes what is in nam that isn't in gfs file

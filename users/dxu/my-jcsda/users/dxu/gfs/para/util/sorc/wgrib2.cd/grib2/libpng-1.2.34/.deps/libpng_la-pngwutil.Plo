@@ -1,0 +1,84 @@
+libpng_la-pngwutil.lo: pngwutil.c
+libpng_la-pngwutil.lo: png.h
+libpng_la-pngwutil.lo: ../zlib-1.2.3/zlib.h
+libpng_la-pngwutil.lo: ../zlib-1.2.3/zconf.h
+libpng_la-pngwutil.lo: /usr/include/sys/types.h
+libpng_la-pngwutil.lo: /usr/include/standards.h
+libpng_la-pngwutil.lo: /usr/include/strict_stdtypes.h
+libpng_la-pngwutil.lo: /usr/include/sys/inttypes.h
+libpng_la-pngwutil.lo: /usr/include/stdint.h
+libpng_la-pngwutil.lo: /usr/include/end_strict_stdtypes.h
+libpng_la-pngwutil.lo: /usr/include/sys/m_types.h
+libpng_la-pngwutil.lo: /usr/include/sys/vm_types.h
+libpng_la-pngwutil.lo: /usr/include/unistd.h
+libpng_la-pngwutil.lo: /usr/include/sys/access.h
+libpng_la-pngwutil.lo: /usr/include/sys/lockf.h
+libpng_la-pngwutil.lo: /usr/include/sys/stat.h
+libpng_la-pngwutil.lo: /usr/include/sys/mode.h
+libpng_la-pngwutil.lo: pngconf.h
+libpng_la-pngwutil.lo: config.h
+libpng_la-pngwutil.lo: /usr/include/stdio.h
+libpng_la-pngwutil.lo: /usr/include/va_list.h
+libpng_la-pngwutil.lo: /usr/include/sys/limits.h
+libpng_la-pngwutil.lo: /usr/include/float.h
+libpng_la-pngwutil.lo: /usr/include/setjmp.h
+libpng_la-pngwutil.lo: /usr/include/sys/m_setjmp.h
+libpng_la-pngwutil.lo: /usr/include/string.h
+libpng_la-pngwutil.lo: /usr/include/stdlib.h
+libpng_la-pngwutil.lo: /usr/include/sys/wait.h
+libpng_la-pngwutil.lo: /usr/include/sys/resource.h
+libpng_la-pngwutil.lo: /usr/include/sys/time.h
+libpng_la-pngwutil.lo: /usr/include/sys/signal.h
+libpng_la-pngwutil.lo: /usr/include/sys/context.h
+libpng_la-pngwutil.lo: /usr/include/sys/m_param.h
+libpng_la-pngwutil.lo: /usr/include/sys/mstsave.h
+libpng_la-pngwutil.lo: /usr/include/sys/m_signal.h
+libpng_la-pngwutil.lo: /usr/include/sys/localedef.h
+libpng_la-pngwutil.lo: /usr/include/sys/lc_core.h
+libpng_la-pngwutil.lo: /usr/include/locale.h
+libpng_la-pngwutil.lo: /usr/include/sys/localedef31.h
+libpng_la-pngwutil.lo: /usr/include/math.h
+libpng_la-pngwutil.lo: /usr/include/time.h
+libpng_la-pngwutil.lo: /usr/include/stddef.h
+pngwutil.c:
+png.h:
+../zlib-1.2.3/zlib.h:
+../zlib-1.2.3/zconf.h:
+/usr/include/sys/types.h:
+/usr/include/standards.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/include/unistd.h:
+/usr/include/sys/access.h:
+/usr/include/sys/lockf.h:
+/usr/include/sys/stat.h:
+/usr/include/sys/mode.h:
+pngconf.h:
+config.h:
+/usr/include/stdio.h:
+/usr/include/va_list.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/setjmp.h:
+/usr/include/sys/m_setjmp.h:
+/usr/include/string.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/include/math.h:
+/usr/include/time.h:
+/usr/include/stddef.h:

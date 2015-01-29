@@ -1,0 +1,23 @@
+SAG: 10/13/2004
+
+This is the procedure I used to build the 32-bit address version of
+the netcdf library on blue:
+
+   $	cd /nwprod/lib/sorc/netcdf
+   $	tar xvf netcdf.tar
+   $	cd /nwprod/lib/sorc/netcdf/netcdf-3.5.0/src
+   $	export CXX="" 
+   $	export CC="/usr/bin/xlc_r" 
+   $	export FC="/usr/bin/xlf_r" 
+   $	export F90="" 
+   $	export CFLAGS="-q32" 
+   $	export FFLAGS="-O -q32" 
+   $    export ARFLAGS='-X 32 cru'
+   $    export NMFLAGS='-X 32'
+   $    make    clean
+   $	./configure 
+   $	make 
+   $	make install 
+   $	cd ../lib
+   $	cp libnetcdf.a /nwprod/lib/libnetcdf.a 
+   $    chmod 775 /nwprod/lib/libnetcdf.a

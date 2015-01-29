@@ -1,0 +1,12 @@
+run_chgres.sh:
+This is a script written by George Gayno to change to resolution of siganal 
+and sfcanal files with particular care taken to use the correct options for
+the surface analysis resolution change.   Runs on cirrus and stratus.
+
+chgdate.f90:
+This is a fortran code adapted from Jeff Whitaker's utility scripts to change the date
+in the header of the sig and sfc file. This is necessary when forcing the model 
+with IAU
+
+chgdateflx.py:
+This is a python script used to change the date in the flx files when using IAU

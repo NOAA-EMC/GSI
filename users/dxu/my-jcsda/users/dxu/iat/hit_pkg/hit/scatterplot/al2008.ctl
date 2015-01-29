@@ -1,0 +1,11 @@
+DSET ^al2008.bin
+OPTIONS SEQUENTIAL
+UNDEF 9999.0
+TITLE track errors                  
+XDEF 8  LINEAR 1 1
+YDEF 5 LINEAR 1 1   
+ZDEF 1 linear 1 1
+TDEF  92 LINEAR 00Z01JAN1950 6hr
+VARS 1
+terr  0   99    track error
+ENDVARS

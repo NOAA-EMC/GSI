@@ -1,0 +1,76 @@
+string.lo : string.c
+string.lo : nc.h
+string.lo : ../config.h
+string.lo : /usr/include/stddef.h
+string.lo : /usr/include/standards.h
+string.lo : /usr/include/sys/types.h
+string.lo : /usr/include/strict_stdtypes.h
+string.lo : /usr/include/sys/inttypes.h
+string.lo : /usr/include/stdint.h
+string.lo : /usr/include/end_strict_stdtypes.h
+string.lo : /usr/include/sys/m_types.h
+string.lo : /usr/include/sys/vm_types.h
+string.lo : netcdf.h
+string.lo : /usr/include/errno.h
+string.lo : ncio.h
+string.lo : fbits.h
+string.lo : /usr/vac/include/stdlib.h
+string.lo : /usr/include/stdlib.h
+string.lo : /usr/include/sys/wait.h
+string.lo : /usr/include/sys/resource.h
+string.lo : /usr/include/sys/time.h
+string.lo : /usr/include/sys/signal.h
+string.lo : /usr/include/sys/context.h
+string.lo : /usr/include/sys/m_param.h
+string.lo : /usr/include/sys/mstsave.h
+string.lo : /usr/include/sys/m_signal.h
+string.lo : /usr/include/sys/localedef.h
+string.lo : /usr/include/sys/limits.h
+string.lo : /usr/include/float.h
+string.lo : /usr/include/sys/lc_core.h
+string.lo : /usr/include/locale.h
+string.lo : /usr/include/sys/localedef31.h
+string.lo : /usr/vac/include/string.h
+string.lo : /usr/include/string.h
+string.lo : /usr/include/ctype.h
+string.lo : /usr/include/assert.h
+string.lo : ncx.h
+string.lo : rnd.h
+string.c:
+nc.h:
+../config.h:
+/usr/include/stddef.h:
+/usr/include/standards.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+netcdf.h:
+/usr/include/errno.h:
+ncio.h:
+fbits.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/include/ctype.h:
+/usr/include/assert.h:
+ncx.h:
+rnd.h:

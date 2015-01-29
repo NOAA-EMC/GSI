@@ -1,0 +1,49 @@
+(ld): setopt 64
+(ld): halt 4
+(ld): setfflag 4
+(ld): savename gettrk_gen
+(ld): filelist 12 1
+(ld): i /lib/crt0_64.o
+(ld): i gettrk_modules_gen.o
+(ld): i gettrk_main.gen.o
+(ld): lib /gpfs/t3/global/save/wx23sm/GFS/f2010/trunk/para/lib/libw3_d.a
+(ld): lib /gpfs/t3/global/save/wx23sm/GFS/f2010/trunk/para/lib/libbacio_4.a
+(ld): lib /usr/lpp/xlf/lib/libxlf90.a
+(ld): lib /usr/lpp/xlf/lib/libxlopt.a
+(ld): lib /usr/lpp/xlf/lib/libxlf.a
+(ld): lib /usr/lib/libxlomp_ser.a
+(ld): lib /usr/lib/libpthreads.a
+(ld): lib /usr/lib/libm.a
+(ld): lib /usr/lib/libc.a
+LIBRARY: Shared object libxlf90.a[io_64.o]: 94 symbols imported.
+LIBRARY: Shared object libxlf90.a[math_64.o]: 352 symbols imported.
+LIBRARY: Shared object libxlf90.a[xlfsys_64.o]: 34 symbols imported.
+LIBRARY: Symbols imported from import file /usr/lpp/xlf/lib/libxlf90.a[_xlf_aio.imp]: 10
+LIBRARY: Shared object libxlf90.a[_xlf_posix_64.o]: 88 symbols imported.
+LIBRARY: Shared object libxlomp_ser.a[omp_ser_64.o]: 84 symbols imported.
+LIBRARY: Shared object libpthreads.a[shr_xpg5_64.o]: 332 symbols imported.
+LIBRARY: Shared object libc.a[shr_64.o]: 2669 symbols imported.
+LIBRARY: Shared object libc.a[posix_aio_64.o]: 20 symbols imported.
+LIBRARY: Shared object libc.a[aio_64.o]: 18 symbols imported.
+LIBRARY: Shared object libc.a[pse_64.o]: 5 symbols imported.
+LIBRARY: Shared object libc.a[dl_64.o]: 4 symbols imported.
+LIBRARY: Shared object libc.a[pty_64.o]: 1 symbols imported.
+FILELIST: Number of previously inserted files processed: 12
+(ld): resolve
+RESOLVE: 749 of 13001 symbols were kept.
+(ld): addgl /usr/lib/glink64.o
+ADDGL: Glink code added for 39 symbols.
+(ld): er full
+ER: There are no unresolved symbols.
+(ld): mismatch
+MISMATCH: No type mismatches exist.
+(ld): comprld
+COMPRLD: Kept 11164 of 11164 relocation entries.
+(ld): origin page 0x100000000 0x110000000
+(ld): libpath /gpfs/t3/global/save/wx23sm/GFS/f2010/trunk/para/lib:/usr/lpp/xlf/lib:/usr/lib:/lib
+LIBPATH: Library path set to /gpfs/t3/global/save/wx23sm/GFS/f2010/trunk/para/lib:/usr/lpp/xlf/lib:/usr/lib:/lib
+(ld): save 1L .
+SAVE: Section sizes = 633004+159788+6479592 (0x9A8AC+0x2702C+0x62DEE8 hex)
+SAVE: Size of TOC: 2288 (0x8F0 hex)
+(ld): rc
+RC: Highest return code was 0.

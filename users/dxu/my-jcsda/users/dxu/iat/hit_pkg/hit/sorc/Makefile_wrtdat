@@ -1,0 +1,12 @@
+
+OBJS	  = wrtdat_intel.o
+
+FC        = $(FCMP)
+LIBS	  =
+CMD	  = wrtdat.x
+
+$(CMD): $(OBJS)
+	$(FC) $(LIBS) $(FFLAGS) -o $(CMD) $(OBJS)
+
+wrtdat.o: wrtdat.f
+	$(FC) -c $(FFLAGS) wrtdat_intel.f

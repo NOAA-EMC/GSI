@@ -1,0 +1,28 @@
+while (1)
+  'set rgb 90 100 100 100'
+  'set rgb 91  50 50 50 '
+  'set rgb 92 200 200 200'
+  'set button 1 90 91 92 6'
+  'clear'
+  'set line 90'
+  'draw recf 0 0 11 8.5'
+  'set string 1 c 6'
+  'set strsiz 0.25 0.3'
+  'draw string 5.5 7.0 Make A Selection'
+  'draw button 1 5.5 6.0 2 0.4 Surface Data'
+  'draw button 2 5.5 5.0 2 0.4 MRF Loop'
+  'draw button 3 3.5 4.0 2 0.4 00Hr NGM'
+  'draw button 4 3.5 3.5 2 0.4 12Hr NGM'
+  'draw button 5 3.5 3.0 2 0.4 24Hr NGM'
+  'draw button 6 3.5 2.5 2 0.4 36Hr NGM'
+  'draw button 7 3.5 2.0 2 0.4 48Hr NGM'
+  'draw button 8 7.5 4.0 2 0.4 00Hr ETA'
+  'draw button 9 7.5 3.5 2 0.4 12Hr ETA'
+  'draw button 10 7.5 3.0 2 0.4 24Hr ETA'
+  'draw button 11 7.5 2.5 2 0.4 36Hr ETA'
+  'draw button 12 7.5 2.0 2 0.4 48Hr ETA'
+  'draw button 99 5.5 1.0 2 0.4 QUIT'
+  'q pos'
+  btn = subwrd(result,7)
+  if (btn=99); break; endif;
+endwhile

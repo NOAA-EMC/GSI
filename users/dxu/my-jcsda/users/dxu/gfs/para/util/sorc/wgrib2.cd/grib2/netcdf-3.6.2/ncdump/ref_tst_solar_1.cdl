@@ -1,0 +1,43 @@
+netcdf tst_solar_1 {
+dimensions:
+	length_of_name = 2 ;
+
+// global attributes:
+		:Number_of_vogons = 2dub, 23dub, 230dub ;
+		:Number_of_vogon_poems = 23232244UL, 1214124123423UL, 2353424234UL ;
+
+group: solar_system {
+
+group: Earth {
+
+// global attributes:
+		:alien_concept_number_which_cannot_be_understood_by_humans = -23232244L, 1214124123423L, -2353424234L ;
+
+group: Luna {
+variables:
+	long var_name(length_of_name) ;
+
+// global attributes:
+		:Vogon_Poem = "See, see the netCDF-filled sky\n",
+			"Marvel at its big barf-green depths.\n",
+			"Tell me, Ed do you\n",
+			"Wonder why the yellow-bellied Snert ignores you?\n",
+			"Why its foobly stare\n",
+			"makes you feel ubiquitous obliquity.\n",
+			"I can tell you, it is\n",
+			"Worried by your HDF5-eating facial growth\n",
+			"That looks like\n",
+			"A moldy pile of ASCII data.\n",
+			"What\'s more, it knows\n",
+			"Your redimensioning potting shed\n",
+			"Smells of booger.\n",
+			"Everything under the big netCDF-filled sky\n",
+			"Asks why, why do you even bother?\n",
+			"You only charm software defects." ;
+data:
+
+ var_name = 42, 42 ;
+}
+}
+}
+}

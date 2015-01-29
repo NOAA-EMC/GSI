@@ -1,0 +1,83 @@
+*
+* script to draw a legend for multiple line plots
+*
+* (a stupid one - it asks all kinds of questions)
+*
+function legend(args)
+'set vpage off'
+while(1)
+say 'How many lines?'
+pull numline
+say "Marker Types:"
+say "1-crosshair"
+say "2-open circle" 
+say "3-closed circle" 
+say "4-open square" 
+say "5-closed square"
+i = 1
+while (i<=numline)
+say "marker type "
+pull mark.i
+say "Type legend name"
+pull title.i
+i = i+1
+endwhile
+say "Summary:"
+i = 1
+while (i<=numline)
+if (mark.i=1)
+mtype="crosshair"
+endif
+if (mark.i=2)
+mtype="open circle"
+endif
+if (mark.i=3)
+mtype="closed circle"
+endif
+if (mark.i=4)
+mtype="open square"
+endif
+if (mark.i=5)
+mtype="closed square"
+endif
+say mtype" "title.i
+i = i+1
+endwhile
+*
+say "Is this okay? (y/n)"
+pull doit
+if (doit="y")
+*
+xlow=0.
+ylow=0.
+xhigh=0.
+yhigh=0.
+say "Click on lower left corner of legend box "
+'query pos'
+xlow = subwrd(result,3)
+ylow = subwrd(result,4)
+say "position "xlow" "ylow
+say "Click on upper right corner of legend box "
+'query pos'
+xhigh = subwrd(result,3)
+yhigh = subwrd(result,4)
+say "position "xhigh" "yhigh
+*
+xspot = xlow+(xhigh-xlow)/8
+xtspot = xspot+(xhigh-xlow)/8
+'draw rec 'xlow' 'ylow' 'xhigh' 'yhigh
+yspace = (yhigh-ylow)/(numline+1)
+i = 1
+while (i<=numline)
+yspot = ylow+i*yspace
+'draw mark 'mark.i' 'xspot' 'yspot' 0.08'
+ytspot = yspot-0.05
+say ytspot
+'draw string 'xtspot' 'ytspot' 'title.i
+i = i+1
+endwhile
+break
+else
+say "Try again"
+endif
+endwhile

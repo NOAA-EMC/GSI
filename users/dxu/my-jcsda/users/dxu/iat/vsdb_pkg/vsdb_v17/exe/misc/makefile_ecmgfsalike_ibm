@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+FC=     xlf_r
+ARCH     = auto
+FOPTS=  -qsmp=noauto
+CMD=    ../ecm_gfs_look_alike
+NWPROD=/nwprod
+                                                                                                
+SRCS=  ecm_gfs_look_alike.f90
+LIBS=	${NWPROD}/lib/libbacio_4.a \
+	${NWPROD}/lib/libw3_4.a \
+	${NWPROD}/lib/libbufr_4_32.a 
+$(CMD): $(SRCS)
+	$(FC) $(FOPTS) $(SRCS) $(LIBS) -o $(CMD)
+

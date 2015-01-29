@@ -1,0 +1,105 @@
+#!/bin/ksh
+set -x
+
+export list=$listvar
+
+export ndate=${ndate:-/nwprod/util/exec/ndate}
+export web=${web:-0}
+
+export grads=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/grads
+export gxgif=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/gxgif
+export convert=${IMGCONVERT:-/usrx/local/imajik/bin/convert}
+export logofile=${logofile:-$GSCRIPTS/nws_logo.gif}
+
+
+# parse the experiment and archive inputs
+
+n=0; mdls=''
+for exp in $expnlist; do
+ n=$((n+1)); m=0
+for expd in $expdlist; do
+#if [ ${exp} = "fnl" -o ${exp} = "gfs" -o ${exp} = "ecm" -o ${exp} = "cdas" -o ${exp} = "avn"  ]; then
+# m=$((m+1)); [ $m -eq $n ] && mdls="$mdls  exp=$exp;fit=$expd/fits/$exp"
+#else
+  m=$((m+1)); [ $m -eq $n ] && mdls="$mdls  exp=$exp;fit=$expd/$exp/fits"
+#fi
+done
+done
+
+# setup the timeout plotting parameters
+
+echo $mdls
+nexp=$n exps=$expnlist 
+sdate=${sdate:-$DATEST$cyc}
+edate=${edate:-$DATEND$cyc}
+
+# these parameters control the forecasts and fit times in the timeout plots
+
+export oinc=${oinc_f2o:-24}      # increment (hours) between observation verify times
+export finc=${finc_f2o:-12}      # increment (hours) between forecast lengths to plot
+export fmax=${fmax_f2o:-48}      # max forecast length to show          
+export hinc=$oinc 
+
+# make the timeout grads files for the timeout plots
+
+outdir=$pdir; mkdir -p $outdir; cd $outdir
+
+for mdl in $mdls
+do
+eval $mdl
+for type in raob acft acar surf ship
+do
+outfile=$outdir/$exp.dieoff.$type; >$outfile 
+nfcl=0 fcl=0 fhr=0
+while [ $fhr -lt $fmax ]; do
+fhr=$((fcl*finc)); [ $fhr = 0 ] && fhr=00; off=$((fhr%$oinc))
+xdate=$($ndate $off $sdate)
+ydate=$($ndate $off $edate)
+$SCRIPTS/timeout.sh $exp $fhr $xdate $ydate $oinc $outdir $fit $type
+cat $exp.f$fhr.$type.$xdate.$ydate >> $outfile
+rm  $exp.f$fhr.$type.$xdate.$ydate
+nfcl=$((nfcl+1)); fcl=$((fcl+1))
+done
+
+# count the times in the timeout files and make the timeout control files
+
+set +x
+date=$sdate ntimes=1
+while [ $date -le $edate ]
+do
+ntimes=$((ntimes+1)); date=$($ndate $hinc $date)
+done; set -x
+sed "s?fitname?$outfile?g" $CTLS/dieoff.$type.ctl | sed "s?ntimes?$ntimes?" | sed "s?EXP?$exp?" | sed "s?fitinc?${finc}hr?" > $outdir/$exp.dieoff.$type.ctl
+done
+done
+
+# make the set of timeout plots
+
+for type in surf ship raob acft acar 
+do
+[ $type = surf -o $type = ship ] && { vars="p t q w"; levs="1"; }
+[ $type = acft -o $type = acar ] && { vars="t w    "; levs="1 2 3"; }
+[ $type = raob                 ] && { vars="t q z w"; levs="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"; }
+for lev in $levs
+do
+for var in $vars
+do
+$grads -pbc "run $GSCRIPTS/timeout.gs  $var $lev $type  $ntimes $sdate $edate  $nfcl $nexp $exps " 
+done
+done
+done
+
+# move the timeout plots to the web directory
+
+set +x
+chmod 775 *.gif
+cp *.gif $localdir # copy fits to web dir
+set -x
+
+# maybe move to the web too
+
+if [ $web -eq 1 ] ; then
+ echo "webdir is $webdir"
+ scp t*.gif $webid@$webmch:$webdir/.
+fi
+

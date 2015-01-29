@@ -1,0 +1,158 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:928: checking for top-level source-directory
+configure:938: checking for m4 preprocessor
+configure:945: checking for m4
+configure:1012: checking m4 flags
+configure:1085: checking C compiler "xlc_r"
+configure:1094: xlc_r -c -O -DNDEBUG conftest.c 1>&5
+configure:1121: checking how to make dependencies
+configure:1189: checking for xlC_r
+configure:1225: checking C++ compiler "/usr/bin/ncepxlC"
+configure:1243: /usr/bin/ncepxlC -o conftest -O -DNDEBUG  conftest.C  1>&5
+configure:1294: checking how to run the C preprocessor
+configure:1383: checking user-defined Fortran-77 compiler "xlf_r"
+configure:1389: xlf_r -c -O conftest.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:1548: checking for Fortran .F compiler
+configure:1558: checking if Fortran-77 compiler handles *.F files
+configure:1569: xlf_r -o conftest -O conftest.F 
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.F.
+configure:1608: checking user-defined Fortran-90 compiler "xlf90_r"
+configure:1615: xlf90_r -c -qsuffix=f=f90 conftest.f90
+** foo   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f90.
+configure:1751: checking for nm utility
+configure:1758: checking for nm
+configure:1825: checking nm flags
+configure:1841: checking for C-equivalent to Fortran routine "SUB"
+configure:1847: xlf_r -c -O conftest.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:1876: checking for Fortran "byte"
+configure:1883: xlf_r -c -O conftest.f
+** sub   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:1900: checking for Fortran "integer*2"
+configure:1907: xlf_r -c -O conftest.f
+** sub   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:1933: checking if Fortran "byte" is C "signed char"
+configure:1942: xlc_r -c -DNDEBUG -O conftest.c
+configure:1944: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:1946: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:1948: ./conftest
+configure:1981: checking if Fortran "byte" is C "short"
+configure:1990: xlc_r -c -DNDEBUG -O conftest.c
+configure:1992: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:1994: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:1996: ./conftest
+configure:2029: checking if Fortran "byte" is C "int"
+configure:2038: xlc_r -c -DNDEBUG -O conftest.c
+configure:2040: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2042: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2044: ./conftest
+configure:2077: checking if Fortran "byte" is C "long"
+configure:2086: xlc_r -c -DNDEBUG -O conftest.c
+configure:2088: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2090: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2092: ./conftest
+configure:2129: checking if Fortran "integer*2" is C "short"
+configure:2138: xlc_r -c -DNDEBUG -O conftest.c
+configure:2140: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2142: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2144: ./conftest
+configure:2177: checking if Fortran "integer*2" is C "int"
+configure:2186: xlc_r -c -DNDEBUG -O conftest.c
+configure:2188: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2190: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2192: ./conftest
+configure:2225: checking if Fortran "integer*2" is C "long"
+configure:2234: xlc_r -c -DNDEBUG -O conftest.c
+configure:2236: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2238: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2240: ./conftest
+configure:2275: checking if Fortran "integer" is C "int"
+configure:2284: xlc_r -c -DNDEBUG -O conftest.c
+configure:2286: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2288: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2290: ./conftest
+configure:2323: checking if Fortran "real" is C "float"
+configure:2332: xlc_r -c -DNDEBUG -O conftest.c
+configure:2334: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2336: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2338: ./conftest
+configure:2371: checking if Fortran "doubleprecision" is C "double"
+configure:2380: xlc_r -c -DNDEBUG -O conftest.c
+configure:2382: xlf_r -O -c conftestf.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftestf.f.
+configure:2384: xlf_r -o conftest -O  conftestf.o conftest.o 
+configure:2386: ./conftest
+configure:2413: checking for Fortran-equivalent to netCDF "byte"
+configure:2420: xlf_r -c -O conftest.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:2435: checking for Fortran-equivalent to netCDF "short"
+configure:2442: xlf_r -c -O conftest.f
+** _main   === End of Compilation 1 ===
+1501-510  Compilation successful for file conftest.f.
+configure:2462: checking for math library
+configure:2466: checking for tanh in -lc
+configure:2504: checking for tanh in -lm
+configure:2555: checking for ar utility
+configure:2562: checking for ar
+configure:2629: checking ar flags
+configure:2638: checking for nm utility
+configure:2680: checking for nm
+configure:2712: checking nm flags
+configure:2722: checking for ranlib
+configure:2751: checking for stdlib.h
+configure:2788: checking for sys/types.h
+configure:2824: checking for strerror
+configure:2877: checking for working ftruncate()
+configure:2930: xlc_r -o conftest -O -DNDEBUG  conftest.c  1>&5
+configure:2952: checking for working alloca.h
+configure:2985: checking for alloca
+configure:3184: checking for st_blksize in struct stat
+configure:3219: checking for IEEE floating point format
+configure:3257: xlc_r -o conftest -O -DNDEBUG  conftest.c  1>&5
+configure:3278: checking for ANSI C header files
+configure:3382: checking for size_t
+configure:3415: checking for off_t
+configure:3448: checking for ssize_t
+configure:3481: checking for ptrdiff_t
+configure:3514: checking for uchar
+configure:3547: checking whether char is unsigned
+configure:3610: checking whether byte ordering is bigendian
+configure:3700: checking size of short
+configure:3739: checking size of int
+configure:3778: checking size of long
+configure:3817: checking size of float
+configure:3856: checking size of double
+configure:3895: checking size of off_t
+configure:3938: checking size of size_t
+configure:4020: checking for catman
+configure:4062: checking for manual-page index command
+configure:4066: checking binary distribution directory

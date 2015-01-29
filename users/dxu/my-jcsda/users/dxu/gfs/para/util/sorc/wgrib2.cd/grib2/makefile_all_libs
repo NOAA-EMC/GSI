@@ -1,0 +1,87 @@
+# REQUIRES GMAKE!!!!
+#
+# makefile for wgrib2
+# 
+# compiles every #@?! library needed by wgrib2
+# then tries to compile wgrib2
+#
+# mod 1/07 M. Schwarb (libgrib2c name change)
+#
+# this version uses netcdf libraries -- compile C only version
+#  get from UCAR if compile doesn't work
+#
+#
+# on NCEP AIX
+# export CC=/usr/vacpp/bin/xlC_r
+# export CPP=/usr/bin/cpp
+
+j=jasper-1.900.1
+jlib=$j/src/libjasper/.libs/libjasper.a
+
+g=g2clib-1.1.8
+glib=$g/libgrib2c.a
+
+w=wgrib2
+prog=$w/wgrib2
+
+n=netcdf-3.6.2
+nlib=$n/libsrc/.libs/libnetcdf.a
+
+p=libpng-1.2.34
+plib=$p/.libs/libpng.a
+
+z=zlib-1.2.3
+zlib=$z/libz.a
+
+MAKE=gmake
+
+wCPPFLAGS=-I../$z -I../$p -I../$j/src/libjasper/include -I../$n/libsrc -I../$g -I/usr/include ${CPPFLAGS} -O2
+
+wLDFLAGS=-L../$g -lgrib2c -L../$z -lz  -L../$p/.libs -lpng -L../$j/src/libjasper/.libs -ljasper -L../$n/libsrc/.libs -lnetcdf -lm
+
+# wLDFLAGS=-L../$g -lgrib2c ../${plib} -L../$z -lz -L../$j/src/libjasper/.libs -ljasper -L../$n/libsrc/.libs -lnetcdf -lm
+
+all:	${jlib} ${plib} ${zlib} ${glib} ${nlib} ${prog}
+
+${jlib}:
+	cp $j.tar.gz tmpj.tar.gz
+	gunzip -n tmpj.tar.gz
+	tar -xvf tmpj.tar
+	rm tmpj.tar
+	cd $j && ./configure --disable-libjpeg --disable-opengl && ${MAKE}
+
+${plib}:	${zlib}
+	cp $p.tar.gz tmpp.tar.gz
+	gunzip -n tmpp.tar.gz
+	tar -xvf tmpp.tar
+	rm tmpp.tar
+	cd $p && export CPPFLAGS="${wCPPFLAGS}" && ./configure --disable-shared && ${MAKE}
+
+${zlib}:
+	cp $z.tar.gz tmpz.tar.gz
+	gunzip -n tmpz.tar.gz
+	tar -xvf tmpz.tar
+	rm tmpz.tar
+	cd $z && ./configure && ${MAKE}
+
+
+${glib}:	${jlib} ${plib} ${zlib}
+	cd $g && export CPPFLAGS="${wCPPFLAGS}" && ${MAKE} -f makefile_all_libs
+
+${nlib}:
+	cp netcdf.tar.gz tmpn.tar.gz
+	gunzip -n tmpn.tar.gz
+	tar -xvf tmpn.tar
+	rm tmpn.tar
+	cd $n && ./configure --enable-c-only && ${MAKE} check
+
+${prog}:	$w/wgrib2.c $w/*.c $w/*.h ${glib} ${jlib} ${nlib} ${zlib} ${plib}
+	cd $w && export LDFLAGS="${wLDFLAGS}" && export CPPFLAGS="${wCPPFLAGS}" && ${MAKE} -f makefile_all_libs
+
+clean:
+	cd $w && ${MAKE} clean
+	cd $g && touch junk.a junk.o && rm *.o *.a
+	rm -rf $n
+	rm -rf $j
+	rm -rf $p
+	rm -rf $z

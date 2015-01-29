@@ -1,0 +1,39 @@
+SHELL=/bin/sh
+
+#-------------------------
+# makefile.grads_manlev
+#-------------------------
+
+SRCS=   maingrads_mandlev.f90 read_conv2grads.f90 grads_mandlev.f90 dup.f90 convinfo.f90 
+
+OBJS=   maingrads_mandlev.o read_conv2grads.o grads_mandlev.o dup.o convinfo.o 
+
+#---------------------------------------------------
+# Include machine dependent compile & load options
+#---------------------------------------------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+CMD=    grads_mandlev.x 
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp ${CMD} ../exec/.
+
+maingrads_mandlev.o : maingrads_mandlev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_conv2grads.o : read_conv2grads.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+grads_mandlev.o : grads_mandlev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+dup.o : dup.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90

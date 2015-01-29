@@ -1,0 +1,13 @@
+          Preliminary Windows XP Notes (Should work this way, I hope)
+
+I've compiled Wgrib2 compiled on Windows XP using the Cygwin system.  
+This way should work.
+
+(1) get into the Admin account
+(2) download and install cygwin
+(3) try to compile
+(4) find missing package, download and install, goto 3
+(5) finish compiling
+(6) relax
+
+However, it doesn't. 
