@@ -1,0 +1,130 @@
+#======================================
+# Purpose:
+#    Set alias name by category 
+# Author: Deyong Xu / RTi@JCSDA
+# History:
+#    11/18/2014, D. Xu / RTi@JCSDA , initial code.
+#
+#======================================
+#
+######################################
+# Set up data location by hostname
+######################################
+hnStr=`hostname`
+
+declare -a hostArr
+declare -a src_dirArr
+declare -a data_dirArr
+hostArr=('badger' 's4' 'cardinal' 'fe' 'jibb')
+# Separate source and data into two locations
+data_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
+src_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}" \
+             "/data/users/${LOGNAME}" \
+             "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
+iat_src_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}/iat" \
+             "/data/users/${LOGNAME}/iat" \
+             "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}" \
+             "/data/users/${LOGNAME}")
+iat_ws_dirArr=("/data/${LOGNAME}"  \
+             "/data/users/${LOGNAME}/workspace" \
+             "/data/users/${LOGNAME}/workspace" \
+             "/scratch2/portfolios/NESDIS/drt/noscrub/${LOGNAME}/workspace" \
+             "/data/users/${LOGNAME}")
+SIZE=${#hostArr[@]}   # array size
+
+emptyStr=""
+notSupportStr="NOT_SUPPORTED_HOST"
+
+searchStr="${emptyStr}"
+
+for (( i=0; i<$SIZE; i++)); do
+   searchStr=` echo $hnStr  |grep -e "${hostArr[${i}]}" `
+   if [ "${searchStr}" != "${emptyStr}" ]
+   then
+      data_dir=${data_dirArr[i]}
+      src_dir=${src_dirArr[i]}
+      iat_src_dir=${iat_src_dirArr[i]}
+      iat_ws_dir=${iat_ws_dirArr[i]}
+      break
+   fi
+done
+
+##############################################
+# Now export data_dir for use by downstream
+##############################################
+export data_dir
+export iat_src_dir
+export iat_ws_dir
+alias data=" cd ${data_dir} "
+alias iat="  cd ${iat_src_dir} "
+alias iatws="cd ${iat_ws_dir} "
+
+###################################################
+# Various configurations
+###################################################
+# 1. dir
+if [ -f ~/.config/.dirrc ]
+then
+   . ~/.config/.dirrc
+fi
+
+# 2. iat
+if [ -f ~/.config/.iatrc ]
+then
+   . ~/.config/.iatrc
+fi
+
+# 3. misc
+if [ -f ~/.config/.miscrc ]
+then
+   . ~/.config/.miscrc
+fi
+
+# 4. module
+if [ -f ~/.config/.modulerc ]
+then
+   . ~/.config/.modulerc
+fi
+
+# 5. ps
+if [ -f ~/.config/.psrc ]
+then
+   . ~/.config/.psrc
+fi
+
+# 6. sftp
+if [ -f ~/.config/.sftprc ]
+then
+   . ~/.config/.sftprc
+fi
+
+# 7. submit job
+if [ -f ~/.config/.subjobrc ]
+then
+   . ~/.config/.subjobrc
+fi
+
+# 8. svn
+if [ -f ~/.config/.svnrc ]
+then
+   . ~/.config/.svnrc
+fi
+
+# 9. my tool
+if [ -f ~/.config/.toolrc ]
+then
+   . ~/.config/.toolrc
+fi
+
+# 10. gsi
+if [ -f ~/.config/.gsirc ]
+then
+   . ~/.config/.gsirc
+fi

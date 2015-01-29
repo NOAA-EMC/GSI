@@ -1,0 +1,18 @@
+################################################################################
+# This makefile was produced by fmjif at 17:21:11 on 97/02/24.
+SHELL=	/bin/sh
+CMD=	copygb2
+FOPTS=	-O3 -C -qrealsize=8 -qnosave
+LOPTS=	-qsmp=noauto     -lessl
+INCS=	-I/nwprod/lib/incmod/g2_d
+OBJS=	copygb2.o
+LIBS= -L/nwprod/lib -lg2_d -lw3_d -lbacio_4 -lip_d -lsp_d\
+      -L/usrx/local/64bit/lib -ljasper -lpng -lz
+################################################################################
+$(CMD):	$(OBJS)
+	ncepxlf $(LOPTS) $(OBJS) $(LIBS) -o $(CMD)
+#$(OBJS):	$(INCS)
+copygb2.o:	copygb2.f
+	ncepxlf -c $(INCS) $(FOPTS) $*.f
+clean:	
+	-rm -f $(OBJS)

@@ -1,0 +1,32 @@
+set -x
+
+# THIS SCRIPT READ A FORECAST FILE (UNIT 11), MODIFIES PDS OCTET(6)
+# TO CORRECT THE PARAMETER TABLE VERSION AND PARAMETER ID, RESPECTIVELY,
+# AND RE-WRITES THE FILE TO UNIT 51.
+
+# STANDARD INPUT IS 2 INTEGERS BETWEEN 0 AND 255.
+# (IF NO CHANGE IS WANTED TO ONE OF THEM THEN MAKE IT 0.)
+
+exec=$(pwd)/overparm_grib
+
+mkdir -p /stmp/wx20mi/testnum
+cd /stmp/wx20mi/testnum
+
+wgrib=/nwprod/util/exec/wgrib
+ifile=/com/gfs/prod/gfs.20070411/gfs.t00z.master.grbf48
+$wgrib $ifile|grep -i KPDS5=7:KPDS6=1:|wgrib $ifile -i -grib -o gfsorog
+
+ln -s -f gfsorog  fort.11
+ln -s -f gfsoroga fort.51
+echo 4 0|$exec
+wgrib gfsoroga
+
+ln -s -f gfsorog  fort.11
+ln -s -f gfsoroga fort.51
+echo 0 8|$exec
+wgrib gfsoroga
+
+ln -s -f gfsorog  fort.11
+ln -s -f gfsoroga fort.51
+echo 4 8|$exec
+wgrib gfsoroga

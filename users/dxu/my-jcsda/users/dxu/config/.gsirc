@@ -1,0 +1,8 @@
+# gsi command
+alias gsi="cd /data/users/dxu/gsi_tag_rel-5.0.0/src " 
+alias rungsi="cd /data/users/dxu/runGSI "
+alias gsi_input="cd  /data/users/dxu/gsi_sample_data/2013011400  " 
+alias gsi_output="cd  /scratch/dxu  "
+
+
+

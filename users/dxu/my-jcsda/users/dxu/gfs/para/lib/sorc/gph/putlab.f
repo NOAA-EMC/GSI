@@ -1,0 +1,1129 @@
+      SUBROUTINE PUTLAB(IPT,JPT,HEIGHT,CTEXT,ANGLE,NCHAR,KROT_PRI,ICMD)
+C     ...                                              22-Jul-1996/llin
+C     ... Changed to   EXTERNAL LOOKTLB
+C     ...       which defines int lookt(9,63)
+C     ...       from member = ~/font/looktlb.f
+C        
+C     ...   instead of EXTERNAL LKTABFON
+C     ...       which defined int lookt(8,63)
+C     ...       from  member= ~/label/lktab49.f
+C     .................................................................
+C     ...                                              26-Feb-1996/dss
+C     ... This version to preserve the old 32-bit LABEL-format
+C     ...    and half-packing into long 64-bit words before output.
+C     ... 
+C$$$  SUBPROGRAM DOCUMENTATION BLOCK
+C                .      .    .                                       .
+C SUBPROGRAM:    PUTLAB      PUTS TEXT-FOR-PLOT IN LABEL-ARRAY FORMAT
+C   PRGMMR: KRISHNA KUMAR        ORG: W/NP12    DATE: 1999-07-01
+C
+C ABSTRACT: PUTS THE GIVEN CHARACTER STRING (WHICH IS DESTINED TO BE
+C   PLOTTED ON A MAP EVENTUALLY) INTO AN INTERMEDIATE FORM,
+C   WHICH WE REFER TO AS "LABEL-ARRAY" FORMAT; WHICH IS WRITTEN
+C   OUT TO TEMPORARILY TO FT55F001; THEN LATER IS PULLED BACK IN
+C   FOR USE BY PRTITL/CNTR WHERE THE CHARACTERS ARE ACTUALLY LAID DOWN 
+C   INTO THE RASTER IMAGE.
+C 
+C
+C PROGRAM HISTORY LOG:
+C   YY-MM-DD  ORIGINAL AUTHOR GLORIA R. DENT
+C   74-01-10  SHIMOMURA   REPROGRAMMED FROM CDC6600 TO IBM360/195
+C   84-10-12  HENRICHSEN  USE LOGICAL COMPARE.
+C   86-06-09  HENRICHSEN REMOVE ASYNCHRONOUS I/O.
+C   86-06-25  HENRICHSEN CLEANUP AND DOCUMENT.
+C   88-07-25  HENRICHSEN PUT IN NEW DOCBLOCK.
+C   YY-MM-DD  GLORIA DENT MADE MODS THROUGHOUT FOR FEATURES LIKE
+C                         ROTATION, REVERSING SEQUENCE OF BYTES, ETC.
+C   92-09-08  SHIMOMURA -- REWRITE FOR STYLE OF IF-THEN-ELSE OF F77;
+C               REMOVED THE LOGIC WHICH WAS COPYING 232 BYTES INTO WORK 
+C               ARRAY ON EVERY CALL; ADDED RETURN CODE, BUT HID IT IN 
+C               COMMON /PTLARG/ SO THAT CALL SEQUENCE REMAINS UNCHANGED.
+C   95-10-23  SHIMOMURA -- MODS FOR RUNNING ON CRAY4
+C               CHANGED CALL SEQUENCE TO CARRY "KROTAT" IN THE TWO-
+C               LONGWORD ARRAY: KROT_PRI(2); WHICH WAS PREVIOUSLY
+C               A TWO INTEGER*2 ARRAY;
+C               AND MOVED THE HIDDEN RETURN CODE IN A DIFFERENT LABELLED
+C               COMMON /PUTWHERE/ ...,IERPUT, ... 
+C               I LEFT THE COMMON /KPLOT/ DIMENSIONS UNCHANGED, BUT
+C               ON THE OUTPUT FILE_55 THE IDRA IS EXTENDED TO 512-BYTES
+C               AND THE DATA RECORDS ARE 1024-CRAY_INT_WORDS
+C               (WHERE LABEL(1,J) AND LABEL(2,J) HAVE BEEN HALFPACKED
+C               INTO THE CRAY_INT_WORD)
+C   96-07-22  LUKE LIN    TURN OFF THE PRINT STATEMENT.
+C 1999-07-01  KRISHNA KUMAR  CONVERTED THIS CODE FROM CRAY TO IBM
+C                            RS/6000.
+C
+C USAGE:    CALL PUTLAB(IPT,JPT,HEIGHT,CTEXT,ANGLE,NCHAR,KROT_PRI,ICMD)
+C   INPUT ARGUMENT LIST:
+C     IPT      - IS THE 'I' COORDINATE OF THE LOWER LEFT CORNER OF
+C              - THE FIRST CHARACTER OF THE LABEL IN PIXELS.
+C     JPT      - IS THE 'J' COORDINATE OF THE LOWER LEFT CORNER OF
+C              - THE FIRST CHARACTER OF THE LABEL IN PIXELS.
+C     HEIGHT   - REAL: THE CHARACTER-FONT SELECTOR -- IF THE VALUE OF
+C                HEIGHT IS .LT. 1.0; THEN "HEIGHT" WILL BE INTERPRETED 
+C                AS THE CHARACTER-HEIGHT IN INCHES, FROM WHICH A FONT
+C                WILL BE SELECTED.  OTHERWISE, THE CONTENTS OF "HEIGHT"
+C                WILL BE CONVERTED TO NEAREST INTEGER AND USED AS THE
+C                FONT-INDEX.
+ 
+C     CTEXT    - C*(*) CHARACTER STRING TO BE PUT INTO THE LABEL-ARRAY
+C              -       FORMAT FOR EVENTUAL PLOTTING BY PRTITL
+ 
+C     ANGLE    - A REAL CONSTANT THAT GIVES THE ANGLE THE TEXT WILL
+C              - BE PLOTTED.  ACTUALLY, THIS "ANGLE" CAN HAVE VALUES OF
+C                =0.0 OR =90.0 ONLY.  USED TOGETHER WITH HEIGHT (IF
+C                HEIGHT .LT. 1.0) IN ORDER TO SELECT THE CHARACTER SET.
+C                IF YOU WANT TO SELECT ONE OF THE DEFINED "SIDEWAYS"
+C                CHARACTER SETS, THEN YOU SHOULD SET ANGLE=90.0
+C
+C                   IF YOU WISH TO PLOT TEXT IN ONE OF FOUR DIRECTIONS
+C                PARALLELING THE COORDINATE AXES, THEN SEE THE ROTATION 
+C                FLAG UNDER "KROTAT"; WHICH USED TO BE HALF-PACKED
+C                INTO KROT_PRI.
+C                
+C     NCHAR    - THE NUMBER OF CHARACTERS TO BE EXTRACTED FROM CTEXT.
+C                NCHAR=0  IS A SPECIAL FLAG WHICH TELLS ME TO SELECT 
+C                      ONLY ONE CHARACTER FROM THE LOW-ORDER BYTE OF THE 
+C                      FIRST FOUR BYTES; (LOGIC WHICH IS LEFTOVER FROM 
+C                      TEXT INPUT IN INTEGER WORDS, WHICH HAS BEEN 
+C                      CHANGED TO CHARACTER-STRING TEXT INPUT;
+C                NCHAR=(NEGATIVE-VALUED COUNT) TELLS ME TO REVERSE THE
+C                      CHARACTER SEQUENCE IN THE GIVEN STRING.
+C
+C     (KROT_PRI(I),I=1,2) - TWO-LONGWORD ARRAY FOR ROTATION AND PRIORITY
+C                   WHERE
+C                      KROTAT = KROT_PRI(1)
+C                      KPRIOR = KROT_PRI(2)
+C     KROT_PRI(1) IS THE ROTATION FLAG:
+C              -      =0,  =1,   =2, OR  =3 
+C              -  FOR  0,  90,  180, OR 270 DEGREE COUNTER-CLOCKWISE 
+C                      ROTATION OF A CHARACTER;
+C
+C     KROT_PRI(2)   - KROT_PRI(2) IS THE PRIORITY;
+C                     ACCEPTABLE VALUES ARE: 0, 1, 2, 3, OR 4
+C
+C     ICMD     - A COMMAND FLAG TO TELL PUTLAB WHAT TO DO, 
+C              - ICMD=0 TO USE AN EXPLICIT CHARACTER-SET --
+C                       TO FORMAT THE LABEL-ARRAY WORD-PAIR TO INCLUDE
+C                       AN "ARROW-UP" BIT; AN EXPLICIT CHAR-SET 
+C                       DESIGNATOR +  THREE-CHAR ZONE FOR THE TEXT. 
+C              - ICMD=1 TO USE THE DEFAULT CHARACTER-SET --
+C                       (WHICH YOU HAVE INITIALIZED ON THE FIRST ENTRY
+C                       IN THE LABEL ARRAY WITH THE "ARROW-DOWN"
+C                       CONVENTION) SO THAT THE FORMAT OF THE LABEL-
+C                       ARRAY WORD-PAIR DOES NOT HAVE TO DESIGNATE
+C                       THE CHAR-SET AND SO IT HAS A FOUR-CHAR ZONE 
+C                       AVAILABLE FOR THE TEXT. 
+C              - ICMD=-1 TO WRITE A LOGICAL START-OF-MAP ONTO TAPE55, 
+C                     WHERE START-OF-MAP IS A 50-WORD ARRAY FROM IDRA()
+C                           BUT WHAT IS IN THERE?
+C              - ICMD=-2 TO INITIALIZE -- ZERO THE LABEL ARRAY, AND
+C                           ZERO COUNTERS;
+C              - ICMD=-7  TO WRITE A LOGICAL END-OF-MAP ONTO TAPE 55
+C              - ICMD=999 TO CLOSE OUT TAPE55 WITH 
+C                         A PHYSICAL END-OF-FILE.
+C
+C   INPUT VIA COMMON:
+C     /LKTLBS/ -   LMT_LOOK,LOOKT(9,63)
+C                      THIS LOOKT TABLE CONTAINS THE FONT SPECIFICATIONS
+C                      LIKE CHAR WIDTH, CHAR HEIGHT, SIDEWAYS, ETC.
+C     /KPLOT/  -   LABEL(2,1024),LABIX,NOBUF,IDRA(50)
+C                      THIS IDRA() IS WRITTEN OUT TO TAPE55 AS A
+C                      PREAMBLE TO ONE LOGICAL MAP.
+C
+C
+C   OUTPUT ARGUMENT LIST:
+C
+C   OUTPUT VIA COMMON:
+C     /KPLOT/  - LABEL(2,1024),LABIX,NOBUF,IDRA(50)
+C     /PUTWHERE/ - LBLTAP,IERPUT,LCKPT_PUT,LCKPRNQQ,
+C                  IJPXL_GIVN(2),IJPXL_LBL(2),IJPXL_NEXCH(2),
+C                  NCALLS_PUT,ICOUNT_FONT(MAXFONT)
+
+C     IERPUT   - FOR RETURN CODE  
+C                =0   NORMAL RETURN
+C                =-1  WRITE PARITY ERROR ON LBLTAP FT55F001
+C                =1   ROTATION FLAG (KROTAT) IS ILLEGAL
+C                =2   PRIORITY FLAG (KPRIOR) IS ILLEGAL
+C                =3   THE AFTER-'@' CHARACTER-SET-INDEX IS ILLEGAL
+C                =4   I- OR J-COORDINATE VALUES ARE OUT-OF-BOUNDS
+C                =5   UNABLE TO FIND A CHARACTER SET CORRESPONDING TO
+C                       THE GIVEN HEIGHT AND ANGLE (PROBABLY BAD VALUE
+C                       IN "ANGLE")
+C                =6   CTEXT SHOULD HAVE BEEN DEFINED FOR AT LEAST FOUR
+C                       CHARACTERS IN LENGTH FOR THE SPECIAL INPUT DATA
+C                       FORMAT CLASS UNDER NCHAR=0 SWITCH.
+C                =7   WARNING: LMT_LOOK .GT. 63.0 (MAX NO. OF FONTS)
+C                =8   YOU ASKED FOR ROTATION, BUT THEN YOU MUST SPECIFY
+C                       ICMD=0  SO THAT I CAN STASH THE ROTATION BITS.
+C                =9   YOU GAVE ME AN ILLEGAL COMMAND IN "ICMD"
+C                =10  PUTL_WR::HAFPAKRA:FAILED WHILE PACKING 50-WORD ID
+C                =11  PUTL_WR::HAFPAKRA:FAILED WHILE PACKING DATA RECORD
+C   OUTPUT FILES:
+C     FT06F001 - PRINT FILE.
+C     FT55F001 - A WORK FILE ON WHICH THE LABEL-ARRAY, LABEL(2,1024) IS
+C              - WRITTEN.
+C
+C REMARKS:
+C      THE HERITAGE OF THIS VERSION IS FROM PHPUTLAB WHICH WAS
+C   USED WITH PHCHARAC,PHLKTLBS AND PHPRTILE.
+C   THAT OLD VERSION WAS FOUND ON NWS.WD41.DPH.PAN.SOURCE.A(PHPUTLAB) 
+C   AND ON NWS.WD41.DSS.WORK.SOURCE.C(PHPUTLAB).
+C   THAT VERSION OF PUTLAB WAS USED FOR THE NORTH AMERICAN SURFACE MAP. 
+C   IT HAS MAXI=4100 AND MAXJ=8190 AND IS THUS DIFFERENT FROM 
+C   DSPUTLAB WHICH IS IN THE CNTR PACKAGE.
+C
+C      THE TERMINOLOGY OF "ARROW-DOWN" FOR INITIALIZING FOR THE
+C   DEFAULT CHARACTER SET, AND "ARROW-UP" FOR TEMPORARY CHAR-SET
+C   CHANGE IS CARRIED OVER FROM THE CDC6600 CODE.  IN THIS IBM-FORTRAN
+C   THE "ARROW-DOWN" IS NOW THE '?' CHARACTER, AND
+C   THE "ARROW-UP"   IS NOW THE '@' CHARACTER.
+C   THE FIRST ENTRY IN THE LABEL ARRAY (AFTER THE 50-WORD PREAMBLE)
+C   SHOULD BE THE "ARROW-DOWN" FUNCTION ... IN WHICH THE TEXT SHOULD
+C   BE TWO CHARACTERS: THE '?' FOLLOWED BY THE CHARACTER-SET INDEX
+C   FOR THE DESIRED DEFAULT CHARACTER SET.
+C      
+C      THIS PUTLAB ELIMINATES ASTERISKS '*' FROM THE INPUT CHARACTER
+C   STRING; IT AFFECTS ROTATION AND REVERSAL OPTIONS; IT TERMINATES
+C   THE SCANNING OF THE INPUT WHEN IT SATISFIES THE "NCHAR" COUNT,
+C   OR ON THE FIRST ENCOUNTER WITH A '$', WHICH IS INTERPRETED AS
+C   A TERMINATOR.
+C
+C      CAUTION: WHEN DOING ROTATION, MUST BE IN ICMD=0 MODE.
+C
+C               BECAUSE THE ROTATION BITS ARE PASSED ON IN THE LABEL-
+C               ARRAY FORMAT IN THE HI-ORDER 2 BITS OF THE EXPLICIT
+C               CHARACTER-SET DESIGNATOR BYTE, WHICH IS IN THE HI-ORDER
+C               BYTE OF THE LABEL-ARRAY DATA WORD, BUT ONLY IF YOU HAVE
+C               SET ICMD=0;
+C               SINCE THE TWO ROTATION BITS ARE THERE, THAT MEANS ONLY
+C               SIX BITS ARE AVAILABLE FOR THE CHARACTER-SET INDEX,
+C               AND SIX BITS = '3F'X = 63 DECIMAL;  
+C               THEREFORE, THAT LIMITS FONT LOOK TABLE (THE VALUE OF
+C               "LMT_LOOK" IN /LKTLBS/ ) TO A MAX OF 63 DIFFERENT FONTS;
+C               BUT, DOES PRTITL HAVE MORE STRINGENT LIMIT?
+C 
+C      THE CONTENTS OF THE LOOK TABLE FOR THE FONTS IS EXTREMELY 
+C      IMPORTANT FOR THE LOGIC OF THIS SUBROUTINE;
+C      
+C         INTEGER    MAXFONT
+C         PARAMETER (MAXFONT=63)
+C         COMMON /LKTLBS/ LMT_LOOK,LOOKT(9,MAXFONT)
+C               ( TLIM WAS CHANGED TO INTEGER IN CRAY VERSION)
+C                DX(CHARAC-WIDTH)  <= LOOKT(8,KFONT)
+C                DY(CHARAC-HEIGHT) <= LOOKT(3,KFONT)
+C                IF(DY IS NEGATIVE-VALUED) THEN
+C                   THIS IS A SIDEWAYS SET
+C
+C   WHEN IN ICMD=1 MODE, PUTLAB WILL FORMAT THE LABEL-ARRAY DATA WORD
+C   WITHOUT THE EXPLICIT CHARACTER-SET DESIGNATOR BYTE;  SO PRTITL
+C   WILL USE THE DEFAULT CHARACTER-SET (INITIALIZED BY THE '?' COMMAND).
+C   BUT PUTLAB DOES NOT REMEMBER THE DEFAULT SET, AND PUTLAB STILL
+C   NEEDS TO KNOW THE ATTRIBUTES OF THE CHARACTER SET IN ORDER TO
+C   CALCULATE THE POSITION FOUR-CHARACTER WIDTHS DOWNSTREAM FOR THE 
+C   SUCCEEDING LABEL-ARRAY WORD-PAIR WHEN THE GIVEN CTEXT STRING EXCEEDS 
+C   THE FOUR-CHARACTER LIMIT OF ONE LABEL-ARRAY WORD-PAIR.  
+C   PUTLAB DETERMINES WHICH CHARACTER-SET FROM THE ARGUMENTS: "HEIGHT" 
+C   AND "ANGLE" IN THE CURRENT CALL TO PUTLAB.  IT DOES NOT REFER BACK 
+C   TO SOME SAVED DEFAULT VALUES; SO IT IS IMPORTANT TO HAVE ALL 
+C   ARGUMENTS CORRECT FOR EVERY CALL TO PUTLAB. 
+C
+C ATTRIBUTES:
+C   LANGUAGE: F90
+C   MACHINE:  IBM
+C
+C$$$
+C
+      external   looktlb
+C
+C.... MAXI=4100,MAXJ=8190.
+      INTEGER    MAXI
+      PARAMETER (MAXI = 4100)
+      INTEGER    MAXJ
+      PARAMETER (MAXJ = 8190)
+
+      INTEGER    NBYTPHYWRD
+      PARAMETER (NBYTPHYWRD=8)   	!... FOR 8-BYTE INT OF CRAY
+
+      INTEGER    NBYTLGLWRD
+      PARAMETER (NBYTLGLWRD=4)     	!... FOR 4-BYTE WORD LOGIC
+                                        !...     FOR PRESERVING OLD FMT
+
+      INTEGER      KIDBFSZ
+      PARAMETER   (KIDBFSZ=512/NBYTPHYWRD)   	!... 512/8 => 64 CRAY WD
+
+      INTEGER      NCSIZW
+      PARAMETER   (NCSIZW = 256)
+
+      INTEGER      NJSIZW
+      PARAMETER   (NJSIZW = NCSIZW/(NBYTPHYWRD))   	!... 256/8 = 32
+
+      INTEGER      LMAX
+      PARAMETER   (LMAX = 1024)
+C ...      PARAMETER (LMAX = 64)  ... FOR CHECKOUT ONLY FOR SMALLER BIN
+
+      INTEGER      LMAX2
+      PARAMETER   (LMAX2=LMAX*2)  
+
+      INTEGER      NWD_ID
+      PARAMETER   (NWD_ID=50)
+
+      INTEGER      MAXFONT
+      PARAMETER   (MAXFONT=63)
+C
+      COMMON /KPLOT/  LABEL(2,LMAX),LABIX,NOBUF,IDRA(NWD_ID)
+      COMMON /LKTLBS/ LMT_LOOK,LOOKT(9,MAXFONT)
+C
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+      COMMON /PUTWHERE/ LBLTAP,IERPUT,LCKPT_PUT,LCKPRNQQ,
+     1                  IJPXL_GIVN(2),IJPXL_LBL(2),IJPXL_NEXCH(2),
+     2                  NCALLS_PUT,ICOUNT_FONT(MAXFONT)
+
+      INTEGER      LBLTAP
+      INTEGER      IERPUT
+      INTEGER      LCKPT_PUT
+      LOGICAL      LCKPRNQQ
+
+      INTEGER      IWORD,JWORD
+      EQUIVALENCE (IJPXL_LBL(1),IWORD)
+      EQUIVALENCE (IJPXL_LBL(2),JWORD)
+
+      INTEGER      NEWI,NEWJ
+      EQUIVALENCE (IJPXL_NEXCH(1),NEWI)
+      EQUIVALENCE (IJPXL_NEXCH(2),NEWJ)
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+C     ... MIGHT BE USEFUL TO RECORD SOME VRBLS IN COMMON
+C     ... TO CARRY THE DSRN OF THE OUTPUT DEVICE; 
+C     ... THE (NEWI,NEWJ);
+C     ... THE WHERE-AM-I AT THE COMPLETION OF THIS PUTLAB CALL; 
+C     ... MAYBE THE GIVEN STARTING POINT SO WHEN AN ERROR OCCURS, 
+C     ... IT WOULD MAKE IT EASIER TO DETERMINE WHAT IT WAS DOING 
+C     ... AT THE TIME;
+C     ... ALSO, NICE TO HAVE A RUNNING COUNT OF NUMBER OF TEXT STRINGS,
+C     ...   NUMBER OF LINE STRINGS, OR WHATEVER ELEMENT TYPES PROCESSED.
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+C     ... THE CALL SEQUENCE:
+C                  (1) (2)  (3)    (4)   (5)   (6)     (7)    (8)
+C     CALL PUTLAB(IPT,JPT,HEIGHT,CTEXT,ANGLE,NCHAR,KROT_PRI,ICMD)
+
+      INTEGER        IPT
+      INTEGER        JPT
+      REAL           HEIGHT
+      CHARACTER*(*)  CTEXT
+      REAL           ANGLE
+      INTEGER        NCHAR
+      INTEGER        KROT_PRI(2)
+      INTEGER        ICMD
+
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+C
+      INTEGER      ITXTWRK(NJSIZW)
+      CHARACTER*1  CTXTWRK(NCSIZW)
+      EQUIVALENCE (ITXTWRK(1),CTXTWRK(1))
+C
+      CHARACTER*1  LBCD(NCSIZW)
+C
+C
+      INTEGER      IDBUFF(KIDBFSZ)    		!... CHG TO 512-BYTE ID
+C ...      INTEGER      IDBUFF(NWD_ID)
+C
+      INTEGER      LEND
+      CHARACTER*8  CEND  
+      EQUIVALENCE (LEND,CEND)
+      DATA         CEND              / 'LENDLEND' /
+C
+C
+C     ...                                          INITIALIZATION
+
+C
+C     ... WHERE IS THE '#' PLACE HOLDER ????
+C
+      INTEGER      MSKXI
+      DATA         MSKXI             / X'00001FFF' /
+      INTEGER      MSKJY
+      DATA         MSKJY             / X'00007FFF' /
+      INTEGER      MSKRCH
+      DATA         MSKRCH            / X'000000FF' /
+      INTEGER      MSK16B
+      DATA         MSK16B            / X'0000FFFF' /
+C
+C
+C
+      INTEGER      LEN_CTX
+      INTEGER      NCINACC
+
+      INTEGER      LOWACCTEX
+      CHARACTER*8  CACC
+      EQUIVALENCE (LOWACCTEX,CACC)
+C
+C
+      INTEGER      KROTAT
+      INTEGER      KPRIOR
+      LOGICAL      REVERS
+      CHARACTER*1  LONECHAR
+
+      INTEGER      ICOMMAND
+      INTEGER      KCHDX,KCHDY
+      INTEGER      IDEL,JDEL
+      INTEGER      LMT_NCACC
+C
+      INTEGER      IRET_FM
+      INTEGER      IRET_WR
+      INTEGER      NWDWRITE
+      LOGICAL      LPACK_RAQ
+      LOGICAL      LCLEAN_AFTQ
+C
+      INTEGER      IFIRST
+      DATA         IFIRST      / 1 /
+
+      SAVE
+C
+C     . . . . . .   S T A R T   . . . . . . . . . . . . . . . . . . .
+C
+C     . . . . . .   S T E P  ( 1 )  . . . . . . . . . . . . . . . . .
+C                               ... INITIALIZE AT ENTRY ...
+C
+      IERPUT = 0
+      LCKPT_PUT = 100
+      LBLTAP = 55
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+      IF(IFIRST .NE. 0) THEN
+C       ... ON FIRST CALL TO PUTLAB, INITIALIZE SOME COUNT BOXES, 
+        NOBUF = 0
+        
+        NCALLS_PUT = 0
+        DO  I = 1,MAXFONT
+          ICOUNT_FONT(I) = 0
+        ENDDO
+
+        IFIRST = 0  		!... DO NOT COME THIS WAY AGAIN
+      ENDIF
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+      NCALLS_PUT = NCALLS_PUT + 1
+
+C     IF(NCALLS_PUT .LT. 100) THEN
+C       LCKPRNQQ = .TRUE.   		!... PRINT FIRST 5 PAGES
+C     ELSE
+C       LCKPRNQQ = .FALSE.
+C     ENDIF
+
+C     IF((ICMD .LT. 0) .OR.
+C    1   (ICMD .GT. 1)) THEN
+C       LCKPRNQQ = .TRUE.    		!... PRINT SPECIAL COMMANDS
+C     ENDIF
+
+      LCKPRNQQ = .FALSE.   		!... PRINT SPECIAL COMMANDS
+C
+      IJPXL_GIVN(1) = IPT
+      IJPXL_GIVN(2) = JPT
+      KROTAT = KROT_PRI(1)
+      KPRIOR = KROT_PRI(2)
+
+      ML = 0
+      JTLIM = LMT_LOOK
+      IF(JTLIM .GT. MAXFONT) THEN
+C       ... WARNING: THE LMT_LOOK VALUE IN THE LOOK TABLE /LKTLBS/ IS
+C       ...          FOR MORE FONTS THAN PUTLAB CAN HANDLE ...
+        IERPUT = 7
+        JTLIM = MAXFONT
+      ENDIF
+C
+      LEN_CTX = LEN(CTEXT)
+C
+          LCKPT_PUT = 177
+          IF(LCKPRNQQ) THEN
+            CALL PUTL_CS(HEIGHT,KROT_PRI,ICMD,NCHAR,CTEXT)
+          ENDIF
+
+C     . . . . . .   S T E P  ( 2 )  . . . . . . . . . . . . . . . . .
+C                    ... TEST THIS COMMAND FOR ALL POSSIBLE CASES ...
+C
+      LCKPT_PUT = 200
+
+      ICOMMAND = ICMD
+
+      IF((ICOMMAND .EQ.  0) .OR. (ICOMMAND .EQ. 1)) THEN
+         GO TO 200
+C        ... WHICH ARE THE USUAL CASES OF PUTTING CHARS OUT ...
+
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+C     . .   SPECIAL ICMD COMMANDS FOR LABEL ARRAY INIT OR CLEANUP . . .
+C 
+      ELSE IF(ICOMMAND .EQ.  -1) THEN
+C       ... WHEN ICMD = -1,  WRITE A HEADER LABEL FROM IDRA
+        LCKPT_PUT = 210
+        DO   ID = 1,NWD_ID
+          IDBUFF(ID) = IDRA(ID)
+        ENDDO
+
+        IDBUFF(1) = -1
+C
+        LPACK_RAQ = .TRUE.
+        LCLEAN_AFTQ = .FALSE.
+        NWDWRITE = KIDBFSZ
+        CALL PUTL_WR(LBLTAP,NOBUF,IDBUFF,NWD_ID,NWDWRITE,
+     1               LPACK_RAQ,LCLEAN_AFTQ,IRET_WR)
+
+        IF(IRET_WR .NE. 0) THEN
+          WRITE(6,FMT='(1H ,''PUTLAB::PUTL_WR FAILED WHILE WRITING '',
+     1                      ''50-WORD ID. IRET_WR='',I3)')
+     A            IRET_WR
+
+          IF(IRET_WR .EQ. -1) THEN
+            GO TO 920
+          ELSE
+            GO TO 910
+          ENDIF
+        ENDIF
+C
+C       ...SUCCESSFULLY WROTE 50-WORD ID RECORD FROM IDBUFF
+        GO TO 999
+C       . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+      ELSE IF(ICOMMAND .EQ. -2) THEN
+C       ... (I MOVED THE LOGIC FOR INIT SOME COUNTS TO ON-IFIRST) ...
+C       ... MAYBE THIS SHOULD BE INCLUDED IN ICMD=-1 PARA  ????
+C       ...   NOBUF = 0; WAS MOVED TO ON-IFIRST, SO THAT IDRA 
+C       ...              COULD BE COUNTED AS RECORD NO. 1 
+C       ...              IF IT IS WRITTEN.
+        LABIX = 0
+        DO  J = 1,LMAX
+          LABEL(1,J) = 0
+          LABEL(2,J) = 0
+        ENDDO
+
+        GO TO 200  		!... MIGHT HAVE INIT '?' WHEN ICMD=-2
+
+C       . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+      ELSE IF((ICOMMAND .EQ.  -7) .OR. (ICOMMAND .EQ. 999)) THEN
+C       ... TO CLOSE THE FILE ON LBLTAP ...
+        LCKPT_PUT = 270
+        IFIRST = 1
+        IF(LABIX .GT. 0) THEN
+C
+          LPACK_RAQ = .TRUE.
+          LCLEAN_AFTQ = .TRUE.
+          CALL PUTL_WR(LBLTAP,NOBUF,LABEL,LMAX2,LMAX,
+     1                 LPACK_RAQ,LCLEAN_AFTQ,IRET_WR)
+
+          IF(IRET_WR .NE. 0) THEN
+            WRITE(6,FMT='(1H ,''PUTLAB::PUT101:FAILED WHILE WRITING '',
+     1                  ''LAST PARTIAL DATA RECORD W/ IRET_WR='',I3)')
+     A              IRET_WR
+
+            IF(IRET_WR .EQ. -1) THEN
+              GO TO 920
+            ELSE
+              GO TO 950
+            ENDIF
+          ENDIF
+C          ...WHICH BUFFERED OUT THE PARTIALLY FULL LABEL ARRAY...
+        ENDIF
+
+        LABIX = 0
+C       ...SAVE FIRST FEW LOCATIONS OF LABEL ARRAY
+        IDBUFF(1) = LABEL(1,1)
+        IDBUFF(2) = LABEL(2,1)
+        IDBUFF(3) = LABEL(1,2)
+        IDBUFF(4) = LABEL(2,2)
+C       ...PUT LOGICAL END OF FILE MARKER INTO LABEL ARRAY...
+        LABEL(1,1) = -7
+        LABEL(2,1) = LEND
+        LABEL(1,2) = 0
+        LABEL(2,2) = 0
+C
+        LPACK_RAQ = .TRUE.
+        LCLEAN_AFTQ = .FALSE.
+
+        CALL PUTL_WR(LBLTAP,NOBUF,LABEL,LMAX2,LMAX,
+     1               LPACK_RAQ,LCLEAN_AFTQ,IRET_WR)
+
+        IF(IRET_WR .NE. 0) THEN
+            WRITE(6,FMT='(1H ,''PUTLAB::PUT101:FAILED WHILE WRITING '',
+     1                  ''LEND-FILE RECORD W/ IRET_WR='',I3)')
+     A              IRET_WR
+            IF(IRET_WR .EQ. -1) THEN
+              GO TO 920
+            ELSE
+              GO TO 950
+            ENDIF
+        ENDIF
+C          ...WHICH BUFFERED OUT THE LOGICAL END-OF-FILE RECORD ...
+C
+C       ...RESTORE THE LABEL ARRAY...
+        LABEL(1,1) = IDBUFF(1)
+        LABEL(2,1) = IDBUFF(2)
+        LABEL(1,2) = IDBUFF(3)
+        LABEL(2,2) = IDBUFF(4)
+
+C       ... HERE IS THE PLACE TO PRINT THE STATISTICAL SUMMARY ...
+        WRITE(6,FMT='(1H ,''PUTLAB: STATS . . . . .'',
+     1               /1H ,''    FONT NO.  STR_COUNT'')')
+        DO  IT = 1,MAXFONT
+
+          IF(ICOUNT_FONT(IT) .NE. 0) THEN
+            WRITE(6,FMT='(1H ,7X,I4,I11)')
+     A              IT,ICOUNT_FONT(IT)
+          ENDIF
+        ENDDO
+        WRITE(6,FMT='(1H ,''. . .  END STATS  . . .'')')
+
+        IF(ICOMMAND .EQ. -7) GO TO 999
+C       ...OTHERWISE, ICMD MUST HAVE BEEN 999, SO CLOSE IT OUT W/ EOF
+
+        ENDFILE LBLTAP
+C
+        GO TO 999
+
+      ELSE
+C       ... I DO NOT KNOW WHAT TO DO WITH THIS COMMAND,
+        WRITE(6,FMT='(1H ,''PUTLAB:ERROR -- WAS CALLED WITH UNKNOWN '',
+     1                    ''COMMAND.  ICMD='',I7)')
+     A          ICMD
+        IERPUT = 9
+        GO TO 999
+      ENDIF
+C
+C     . . . . . .   S T E P  ( 3 )  . . . . . . . . . . . . . . . . .
+C               ... FOR CASE OF PUT TEXT/SYMBOLS ...
+C               ... CHECK FOR VALUES OF ROTATION, PRIORITY, FONT ...
+  200 CONTINUE
+      LCKPT_PUT = 300
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+C     ... ROTATE, IN CALL SEQUENCE, USED TO BE HALF-PACKED IN KPRIOR;
+C     ...   BUT I SPLIT IT INTO TWO-INTEGER KROT_PRI(2) ARRAY
+
+      IF((KROTAT .LT. 0) .OR. (KROTAT .GT. 3)) THEN
+        WRITE(6,FMT='(1H ,''PUTLAB:ARG7(1) -- BAD VALUE FOR '',
+     1                    ''ROTATION.  KROTAT= '',I6 )')
+     A          KROT_PRI(1)
+
+        IERPUT = 1
+        GO TO 999
+
+      ELSE
+C       ... COMES HERE IF KROTAT == 0, 1, 2, OR 3  ...
+        IF(KROTAT .NE. 0 .AND. ICOMMAND .NE. 0) THEN
+          WRITE(6,FMT='(1H ,''PUTLAB:ERROR. YOU WANT ROTATION, BUT'',
+     1                      '' ICMD IS NON-ZERO'')')
+          IERPUT = 8
+          GO TO 999
+        ENDIF
+      ENDIF
+
+C
+C     ... MAYBE I SHOULD MASK, TO LOOK AT ONLY THE LOW-ORDER 16-BITS?
+      KPRIOR = IAND(KPRIOR,MSK16B)
+      IF((KPRIOR .LT. 0) .OR. (KPRIOR .GT. 4)) THEN
+        WRITE(6,FMT='(1H ,''PUTLAB:ARG7(2) -- BAD VALUE FOR '',
+     1                    ''PRIORITY.  KPRIOR='',I6)')
+     A          KROT_PRI(2)
+        IERPUT = 2
+        GO TO 999
+      ENDIF
+
+C
+
+      IPTMOV = IPT
+      JPTMOV = JPT
+C
+      IF(NCHAR .LT. 0) THEN
+        REVERS = .TRUE.
+      ELSE
+        REVERS = .FALSE.
+      ENDIF
+C
+      NCHNOW = IABS(NCHAR)
+      J = 0
+      IF(NCHNOW .GT. NCSIZW) NCHNOW = NCSIZW
+C     ... WHICH TRUNCATES A TOO-LONG NCHAR REQUEST, WITHOUT WARNING.
+C
+      KNC = NCHNOW
+C     ... FIND FIRST EMBEDDED '$' IF ANY...
+      LOCDOL = INDEX(CTEXT(1:NCHNOW),'$')
+      IF(LOCDOL .GT. 0) THEN
+C       ... LOCATED A '$' AT CTEXT(LOCDOL:LOCDOL);  SO CHANGE NCHNOW
+            NCHNOW = LOCDOL
+            KNC = LOCDOL - 1
+            L = LOCDOL - 1
+            IF ( KNC .EQ. 0 ) GO TO 999
+C           ... WHICH EXITED WHEN NO CHARACTERS PRECEDED THE '$'
+C           ...    TERMINATOR.
+C
+      ENDIF      
+C       ... IF THERE IS NO '$' IN THIS STRING, LEAVE NCHNOW ALONE ...
+C
+C     ...   TO INITIALIZE TO THE CHARACTER SET . . . . . . . . . . . . .
+C
+C     ...TO SET KFONT = F(HEIGHT, ANGLE)
+C     ...   WHICH IS USED TO SELECT CHARAC SET AND I/J INCREMENTS
+      IF(HEIGHT .LT. 1.0) GO TO 230
+C
+      IF(HEIGHT .EQ. 1.0) THEN
+        KFONT = 1
+        GO TO 240
+      ENDIF
+C     ... OTHERWISE, (HEIGHT .GT. 1.0) ...
+C
+      JHEIGH = NINT(HEIGHT)
+      IF(JHEIGH .LE. JTLIM) THEN
+C       ...W/I BOUNDS FOR SETTING CHAR SET EXPLICITLY...
+        KFONT = JHEIGH
+      ELSE
+C       ...ERRONEOUSLY LARGE GIVEN HEIGHT VALUE, BUT GO ON W/ SET A...
+        KFONT = 1
+      ENDIF
+      GO TO 240
+C
+
+  230 CONTINUE
+C     ... COMES HERE TO SELECT FONT =F(HEIGHT,ANGLE)
+C     ...    WHEN HEIGHT WAS .LT. 1.0; THEN
+C     ...                  HEIGHT   < 0.11  THEN TINY  ( 6X8 )
+C     ...                  HEIGHT   < 0.17  THEN STD   (10X12)
+C     ...                  HEIGHT  >= 0.17  THEN GIANT (15X20)
+      IF(HEIGHT .LT. 0.11) THEN
+C       ... IF HEIGHT LESS THAN 0.11 USE 6X8 SCAN LINE  SYMBOLS
+        IF (ANGLE .EQ.  0.0) THEN
+          KFONT = 4      		!... TINY, UPRIGHT
+        ELSE IF (ANGLE .EQ. 90.0) THEN
+          KFONT = 5      		!... TINY, SIDEWAYS
+        ELSE
+          GO TO 940
+        ENDIF
+
+      ELSE IF(HEIGHT .LT. 0.17) THEN
+C       ... IF HEIGHT BETWEEN .11 AND .17 USE 12X10 SYMBOLS
+        IF (ANGLE .EQ.  0.0) THEN
+          KFONT = 1    			!... REGULAR, UPRIGHT
+        ELSE IF(ANGLE .EQ. 90.0) THEN
+          KFONT = 3   			!... REGULAR, SIDEWAYS
+        ELSE
+          GO TO 940
+        ENDIF
+      ELSE
+C       ... HEIGHT IS GREATER THAN OR EQUAL .17; USE 20X15 SYMBOLS
+        IF(ANGLE .EQ. 0.0) THEN
+          KFONT = 11   			!... GIANT, UPRIGHT
+        ELSE IF(ANGLE .EQ. 90.0) THEN
+          KFONT = 21   			!... GIANT, SIDEWAYS
+        ELSE
+          GO TO 940
+        ENDIF
+      ENDIF
+      GO TO 240     			!... AFTER KFONT WAS SET
+C
+C     . . . . . .   S T E P  ( 4 )  . . . . . . . . . . . . . . . . .
+C               ... FOR CASE OF PUT TEXT/SYMBOLS (CONTINUED) ...
+C               ... AFTER FONT HAS BEEN SET; EXAMINE THE TEXT STRING ...
+C
+  240 CONTINUE
+      LCKPT_PUT = 400
+
+C     ... COMES HERE WITH ACCEPTABLE VALUE IN KFONT,
+      ICOUNT_FONT(KFONT) = ICOUNT_FONT(KFONT) + 1
+C     ...   FOR STATISTICS ABOUT WHAT FONTS WERE USED ...
+
+      KCHDX = LOOKT(8,KFONT)
+C     ... WHERE (8,) IS THE CHAR-WIDTH (IN PIXELS)
+      KCHDY = LOOKT(3,KFONT)
+C     ... WHERE (3,) IS THE CHAR-HEIGHT (IN PIXELS)
+C
+C     . . .   END - OF - CHARACTER-SET INITIALIZATION . . . . . . . . .
+C
+C     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+C
+C     . . .   MOVE THE GIVEN TEXT INTO THE WORK ARRAY . . . . . . . . . 
+C
+      DO  I = 1,NCHNOW
+        CTXTWRK(I) = CTEXT(I:I)
+      ENDDO
+C     . . .   NOW THE TEXT IS IN C*1 (CTXTWRK(I),I=1,NCHNOW) . . . . . . . . .
+C
+C     ...  SCAN THE TEXT FOR ASTERISKS  ...
+      LNC = NCHNOW
+      IF(NCHNOW. EQ. 0) GO TO 2030
+        DO  2010 LSA = 1,NCHNOW
+          IF (CTXTWRK(LSA) .NE. '*') THEN
+C            ... SAVE THIS NON-ASTERISK-CHARACTER TO LBCD() ...
+             J = J + 1
+             LBCD(J) = CTXTWRK(LSA)
+          ELSE
+C            ... HERE IS AN ASTERISK ... TO BE IGNORED ...
+             LNC = LNC - 1
+             KNC = KNC - 1
+C            ... BUT WHAT IS THIS REPOSITIONING IF ASTERISK IS IGNORE?
+C            ...   COULD IT BE THAT '*' IS PLACE HOLDER IN THIS OLD
+C            ...   VERSION????????
+             IF(KROTAT .EQ. 1) THEN
+               IPTMOV = IPTMOV + IABS(KCHDY)
+             ELSE IF(KROTAT .EQ. 2) THEN
+               JPTMOV = JPTMOV + IABS(KCHDY)
+             ENDIF
+          ENDIF
+ 2010   CONTINUE
+      IF ( REVERS ) THEN
+C       ... REVERSE CHARACTERS IN THE STRING LBCD AND MOVE TO CTXTWRK
+        NCHNOW = KNC
+        DO  I = 1,KNC
+           L = KNC - I + 1
+           CTXTWRK(I) = LBCD(L)
+        ENDDO
+      ELSE
+C       ... MOVE EDITED STRING FROM LBCD TO CTXTWRK
+        DO  I = 1,LNC
+          CTXTWRK(I) = LBCD(I)
+        ENDDO
+        NCHNOW = LNC
+      ENDIF
+      GO TO 2030
+C
+ 2030 CONTINUE
+C     ... CHECK IF SIDEWAYS CHARACTER SET? ....
+      IF ( KCHDY .LT. 0 ) THEN
+C       ... IT'S A SIDEWAYS CHARACTER SET ...
+        IF ((KROTAT .EQ. 1 ) .OR. (KROTAT .EQ. 3)) THEN
+C         ... THIS SIDEWAYS CHARACTER WILL BE ROTATED 
+C         ...   SO TREAT AS HORIZONTAL
+          KCHDX = -KCHDY
+          KCHDY = 0
+        ELSE
+          KCHDY = -KCHDY
+          KCHDX = 0
+        ENDIF
+C
+      ELSE
+C       ... THIS IS NOT A SIDEWAYS, SO IS STRAIGHT UP CHAR SET ...
+        IF ((KROTAT .EQ. 1 ) .OR. (KROTAT .EQ. 3)) THEN
+C         ... THIS CHARACTER WILL BE ROTATED IN PRTITL 
+C         ...    SO TREAT AS SIDEWAYS
+          KCHDY = KCHDX
+          KCHDX = 0
+        ELSE
+          KCHDY=0
+        ENDIF
+      ENDIF
+C
+      IDEL = KCHDX
+      JDEL = KCHDY
+
+C     . . . . . .   S T E P  ( 5 )  . . . . . . . . . . . . . . . . .
+C               ... FOR CASE OF PUT TEXT/SYMBOLS (CONTINUED) ...
+C               ... BOUNDS TEST STARTING X,Y ...
+      LCKPT_PUT = 500
+
+      MAXI1 = MAXI - IDEL
+      MAXJ1 = MAXJ - JDEL
+      IX = IPTMOV
+      JY = JPTMOV
+      IF (IX .LT. 0)     GO TO 930
+      IF (IX .GT. MAXI1) GO TO 930
+      IF (JY .LT. 0)     GO TO 930
+      IF (JY .GT. MAXJ1) GO TO 930
+      IX = IAND(IX,MSKXI)
+      JY = IAND(JY,MSKJY)
+      JWORD = JY
+      IWORD = IX
+      IF(ICOMMAND .EQ. 0) THEN 
+C       ... COMES HERE FOR EXPLICIT CHAR-SET DESIGNATOR FORMAT ...
+        LMT_NCACC = NBYTLGLWRD - 1
+      ELSE
+C       ...COMES HERE IF DOING 4 CHAR FORMAT W/O ANY ARROW UP...
+        LMT_NCACC = NBYTLGLWRD
+      ENDIF
+C
+C     . . . . . .   S T E P  ( 6 )  . . . . . . . . . . . . . . . . .
+C               ... FOR CASE OF '?': INITIALIZE DEFAULT CHAR SET ...
+      LCKPT_PUT = 600
+
+      IF(CTEXT(1:1) .EQ. '?') THEN
+C       ... FOUND CHAR SET INITIALIZER ...
+C       ...SPECIAL CASE FOR ARROW-DOWN PERM CHAR SET INITIALIZER...
+C       ... FETCH THE FIRST 2 CHARACTERS FROM CTEXT AND PUT INTO 
+C       ... LOWACCTEX RIGHT-JUSTIFIED IN THE LOW-ORDER END OF 
+C       ... ACCUMULATOR
+        LOWACCTEX = 0
+C ...        CACC(3:4) = CTEXT(1:2)
+C       ... (CAUTION: ON VAX, THIS WOULD PUT IN WRONG END OF WORD.)
+        LOWACCTEX = mova2i(CTEXT(1:1))
+        LOWACCTEX = ISHFT(LOWACCTEX,8)
+        LOWACCTEX = IOR(LOWACCTEX,mova2i(CTEXT(2:2)))
+        NCINACC = 2
+        ICOMMAND = 1
+        LMT_NCACC = NBYTLGLWRD
+        NEWI = IWORD
+        NEWJ = JWORD
+        GO TO 800
+C       ...
+      ENDIF
+C     ... OTHERWISE, THIS WAS NOT THE SPECIAL SET DEFAULT CHAR-SET CMD
+
+C     . . . . . .   S T E P  ( 7 )  . . . . . . . . . . . . . . . . .
+C               ... FOR CASE OF NCHAR=0; 
+C               ...    WHICH SIGNALS ONE CHAR IN INTEGER WORD ...
+C
+      LCKPT_PUT = 700
+
+      IF(NCHAR .EQ. 0) THEN
+C       ... THIS IS SPECIAL CASE OF FETCHING ONE CHAR OUT OF 
+C       ...   LOW-ORDER BYTE OF GIVEN INTEGER EQUIVALENCED TO CTEXT
+C
+        LOWACCTEX = 0
+        IF(LEN_CTX .GE. NBYTPHYWRD) THEN
+          CACC(1:NBYTPHYWRD) = CTEXT(1:NBYTPHYWRD)
+          LOWACCTEX = IAND(LOWACCTEX,MSKRCH)
+C         ... THAT SHOULD WORK TO GET THE LOW-ORDER BYTE OF WHAT STARTED
+C         ... AS INTEGER    IN BOTH IBM AND VAX MACHINES ...          
+C         ...   WHICH FIRST TESTED IF CALLER HAD NBYTPHYWRD CHARS LEN
+C         ...   BEFORE FETCHING FROM THERE ....
+        ELSE
+C         ... I WILL NOT TRY TO GO ON WITH JUST ANYTHING IF NOT
+C         ... GIVEN AT LEAST NBYTPHYWRD-BYTES IN CTEXT FOR THIS SPECIAL 
+C         ...  NCHAR=0 OPTN
+          IERPUT = 6
+          GO TO 999
+        ENDIF
+C
+        NCINACC = 1
+        NEWI = IWORD + IDEL
+        NEWJ = JWORD + JDEL
+        GO TO 800
+      ENDIF
+C
+C     ... OTHERWISE, THIS WAS NOT THAT SPECIAL CASE EITHER ...
+
+C     . . . . . .   S T E P  ( 8 )  . . . . . . . . . . . . . . . . .
+C               ... FOR GENERAL CASE OF PUT TEXT/SYMBOLS (CONTINUED) ...
+C
+      LCKPT_PUT = 800
+
+      NEWI = IX
+      NEWJ = JY
+      ML = 0
+      LOWACCTEX = 0
+      NCINACC = 0
+C     ...WHERE NCINACC COUNTS TEXT CHARS PUT INTO ACC FOR ONE 
+C     ...LABEL WORD..
+
+
+C     . . . . . .   S T E P  ( 10 )  . . . . . . . . . . . . . . . . .
+C               ... TO ACCUMULATE CHARACTERS ONE-BY-ONE 
+C               ...    INTO LABEL-ARRAY TEXT WORD(S)
+C                   
+C     . . . . . . TOP OF DO ON ML  . . . . . . . . . . . . . . . . . . .
+C ...      DO  333  ML = 1,NCHNOW
+C     ... DO-IT-EXPLICITLY-DO IS NECESSARY, BECAUSE IT JUMPS OUT
+C     ...    ON AN ARROW-UP TO CHANGE CHAR SET, THEN INCREMENTS THE LOOP
+C     ...    POINTER OUT THERE BEFORE JUMPING BACK INTO THIS LOOP
+      LCKPT_PUT = 1000
+      ML = 0
+  300 CONTINUE
+      ML = ML + 1
+
+      IF(ML .GT. NCHNOW) THEN
+        GO TO 800
+C       ... WHICH IS THE NORMAL WAY OUT OF LOOP ON COUNT SATISFIED ...
+      ENDIF
+
+C     ... OTHERWISE, ML IS .LE. NCHNOW, SO PROCESS ONE CHARACTER
+        LONECHAR = CTXTWRK(ML)
+        IF(LONECHAR .EQ. '$') GO TO 800
+C       ... WHICH IS ANOTHER NORMAL WAY OUT OF LOOP ON TERMINATOR CHAR
+        IF(LONECHAR .EQ. '@') GO TO 400
+        IF(LONECHAR .EQ. '*') GO TO 333
+C       ...OTHERWISE, THIS CHAR WILL BE ACCUMULATED...
+        IAC2 = mova2i(LONECHAR)
+        LOWACCTEX = ISHFT(LOWACCTEX,8)
+        LOWACCTEX = IOR(LOWACCTEX,IAC2)
+        NEWI = NEWI + IDEL
+        IF(NEWI .GT. MAXI) THEN
+           PRINT  312,IX,NEWI,JY,LOWACCTEX
+  312      FORMAT(1H ,'PUTLAB:ERROR I OUT-OF-BOUNDS. IX =',I6,
+     A       '  NEWI =', I6,'  JY =',I6,'   LOWACCTEX =X ', Z16.16)
+           GO TO 800
+        ENDIF
+
+        NEWJ = NEWJ + JDEL
+        IF(NEWJ .GT. MAXJ) THEN
+          PRINT  316,IX,JY,NEWJ,LOWACCTEX
+  316     FORMAT(1H ,'PUTLAB:ERROR J OUT-OF-BOUNDS -- IX =',I6,
+     A      '  JY =',I6,'  NEWJ =',I6,'  LOWACCTEX =X', Z16.16)
+          GO TO 800
+        ENDIF
+
+C       ...NOW NEWI AND NEWJ POINTS TO LLCORNER OF CHAR 
+C       ...  WHICH IS COMING NEXT ...
+        NCINACC = NCINACC + 1
+C       ...IS THE ACC FULL (AS FAR AS LABEL-WORD FORMAT IS CONCERNED) QQ
+        IF(NCINACC .GE. LMT_NCACC) THEN
+C         ...YES, ACC IS FULL SO TRANSFER TO LABEL ARRAY...
+C         ---------------------------------------------
+          LCKPT_PUT = 1020
+
+          CALL PUTL_FM(LMT_NCACC,NCINACC,LOWACCTEX,ICOMMAND,
+     A           KFONT,KROTAT,KPRIOR,IRET_FM)
+C         ...WHICH WRITES OUT THE FULL LOWACCTEX INTO LABEL ARRAY...
+
+          IF(IRET_FM .NE. 0) THEN
+            GO TO 920
+          ENDIF
+C         ---------------------------------------------
+C
+C
+          LOWACCTEX = 0
+          NCINACC = 0
+          IWORD = NEWI
+          JWORD = NEWJ
+C         ...WHICH PREPARES THE I/J LOCN FOR THE NEXT LABEL ENTRY...
+        ENDIF
+  333 CONTINUE
+      GO TO 300
+C     . . . . . . BOTTOM OF LOOP ON ML  . . . . . . . . . . . . . . . .
+
+C
+C     *     *     *     *     *     *     *     *     *     *     *
+C     . . . . . .   S T E P  ( 11 )  . . . . . . . . . . . . . . . . .
+C               ... TO CHANGE FONT IN MID-TEXT-STRING ...
+C
+C     ...SECTION 400 ... SPECIAL CASE OF EMBEDDED '@' LOCATED AT (ML)
+C     ...  TO FIND WHICH CHAR-SET INDEX COMES AFTER THIS '@'
+C     ...  AND TO CHANGE CHAR SET ...
+C     ...  AND JUMP BACK INTO THE MAIN LOOP AT 300
+  400 CONTINUE
+      LCKPT_PUT = 1100
+
+      IF(NCINACC .GT. 0) THEN
+        LCKPT_PUT = 1110
+        CALL PUTL_FM(LMT_NCACC,NCINACC,LOWACCTEX,ICOMMAND,
+     A          KFONT,KROTAT,KPRIOR,IRET_FM)
+C       ...WHICH WRITES OUT THE PARTIALLY FULL ACC INTO LABEL ARRAY...
+        IF(IRET_FM .NE. 0) THEN
+          GO TO 920
+
+        ENDIF
+      ENDIF
+
+      NCINACC = 0
+      LOWACCTEX = 0
+      IWORD = NEWI
+      JWORD = NEWJ
+C     ... GET THE NEXT CHAR WHICH IS THE CHAR SET INDEX ...
+      ML = ML + 1
+      IF(ML .GE. NCHNOW) GO TO 999
+C
+      LONECHAR = CTXTWRK(ML)
+      IF(LONECHAR .EQ. '$') GO TO 999
+C
+      KFONT = mova2i(LONECHAR)
+      IF((KFONT .LE. 0) .OR. (KFONT .GT. JTLIM)) THEN
+C       ... BAD CHAR-SET-INDEX AFTER THE '@' 
+        PRINT 432, KFONT,IX,JY
+  432   FORMAT(1H ,'PUTLAB:ERROR IN CTEXT DATA -- THE AFTER-"@"',
+     B             ' BAD CHARACTER-SET-INDEX =',I4,
+     1        /1H ,7X,'IN CHAR STRING LOCATED AT IX=',I6,
+     2                ';  JY=',I6)
+        IERPUT = 3
+        GO TO 999
+      ENDIF
+C     ... OTHERWISE, KFONT IS W/I BOUNDS OF LOOK TABLE ...
+      ICOUNT_FONT(KFONT) = ICOUNT_FONT(KFONT) + 1
+C     ...   FOR STATISTICS ABOUT WHAT FONTS WERE USED ...
+      KCHDX = LOOKT(8,KFONT)
+      KCHDY = LOOKT(3,KFONT)
+
+C     ... CHECK IF SIDEWAYS CHARACTER? ....
+      IF(KCHDY .LT. 0) THEN
+C       ... IT'S A SIDEWAYS CHARACTER. .....
+        IF ((KROTAT .EQ. 1) .OR. (KROTAT .EQ. 3)) THEN
+C         ... THIS SIDEWAYS CHARACTER WILL BE ROTATED 
+C         ...   SO TREAT AS HORIZONTAL
+          KCHDX = -KCHDY
+          KCHDY = 0
+        ELSE
+          KCHDY = - KCHDY
+          KCHDX=0
+        ENDIF
+
+      ELSE
+C       ... THIS IS NOT SIDEWAYS; SO IS STRAIGHT UP ...
+        IF ((KROTAT .EQ. 1) .OR. (KROTAT .EQ. 3)) THEN
+C         ... THIS CHARACTER WILL BE ROTATED IN PRTITL 
+C         ...    SO TREAT AS SIDEWAYS
+          KCHDY = KCHDX
+          KCHDX = 0
+        ELSE
+          KCHDY=0
+        ENDIF
+      ENDIF
+C
+      IDEL = KCHDX
+      JDEL = KCHDY
+      ICOMMAND = 0
+      LMT_NCACC = NBYTLGLWRD - 1
+
+      GO TO 300
+C     ...WHICH JUMPS BACK INTO THE MAIN LOOP AT 300
+C     *     *     *     *     *     *     *     *     *     *     *
+C
+C     *     *     *     *     *     *     *     *     *     *     *
+C     . . . . . .   S T E P  ( 12 )  . . . . . . . . . . . . . . . . .
+C
+  800 CONTINUE
+C     ...COMES HERE IF ALL CHARS REQUESTED HAVE BEEN EXAMINED...
+      LCKPT_PUT = 1200
+
+C     ...ANY CHARS IN THE ACCUMULATOR QQ
+      IF(NCINACC .GT. 0) THEN
+C
+        LCKPT_PUT = 1205
+        CALL PUTL_FM(LMT_NCACC,NCINACC,LOWACCTEX,ICOMMAND,
+     A          KFONT,KROTAT,KPRIOR,IRET_FM)
+C
+        IF(IRET_FM .NE. 0) THEN
+          GO TO 920
+        ENDIF
+
+        LOWACCTEX = 0
+        NCINACC = 0
+
+      ENDIF
+      GO TO 999
+C     *     *     *     NORMAL EXIT     *     *     *     *     *
+C
+C     ................................................................
+C
+  910 CONTINUE
+C     ... COMES HERE ON PUTL_WR FAILURE WHILE PACKING 50-WORD ID
+      IERPUT = 10
+      GO TO 999
+C
+  920 CONTINUE
+      PRINT  925,LBLTAP,NOBUF,LABIX,LCKPT_PUT
+  925 FORMAT(1H ,'PUTLAB:ERROR WRITING TAPE FT', I2, 
+     1      /1H , 7X,'NOBUF=',I4,';  LABIX=',I6,'; LCKPT_PUT=',I5)
+      IERPUT = -1
+      GO TO 999
+C
+  930 CONTINUE
+      PRINT 935,IX,JY
+  935 FORMAT(1H ,'PUTLAB:ERROR -- I OR J OUT OF BOUNDS.  IP =',I10,
+     1           '  JP =',I10)
+      IERPUT = 4
+      GO TO 999
+C
+  940 CONTINUE
+      PRINT 945,HEIGHT,ANGLE
+  945 FORMAT(1H ,'PUTLAB:ERROR -- CALLED WITH ILLEGAL COMBINATION ',
+     1           'OF HEIGHT=',F9.4,
+     2      /1H ,7X,'AND ANGLE=',E13.8)
+      IERPUT = 5
+      GO TO 999
+C
+  950 CONTINUE
+C     ... COMES HERE ON PUTL_WR FAILURE WHILE PACKING A RECORD
+      IERPUT = 11
+      GO TO 999
+C
+  999 CONTINUE
+      RETURN
+      END

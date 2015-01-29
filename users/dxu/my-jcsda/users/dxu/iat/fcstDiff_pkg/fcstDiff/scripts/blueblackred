@@ -1,0 +1,128 @@
+************* blueredblack ******************
+
+function blueredblack(arg)
+
+if (arg<0)
+nx = -1*arg
+dir = -1
+else
+nx = arg
+dir = 1
+endif
+
+nx4 = nx/4
+
+ix = 0
+rbcols = ''
+
+** black to blue
+
+g=0
+b=0
+r=0
+
+x=0
+
+while (ix<=nx4)
+
+colix = ix+20
+'set rgb '%colix' 'r' 'g' 'b
+
+if (dir>0)
+rbcols = rbcols%' '%colix
+else rbcols = colix%' '%rbcols
+endif
+
+x = x + 1/nx4
+y = x
+
+ix = ix+1
+r = 0
+g = 0
+b = 255*y
+
+endwhile
+
+** blue to white
+
+g=0
+b=255
+r=0
+
+x=1
+while (ix<=2*nx4)
+
+x = x - 1/nx4
+y = x*x
+
+colix = ix+20
+'set rgb '%colix' 'r' 'g' 'b
+
+if (dir>0)
+rbcols = rbcols%' '%colix
+else rbcols = colix%' '%rbcols
+endif
+
+ix = ix+1
+r = 255*(1-y)
+g = 255*(1-y)
+b = b
+
+endwhile
+
+** white to red
+
+r=255
+g=255
+b=255
+
+x = 0
+
+while (ix<=3*nx4)
+
+x = x + 1/nx4
+y = x*x
+
+colix = ix+20
+'set rgb '%colix' 'r' 'g' 'b
+
+if (dir>0)
+rbcols = rbcols%' '%colix
+else rbcols = colix%' '%rbcols
+endif
+
+ix = ix+1
+r = r
+g = 255*(1-y)
+b = 255*(1-y)
+
+endwhile
+
+** red to black
+
+r=255
+g=0
+b=0
+
+x = 1
+
+while (ix<=nx)
+
+x = x - 1/nx4
+y = x
+colix = ix+20
+'set rgb '%colix' 'r' 'g' 'b
+
+if (dir>0)
+rbcols = rbcols%' '%colix
+else
+rbcols = colix%' '%rbcols
+endif
+
+ix = ix+1
+r = 255*y
+g = 0
+b = 0
+
+endwhile
+

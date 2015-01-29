@@ -1,0 +1,47 @@
+#
+# make file for wgrib2
+# 
+# compiles jasper and grib2c libraries
+# then tries to compile wgrib2
+#
+# mod 1/07 M. Schwarb (libgrib2c name change)
+#
+# this version uses netcdf libraries -- compile C only version
+#  get from UCAR if compile doesn't work
+#
+
+j=jasper-1.900.1
+jlib=$j/src/libjasper/.libs/libjasper.a
+
+g=g2clib-1.1.8
+glib=$g/libgrib2c.a
+
+w=wgrib2
+prog=$w/wgrib2
+
+n=netcdf-3.6.2
+nlib=$n/libsrc/.libs/libnetcdf.a
+
+
+all:	$j ${jlib} ${glib} ${prog}
+
+$j:
+	cp $j.tar.gz tmpj.tar.gz
+	gunzip -n tmpj.tar.gz
+	tar -xvf tmpj.tar
+	rm tmpj.tar
+
+${jlib}:	$j
+	cd $j &&./configure && gmake
+
+${glib}:	${jlib}
+	cd $g && gmake
+
+${prog}:	$w/wgrib2.c $w/*.c $w/*.h ${glib} ${jlib} 
+	cd $w && gmake -f makefile_no_netcdf
+
+clean:
+	cd $w && gmake clean
+	cd $g && touch junk.a junk.o && rm *.o *.a
+	cd $n && gmake clean
+

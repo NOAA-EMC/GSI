@@ -1,0 +1,31 @@
+#-------------------------------------------------------
+#
+#  glbl_conf
+#
+#  Contains definitions for internal reference used 
+#  to produce images from glbl data sources.
+#
+#  Users should not need need to edit this file.
+#-------------------------------------------------------
+
+#
+# web server resources
+#
+export WEBDIR=${WEBDIR}/${SUFFIX}
+
+
+#
+# internal package reference
+#
+export TOP_IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
+export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}/pngs
+export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
+export TOP_ARCHIVE_DIR=${ARCHIVE_DIR}
+export ARCHIVE_DIR=${ARCHIVE_DIR}/${SUFFIX}
+
+#
+#  GrADS script definitions
+#
+export PLOT_ANGLE_COUNT=plot_angle_count.glb.gs
+export PLOT_ANGLE_SEP=plot_angle_sep.glb.gs
+

@@ -1,0 +1,68 @@
+t_nc-t_nc.o : t_nc.c
+t_nc-t_nc.o : ../config.h
+t_nc-t_nc.o : /usr/include/stdio.h
+t_nc-t_nc.o : /usr/include/standards.h
+t_nc-t_nc.o : /usr/include/va_list.h
+t_nc-t_nc.o : /usr/include/sys/types.h
+t_nc-t_nc.o : /usr/include/strict_stdtypes.h
+t_nc-t_nc.o : /usr/include/sys/inttypes.h
+t_nc-t_nc.o : /usr/include/stdint.h
+t_nc-t_nc.o : /usr/include/end_strict_stdtypes.h
+t_nc-t_nc.o : /usr/include/sys/m_types.h
+t_nc-t_nc.o : /usr/include/sys/vm_types.h
+t_nc-t_nc.o : /usr/include/sys/limits.h
+t_nc-t_nc.o : /usr/include/float.h
+t_nc-t_nc.o : /usr/include/stddef.h
+t_nc-t_nc.o : /usr/vac/include/stdlib.h
+t_nc-t_nc.o : /usr/include/stdlib.h
+t_nc-t_nc.o : /usr/include/sys/wait.h
+t_nc-t_nc.o : /usr/include/sys/resource.h
+t_nc-t_nc.o : /usr/include/sys/time.h
+t_nc-t_nc.o : /usr/include/sys/signal.h
+t_nc-t_nc.o : /usr/include/sys/context.h
+t_nc-t_nc.o : /usr/include/sys/m_param.h
+t_nc-t_nc.o : /usr/include/sys/mstsave.h
+t_nc-t_nc.o : /usr/include/sys/m_signal.h
+t_nc-t_nc.o : /usr/include/sys/localedef.h
+t_nc-t_nc.o : /usr/include/sys/lc_core.h
+t_nc-t_nc.o : /usr/include/locale.h
+t_nc-t_nc.o : /usr/include/sys/localedef31.h
+t_nc-t_nc.o : /usr/vac/include/string.h
+t_nc-t_nc.o : /usr/include/string.h
+t_nc-t_nc.o : /usr/include/assert.h
+t_nc-t_nc.o : netcdf.h
+t_nc-t_nc.o : /usr/include/errno.h
+t_nc.c:
+../config.h:
+/usr/include/stdio.h:
+/usr/include/standards.h:
+/usr/include/va_list.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/stddef.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+/usr/include/assert.h:
+netcdf.h:
+/usr/include/errno.h:
