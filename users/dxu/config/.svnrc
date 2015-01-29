@@ -1,10 +1,10 @@
 # svn commands
 alias ss="cat .svn/entries | head  -5 | tail -1 ; echo"
 alias sstatus="svn status "
-alias sco="svn co "
+alias sco="svn co --ignore-externals   "
 alias sci="svn ci "
 alias sadd="svn add "
-alias supdate="svn update "
+alias supdate="svn update --ignore-externals  "
 alias smove="svn move  "
 alias sdelete="svn delete "
 alias slog="svn log "
@@ -13,6 +13,8 @@ alias srevert="svn revert "
 alias svndiff="svn diff "
 alias svndiffprev="svn diff -r HEAD:PREV "
 alias svncomp="svn diff -c "
+alias svnreslvServer="svn resolve --accept=theirs-full  "
+alias svnreslvLocal="svn resolve --accept=mine-full  "
 alias sm='svn commit -m "" '
 
 
