@@ -293,6 +293,106 @@ subroutine general_s2g0_ad(grd,sp,spectral_out,grid_in)
   return
 end subroutine general_s2g0_ad
 
+subroutine sfilter(grd,sp,filter,grid)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sfilter     apply spectral filter
+!   prgmmr: kleist           org: np23                date: 2013-12-03
+!
+! abstract: takes subdomain variables and applies spectral filter. Eliminates
+! unneaded data motion
+!
+! program history log:
+!   2013-12-03  derber
+!
+!   input argument list:
+!     grd      - input grid specification
+!     sp       - input spectral specification
+!     filter   - spectral filter coefficients
+!     grid     - input subdomain field
+!
+!   output argument list:
+!     grid     - output subdomain field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use general_specmod, only: spec_vars
+  use general_sub2grid_mod, only: sub2grid_info
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero,two
+  implicit none
+
+  type(spec_vars),intent(in   ) :: sp
+  type(sub2grid_info),intent(in   ) :: grd
+  real(r_kind),intent(in   ) :: filter(sp%nc)
+  real(r_kind),intent(inout) :: grid(grd%nlat,grd%nlon)
+
+  real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
+  integer(i_kind) i,j,jj
+
+
+!  Reverse ordering in j direction from n-->s to s-->n
+!  And account for work array excluding pole points
+  do j=2,grd%nlat-1
+     jj=grd%nlat-j
+     do i=1,grd%nlon
+        work(i,jj)=grid(j,i)
+     end do
+  end do
+
+  do j=sp%jb,sp%je-mod(grd%nlat,2)
+     do i=1,grd%nlon
+        work(i,j)=work(i,j)/sp%wlat(j)
+        work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)/sp%wlat(j)
+     end do
+  end do
+
+  if (mod(grd%nlat,2) /= 0) then
+     do i=1,grd%nlon
+        work(i,sp%je)=work(i,sp%je)/(two*sp%wlat(sp%je))
+     end do
+  endif
+
+  call general_sptez_s(sp,spec_work,work,-1)
+
+  do i=1,sp%nc
+     spec_work(i)=spec_work(i)*float(grd%nlon)
+  end do
+  do i=2*sp%jcap+3,sp%nc
+     spec_work(i)=two*spec_work(i)
+  end do
+
+  call general_spectra_pole_scalar_ad (grd,sp,grid,spec_work)
+
+  do i=1,sp%nc
+     spec_work(i)=spec_work(i)*filter(i)
+     if(sp%factsml(i))spec_work(i)=zero
+  end do
+ 
+!  fill in pole points using spectral coefficients
+!  (replace earlier algorithm that assumed zero gradient next to pole)
+  call general_spectra_pole_scalar (grd,sp,grid,spec_work)
+
+  call general_sptez_s(sp,spec_work,work,1)
+
+!  Reverse ordering in j direction from n-->s to s-->n
+!  And account for work array excluding pole points
+  do j=2,grd%nlat-1
+     jj=grd%nlat-j
+     do i=1,grd%nlon
+        grid(j,i)=work(i,jj)
+     end do
+  end do
+
+  return
+  return
+end subroutine sfilter
+
 
 subroutine general_uvg2zds(grd,sp,zsp,dsp,ugrd,vgrd)
 
@@ -801,8 +901,12 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
 !                          replace 'use specmod' with structure var sp
 !                           also replace 'use gridmod' with input structure variable grd
 !   2011-07-03  todling - use intrinsic sqrt (avoid old dsqrt-interface)
+!   2014-12=03  derber - use new sp%alp0 field so that we do not have to
+!                        recalculate
 !
 !   input argument list:
+!     grd    - specification of input grid
+!     sp     - specification of spectral fields
 !     coefs  - spherical harmonic coefficients of scalar field
 !
 !   output argument list:
@@ -814,10 +918,10 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
 !$$$
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
- use kinds, only: r_kind,i_kind
- use constants, only: zero,half,three
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero,half,three
   
-      implicit none      
+  implicit none      
 
   type(spec_vars),intent(in   ) :: sp
   type(sub2grid_info),intent(in   ) :: grd
@@ -829,9 +933,6 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
       integer(i_kind) :: n           ! order of assoc. legendre polynomial 
       integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
       integer(i_kind) :: j           ! longitude index      
-      real(r_kind) :: alp0(0:sp%jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
-      real(r_kind) :: epsi0(0:sp%jcap)  ! epsilon factor for m=0
-      real(r_kind) :: fnum, fden
       real(r_kind)  :: afac           ! alp for S. pole 
       real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
 !
@@ -843,20 +944,6 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
 !      triangular truncation assumed
 !      These conditions determine the value of n1.
 !
-!  Compute epsilon for m=0.
-      epsi0(0)=zero  
-      do n=1,sp%jcap
-         fnum=real(n**2)
-         fden=real(4*n**2-1)
-         epsi0(n)=sqrt(fnum/fden)
-      enddo
-!
-!  Compute Legendre polynomials for m=0 at North Pole
-      alp0(0)=sqrt(half)
-      alp0(1)=sqrt(three)*alp0(0)
-      do n=2,sp%jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-      enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this
       fpole_n=zero
@@ -864,11 +951,11 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
       n1=1
       do n=0,sp%jcap 
          if (mod(n,2)==1) then
-            afac=-alp0(n)
+            afac=-sp%alp0(n)
          else 
-            afac= alp0(n)
+            afac= sp%alp0(n)
          endif  
-         fpole_n=fpole_n+alp0(n)*coefs(2*n+n1)
+         fpole_n=fpole_n+sp%alp0(n)*coefs(2*n+n1)
          fpole_s=fpole_s+   afac*coefs(2*n+n1)
       enddo
 !
@@ -900,8 +987,12 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
 !   2010-02-18  parrish, spectra_pole_scalar_ad to general_spectra_pole_scalar_ad--
 !                          replace 'use specmod' with structure var sp
 !                           also replace 'use gridmod' with input structure variable grd
+!   2014-12=03  derber - use new sp%alp0 field so that we do not have to
+!                        recalculate
 !
 !   input argument list:
+!     grd    - specification of input grid
+!     sp     - specification of spectral fields
 !     field -  adjoint (dual) of field (only poles used here)
 !     coefs  - adjoint (dual) of spherical harmonic coefficients
 !
@@ -929,9 +1020,6 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
       integer(i_kind) :: n           ! order of assoc. legendre polynomial 
       integer(i_kind) :: n1          ! offset for real zonal wavenumber m=0 coefs
       integer(i_kind) :: j           ! longitude index      
-      real(r_kind) :: alp0(0:sp%jcap)   ! Assoc Legendre Poly for m=0 at the North Pole
-      real(r_kind) :: epsi0(0:sp%jcap)  ! epsilon factor for m=0
-      real(r_kind) :: fnum, fden
       real(r_kind)  :: afac           ! alp for S. pole
       real(r_kind) :: fpole_n, fpole_s    ! value of scalar field at n and s pole 
 
@@ -945,20 +1033,6 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
 !      triangular truncation assumed
 !      These conditions determine the value of n1.
 !
-!  Compute epsilon for m=0.
-      epsi0(0)=zero  
-      do n=1,sp%jcap
-         fnum=real(n**2, r_kind)
-         fden=real(4*n**2-1, r_kind)
-         epsi0(n)=sqrt(fnum/fden)
-      enddo
-!
-!  Compute Legendre polynomials for m=0 at North Pole
-      alp0(0)=sqrt(half)
-      alp0(1)=sqrt(three)*alp0(0)
-      do n=2,sp%jcap
-         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
-      enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this)
       fpole_n=zero
@@ -971,11 +1045,11 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
       n1=1
       do n=0,sp%jcap 
          if (mod(n,2)==1) then
-            afac=-alp0(n)
+            afac=-sp%alp0(n)
          else 
-            afac= alp0(n)
+            afac= sp%alp0(n)
          endif
-         coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+alp0(n)*fpole_n  
+         coefs(2*n+n1)=coefs(2*n+n1)+afac*fpole_s+sp%alp0(n)*fpole_n  
       enddo
 !
       end subroutine general_spectra_pole_scalar_ad 
@@ -1001,6 +1075,8 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
 !                           also replace 'use gridmod' with input structure variable grd
 !
 !   input argument list:
+!     grd   - specification of input grid
+!     sp    - specification of spectral fields
 !     vort  - spherical harmonic coefficients of vorticity
 !     divg  - spherical harmonic coefficients of divergence
 !
@@ -1034,7 +1110,7 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
       real(r_kind) :: alp1(1:sp%jcap)  ! Assoc Legendre Poly for m=1 at the North Pole
       real(r_kind) :: epsi1(1:sp%jcap) ! epsilon factor for zonal wavenumber m=1
       real(r_kind) :: fnum, fden, fac
-      real(r_kind) :: coslon(grd%nlon), sinlon(grd%nlon) ! sines and cosines of longitudes
+      real(r_kind) :: coslon, sinlon ! sines and cosines of longitudes
       real(r_kind) :: afac       ! alp for S. pole 
       real(r_kind) :: s_vort_R_n  ! sum of real part of P(n)*vort(n)/(n*n+n) for N.pole
       real(r_kind) :: s_vort_I_n  ! sum of imag part of P(n)*vort(n)/(n*n+n) for N.pole
@@ -1083,11 +1159,6 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
-      fac=two*pi/grd%nlon
-      do j=1,grd%nlon
-         coslon(j)=cos(fac*(j-1))
-         sinlon(j)=sin(fac*(j-1))
-      enddo
 
       do n=1,sp%jcap
         fnum=real(n**2-1, r_kind)
@@ -1150,11 +1221,14 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
       vI_s=-uR_s
 !
 !  Perform Fourier projection for m=1 at pole             
+      fac=two*pi/grd%nlon
       do j=1,grd%nlon
-         ufield(grd%nlat,j)=uR_n*coslon(j)-uI_n*sinlon(j)
-         vfield(grd%nlat,j)=vR_n*coslon(j)-vI_n*sinlon(j)
-         ufield(   1,j)=uR_s*coslon(j)-uI_s*sinlon(j)
-         vfield(   1,j)=vR_s*coslon(j)-vI_s*sinlon(j)
+         coslon=cos(fac*(j-1))
+         sinlon=sin(fac*(j-1))
+         ufield(grd%nlat,j)=uR_n*coslon-uI_n*sinlon
+         vfield(grd%nlat,j)=vR_n*coslon-vI_n*sinlon
+         ufield(   1,j)=uR_s*coslon-uI_s*sinlon
+         vfield(   1,j)=vR_s*coslon-vI_s*sinlon
       enddo
 !
       end subroutine general_spectra_pole_wind 
@@ -1181,6 +1255,8 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
 !                           also replace 'use gridmod' with input structure variable grd
 !
 !   input argument list:
+!     grd   - specification of input grid
+!     sp    - specification of spectral fields
 !     ufield - adjoint (dual) of u wind component field (set at poles only)
 !     vfield - adjoint (dual) of v wind component field (set at poles only)
 !     vort  - adjoint (dual) of spherical harmonic coefficients of vorticity
@@ -1216,7 +1292,7 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
       real(r_kind) :: alp1(1:sp%jcap)  ! Assoc Legendre Poly for m=1 at the North Pole
       real(r_kind) :: epsi1(1:sp%jcap) ! epsilon factor for zonal wavenumber m=1
       real(r_kind) :: fnum, fden, fac
-      real(r_kind) :: coslon(grd%nlon), sinlon(grd%nlon) ! sines and cosines of longitudes
+      real(r_kind) :: coslon, sinlon ! sines and cosines of longitudes
       real(r_kind) :: afac       ! alp for S. pole 
       real(r_kind) :: s_vort_R_n  ! sum of real part of P(n)*vort(n)/(n*n+n) for N.pole
       real(r_kind) :: s_vort_I_n  ! sum of imag part of P(n)*vort(n)/(n*n+n) for N.pole
@@ -1239,11 +1315,6 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
-      fac=two*pi/grd%nlon
-      do j=1,grd%nlon
-         coslon(j)=cos(fac*(j-1))
-         sinlon(j)=sin(fac*(j-1))
-      enddo
 
       do n=1,sp%jcap
          fnum=real(n**2-1, r_kind)
@@ -1273,15 +1344,18 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
       uI_s=zero    
       vR_s=zero    
       vI_s=zero    
+      fac=two*pi/grd%nlon
       do j=1,grd%nlon
-         uR_n=uR_n+coslon(j)*ufield(grd%nlat,j)
-         uI_n=uI_n-sinlon(j)*ufield(grd%nlat,j)
-         vR_n=vR_n+coslon(j)*vfield(grd%nlat,j)
-         vI_n=vI_n-sinlon(j)*vfield(grd%nlat,j)
-         uR_s=uR_s+coslon(j)*ufield(   1,j)
-         uI_s=uI_s-sinlon(j)*ufield(   1,j)
-         vR_s=vR_s+coslon(j)*vfield(   1,j)
-         vI_s=vI_s-sinlon(j)*vfield(   1,j)
+         coslon=cos(fac*(j-1))
+         sinlon=sin(fac*(j-1))
+         uR_n=uR_n+coslon*ufield(grd%nlat,j)
+         uI_n=uI_n-sinlon*ufield(grd%nlat,j)
+         vR_n=vR_n+coslon*vfield(grd%nlat,j)
+         vI_n=vI_n-sinlon*vfield(grd%nlat,j)
+         uR_s=uR_s+coslon*ufield(   1,j)
+         uI_s=uI_s-sinlon*ufield(   1,j)
+         vR_s=vR_s+coslon*vfield(   1,j)
+         vI_s=vI_s-sinlon*vfield(   1,j)
       enddo
 
 !  the limit of abs(cos)/cos = -1.  

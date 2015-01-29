@@ -306,6 +306,10 @@ subroutine init_hybrid_ensemble_parameters
 !   
 !   2010-01-13  lueken - added subprogram doc block
 !   12-05-2012  el akkraoui - hybrid beta parameters now vertically varying
+!   2014-09-15  carley - moved the init of variables beta1wgt, beta2wgt, and
+!                         pwgt, to routine  create_hybens_localization_parameters.
+!                         Otherwise these variables were referenced prior to
+!                         memory allocation. 
 !
 !   input argument list:
 !
@@ -352,7 +356,7 @@ subroutine init_hybrid_ensemble_parameters
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 
                              !      Observing system simulation experiment. Mon.  Wea. Rev., 136, 5132-5147.)
 
-  s_ens_v = 30._r_kind       ! grid units 
+  s_ens_v = 30._r_kind       ! grid units
   nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
 
