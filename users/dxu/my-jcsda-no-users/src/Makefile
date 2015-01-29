@@ -192,6 +192,7 @@ clean:
 	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
         adjtest_obs.f90 \
+        adjust_cloudobs_mod.f90 \
 	aeroinfo.f90 \
 	aircraftinfo.f90 \
         aircraftobsqc.f90 \
@@ -319,13 +320,18 @@ clean:
 	intdw.f90 \
 	intgps.f90 \
 	intgust.f90 \
+	inthowv.f90 \
         intjcmod.f90 \
 	intjo.f90 \
 	intlag.f90 \
+	intlcbas.f90 \
+	intmitm.f90 \
+	intmxtm.f90 \
 	intoz.f90 \
 	intpblh.f90 \
 	intpcp.f90 \
 	intpm2_5.f90 \
+	intpmsl.f90 \
 	intps.f90 \
 	intpw.f90 \
 	intq.f90 \
@@ -337,9 +343,12 @@ clean:
 	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
+	inttcamt.f90 \
 	inttcp.f90 \
+	inttd2m.f90 \
 	intvis.f90 \
 	intw.f90 \
+	intwspd10m.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
 	jgrad.f90 \
@@ -349,6 +358,7 @@ clean:
 	lag_traj.f90 \
 	lagmod.f90 \
 	lanczos.F90 \
+	loglcbas_to_lcbas.f90 \
 	logvis_to_vis.f90 \
 	looplimits.f90 \
 	m_berror_stats.f90 \
@@ -462,12 +472,17 @@ clean:
 	stpdw.f90 \
 	stpgps.f90 \
 	stpgust.f90 \
+	stphowv.f90 \
 	stpjo.f90 \
         stpjcmod.f90 \
+	stplcbas.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \
 	stppm2_5.f90 \
+	stppmsl.f90 \
+	stpmitm.f90 \
+	stpmxtm.f90 \
 	stpps.f90 \
 	stppw.f90 \
 	stpq.f90 \
@@ -477,9 +492,12 @@ clean:
 	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
+	stptcamt.f90 \
 	stptcp.f90 \
+	stptd2m.f90 \
 	stpvis.f90 \
 	stpw.f90 \
+	stpwspd10m.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
@@ -522,6 +540,7 @@ clean:
 	zrnmi_mod.f90
 
   SRCSF90C_NOSWAP = \
+	buddycheck_mod.f90 \
 	get_gefs_ensperts_dualres.f90 \
 	gsi_unformatted.F90 \
         m_extOzone.F90 \
@@ -545,6 +564,7 @@ clean:
 	read_diag.f90 \
         read_fl_hdob.f90 \
 	read_goesimg.f90 \
+	read_goesimgr_skycover.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
 	read_lag.f90 \
@@ -569,10 +589,15 @@ clean:
 	setupco.f90 \
 	setupdw.f90 \
 	setupgust.f90 \
+	setuphowv.f90 \
 	setuplag.f90 \
+	setuplcbas.f90 \
+	setupmitm.f90 \
+	setupmxtm.f90 \
 	setupoz.f90 \
 	setuppblh.f90 \
 	setuppcp.f90 \
+	setuppmsl.f90 \
 	setuppm2_5.f90 \
 	setupps.f90 \
 	setuppw.f90 \
@@ -585,9 +610,12 @@ clean:
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
+	setuptcamt.f90 \
 	setuptcp.f90 \
+	setuptd2m.f90 \
 	setupvis.f90 \
 	setupw.f90 \
+	setupwspd10m.f90 \
 	sst_retrieval.f90 \
         read_NASA_LaRC_cloud.f90
 

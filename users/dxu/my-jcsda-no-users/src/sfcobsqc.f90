@@ -16,6 +16,9 @@ module sfcobsqc
 ! program history log:
 !   2007-10-19  pondeca
 !   2011-02-15  zhu - add get_gustqm
+!   2014-04-10  pondeca - add reject lists for td, mxtm, mitm, pmsl
+!   2014-05-07  pondeca - add reject list for howv
+!   2014-07-11  carley - add reject list for lcbas and tcamt
 !
 ! subroutines included:
 !   sub init_rjlists
@@ -41,11 +44,15 @@ module sfcobsqc
   character(16),allocatable,dimension(:)::cprovider
   character(5),allocatable,dimension(:)::csta_winduse
   character(80),allocatable,dimension(:)::w_rjlist,t_rjlist,p_rjlist,q_rjlist
+  character(80),allocatable,dimension(:)::td_rjlist,mxtm_rjlist,mitm_rjlist,pmsl_rjlist,howv_rjlist, &
+                                          lcbas_rjlist,tcamt_rjlist
   character(80),allocatable,dimension(:)::t_day_rjlist,t_night_rjlist
   character(80),allocatable,dimension(:)::q_day_rjlist,q_night_rjlist
   character(8),allocatable,dimension(:,:)::csta_windbin
 
   integer(i_kind) nprov,nwrjs,ntrjs,nprjs,nqrjs,nsta_mesowind_use
+  integer(i_kind) ntdrjs,nmxtmrjs,nmitmrjs,npmslrjs,nhowvrjs,&
+                  nlcbasrjs,ntcamtrjs
   integer(i_kind) ntrjs_day,ntrjs_night
   integer(i_kind) nqrjs_day,nqrjs_night
   integer(i_kind) nbins
@@ -56,6 +63,13 @@ module sfcobsqc
   logical tlistexist
   logical plistexist
   logical qlistexist
+  logical tdlistexist
+  logical mxtmlistexist
+  logical mitmlistexist
+  logical pmsllistexist
+  logical howvlistexist
+  logical lcbaslistexist
+  logical tcamtlistexist
   logical listexist2
   logical t_day_listexist
   logical t_night_listexist
@@ -95,6 +109,8 @@ subroutine init_rjlists
 !
 !$$$ end documentation block
 
+  use mpimod, only: mype
+
   implicit none
 
 ! Declare passed variables
@@ -113,11 +129,20 @@ subroutine init_rjlists
 
   data meso_unit / 20 /
 !**************************************************************************
+  if (mype==0) verbose =.true.
+
   allocate(cprovider(500))
   allocate(w_rjlist(nmax))
   allocate(t_rjlist(nmax))
   allocate(p_rjlist(nmax))
   allocate(q_rjlist(nmax))
+  allocate(td_rjlist(nmax))
+  allocate(mxtm_rjlist(nmax))
+  allocate(mitm_rjlist(nmax))
+  allocate(pmsl_rjlist(nmax))
+  allocate(howv_rjlist(nmax))
+  allocate(lcbas_rjlist(nmax))
+  allocate(tcamt_rjlist(nmax))
   allocate(csta_winduse(nmax))
   allocate(t_day_rjlist(nmax))
   allocate(t_night_rjlist(nmax))
@@ -191,7 +216,46 @@ subroutine init_rjlists
  print*,'q_night_rejectlist: q_night_listexist,nqrjs_night=',q_night_listexist,nqrjs_night
 
 
+
+ clistname='td_rejectlist'
+ call readin_rjlists(clistname,tdlistexist,td_rjlist,nmax,ntdrjs)
+ if(verbose)&
+ print*,'td_rejectlist: tdlistexist,ntdrjs=',tdlistexist,ntdrjs
+
+ clistname='mxtm_rejectlist'
+ call readin_rjlists(clistname,mxtmlistexist,mxtm_rjlist,nmax,nmxtmrjs)
+ if(verbose)&
+ print*,'mxtm_rejectlist: mxtmlistexist,nmxtmrjs=',mxtmlistexist,nmxtmrjs
+
+ clistname='mitm_rejectlist'
+ call readin_rjlists(clistname,mitmlistexist,mitm_rjlist,nmax,nmitmrjs)
+ if(verbose)&
+ print*,'mitm_rejectlist: mitmlistexist,nmitmrjs=',mitmlistexist,nmitmrjs
+
+
+ clistname='pmsl_rejectlist'
+ call readin_rjlists(clistname,pmsllistexist,pmsl_rjlist,nmax,npmslrjs)
+ if(verbose)&
+ print*,'pmsl_rejectlist: pmsllistexist,npmslrjs=',pmsllistexist,npmslrjs
+
+
+ clistname='howv_rejectlist'
+ call readin_rjlists(clistname,howvlistexist,howv_rjlist,nmax,nhowvrjs)
+ if(verbose)&
+ print*,'howv_rejectlist: howvlistexist,nhowvrjs=',howvlistexist,nhowvrjs
  
+
+ clistname='lcbas_rejectlist'
+ call readin_rjlists(clistname,lcbaslistexist,lcbas_rjlist,nmax,nlcbasrjs)
+ if(verbose)&
+ print*,'lcbas_rejectlist: lcbaslistexist,nlcbasrjs=',lcbaslistexist,nlcbasrjs
+
+ clistname='tcamt_rejectlist'
+ call readin_rjlists(clistname,tcamtlistexist,tcamt_rjlist,nmax,ntcamtrjs)
+ if(verbose)&
+ print*,'tcamt_rejectlist: tcamtlistexist,ntcamtrjs=',tcamtlistexist,ntcamtrjs
+
+
 !==> Read in 'good' mesonet station names from the station uselist
  inquire(file='mesonet_stnuselist',exist=listexist2)
  if(listexist2) then
@@ -287,6 +351,9 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
 !$$$ end documentation block
 
   use constants, only: zero_single
+  use gridmod, only: twodvar_regional,tll2xy
+  use ndfdgrids, only: valley_adjustment
+
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
@@ -306,6 +373,8 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
   character(8)  ch8
   real(r_kind) usage_rj0
   real(r_single) sunangle
+  real(r_kind) xob,yob
+  logical outside
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind
@@ -409,6 +478,84 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
               exit
            endif
         enddo
+
+     elseif(obstype=='td2m' .and. tdlistexist ) then
+        do m=1,ntdrjs
+           ch8(1:8)=td_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+              usage_rj=r5000
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='mxtm' .and. mxtmlistexist) then
+        do m=1,nmxtmrjs
+           ch8(1:8)=mxtm_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='mitm' .and. mitmlistexist) then
+        do m=1,nmitmrjs
+           ch8(1:8)=mitm_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='pmsl' .and. pmsllistexist) then
+        do m=1,npmslrjs
+           ch8(1:8)=pmsl_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='howv' .and. howvlistexist) then
+        do m=1,nhowvrjs
+           ch8(1:8)=howv_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='lcbas' .and. lcbaslistexist) then
+        do m=1,nlcbasrjs
+           ch8(1:8)=lcbas_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='tcamt' .and. tcamtlistexist) then
+        do m=1,ntcamtrjs
+           ch8(1:8)=tcamt_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
      end if
   endif
 
@@ -447,7 +594,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
         endif
      endif
 
-     if(obstype=='uv' .and. wlistexist ) then
+     if( (obstype=='uv' .or. obstype=='wspd10m') .and. wlistexist ) then
         do m=1,nwrjs
            ch8(1:8)=w_rjlist(m)(1:8)
            nlen=len_trim(ch8)
@@ -465,6 +612,11 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
      endif
 
   end if
+
+  if (twodvar_regional) then
+     call tll2xy(dlon,dlat,xob,yob,outside)
+     if (.not.outside) call valley_adjustment(xob,yob,usage_rj)
+  endif
 end subroutine get_usagerj
 
 
@@ -618,6 +770,13 @@ subroutine destroy_rjlists
   deallocate(t_night_rjlist)
   deallocate(q_day_rjlist)
   deallocate(q_night_rjlist)
+  deallocate(td_rjlist)
+  deallocate(mxtm_rjlist)
+  deallocate(mitm_rjlist)
+  deallocate(pmsl_rjlist)
+  deallocate(howv_rjlist)
+  deallocate(lcbas_rjlist)
+  deallocate(tcamt_rjlist)
   if(wbinlistexist) deallocate(nwbaccpts)
   if(wbinlistexist) deallocate(csta_windbin)
 end subroutine destroy_rjlists

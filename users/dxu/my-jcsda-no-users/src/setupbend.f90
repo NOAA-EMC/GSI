@@ -81,6 +81,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !                          tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !   2013-10-19  todling - metguess now holds background
 !   2014-04-10  todling - 4dvar fix: obs must be in current time bi
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -102,7 +103,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       gps_allhead,gps_alltail,i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
       time_offset
   use obsmod, only: gps_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig
@@ -821,56 +822,65 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins, ibin=',nobs_bins,ibin
 
+     if(luse_obsdiag)then
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupbend: failure to allocate obsdiags',istat
-              call stop2(250)
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupbend: failure to allocate obsdiags',istat
+                 call stop2(250)
+              end if
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupbend: failure to allocate obsdiags',istat
+                 call stop2(251)
+              end if
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
+
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_gps_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
+
         else
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupbend: failure to allocate obsdiags',istat
-              call stop2(251)
+           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+           else
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
+           if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupbend: index error'
+              call stop2(252)
+           end if
+        endif
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_gps_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-
-     else
-        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
-        else
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupbend: index error'
-           call stop2(252)
-        end if
-     endif
+        if (nobskeep>0 .and. last_pass) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
+!       Fill obs diagnostics structure
+        obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
+        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+     end if
 
      if(last_pass) then
-        if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
+      
 
 !       Save values needed for generate of statistics for all observations
         if(.not. associated(gps_allhead(ibin)%head))then
@@ -900,11 +910,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         gps_alltail(ibin)%head%muse     = muse(i) ! logical
         gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
 
-!       Fill obs diagnostics structure
-        obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
-        obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
-        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
 
 !       Load additional obs diagnostic structure
         if (lobsdiagsave) then
@@ -1086,18 +1091,20 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            gpstail(ibin)%head%pg     = cvar_pg(ikx)
            gpstail(ibin)%head%luse   = luse(i)
 
-           gpstail(ibin)%head%diags => obsdiags(i_gps_ob_type,ibin)%tail
+           if(luse_obsdiag)then
+              gpstail(ibin)%head%diags => obsdiags(i_gps_ob_type,ibin)%tail
 
-           my_head => gpstail(ibin)%head
-           my_diag => gpstail(ibin)%head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                    (/is,i,ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
-           endif
+              my_head => gpstail(ibin)%head
+              my_diag => gpstail(ibin)%head%diags
+              if(my_head%idv /= my_diag%idv .or. &
+                 my_head%iob /= my_diag%iob ) then
+                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                       (/is,i,ibin/))
+                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+                 call die(myname)
+              endif
+           end if
 
         end if ! (in_curbin .and. muse=1)
      endif ! (last_pass)

@@ -16,6 +16,7 @@ module mod_strong
 !   2012-02-08 kleist - add option tlnmc_option to control how TLNMC is applied
 !   2013-07-02 parrish - change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
 !                          longer used for global application of tlnmc.
+!   2014-12-03  derber  - remove unused variables
 !
 ! Subroutines Included:
 !   sub init_strongvars  - set default namelist variable values
@@ -256,7 +257,6 @@ contains
     real(r_kind),intent(inout) :: rmstend,rmstend_g,rmstend_f,rmstend_fg
     integer(i_kind),intent(in) :: m,mmax
 
-    real(r_kind),dimension(2,m:mmax):: vort_g,div_g,phi_g
     real(r_kind),dimension(2,m:mmax):: vort_hat,div_hat,phi_hat,vort_hat_g,phi_hat_g
     real(r_kind),dimension(m:mmax):: b,c,f,c2,c3
 

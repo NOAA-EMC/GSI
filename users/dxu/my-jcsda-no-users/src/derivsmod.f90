@@ -8,6 +8,7 @@ module derivsmod
 !
 ! program history log:
 !   2013-10-19 Todling - Initial code.
+!   2014-06-18 Carley - add lgues and dlcbasdlog
 !
 ! public subroutines:
 !  drv_initialized         - initialize name of fields to calc derivs for
@@ -58,7 +59,8 @@ public :: gsi_yderivative_bundle
 public :: dvars2d, dvars3d
 public :: dsrcs2d, dsrcs3d
 public :: cwgues
-public :: ggues,vgues,pgues,dvisdlog
+public :: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
+public :: w10mgues,howvgues
 public :: qsatg,qgues,dqdt,dqdrh,dqdp
 
 logical :: drv_initialized = .false.
@@ -69,7 +71,8 @@ character(len=32),allocatable,dimension(:):: dvars2d, dvars3d
 character(len=32),allocatable,dimension(:):: dsrcs2d, dsrcs3d
 
 real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp
-real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
+real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
+real(r_kind),allocatable,dimension(:,:):: w10mgues,howvgues
 real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
 
 ! below this point: declare vars not to be made public
@@ -397,6 +400,9 @@ drv_set_=.true.
 !   2013-10-25  todling - revisit variable initialization
 !   2013-11-12  lueken - revisit logic around cwgues
 !   2014-02-03  todling - CV length and B-dims here (no longer in observer)
+!   2014-03-19  pondeca - add w10mgues
+!   2014-05-07  pondeca - add howvgues
+!   2014-06-18  carley - add lgues and dlcbasdlog
 !
 !   input argument list:
 !    mlat
@@ -467,6 +473,32 @@ drv_set_=.true.
           end do
        end do
     end if
+    if (getindex(svars2d,'lcbas')>0) then
+       allocate(lgues(lat2,lon2),dlcbasdlog(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             lgues(i,j)=zero
+             dlcbasdlog(i,j)=zero
+          end do
+       end do
+    end if
+    if (getindex(svars2d,'wspd10m')>0) then
+       allocate(w10mgues(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             w10mgues(i,j)=zero
+          end do
+       end do
+    end if
+    if (getindex(svars2d,'howv')>0) then
+       allocate(howvgues(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             howvgues(i,j)=zero
+          end do
+       end do
+    end if
+
 
     return
   end subroutine create_auxiliar_
@@ -485,6 +517,9 @@ drv_set_=.true.
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
 !   2013-10-25  todling, revisit deallocs
+!   2014-03-19  pondeca - add w10mgues
+!   2014-05-07  pondeca - add howvgues
+!   2014-06-18  carley - add lgues and dlcbasdlog 
 !
 !   input argument list:
 !
@@ -507,6 +542,10 @@ drv_set_=.true.
     if(allocated(vgues)) deallocate(vgues)
     if(allocated(dvisdlog)) deallocate(dvisdlog)
     if(allocated(pgues)) deallocate(pgues)
+    if(allocated(lgues)) deallocate(lgues)
+    if(allocated(dlcbasdlog)) deallocate(dlcbasdlog)
+    if(allocated(w10mgues)) deallocate(w10mgues)
+    if(allocated(howvgues)) deallocate(howvgues)
 
     return
   end subroutine destroy_auxiliar_

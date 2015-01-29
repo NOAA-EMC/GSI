@@ -77,6 +77,8 @@ subroutine update_guess(sval,sbias)
 !   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !   2014-02-15  kim     - revisit various options of cloud-related updates
 !   2014-04-13  todling - replace update bias code w/ call to routine in bias_predictors
+!   2014-05-07  pondeca - constrain significant wave height (howv) to be >=0
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !
 !   input argument list:
@@ -96,7 +98,8 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
+  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
+                       r100,one_tenth
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
@@ -326,10 +329,13 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
-           if (trim(guess(ic))=='gust') ptr2dges = max(ptr2dges,zero)
-           if (trim(guess(ic))=='vis')  ptr2dges = &
-              max(min(ptr2dges,20000.0_r_kind),0.1_r_kind)
-           if (trim(guess(ic))=='pblh') ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+           if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='pblh')  ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have > 100% or < 0% cloud amount
+           if (trim(guess(ic))=='lcbas') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
            cycle
         endif
      enddo
@@ -370,7 +376,6 @@ subroutine update_guess(sval,sbias)
            cycle
         endif
      enddo
-
   end do
 
   if(ngases>0) deallocate(gases)
