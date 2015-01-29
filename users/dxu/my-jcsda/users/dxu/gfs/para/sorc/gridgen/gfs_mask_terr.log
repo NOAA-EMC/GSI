@@ -1,9 +1,0 @@
-Fri May 11 16:45:24 EDT 2007 EXECUTING /var/loadl/execute/d2n7s.ncep.noaa.gov.412564.0/gfs_mask_terr.sh
-+ mkdir -p /ptmp/wx20gg/save/t62
-+ [[ ! -a /nwprod/fix/global_orography.t62.grb ]]
-+ [[ ! -a /nwprod/fix/global_slmask.t62.grb ]]
-+ echo global_orography.t62.grb AND global_slmask.t62.grb ALREADY EXISTS
-global_orography.t62.grb AND global_slmask.t62.grb ALREADY EXISTS
-+ cp /nwprod/fix/global_orography.t62.grb /ptmp/wx20gg/save/t62
-+ cp /nwprod/fix/global_slmask.t62.grb /ptmp/wx20gg/save/t62
-+ exit 0

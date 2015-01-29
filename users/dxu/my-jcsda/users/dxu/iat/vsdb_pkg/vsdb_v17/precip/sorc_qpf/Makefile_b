@@ -1,8 +1,0 @@
-SHELL=  /bin/sh
-CMD=	../exec/PVRFY_bf20111122
-
-FOPTS=  $(FFLAGS)
-SRCS=	PVRFY.f VRFY.f GRANGE.f ANNATV_bf20111122.f
-LIBS=   -L$(LIBDIR) -lip_4 -lsp_4 -lbacio_4 -l$(W3LIB) 
-$(CMD): $(SRCS)
-	$(FCMP) $(FOPTS) $(SRCS) $(LIBS) -o $(CMD)

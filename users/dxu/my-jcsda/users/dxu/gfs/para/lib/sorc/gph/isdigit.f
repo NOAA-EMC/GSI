@@ -1,6 +1,0 @@
-       LOGICAL  FUNCTION ISDIGIT(C)
-C      ... =.TRUE. IF THE ONE CHARACTER IS A DIGIT ...
-       CHARACTER*1 C
-       ISDIGIT = (LGE(C,'0') .AND. LLE(C,'9'))
-       RETURN
-       END
