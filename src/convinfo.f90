@@ -177,6 +177,7 @@ contains
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2009-01-22  todling - protect against non-initialized destroy call
 !   2010-05-29  todling - interface consistent w/ similar routines
+!   2014-07-10  carley  - add check to bypass blank lines in convinfo file
 !
 !   input argument list:
 !     mype - mpi task id
@@ -206,11 +207,17 @@ contains
     nconvtype=0
     nlines=0
     read1: do
+       cflg=' '
+       iotype='       '
        read(lunin,1030,iostat=istat,end=1130)cflg,iotype,crecord
 1030   format(a1,a7,2x,a120)
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
+       if (cflg==' '.and.iotype=='       ') then
+         write(6,*) 'Encountered a blank line in convinfo file at line number: ',nlines,' skipping!'
+         cycle
+       end if
        read(crecord,*)ictypet,icsubtypet,icuset
        if (icuset < use_limit) cycle
        nconvtype=nconvtype+1
@@ -267,7 +274,13 @@ contains
     endif
 
     do i=1,nlines
+       cflg=' '
+       iotype='       '
        read(lunin,1030)cflg,iotype,crecord
+       if (cflg==' '.and.iotype=='       ') then
+         write(6,*) 'Encountered a blank line in convinfo file at line number: ',i,' skipping!'
+         cycle
+       end if
        if(cflg == '!')cycle
        read(crecord,*)ictypet,icsubtypet,icuset
        if (mype==0 .and. icuset < use_limit) write(6, *) &
