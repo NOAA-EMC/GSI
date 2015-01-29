@@ -1,7 +1,0 @@
-Settings for Linux, using the commercial NAGware Fortran compiler and the
-commercial Intel C++ compiler (icpc).
-
-Requires the following environment settings:
-
-ESMF_COMPILER nag
-

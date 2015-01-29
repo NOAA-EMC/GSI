@@ -1,6 +1,0 @@
-This is how I compile on NCEP's CCS (AIX)
-
-export CC=/usr/vacpp/bin/xlC_r
-export CPP=/usr/bin/cpp 
-
-gmake -f makefile

@@ -1,6 +1,0 @@
-set  -x
-
-datetime=` date '+%y%h%d.%H%M%S' `
-
-find . -exec touch {} \; -print 
-
