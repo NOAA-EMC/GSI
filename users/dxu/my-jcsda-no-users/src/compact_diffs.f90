@@ -16,6 +16,8 @@ module compact_diffs
 !			  cdiff_initialized().
 !   2013-12-18  parrish - add factor of 2 to pole values to correct error in
 !                           compact_dlon, compact_dlat, tcompact_dlon, tcompact_dlat
+!   2014-12-03  derber  - modify stvp2uv and tstvp2uv to reduce unnecessary data
+!                         motion
 !
 ! subroutines included:
 !   sub init_compact_diffs  - initialize parameters used by compact diffs
@@ -218,7 +220,7 @@ contains
   end subroutine destroy_cdiff_coefs
 
 
-  subroutine stvp2uv(work1,work2)
+  subroutine stvp2uv(work,idim)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stvp2uv compute uv from streamfunction/velocity potential
@@ -234,14 +236,17 @@ contains
 !   2004-07-27  treadon - add only on use declarations; add intent in/out
 !   2004-10-26  kleist - fix sign error
 !   2009-04-19  derber - modified interface
+!   2014-12-03  derber  - modify stvp2uv and tstvp2uv to reduce unnecessary data
+!                         motion
 !
 !   input argument list:
-!     work1  - array containing the streamfunction 
-!     work2  - array containing the velocity potential 
+!     work(1,*  - array containing the streamfunction 
+!     work(2,*  - array containing the velocity potential 
+!     idim      - initial dimension of work array
 !
 !   output argument list:
-!     work1  - array containing the u velocity 
-!     work2  - array containing the v velocity 
+!     work(1,*  - array containing the u velocity 
+!     work(2,*  - array containing the v velocity 
 !
 ! attributes:
 !   language: f90
@@ -253,7 +258,8 @@ contains
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
+  integer(i_kind),intent(in) :: idim
+  real(r_kind),dimension(idim,nlat,nlon),intent(inout) :: work
 
 ! Declare local variables  
   integer(i_kind) lbcoy2,lcy,lbcoy1,lacoy1,lacoy2,ix,iy,nbp,nya
@@ -262,6 +268,7 @@ contains
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
   real(r_kind),dimension(nlat-2,nlon):: a,b,grid1,grid2,grid3,grid4
 
+  if(idim <=1) write(6,*) ' error in call to stvp2uv ',idim
   ny=nlat-2
   nxh=nlon/2
   nbp=2*noq+1
@@ -280,8 +287,8 @@ contains
   
   do j=1,nlon
      do i=2,nlat-1
-        a(i-1,j)=work1(i,j)
-        b(i-1,j)=work2(i,j)
+        a(i-1,j)=work(1,i,j)
+        b(i-1,j)=work(2,i,j)
      end do
   end do
   
@@ -322,18 +329,18 @@ contains
      grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
      grid1s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
   end do
-! work 1 is u, work2 is v
+! work(1 is u, work(2 is v
   do j=1,nlon
      do i=1,nlat
         if(i /= 1 .and. i /= nlat)then
-           work1(i,j)=grid3(i-1,j)
-           work2(i,j)=grid1(i-1,j)
+           work(1,i,j)=grid3(i-1,j)
+           work(2,i,j)=grid1(i-1,j)
         else if(i == 1)then
-           work1(i,j)=grid3s(j)
-           work2(i,j)=grid1s(j)
+           work(1,i,j)=grid3s(j)
+           work(2,i,j)=grid1s(j)
         else
-           work1(i,j)=grid3n(j)
-           work2(i,j)=grid1n(j)
+           work(1,i,j)=grid3n(j)
+           work(2,i,j)=grid1n(j)
         end if
      end do
   enddo
@@ -705,7 +712,7 @@ end subroutine uv2vordiv
   end subroutine xbacbv
 
 
-  subroutine tstvp2uv(work1,work2)
+  subroutine tstvp2uv(work,idim)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tstvp2uv                           adjoint of stvp2uv
@@ -723,14 +730,17 @@ end subroutine uv2vordiv
 !   2004-10-26  kleist - fix sign error
 !   2008-06-05  safford - rm unused vars
 !   2009-04-19  derber modified interface
+!   2014-12-03  derber  - modify stvp2uv and tstvp2uv to reduce unnecessary data
+!                         motion
 !
 !   input argument list:
-!     work1  - array containing the adjoint u velocity 
-!     work2  - array containing the adjoint v velocity
+!     work(1,*  - array containing the adjoint u velocity 
+!     work(2,*  - array containing the adjoint v velocity
+!     idim      - initial dimension of work array
 !
 !   output argument list:
-!     work1  - array containing the adjoint streamfunction 
-!     work2  - array containing the adjoint velocity potential 
+!     work(1,*  - array containing the adjoint streamfunction 
+!     work(2,*  - array containing the adjoint velocity potential 
 !
 ! attributes:
 !   language: f90
@@ -741,7 +751,8 @@ end subroutine uv2vordiv
   implicit none
 
 ! Declare passed scalars, arrays
-  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
+  integer(i_kind),intent(in) :: idim
+  real(r_kind),dimension(idim,nlat,nlon),intent(inout) :: work
 
 ! Declare local scalars,arrays
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
@@ -751,6 +762,7 @@ end subroutine uv2vordiv
   real(r_kind),dimension(nlat-2,nlon):: a,b,grid2,grid3,grid1,grid4
 
 
+  if(idim <=1) write(6,*) ' error in call to tstvp2uv ',idim
   ny=nlat-2
   nxh=nlon/2
   nbp=2*noq+1
@@ -770,14 +782,14 @@ end subroutine uv2vordiv
   do j=1,nlon
      do i=1,nlat
         if(i /= 1 .and. i /= nlat)then
-           grid3(i-1,j)=work1(i,j)
-           grid1(i-1,j)=work2(i,j)
+           grid3(i-1,j)=work(1,i,j)
+           grid1(i-1,j)=work(2,i,j)
         else if(i == 1)then
-           grid3s(j)=work1(i,j)
-           grid1s(j)=work2(i,j)
+           grid3s(j)=work(1,i,j)
+           grid1s(j)=work(2,i,j)
         else
-           grid3n(j)=work1(i,j)
-           grid1n(j)=work2(i,j)
+           grid3n(j)=work(1,i,j)
+           grid1n(j)=work(2,i,j)
         end if
      end do
   end do
@@ -835,11 +847,11 @@ end subroutine uv2vordiv
      do i=1,nlat
         if(i /= 1 .and. i /= nlat)then
 !          NOTE:  Adjoint of first derivative is its negative
-           work1(i,j)=-a(i-1,j)
-           work2(i,j)=-b(i-1,j)
+           work(1,i,j)=-a(i-1,j)
+           work(2,i,j)=-b(i-1,j)
         else
-           work1(i,j)=zero
-           work2(i,j)=zero
+           work(1,i,j)=zero
+           work(2,i,j)=zero
         end if
      end do
   end do

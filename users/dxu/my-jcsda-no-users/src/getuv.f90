@@ -15,6 +15,7 @@ subroutine getuv(u,v,st,vp,iflg)
 !   2009-04-21  derber - rewrite for improved communication - combine with adjoint
 !   2010-04-01  treadon - move strip,reorder,reorder2,vectosub to gridmod
 !   2012-06-12  parrish - replace sub2grid/grid2sub with general_sub2grid/general_grid2sub
+!   2014-12-03  derber - restructure if and do statements.
 !
 !   input argument list:
 !     st        - stream function grid values 
@@ -77,27 +78,37 @@ subroutine getuv(u,v,st,vp,iflg)
   end if
 
   if(regional)then
-     do k=s2guv%kbegin_loc,s2guv%kend_loc
-        if(iflg == 0)then
+     if(iflg == 0)then
+        do k=s2guv%kbegin_loc,s2guv%kend_loc
            call psichi2uv_reg(work1(1,:,:,k),work1(2,:,:,k),awork,bwork)
-        else
-           call psichi2uvt_reg(work1(1,:,:,k),work1(2,:,:,k),awork,bwork)
-        end if
-        do j=1,nlon
-           do i=1,nlat
-              work1(1,i,j,k)=awork(i,j)
-              work1(2,i,j,k)=bwork(i,j)
+           do j=1,nlon
+              do i=1,nlat
+                 work1(1,i,j,k)=awork(i,j)
+                 work1(2,i,j,k)=bwork(i,j)
+              end do
            end do
         end do
-     end do
+     else
+        do k=s2guv%kbegin_loc,s2guv%kend_loc
+           call psichi2uvt_reg(work1(1,:,:,k),work1(2,:,:,k),awork,bwork)
+           do j=1,nlon
+              do i=1,nlat
+                 work1(1,i,j,k)=awork(i,j)
+                 work1(2,i,j,k)=bwork(i,j)
+              end do
+           end do
+        end do
+     end if
   else
-     do k=s2guv%kbegin_loc,s2guv%kend_loc
-        if(iflg == 0)then
-           call stvp2uv(work1(1,:,:,k),work1(2,:,:,k))
-        else
-           call tstvp2uv(work1(1,:,:,k),work1(2,:,:,k))
-        end if
-     end do
+     if(iflg == 0)then
+        do k=s2guv%kbegin_loc,s2guv%kend_loc
+           call stvp2uv(work1(1,1,1,k),2)
+        end do
+     else
+        do k=s2guv%kbegin_loc,s2guv%kend_loc
+           call tstvp2uv(work1(1,1,1,k),2)
+        end do
+     end if
   end if
 
   call general_grid2sub(s2guv,work1,worksub)

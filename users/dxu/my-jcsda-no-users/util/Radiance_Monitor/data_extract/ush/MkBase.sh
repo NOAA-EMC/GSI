@@ -52,6 +52,12 @@ echo $area
 #-------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
 
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
@@ -200,7 +206,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${HOMEgfs}/exec/make_base ./
+   $NCP ${HOMEradmon}/exec/make_base ./
 
 cat << EOF > input
  &INPUT

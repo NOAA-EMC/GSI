@@ -64,6 +64,9 @@ subroutine compute_derived(mype,init_pass)
 !                       - unlike original code, now all derivates available at all time slots
 !   2013-10-30  jung    - add test and removal of supersaturation
 !   2014-04-18  todling - revisit interface to q_diag
+!   2014-03-19  pondeca - add "load wspd10m guess"
+!   2014-05-07  pondeca - add "load howv guess"
+!   2014-06-19  carley/zhu - add lgues and dlcbasdlog
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -91,8 +94,8 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: drv_initialized
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
-  use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,&
-       dvisdlog,cwgues
+  use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,lgues,dlcbasdlog,&
+       dvisdlog,w10mgues,howvgues,cwgues
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
@@ -335,7 +338,7 @@ subroutine compute_derived(mype,init_pass)
      end do
   end if
 
-! Load guess gust, vis & pblh for use in limg, limv & limp.
+! Load guess gust, vis, pblh, & lcbas for use in limg, limv, limp, & liml.
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'gust',ptr2d,istatus)
   if (istatus==0) then
      do j=1,lon2
@@ -361,7 +364,31 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end if
-
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'wspd10m',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           w10mgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'howv',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           howvgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'lcbas',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           lgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
+           dlcbasdlog(i,j)=log(ten)*ptr2d(i,j)  !d(lcbas)/d(log(lcbas))
+        end do
+     end do
+  end if
 
   if(allocated(ges_tv).and.allocated(ges_ps)) then
 
