@@ -1,0 +1,70 @@
+#
+# this makefile is for gnu-make on a linux box
+# wgrib2 rerequires grib2c (NCEP C grib2), jasper (jpeg), z and png libraries
+#
+#  REQUIRES GNU make
+# mod 1/07 M. Schwarb
+# mod 2/07 W. Ebisuzaki changes for *.dat files
+# mod 8/07 W. Ebisuzaki cleanup
+#
+
+sh=/bin/sh
+
+# optional packages
+#   USE_NETCDF   .. netcdf package
+#   USE_REGEX    .. use regular expression matching
+#   USE_TIGGE    .. optional TIGGE-like grib table
+
+# DEFS=-DUSE_NETCDF -DUSE_REGEX
+DEFS=-DUSE_REGEX -DUSE_NETCDF -DUSE_TIGGE
+
+g2=../g2clib-1.1.8
+
+# jasper_lib=-L../jasper-1.900.1/src/libjasper/.libs
+netcdf_lib=-L../netcdf-3.6.2/libsrc/.libs
+netcdf_inc=-I../netcdf-3.6.2/libsrc
+
+all:=$(patsubst %.c,%.o,$(wildcard *.c))
+code:=$(filter-out fnlist.o,$(all))
+o=$(wildcard *.o)
+h:=grb2.h  wgrib2.h fnlist.h
+options=$(wildcard [A-Z]*.c)
+CODE_TABLE_DAT=$(wildcard CodeTable_[0-9].[0-9]*.dat)
+
+# CFLAGS=-I ${g2} -O2 -Wall
+# CFLAGS=-I ${g2} -I ${netcdf} -O2 -Wall -ffast-math -funroll-loops ${DEFS}
+CFLAGS=-I${g2} ${netcdf_inc} -O2 -Wall -ffast-math -funroll-loops ${DEFS}
+LDFLAGS=-L${g2} -lgrib2c -L/usr/lib -lpng -lz ${jasper_lib} -ljasper ${netcdf_lib} -lnetcdf -lm
+#CC=gcc
+
+wgrib2: $h ${all}
+	${CC} -o wgrib2 ${CFLAGS} ${all} ${LDFLAGS}
+
+fnlist.c:	${options}
+	./function.sh 
+
+fnlist.h:	${options}
+	./function.sh
+
+fast:	${code}
+	touch fnlist.o fnlist.c fnlist.h
+	${CC} -o wgrib2 ${CFLAGS} ${all} ${LDFLAGS}
+
+Help.o:	Help.c wgrib2.h
+	${CC} -c ${CFLAGS} Help.c
+
+CodeTable.o:	CodeTable.c ${CODE_TABLE_DAT}
+	${CC} -c ${CFLAGS} CodeTable.c
+
+cname.o:	cname.c gribtab.dat
+	${CC} -c ${CFLAGS} cname.c
+
+Sec1.o:	Sec1.c code_table0.dat ncep_tableC.dat
+	${CC} -c ${CFLAGS} Sec1.c
+
+gribtab.o:	gribtab.c gribtab.dat misc_gribtab.dat
+	${CC} -c ${CFLAGS} gribtab.c
+
+clean:
+	touch wgrib2
+	rm ${o} wgrib2

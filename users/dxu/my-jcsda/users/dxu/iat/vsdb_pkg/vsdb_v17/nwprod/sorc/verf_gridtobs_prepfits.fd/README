@@ -1,0 +1,18 @@
+prepfits - Main driver.  Reads in the bufr file, calls subroutines, writes out
+the prepfits file.
+CALCAPE - Calculates the CAPE, CIN, and LI for one point.
+CALPBL - Calculates the PBL
+CALPW - Calculates the PW for a raob.
+adddate - Takes 8-digit date and a number of hours to update it.
+getbak - Reads in gridded background values for several variables.
+getfct - Interpolates background to the observed levels
+getprof_upr - Interpolates the background to the observed in the horizontal
+htindex - Calculates the Heat Index.
+ireadpb - Reads in the bufr file and puts a wind/mass report into one report.
+obscape - Puts in the values of CAPE, CIN, LI into the proper array.
+obspbl - Puts the values of PBL and PW in the proper array.
+raddate - Calculates the 8-digit date from an array of date info.
+windchill - Calculates the Wind Chill
+
+18 October 2007:  New updates
+7 November 2007:  Update to read in Q rather than RH and updates for SREFX

@@ -1,0 +1,10 @@
+#----------------------------------------------------------------------
+#
+#  glbl_conf
+#
+#  Exports variable definitions common to the glbl data extract scripts.
+#
+#----------------------------------------------------------------------
+
+export TANKDIR=${TANKverf_rad}/${SUFFIX}
+

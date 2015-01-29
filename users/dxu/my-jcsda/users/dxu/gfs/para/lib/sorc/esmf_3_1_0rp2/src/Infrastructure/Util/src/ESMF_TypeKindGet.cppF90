@@ -1,0 +1,122 @@
+! $Id: ESMF_TypeKindGet.cppF90,v 1.1.2.3 2009/01/21 21:25:24 cdeluca Exp $
+!
+! Earth System Modeling Framework
+! Copyright 2002-2009, University Corporation for Atmospheric Research,
+! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+! Laboratory, University of Michigan, National Centers for Environmental
+! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
+! NASA Goddard Space Flight Center.
+! Licensed under the University of Illinois-NCSA License.
+!
+!==============================================================================
+^define ESMF_FILENAME "ESMF_TypeKindGet.F90"
+
+! ESMF TypeKindGet module
+module ESMF_TypeKindGetMod
+
+!==============================================================================
+!
+! This file contains wordsize functions that are automatically
+!  generated from macros to handle the type/kind overloading.
+!
+!------------------------------------------------------------------------------
+! INCLUDES
+! < ignore blank lines below.  they are created by the files which
+! define various macros. >
+^include "ESMF.h"
+#include "ESMF_TypeKindMacros.hcppF90"
+!------------------------------------------------------------------------------
+! !USES:
+     use ESMF_UtilTypesMod
+     use ESMF_LogErrMod
+
+     implicit none
+
+!------------------------------------------------------------------------------
+! !PRIVATE TYPES:
+      private
+
+!------------------------------------------------------------------------------
+! !PUBLIC FUNCTION:
+
+      public ESMF_TypeKindGet
+
+!------------------------------------------------------------------------------
+^undef  ESMF_METHOD
+^define ESMF_METHOD "ESMF_TypeKindGet"
+!BOP
+! !IROUTINE: ESMF_TypeKindGet -- Generic interface to return the correct
+!                                ESMF_TypeKind parameter of a scalar.
+!
+! !INTERFACE:
+
+    interface ESMF_TypeKindGet
+
+TypeKindInterfaceMacro(ESMF_TypeKindGet)
+
+!EOP
+    end interface
+
+    contains
+
+!==============================================================================
+!------------------------------------------------------------------------------
+
+#define ESMF_TypeKindGetDoc() \
+!TODO: add interface documentation @\
+!BOP @\
+! !IROUTINE: ESMF_TypeKindGet - Return the ESMF_TypeKind parameter corresponding to a scalar @\
+! @\
+! !INTERFACE: @\
+!   ! Private name; call using ESMF_TypeKindGet() @\
+!   function ESMF_TypeKindGet<typekind>(var, rc) @\
+! @\
+! !RETURN VALUE: @\
+!      type(ESMF_TypeKind) :: ESMF_TypeKindGet<typekind> @\
+! @\
+! !ARGUMENTS: @\
+!     <type>(ESMF_KIND_<typekind>), intent(in) :: var @\
+!     integer, intent(out), optional :: rc @\
+! @\
+! !DESCRIPTION: @\
+!   Return the ESMF_TypeKind parameter that corresponds to the scalar @\
+!   (var) argument. Valid typekind supported by the framework are: @\
+!   integers of 1-byte, 2-byte, 4-byte, and 8-byte size, and @\
+!   reals of 4-byte and 8-bytes size.  @\
+! @\
+!   The arguments are: @\
+!   \begin{description} @\
+!   \item [var] @\
+!      Scalar of any supported type and kind @\
+!   \item [rc] @\
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. @\
+!   \end{description} @\
+! @\
+!EOP @\
+!---------------------------------------------------------------------------- @\
+
+#define ESMF_TypeKindGetMacro(mtypename, mtypekind) \
+!------------------------------------------------------------------------------ @\
+! <Created by macro - do not edit directly > @\
+!------------------------------------------------------------------------------ @\
+@\
+^undef  ESMF_METHOD @\
+!define ESMF_METHOD "ESMF_TypeKindGet##mtypekind" @\
+^define ESMF_METHOD "ESMF_TypeKindGet" @\
+ type(ESMF_TypeKind) function ESMF_TypeKindGet##mtypekind(var, rc) @\
+@\
+    mtypename(ESMF_KIND_##mtypekind), intent(in) :: var @\
+    integer, intent(out), optional :: rc @\
+@\
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL @\
+    ESMF_TypeKindGet##mtypekind = ESMF_TYPEKIND_##mtypekind @\
+@\
+    if (present(rc)) rc = ESMF_SUCCESS @\
+@\
+    end function ESMF_TypeKindGet##mtypekind @\
+@\
+!--------------------------------------------------------------------------- @\
+
+TypeKindDeclarationMacro(ESMF_TypeKindGet)
+
+end module ESMF_TypeKindGetMod

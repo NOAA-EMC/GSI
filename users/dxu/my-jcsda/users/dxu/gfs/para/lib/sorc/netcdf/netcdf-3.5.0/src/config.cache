@@ -1,0 +1,45 @@
+# This file is a shell script that caches the results of configure
+# tests run on this system so they can be shared between configure
+# scripts and configure runs.  It is not useful on other systems.
+# If it contains results you don't want to keep, you may remove or edit it.
+#
+# By default, configure uses ./config.cache as the cache file,
+# creating it if it does not exist already.  You can give configure
+# the --cache-file=FILE option to use a different cache file; that is
+# what configure does when it calls configure scripts in
+# subdirectories, so they share the cache.
+# Giving --cache-file=/dev/null disables caching, for debugging configure.
+# config.status only pays attention to the cache file if you give it the
+# --recheck option to rerun configure.
+#
+ac_cv_c_bigendian=${ac_cv_c_bigendian=yes}
+ac_cv_c_char_unsigned=${ac_cv_c_char_unsigned=yes}
+ac_cv_c_ieeefloat=${ac_cv_c_ieeefloat=yes}
+ac_cv_func_alloca_works=${ac_cv_func_alloca_works=yes}
+ac_cv_func_strerror=${ac_cv_func_strerror=yes}
+ac_cv_header_alloca_h=${ac_cv_header_alloca_h=yes}
+ac_cv_header_stdc=${ac_cv_header_stdc=yes}
+ac_cv_header_stdlib_h=${ac_cv_header_stdlib_h=yes}
+ac_cv_header_sys_types_h=${ac_cv_header_sys_types_h=yes}
+ac_cv_lib_c_tanh=${ac_cv_lib_c_tanh=no}
+ac_cv_lib_m_tanh=${ac_cv_lib_m_tanh=yes}
+ac_cv_prog_AR=${ac_cv_prog_AR=ar}
+ac_cv_prog_CPP=${ac_cv_prog_CPP='/usr/bin/ncepxlc -E'}
+ac_cv_prog_CXX=${ac_cv_prog_CXX=/usr/bin/ncepxlC}
+ac_cv_prog_M4=${ac_cv_prog_M4=m4}
+ac_cv_prog_NM=${ac_cv_prog_NM=nm}
+ac_cv_prog_RANLIB=${ac_cv_prog_RANLIB=ranlib}
+ac_cv_prog_prog=${ac_cv_prog_prog=catman}
+ac_cv_sizeof_double=${ac_cv_sizeof_double=8}
+ac_cv_sizeof_float=${ac_cv_sizeof_float=4}
+ac_cv_sizeof_int=${ac_cv_sizeof_int=4}
+ac_cv_sizeof_long=${ac_cv_sizeof_long=8}
+ac_cv_sizeof_off_t=${ac_cv_sizeof_off_t=8}
+ac_cv_sizeof_short=${ac_cv_sizeof_short=2}
+ac_cv_sizeof_size_t=${ac_cv_sizeof_size_t=8}
+ac_cv_struct_st_blksize=${ac_cv_struct_st_blksize=yes}
+ac_cv_type_off_t=${ac_cv_type_off_t=yes}
+ac_cv_type_ptrdiff_t=${ac_cv_type_ptrdiff_t=yes}
+ac_cv_type_size_t=${ac_cv_type_size_t=yes}
+ac_cv_type_ssize_t=${ac_cv_type_ssize_t=yes}
+ac_cv_type_uchar=${ac_cv_type_uchar=yes}

@@ -1,0 +1,62 @@
+
+"diag_tracers","ocean_mod","frazil"
+/
+
+
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdfl_sweby
+vertical-advection-scheme = mdfl_sweby
+const_init_tracer=.false.
+const_init_value=30.0
+/
+
+
+"prog_tracers","ocean_mod","salt"
+horizontal-advection-scheme = mdfl_sweby
+vertical-advection-scheme = mdfl_sweby
+const_init_tracer=.false.
+const_init_value=35.0
+/
+
+
+"xland_mix","ocean_mod","xland_mix"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=178,jxland_2=178,kxland_1=1,kxland_2=5,vxland=0.55e6"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=177,jxland_2=177,kxland_1=1,kxland_2=5,vxland=0.55e6"
+"xland","Red Sea  ","ixland_1=322,ixland_2=324,jxland_1=152,jxland_2=149,kxland_1=1,kxland_2=5,vxland=0.18e6"
+"xland","Red Sea  ","ixland_1=323,ixland_2=325,jxland_1=152,jxland_2=149,kxland_1=1,kxland_2=5,vxland=0.18e6"
+"xland","Black-Med","ixland_1=307,ixland_2=310,jxland_1=179,jxland_2=183,kxland_1=1,kxland_2=5,vxland=0.01e6"
+"xland","Black-Med","ixland_1=308,ixland_2=310,jxland_1=179,jxland_2=184,kxland_1=1,kxland_2=5,vxland=0.01e6"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=168,jxland_2=167,kxland_1=1,kxland_2=5,vxland=0.05e6"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=167,jxland_2=166,kxland_1=1,kxland_2=5,vxland=0.05e6"/
+
+"xland_insert","ocean_mod","xland_insert"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=178,jxland_2=178,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=177,jxland_2=177,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Red Sea","ixland_1=322,ixland_2=324,jxland_1=152,jxland_2=149,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Red Sea","ixland_1=323,ixland_2=325,jxland_1=152,jxland_2=149,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Black-Med","ixland_1=307,ixland_2=310,jxland_1=179,jxland_2=183,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Black-Med","ixland_1=308,ixland_2=310,jxland_1=179,jxland_2=184,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=168,jxland_2=167,kxland_1=1,kxland_2=5,tauxland=86400.0"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=167,jxland_2=166,kxland_1=1,kxland_2=5,tauxland=86400.0"/
+
+"diff_cbt_enhance","ocean_mod","diff_cbt_enhance"
+"diffcbt","Gibraltar","itable=274,jtable=178,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=178,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=274,jtable=177,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=177,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=322,jtable=152,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=323,jtable=152,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=322,jtable=149,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=323,jtable=149,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=307,jtable=179,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=308,jtable=179,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=310,jtable=183,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=310,jtable=184,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=336,jtable=168,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=338,jtable=167,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=336,jtable=167,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=338,jtable=166,ktable_1=1,ktable_2=5,diff_cbt_table=0.01"/
+
+
+
+

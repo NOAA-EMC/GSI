@@ -1,0 +1,44 @@
+SHELL=/bin/sh
+SRCS = kinds.f90 read_diag.f90 time.f90 create_ctl_time.f90 avgsdv.f90 \
+	update_ctl_time.f90
+
+OBJS = kinds.o read_diag.o time.o create_ctl_time.o avgsdv.o \
+	update_ctl_time.o
+
+#
+# *****************************************************************
+#
+
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+CMD = time.x
+
+all:  $(CMD)
+
+clean:
+	rm time.x $(OBJS) kinds.mod read_diag.mod
+
+$(CMD):         $(OBJS)
+	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+
+kinds.o : kinds.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+read_diag.o : read_diag.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+time.o : time.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+create_ctl_time.o : create_ctl_time.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+avgsdv.o : avgsdv.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+update_ctl_time.o : update_ctl_time.f90
+	$(CF) $(FFLAGS) -c $(*).f90

@@ -1,0 +1,290 @@
+Fri May 11 16:45:34 EDT 2007 EXECUTING /var/loadl/execute/d2n7s.ncep.noaa.gov.412564.1/gfs_land_climo.sh
++ mkdir -p /ptmp/wx20gg/work
++ rm -fr /ptmp/wx20gg/work/fort.29 /ptmp/wx20gg/work/fort.30 /ptmp/wx20gg/work/fort.45 /ptmp/wx20gg/work/fort.46 /ptmp/wx20gg/work/fort.56 /ptmp/wx20gg/work/fort.64 /ptmp/wx20gg/work/fort.81 /ptmp/wx20gg/work/global_albedo.t62.grb /ptmp/wx20gg/work/global_mxsalbedo.t62.grb /ptmp/wx20gg/work/gridgen_sfc.exe
++ cd /ptmp/wx20gg/work
++ SFALB_GFS_FILENAME=global_albedo.t62.grb
++ MXSALB_GFS_FILENAME=global_mxsalbedo.t62.grb
++ GRIDGEN_SFC_EXE=/global/save/wx20gg/albedo_bosu/2jif/gridgen/src/gridgen_sfc.exe
++ cp /global/save/wx20gg/albedo_bosu/2jif/gridgen/src/gridgen_sfc.exe /ptmp/wx20gg/work
++ MXSALB_SRC_FILE=/global/save/wx20gg/climo_fields/mxsnoalb_ariz/data/global_mxsnoalb.0.05.grb
++ SFALB_SRC_FILE=/global/save/wx20gg/climo_fields/alb_bosu/data.grb/global_snowfree_albedo.0.05.grb
++ cat
++ 1> /ptmp/wx20gg/work/fort.81 0<<
+
+&grid
+ domain_name="t62"
+ imdl=192
+ jmdl=94
+/
+
+&tiling
+ max_total_land_tiles=1
+/
+
+&veg_tiling
+ max_veg_tiles=1
+ veg_tile_threshold=0.0
+ default_veg_category=7
+ num_veg_groups = 6
+ veg_groups =3,4,4,4,4,4,4,4,4,4,1,1,1,1,1,9,5,5,2,6,6,6,2,2
+/
+
+&soil_tiling
+ max_soil_tiles=1
+ soil_tile_threshold=0.0
+ default_soil_category=7
+ num_soil_groups = 7
+ soil_groups = 3,6,6,4,4,2,5,1,1,5,1,1,2,9,7,6
+/
+
+&lsmask_orog_tiling
+ max_orog_tiles=1
+ orog_bin_width=500.0
+ orog_tile_threshold=0.05
+ lsmask_tiles=.false.
+ lsmask_tile_threshold=0.3
+ smooth=2
+ num_smooth_passes=0
+/
+
+&input_data
+ leaf_area_idx_file=""
+ glacier_file=""
+ gfrac_file=""
+ mxsnow_alb_file="/global/save/wx20gg/climo_fields/mxsnoalb_ariz/data/global_mxsnoalb.0.05.grb"
+ roughness_file=""
+ seaice_file=""
+ slopetype_file=""
+ snow_climo_file=""
+ snowfree_albedo_file="/global/save/wx20gg/climo_fields/alb_bosu/data.grb/global_snowfree_albedo.0.05.grb"
+ soilm_file=""
+ soiltype_tile_file=""
+ soiltype_notile_file=""
+ sst_climo_file=""
+ substrate_temp_file=""
+ vegtype_tile_file=""
+ vegtype_notile_file=""
+ lsmask_file="/ptmp/wx20gg/save/t62/global_slmask.t62.grb"
+ orog_file="/ptmp/wx20gg/save/t62/global_orography.t62.grb"
+/
+
++ ln -fs /ptmp/wx20gg/work/global_albedo.t62.grb /ptmp/wx20gg/work/fort.46
++ ln -fs /ptmp/wx20gg/work/global_mxsalbedo.t62.grb /ptmp/wx20gg/work/fort.45
++ export MP_STDOUTMODE=0
++ timex poe /global/save/wx20gg/albedo_bosu/2jif/gridgen/src/gridgen_sfc.exe
+
+
+* . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
+     PROGRAM GRIDGEN_SFC HAS BEGUN. COMPILED 2005136.00     ORG: NP2
+     STARTING DATE-TIME  MAY 11,2007  16:45:35.775  131  FRI   2454232
+
+
+ - READ CONFIGURATION NAMELIST
+ 
+ - CREATING SURFACE FIELDS FOR DOMAIN t62
+ - I/J GRID DIMENSIONS ARE:  192 94
+ - CENTER LAT/LON ARE:  0.000000000000000000E+00 180.000000000000000
+ - MODEL RESOLUTION IN DEGREES IS:  1.87500000000000000
+ - CALCULATE LAT/LONS ON MODEL GRID
+ - CALCULATE LAND/SEA MASK AND OROGRAPHY
+ - GET TERRAIN AND LAND MASK FROM EXISTING FILES.
+ - OPEN INPUT FILE /ptmp/wx20gg/save/t62/global_slmask.t62.grb
+ - DEGRIB DATA 
+ - OPEN INPUT FILE /ptmp/wx20gg/save/t62/global_orography.t62.grb
+ - DEGRIB TERRAIN HEIGHT DATA
+ - INTERPOLATE MAX SNOW ALBEDO DATA TO MODEL GRID
+ - OPEN INPUT FILE /global/save/wx20gg/climo_fields/mxsnoalb_ariz/data/global_mxsnoalb.0.05.grb
+ - OPEN OUTPUT FILE fort.45
+ - GET GRIB HEADER FOR RECORD  1
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  2
+ - INTERPOLATE SNOW FREE ALBEDO TO MODEL GRID
+ - OPEN INPUT FILE /global/save/wx20gg/climo_fields/alb_bosu/data.grb/global_snowfree_albedo.0.05.grb
+ - OPEN OUTPUT FILE fort.46
+ - GET GRIB HEADER FOR RECORD  1
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  2
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  3
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  4
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  5
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  6
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  7
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  8
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  9
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  10
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  11
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  12
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  13
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  14
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  15
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  16
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  17
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  18
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  19
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  20
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  21
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  22
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  23
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  24
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  25
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  26
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  27
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  28
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  29
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  30
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  31
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  32
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  33
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  34
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  35
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  36
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  37
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  38
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  39
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  40
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  41
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  42
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  43
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  44
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  45
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  46
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  47
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  48
+ - DEGRIB DATA 
+ - WILL TAKE AREA AVERAGE OF SOURCE DATA  18
+ - GET GRIB HEADER FOR RECORD  49
+ - OUTPUT LATITUDES IN GRIB FORMAT.
+ - OUTPUT LONGITUDES IN GRIB FORMAT.
+ ************************************
+ ** NORMAL TERMINATION FOR TASK: 0 **
+ ************************************
+
+
+     ENDING DATE-TIME    MAY 11,2007  16:46:22.798  131  FRI   2454232
+     PROGRAM GRIDGEN_SFC HAS ENDED.  IBM RS/6000 SP
+* . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . * . 
+*****************RESOURCE STATISTICS*******************************
+
+The total amount of wall time                        = 47.025003
+The total amount of time in user mode                = 42.490051
+The total amount of time in sys mode                 = 0.417433
+The maximum resident set size (KB)                   = 385940
+Average shared memory use in text segment (KB*sec)   = 15504
+Average unshared memory use in data segment (KB*sec) = 16213653
+Average unshared memory use in stack segment(KB*sec) = 0
+Number of page faults without I/O activity           = 96626
+Number of page faults with I/O activity              = 66
+Number of times process was swapped out              = 0
+Number of times filesystem performed INPUT           = 0
+Number of times filesystem performed OUTPUT          = 0
+Number of IPC messages sent                          = 0
+Number of IPC messages received                      = 0
+Number of Signals delivered                          = 0
+Number of Voluntary Context Switches                 = 935
+Number of InVoluntary Context Switches               = 124
+*****************END OF RESOURCE STATISTICS*************************
+
+
+real 47.93
+user 0.30
+sys  0.07
+
++ [[ 0 != 0 ]]
++ cp /ptmp/wx20gg/work/global_albedo.t62.grb /ptmp/wx20gg/save/t62/global_albedo.t62.grb
++ cp /ptmp/wx20gg/work/global_mxsalbedo.t62.grb /ptmp/wx20gg/save/t62/global_mxsalbedo.t62.grb
++ [[ YES = NO ]]
++ exit 0

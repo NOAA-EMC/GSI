@@ -1,0 +1,21 @@
+LIB     = ../../libgfsio_4.a
+INCMOD  = ../../incmod/gfsio_4
+FC      = xlf_r
+FFLAGS  = -qnosave -O3 -q free=f90 -I$(INCMOD)
+FFLAGB  = -qnosave -O3 -q fixed
+#FFLAGS = -g -C -qextchk -qflttrap -qnosave -O3 -q free=f90 -I$(INCMOD)
+#FFLAGB = -g -C -qextchk -qflttrap -qnosave -O3 -q fixed
+AR      = ar
+ARFLAGS = -rv -X64
+
+$(LIB): $(LIB)(gfsio_module.o) $(LIB)(bafrio.o)
+$(LIB)(bafrio.o):       bafrio.f
+	$(FC) -c $(FFLAGB) $<
+	$(AR) $(ARFLAGS) $@ $*.o
+	rm -f $*.o
+.f.a:
+	$(FC) -c $(FFLAGS) $<
+	$(AR) $(ARFLAGS) $@ $*.o
+	rm -f $*.o
+	mv $*.mod $(INCMOD)
+
