@@ -1511,11 +1511,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         lai_type = itype
      end if
                                     
-     if (lwind) then
+     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(-uu5,-vv5)
-       if ( surface(1)%wind_direction < zero ) surface(1)%wind_direction = &
-          surface(1)%wind_direction + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
