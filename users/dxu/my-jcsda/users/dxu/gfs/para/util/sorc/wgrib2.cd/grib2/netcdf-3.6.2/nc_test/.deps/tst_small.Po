@@ -1,0 +1,44 @@
+tst_small.o : tst_small.c
+tst_small.o : ./nc_tests.h
+tst_small.o : ../config.h
+tst_small.o : /usr/include/assert.h
+tst_small.o : /usr/include/standards.h
+tst_small.o : /usr/include/stdio.h
+tst_small.o : /usr/include/va_list.h
+tst_small.o : /usr/include/sys/types.h
+tst_small.o : /usr/include/strict_stdtypes.h
+tst_small.o : /usr/include/sys/inttypes.h
+tst_small.o : /usr/include/stdint.h
+tst_small.o : /usr/include/end_strict_stdtypes.h
+tst_small.o : /usr/include/sys/m_types.h
+tst_small.o : /usr/include/sys/vm_types.h
+tst_small.o : /usr/include/sys/limits.h
+tst_small.o : /usr/include/float.h
+tst_small.o : /usr/vac/include/string.h
+tst_small.o : /usr/include/string.h
+tst_small.o : ./error.h
+tst_small.o : ../libsrc/netcdf.h
+tst_small.o : /usr/include/stddef.h
+tst_small.o : /usr/include/errno.h
+tst_small.c:
+./nc_tests.h:
+../config.h:
+/usr/include/assert.h:
+/usr/include/standards.h:
+/usr/include/stdio.h:
+/usr/include/va_list.h:
+/usr/include/sys/types.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+./error.h:
+../libsrc/netcdf.h:
+/usr/include/stddef.h:
+/usr/include/errno.h:

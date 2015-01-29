@@ -1,0 +1,124 @@
+#!/bin/ksh
+#  ... grads.setup for gwd with imbeded gs file              
+#  ... the command line will run: scaler_zonal.setup
+#  ... zonal_diff.setup 2008011500 hgtprs ecm gfs 1.0 00 
+set -x
+DATE=`date '+%y%m%d'`
+echo $DATE
+DOY=`echo $DATE|cut -c1-6`
+echo $DOY
+#
+TMPGRADS=/ptmp/$LOGNAME/tmpgood
+mkdir -p $TMPGRADS
+cd ${TMPGRADS}
+#
+grib2ctl=/u/wx20mi/bin/grib2ctl.pl
+default_select_var=tmpprs
+# data set control file
+export CDATE=${1:-"2008011212"}
+export var_select=${2:-"$default_select_var"}
+echo " var_select=$var_select "
+#export exp_select=${3:-"$exp_select"}
+#export cnt_select=${4:-"$cnt_select"}
+export scale_select=1.
+export CYC=`echo $CDATE|cut -c9-10`
+export CDY=`echo $CDATE|cut -c7-8`
+export CMO=`echo $CDATE|cut -c5-6`
+
+if [ $var_select = "hgtprs" ]; then
+tmpclevs='set clevs -80 -60 -40 -30 -20 -15 -10 -5 5 10 15 20 30 40 60 80'
+tmpcols='set ccols  48  47  46  45  44  43  42  41 0 21 22 23 24 25 26 27 28'
+tmpcint=5
+else
+tmpclevs='set clevs -5 -4 -3 -2 -1.5 -1 -.5 -.25 .25 .5 1 1.5 2 3 4 5'
+tmpcols='set ccols 48 47 46 45  44  43  42  41 0 21 22 23 24 25 26 27 28'
+tmpcint=.5
+fi
+
+date
+DATE=`date '+%y%m%d'`
+echo $DATE 
+DOY=`echo $DATE|cut -c1-6`
+echo $DOY  
+CYCLE=`echo $DATE|cut -c7-8`
+echo $CYCLE .......  CYCLE cut from DATE
+#
+# write to local file -- the file we started in
+# begin grads mapset.gs file creation
+#
+cat << EOF > mapset.gs
+'open ${TMPGRADS}/anl_b.ctl'
+'open ${TMPGRADS}/ges_b.ctl'
+*  seting up files
+*
+'set display color white'
+'clear'
+'q file 1'
+'q file 2'
+*
+'run /global/save/wx23ja/grads/rgbset.gs'
+'enable print out.gr'
+'set grads off'
+*'set grid off'
+*
+'enable print out.gr'
+*
+'set grads off'
+'set grid off'
+'set lat -90 90'
+*'set mpdset mres'
+'set z 1 26'
+'set x 1'
+'define mag1=${var_select}.1'
+'define mag2=${var_select}.2'
+** 'define tmean=ave(difmag,t=1,t=32)'
+*'define tmean=ave((${1}.1-${1}.2),t=1,t=32)'
+
+'define zmag1=ave(mag1,x=1,x=144,-b)'
+'define zmag2=ave(mag2,x=1,x=144,-b)'
+*'define zmdif=ave(${var_select}.2-${var_select}.1,x=1,x=144,-b)'
+'define mask=ave(maskout(mag1-mag2,-1*(lev-pressfc/100)),x=1,x=144,-b)'
+*
+'set gxout shaded'
+'set grads off'
+'$tmpclevs'
+'$tmpcols'
+'d mask'
+'cbarn'
+'set gxout contour'
+'set cint $tmpcint' 
+'set black -.1 .1'
+'set ccolor 1'
+'d mask'
+'draw title ANL-GES Time:${CDATE} /Zonal AVE DIFF var=${var_select}'
+'print'
+'printim ZAVEDIF_${CDATE}_${var_select}.gif gif x800 y600'
+*
+'disable print out.gr'
+'quit'
+* 
+* 
+*
+EOF
+
+#
+# begin grads setup
+#    
+pwd
+case1=cntrl
+case2=interp
+GDATE=`${ndate_dir}/ndate  -06 $CDATE`
+copygb -x -g2  /global/noscrub/wx23dc/${case1}${CMO}${CDY}${CYC}/pgbanl.${CDATE}  $TMPGRADS/pgbanl.${CDATE}
+copygb -x -g2 /global/noscrub/wx23dc/${case1}ges/pgbf06.${GDATE} $TMPGRADS/pgbf06.${GDATE}
+#
+$grib2ctl -verf ${TMPGRADS}/pgbanl.${CDATE} > anl.ctl
+sed <anl.ctl -e "s#zdef 47 levels#zdef 26 levels#" -e "s#1000 975 950 925 900 875 850 825 800 775 750 725 700 675 650 625 600 575 550 525 500 475 450 425 400 375 350 325 300 275 250 225 200 175 150 125 100 70 50 30 20 10 7 5 3 2 1#1000 975 950 925 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 30 20 10#"  >anl_b.ctl
+gribmap -E -i anl_b.ctl
+
+$grib2ctl -verf ${TMPGRADS}/pgbf06.${GDATE} > ges.ctl
+sed <ges.ctl -e "s#zdef 47 levels#zdef 26 levels#" -e "s#1000 975 950 925 900 875 850 825 800 775 750 725 700 675 650 625 600 575 550 525 500 475 450 425 400 375 350 325 300 275 250 225 200 175 150 125 100 70 50 30 20 10 7 5 3 2 1#1000 975 950 925 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 30 20 10#"  >ges_b.ctl
+gribmap -E -i ges_b.ctl
+/usrx/local/grads/bin/grads -blc "run mapset.gs"
+/usrx/local/grads/bin/gxps  -c -i out.gr -o out.ps
+ls -l out.ps
+# lpr -P phaser4 out.ps

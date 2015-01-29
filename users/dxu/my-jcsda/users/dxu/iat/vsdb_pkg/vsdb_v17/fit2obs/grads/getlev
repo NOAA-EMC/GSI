@@ -1,0 +1,17 @@
+function getlev(levx)
+if(levx=1) ;return   20; endif;
+if(levx=2) ;return   30; endif;
+if(levx=3) ;return   50; endif;
+if(levx=4) ;return   70; endif;
+if(levx=5) ;return  100; endif;
+if(levx=6) ;return  150; endif;
+if(levx=7) ;return  200; endif;
+if(levx=8) ;return  250; endif;
+if(levx=9) ;return  300; endif;
+if(levx=10);return  400; endif;
+if(levx=11);return  500; endif;
+if(levx=12);return  700; endif;
+if(levx=13);return  850; endif;
+if(levx=14);return  925; endif;
+if(levx=15);return 1000; endif;
+return xxx

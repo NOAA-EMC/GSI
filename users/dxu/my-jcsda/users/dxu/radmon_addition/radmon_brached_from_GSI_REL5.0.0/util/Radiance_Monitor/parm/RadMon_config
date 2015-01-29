@@ -1,0 +1,115 @@
+##################################################################
+#
+# RadMon_config
+#
+# This parameter file set up the environment variables used in
+# scripts to run the radiance monitor package components.
+#
+##################################################################
+
+  echo "begin RadMon_config"
+
+#
+# MY_RADMON should point to your working directory which contains the 
+# top level directory to the RadMon package.  If you checked out the package
+# as part of the GSI point to the GSI's util/Radiance_Monitor directory. If
+# you checked out only the Radiance_Monitor portion of the branch then
+# MY_RADMON should point to that.
+#
+export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radiance_Monitor}
+
+#
+#  The MY_TANKDIR will be the location for the extracted data files and
+#  the control files used for image plotting.  This is the base definition 
+#  and the succedding scripts will construct and use subdirectories under
+#  this location.
+#
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+
+#
+#  Web server resources include the sever name (WEB_SVR), the user name
+#  on the web server (WEB_USER), and location of the top level directory
+#  for the html on the web server (WEBDIR).
+#
+export WEB_SVR=${WEB_SVR:-emcrzdm}
+export WEB_USER=${WEB_USER:-esafford}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
+
+
+###############################################################################
+###############################################################################
+#                                                                             #
+#  The definitions below are for internal reference and shouldn't need to be  #
+#  edited, once they are set up by the RadMon_install.sh script.              #
+#                                                                             #
+###############################################################################
+###############################################################################
+
+export MY_MACHINE=${MY_MACHINE:-wcoss}
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+echo endian = $LITTLE_ENDIAN
+
+
+#
+#  Log and work space definitions
+#
+export PTMP=${PTMP:-/ptmp}
+export STMP=${STMP:-/stmp}
+  
+export LOGSverf_rad=$PTMP/$LOGNAME/logs    
+export WORKverf_rad=$STMP/$LOGNAME         
+
+
+#
+#  Job queue check definition
+#
+if [[ $MY_MACHINE = "wcoss" ]]; then
+  export CHECKQ="bjobs"
+else
+  export CHECKQ="showq -u $LOGNAME"
+fi
+
+
+#
+#  Definitions for internal reference
+#
+export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
+export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
+export RADMON_PARM=${MY_RADMON}/parm
+export DATA_MAP=${RADMON_PARM}/data_map.xml
+export HOMEgfs=${MY_RADMON}/nwprod
+
+
+#
+#  Utilities used by the RadMon package
+#
+export NCP="/bin/cp -f"
+export Z="gz"
+
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+
+   export UTILS_BIN=
+   export SUB="bsub"
+   export NWPROD=/nwprod
+   export COMPRESS=/usrx/local/bin/pigz
+   export UNCOMPRESS="/usrx/local/bin/unpigz -f"
+   export TIMEX=
+
+else    # zeus 
+   shell=sh
+   /usr/bin/modulecmd $shell load ncep
+ 
+   export SUB=/apps/torque/default/bin/qsub
+   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export TIMEX=
+   export UTILS_BIN=
+fi
+
+export NDATE=${NWPROD}/util/exec/ndate
+
+echo "end RadMon_config"

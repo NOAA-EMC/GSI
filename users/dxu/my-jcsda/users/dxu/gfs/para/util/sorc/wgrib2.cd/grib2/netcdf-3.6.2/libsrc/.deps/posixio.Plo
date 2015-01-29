@@ -1,0 +1,84 @@
+posixio.lo : posixio.c
+posixio.lo : ../config.h
+posixio.lo : /usr/include/assert.h
+posixio.lo : /usr/include/standards.h
+posixio.lo : /usr/vac/include/stdlib.h
+posixio.lo : /usr/include/stdlib.h
+posixio.lo : /usr/include/sys/wait.h
+posixio.lo : /usr/include/strict_stdtypes.h
+posixio.lo : /usr/include/sys/types.h
+posixio.lo : /usr/include/sys/inttypes.h
+posixio.lo : /usr/include/stdint.h
+posixio.lo : /usr/include/end_strict_stdtypes.h
+posixio.lo : /usr/include/sys/m_types.h
+posixio.lo : /usr/include/sys/vm_types.h
+posixio.lo : /usr/include/sys/resource.h
+posixio.lo : /usr/include/sys/time.h
+posixio.lo : /usr/include/sys/signal.h
+posixio.lo : /usr/include/sys/context.h
+posixio.lo : /usr/include/sys/m_param.h
+posixio.lo : /usr/include/sys/mstsave.h
+posixio.lo : /usr/include/sys/m_signal.h
+posixio.lo : /usr/include/sys/localedef.h
+posixio.lo : /usr/include/sys/limits.h
+posixio.lo : /usr/include/float.h
+posixio.lo : /usr/include/sys/lc_core.h
+posixio.lo : /usr/include/locale.h
+posixio.lo : /usr/include/sys/localedef31.h
+posixio.lo : /usr/include/errno.h
+posixio.lo : /usr/include/sys/stat.h
+posixio.lo : /usr/include/sys/mode.h
+posixio.lo : /usr/include/fcntl.h
+posixio.lo : /usr/include/sys/flock.h
+posixio.lo : /usr/include/unistd.h
+posixio.lo : /usr/include/sys/access.h
+posixio.lo : /usr/include/sys/lockf.h
+posixio.lo : /usr/vac/include/string.h
+posixio.lo : /usr/include/string.h
+posixio.lo : ncio.h
+posixio.lo : /usr/include/stddef.h
+posixio.lo : netcdf.h
+posixio.lo : fbits.h
+posixio.lo : rnd.h
+posixio.c:
+../config.h:
+/usr/include/assert.h:
+/usr/include/standards.h:
+/usr/vac/include/stdlib.h:
+/usr/include/stdlib.h:
+/usr/include/sys/wait.h:
+/usr/include/strict_stdtypes.h:
+/usr/include/sys/types.h:
+/usr/include/sys/inttypes.h:
+/usr/include/stdint.h:
+/usr/include/end_strict_stdtypes.h:
+/usr/include/sys/m_types.h:
+/usr/include/sys/vm_types.h:
+/usr/include/sys/resource.h:
+/usr/include/sys/time.h:
+/usr/include/sys/signal.h:
+/usr/include/sys/context.h:
+/usr/include/sys/m_param.h:
+/usr/include/sys/mstsave.h:
+/usr/include/sys/m_signal.h:
+/usr/include/sys/localedef.h:
+/usr/include/sys/limits.h:
+/usr/include/float.h:
+/usr/include/sys/lc_core.h:
+/usr/include/locale.h:
+/usr/include/sys/localedef31.h:
+/usr/include/errno.h:
+/usr/include/sys/stat.h:
+/usr/include/sys/mode.h:
+/usr/include/fcntl.h:
+/usr/include/sys/flock.h:
+/usr/include/unistd.h:
+/usr/include/sys/access.h:
+/usr/include/sys/lockf.h:
+/usr/vac/include/string.h:
+/usr/include/string.h:
+ncio.h:
+/usr/include/stddef.h:
+netcdf.h:
+fbits.h:
+rnd.h:

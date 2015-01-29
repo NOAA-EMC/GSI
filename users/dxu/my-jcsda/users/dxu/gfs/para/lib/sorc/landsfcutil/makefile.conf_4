@@ -1,0 +1,4 @@
+
+MOD_DIR=./
+FFLAGS =  -q64 -I${MOD_DIR} -qmoddir=${MOD_DIR} -qrealsize=4 -O3 -qstrict -qessl -qmaxmem=-1
+LIB = ./liblandsfcutil_4.a

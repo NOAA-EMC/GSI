@@ -1,0 +1,84 @@
+#!/bin/ksh
+set -x
+
+export list=$listvar
+
+echo "exp is $exp"
+
+del=1
+plots=1
+gif=1
+
+export grads=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/grads
+export gxgif=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/gxgif
+export convert=${IMGCONVERT:-/usrx/local/imajik/bin/convert}
+export logofile=${logofile:-$GSCRIPTS/nws_logo.gif}
+
+if [ ! -d $pdir ] ; then
+  mkdir -p $pdir
+fi
+cd $pdir
+if [ $del -eq 1 ] ; then
+set +x
+/bin/rm $pdir/*
+set -x
+fi
+
+yy=`echo $ps00 | cut -c1-4`
+mm=`echo $ps00 | cut -c5-6`
+dd=`echo $ps00 | cut -c7-8`
+hh=`echo $ps00 | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+ts00=${hh}z${dd}${mon}${yy}
+echo "ts00 plot start date $ts00"
+
+yy=`echo $pe00 | cut -c1-4`
+mm=`echo $pe00 | cut -c5-6`
+dd=`echo $pe00 | cut -c7-8`
+hh=`echo $pe00 | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+te00=${hh}z${dd}${mon}${yy}
+echo "te00 plot end date $te00"
+
+yy=`echo $ps12 | cut -c1-4`
+mm=`echo $ps12 | cut -c5-6`
+dd=`echo $ps12 | cut -c7-8`
+hh=`echo $ps12 | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+ts12=${hh}z${dd}${mon}${yy}
+echo "ts12 plot start date $ts12"
+
+yy=`echo $pe12 | cut -c1-4`
+mm=`echo $pe12 | cut -c5-6`
+dd=`echo $pe12 | cut -c7-8`
+hh=`echo $pe12 | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+te12=${hh}z${dd}${mon}${yy}
+echo "te12 plot end date $te12"
+
+if [ $plots -eq 1 ] ; then
+
+cd $pdir
+$grads -lbc "run $GSCRIPTS/scalvb_0z.gs $ts00 $te00 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/scalvb_12z.gs $ts12 $te12 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/stratb_0z.gs $ts00 $te00 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/stratb_12z.gs $ts12 $te12 $idir $pdir $GSCRIPTS $exp $namstr"
+
+$grads -lbc "run $GSCRIPTS/scalvab_0z.gs $ts00 $te00 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/scalvab_12z.gs $ts12 $te12 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/stratab_0z.gs $ts00 $te00 $idir $pdir $GSCRIPTS $exp $namstr"
+$grads -lbc "run $GSCRIPTS/stratab_12z.gs $ts12 $te12 $idir $pdir $GSCRIPTS $exp $namstr"
+
+set +x
+chmod 775 $pdir/*
+set -x
+
+fi
+
+cp *.gif ${localdir}/.
+
+if [ $web -eq 1 ] ; then
+echo "webdir is $webdir"
+scp *.gif ${webid}@${webmch}:${webdir}/.
+fi
+

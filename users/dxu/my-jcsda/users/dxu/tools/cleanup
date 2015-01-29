@@ -1,0 +1,14 @@
+
+rm ./biascr.gdas.2011122806
+rm ./prepqc.gdas.2011122806.nr
+rm ./sfcanl.gdas.2011122806
+rm ./siganl.gdas.2011122806
+rm ./gsistat.gdas.2011122806
+rm ./radstat.gdas.2011122806
+rm ./pcpstat.gdas.2011122806
+rm ./oznstat.gdas.2011122806
+rm ./cnvstat.gdas.2011122806
+rm ./noamv2011122806gdasanal.dayfile
+rm ./satang.gdas.2011122806
+rm ./noamv2011122806gdasangu.dayfile
+

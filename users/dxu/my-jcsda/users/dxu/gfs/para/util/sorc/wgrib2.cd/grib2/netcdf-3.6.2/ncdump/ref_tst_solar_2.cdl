@@ -1,0 +1,9 @@
+netcdf tst_solar_2 {
+type:
+	VLEN typeid: 17 name: unimaginatively_named_vlen_type base type: 4;
+
+// global attributes:
+		:equally_unimaginatively_named_attribute_YAWN = 	[-99, ]
+	[-99, -99, ]
+ ;
+}

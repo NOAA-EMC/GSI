@@ -1,0 +1,8 @@
+mv bal032006.dat bal022006.dat
+mv bal042006.dat bal032006.dat
+mv bal052006.dat bal042006.dat
+mv bal062006.dat bal052006.dat
+mv bal072006.dat bal062006.dat
+mv bal082006.dat bal072006.dat
+mv bal092006.dat bal082006.dat
+mv bal102006.dat bal092006.dat

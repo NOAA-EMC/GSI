@@ -1,0 +1,24 @@
+# .bashrc 
+alias config="cd  ~/.config"
+alias vb="vi ~/.bashrc"
+alias rb=". ~/.bashrc"
+alias showa="alias |sort |less "
+
+# delete old files
+alias d3="find -ctime 3 -type f   |xargs  rm -rf   "
+alias d2="find -ctime 2 -type f   |xargs  rm -rf   "
+
+# list directory
+alias ldir="find -type d "
+
+#shell
+alias whichshell='echo $0 '   # or    ' ps -p $$ '
+
+# rsync
+alias rsynclocal="rsync   -zvh   "
+alias rsyncremote="rsync -azvh  dxu@s4-gateway.ssec.wisc.edu:"
+
+# matlab
+alias mlonly="matlab -nosplash -nodesktop "
+
+set -o vi
