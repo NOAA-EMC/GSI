@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
+subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -155,7 +155,11 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-10-15  pagowski - add intpm2_5 call
 !   2010-10-20  hclin    - added aod
 !   2011-02-20  zhu      - add intgust,intvis,intpblh calls
-!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction 
+!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction
+!   2014-06-18  carley/zhu - add lcbas and tcamt 
+!   2014-03-19  pondeca  - add intwspd10m
+!   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
+!   2014-05-07  pondeca  - add inthowv
 !
 !   input argument list:
 !     ibin
@@ -163,11 +167,11 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !     sval     - solution on grid
 !     sbias
 !     rval
-!     rbias
+!     qpred
 !
 !   output argument list:      
 !     rval     - RHS on grid
-!     rbias
+!     qpred
 !
 ! remarks:
 !     1) if strong initialization, then svalt, svalp, svaluv
@@ -188,7 +192,6 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero_quad
 use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
 use bias_predictors, only: predictors
@@ -214,6 +217,14 @@ use intlagmod, only: intlag
 use intgustmod, only: intgust
 use intvismod, only: intvis
 use intpblhmod, only: intpblh
+use intwspd10mmod, only: intwspd10m
+use inttd2mmod, only: inttd2m
+use intmxtmmod, only: intmxtm
+use intmitmmod, only: intmitm
+use intpmslmod, only: intpmsl
+use inthowvmod, only: inthowv
+use inttcamtmod, only: inttcamt
+use intlcbasmod, only: intlcbas
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -224,16 +235,14 @@ type(obs_handle), intent(in   ) :: yobs
 type(gsi_bundle), intent(in   ) :: sval
 type(predictors), intent(in   ) :: sbias
 type(gsi_bundle), intent(inout) :: rval
-type(predictors), intent(inout) :: rbias
+real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! Declare local variables
 integer(i_kind) :: i,ier
 real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
-real(r_quad),dimension(max(1,nrclen)):: qpred
 
 
 !******************************************************************************
-  qpred=zero_quad
 
 ! Calculate sensible temperature time derivative
   if(l_foto)then
@@ -280,7 +289,6 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 ! RHS for pm2_5
   call intpm2_5(yobs%pm2_5,rval,sval)
 
-
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)
 
@@ -314,21 +322,31 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 ! RHS for conventional pblh observations
   call intpblh(yobs%pblh,rval,sval)
 
+! RHS for conventional wspd10m observations
+  call intwspd10m(yobs%wspd10m,rval,sval)
+
+! RHS for conventional td2m observations
+  call inttd2m(yobs%td2m,rval,sval)
+
+! RHS for conventional mxtm observations
+  call intmxtm(yobs%mxtm,rval,sval)
+
+! RHS for conventional mitm observations
+  call intmitm(yobs%mitm,rval,sval)
+
+! RHS for conventional pmsl observations
+  call intpmsl(yobs%pmsl,rval,sval)
+
+! RHS for conventional howv observations
+  call inthowv(yobs%howv,rval,sval)
+
+! RHS for tcamt observations
+  call inttcamt(yobs%tcamt,rval,sval)
+
+! RHS for lcbas observations
+  call intlcbas(yobs%lcbas,rval,sval)
+
 ! Take care of background error for bias correction terms
-
-  call mpl_allreduce(nrclen,qpvals=qpred)
-
-  do i=1,nsclen
-     rbias%predr(i)=rbias%predr(i)+qpred(i)
-  end do
-  do i=1,npclen
-     rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
-  end do
-  if (ntclen>0) then 
-     do i=1,ntclen
-        rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
-     end do
-  end if
 
 return
 end subroutine intjo_

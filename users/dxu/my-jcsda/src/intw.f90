@@ -65,6 +65,7 @@ subroutine intw_(whead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-03-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -84,7 +85,7 @@ subroutine intw_(whead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -164,22 +165,22 @@ subroutine intw_(whead,rval,sval)
            w7*xhat_dt_v(i7)+w8*xhat_dt_v(i8))*time_w
      endif
 
-     if (lsaveobsens) then
-        wptr%diagu%obssen(jiter) = valu*wptr%raterr2*wptr%err2
-        wptr%diagv%obssen(jiter) = valv*wptr%raterr2*wptr%err2
-     else
-        if (wptr%luse) then
-           wptr%diagu%tldepart(jiter)=valu
-           wptr%diagv%tldepart(jiter)=valv
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           gradu = valu*wptr%raterr2*wptr%err2
+           gradv = valv*wptr%raterr2*wptr%err2
+           wptr%diagu%obssen(jiter) = gradu
+           wptr%diagv%obssen(jiter) = gradv
+        else
+           if (wptr%luse) then
+              wptr%diagu%tldepart(jiter)=valu
+              wptr%diagv%tldepart(jiter)=valv
+           endif
         endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           gradu = wptr%diagu%obssen(jiter)
-           gradv = wptr%diagv%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs) then
               valu=valu-wptr%ures
               valv=valv-wptr%vres

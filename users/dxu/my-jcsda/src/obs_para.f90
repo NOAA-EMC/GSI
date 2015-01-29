@@ -32,6 +32,10 @@ subroutine obs_para(ndata,mype)
 !                              "call dislag(.....,nobs_s(mm1))"
 !                           nobs_s is an array in current subroutine, but is a
 !                           scalar inside subroutine dislag.
+!   2014-10-03  carley  - add creation mpi subcommunicator needed for
+!                          buddy check QC to distinguish among pe subdomains
+!                          with and without obs (only for t obs and twodvar_regional
+!                          at the moment)
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -50,9 +54,11 @@ subroutine obs_para(ndata,mype)
   use kinds, only: i_kind
   use constants, only: zero
   use jfunc, only: factqmin,factqmax
-  use mpimod, only: npe
+  use mpimod, only: npe,mpi_itype,mpi_comm_world,ierror
   use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
-              obsfile_all,dplat
+              obsfile_all,dplat,obs_sub_comm
+  use gridmod, only: twodvar_regional
+  use qcmod, only: buddycheck_t,buddydiag_save
   implicit none
 
 ! Declare passed variables
@@ -62,8 +68,8 @@ subroutine obs_para(ndata,mype)
 ! Declare local variables
   integer(i_kind) lunout,is,ii
   integer(i_kind) mm1
-  integer(i_kind) ndatax_all
-  integer(i_kind),dimension(npe):: nobs_s
+  integer(i_kind) ndatax_all,ikey_yes,ikey_no,newprocs,newrank
+  integer(i_kind),dimension(npe):: nobs_s,ikey,icolor
 
 !
 !****************************************************************
@@ -71,6 +77,7 @@ subroutine obs_para(ndata,mype)
 !
 ! Distribute observations as a function of pe number.
   nsat1=0
+  obs_sub_comm=0
   mype_diaghdr = -999
   mm1=mype+1
   ndatax_all=0
@@ -99,12 +106,47 @@ subroutine obs_para(ndata,mype)
         nsat1(is)=nobs_s(mm1)
         if(mm1 == npe)then
            write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
-1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
+1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))                 
         end if
+  
         
+        ! Simple logic to organize which tasks do and do not have obs.
+        !  Needed for buddy check QC.  
+        if (twodvar_regional .and. dtype(is) == 't' .and. buddycheck_t) then
+           ! Broadcast this obtype's decomposition to all tasks
+           !  Must bcast from the diag PE, which is npe-1  
+           call mpi_bcast(nobs_s,size(nobs_s),mpi_itype,npe-1,mpi_comm_world,ierror)         
+           ikey_yes=0
+           ikey_no=0
+           ikey=0
+           do ii=1,npe
+              if (nobs_s(ii)>0) then
+                 icolor(ii)=1
+                 ikey(ii)=ikey_yes
+                 ikey_yes=ikey_yes+1
+              else
+                 icolor(ii)=2
+                 ikey(ii)=ikey_no
+                 ikey_no=ikey_no+1
+              end if
+           end do
+
+           ! With organized colors and keys, now create the new MPI communicator
+           !   which only talks to pe's who have obs on their subdomains.  This is
+           !   needed for MPI communication within the setup* routines (e.g. a buddy check).
+              
+           call mpi_comm_split(mpi_comm_world,icolor(mm1),ikey(mm1),obs_sub_comm(is),ierror)  
+           CALL MPI_COMM_SIZE(obs_sub_comm(is), newprocs, ierror)
+           CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror)
+           if (buddydiag_save) write(6,'(A,I3,I10,A,I20,A,I3,A,I3)') 'obs_para: mype/myobs=',&
+                              mype,nobs_s(mm1),'newcomm=',obs_sub_comm(is),'newprocs=', &
+                              newprocs,'newrank=',newrank           
+        end if
      end if
 
+
   end do
+
   close(lunout)
 
 
@@ -255,6 +297,10 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
         end if
 
      end do
+
+
+
+
 
 
 ! Write observations for given task to output file
