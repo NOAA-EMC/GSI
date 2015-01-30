@@ -82,7 +82,7 @@ for type in ${SATYPE}; do
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" || $MY_MACHINE = "jibb" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
@@ -167,6 +167,27 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         $SUB -pe smp 1  -N ${jobname} -V -o ${logfile} ${cmdfile} 
      done
   elif [[ ${MY_MACHINE} = "cardinal" ]]; then
+     for sat in ${SATLIST}; do
+        suffix=${sat}
+        cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+        jobname=plot_${SUFFIX}_ang_${suffix}
+        logfile=${LOGDIR}/plot_angle_${suffix}.log
+
+        rm -f $cmdfile
+        rm -f $logfile
+
+        echo "#!/bin/bash " >> $cmdfile
+        echo "$SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
+
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="5:00:00"
+        else
+           wall_tm="2:30:00"
+        fi
+
+        $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} ${cmdfile}
+     done
+  elif [[ ${MY_MACHINE} = "jibb" ]]; then
      for sat in ${SATLIST}; do
         suffix=${sat}
         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
@@ -308,7 +329,29 @@ for sat in ${bigSATLIST}; do
 
          (( ii=ii+1 ))
       done
+   elif [[ $MY_MACHINE = "jibb" ]]; then 	
+      ii=0
+      suffix="${sat}"
 
+      while [[ $ii -le ${#list[@]}-1 ]]; do
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}_${list[$ii]}
+         rm -f $cmdfile
+         logfile=${LOGDIR}/plot_angle_${suffix}_${list[$ii]}.log
+         jobname=plot_${SUFFIX}_ang_${suffix}_${list[$ii]}
+
+         echo "#!/bin/bash " >> $cmdfile
+         echo "${SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="5:00:00"
+         else
+            wall_tm="2:30:00"
+         fi
+
+         $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} ${cmdfile}
+
+         (( ii=ii+1 ))
+      done
    else					# Zeus, submit 1 job for each sat/list item
 
       ii=0
