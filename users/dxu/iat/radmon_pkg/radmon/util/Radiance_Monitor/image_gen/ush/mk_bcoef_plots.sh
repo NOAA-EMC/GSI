@@ -83,7 +83,7 @@ for type in ${SATYPE}; do
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" || $MY_MACHINE = "jibb" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
@@ -108,6 +108,8 @@ elif [[ $MY_MACHINE = "zeus" ]]; then
 elif [[ $MY_MACHINE = "badger" ]]; then
    $SUB -pe smp 40 -N ${jobname} -V -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 elif [[ $MY_MACHINE = "cardinal" ]]; then
+   $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/plot_bcoef.sh
+elif [[ $MY_MACHINE = "jibb" ]]; then
    $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/plot_bcoef.sh
 fi
 
