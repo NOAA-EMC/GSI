@@ -1,10 +1,10 @@
 module m_gsiBiases
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_gsiBiases
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_gsiBiases
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract: background bias estimation/correction
 !
@@ -54,6 +54,10 @@ module m_gsiBiases
 !   2007-04-10  todling - bug fix in alloc/dealloc (init/clean)
 !   2009-01-20  todling - protect against re-initialization try
 !   2013-10-19  todling - metguess now holds background
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !
 ! !AUTHOR:
 !   guo           org: gmao                date: 2006-10-01
@@ -84,6 +88,14 @@ module m_gsiBiases
   public :: bias_gust
   public :: bias_vis
   public :: bias_pblh
+  public :: bias_wspd10m
+  public :: bias_td2m
+  public :: bias_mxtm
+  public :: bias_mitm
+  public :: bias_pmsl
+  public :: bias_howv
+  public :: bias_tcamt
+  public :: bias_lcbas
 
   integer(i_kind),save :: bias_hour = -1
   integer(i_kind),save :: nbc       = -1
@@ -102,6 +114,14 @@ module m_gsiBiases
   real(r_kind),allocatable,dimension(:,:,:)   :: bias_gust
   real(r_kind),allocatable,dimension(:,:,:)   :: bias_vis
   real(r_kind),allocatable,dimension(:,:,:)   :: bias_pblh
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_wspd10m
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_td2m
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_mxtm
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_mitm
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_pmsl
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_howv
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_tcamt
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_lcbas
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_vor
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_div
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_cwmr
@@ -126,6 +146,7 @@ subroutine init_()
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !
@@ -151,7 +172,12 @@ subroutine init_()
 
   allocate(bias_ps(lat2,lon2,nbc),bias_tskin(lat2,lon2,nbc),&
            bias_gust(lat2,lon2,nbc),bias_vis(lat2,lon2,nbc),&
-           bias_pblh(lat2,lon2,nbc),bias_vor(lat2,lon2,nsig,nbc),&
+           bias_pblh(lat2,lon2,nbc),bias_wspd10m(lat2,lon2,nbc),&
+           bias_td2m(lat2,lon2,nbc),bias_mxtm(lat2,lon2,nbc), &
+           bias_mitm(lat2,lon2,nbc),bias_pmsl(lat2,lon2,nbc),&
+           bias_howv(lat2,lon2,nbc),&
+           bias_vor(lat2,lon2,nsig,nbc),&
+           bias_tcamt(lat2,lon2,nbc),bias_lcbas(lat2,lon2,nbc),&
            bias_div(lat2,lon2,nsig,nbc),bias_cwmr(lat2,lon2,nsig,nbc),&
            bias_oz(lat2,lon2,nsig,nbc),bias_q(lat2,lon2,nsig,nbc),&
            bias_tv(lat2,lon2,nsig,nbc),bias_u(lat2,lon2,nsig,nbc),&
@@ -169,6 +195,14 @@ subroutine init_()
            bias_gust (i,j,n)=zero
            bias_vis  (i,j,n)=zero
            bias_pblh (i,j,n)=zero
+           bias_wspd10m (i,j,n)=zero
+           bias_td2m (i,j,n)=zero
+           bias_mxtm (i,j,n)=zero
+           bias_mitm (i,j,n)=zero
+           bias_pmsl  (i,j,n)=zero
+           bias_howv  (i,j,n)=zero
+           bias_tcamt (i,j,n)=zero
+           bias_lcbas (i,j,n)=zero
         end do
      end do
   end do
@@ -203,6 +237,7 @@ subroutine clean_()
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !
@@ -220,8 +255,9 @@ subroutine clean_()
 
    if (.not.initialized_) return 
    if ( nbc < 0 ) return
-   deallocate(bias_ps,bias_tskin,bias_gust,bias_vis,bias_pblh,bias_vor,bias_div,&
-              bias_tv,bias_q,bias_oz,bias_cwmr,bias_u,bias_v,stat=istatus)
+   deallocate(bias_ps,bias_tskin,bias_gust,bias_vis,bias_pblh,bias_wspd10m, &
+              bias_td2m,bias_mxtm,bias_mitm,bias_pmsl,bias_howv,bias_vor,bias_div,&
+              bias_tv,bias_q,bias_oz,bias_cwmr,bias_u,bias_v,bias_tcamt,bias_lcbas,stat=istatus)
    write(6,*)'CREATE_BIAS_GRIDS:  deallocate error5, istatus=',istatus
 end subroutine clean_
 
@@ -277,8 +313,8 @@ subroutine comp2d_(bias2d_,bias,hour)
    sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias2d_(:,:) = bias(:,:,1) + &
- 		  bias(:,:,2)*coshr + &
-	 	  bias(:,:,3)*sinhr
+                  bias(:,:,2)*coshr + &
+                  bias(:,:,3)*sinhr
 end subroutine comp2d_
 
 !-------------------------------------------------------------------------
@@ -333,8 +369,8 @@ subroutine comp3d_(bias3d_,bias,hour)
    sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
 
    bias3d_(:,:,:) = bias(:,:,:,1) + &
-	 	    bias(:,:,:,2)*coshr + &
- 		    bias(:,:,:,3)*sinhr
+                    bias(:,:,:,2)*coshr + &
+                    bias(:,:,:,3)*sinhr
 end subroutine comp3d_
 
 !-------------------------------------------------------------------------
@@ -680,6 +716,10 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 !   2007-04-13  tremolet - initial code
 !   2010-05-13  todling  - update to use gsi_bundle (not fully up-to-date)
 !   2011-02-11  zhu      - add gust,vis,pblh
+!   2014-03-19  pondeca  - add wspd10m
+!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !
 ! !REMARKS:
 !   language: f90
@@ -690,8 +730,9 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 
    character(len=*),parameter::myname_='update_st'
    integer(i_kind) ier,istatus
-   integer(i_kind) i_gust,i_vis,i_pblh
-   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh
+   integer(i_kind) i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas
+   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh,sv_wspd10m, &
+                                            sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_tcamt,sv_lcbas
    real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_q,sv_tv,sv_oz,sv_cw
 !  real(r_kind),pointer,dimension(:,:,:) :: sv_prse,sv_tsen
 
@@ -722,6 +763,47 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
       if (i_pblh>0) then
          call gsi_bundlegetpointer (xhat,'pblh' ,sv_pblh, istatus); ier=istatus+ier
       end if
+      
+      call gsi_bundlegetpointer (xhat,'wspd10m' ,i_wspd10m, istatus)
+      if (i_wspd10m>0) then
+         call gsi_bundlegetpointer (xhat,'wspd10m' ,sv_wspd10m, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'td2m' ,i_td2m, istatus)
+      if (i_td2m>0) then
+         call gsi_bundlegetpointer (xhat,'td2m' ,sv_td2m, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'mxtm' ,i_mxtm, istatus)
+      if (i_mxtm>0) then
+         call gsi_bundlegetpointer (xhat,'mxtm' ,sv_mxtm, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'mitm' ,i_mitm, istatus)
+      if (i_mitm>0) then
+         call gsi_bundlegetpointer (xhat,'mitm' ,sv_mitm, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'pmsl' ,i_pmsl, istatus)
+      if (i_pmsl>0) then
+         call gsi_bundlegetpointer (xhat,'pmsl' ,sv_pmsl, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'howv' ,i_howv, istatus)
+      if (i_howv>0) then
+         call gsi_bundlegetpointer (xhat,'howv' ,sv_howv, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'tcamt' ,i_tcamt, istatus)
+      if (i_tcamt>0) then
+         call gsi_bundlegetpointer (xhat,'tcamt' ,sv_tcamt, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'lcbas' ,i_lcbas, istatus)
+      if (i_lcbas>0) then
+         call gsi_bundlegetpointer (xhat,'lcbas' ,sv_lcbas, istatus); ier=istatus+ier
+      end if
+
    end if
    if(ier/=0) then
       write(6,*) trim(myname_), ': trouble getting SV pointers, ier=',ier
@@ -743,6 +825,14 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
      if (i_gust>0) call update2d_  (bias_gust,lat2,lon2,sv_gust,hour)
      if (i_vis>0 ) call update2d_  (bias_vis ,lat2,lon2,sv_vis ,hour)
      if (i_pblh>0) call update2d_  (bias_pblh,lat2,lon2,sv_pblh,hour)
+     if (i_wspd10m>0) call update2d_  (bias_wspd10m,lat2,lon2,sv_wspd10m,hour)
+     if (i_td2m>0) call update2d_  (bias_td2m,lat2,lon2,sv_td2m,hour)
+     if (i_mxtm>0) call update2d_  (bias_mxtm,lat2,lon2,sv_mxtm,hour)
+     if (i_mitm>0) call update2d_  (bias_mitm,lat2,lon2,sv_mitm,hour)
+     if (i_pmsl>0) call update2d_  (bias_pmsl,lat2,lon2,sv_pmsl,hour)
+     if (i_howv>0) call update2d_  (bias_howv,lat2,lon2,sv_howv,hour)
+     if (i_tcamt>0) call update2d_ (bias_tcamt,lat2,lon2,sv_tcamt,hour)
+     if (i_lcbas>0) call update2d_ (bias_lcbas,lat2,lon2,sv_lcbas,hour)
   end if
 
 end subroutine update_st
@@ -783,6 +873,10 @@ subroutine correct_()
 !   2006-12-04  todling - initial code
 !   2011-02-11  zhu     - add gust,vis,pblh
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !
 ! !TO DO:
 !
@@ -821,6 +915,14 @@ subroutine correct_()
   real(r_kind),allocatable,dimension(:,:)  :: b_gust
   real(r_kind),allocatable,dimension(:,:)  :: b_vis
   real(r_kind),allocatable,dimension(:,:)  :: b_pblh
+  real(r_kind),allocatable,dimension(:,:)  :: b_wspd10m
+  real(r_kind),allocatable,dimension(:,:)  :: b_td2m
+  real(r_kind),allocatable,dimension(:,:)  :: b_mxtm
+  real(r_kind),allocatable,dimension(:,:)  :: b_mitm
+  real(r_kind),allocatable,dimension(:,:)  :: b_pmsl
+  real(r_kind),allocatable,dimension(:,:)  :: b_howv
+  real(r_kind),allocatable,dimension(:,:)  :: b_tcamt
+  real(r_kind),allocatable,dimension(:,:)  :: b_lcbas
   real(r_kind),allocatable,dimension(:,:,:):: b_vor
   real(r_kind),allocatable,dimension(:,:,:):: b_div
   real(r_kind),allocatable,dimension(:,:,:):: b_cwmr
@@ -837,9 +939,11 @@ subroutine correct_()
 
   allocate(hours(nfldsig))
   allocate(b_ps(lat2,lon2),b_tskin(lat2,lon2),b_gust(lat2,lon2),&
-           b_vis(lat2,lon2),b_pblh(lat2,lon2),b_vor(lat2,lon2,nsig),&
-           b_div(lat2,lon2,nsig),b_cwmr(lat2,lon2,nsig),&
-           b_oz(lat2,lon2,nsig),b_q(lat2,lon2,nsig),&
+           b_vis(lat2,lon2),b_pblh(lat2,lon2),b_wspd10m(lat2,lon2), &
+           b_td2m(lat2,lon2),b_mxtm(lat2,lon2),b_mitm(lat2,lon2), &
+           b_pmsl(lat2,lon2),b_howv(lat2,lon2),b_vor(lat2,lon2,nsig),&
+           b_div(lat2,lon2,nsig),b_cwmr(lat2,lon2,nsig),b_tcamt(lat2,lon2),&
+           b_lcbas(lat2,lon2),b_oz(lat2,lon2,nsig),b_q(lat2,lon2,nsig),&
            b_tv(lat2,lon2,nsig),b_u(lat2,lon2,nsig),b_v(lat2,lon2,nsig))
 
   do it=1,nfldsig
@@ -884,6 +988,22 @@ subroutine correct_()
         call comp2d_(b_vis ,bias_vis ,hours(it))
         if (getindex(svars2d,'pblh')>0) &
         call comp2d_(b_pblh,bias_pblh,hours(it))
+        if (getindex(svars2d,'wspd10m')>0) &
+        call comp2d_(b_wspd10m,bias_wspd10m,hours(it))
+        if (getindex(svars2d,'td2m')>0) &
+        call comp2d_(b_td2m,bias_td2m,hours(it))
+        if (getindex(svars2d,'mxtm')>0) &
+        call comp2d_(b_mxtm,bias_mxtm,hours(it))
+        if (getindex(svars2d,'mitm')>0) &
+        call comp2d_(b_mitm,bias_mitm,hours(it))
+        if (getindex(svars2d,'pmsl')>0) &
+        call comp2d_(b_pmsl,bias_pmsl,hours(it))
+        if (getindex(svars2d,'howv')>0) &
+        call comp2d_(b_howv,bias_howv,hours(it))
+        if (getindex(svars2d,'tcamt')>0) &
+        call comp2d_(b_tcamt,bias_tcamt,hours(it))
+        if (getindex(svars2d,'lcbas')>0) &
+        call comp2d_(b_lcbas,bias_lcbas,hours(it))
      end if
 
      bias_hour=hours(ntguessig)
@@ -926,13 +1046,46 @@ subroutine correct_()
         if (ier==0.and.getindex(svars2d,'pblh')>0) then
            ptr2dges = ptr2dges + b_pblh
         end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'wspd10m',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'wspd10m')>0) then
+           ptr2dges = ptr2dges + b_wspd10m
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'td2m',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'td2m')>0) then
+           ptr2dges = ptr2dges + b_td2m
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mxtm',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'mxtm')>0) then
+           ptr2dges = ptr2dges + b_mxtm
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mitm',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'mitm')>0) then
+           ptr2dges = ptr2dges + b_mitm
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pmsl',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'pmsl')>0) then
+           ptr2dges = ptr2dges + b_pmsl
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'howv',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'howv')>0) then
+           ptr2dges = ptr2dges + b_howv
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'tcamt')>0) then
+           ptr2dges = ptr2dges + b_tcamt
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'lcbas')>0) then
+           ptr2dges = ptr2dges + b_lcbas
+        end if
      end if
   end do
 
 ! Clean up bias-related arrays
 
   deallocate(hours)
-  deallocate(b_ps,b_tskin,b_gust,b_vis,b_pblh,b_vor,b_div,b_cwmr,b_oz,b_q,b_tv,b_u,b_v)
+  deallocate(b_ps,b_tskin,b_gust,b_vis,b_pblh,b_wspd10m,b_td2m,b_mxtm,b_mitm,b_pmsl,b_howv, &
+             b_vor,b_div,b_cwmr,b_oz,b_q,b_tv,b_u,b_v,b_tcamt,b_lcbas)
 
 end subroutine correct_
 

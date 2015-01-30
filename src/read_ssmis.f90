@@ -58,6 +58,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-07-10  sienkiewicz  add control for choosing noise reduction method  0=no smoothing
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
+!   2014-12-03  derber remove unused variables
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -133,7 +134,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter    :: tbmin=70.0_r_kind
   real(r_kind),parameter    :: tbmax=320.0_r_kind
   real(r_kind),parameter    :: one_minute=0.01666667_r_kind
-  real(r_kind),parameter    :: minus_one_minute=-0.01666667_r_kind
 
   logical :: do_noise_reduction
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
@@ -151,7 +151,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) :: isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
@@ -176,7 +175,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: disterr,disterrmax,dlon00,dlat00
+  real(r_kind) :: disterr,disterrmax,cdist,dlon00,dlat00
   real(r_kind) :: fovn,scan,orbn,rainf
   real(r_kind) :: sort_time1, sort_time2   
   real(r_kind) :: flgch
@@ -184,7 +183,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: dlat,dlon
   real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
   real(r_kind) :: utc_hour,sun_zenith,sun_azimuth
-  real(r_kind) :: sstx_1,sstx_2,sstx_3,sstx_4
 
   real(r_double),dimension(7)         :: bufrinit
   real(r_double),dimension(3,5)       :: bufrymd
@@ -194,7 +192,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   
   real(r_double) :: rnode
 
-  real(r_kind),dimension(0:3) :: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: ts
@@ -614,8 +611,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
            ntest=ntest+1
-           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+           cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
            disterrmax=max(disterrmax,disterr)
         end if
 
@@ -685,21 +684,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
      else
-        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
-           idomsfc(1),sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
-           idomsfc(1),sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
-           idomsfc(1),sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
-           idomsfc(1),sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-        sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/four
-        sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/four
-        sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/four
-        sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/four
      endif ! isfcalc==1
 
      crit1 = crit1 + rlndsea(isflg)

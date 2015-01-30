@@ -14,6 +14,8 @@ module intradmod
 !   2009-08-13  lueken - update documentation
 !   2011-05-17  todling - add internal routine set_
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off and
+!                         add threading
 !
 ! subroutines included:
 !   sub intrad_
@@ -256,7 +258,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
   use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
@@ -279,7 +281,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   integer(i_kind) j1,j2,j3,j4,i1,i2,i3,i4,n,k,ic,ix,nn,mm
   integer(i_kind) ier,istatus
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
-  real(r_kind) val
+  real(r_kind),allocatable,dimension(:):: val
   real(r_kind) w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
@@ -406,10 +408,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      w3=radptr%wij(3)
      w4=radptr%wij(4)
 
-     do k=1,nsigradjac
-        tval(k)=zero
-     end do
-
 !  Begin Forward model
 !  calculate temperature, q, ozone, sst vector at observation location
      i1n(1) = j1
@@ -423,6 +421,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -468,24 +467,27 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            tdir(iqs+k)=w1* sqs(i1)+w2* sqs(i2)+ &
                        w3* sqs(i3)+w4* sqs(i4)
         end if
-     end do
+        if(k == 1)then
+           if(luseu)then
+              tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
+                             w3* su(j3) +w4* su(j4)
+           endif
+           if(lusev)then
+              tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
+                             w3* sv(j3) +w4* sv(j4)
+           endif
+           if(lusesst)then
+              tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
+                           w3*sst(j3) +w4*sst(j4)
+           end if
+        end if
 
-     if(luseu)then
-        tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
-                       w3* su(j3) +w4* su(j4)
-     endif
-     if(lusev)then
-        tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
-                       w3* sv(j3) +w4* sv(j4)
-     endif
-     if(lusesst)then
-        tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
-                     w3*sst(j3) +w4*sst(j4)
-     end if
+     end do
 
 
      if (l_foto) then
         time_rad=radptr%time*r3600
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
@@ -522,37 +524,39 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !  For all other configurations
 !  begin channel specific calculations
+     allocate(val(radptr%nchan))
+!$omp parallel do schedule(dynamic,1) !private(nn,ic,ix,k,n,cg_rad,wnotgross,wgross,p0)
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
         ix=(ic-1)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
-        val=zero
+        val(nn)=zero
 
 !       Include contributions from atmospheric jacobian
         do k=1,nsigradjac
-           val=val+tdir(k)*radptr%dtb_dvar(k,nn)
+           val(nn)=val(nn)+tdir(k)*radptr%dtb_dvar(k,nn)
         end do
 
 !       Include contributions from remaining bias correction terms
         if( .not. ladtest_obs) then
            do n=1,npred
-              val=val+spred(ix+n)*radptr%pred(n,nn)
+              val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
            end do
         end if
 
-        if (lsaveobsens) then
-           radptr%diags(nn)%ptr%obssen(jiter) = val*radptr%err2(nn)*radptr%raterr2(nn)
-        else
-           if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val
+        if(luse_obsdiag)then
+           if (lsaveobsens) then
+              val(nn) = val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
+              radptr%diags(nn)%ptr%obssen(jiter) = val(nn)
+           else
+              if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val(nn)
+           endif
         endif
 
         if (l_do_adjoint) then
-           if (lsaveobsens) then
-              val=radptr%diags(nn)%ptr%obssen(jiter)
-
-           else
-              if( .not. ladtest_obs)   val=val-radptr%res(nn)
+           if (.not. lsaveobsens) then
+              if( .not. ladtest_obs)   val(nn)=val(nn)-radptr%res(nn)
 
 !             Multiply by variance.
               if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
@@ -560,60 +564,69 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
                  cg_rad=cg_term/b_rad(ic)
                  wnotgross= one-pg_rad(ic)*varqc_iter
                  wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
-                 p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*val*val))
-                 val = val*(one-p0)
+                 p0   = wgross/(wgross+exp(-half*radptr%err2(nn)*val(nn)*val(nn)))
+                 val(nn) = val(nn)*(one-p0)
               endif
 
-              if(.not. ladtest_obs )val = val*radptr%err2(nn)*radptr%raterr2(nn)
+              if(.not. ladtest_obs )val(nn) = val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
            endif
-
-!          Begin adjoint
-
-!          Extract contributions from atmospheric jacobian
-           do k=1,nsigradjac
-              tval(k)=tval(k)+radptr%dtb_dvar(k,nn)*val
-           end do
 
 !          Extract contributions from bias correction terms
 !          use compensated summation
            if( .not. ladtest_obs) then
               if(radptr%luse)then
                  do n=1,npred
-                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
+                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
                  end do
               end if
            end if ! not ladtest_obs
-        endif
+        end if
      end do
+!          Begin adjoint
 
      if (l_do_adjoint) then
-!    Distribute adjoint contributions over surrounding grid points
-        if(luseu) then
-           ru(j1)=ru(j1)+w1*tval(ius+1)
-           ru(j2)=ru(j2)+w2*tval(ius+1)
-           ru(j3)=ru(j3)+w3*tval(ius+1)
-           ru(j4)=ru(j4)+w4*tval(ius+1)
-        endif
-        if(lusev) then
-           rv(j1)=rv(j1)+w1*tval(ivs+1)
-           rv(j2)=rv(j2)+w2*tval(ivs+1)
-           rv(j3)=rv(j3)+w3*tval(ivs+1)
-           rv(j4)=rv(j4)+w4*tval(ivs+1)
-        endif
+!$omp parallel do schedule(dynamic,1) private(k,nn)
+        do k=1,nsigradjac
+           tval(k)=zero
 
-        if (lusesst) then
-           rst(j1)=rst(j1)+w1*tval(isst+1)
-           rst(j2)=rst(j2)+w2*tval(isst+1)
-           rst(j3)=rst(j3)+w3*tval(isst+1)
-           rst(j4)=rst(j4)+w4*tval(isst+1)
-        end if
+           do nn=1,radptr%nchan
+!          Extract contributions from atmospheric jacobian
+              tval(k)=tval(k)+radptr%dtb_dvar(k,nn)*val(nn)
+           end do
+
+        end do
+
+!    Distribute adjoint contributions over surrounding grid points
  
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
            i3 = i3n(k)
            i4 = i4n(k)
 
+           if(k == 1)then
+              if(luseu) then
+                 ru(j1)=ru(j1)+w1*tval(ius+1)
+                 ru(j2)=ru(j2)+w2*tval(ius+1)
+                 ru(j3)=ru(j3)+w3*tval(ius+1)
+                 ru(j4)=ru(j4)+w4*tval(ius+1)
+              endif
+              if(lusev) then
+                 rv(j1)=rv(j1)+w1*tval(ivs+1)
+                 rv(j2)=rv(j2)+w2*tval(ivs+1)
+                 rv(j3)=rv(j3)+w3*tval(ivs+1)
+                 rv(j4)=rv(j4)+w4*tval(ivs+1)
+              endif
+
+              if (lusesst) then
+                 rst(j1)=rst(j1)+w1*tval(isst+1)
+                 rst(j2)=rst(j2)+w2*tval(isst+1)
+                 rst(j3)=rst(j3)+w3*tval(isst+1)
+                 rst(j4)=rst(j4)+w4*tval(isst+1)
+              end if
+           end if
+ 
            if(luset)then
               mm=itv+k
               rt(i1)=rt(i1)+w1*tval(mm)
@@ -686,23 +699,26 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            end if
         end do
         if (l_foto) then
-           if(luseu) then
-              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
-              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
-              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
-              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
-           endif
-           if(lusev) then
-              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
-              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
-              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
-              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
-           endif
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
            do k=1,nsig
               i1 = i1n(k)
               i2 = i2n(k)
               i3 = i3n(k)
               i4 = i4n(k)
+              if(k == 1)then
+                 if(luseu) then
+                    dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
+                    dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
+                    dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
+                    dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
+                 endif
+                 if(lusev) then
+                    dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
+                    dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
+                    dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
+                    dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
+                 endif
+              endif
               if(luset)then
                  mm=itv+k
                  dhat_dt_t(i1)=dhat_dt_t(i1)+w1*tval(mm)*time_rad
@@ -728,6 +744,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         endif
 
      endif ! < l_do_adjoint >
+     deallocate(val)
 
      radptr => radptr%llpoint
   end do

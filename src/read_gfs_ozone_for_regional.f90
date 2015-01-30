@@ -24,6 +24,7 @@ subroutine read_gfs_ozone_for_regional
 !   2014-06-30  wu      - bug fix for undefined variable "proceed" in check_vars_
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
+!   2014-12-03  derber  - modify call to general_read_gfsatm
 !   2014-12-05  wu      - read in just one GFS for ozone even when nfldsig > 1
 !   2015-01-14  wu      - use the same ges_oz in all time levels              
 !
@@ -278,10 +279,10 @@ subroutine read_gfs_ozone_for_regional
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
 
   if (hires) then
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,z,ps, &
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
                               vor,div,u,v,tv,q,cwmr,oz,iret)
   else
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps, &
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
                               vor,div,u,v,tv,q,cwmr,oz,iret)
   end if
 

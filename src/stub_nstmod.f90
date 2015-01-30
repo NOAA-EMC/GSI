@@ -138,8 +138,8 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      real(r_kind):: dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
      integer(i_kind) istyp00,istyp01,istyp10,istyp11
      integer(i_kind):: itnst,itnstp
-     integer(i_kind):: ix,iy,ixp,iyp,j,i,k
-     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtnst,dtnstp,wgtmin
+     integer(i_kind):: ix,iy,ixp,iyp,j
+     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtnst,dtnstp
      real(r_kind):: tref_00,tref_01,tref_10,tref_11,tr_tmp
      real(r_kind):: dt_cool_00,dt_cool_01,dt_cool_10,dt_cool_11
      real(r_kind):: z_c_00,z_c_01,z_c_10,z_c_11

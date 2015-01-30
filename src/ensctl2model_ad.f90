@@ -1,7 +1,7 @@
-subroutine model2ensctl(eval,mval,grad)
+subroutine ensctl2model_ad(eval,mval,grad)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    model2ensctl
+! subprogram:    ensctl2model
 !   prgmmr: kleist
 !
 ! abstract:  Contribution from state space to ensemble control vector
@@ -25,6 +25,7 @@ use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
+use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
 use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult
 use balmod, only: strong_bk_ad
@@ -49,7 +50,7 @@ type(gsi_bundle)    , intent(inout) :: mval
 type(gsi_bundle)    , intent(in   ) :: eval(ntlevs_ens)
 
 ! Declare local variables
-character(len=*),parameter::myname='state2ensctl'
+character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: ii,jj,ic,id,istatus,nclouds,nn
 
@@ -254,4 +255,4 @@ if (nclouds>0) deallocate(clouds)
 call timer_fnl(trim(myname))
 
 return 
-end subroutine model2ensctl
+end subroutine ensctl2model_ad

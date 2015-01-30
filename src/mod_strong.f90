@@ -16,10 +16,16 @@ module mod_strong
 !   2012-02-08 kleist - add option tlnmc_option to control how TLNMC is applied
 !   2013-07-02 parrish - change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
 !                          longer used for global application of tlnmc.
+!   2014-12-03  derber  - remove unused variables
 !
 ! Subroutines Included:
 !   sub init_strongvars  - set default namelist variable values
-!   sub gproj            - project input u,v,mass variable to gravity modes
+!   sub gproj            - project input u,v,mass variable to gravity modes for
+!   update
+!   sub gproj_diag       - project input u,v,mass variable to gravity modes plus
+!   diagnostics
+!   sub gproj_diag_update- project input u,v,mass variable to gravity modes plus
+!   diagnostic and update
 !   sub gproj0           -
 !   sub gproj_ad         -
 !   sub dinmi            - obtain balance increment from input tendencies
@@ -69,6 +75,8 @@ implicit none
 ! set subroutines to public
   public :: init_strongvars
   public :: gproj
+  public :: gproj_diag
+  public :: gproj_diag_update
   public :: gproj0
   public :: gproj_ad
   public :: dinmi
@@ -137,7 +145,7 @@ contains
   end subroutine init_strongvars
           
 
-  subroutine gproj(vort,div,phi,vort_g,div_g,phi_g,rmstend,rmstend_g,filtered,bal_diag,&
+  subroutine gproj_diag_update(vort,div,phi,vort_g,div_g,phi_g,rmstend,rmstend_g,rmstend_f,rmstend_fg, &
          m,mmax,gspeed)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -181,19 +189,143 @@ contains
     real(r_kind),intent(in   ),dimension(2,m:mmax):: vort,div,phi
     real(r_kind),intent(  out),dimension(2,m:mmax):: vort_g,div_g,phi_g
     real(r_kind),intent(in   ) :: gspeed
-    real(r_kind),intent(inout) :: rmstend,rmstend_g
+    real(r_kind),intent(inout) :: rmstend,rmstend_g,rmstend_f,rmstend_fg
     integer(i_kind),intent(in) :: m,mmax
-    logical     ,intent(in   ) :: filtered,bal_diag
 
     real(r_kind),dimension(2,m:mmax):: vort_hat,div_hat,phi_hat,vort_hat_g,phi_hat_g
     real(r_kind),dimension(m:mmax):: b,c,f,c2,c3
 
     call getbcf(b,c,f,c2,c3,m,mmax,gspeed)
-    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,filtered,c2,c3,m,mmax,gspeed)
-    if(bal_diag)call balm_1(vort_hat,div_hat,phi_hat,rmstend,m,mmax)
+    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,.false.,c2,c3,m,mmax,gspeed)
+    call balm_1(vort_hat,div_hat,phi_hat,rmstend,m,mmax)
 
     call gproj0(vort_hat,phi_hat,vort_hat_g,phi_hat_g,c,f,m,mmax)
-    if(bal_diag)call balm_1(vort_hat_g,div_hat,phi_hat_g,rmstend_g,m,mmax)
+    call balm_1(vort_hat_g,div_hat,phi_hat_g,rmstend_g,m,mmax)
+
+    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,.true.,c2,c3,m,mmax,gspeed)
+    call balm_1(vort_hat,div_hat,phi_hat,rmstend_f,m,mmax)
+
+    call gproj0(vort_hat,phi_hat,vort_hat_g,phi_hat_g,c,f,m,mmax)
+    call balm_1(vort_hat_g,div_hat,phi_hat_g,rmstend_fg,m,mmax)
+
+    call unscale_vars(vort_hat_g,div_hat,phi_hat_g,vort_g,div_g,phi_g,c2,c3,m,mmax)
+
+  end subroutine gproj_diag_update
+  subroutine gproj_diag(vort,div,phi,rmstend,rmstend_g,rmstend_f,rmstend_fg,&
+         m,mmax,gspeed)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    gproj
+!
+!   prgrmmr:
+!
+! abstract:    
+!         for gravity wave projection:    vort, div, phi --> vort_g, div_g, phi_g
+!
+!         scale:      vort,div,phi --> vort_hat,div_hat,phi_hat
+!
+!         solve:     (F*F+C*C)*x = F*vort_hat + C*phi_hat
+!         then:
+!               phi_hat_g = C*x
+!              vort_hat_g = F*x
+!               div_hat_g = div_hat
+!
+!         unscale:    vort_hat_g, div_hat_g, phi_hat_g --> vort_g, div_g, phi_g
+!
+! program history log:
+!   2008-05-05  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     vort,div,phi
+!     rmstend,rmstend_g
+!     filtered
+!
+!   output argument list:
+!     vort_g,div_g,phi_g
+!     rmstend,rmstend_g
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+    implicit none
+
+    real(r_kind),intent(in   ),dimension(2,m:mmax):: vort,div,phi
+    real(r_kind),intent(in   ) :: gspeed
+    real(r_kind),intent(inout) :: rmstend,rmstend_g,rmstend_f,rmstend_fg
+    integer(i_kind),intent(in) :: m,mmax
+
+    real(r_kind),dimension(2,m:mmax):: vort_hat,div_hat,phi_hat,vort_hat_g,phi_hat_g
+    real(r_kind),dimension(m:mmax):: b,c,f,c2,c3
+
+    call getbcf(b,c,f,c2,c3,m,mmax,gspeed)
+    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,.false.,c2,c3,m,mmax,gspeed)
+    call balm_1(vort_hat,div_hat,phi_hat,rmstend,m,mmax)
+
+    call gproj0(vort_hat,phi_hat,vort_hat_g,phi_hat_g,c,f,m,mmax)
+    call balm_1(vort_hat_g,div_hat,phi_hat_g,rmstend_g,m,mmax)
+
+    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,.true.,c2,c3,m,mmax,gspeed)
+    call balm_1(vort_hat,div_hat,phi_hat,rmstend_f,m,mmax)
+
+    call gproj0(vort_hat,phi_hat,vort_hat_g,phi_hat_g,c,f,m,mmax)
+    call balm_1(vort_hat_g,div_hat,phi_hat_g,rmstend_fg,m,mmax)
+
+  end subroutine gproj_diag
+  subroutine gproj(vort,div,phi,vort_g,div_g,phi_g,m,mmax,gspeed)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    gproj
+!
+!   prgrmmr:
+!
+! abstract:    
+!         for gravity wave projection:    vort, div, phi --> vort_g, div_g, phi_g
+!
+!         scale:      vort,div,phi --> vort_hat,div_hat,phi_hat
+!
+!         solve:     (F*F+C*C)*x = F*vort_hat + C*phi_hat
+!         then:
+!               phi_hat_g = C*x
+!              vort_hat_g = F*x
+!               div_hat_g = div_hat
+!
+!         unscale:    vort_hat_g, div_hat_g, phi_hat_g --> vort_g, div_g, phi_g
+!
+! program history log:
+!   2008-05-05  safford -- add subprogram doc block, rm unused uses
+!
+!   input argument list:
+!     vort,div,phi
+!     rmstend,rmstend_g
+!     filtered
+!
+!   output argument list:
+!     vort_g,div_g,phi_g
+!     rmstend,rmstend_g
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+    implicit none
+
+    real(r_kind),intent(in   ),dimension(2,m:mmax):: vort,div,phi
+    real(r_kind),intent(  out),dimension(2,m:mmax):: vort_g,div_g,phi_g
+    real(r_kind),intent(in   ) :: gspeed
+    integer(i_kind),intent(in) :: m,mmax
+
+    real(r_kind),dimension(2,m:mmax):: vort_hat,div_hat,phi_hat,vort_hat_g,phi_hat_g
+    real(r_kind),dimension(m:mmax):: b,c,f,c2,c3
+
+    call getbcf(b,c,f,c2,c3,m,mmax,gspeed)
+    call scale_vars(vort,div,phi,vort_hat,div_hat,phi_hat,.true.,c2,c3,m,mmax,gspeed)
+
+    call gproj0(vort_hat,phi_hat,vort_hat_g,phi_hat_g,c,f,m,mmax)
 
     call unscale_vars(vort_hat_g,div_hat,phi_hat_g,vort_g,div_g,phi_g,c2,c3,m,mmax)
 

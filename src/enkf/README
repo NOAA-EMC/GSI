@@ -1,6 +1,6 @@
 To compile:
 
-1) create symlink to Makefile.conf for your platform (zeus or wcoss). For example, on zeus
+1) create symlink to Makefile.conf for your platform (zeus, jet or wcoss). For example, on zeus
    ln -fs Makefile.conf.zeus Makefile.conf
 
 2) make sure the relevant modules are loaded on zeus, i.e.
@@ -33,7 +33,7 @@ To compile:
 
   are commented out.
 
-5) To compile enkf for NMMBF model, edit Makefile.conf and make sure the lines
+5) To compile enkf for NMMB model, edit Makefile.conf and make sure the lines
 
   FFLAGS_F90    = -DNMMB
   EXE_FILE = nmmb_enkf

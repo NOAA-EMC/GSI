@@ -137,7 +137,6 @@ subroutine Set_CRTM_Aerosol_ ( km, na, na_crtm, aero_name, aero_conc, rh, aeroso
   integer(i_kind) ,intent(in) :: kk, itype
   real(r_kind)    ,intent(in) :: eh
 
-  real(r_kind), parameter :: reff_seasalt(4) = Reshape( (/0.3_r_kind, 1.0_r_kind, 3.25_r_kind, 7.5_r_kind/), (/4/) )
   integer(i_kind) :: j1,j2,k
   real(r_kind)    :: h1
   real(r_kind)    :: R_eff

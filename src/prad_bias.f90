@@ -20,7 +20,7 @@
   use mpimod, only: mype
   use radinfo, only: npred,jpch_rad,iuse_rad,predx,inew_rad
   use gsi_4dvar, only: nobs_bins
-  use obsmod, only: radheadm,radptrm,destroyobs_passive
+  use obsmod, only: radheadm,radptrm
   use berror, only: varprd
   use mpl_allreducemod, only: mpl_allreduce
   use timermod, only: timer_ini,timer_fnl

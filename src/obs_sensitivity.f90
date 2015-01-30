@@ -196,7 +196,7 @@ if (lobsensfc) then
             zbias=zero
             call gsi_4dcoupler_getpert(fcgrad,nsubwin,'adm',fname)
             if (lsqrtb) then
-               call model2control(fcgrad,zbias,fcsens)
+               call control2model_ad(fcgrad,zbias,fcsens)
             else
                if (l_hyb_ens) then
                   do ii=1,ntlevs_ens
@@ -204,13 +204,13 @@ if (lobsensfc) then
                   end do
                   eval(1)=fcgrad(1)
                   fcgrad(1)=zero
-                  call state2ensctl(eval,fcgrad,fcsens)
-                  call state2control(fcgrad,zbias,fcsens)
+                  call ensctl2state_ad(eval,fcgrad(1),fcsens)
+                  call control2state_ad(fcgrad,zbias,fcsens)
                   do ii=1,ntlevs_ens
                      call deallocate_state(eval(ii))
                   end do
                else
-                  call state2control(fcgrad,zbias,fcsens)
+                  call control2state_ad(fcgrad,zbias,fcsens)
                end if
             endif
             do ii=1,nsubwin

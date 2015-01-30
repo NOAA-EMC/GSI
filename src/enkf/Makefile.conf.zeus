@@ -31,7 +31,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -45,6 +45,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   OMP = -openmp
 
   FFLAGS_F90    = -DGFS   
+  EXE_FILE = global_enkf
+  #FFLAGS_F90    = -DWRF   
+  #EXE_FILE = wrf_enkf
+  #FFLAGS_F90    = -DNMMB
+  #EXE_FILE = nmmb_enkf
 
   FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
 		-O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -convert big_endian $(OMP)
@@ -105,7 +110,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     =
+  LDFLAGS_D     = $(LDFLAGS_N)
 
 #--- Empty out mpi library definition: embedded in compiler
 

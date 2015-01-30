@@ -18,6 +18,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change tintrp2a to tintrp2a11 (so debug compile works on WCOSS)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -41,7 +42,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: vishead,vistail,rmiss_single,i_vis_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: vis_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
@@ -90,7 +91,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
   integer(i_kind) ier,ilon,ilat,ivis,id,itime,ikx,imaxerr,iqc
-  integer(i_kind) iuse,ilate,ilone,istnelv,isfcr,iobshgt,izz,iprvd,isprvd
+  integer(i_kind) iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
   integer(i_kind) istat
@@ -144,14 +145,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iqc=9       ! index of quality mark
   iuse=10     ! index of use parameter
   idomsfc=11  ! index of dominant surface type
-  isfcr=14    ! index of surface roughness
-  ilone=15    ! index of longitude (degrees)
-  ilate=16    ! index of latitude (degrees)
-  istnelv=17  ! index of station elevation (m)
-  iobshgt=18  ! index of observation height (m)
-  izz=19      ! index of surface height
-  iprvd=20    ! index of provider
-  isprvd=21   ! index of subprovider
+  ilone=12    ! index of longitude (degrees)
+  ilate=13    ! index of latitude (degrees)
+  istnelv=14  ! index of station elevation (m)
+  iobshgt=15  ! index of observation height (m)
+  izz=16      ! index of surface height
+  iprvd=17    ! index of provider
+  isprvd=18   ! index of subprovider
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -223,50 +223,52 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_vis_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_vis_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupvis: failure to allocate obsdiags',istat
-              call stop2(295)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_vis_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_vis_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupvis: failure to allocate obsdiags',istat
+                 call stop2(295)
+              end if
+              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_vis_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupvis: failure to allocate obsdiags',istat
+                 call stop2(295)
+              end if
+              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_vis_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupvis: failure to allocate obsdiags',istat
-              call stop2(295)
-           end if
-           obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_vis_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_vis_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_vis_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_vis_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_vis_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_vis_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_vis_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_vis_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_vis_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_vis_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_vis_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_vis_ob_type,ibin)%tail%obssen(:)=zero
+           allocate(obsdiags(i_vis_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_vis_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_vis_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_vis_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_vis_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_vis_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_vis_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_vis_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_vis_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_vis_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_vis_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_vis_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_vis_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-     else
-        if (.not.associated(obsdiags(i_vis_ob_type,ibin)%tail)) then
-           obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_vis_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
         else
-           obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_vis_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupvis: index error'
-           call stop2(297)
-        end if
+           if (.not.associated(obsdiags(i_vis_ob_type,ibin)%tail)) then
+              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
+           else
+              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
+           end if
+           if (obsdiags(i_vis_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupvis: index error'
+              call stop2(297)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -307,7 +309,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>0) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Compute penalty terms (linear & nonlinear qc).
      val      = error*ddiff
@@ -356,10 +358,12 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      endif
 
-     obsdiags(i_vis_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_vis_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_vis_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-     obsdiags(i_vis_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     if(luse_obsdiag)then
+        obsdiags(i_vis_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_vis_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_vis_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+        obsdiags(i_vis_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
@@ -375,10 +379,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            vistail(ibin)%head => vistail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) + 1
-	my_head => vistail(ibin)%head
-	my_head%idv = is
-	my_head%iob = i
+        m_alloc(ibin) = m_alloc(ibin) + 1
+        my_head => vistail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
         call get_ij(mm1,dlat,dlon,vistail(ibin)%head%ij(1),vistail(ibin)%head%wij(1))
@@ -390,18 +394,20 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         vistail(ibin)%head%b       = cvar_b(ikx)
         vistail(ibin)%head%pg      = cvar_pg(ikx)
         vistail(ibin)%head%luse    = luse(i)
-        vistail(ibin)%head%diags => obsdiags(i_vis_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           vistail(ibin)%head%diags => obsdiags(i_vis_ob_type,ibin)%tail
  
-	my_head => vistail(ibin)%head
-	my_diag => vistail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-	   my_head%iob /= my_diag%iob ) then
-	  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-	  	(/is,i,ibin/))
-	  call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-	  call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-	  call die(myname)
-	endif
+           my_head => vistail(ibin)%head
+           my_diag => vistail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                     (/is,i,ibin/))
+             call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+             call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+             call die(myname)
+           endif
+        endif
      endif
 
 

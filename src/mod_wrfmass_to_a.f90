@@ -522,7 +522,7 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 
   do j=1,ma
      gxa=xa(j)
-     call grdcrd(gxa,xb,mb,1)
+     call grdcrd1(gxa,xb,mb,1)
      jxa(j)=int(gxa)
      jxa(j)=min(max(1,jxa(j)),mb)
      dx(j)=max(zero,min(one,gxa-jxa(j)))
@@ -531,7 +531,7 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
   end do
   do i=1,na
      gya=ya(i)
-     call grdcrd(gya,yb,nb,1)
+     call grdcrd1(gya,yb,nb,1)
      iya(i)=int(gya)
      iya(i)=min(max(1,iya(i)),nb)
      dy(i)=max(zero,min(one,gya-iya(i)))
@@ -596,7 +596,7 @@ subroutine b_to_a_map(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 
   do j=1,ma
      gxa=xa(j)
-     call grdcrd(gxa,xb,mb,1)
+     call grdcrd1(gxa,xb,mb,1)
      jxa(j)=int(gxa)
      jxa(j)=min(max(1,jxa(j)),mb)
      dx(j)=max(zero,min(one,gxa-jxa(j)))
@@ -605,7 +605,7 @@ subroutine b_to_a_map(b,a,mb,nb,ma,na,xb,yb,xa,ya)
   end do
   do i=1,na
      gya=ya(i)
-     call grdcrd(gya,yb,nb,1)
+     call grdcrd1(gya,yb,nb,1)
      iya(i)=int(gya)
      iya(i)=min(max(1,iya(i)),nb)
      dy(i)=max(zero,min(one,gya-iya(i)))
