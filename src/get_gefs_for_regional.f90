@@ -128,7 +128,7 @@ if(ntlevs_ens > 1) then
       write(filelists(i),'("filelist",i2.2)')ifilesig(i)
    enddo
 else
-   write(filelists(i),'("filelist",i2.2)')nhr_assimilation
+   write(filelists(1),'("filelist",i2.2)')nhr_assimilation
 endif
 
 do it=1,ntlevs_ens
