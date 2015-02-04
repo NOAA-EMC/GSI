@@ -17,6 +17,10 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !                          some fields now from wrf_mass_guess_mod
 !    2013-10-19  todling - metguess now holds background 
 !    2013-10-24  todling - revisit strip interface
+!    2014-10-22  Hu      - Add analysis for rain number concentation 
+!                          reflectivity between 15-28dBZ
+!    2014-12-22  Hu      - Add light rain in precipiation analysis using radar
+!                          reflectivity between 15-28dBZ
 !
 !
 !   input argument list:
@@ -67,7 +71,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
                                       l_cld_bld, cld_bld_hgt,              &
                                       build_cloud_frac_p, clear_cloud_frac_p, &
                                       nesdis_npts_rad, &
-                                      iclean_hydro_withRef, iclean_hydro_withRef_allcol
+                                      iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
+                                      i_lightpcp
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -110,6 +115,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
   real(r_single), allocatable  :: OIstation(:)
   real(r_single), allocatable  :: OJstation(:)
   real(r_single), allocatable  :: wimaxstation(:)
+!
+  INTEGER(i_kind),allocatable  :: Osfc_station_map(:,:)
 !
 !  lightning observation: 2D field in RR grid
 !
@@ -161,6 +168,10 @@ SUBROUTINE  gsdcloudanalysis(mype)
   REAL(r_single),allocatable :: snow_3d(:,:,:)        ! snow
   REAL(r_single),allocatable :: graupel_3d(:,:,:)     ! graupel
   REAL(r_single),allocatable :: cldtmp_3d(:,:,:)      ! cloud temperature
+
+  REAL(r_single),allocatable :: rain_1d_save(:)       ! rain
+  REAL(r_single),allocatable :: nrain_1d_save(:)      ! rain number concentration    
+  REAL(r_single),allocatable :: snow_1d_save(:)       ! snow
 
   REAL(r_kind)    ::  thunderRadius=2.5_r_kind
   REAL(r_single)  ::  r_radius          ! influence radius of cloud based on METAR obs
@@ -215,7 +226,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
   LOGICAL :: ifindomain
   INTEGER(i_kind) :: imaxlvl_ref
   real(r_kind)    :: max_retrieved_qrqs,max_bk_qrqs,ratio_hyd_bk2obs
-  REAL(r_kind)    :: qrlimit
+  REAL(r_kind)    :: qrlimit,qrlimit_lightpcp
   character(10)   :: obstype
   integer(i_kind) :: lunin, is, ier, istatus
   integer(i_kind) :: nreal,nchanl,ilat1s,ilon1s
@@ -318,6 +329,9 @@ SUBROUTINE  gsdcloudanalysis(mype)
   sat_tem=miss_obs_real
   w_frac=miss_obs_real
   nlev_cld=miss_obs_int
+
+  allocate(Osfc_station_map(lon2,lat2))
+  Osfc_station_map=miss_obs_int
 !
 ! 1.2 start to read observations                 
 !
@@ -491,8 +505,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
 
   if(istat_Surface==1) then
      DO ista=1,numsao
-        iob = min(max(int(oistation(ista)+0.5),1),im)
-        job = min(max(int(ojstation(ista)+0.5),1),jm)
+        iob = min(max(int(OIstation(ista)+0.5),1),im)
+        job = min(max(int(OJstation(ista)+0.5),1),jm)
         wimaxstation(ista)=temp1(iob,job)
         if(wimaxstation(ista) > 0._r_single) then
             i=int(oi(ista))
@@ -501,6 +515,20 @@ SUBROUTINE  gsdcloudanalysis(mype)
      enddo
   endif
   deallocate(all_loc,strp,tempa,temp1)
+
+! make a surface station map in grid coordinate
+  if(istat_Surface==1) then
+     DO ista=1,numsao
+        iob = int(OIstation(ista)-jstart(mype+1)+2)
+        job = int(OJstation(ista)-istart(mype+1)+2)
+        if(iob >=1 .and. iob<=lon2-1 .and. job >=1 .and. job<=lat2-1) then
+           Osfc_station_map(iob,job)=1
+           Osfc_station_map(iob+1,job)=1
+           Osfc_station_map(iob,job+1)=1
+           Osfc_station_map(iob+1,job+1)=1
+        endif
+     enddo
+  endif
 
 !
 !  1.8 check if data available: if no data in this subdomain, return. 
@@ -547,6 +575,12 @@ SUBROUTINE  gsdcloudanalysis(mype)
   snow_3d=miss_obs_real
   graupel_3d=miss_obs_real
   cldtmp_3d=miss_obs_real
+  allocate(rain_1d_save(nsig))
+  allocate(nrain_1d_save(nsig))
+  allocate(snow_1d_save(nsig))
+  rain_1d_save=miss_obs_real
+  nrain_1d_save=miss_obs_real
+  snow_1d_save=miss_obs_real
 !          
 ! 2.4 read in background fields
 !          
@@ -630,7 +664,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
                          soiltbk,sat_ctp,sat_tem,w_frac,                  &
                          l_cld_bld,cld_bld_hgt,                           &
                          build_cloud_frac_p,clear_cloud_frac_p,nlev_cld,  &
-                         cld_cover_3d,cld_type_3d,wthr_type_2d)
+                         cld_cover_3d,cld_type_3d,wthr_type_2d,Osfc_station_map)
      if(mype == 0) write(6,*) 'gsdcloudanalysis:',                        & 
                    ' success in cloud cover analysis using NESDIS data'
   endif
@@ -813,6 +847,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
      END DO
   else  ! hydrometeor anlysis for RAP forecast
      qrlimit=3.0_r_kind*0.001_r_kind
+     qrlimit_lightpcp=1.0_r_kind*0.001_r_kind
      DO j=2,lat2-1
      DO i=2,lon2-1
         refmax=-999.0_r_kind
@@ -824,6 +859,9 @@ SUBROUTINE  gsdcloudanalysis(mype)
            endif
            rain_3d(i,j,k)=max(rain_3d(i,j,k)*0.001_r_kind,zero)
            snow_3d(i,j,k)=max(snow_3d(i,j,k)*0.001_r_kind,zero)
+           rain_1d_save(k)=rain_3d(i,j,k)
+           snow_1d_save(k)=snow_3d(i,j,k)
+           nrain_1d_save(k)=nrain_3d(i,j,k)
 !           ges_qnr(i,j,k)=max(ges_qnr(i,j,k),zero)
         ENDDO
         if( refmax > 0 .and. (imaxlvl_ref > 0 .and. imaxlvl_ref < nsig ) ) then       ! use retrieval hybrometeors
@@ -887,6 +925,17 @@ SUBROUTINE  gsdcloudanalysis(mype)
                        nrain_3d(i,j,k) = ges_qnr(j,i,k)
                     endif
                  END DO
+              endif
+              if(i_lightpcp == 1) then
+! keep light precipitation between 28-15 dBZ
+                 do k=1,nsig
+                    if(ref_mos_3d(i,j,k) >=15.0_r_single .and. &
+                       ref_mos_3d(i,j,k) <=28.0_r_single ) then
+                       rain_3d(i,j,k) = max(min(rain_1d_save(k),qrlimit_lightpcp),rain_3d(i,j,k))
+                       snow_3d(i,j,k) = max(min(snow_1d_save(k),qrlimit_lightpcp),snow_3d(i,j,k)) 
+                       nrain_3d(i,j,k)= max(nrain_1d_save(k),nrain_3d(i,j,k))
+                    endif
+                 enddo  ! light pcp
               endif
            endif
         else        ! clean if ref=0 or use background hydrometeors

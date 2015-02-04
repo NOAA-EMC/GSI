@@ -252,6 +252,7 @@ clean:
 	enorm_state.f90 \
 	ensctl2state.f90 \
 	ensctl2model.f90 \
+        en_perts_io.f90 \
 	evaljgrad.f90 \
 	evaljo.f90 \
 	evalqlim.f90 \

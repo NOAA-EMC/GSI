@@ -140,6 +140,7 @@ module hybrid_ensemble_parameters
 !   2013-11-22  kleist  - add option for q perturbations
 !   2013-12-03  wu      - add parameter coef_bw for option:betaflg
 !   2014-05-14  wu      - add logical variable vvlocal for vertically verying horizontal localization length in regional
+!   2015-01-22  Hu      - add flag i_en_perts_io to control saving and reading ensemble perturbation.
 !
 ! subroutines included:
 
@@ -211,6 +212,14 @@ module hybrid_ensemble_parameters
 !                                   (global runs only--allows possiblity for non-gaussian ensemble grid)
 !   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
 !   def vvlocal             - logical switch for vertically varying horizontal localization length
+!   def i_en_perts_io       - flag to write out and read in ensemble perturbations in ensemble grid.   
+!                             This is to speed up RAP/HRRR hybrid runs because the
+!                             same ensemble perturbations are used in 6 cycles    
+!                               =0:  No ensemble perturbations IO (default)
+!                               =1:  save ensemble perturbations after
+!                                    subroutine get_gefs_for_regional and exit GSI
+!                               =2:  skip get_gefs_for_regional and read in ensemble
+!                                     perturbations from saved files.
 !
 ! attributes:
 !   language: f90
@@ -257,6 +266,7 @@ module hybrid_ensemble_parameters
   public :: nval_lenz_en
   public :: ntlevs_ens
   public :: enspreproc
+  public :: i_en_perts_io
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
   logical enspreproc
@@ -273,6 +283,7 @@ module hybrid_ensemble_parameters
   logical use_gfs_ens
   logical eqspace_ensgrid
   logical vvlocal
+  integer i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens,coef_bw
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
@@ -359,6 +370,7 @@ subroutine init_hybrid_ensemble_parameters
   s_ens_v = 30._r_kind       ! grid units
   nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
+  i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
 
 end subroutine init_hybrid_ensemble_parameters
 

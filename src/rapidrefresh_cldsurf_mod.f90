@@ -10,6 +10,9 @@ module rapidrefresh_cldsurf_mod
 ! program history log:
 !   2008-06-03 Hu           initial build
 !   2010-03-29 Hu           change to fit the trunk version
+!   2015-01-15 Hu        added options i_use_2mQ4B,i_use_2mT4B, i_gsdcldanal_type
+!                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
+!                              rapidrefresh_cldsurf
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -62,8 +65,25 @@ module rapidrefresh_cldsurf_mod
 !   def iclean_hydro_withRef_allcol - if =1, then clean whole column
 !                                 hydrometeors if the observed max ref =0 and
 !                                 satellite obs shows clean
-!   def l_use_2mQ4B        - namelist logical for using 2m Q as part of B to 
+!   def i_use_2mQ4B        - namelist option for using 2m Q as part of B to 
 !                              calculate B for surface Q obs
+!   def i_use_2mQ4B        - namelist option for using 2m Q as part of B to 
+!                              calculate B for surface Q obs
+!   def i_gsdcldanal_type    - options for how GSD cloud analysis should be conducted
+!                         =0. no cloud analysis (default)
+!                         =1.  cloud analysis after var analysis
+!                         =2.  cloud analysis before var analysis
+!                         =3.  cloud analysis only
+!                         =4.  no cloud analysis but do hybrometeors NETCDF/IO
+!                         =5.  no cloud analysis but do hybrometeors NETCDF/I
+!                         =6.  cloud analysis only but do hybrometeors NETCDF/O
+!   def i_gsdsfc_uselist  - options for how to use surface observation use or
+!                          rejection list
+!                         =0 . EMC method
+!                         =1 . GSD method
+!   def i_lightpcp        - options for how to deal with light precipitation
+!                         =0 . don't add light precipitation 
+!                         =1 . add light precipitation in warm section
 !
 ! attributes:
 !   language: f90
@@ -106,7 +126,12 @@ module rapidrefresh_cldsurf_mod
   public :: nesdis_npts_rad
   public :: iclean_hydro_withRef
   public :: iclean_hydro_withRef_allcol
-  public :: l_use_2mQ4B
+  public :: i_use_2mQ4B
+  public :: i_use_2mT4B
+  public :: i_sfct_gross
+  public :: i_gsdcldanal_type
+  public :: i_gsdsfc_uselist
+  public :: i_lightpcp
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -136,7 +161,12 @@ module rapidrefresh_cldsurf_mod
   integer      nesdis_npts_rad 
   integer      iclean_hydro_withRef
   integer      iclean_hydro_withRef_allcol
-  logical l_use_2mQ4B
+  integer      i_use_2mQ4B
+  integer      i_use_2mT4B
+  integer      i_sfct_gross
+  integer      i_gsdcldanal_type
+  integer      i_gsdsfc_uselist 
+  integer      i_lightpcp
 
 contains
 
@@ -216,7 +246,12 @@ contains
     nesdis_npts_rad  = 1                              !  NESDIS impact radius
     iclean_hydro_withRef = 1                          ! clean based on ref
     iclean_hydro_withRef_allcol = 0                   ! don't clean whole column
-    l_use_2mQ4B = .false.                             ! .true. = Use 2m Q as part of B
+    i_use_2mQ4B = 0                                   ! 1 = Use 2m Q as part of B
+    i_use_2mT4B = 0                                   ! 1 = Use 2m T as part of B
+    i_sfct_gross = 0                                  ! 1 = Use extended gross check for sfc T
+    i_gsdcldanal_type  = 0                            !  turn cloud analysis off
+    i_gsdsfc_uselist   = 0                            !  turn gsd surface uselist off           
+    i_lightpcp         = 0                            !  don't add light pcp over warm section           
 
     return
   end subroutine init_rapidrefresh_cldsurf

@@ -103,7 +103,7 @@
                          full_ensemble,pseudo_hybens,betaflg,pwgtflg,coef_bw,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
-                         readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens
+                         readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs, &
@@ -116,7 +116,8 @@
                             build_cloud_frac_p, clear_cloud_frac_p,       &
                             l_cloud_analysis,nesdis_npts_rad, & 
                             iclean_hydro_withRef,iclean_hydro_withRef_allcol, &
-                            l_use_2mQ4B
+                            i_use_2mQ4B,i_use_2mT4B,i_gsdcldanal_type,i_gsdsfc_uselist, &
+                            i_lightpcp,i_sfct_gross
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -296,6 +297,10 @@
 !                       regional analysis
 !  10-07-2014 carley    added buddy check options under obsqc
 !  11-12-2014 pondeca   must read in from gridopts before calling obsmod_init_instr_table. swap order
+!  01-30-2015 Hu        added option i_en_perts_io under hybrid_ensemble
+!  01-15-2015 Hu        added options i_use_2mQ4B,i_use_2mT4B, i_gsdcldanal_type
+!                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
+!                              rapidrefresh_cldsurf
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -789,11 +794,21 @@
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
 !     enspreproc - flag to read(.true.) pre-processed ensemble data already
+!     i_en_perts_io - flag to write out and read in ensemble perturbations in ensemble grid.
+!                         This is to speed up RAP/HRRR hybrid runs because the
+!                         same ensemble perturbations are used in 6 cycles    
+!                           =0:  No ensemble perturbations IO (default)
+!                           =1:  save ensemble perturbations after
+!                                subroutine get_gefs_for_regional and exit GSI
+!                           =2:  skip get_gefs_for_regional and read in ensemble
+!                                 perturbations from saved files.
+!                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw
+                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw, &
+                i_en_perts_io
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -828,8 +843,28 @@
 !      iclean_hydro_withRef_allcol - if =1, then clean whole column hydrometeors
 !                      if the observed max ref =0 and satellite cloud shows
 !                      clean
-!      l_use_2mQ4B    - if .true.  use 2m Q as part of background to calculate
+!      i_use_2mQ4B    - if =1   use 2m Q as part of background to calculate
 !                       surface Q observation innovation
+!      i_use_2mT4B    - if  1   use 2m T as part of background to calculate
+!                       surface T observation innovation
+!      i_gsdcldanal_type    - options for how GSD cloud analysis should be conducted         
+!                         =0. no cloud analysis (default)
+!                         =1.  cloud analysis after var analysis
+!                         =2.  cloud analysis before var analysis
+!                         =3.  cloud analysis only
+!                         =4.  no cloud analysis but do hybrometeors NETCDF/IO
+!                         =5.  no cloud analysis but do hybrometeors NETCDF/I
+!                         =6.  cloud analysis only but do hybrometeors NETCDF/O
+!      i_gsdsfc_uselist  - options for how to use surface observation use or
+!                          rejection list
+!                         =0 . EMC method
+!                         =1 . GSD method
+!      i_lightpcp        - options for how to deal with light precipitation
+!                         =0 . don't add light precipitation 
+!                         =1 . add light precipitation in warm section
+!      i_sfct_gross      - 1 Use extended gross check
+!                         =0 default gross cehck for surface T
+!                         =1 Use extended gross check for surface T
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
@@ -843,7 +878,8 @@
                                 build_cloud_frac_p, clear_cloud_frac_p,   &
                                 nesdis_npts_rad, &
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
-                                l_use_2mQ4B
+                                i_use_2mQ4B,i_use_2mT4B,i_gsdcldanal_type,i_gsdsfc_uselist, &
+                                i_lightpcp,i_sfct_gross
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - ??
@@ -1146,6 +1182,11 @@
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
 
+! Force turn of cloud analysis and hydrometeor IO
+  if (i_gsdcldanal_type==0) then
+     l_cloud_analysis = .false.
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
+  endif
 
 ! Finish initialization of observation setup
   call init_obsmod_vars(nhr_assimilation,mype)
@@ -1318,7 +1359,7 @@
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
-  if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional.and.i_gsdcldanal_type.ne.6) call convert_regional_guess(mype,ctph0,stph0,tlm0)
   if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 
