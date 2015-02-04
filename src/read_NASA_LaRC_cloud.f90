@@ -7,6 +7,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 !     code 
 !
 ! PROGRAM HISTORY LOG:
+!    2014-12-03 derber - remove unused variables
 !
 !   variable list
 !
@@ -50,7 +51,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   real(r_kind) dlatmax,dlonmax,dlatmin,dlonmin
   real(r_kind) usage
 
-  integer(i_kind) nreal,nchanl,ilat,ilon,ikx
+  integer(i_kind) nreal,nchanl,ilat,ilon
 
   real(r_kind),parameter:: r360=360.0_r_kind
 

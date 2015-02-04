@@ -75,6 +75,7 @@ subroutine intpcp_(pcphead,rval,sval)
 !                        - BUG FIX: foto was using TV instead of TSENS
 !                        - on-the-spot handling of non-essential vars
 !   2011-11-01 eliu      - add handling for ql and qi increments  
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     pcphead  - obs type pointer to obs structure
@@ -104,7 +105,7 @@ subroutine intpcp_(pcphead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
@@ -271,17 +272,17 @@ subroutine intpcp_(pcphead,rval,sval)
         obsges = termcur - pcpptr%obs 
      endif
 
-     if (lsaveobsens) then
-        pcpptr%diags%obssen(jiter) = termges_tl*pcpptr%err2*pcpptr%raterr2
-     else
-        if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           termges_ad = termges_tl*pcpptr%err2*pcpptr%raterr2
+           pcpptr%diags%obssen(jiter) = termges_ad
+        else
+           if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           termges_ad  = pcpptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
 !          Adjoint model
            kx=pcpptr%icxp
            if (nlnqc_iter .and. pg_pcp(kx) > tiny_r_kind .and.  &

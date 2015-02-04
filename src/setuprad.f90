@@ -141,6 +141,8 @@
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
+!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -179,7 +181,7 @@
       i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
@@ -197,10 +199,12 @@
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc
+  use qcmod, only: setup_tzr_qc,ifail_outside_range
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
+  use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian
+
   implicit none
 
 ! Declare passed variables
@@ -1172,7 +1176,29 @@
 
         icc = 0
         iccm= 0
+
         do i = 1,nchanl
+
+!          Reject radiances for single radiance test
+           if (lsingleradob) then
+              ! if the channels are beyond 0.01 of oblat/oblon, specified
+              ! in gsi namelist, or aren't of type 'oneob_type', reject
+              if ( (abs(cenlat - oblat) > one/r100 .or. &
+                    abs(cenlon - oblon) > one/r100) .or. &
+                    obstype /= oneob_type ) then
+                 varinv(i) = zero
+                 varinv_use(i) = zero
+                 if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+              else
+                 ! if obchan <= zero, keep all footprints, if obchan > zero,
+                 ! keep only that which has channel obchan
+                 if (i /= obchan .and. obchan > zero) then
+                    varinv(i) = zero
+                    varinv_use(i) = zero
+                    if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+                 endif
+              endif !cenlat/lon
+           endif !lsingleradob
 
 !          Only process observations to be assimilated
 
@@ -1279,11 +1305,11 @@
               my_head%iob = n
 
               allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
-                       radtail(ibin)%head%diags(icc),&
                        radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
                        radtail(ibin)%head%dtb_dvar(nsigradjac,icc), &
                        radtail(ibin)%head%ich(icc),&
                        radtail(ibin)%head%icx(icc))
+              if(luse_obsdiag)allocate(radtail(ibin)%head%diags(icc))
 
               call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
               radtail(ibin)%head%time=dtime
@@ -1386,7 +1412,7 @@
         iii=0
         do ii=1,nchanl
           m=ich(ii)
-          if (iuse_rad(m)>=1 .or. l4dvar) then
+          if (luse_obsdiag) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
@@ -1466,7 +1492,7 @@
            endif ! (in_curbin)
           end if
         enddo
-        if(in_curbin) then
+        if(in_curbin .and. luse_obsdiag) then
            if(.not. retrieval.and.(iii/=icc)) then
               write(6,*)'setuprad: error iii icc',iii,icc
               call stop2(279)

@@ -13,6 +13,8 @@ module pcgsoimod
 !   2008-11-26  Todling - remove pcgsoi_tl
 !   2009-08-12  lueken  - update documentation
 !   2009-09-17  parrish - add bkerror_a_en and anbkerror_reg_a_en for hybrid ensemble control variable a_en
+!   2014-12-03  derber - thread dot products and modify so obsdiag can be turned
+!               off
 !
 ! subroutines included:
 !   sub pcgsoi
@@ -117,7 +119,7 @@ subroutine pcgsoi()
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
-  use obsmod, only: destroyobs,oberror_tune
+  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,diag_precon,step_start, &
@@ -128,12 +130,13 @@ subroutine pcgsoi()
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
+  use mpl_allreducemod, only: mpl_allreduce
   use intallmod, only: intall
   use stpcalcmod, only: stpcalc
   use mod_strong, only: l_tlnmc,baldiag_inc
   use adjtest, only : adtest
   use control_vectors, only: control_vector, allocate_cv, deallocate_cv,&
-       prt_control_norms,dot_product,assignment(=)
+       prt_control_norms,dot_product,qdot_prod_sub,assignment(=)
   use state_vectors, only : allocate_state,deallocate_state,&
        prt_state_norms,inquire_state
   use bias_predictors, only: allocate_preds,deallocate_preds,predictors,assignment(=)
@@ -164,6 +167,7 @@ subroutine pcgsoi()
   real(r_kind) gnormx,penx,penalty,penaltynew
   real(r_double) pennorm
   real(r_quad) zjo
+  real(r_quad),dimension(3):: dprod
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
@@ -330,7 +334,7 @@ subroutine pcgsoi()
      end if
 
 !    Print initial Jo table
-     if (iter==0 .and. print_diag_pcg) then
+     if (iter==0 .and. print_diag_pcg .and. luse_obsdiag) then
         nprt=2
         call evaljo(zjo,iobs,nprt,llouter)
         call prt_control_norms(gradx,'gradx')
@@ -423,10 +427,15 @@ subroutine pcgsoi()
 
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
-     gnorm(1)=dot_product(gradx,grady,r_quad)
+     dprod(1) = qdot_prod_sub(gradx,grady)
+     dprod(2) = qdot_prod_sub(xdiff,grady)
+     dprod(3) = qdot_prod_sub(ydiff,gradx)
+     call mpl_allreduce(3,dprod)
+
+     gnorm(1)=dprod(1)
 !    Two dot products in gnorm(2) should be same, but are slightly different due to round off
 !    so use average.
-     gnorm(2)=0.5_r_quad*(dot_product(xdiff,grady,r_quad)+dot_product(ydiff,gradx,r_quad))
+     gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
 
