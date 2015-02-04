@@ -173,7 +173,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables
 
   real(r_double) rstation_id
-  real(r_kind) qcu,qcv,qc_spd,qc_prs,trop5,tfact,fact
+  real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
   real(r_kind) residual,ressw,ress,val,val2,valqc2,dudiff,dvdiff
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc
@@ -199,8 +199,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) LNVD_omb
   real(r_kind) LNVD_ratio
   real(r_kind) LNVD_threshold
-
-  real(r_kind) dpreso,dpk,uint,ugint,vint,vgint
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
   integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,icat

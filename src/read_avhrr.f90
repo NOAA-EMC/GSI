@@ -142,7 +142,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: scan_pos,scan_angle,dfov,ch_win,ch_win_flg,r01
+  real(r_kind) :: scan_pos,scan_angle,dfov,r01
+! real(r_kind) :: ch_win,ch_win_flg
 
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf

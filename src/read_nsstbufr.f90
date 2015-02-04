@@ -79,7 +79,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   integer(i_kind) idate,iret,k
   integer(i_kind) kx,nreal,nchanl,ilat,ilon
   integer(i_kind) sstq,nmind
-  integer(i_kind):: isflg,idomsfc
+  integer(i_kind):: idomsfc
 
   integer(i_kind) :: ireadmg,ireadsb,klev,msub,nmsub
   integer(i_kind), dimension(5) :: idate5
@@ -94,11 +94,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_double)  :: msst,sst
   equivalence (crpid,hdr(7))
 
-  real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
 
   real(r_kind) :: tdiff,sstime,usage,sfcr,tsavg,ff10,t4dv
-  real(r_kind) :: vty,vfr,sty,stp,sm,sn,zz
+  real(r_kind) :: zz
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
 
@@ -110,7 +109,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_single),allocatable::etabl(:,:,:)
   integer(i_kind) ietabl,lcount,itypex
   integer(i_kind) l,m,ikx,ibfms
-  integer(i_kind) n,cid_pos,ship_mod,mbuoy_mod,dbuoy_mod
+  integer(i_kind) n,cid_pos,ship_mod
   real(r_kind) terrmin,werrmin,perrmin,qerrmin,pwerrmin
 
   data headr/'YEAR MNTH DAYS HOUR MINU SELV RPID'/
