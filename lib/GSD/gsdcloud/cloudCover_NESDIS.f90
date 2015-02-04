@@ -2,7 +2,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                         xlong,xlat,t_bk,p_bk,h_bk,zh,xland, &
                         soil_tbk,sat_ctp,sat_tem,w_frac,&
                         l_cld_bld,cld_bld_hgt,build_cloud_frac_p,clear_cloud_frac_p,nlev_cld, &
-                        cld_cover_3d,cld_type_3d,wthr_type)
+                        cld_cover_3d,cld_type_3d,wthr_type,Osfc_station_map)
 !
 !
 !$$$  subprogram documentation block
@@ -92,6 +92,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   real(r_single),intent(inout) :: sat_tem(nlon,nlat)
   real(r_single),intent(inout) :: w_frac(nlon,nlat)
   integer(i_kind),intent(out)  :: nlev_cld(nlon,nlat)
+  integer(i_kind),intent(in)  :: Osfc_station_map(nlon,nlat)
 !
 ! Turn on cloud building and height limit
   logical,      intent(in)     :: l_cld_bld
@@ -532,17 +533,39 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !        - or over land only if p<620 mb overnight
 !        - or at any level in daytime (zenith angle
 !                      greater than zen_limit threshold)
+!
+!  mhu  Nov. 26, 2014: Add a metar station map: Osfc_station_map
+!       when Osfc_station_map=1, it is a grid point around a metar station
+!       Then the satellite clean step will skip this metar station point.
 ! =============================================
     do j=2,nlat-1
       do i=2,nlon-1
         if (sat_ctp(i,j) >=1010.0_r_kind .and. sat_ctp(i,j) <1050._r_kind) then !clear
           do k=1,nsig
-             if (csza(i,j)<zen_limit                             &
-                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p      &
+             if ((csza(i,j)<zen_limit                            &
+                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p)     &
                  .or. xland(i,j)==0._r_kind                      &
                  .or. csza(i,j)>=zen_limit) then
-                    cld_cover_3d(i,j,k) = 0
-                    wthr_type(i,j) = 0
+                    if(Osfc_station_map(i,j) == 1 .and.           &
+                       cld_cover_3d(i,j,k) > 0.0001_r_kind) then
+                    else
+                       cld_cover_3d(i,j,k) = 0
+                       wthr_type(i,j) = 0
+                    endif
+!
+!mhu Nov 15 2014: don't let metar build cloud if
+!          - over land
+!          - during night
+!          - lower than co2_preslim_p
+!          - clear from satellite
+             elseif( (csza(i,j)<zen_limit .and.                      &
+                     p_bk(i,j,k)/100._r_kind>=co2_preslim_p) .and.    &   
+                     abs(xland(i,j)-0._r_kind) > 0.0001_r_kind .and. &
+                     cld_cover_3d(i,j,k) >0.0001_r_kind)  then
+                    if(Osfc_station_map(i,j) == 1) then  
+                    else
+                       cld_cover_3d(i,j,k) = - 77777          ! set to unknown
+                    endif
              end if
           end do
 !mhu: use 1060hps cloud top pressure to clean above the low cloud top

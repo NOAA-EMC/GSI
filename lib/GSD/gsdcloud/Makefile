@@ -38,8 +38,8 @@
 #
 #-----------------------------------------------------------------------
 
-FTN = ifort
-LDR = ifort
+FTN = mpif90
+LDR = mpif90
 CC  = cc
 
 GNRL_LD = $(LDR)
@@ -61,7 +61,7 @@ INCLDIR =
 #
 #-----------------------------------------------------------------------
 
-FFLAGS = -O3 -fp-model strict -convert big_endian -assume byterecl -implicitnone -traceback #   -I../../../include 
+FFLAGS = -O3 -xW -g -traceback -check bounds -assume byterecl  #   -I../../../include 
 CFLAGS = 
 LDFLAGS =
 
@@ -117,7 +117,7 @@ GNRLCLDOBJS = kinds.o                    constants.o \
               build_missing_REFcone.o    get_sfm_1d_gnl.o       read_radar_ref.o     \
               cloudCover_NESDIS.o        smooth.o      \
               cloudCover_Surface.o       map_ctp.o              vinterp_radar_ref.o  \
-              hydro_mxr_thompson.o
+              hydro_mxr_thompson.o       pbl_height.o
 
 ##BackgroundCld.o read_Surface.o read_NESDIS.o \
               interp_NSSL_ref.o cloudCover_Surface.o     \
