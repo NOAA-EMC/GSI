@@ -1206,41 +1206,43 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+     if(i_use_2mT4B>0) then
 !    get th2m ...
-     varname='th2m'
-     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
-     if (istatus==0) then
-         if(allocated(ges_z))then
-            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+        varname='th2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_th2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_th2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
-         endif
-         allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
-         ges_th2(:,:,1)=rank2
-         do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-            ges_th2(:,:,ifld)=rank2
-         enddo
-     else
-         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-         call stop2(999)
-     endif
+        endif
 !    get q2m ...
-     varname='q2m'
-     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
-     if (istatus==0) then
-         if(allocated(ges_z))then
-            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+        varname='q2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_q2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_q2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_q2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
-         endif
-         allocate(ges_q2(size(rank2,1),size(rank2,2),nfldsig))
-         ges_q2(:,:,1)=rank2
-         do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-            ges_q2(:,:,ifld)=rank2
-         enddo
-     else
-         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-         call stop2(999)
+        endif
      endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&

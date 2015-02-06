@@ -185,6 +185,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc
   real(r_single) :: qv,ee,DWPT
 
+  logical:: if_checkdp
+
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
@@ -462,7 +464,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! quality check to the surface moisture observations:
 ! if dewpoint is larger than 85F, toss the observation
 !
-     if( itype > 179 .and. itype < 190) then
+     if_checkdp=.false.
+     if( if_checkdp .and. (itype > 179 .and. itype < 190)) then
        qv = max(1.E-5,qob/(1.-qob))
        ee=prest*qv/(0.62197+qv)
        DWPT = (243.5*ALOG(ee)-440.8)/(19.48-ALOG(ee))+273.15 ! k

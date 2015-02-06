@@ -96,6 +96,7 @@ module sfcobsqc
 
   public init_gsd_sfcuselist
   public apply_gsd_sfcuselist
+  public destroy_gsd_sfcuselist
 
   logical :: verbose = .false.
 contains
@@ -174,6 +175,35 @@ subroutine init_gsd_sfcuselist
 
 
 end subroutine init_gsd_sfcuselist
+
+subroutine destroy_gsd_sfcuselist
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_gsd_sfcuselist
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2015-02-05  Hu - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
+  deallocate(sfcuselist_use_id)
+  deallocate(w_use_sfcuselist)
+  deallocate(t_use_sfcuselist)
+  deallocate(td_use_sfcuselist)
+
+end subroutine destroy_gsd_sfcuselist
 
 subroutine apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                        dlon,dlat,idate,dtime,udbl,vdbl,usage_rj)

@@ -168,7 +168,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
-  use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist
+  use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist,destroy_gsd_sfcuselist                       
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
@@ -685,7 +685,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   call init_rjlists
   call init_aircraft_rjlists
-  call init_gsd_sfcuselist
+  if(i_gsdsfc_uselist==1) call init_gsd_sfcuselist
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
@@ -2317,6 +2317,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(cdata_out)
   call destroy_rjlists
   call destroy_aircraft_rjlists
+  if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
   if (twodvar_regional) call destroy_ndfdgrid
 
