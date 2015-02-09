@@ -7,7 +7,7 @@ alias radmon_run="  cd ${iat_ws_dir}/radmon_workspace/run/${LOGNAME}"
 alias radmon_log="  cd ${iat_ws_dir}/radmon_workspace/log/${LOGNAME}/logs/radmyolddata "
 alias radmon_stat=" cd ${iat_ws_dir}/radmon_workspace/data/output/radmon_tank/stats/myolddata "
 alias radmon_imgn=" cd ${iat_ws_dir}/radmon_workspace/data/output/radmon_tank/imgn/myolddata/pngs "
-alias radmon="      cd ${iat_src_dir}/radmon_pkg/radmon/util/Radiance_Monitor "
+alias radmon="      cd ${iat_src_dir}/radmon_pkg/radmon "
 #2. vsd b
 alias vsdb="       cd ${iat_src_dir}/vsdb_pkg/vsdb_v17  "
 alias vsdb_input=" cd ${iat_ws_dir}/vsdb_workspace/data/input "
