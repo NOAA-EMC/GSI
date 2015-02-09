@@ -15,10 +15,8 @@ trackFile=track${year_reg_info}_template.sh
 
 if [ ${ENV_MEAN} = "yes" ]
 then 
-  echo track_mean_template.sh
-else 
-  echo not run  track_mean_template.sh
+  ./track_mean_template.sh
 fi 
 
 
-echo ${trackFile}
+./${trackFile}
