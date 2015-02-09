@@ -440,7 +440,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Interpolate 2-m q to obs locations/times
      if(i_use_2mQ4B>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
-!mhu        write(*,*) 'check=',dlat,dlon,dtime,hrdifsig,mype,nfldsig
         call tintrp2a11(ges_q2m,q2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
         if(i_use_2mQ4B==1)then
            qges=0.33*qges+0.67*q2mges

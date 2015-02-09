@@ -126,7 +126,7 @@ subroutine init_gsd_sfcuselist
 
   implicit none
 
-  integer(i_kind) use_unit,m
+  integer(i_kind) use_unit
   character(150) cstring
   character(80) clistname
 
@@ -206,7 +206,7 @@ subroutine destroy_gsd_sfcuselist
 end subroutine destroy_gsd_sfcuselist
 
 subroutine apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
-                       dlon,dlat,idate,dtime,udbl,vdbl,usage_rj)
+                       usage_rj)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -235,22 +235,15 @@ subroutine apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
-  integer(i_kind),intent(in   ) :: idate
   character(10)  ,intent(in   ) :: obstype
   character(8)   ,intent(in   ) :: c_station_id
   character(8)   ,intent(in   ) :: c_prvstg,c_sprvstg
-  real(r_kind)   ,intent(in   ) :: dlon
-  real(r_kind)   ,intent(in   ) :: dlat
-  real(r_kind)   ,intent(in   ) :: dtime
-  real(r_double) ,intent(in   ) :: udbl,vdbl
   real(r_kind)   ,intent(inout) :: usage_rj
 
 ! Declare local variables
   integer(i_kind) m,nlen
-  integer(i_kind) ibin
   character(8)  ch8
   real(r_kind) usage_rj0
-  real(r_single) sunangle
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind

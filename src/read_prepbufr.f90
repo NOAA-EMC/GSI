@@ -1475,8 +1475,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (i_gsdsfc_uselist==1 ) then
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
                     call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
-                                            dlon_earth,dlat_earth,idate,t4dv-toff,      &
-                                            obsdat(5,k),obsdat(6,k),usage)
+                                            usage)
                  else
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &

@@ -37,7 +37,7 @@ subroutine en_perts_get_from_save
   real(r_single),pointer,dimension(:,:,:):: w3
   real(r_single),pointer,dimension(:,:):: w2
 
-  integer(i_kind) iret,i,j,k,k2,n
+  integer(i_kind) n
   character(255) filename
   character(len=max_varname_length) varname
   integer(i_kind) istatus
@@ -137,7 +137,7 @@ subroutine en_perts_save
   real(r_single),pointer,dimension(:,:,:):: w3
   real(r_single),pointer,dimension(:,:):: w2
 
-  integer(i_kind) iret,i,j,k,k2,n
+  integer(i_kind) n
   character(255) filename
   integer(i_kind) istatus
 

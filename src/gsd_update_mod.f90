@@ -105,7 +105,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind),dimension(:,:,:),pointer:: ges_smois =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q     =>NULL()
 
-  integer(i_kind) ico, ja,jb,ia,ib,nco,nip,jc,ic
   INTEGER(i_kind) :: itsig
   
 !*******************************************************************************
@@ -121,35 +120,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      return ! no guess, nothing to do
   endif
 
-!
-!  isli = 0 water, =1 land, =2 sea ice (on water)
-!  if( l_gsd_soilTQ_nudge) then
-!     ico = 5
-!     do j=1,lon2
-!        ja = max(1   ,j-ico)
-!        jb = min(lon2,j+ico+1)
-!        do i=1,lat2
-!          coast_prox(i,j) = 0.
-!
-!          if (isli(i,j,1)>=1) then
-!             ia = max(1   ,i-ico)
-!             ib = min(lat2,i+ico+1)
-!!             nco = 0
-!             nip = 0
-!             do jc=ja,jb
-!             do ic=ia,ib
-!                if (isli(ic,jc,1)>=1) nco = nco+1
-!                nip = nip+1
-!             end do
-!             end do
-!             coast_prox(i,j) = float(nco)/float (nip)
-!!          end if
-!        end do
-!     end do
-
-!     write (6,*) 'Coast_prox values: ',mype,coast_prox(1,1)
-!  endif
-                                                                              
+!                                                                              
 !   calculation solar declination
 ! 
   iyear=regional_time(1)   
@@ -333,7 +304,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
               end if
 
               ainc = max(-0.15_r_kind,min(0.15_r_kind,ainc))
-!mhu test              ges_smois(i,j,4,it)=ges_smois(i,j,4,it)+ainc   ! test
 
 ! - Only do nudging over land, if daytime (defined as
 !          cos of sun zenith angle > 0.1), and if
