@@ -130,7 +130,7 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
    end if
 
-!$omp parallel sections
+!$omp parallel sections private(istatus,id,ic)
 
 !$omp section
 
@@ -155,18 +155,18 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
+   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
 !  Get 3d pressure
    if(do_getprs_tl) then
-     call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
      call getprs_tl(sv_ps,sv_tv,sv_prse)
    end if
 
 !  Convert RH to Q
    if(do_normal_rh_to_q) then
-      call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
       call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
    else
 !  Else copy directly

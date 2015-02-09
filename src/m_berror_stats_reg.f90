@@ -305,7 +305,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,nn,m1,m,i,n,j,k,n0
+  integer(i_kind) :: loc,m1,m,i,n,j,k,n0
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux

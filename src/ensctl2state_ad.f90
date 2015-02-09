@@ -154,7 +154,7 @@ do jj=1,ntlevs_ens
 
    call self_add(mval,eval(jj))
 
-!$omp parallel sections
+!$omp parallel sections private(istatus,id,ic)
 
 !$omp section
 

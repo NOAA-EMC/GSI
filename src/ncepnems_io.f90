@@ -43,6 +43,7 @@ module ncepnems_io
 !   sub write_nemssfc   - gather/write on grid ncep surface analysis file
 !   sub read_nemsnst    - read ncep nst file, scatter on grid to analysis subdomains
 !   sub write_nemssfc_nst - gather/write on grid ncep surface & nst analysis file
+!   sub sfc_interpolate   - interpolate from gfs atm grid to gfs sfc grid
 !
 ! Variable Definitions:
 !   The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
@@ -112,11 +113,11 @@ module ncepnems_io
   public read_nems_chem
   public read_nemsatm
   public read_nemssfc
-  public write_nems
   public write_nemsatm
   public write_nemssfc
   public read_nemsnst
   public write_nemssfc_nst
+  public sfc_interpolate
 
   interface read_nems
      module procedure read_
@@ -136,10 +137,6 @@ module ncepnems_io
 
   interface read_nemsnst
      module procedure read_sfc_nst_
-  end interface
-
-  interface write_nems
-     module procedure write_
   end interface
 
   interface write_nemsatm
@@ -189,7 +186,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a
+    use gridmod, only: sp_a,grd_a
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -238,7 +235,7 @@ contains
        if (ier/=0) cycle ! this allows code to be free from met-fields
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
-       call read_atm_ (filename,mype,sp_a,&
+       call read_atm_ (grd_a,filename,mype,sp_a,sp_a,.true.,.true.,.true.,&
             ges_z_it,ges_ps_it,&
             ges_vor_it,ges_div_it,&
             ges_u_it,ges_v_it,&
@@ -324,7 +321,8 @@ contains
 
   end subroutine read_chem_
 
-  subroutine read_atm_ (filename,mype,sp,g_z,g_ps,g_vor,g_div,g_u,g_v,&
+  subroutine read_atm_ (grd,filename,mype,sp_a,sp_b,uvflag,vordivflag,zflag, &
+       g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -346,7 +344,21 @@ contains
 !   2013-10-25 todling  reposition fill_ns,filluv_ns to commvars
 !
 !   input argument list:
+!     grd      - structure variable containing information about grid
+!                    (initialized by general_sub2grid_create_info, located in
+!                    general_sub2grid_mod.f90)
+!     sp_a     - structure variable containing spectral information for analysis
+!                    (initialized by general_init_spec_vars, located in
+!                    general_specmod.f90)
+!     sp_b     - structure variable containing spectral information for input
+!                     fields
+!                    (initialized by general_init_spec_vars, located in
+!                    general_specmod.f90)
 !     mype     - mpi task id
+!     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
+!     vordivflag - logical to determine if routine should output vorticity and
+!                  divergence
+!     zflag    - logical to determine if surface height field should be output
 !
 !   output argument list:
 !     g_*      - guess fields
@@ -357,11 +369,10 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: displs_s,irc_s,ijn_s,&
-         ird_s,nsig,nlat,nlon,lat2,lon2,&
-         itotsub,ntracer,ncloud,reload
+    use gridmod, only: ntracer,ncloud,reload
     use general_commvars_mod, only: fill_ns,filluv_ns
     use general_specmod, only: spec_vars
+    use general_sub2grid_mod, only: sub2grid_info
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
@@ -372,19 +383,21 @@ contains
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
 
 !   Declare passed variables
+    type(sub2grid_info)                   ,intent(in   ) :: grd
     character(LEN=24)                     ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
-    real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
-    real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: g_u,g_v,&
+    logical                               ,intent(in   ) :: uvflag,vordivflag,zflag
+    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_z,g_ps
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
-    type(spec_vars)                       ,intent(in   ) :: sp
+    type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
     
 !   Declare local variables
     character(len=120) :: my_name = 'READ_NEMSATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: iret,nlatm2
+    integer(i_kind) :: iret,nlatm2,nflds
     integer(i_kind) :: k,icount,icount_prev,mm1
     integer(i_kind) :: mype_hs, mype_ps
     integer(i_kind) :: latb, lonb, levs, nframe
@@ -396,7 +409,7 @@ contains
          work_v
     real(r_kind),allocatable,dimension(:,:) :: sub, sub_vor, sub_div, &
          sub_v
-    real(r_kind),dimension(sp%nc):: spec_vor,spec_div
+    real(r_kind),dimension(sp_a%nc):: spec_vor,spec_div
     real(r_kind),allocatable,dimension(:) :: rwork1d0, rwork1d1, rwork1d2
     real(r_kind) :: fhour
     type(nemsio_gfile) :: gfile
@@ -405,7 +418,11 @@ contains
     mm1=mype+1
     mype_hs=npe-2
     mype_ps=npe-1
-    nlatm2=nlat-2
+    nlatm2=grd%nlat-2
+    nflds=5*grd%nsig+1
+    if(zflag) nflds=nflds+1
+    if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
+
 
     call nemsio_init(iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
@@ -431,45 +448,53 @@ contains
 !
 !  g_* array already pre-allocate as (lat2,lon2,<nsig>) => 2D and <3D> array
 !
+    if(sp_a%jcap /= sp_b%jcap) then
+       if ( mype == 0 ) write(6, &
+          '('' currently dual resolution not allowed for nems sp_a%jcap,sp_b%jcap = '',2i6)') &
+          sp_a%jcap,sp_b%jcap
+       call stop2(101)
+    end if
     if(latb /= nlatm2) then
        if ( mype == 0 ) write(6, &
           '(a,'': inconsistent spatial dimension nlatm2 = '',i4,tr1,''latb = '',i4)') &
           trim(my_name),nlatm2,latb
        call stop2(101)
     end if
-    if(lonb /= nlon) then
+    if(lonb /= grd%nlon) then
        if ( mype == 0 ) write(6, &
           '(a,'': inconsistent spatial dimension nlon   = '',i4,tr1,''lonb = '',i4)') &
-          trim(my_name),nlon,lonb
+          trim(my_name),grd%nlon,lonb
        call stop2(101)
     end if
-    if(levs /= nsig)then
+    if(levs /= grd%nsig)then
        if ( mype == 0 ) write(6, &
           '(a,'': inconsistent spatial dimension nsig   = '',i4,tr1,''levs = '',i4)') &
-          trim(my_name),nsig,levs
+          trim(my_name),grd%nsig,levs
        call stop2(101)
     end if
 !
-    allocate( grid(nlon,nlatm2), grid_v(nlon,nlatm2) )
-    allocate( grid_vor(nlon,nlatm2), grid_div(nlon,nlatm2) )
-    allocate( work(itotsub),work_v(itotsub) )
-    allocate( work_vor(itotsub),work_div(itotsub) )
-    allocate( sub(lat2*lon2,max(2*nsig,npe)),sub_v(lat2*lon2,max(2*nsig,npe)) )
-    allocate( sub_div(lat2*lon2,max(2*nsig,npe)),sub_vor(lat2*lon2,max(2*nsig,npe)) )
+    allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
+    allocate( grid_vor(grd%nlon,nlatm2), grid_div(grd%nlon,nlatm2) )
+    allocate( work(grd%itotsub),work_v(grd%itotsub) )
+    allocate( work_vor(grd%itotsub),work_div(grd%itotsub) )
+    allocate( sub(grd%lat2*grd%lon2,max(2*grd%nsig,npe)),sub_v(grd%lat2*grd%lon2,max(2*grd%nsig,npe)) )
+    allocate( sub_div(grd%lat2*grd%lon2,max(2*grd%nsig,npe)),sub_vor(grd%lat2*grd%lon2,max(2*grd%nsig,npe)) )
     allocate( rwork1d0(latb*lonb) )
 !
 !   Load values into rows for south and north pole before scattering
 !
 !   Terrain:  scatter to all mpi tasks
 !
-    if (mype==mype_hs) then
-       call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
-       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'hgt','read',istop,iret)
-       grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-       call fill_ns(grid,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_z,ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
+    if(zflag)then
+       if (mype==mype_hs) then
+          call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'hgt','read',istop,iret)
+          grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+          call fill_ns(grid,work)
+       endif
+       call mpi_scatterv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+          g_z,grd%ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
+    end if
 
 !   Surface pressure:  same procedure as terrain, but handled by task mype_ps
 !
@@ -482,8 +507,8 @@ contains
        call fill_ns(grid,work)
        deallocate(rwork1d1)
     endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_ps,ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
+    call mpi_scatterv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+       g_ps,grd%ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
 
 !   Divergence and voriticity.  Compute u and v from div and vor
     sub_vor=zero
@@ -504,29 +529,35 @@ contains
           if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop,iret)
           grid_v=reshape(rwork1d0,(/size(grid_v,1),size(grid_v,2)/))
 
-          call general_sptez_v(sp,spec_div,spec_vor,grid,grid_v,-1)
-          call general_sptez_s(sp,spec_div,grid_div,1)
-          call general_sptez_s(sp,spec_vor,grid_vor,1)
+          if(vordivflag .or. .not. uvflag)then
+             call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
+             call general_sptez_s(sp_a,spec_div,grid_div,1)
+             call general_sptez_s(sp_a,spec_vor,grid_vor,1)
 
           ! Load values into rows for south and north pole
-          call fill_ns(grid_div,work_div)
-          call fill_ns(grid_vor,work_vor)
+             call fill_ns(grid_div,work_div)
+             call fill_ns(grid_vor,work_vor)
+          end if
           call filluv_ns(grid,grid_v,work,work_v)
        endif
        ! Scatter to sub
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work_vor,ijn_s,displs_s,mpi_rtype,&
-             sub_vor(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work_div,ijn_s,displs_s,mpi_rtype,&
-             sub_div(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
-             sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
+          if(vordivflag .or. .not. uvflag)then
+             call mpi_alltoallv(work_vor,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_vor(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+             call mpi_alltoallv(work_div,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_div(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+          end if
+          if(uvflag)then
+             call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+             call mpi_alltoallv(work_v,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_v(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+          end if
           icount_prev=icount+1
        endif
     end do
@@ -565,11 +596,11 @@ contains
        endif
 
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
-             sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work_v,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub_v(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
           icount_prev=icount+1
        endif
@@ -590,8 +621,8 @@ contains
           call fill_ns(grid,work)
        endif
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
           icount_prev=icount+1
        endif
@@ -613,8 +644,8 @@ contains
              call fill_ns(grid,work)
           endif
           if (mod(icount,npe)==0 .or. icount==levs) then
-             call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-                sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+             call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
                 mpi_comm_world,ierror)
              icount_prev=icount+1
           endif
@@ -1057,120 +1088,9 @@ contains
 
 
 
-  subroutine write_ (increment,mype,mype_atm,mype_sfc)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    write_nems
-!
-!   prgmmr: Huang            org: np23                date: 2010-02-22
-!
-! abstract:
-!
-! program history log:
-!   2010-02-22  Huang    Initial version.  Based on write_gfs
-!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
-!   2013-10-19  todling - metguess now holds background
-!
-!   input argument list:
-!     increment          - when >0 will write increment from increment-index slot
-!     mype               - mpi task id
-!     mype_atm,mype_sfc  -
-!
-!   output argument list:
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use kinds, only: i_kind,r_kind
-    use guess_grids, only: ges_prsl,ges_prsi,dsfct 
-    use guess_grids, only: ntguessig,ntguessfc
-    use gsi_metguess_mod, only: gsi_metguess_bundle
-    use gsi_bundlemod, only: gsi_bundlegetpointer
-    use radinfo, only: nst_gsi
-
-    implicit none
-
-    integer(i_kind),intent(in   ) :: increment
-    integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
-
-    character(len=*),parameter::myname_=myname//'*write_'
-    character(len=24)             :: filename, file_nst
-    integer(i_kind)               :: itoutsig, iret, ier
-    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
-
-!   Write atmospheric analysis file
-    if (increment>0) then
-       filename='siginc'
-       itoutsig=increment
-    else
-       filename='siganl'
-       itoutsig=ntguessig
-    endif
-
-!   Get pointers to guess fields
-    ier=0
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ps',ges_ps_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'z',ges_z_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'u',ges_u_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'v',ges_v_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'div',ges_div_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'vor',ges_vor_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'tv',ges_tv_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'q',ges_q_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'oz',ges_oz_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,iret)
-    ier=ier+iret
-
-    if (ier==0) then ! simply return when pointers are not found (could
-                     ! indivialize write for more flexible choices)
-       call write_atm_ (filename,mype,mype_atm,&
-            ges_z_it,ges_ps_it,&
-            ges_tv_it,ges_q_it,&
-            ges_oz_it,ges_cwmr_it,&
-            ges_prsl(1,1,1,itoutsig),ges_u_it,&
-            ges_v_it,ges_prsi(1,1,1,itoutsig))
-    endif
-
-!   Write surface analysis file
-    if (increment>0) then
-       filename='sfcinc.gsi'
-    else
-       if ( nst_gsi > 0 ) then
-          filename = 'sfcanl'
-          file_nst = 'nstanl'
-          call write_sfc_nst_(filename,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
-       else
-          filename='sfcanl.gsi'
-          call write_sfc_ (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
-       endif
-    endif
-  end subroutine write_
-
-
-  subroutine write_atm_ (filename,mype,mype_out,sub_z,sub_ps,&
+  subroutine write_atm_ (grd,sp_a,sp_b,filename,mype,mype_out,sub_z,sub_ps,&
        sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
-       sub_u,sub_v,sub_prsi)
+       sub_u,sub_v,sub_prsi,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1203,6 +1123,7 @@ contains
 !     sub_u     - zonal wind
 !     sub_v     - meridional wind
 !     sub_prsi  - interface  pressure
+!     ibin      - time bin
 !
 !   output argument list:
 !
@@ -1224,24 +1145,19 @@ contains
     
     use guess_grids, only: ntguessig, ifilesig
     
-    use gridmod, only: nlat, nlon     ! no. lat/lon on analysis grid
-    use gridmod, only: lat1, lon1     ! no. lat/lon on subdomain (no buffer)
-    use gridmod, only: lat2, lon2     ! no. lat/lon on subdomain (buffer pnts on ends)
-    use gridmod, only: nsig           ! no. levels
-    use gridmod, only: iglobal        ! no. of horizontal points on global grid
-    use gridmod, only: ijn            ! no. of horiz. pnts for each subdomain (no buffer)
-    use gridmod, only: displs_g       ! comm. array, displacement for receive on global grid
-    use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
     use gridmod, only: ntracer
     use gridmod, only: ncloud
     use gridmod, only: strip
     
     use general_commvars_mod, only: load_grid
+    use general_specmod, only: spec_vars
 
     use obsmod, only: iadate
     
     use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_init,&
          nemsio_getfilehead,nemsio_close,nemsio_writerecv
+    use gsi_4dvar, only: ibdate,nhr_obsbin
+    use general_sub2grid_mod, only: sub2grid_info
   
     implicit none
 
@@ -1251,17 +1167,20 @@ contains
 
     integer(i_kind)                            ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                            ,intent(in   ) :: mype_out  ! mpi task to write output file
+    integer(i_kind)                            ,intent(in   ) :: ibin      ! time bin
     
-    real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
-    real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_u    ! zonal wind
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_v    ! meridional wind
-    real(r_kind),dimension(lat2,lon2,nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
+    type(sub2grid_info)                    ,intent(in   ) :: grd
+    real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_u    ! zonal wind
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_v    ! meridional wind
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
+    type(spec_vars)                        ,intent(in   ) :: sp_a,sp_b
 
 !-------------------------------------------------------------------------
 
@@ -1274,37 +1193,47 @@ contains
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
+    integer(i_kind),dimension(5):: mydate
+    integer(i_kind),dimension(8) :: ida,jda
+    real(r_kind),dimension(5)    :: fha
     real(r_kind)    :: fhour
     
-    real(r_kind),dimension(lat1*lon1)     :: hsm, psm
-    real(r_kind),dimension(lat2,lon2,nsig):: sub_dp
-    real(r_kind),dimension(lat1*lon1,nsig):: tvsm,prslm, usm, vsm
-    real(r_kind),dimension(lat1*lon1,nsig):: dpsm, qsm, ozsm, cwsm
-    real(r_kind),dimension(max(iglobal,itotsub))     :: work1
-    real(r_kind),dimension(nlon,nlat-2):: grid, grid2
+    real(r_kind),dimension(grd%lat1*grd%lon1)     :: hsm, psm
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm, cwsm
+    real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1
+    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid, grid2
     real(r_kind),allocatable,dimension(:) :: rwork1d
 
     type(nemsio_gfile) :: gfile,gfileo
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+1
-    nlatm2=nlat-2
+    nlatm2=grd%nlat-2
 
-    do k=1,nsig
+    if(sp_a%jcap /= sp_b%jcap) then
+       if ( mype == 0 ) write(6, &
+          '('' currently dual resolution not allowed for nems sp_a%jcap,sp_b%jcap = '',2i6)') &
+          sp_a%jcap,sp_b%jcap
+       call stop2(101)
+    end if
+
+    do k=1,grd%nsig
        sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
     end do
 
 !   Strip off boundary points from subdomains
     call strip(sub_z   ,hsm)
     call strip(sub_ps  ,psm)
-    call strip(sub_tv  ,tvsm  ,nsig)
-    call strip(sub_q   ,qsm   ,nsig)
-    call strip(sub_oz  ,ozsm  ,nsig)
-    call strip(sub_cwmr,cwsm  ,nsig)
-    call strip(sub_dp  ,dpsm  ,nsig)
-    call strip(sub_prsl,prslm ,nsig)
-    call strip(sub_u   ,usm   ,nsig)
-    call strip(sub_v   ,vsm   ,nsig)
+    call strip(sub_tv  ,tvsm  ,grd%nsig)
+    call strip(sub_q   ,qsm   ,grd%nsig)
+    call strip(sub_oz  ,ozsm  ,grd%nsig)
+    call strip(sub_cwmr,cwsm  ,grd%nsig)
+    call strip(sub_dp  ,dpsm  ,grd%nsig)
+    call strip(sub_prsl,prslm ,grd%nsig)
+    call strip(sub_u   ,usm   ,grd%nsig)
+    call strip(sub_v   ,vsm   ,grd%nsig)
 
 !   Single task writes analysis data to analysis file
     if (mype==mype_out) then
@@ -1324,19 +1253,31 @@ contains
           write(6,*)trim(my_name),': problem with nemsio_getfilehead, Status = ',iret
           call stop2(103)
        end if
-       if(levs/=nsig) then
-          write(6,*)trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',nsig
+       if(levs/=grd%nsig) then
+          write(6,*)trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',grd%nsig
           call stop2(103)
        end if
 
 !      copy input header info to output header info
        gfileo=gfile
  
-!      Update header information (with iadate) and write it to analysis file (w/ _open statement).
-       jdate(1) = iadate(1)  ! analysis year
-       jdate(2) = iadate(2)  ! analysis month
-       jdate(3) = iadate(3)  ! analysis day
-       jdate(4) = iadate(4)  ! analysis hour
+!      Update header information (with ibdate) and write it to analysis file (w/ _open statement).
+       mydate=ibdate
+       fha(:)=zero ; ida=0; jda=0
+       fha(2)=real(nhr_obsbin*(ibin-1))  ! relative time interval in hours
+       ida(1)=mydate(1) ! year
+       ida(2)=mydate(2) ! month
+       ida(3)=mydate(3) ! day
+       ida(4)=0         ! time zone
+       ida(5)=mydate(4) ! hour
+
+   ! Move date-time forward by nhr_assimilation hours
+       call w3movdat(fha,ida,jda)
+
+       jdate(1) = jda(1)     ! analysis year
+       jdate(2) = jda(2)     ! analysis month
+       jdate(3) = jda(3)     ! analysis day
+       jdate(4) = jda(5)     ! analysis hour
        jdate(5) = iadate(5)  ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
        jdate(7) = idate(7)   ! analysis seconds multiplier
@@ -1374,8 +1315,8 @@ contains
 
 !   Generate and write analysis fields
 !   Terrain
-    call mpi_gatherv(hsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
+    call mpi_gatherv(hsm,grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
     if (mype==mype_out) then
        call load_grid(work1,grid)
@@ -1385,8 +1326,8 @@ contains
     endif
 
 !   Surface pressure.  
-    call mpi_gatherv(psm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
+    call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
     if (mype==mype_out) then
        call load_grid(work1,grid)
@@ -1397,9 +1338,9 @@ contains
     endif
 
 !   Pressure depth
-    do k=1,nsig
-       call mpi_gatherv(dpsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(dpsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
           call load_grid(work1,grid)
@@ -1411,9 +1352,9 @@ contains
     end do
 
 !   Layer mean pressure
-    do k=1,nsig
-       call mpi_gatherv(prslm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(prslm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
           call load_grid(work1,grid)
@@ -1425,9 +1366,9 @@ contains
     end do
 
 !   Zonal wind
-    do k=1,nsig
-       call mpi_gatherv(usm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
           call load_grid(work1,grid)
@@ -1438,9 +1379,9 @@ contains
     end do
 
 !   Meridional wind
-    do k=1,nsig
-       call mpi_gatherv(vsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(vsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
           call load_grid(work1,grid)
@@ -1451,9 +1392,9 @@ contains
     end do
 
 !   Thermodynamic variable
-    do k=1,nsig
-       call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(tvsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           call load_grid(work1,grid)
@@ -1464,9 +1405,9 @@ contains
     end do
 
 !   Specific humidity
-    do k=1,nsig
-       call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           call load_grid(work1,grid)
@@ -1477,9 +1418,9 @@ contains
     end do
 
 !   Ozone
-    do k=1,nsig
-       call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           call load_grid(work1,grid)
@@ -1491,9 +1432,9 @@ contains
        
 !   Cloud condensate mixing ratio
     if (ntracer>2 .or. ncloud>=1) then
-       do k=1,nsig
-          call mpi_gatherv(cwsm(1,k),ijn(mm1),mpi_rtype,&
-               work1,ijn,displs_g,mpi_rtype,&
+       do k=1,grd%nsig
+          call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
+               work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
              call load_grid(work1,grid)
@@ -1589,9 +1530,6 @@ contains
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
     use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
 
-!! should be remove if subroutine sfc_interpolate move to this module
-    use ncepgfs_io, only :  sfc_interpolate
-    
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1828,9 +1766,6 @@ contains
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
     use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
 
-!! should be remove if subroutine sfc_interpolate move to this module
-    use ncepgfs_io, only :  sfc_interpolate
-    
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2152,5 +2087,98 @@ contains
      if ( stop_code /= 0 ) call stop2(stop_code)
   end subroutine error_msg
 
+
+  subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    sfc_interpolate --- interpolates from analysis grid to 
+!                                    surface grid
+!   prgrmmr:     derber -  initial version; org: np2
+!
+! abstract:      This routine interpolates a on analysis grid to b on 
+!                surface grid
+!
+! program history log:
+!   2008-02-26  derber  - original routine
+!   2008-05-28  safford - add subprogram doc block, rm unused uses
+!   2011-04-01  li - change kind of output field (b: single to r_kind)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!
+!   input argument list:
+!     na_lon  - number of longitude grid analysis 
+!     na_lat  - number of latitude grid analysis
+!     ns_lon  - number of longitude grid sfc 
+!     ns_lat  - number of latitude grid sfc
+!     a       - analysis values
+!
+!   output argument list:
+!     b       - surface values
+!
+! attributes:
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!$$$ end documentation block
+
+! !USES:
+    use kinds, only: r_kind,i_kind,r_single
+    use constants, only: zero,one
+    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
+    
+    implicit none
+
+! !INPUT PARAMETERS:
+    integer(i_kind)                        ,intent(in   ) :: na_lon  ! number of longitude grid analysis 
+    integer(i_kind)                        ,intent(in   ) :: na_lat  ! number of latitude grid analysis
+    integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
+    integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
+
+    real(r_kind), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
+
+! !OUTPUT PARAMETERS:
+    real(r_kind), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
+
+
+!   Declare local variables
+    integer(i_kind) i,j,ix,iy,ixp,iyp
+    real(r_kind) dx1,dy1,dx,dy,w00,w01,w10,w11,bout,dlat,dlon
+
+!*****************************************************************************
+
+    b=zero
+!   Loop over all points to get interpolated value
+    do j=1,ns_lat
+       dlat=rlats_sfc(j)
+       call grdcrd1(dlat,rlats,na_lat,1)
+       iy=int(dlat)
+       iy=min(max(1,iy),na_lat)
+       dy  =dlat-iy
+       dy1 =one-dy
+       iyp=min(na_lat,iy+1)
+
+
+       do i=1,ns_lon
+          dlon=rlons_sfc(i)
+          call grdcrd1(dlon,rlons,na_lon,1)
+          ix=int(dlon)
+          dx  =dlon-ix
+          dx=max(zero,min(dx,one))
+          dx1 =one-dx
+          w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+          ix=min(max(0,ix),na_lon)
+          ixp=ix+1
+          if(ix==0) ix=na_lon
+          if(ixp==na_lon+1) ixp=1
+          bout=w00*a(ix,iy)+w01*a(ix,iyp)+w10*a(ixp,iy)+w11*a(ixp,iyp)
+          b(i,j)=bout
+
+       end do
+    end do
+
+    
+!   End of routine
+    return
+  end subroutine sfc_interpolate
 end module ncepnems_io
 

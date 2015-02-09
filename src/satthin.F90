@@ -428,8 +428,8 @@ contains
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use constants, only: zero,half,pi,two,one
-    use ncepgfs_io, only: read_gfssfc,sfc_interpolate
-    use ncepnems_io, only: read_nemssfc
+    use ncepgfs_io, only: read_gfssfc
+    use ncepnems_io, only: read_nemssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
     use gsi_metguess_mod, only: gsi_metguess_bundle

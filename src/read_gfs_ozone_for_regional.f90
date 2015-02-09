@@ -37,7 +37,7 @@ subroutine read_gfs_ozone_for_regional
 !$$$ end documentation block
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
-  use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional
+  use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional,use_gfs_nemsio
   use constants,only: zero,half,fv,rd_over_cp,one,h300
                        use constants, only: rad2deg  !  debug
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
@@ -52,6 +52,7 @@ subroutine read_gfs_ozone_for_regional
   use obsmod, only: iadate
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use ncepnems_io, only: read_nemsatm
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -273,13 +274,20 @@ subroutine read_gfs_ozone_for_regional
   allocate(prsl(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
-
-  if (hires) then
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+  if(use_gfs_nemsio)then
+     if(hires) then
+        call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_b,uv_hyb_ens,.false.,.false.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+     else
+        call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_gfs,uv_hyb_ens,.false.,.false.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+     end if
   else
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+     if (hires) then
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
                               vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     else
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     end if
   end if
 
 ! test

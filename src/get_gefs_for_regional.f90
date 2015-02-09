@@ -27,7 +27,7 @@ subroutine get_gefs_for_regional
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional
+  use gridmod, only: idsl5,regional,use_gfs_nemsio
   use gridmod, only: region_lat,region_lon  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
@@ -50,6 +50,7 @@ subroutine get_gefs_for_regional
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
+  use ncepnems_io, only: read_nemsatm
   use guess_grids, only: ges_prsl,ntguessig,geop_hgti
   use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
@@ -305,8 +306,12 @@ subroutine get_gefs_for_regional
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
-            z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+     if(use_gfs_nemsio)then
+        call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_gfs,uv_hyb_ens,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+     else
+        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
+               z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+     end if
      inithead = .false.
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))

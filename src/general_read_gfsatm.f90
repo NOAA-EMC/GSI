@@ -1,6 +1,6 @@
 subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zflag, &
        g_z,g_ps,g_vor,g_div,g_u,g_v,&
-       g_tv,g_q,g_cwmr,g_oz,inithead,iret_read)
+       g_tv,g_q,g_cwmr,g_oz,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm  adaptation of read_gfsatm for general resolutions
@@ -30,8 +30,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
 !     zflag    - logical to determine if surface height field should be output
-!     inithead - logical to read header record.  Usually .true. unless
-!                repeatedly reading similar files(e.g., ensembles)
+!     init_head- flag to read header record.  Usually .true. unless repeatedly
+!                reading similar files (ensembles)
 !
 !   output argument list:
 !     g_*      - guess fields
@@ -66,7 +66,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
     character(*)                          ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
-    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,inithead
+    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
     integer(i_kind)                       ,intent(  out) :: iret_read
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_ps
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(inout) :: g_z
@@ -74,9 +74,9 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
     
 !   Declare local variables
-    integer(i_kind):: iret,nlatm2,nlevs
-    integer(i_kind) i,j,k,icount,nflds
-    integer(i_kind),dimension(npe)::ilev,iflag
+    integer(i_kind):: iret,nlatm2,nlevs,icm
+    integer(i_kind):: i,j,k,icount
+    integer(i_kind),dimension(npe)::ilev,iflag,mype_use
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
 
     real(r_kind),dimension(sp_b%nc),target ::  specwrk_4,specdiv_4
@@ -85,6 +85,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     real(r_kind),dimension(grd%itotsub):: work
     real(r_kind),allocatable,dimension(:):: spec_div
     real(r_kind),allocatable,dimension(:,:):: grid_v
+    logical :: procuse
         
     type(sigio_dbti):: sigdati
 
@@ -92,21 +93,33 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !   Initialize variables used below
     iret_read=0
     iret=0
-    nflds=5*grd%nsig+1
-    if(zflag) nflds=nflds+1
-    if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
+    nlatm2=grd%nlat-2
+    iflag = 0
+    ilev = 0
 
     nlevs=grd%nsig
-    if(mype < nflds)then
+    mype_use=-1
+    icount=0
+    procuse=.false.
+    if(mype == 0)procuse = .true.
+    do i=1,npe
+       if(grd%recvcounts_s(i-1) > 0)then
+         icount = icount+1
+         mype_use(icount)=i-1
+         if(i-1 == mype) procuse=.true.
+       end if
+    end do
+    icm=icount
+      
+    if(procuse)then
 !   All tasks open and read header with RanRead
        rewind(lunges)
        call sigio_rropen(lunges,filename,iret)
-       if(inithead .or. mype == 0)then
-         call sigio_rrhead(lunges,sighead,iret_read)
-         if (iret_read /=0) goto 1000
+       if(init_head .or. mype == 0)then
+          call sigio_rrhead(lunges,sighead,iret_read)
+          if (iret_read /=0) goto 1000
        end if
-       nlevs=sighead%levs
-       if(nlevs /= grd%nsig)go to 1000
+       if(nlevs /= sighead%levs)go to 1000
     end if
 
     icount=0
@@ -122,7 +135,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
        icount=icount+1
        iflag(icount)=1
        ilev(icount)=1
-       if (mype==icount-1) then
+       if (mype==mype_use(icount)) then
 
 ! read hs
          sigdati%i = 1                                           ! hs
@@ -138,7 +151,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
           call general_fill_ns(grd,grid,work)
        endif
-       if(icount == npe)then
+       if(icount == icm)then
           call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
        end if
@@ -149,7 +162,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     icount=icount+1
     iflag(icount)=2
     ilev(icount)=1
-    if (mype==icount-1) then
+    if (mype==mype_use(icount)) then
 
 ! read ps
       sigdati%i = 2                                           ! ps
@@ -165,7 +178,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
        call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
        call general_fill_ns(grd,grid,work)
     endif
-    if(icount == npe)then
+    if(icount == icm)then
        call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
            icount,iflag,ilev,work,uvflag,vordivflag)
     end if
@@ -179,12 +192,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
        icount=icount+1
        iflag(icount)=3
        ilev(icount)=k
-       if (mype==icount-1) then
+       if (mype==mype_use(icount)) then
 
 ! read T/Tv/etc.
-       sigdati%i = 2+k                                           ! hs
-       sigdati%f => specwrk_4
-       call sigio_rrdbti(lunges,sighead,sigdati,iret)
+          sigdati%i = 2+k                                           ! hs
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
           do i=1,sp_b%nc
              spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
@@ -197,15 +210,17 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !         Load values into rows for south and north pole
           call general_fill_ns(grd,grid,work)
        end if
-       if (icount == npe) then
+       if(icount == icm)then
           call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
        end if
-       if(vordivflag .or. .not. uvflag) then
+    end do
+    if(vordivflag .or. .not. uvflag) then
+       do k=1,nlevs
           icount=icount+1
           iflag(icount)=4
           ilev(icount)=k
-          if (mype==icount-1) then
+          if (mype==mype_use(icount)) then
 !  Vorticity
              sigdati%i = nlevs + 2 + (k-1) * 2 + 2     ! Vorticity
              sigdati%f => specwrk_4
@@ -224,14 +239,16 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
              call general_fill_ns(grd,grid,work)
 
           end if
-          if (icount == npe) then
+          if (icount == icm)then
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                   icount,iflag,ilev,work,uvflag,vordivflag)
           end if
+       end do
+       do k=1,nlevs
           icount=icount+1
           iflag(icount)=5
           ilev(icount)=k
-          if (mype==icount-1) then
+          if (mype==mype_use(icount)) then
 !   Divergence 
              sigdati%i = nlevs + 2 + (k-1) * 2 + 1     ! Divergence
              sigdati%f => specwrk_4
@@ -251,16 +268,18 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
              call general_fill_ns(grd,grid,work)
 
           end if
-          if (icount == npe) then
+          if(icount == icm)then
              call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                  icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end if
-       if (uvflag) then
+       end do
+    end if
+    if (uvflag) then
+       do k=1,nlevs
           icount=icount+1
           iflag(icount)=6
           ilev(icount)=k
-          if (mype==icount-1) then
+          if (mype==mype_use(icount)) then
 
 
 !   U  Compute u and v from div and vor
@@ -290,14 +309,16 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
              call general_fillu_ns(grd,sp_a,grid,grid_v,work)
              deallocate(spec_div,grid_v)
           end if
-          if (icount == npe) then
+          if (icount == icm)then
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                  icount,iflag,ilev,work,uvflag,vordivflag)
+               icount,iflag,ilev,work,uvflag,vordivflag)
           end if
+       end do
+       do k=1,nlevs
           icount=icount+1
           iflag(icount)=7
           ilev(icount)=k
-          if (mype==icount-1) then
+          if (mype==mype_use(icount)) then
 !   V  Compute u and v from div and vor
 
 !              Divergence
@@ -325,15 +346,17 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
              call general_fillv_ns(grd,sp_a,grid,grid_v,work)
              deallocate(spec_div,grid_v)
           end if
-          if (icount == npe) then
+          if (icount == icm)then
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                   icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end if
+       end do
+    end if
+    do k=1,nlevs
        icount=icount+1
        iflag(icount)=8
        ilev(icount)=k
-       if (mype==icount-1) then
+       if (mype==mype_use(icount)) then
 
 !   Specific humidity
           sigdati%i = nlevs * (2+1) + 2 + k    ! q
@@ -349,14 +372,16 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
           call general_fill_ns(grd,grid,work)
        end if
-       if (icount == npe) then
+       if(icount == icm)then
           call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
        end if
+    end do
+    do k=1,nlevs
        icount=icount+1
        iflag(icount)=9
        ilev(icount)=k
-       if (mype==icount-1) then
+       if (mype==mype_use(icount)) then
 !   Ozone mixing ratio
           sigdati%i = nlevs * (2+2) + 2 + k    ! oz
           sigdati%f => specwrk_4
@@ -372,20 +397,22 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
           call general_fill_ns(grd,grid,work)
 
        end if
-       if (icount == npe) then
+       if (icount == icm)then
            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
        end if
+    end do
+    do k=1,nlevs
        icount=icount+1
        iflag(icount)=10
        ilev(icount)=k
-       if (mype==icount-1) then
+       if (mype==mype_use(icount)) then
 !   Cloud condensate mixing ratio.
          if (sighead%ntrac>2 .or. sighead%ncldt>=1) then
 ! 
-            sigdati%i = nlevs * (2+3) + 2 + k    ! cw, 3rd tracer
-            sigdati%f => specwrk_4
-            call sigio_rrdbti(lunges,sighead,sigdati,iret)
+          sigdati%i = nlevs * (2+3) + 2 + k    ! cw, 3rd tracer
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
 
             do i=1,sp_b%nc
                spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
@@ -400,17 +427,17 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
          endif
        endif
 
-       if (icount == npe .or. k == nlevs) then
+       if (icount == icm .or. k == nlevs)then
            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
        end if
     end do
     
-    if(mype < nflds)then
-!     Deallocate sigio data array
+    if(procuse)then
+!     Close sigio data unit
       call sigio_rclose(lunges,iret)
+!     if(init_head .or. mype == 0)deallocate(sighead%vcoord,sighead%cfvars)
     end if
-    if(inithead .or. mype == 0)deallocate(sighead%vcoord,sighead%cfvars)
 
 !   Surface pressure.
 !   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5
@@ -453,7 +480,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 
 !   Print date/time stamp 
     if(mype==0) then
-       nlatm2=grd%nlat-2
        write(6,700) sighead%lonb,sighead%latb,nlevs,grd%nlon,nlatm2,&
             sighead%fhour,sighead%idate
 700    format('GENERAL_READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
@@ -480,7 +506,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
 ! !USES:
 
   use kinds, only: r_kind,i_kind
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,mype
   use general_sub2grid_mod, only: sub2grid_info
   implicit none
 
@@ -521,13 +547,29 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
   integer(i_kind) i,j,k,ij,klev
   real(r_kind),dimension(grd%lat2*grd%lon2,npe):: sub
 
-  call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
-       sub,grd%irc_s,grd%ird_s,mpi_rtype,&
+  call mpi_alltoallv(work,grd%sendcounts_s,grd%sdispls_s,mpi_rtype,&
+       sub,grd%recvcounts_s,grd%rdispls_s,mpi_rtype,&
        mpi_comm_world,ierror)
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,ij,klev)
   do k=1,icount
-     if(iflag(k) == 3)then
-        klev=ilev(k)
+     klev=ilev(k)
+     if(iflag(k) == 1)then
+        ij=0
+        do j=1,grd%lon2
+           do i=1,grd%lat2
+              ij=ij+1
+              g_z(i,j)=sub(ij,k)
+           end do
+        end do
+     else if(iflag(k) == 2)then
+        ij=0
+        do j=1,grd%lon2
+           do i=1,grd%lat2
+              ij=ij+1
+              g_ps(i,j)=sub(ij,k)
+           end do
+        end do
+     else if(iflag(k) == 3)then
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -536,7 +578,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 4)then
-        klev=ilev(k)
         if(vdflag)then
           ij=0
           do j=1,grd%lon2
@@ -556,7 +597,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
           end do
         end if
      else if(iflag(k) == 5)then
-        klev=ilev(k)
         if(vdflag)then
           ij=0
           do j=1,grd%lon2
@@ -579,7 +619,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
         if(.not. uvflag) then
           write(6,*) 'error in general_reload  u '
         end if
-        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -591,7 +630,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
         if(.not. uvflag) then
           write(6,*) 'error in general_reload  v '
         end if
-        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -600,7 +638,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 8)then
-        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -609,7 +646,6 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 9)then
-        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -618,28 +654,11 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 10)then
-        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
               ij=ij+1
               g_cwmr(i,j,klev)=sub(ij,k)
-           end do
-        end do
-     else if(iflag(k) == 2)then
-        ij=0
-        do j=1,grd%lon2
-           do i=1,grd%lat2
-              ij=ij+1
-              g_ps(i,j)=sub(ij,k)
-           end do
-        end do
-     else if(iflag(k) == 1)then
-        ij=0
-        do j=1,grd%lon2
-           do i=1,grd%lat2
-              ij=ij+1
-              g_z(i,j)=sub(ij,k)
            end do
         end do
      end if

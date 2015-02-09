@@ -176,7 +176,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   real(r_kind),dimension(sp_a%ijmax),intent(inout) :: grid
 
 ! Declare local variables
-  integer(i_kind) i,j,ii,jj,ijn,ijs,mp
+  integer(i_kind) i,j,jj,ijn,ijs,mp
   real(r_kind),dimension(2*(sp_a%jcap+1)):: wtop
   real(r_kind),dimension(sp_a%imax,2):: g
   real(r_kind),dimension(50000+4*sp_a%imax):: tmpafft

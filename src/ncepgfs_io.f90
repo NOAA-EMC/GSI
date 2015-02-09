@@ -23,7 +23,6 @@ module ncepgfs_io
 !   sub read_gfs          - driver to read ncep gfs atmospheric ("sigma") files
 !   sub read_gfssfc       - read ncep gfs surface file, scatter on grid to 
 !                           analysis subdomains
-!   sub sfc_interpolate   - interpolate from gfs atm grid to gfs sfc grid
 !   sub write_gfs         - driver to write ncep gfs atmospheric and surface
 !                           analysis files
 !   sub write_gfssfc      - gather/write on grid ncep surface analysis file
@@ -50,7 +49,6 @@ module ncepgfs_io
   public read_gfsnst
   public write_gfs
   public write_gfs_sfc_nst
-  public sfc_interpolate
   public sigio_cnvtdv8
   public sighead 
 
@@ -89,10 +87,12 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,regional
     use guess_grids, only: ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
+    use mpimod, only: npe
     use mpeu_util, only: die
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
@@ -103,7 +103,7 @@ contains
 
     character(24) filename
     logical:: l_cld_derived,zflag,inithead
-    integer(i_kind):: it,nlon_b
+    integer(i_kind):: it,nlon_b,num_fields,inner_vars
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
     real(r_kind),dimension(lat2,lon2  ):: aux_ps
@@ -131,6 +131,7 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
 
     type(spec_vars):: sp_b
+    type(sub2grid_info) :: grd_t
 
 
 !   If needed, initialize for hires_b transforms
@@ -143,6 +144,12 @@ contains
             sp_b%jcap,sp_b%imax,sp_b%jmax
     endif
 
+    inner_vars=1
+    num_fields=min(8*grd_a%nsig+2,npe)
+!  Create temporary communication information fore read routines
+    call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
+          grd_a%nsig,num_fields,regional)
+
     zflag=.true.
     inithead=.true.
     do it=1,nfldsig
@@ -154,7 +161,7 @@ contains
 !         If hires_b, spectral to grid transform for background
 !         uses double FFT.   Need to pass in sp_a and sp_b
 
-          call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true.,.true.,zflag, &
+          call general_read_gfsatm(grd_t,sp_a,sp_b,filename,mype,.true.,.true.,zflag, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_u,aux_v,&
@@ -165,7 +172,7 @@ contains
 
 !         Otherwise, use standard transform.  Use sp_a in place of sp_b.
 
-          call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true.,.true.,zflag, &
+          call general_read_gfsatm(grd_t,sp_a,sp_a,filename,mype,.true.,.true.,zflag, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_u,aux_v,&
@@ -191,6 +198,7 @@ contains
        call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
 
     end do
+    call general_sub2grid_destroy_info(grd_t)
 
     if (hires_b) call general_destroy_spec_vars(sp_b)
 
@@ -655,7 +663,7 @@ end subroutine write_ghg_grid
 
 
 !   Declare local variables
-    integer(i_kind):: iret,npts,nptsall,nsfc
+    integer(i_kind):: iret,npts,nptsall
 
 !-----------------------------------------------------------------------------
 !   Read surface file on processor iope
@@ -927,8 +935,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     use kinds, only: i_kind,r_kind
     use guess_grids, only: dsfct,isli2
-    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
+    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig,ges_prsl,ges_prsi
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,use_gfs_nemsio
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
@@ -936,6 +944,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
+    use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nemssfc_nst
 
     implicit none
 
@@ -946,16 +955,16 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     character(24):: file_sfc,file_nst
 
-    real(r_kind),dimension(lat2,lon2  ):: aux_ps
-    real(r_kind),dimension(lat2,lon2  ):: aux_z
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2  ):: aux_ps
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2  ):: aux_z
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_u
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_v
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_vor
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_div
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_tv
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_q
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_oz
+    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
@@ -1018,23 +1027,39 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
                sp_b%jcap,sp_b%imax,sp_b%jmax
 
-          call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+          if(use_gfs_nemsio)then
+             call write_nemsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
+               aux_u,aux_v,ges_prsi(:,:,:,it),it)
+          else
+             call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_tv,aux_q,&
                aux_oz,aux_cwmr,it,inithead,&
                iret_write)
+          end if
 
           call general_destroy_spec_vars(sp_b)
 
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
        else
-          call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
+          if(use_gfs_nemsio)then
+             call write_nemsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
+               aux_u,aux_v,ges_prsi(:,:,:,it),it)
+          else
+             call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
                aux_z,aux_ps,&
                aux_vor,aux_div,&
                aux_tv,aux_q,&
                aux_oz,aux_cwmr,it,inithead,&
                iret_write)
+          end if
        endif
        inithead=.false.
     end do ! end do over ntlevs
@@ -1042,15 +1067,27 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   Write surface analysis file
     if (increment>0) then
        filename='sfcinc.gsi'
-       call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+       if(use_gfs_nemsio)then
+         call write_nemssfc(filename,mype,mype_sfc,dsfct(:,:,ntguessfc))
+       else
+         call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+       end if
     else
       if ( nst_gsi > 0 ) then
         file_sfc = 'sfcanl'
         file_nst = 'nstanl'
-        call write_gfs_sfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
-      else
+        if(use_gfs_nemsio)then
+          call write_nemssfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(:,:,ntguessfc))
+        else
+          call write_gfs_sfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
+        end if
+      else 
         filename='sfcanl.gsi'
-        call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+        if(use_gfs_nemsio)then
+          call write_nemssfc(filename,mype,mype_sfc,dsfct(:,:,ntguessfc))
+        else
+          call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+        end if
       endif
     endif
 
@@ -1175,6 +1212,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod, only: iadate
+    use ncepnems_io, only: sfc_interpolate
     
     use constants, only: zero_single
     
@@ -1338,6 +1376,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: itotsub
 
     use general_commvars_mod, only: ltosi,ltosj
+    use ncepnems_io, only: sfc_interpolate
 
     use obsmod, only: iadate
 
@@ -1626,99 +1665,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   End of routine
   end subroutine write_gfs_sfc_nst
-
-  subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    sfc_interpolate --- interpolates from analysis grid to 
-!                                    surface grid
-!   prgrmmr:     derber -  initial version; org: np2
-!
-! abstract:      This routine interpolates a on analysis grid to b on 
-!                surface grid
-!
-! program history log:
-!   2008-02-26  derber  - original routine
-!   2008-05-28  safford - add subprogram doc block, rm unused uses
-!   2011-04-01  li - change kind of output field (b: single to r_kind)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!
-!   input argument list:
-!     na_lon  - number of longitude grid analysis 
-!     na_lat  - number of latitude grid analysis
-!     ns_lon  - number of longitude grid sfc 
-!     ns_lat  - number of latitude grid sfc
-!     a       - analysis values
-!
-!   output argument list:
-!     b       - surface values
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
-!
-!$$$ end documentation block
-
-! !USES:
-    use kinds, only: r_kind,i_kind,r_single
-    use constants, only: zero,one
-    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
-    
-    implicit none
-
-! !INPUT PARAMETERS:
-    integer(i_kind)                        ,intent(in   ) :: na_lon  ! number of longitude grid analysis 
-    integer(i_kind)                        ,intent(in   ) :: na_lat  ! number of latitude grid analysis
-    integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
-    integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
-
-    real(r_kind), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
-
-! !OUTPUT PARAMETERS:
-    real(r_kind), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
-
-
-!   Declare local variables
-    integer(i_kind) i,j,ix,iy,ixp,iyp
-    real(r_kind) dx1,dy1,dx,dy,w00,w01,w10,w11,bout,dlat,dlon
-
-!*****************************************************************************
-
-    b=zero
-!   Loop over all points to get interpolated value
-    do j=1,ns_lat
-       dlat=rlats_sfc(j)
-       call grdcrd1(dlat,rlats,na_lat,1)
-       iy=int(dlat)
-       iy=min(max(1,iy),na_lat)
-       dy  =dlat-iy
-       dy1 =one-dy
-       iyp=min(na_lat,iy+1)
-
-
-       do i=1,ns_lon
-          dlon=rlons_sfc(i)
-          call grdcrd1(dlon,rlons,na_lon,1)
-          ix=int(dlon)
-          dx  =dlon-ix
-          dx=max(zero,min(dx,one))
-          dx1 =one-dx
-          w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
-
-          ix=min(max(0,ix),na_lon)
-          ixp=ix+1
-          if(ix==0) ix=na_lon
-          if(ixp==na_lon+1) ixp=1
-          bout=w00*a(ix,iy)+w01*a(ix,iyp)+w10*a(ixp,iy)+w11*a(ixp,iyp)
-          b(i,j)=bout
-
-       end do
-    end do
-
-    
-!   End of routine
-    return
-  end subroutine sfc_interpolate
 
 
 !-------------------------------------------------------------------------------

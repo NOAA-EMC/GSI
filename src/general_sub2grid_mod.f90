@@ -503,6 +503,7 @@ module general_sub2grid_mod
 subroutine get_iuse_pe(npe,nz,iuse_pe)
 
   use constants, only: one
+  use mpimod, only: mype
   implicit none
 
   integer(i_kind),intent(in) ::npe,nz
@@ -523,30 +524,51 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
            exit
         end if
      end do
+     if(mype == 0)write(6,*) ' in get_pe ',nz,npe,iskip
      if(iskip==0) then
         write(6,*)' nz,npe=',nz,npe,' ---- no iskip found, program stops'
         call stop2(999)
+     else if(iskip < 2)then
+        icount=0
+        iuse_pe(:)=0
+        do i=npe-1,0,-2
+           icount=icount+1
+           iuse_pe(i)=1
+           if(icount==nz) exit
+        end do
+!       Fill in processors until all necessary are used
+        i=0
+        do while (icount < nz)
+           if(iuse_pe(i) /= 1)then
+             iuse_pe(i) = 1
+             icount=icount+1
+           end if
+           i = i + 1
+        end do
+        return
+     else
+
+        icount=0
+        iuse_pe(:)=0
+        do i=npe-1,0,-iskip
+           icount=icount+1
+           iuse_pe(i)=1
+           if(icount==nz) exit
+        end do
+        left=0
+        do i=0,npe-1
+           if(iuse_pe(i)==1) exit
+           left=left+1
+        end do
+        iright=left/2
+        iuse_pe(:)=0
+        icount=0
+        do i=npe-1-iright,0,-iskip
+           icount=icount+1
+           iuse_pe(i)=1
+           if(icount==nz) exit
+        end do
      end if
-     icount=0
-     iuse_pe(:)=0
-     do i=npe-1,0,-iskip
-        icount=icount+1
-        iuse_pe(i)=1
-        if(icount==nz) exit
-     end do
-     left=0
-     do i=0,npe-1
-        if(iuse_pe(i)==1) exit
-        left=left+1
-     end do
-     iright=left/2
-     iuse_pe(:)=0
-     icount=0
-     do i=npe-1-iright,0,-iskip
-        icount=icount+1
-        iuse_pe(i)=1
-        if(icount==nz) exit
-     end do
      
 end subroutine get_iuse_pe
 

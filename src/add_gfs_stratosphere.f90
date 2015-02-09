@@ -32,10 +32,11 @@ subroutine add_gfs_stratosphere
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional,wrf_nmm_regional 
+  use gridmod, only: idsl5,regional,wrf_nmm_regional,use_gfs_nemsio
   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
+  use ncepnems_io, only: read_nemsatm
   use constants,only: zero,one_tenth,half,one,ten,fv
   use mpimod, only: mype
   use mpimod, only: mpi_comm_world
@@ -295,12 +296,20 @@ subroutine add_gfs_stratosphere
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     if (hires) then
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     if(use_gfs_nemsio)then
+        if(hires) then
+           call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_b,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+        else
+           call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_gfs,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+        end if
      else
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        if (hires) then
+           call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
+                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        else
+           call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
+                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        end if
      end if
         
 !test

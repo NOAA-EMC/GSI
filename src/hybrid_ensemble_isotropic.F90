@@ -3982,9 +3982,11 @@ subroutine hybens_localization_setup
          read(lunin,101) s_ens_hv(k),s_ens_vv(k)
        end do
        close(lunin)
-      nz=msig
-     kl=grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-     allocate( s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
+       if(regional)then
+          nz=grd_ens%nsig
+          kl=grd_loc%kend_alloc-grd_loc%kbegin_loc+1
+          allocate( s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
+       end if
     else 
       write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
       call stop2(999)
@@ -3995,11 +3997,13 @@ subroutine hybens_localization_setup
   else
 !          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
 !                                                      rungsi62_hyb_dualres.sh)
-     kl=1
-     allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
      s_ens_hv=s_ens_h
      s_ens_vv=s_ens_v
-     nz=1
+     if(regional)then
+        kl=1
+        allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
+        nz=1
+     end if
   end if
 
 ! Set up localization filters
@@ -4017,8 +4021,9 @@ subroutine hybens_localization_setup
         call init_rf_x(s_ens_h_gu_x,kl)
         call init_rf_y(s_ens_h_gu_y,kl)
      endif
-        call normal_new_factorization_rf_x
-        call normal_new_factorization_rf_y
+     call normal_new_factorization_rf_x
+     call normal_new_factorization_rf_y
+     deallocate( s_ens_h_gu_x,s_ens_h_gu_y)
   else
      call init_sf_xy(jcap_ens)
   end if

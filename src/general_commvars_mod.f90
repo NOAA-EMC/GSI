@@ -260,11 +260,11 @@ contains
          lnames2(1,kk)=k
          lnames2(2,kk)=k
       end do
-         kk=kk+1
-         names2(1,kk)='prse'
-         names2(2,kk)='X'
-         lnames2(1,kk)=k
-         lnames2(2,kk)=0
+      kk=kk+1
+      names2(1,kk)='prse'
+      names2(2,kk)='X'
+      lnames2(1,kk)=nsig+1
+      lnames2(2,kk)=0
 
       call general_sub2grid_create_info(s2g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
                                 names=names2,lnames=lnames2,s_ref=s2g_raf)
@@ -273,9 +273,8 @@ contains
 
       num_fields=nsig+1
       inner_vars=1
-    ! nskip=2
-      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
-    !                                   nskip=nskip)
+      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+                              s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2guv
 

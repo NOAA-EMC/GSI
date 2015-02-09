@@ -132,8 +132,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR format for AQUASPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype
-  real(r_kind)     ,intent(in   ) :: twind,nrec_start
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
+  real(r_kind)     ,intent(in   ) :: twind
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   character(len=*) ,intent(in   ) :: jsatid
