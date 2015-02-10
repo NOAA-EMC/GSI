@@ -9,5 +9,13 @@
 #====================================================
 
 source ge_gui.config
-./run_template.sh   
+
+# Remove old log file
+if [ -e out.log ]
+then
+    rm -rf out.log
+fi
+
+# Run GE package
+./run_template.sh    > out.log 2>>out.log
 
