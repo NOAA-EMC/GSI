@@ -214,9 +214,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
           call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
        end if
-    end do
-    if(vordivflag .or. .not. uvflag) then
-       do k=1,nlevs
+       if(vordivflag .or. .not. uvflag) then
           icount=icount+1
           iflag(icount)=4
           ilev(icount)=k
@@ -243,8 +241,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                   icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end do
-       do k=1,nlevs
           icount=icount+1
           iflag(icount)=5
           ilev(icount)=k
@@ -272,10 +268,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
              call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                  icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end do
-    end if
-    if (uvflag) then
-       do k=1,nlevs
+       end if
+       if (uvflag) then
           icount=icount+1
           iflag(icount)=6
           ilev(icount)=k
@@ -313,8 +307,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end do
-       do k=1,nlevs
           icount=icount+1
           iflag(icount)=7
           ilev(icount)=k
@@ -350,9 +342,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
               call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                   icount,iflag,ilev,work,uvflag,vordivflag)
           end if
-       end do
-    end if
-    do k=1,nlevs
+       end if
        icount=icount+1
        iflag(icount)=8
        ilev(icount)=k
@@ -376,8 +366,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
           call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
        end if
-    end do
-    do k=1,nlevs
        icount=icount+1
        iflag(icount)=9
        ilev(icount)=k
@@ -401,8 +389,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                icount,iflag,ilev,work,uvflag,vordivflag)
        end if
-    end do
-    do k=1,nlevs
        icount=icount+1
        iflag(icount)=10
        ilev(icount)=k
@@ -552,24 +538,8 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
        mpi_comm_world,ierror)
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,ij,klev)
   do k=1,icount
-     klev=ilev(k)
-     if(iflag(k) == 1)then
-        ij=0
-        do j=1,grd%lon2
-           do i=1,grd%lat2
-              ij=ij+1
-              g_z(i,j)=sub(ij,k)
-           end do
-        end do
-     else if(iflag(k) == 2)then
-        ij=0
-        do j=1,grd%lon2
-           do i=1,grd%lat2
-              ij=ij+1
-              g_ps(i,j)=sub(ij,k)
-           end do
-        end do
-     else if(iflag(k) == 3)then
+     if(iflag(k) == 3)then
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -578,6 +548,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 4)then
+        klev=ilev(k)
         if(vdflag)then
           ij=0
           do j=1,grd%lon2
@@ -597,6 +568,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
           end do
         end if
      else if(iflag(k) == 5)then
+        klev=ilev(k)
         if(vdflag)then
           ij=0
           do j=1,grd%lon2
@@ -619,6 +591,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
         if(.not. uvflag) then
           write(6,*) 'error in general_reload  u '
         end if
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -630,6 +603,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
         if(.not. uvflag) then
           write(6,*) 'error in general_reload  v '
         end if
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -638,6 +612,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 8)then
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -646,6 +621,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 9)then
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
@@ -654,11 +630,28 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
            end do
         end do
      else if(iflag(k) == 10)then
+        klev=ilev(k)
         ij=0
         do j=1,grd%lon2
            do i=1,grd%lat2
               ij=ij+1
               g_cwmr(i,j,klev)=sub(ij,k)
+           end do
+        end do
+     else if(iflag(k) == 2)then
+        ij=0
+        do j=1,grd%lon2
+           do i=1,grd%lat2
+              ij=ij+1
+              g_ps(i,j)=sub(ij,k)
+           end do
+        end do
+     else if(iflag(k) == 1)then
+        ij=0
+        do j=1,grd%lon2
+           do i=1,grd%lat2
+              ij=ij+1
+              g_z(i,j)=sub(ij,k)
            end do
         end do
      end if

@@ -161,6 +161,10 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       do i=1,lat2
         prsth(i,j,1)=   p_t(i,j)
         what (i,j,1)= - p_t(i,j)
+        sumkm1(i,j)=zero
+        sumvkm1(i,j)=zero
+        sum2km1(i,j)=zero
+        sum2vkm1(i,j)=zero
       end do
     end do
     do k=1,nsig
@@ -183,14 +187,6 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
            what(i,j,k+1)=zero
            prsth(i,j,k+1)=zero
         end do
-      end do
-    end do
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
-        sumkm1(i,j)=zero
-        sumvkm1(i,j)=zero
-        sum2km1(i,j)=zero
-        sum2vkm1(i,j)=zero
       end do
     end do
 
@@ -281,9 +277,9 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
            if(k < nsig) then
               tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
 
-              tmp = -u_t(i,j,k)*(ges_u (i,j,k)-ges_u (i,j,k+1)) - &
-                     v_t(i,j,k)*(ges_v (i,j,k)-ges_v (i,j,k+1)) - &
-                     t_t(i,j,k)*(ges_tv(i,j,k)-ges_tv(i,j,k+1))    
+              tmp = u_t(i,j,k)*(ges_u (i,j,k)-ges_u (i,j,k+1)) + &
+                    v_t(i,j,k)*(ges_v (i,j,k)-ges_v (i,j,k+1)) + &
+                    t_t(i,j,k)*(ges_tv(i,j,k)-ges_tv(i,j,k+1))    
 
               t(i,j,k  ) = t(i,j,k  ) - t_t(i,j,k)*tmp2
               t(i,j,k+1) = t(i,j,k+1) + t_t(i,j,k)*tmp2
@@ -292,19 +288,16 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
               v(i,j,k  ) = v(i,j,k  ) - v_t(i,j,k)*tmp2
               v(i,j,k+1) = v(i,j,k+1) + v_t(i,j,k)*tmp2
  
-              prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
-                ( ((ges_tv(i,j,k)-ges_tv(i,j,k+1))*t_t(i,j,k)) + &
-                  ((ges_u (i,j,k)-ges_u (i,j,k+1))*u_t(i,j,k)) + &
-                  ((ges_v (i,j,k)-ges_v (i,j,k+1))*v_t(i,j,k)) )
+              prdif(i,j,k) = prdif(i,j,k) + tmp2*r_prdif9(i,j,k)*tmp
 
-              what(i,j,k+1) = what(i,j,k+1) + half*tmp*r_prdif9(i,j,k)
+              what(i,j,k+1) = what(i,j,k+1) - half*tmp*r_prdif9(i,j,k)
            end if
            if(k > 1) then
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
 
-              tmp = - u_t(i,j,k)*(ges_u (i,j,k-1)-ges_u (i,j,k)) - &
-                      v_t(i,j,k)*(ges_v (i,j,k-1)-ges_v (i,j,k)) - &
-                      t_t(i,j,k)*(ges_tv(i,j,k-1)-ges_tv(i,j,k)) 
+              tmp = u_t(i,j,k)*(ges_u (i,j,k-1)-ges_u (i,j,k)) + &
+                    v_t(i,j,k)*(ges_v (i,j,k-1)-ges_v (i,j,k)) + &
+                    t_t(i,j,k)*(ges_tv(i,j,k-1)-ges_tv(i,j,k)) 
  
               t(i,j,k-1) = t(i,j,k-1) - t_t(i,j,k)*tmp2
               t(i,j,k  ) = t(i,j,k  ) + t_t(i,j,k)*tmp2
@@ -313,12 +306,9 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
               v(i,j,k-1) = v(i,j,k-1) - v_t(i,j,k)*tmp2
               v(i,j,k  ) = v(i,j,k  ) + v_t(i,j,k)*tmp2
  
-              prdif(i,j,k) = prdif(i,j,k) + (tmp2*r_prdif9(i,j,k))* &
-                ( ((ges_tv(i,j,k-1)-ges_tv(i,j,k))*t_t(i,j,k)) + &
-                  ((ges_u (i,j,k-1)-ges_u (i,j,k))*u_t(i,j,k)) + &
-                  ((ges_v (i,j,k-1)-ges_v (i,j,k))*v_t(i,j,k)) )
+              prdif(i,j,k) = prdif(i,j,k) + tmp2*r_prdif9(i,j,k)* tmp
 
-              what(i,j,k) = what(i,j,k) + half*tmp*r_prdif9(i,j,k)
+              what(i,j,k) = what(i,j,k) - half*tmp*r_prdif9(i,j,k)
            end if
 
 !       Now finish up with adjoint of the rest of the terms
@@ -357,7 +347,6 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end do    !end do j
     end do      !end do k
 
-
 !   adjoint of calculation of vertical velocity
 
     if ( (.not.regional) .AND. (idvc5==3)) then
@@ -369,11 +358,11 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       do k=1,nsig
         do j=jtstart(kk),jtstop(kk)
            do i=1,lat2
-              tmp=-rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
               t_thor9(i,j,k)=-ges_u(i,j,k)*ges_tv_lon(i,j,k) - &
-                   ges_v(i,j,k)*ges_tv_lat(i,j,k)
-              t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k)*pr_xsum9(i,j,k) + &
-                 ges_v(i,j,k)*pr_ysum9(i,j,k) + &
+                 ges_v(i,j,k)*ges_tv_lat(i,j,k) +              &
+                 rd*ges_tv(i,j,k)*r_prsum9(i,j,k)*             &
+                 rcp * ( ges_u(i,j,k)*pr_xsum9(i,j,k) +        &
+                 ges_v(i,j,k)*pr_ysum9(i,j,k) +                &
                  prsth9(i,j,k) + prsth9(i,j,k+1) )
            end do
         end do
@@ -409,25 +398,23 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
         do i=1,lat2
            tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
  
-           tmp2 = t_t(i,j,k)*rcp*( ges_u(i,j,k)* &
-              pr_xsum9(i,j,k) + &
-              ges_v(i,j,k)*pr_ysum9(i,j,k) + &
-              prsth9(i,j,k)+prsth9(i,j,k+1) )
+           tmp2 = t_t(i,j,k)*rcp*( ges_u(i,j,k)* pr_xsum9(i,j,k) + &
+              ges_v(i,j,k)*pr_ysum9(i,j,k) + prsth9(i,j,k)+prsth9(i,j,k+1) )
            prsum(i,j,k) = prsum(i,j,k) - tmp2*tmp*r_prsum9(i,j,k)
 
            var=t_t(i,j,k)*tmp*rcp
            pr_xsum(i,j,k) = pr_xsum(i,j,k) + var*ges_u(i,j,k)
            pr_ysum(i,j,k) = pr_ysum(i,j,k) + var*ges_v(i,j,k)
-           u      (i,j,k) = u      (i,j,k) + var*pr_xsum9(i,j,k)
-           v      (i,j,k) = v      (i,j,k) + var*pr_ysum9(i,j,k)
+           u      (i,j,k) = u      (i,j,k) + var*pr_xsum9(i,j,k) - &
+                                             t_t(i,j,k)*ges_tv_lon(i,j,k)
+           v      (i,j,k) = v      (i,j,k) + var*pr_ysum9(i,j,k) - &
+                                             t_t(i,j,k)*ges_tv_lat(i,j,k)
            prsth  (i,j,k) = prsth  (i,j,k) + var
            prsth(i,j,k+1) = prsth(i,j,k+1) + var
 
            t(i,j,k) = t(i,j,k) + rd*tmp2*r_prsum9(i,j,k)
  
-           u  (i,j,k) = u  (i,j,k) - t_t(i,j,k)*ges_tv_lon(i,j,k)
            t_x(i,j,k) = t_x(i,j,k) - t_t(i,j,k)*ges_u (i,j,k)
-           v  (i,j,k) = v  (i,j,k) - t_t(i,j,k)*ges_tv_lat(i,j,k)
            t_y(i,j,k) = t_y(i,j,k) - t_t(i,j,k)*ges_v (i,j,k)
         end do
       end do

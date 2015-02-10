@@ -86,7 +86,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y,v_x,v_y,t_x,t_y
 
-  real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk,uduvdv
+  real(r_kind) tmp,tmp2,tmp3,tmp4,sumk,sumvk,sum2k,sum2vk,uduvdv
   integer(i_kind) i,j,k,ix,it,kk,ier,istatus
 
   real(r_kind),pointer,dimension(:,:,:) :: ges_u=>NULL()
@@ -139,8 +139,8 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
                                         u_y,v_y,t_y,pri_y,uvflag)
 
-!$omp parallel do private(i,j,k,kk,tmp,tmp2,uduvdv, &
-!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)
+!$omp parallel do private(i,j,k,kk,tmp,tmp2,tmp3,tmp4,uduvdv, &
+!$omp                  sumk,sumvk,sum2k,sum2vk,ix)
   do kk=1,nthreads
 
     do k=1,nsig
@@ -191,7 +191,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
               rcp*( ges_u(i,j,k)*pr_xsum9(i,j,k) + &
               ges_v(i,j,k)*pr_ysum9(i,j,k) + &
               prsth9(i,j,k)+prsth9(i,j,k+1) ) * &
-              ( rd*t(i,j,k)*r_prsum9(i,j,k) - tmp*prsum(i,j,k)*r_prsum9(i,j,k) )
+              ( rd*t(i,j,k) - tmp*prsum(i,j,k))*r_prsum9(i,j,k) 
  
         end do
       end do
@@ -207,11 +207,11 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       do k=1,nsig
         do j=jtstart(kk),jtstop(kk)
            do i=1,lat2
-              tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
   
               t_thor9(i,j,k)=-ges_u(i,j,k)*ges_tv_lon(i,j,k) - &
-                   ges_v(i,j,k)*ges_tv_lat(i,j,k)
-              t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k)*pr_xsum9(i,j,k) + &
+                   ges_v(i,j,k)*ges_tv_lat(i,j,k) - &
+                   rd*ges_tv(i,j,k)*r_prsum9(i,j,k)*rcp* &
+                   (ges_u(i,j,k)*pr_xsum9(i,j,k) + &
                    ges_v(i,j,k)*pr_ysum9(i,j,k) + &
                    prsth9(i,j,k) + prsth9(i,j,k+1) )
            end do
@@ -238,34 +238,29 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end if
     end if
 
+    do j=jtstart(kk),jtstop(kk)
+      do i=1,lat2
+
 !   top/bottom boundary condition:
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         what(i,j,1)=zero
         what(i,j,nsig+1)=zero
-      enddo
-    enddo
-
 
 !   load actual dp/dt
-
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
+ 
         p_t(i,j)=prsth(i,j,1)
-      end do
-    end do
-
+ 
 !   before big k loop, zero out the km1 summation arrays
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         sumkm1  (i,j)=zero
         sum2km1 (i,j)=zero
         sumvkm1 (i,j)=zero
         sum2vkm1(i,j)=zero
-      end do
-    end do
+      enddo
+    enddo
+
+
+
 
 !   Compute terms for tendencies of wind components & Temperature
 
@@ -282,78 +277,55 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
  
            tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
            tmp2=rd*t(i,j,k)*r_prsum9(i,j,k)
+           tmp4=prsum(i,j,k)*r_prsum9(i,j,k)
 
            u_t(i,j,k) = u_t(i,j,k)-tmp*( pr_xsum(i,j,k) - &
-              (prsum(i,j,k)*pr_xsum9(i,j,k)*r_prsum9(i,j,k)) ) - &
-              tmp2*pr_xsum9(i,j,k)
+              (tmp4*pr_xsum9(i,j,k)) ) - tmp2*pr_xsum9(i,j,k)
 
            v_t(i,j,k) = v_t(i,j,k)-tmp*( pr_ysum(i,j,k) - &
-              (prsum(i,j,k)*pr_ysum9(i,j,k)*r_prsum9(i,j,k)) ) - &
-              tmp2*pr_ysum9(i,j,k)
+              (tmp4*pr_ysum9(i,j,k)) ) - tmp2*pr_ysum9(i,j,k)
 
+           tmp3=prdif(i,j,k)*r_prdif9(i,j,k)
 !          vertical flux terms
            if (k > 1) then
-              tmp=half*what(i,j,k)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
+              tmp4=half*what(i,j,k)*r_prdif9(i,j,k)-tmp2*tmp3
 
-              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k-1)-ges_u (i,j,k)) - &
-                 tmp2*( (u(i,j,k-1)-u(i,j,k)) - (ges_u (i,j,k-1)-ges_u (i,j,k))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))          
-              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k-1)-ges_v (i,j,k)) - &
-                 tmp2*( (v(i,j,k-1)-v(i,j,k)) - (ges_v (i,j,k-1)-ges_v (i,j,k))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
-              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k-1)-ges_tv(i,j,k)) - &
-                 tmp2*( (t(i,j,k-1)-t(i,j,k)) - (ges_tv(i,j,k-1)-ges_tv(i,j,k))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
+              u_t(i,j,k) = u_t(i,j,k) - tmp4*(ges_u (i,j,k-1)-ges_u (i,j,k)) - &
+                 tmp2*(u(i,j,k-1)-u(i,j,k))
+              v_t(i,j,k) = v_t(i,j,k) - tmp4*(ges_v (i,j,k-1)-ges_v (i,j,k)) - &
+                 tmp2*(v(i,j,k-1)-v(i,j,k))
+              t_t(i,j,k) = t_t(i,j,k) - tmp4*(ges_tv(i,j,k-1)-ges_tv(i,j,k)) - &
+                 tmp2*(t(i,j,k-1)-t(i,j,k))
            end if
            if (k < nsig) then
-              tmp=half*what(i,j,k+1)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
-              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k)-ges_u (i,j,k+1)) - &
-                 tmp2*( (u(i,j,k)-u(i,j,k+1)) - (ges_u (i,j,k)-ges_u (i,j,k+1))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
-              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k)-ges_v (i,j,k+1)) - &
-                 tmp2*( (v(i,j,k)-v(i,j,k+1)) - (ges_v (i,j,k)-ges_v (i,j,k+1))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
-              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k)-ges_tv(i,j,k+1)) - &
-                 tmp2*( (t(i,j,k)-t(i,j,k+1)) - (ges_tv(i,j,k)-ges_tv(i,j,k+1))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
+              tmp4=half*what(i,j,k+1)*r_prdif9(i,j,k)-tmp2*tmp3
+              u_t(i,j,k) = u_t(i,j,k) - tmp4*(ges_u (i,j,k)-ges_u (i,j,k+1)) - &
+                 tmp2*(u(i,j,k)-u(i,j,k+1))
+              v_t(i,j,k) = v_t(i,j,k) - tmp4*(ges_v (i,j,k)-ges_v (i,j,k+1)) - &
+                 tmp2*(v(i,j,k)-v(i,j,k+1))
+              t_t(i,j,k) = t_t(i,j,k) - tmp4*(ges_tv(i,j,k)-ges_tv(i,j,k+1)) - &
+                 tmp2*(t(i,j,k)-t(i,j,k+1)) 
            end if
-        end do   !end do i
-      end do     !end do j
 
-!     first sum to level k-1     
-
-      do j=jtstart(kk),jtstop(kk)
-        do i=1,lat2
-           tmp=rd*t(i,j,k)*r_prsum9(i,j,k)
-           tmp2=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
+           tmp2=rd*t(i,j,k)*r_prsum9(i,j,k)-tmp*prsum(i,j,k)*r_prsum9(i,j,k)
            tmp3=prdif9(i,j,k)*r_prsum9(i,j,k)
+           tmp4=(prdif(i,j,k) - tmp3* prsum(i,j,k))*r_prsum9(i,j,k)
 
-           sumk = sumkm1(i,j) + ( tmp - tmp2*prsum(i,j,k)*r_prsum9(i,j,k) ) * &
-              ( pr_xdif9(i,j,k) - ( pr_xsum9(i,j,k)*tmp3 ) )
-           sumk = sumk + tmp2*( pr_xdif(i,j,k) - &
-              (tmp3 *pr_xsum(i,j,k) + pr_xsum9(i,j,k)*( ( &
-              prdif(i,j,k) - tmp3* prsum(i,j,k) )*r_prsum9(i,j,k) ) ) )
+           sumk = sumkm1(i,j) +  tmp2 * ( pr_xdif9(i,j,k) - ( pr_xsum9(i,j,k)*tmp3 ) )
+           sumk = sumk + tmp*( pr_xdif(i,j,k) - &
+              (tmp3*pr_xsum(i,j,k) + pr_xsum9(i,j,k)*  tmp4  ) )
 
-           sumvk = sumvkm1(i,j) + ( tmp - tmp2*prsum(i,j,k)*r_prsum9(i,j,k) ) * &
-              ( pr_ydif9(i,j,k) - ( pr_ysum9(i,j,k)*tmp3 ) )
-           sumvk = sumvk + tmp2*( pr_ydif(i,j,k) - &
-              (tmp3*pr_ysum(i,j,k) + pr_ysum9(i,j,k)*( ( &
-              prdif(i,j,k) - tmp3* prsum(i,j,k) )*r_prsum9(i,j,k) ) ) )
+           sumvk = sumvkm1(i,j) + tmp2 * ( pr_ydif9(i,j,k) - ( pr_ysum9(i,j,k)*tmp3 ) )
+           sumvk = sumvk + tmp*( pr_ydif(i,j,k) - &
+              (tmp3*pr_ysum(i,j,k) + pr_ysum9(i,j,k)*  tmp4  ) )
 
-           sum2k = sum2km1(i,j) + t_x(i,j,k)*tmp3 + &
-              ges_tv_lon(i,j,k)*( (prdif(i,j,k) - &
-              tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
+           sum2k  = sum2km1(i,j)  + t_x(i,j,k)*tmp3 + ges_tv_lon(i,j,k)*tmp4 
+           sum2vk = sum2vkm1(i,j) + t_y(i,j,k)*tmp3 + ges_tv_lat(i,j,k)*tmp4
  
-           sum2vk = sum2vkm1(i,j) + t_y(i,j,k)*tmp3 + &
-              ges_tv_lat(i,j,k)*( (prdif(i,j,k) - &
-              tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
- 
-           u_t(i,j,k) = u_t(i,j,k) - sumkm1 (i,j) - rd*sum2km1 (i,j) - &
-              sumk  - rd*sum2k
-           v_t(i,j,k) = v_t(i,j,k) - sumvkm1(i,j) - rd*sum2vkm1(i,j) - &
-              sumvk - rd*sum2vk
+           u_t(i,j,k) = u_t(i,j,k) - sumkm1 (i,j) - sumk  - rd*(sum2km1 (i,j) + sum2k )
+           v_t(i,j,k) = v_t(i,j,k) - sumvkm1(i,j) - sumvk - rd*(sum2vkm1(i,j) + sum2vk)
 
 !          load up the km1 arrays for next k loop
            sumkm1  (i,j)=sumk

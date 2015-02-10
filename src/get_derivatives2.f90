@@ -86,9 +86,9 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   logical vector
 
   allocate(hwork_sub(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+!$omp parallel do private(i,j,k,kk,k2)      
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
      if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
         do j=1,s2g4%lon2
            do i=1,s2g4%lat2
@@ -97,6 +97,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
            end do
         end do
      else
+        k2=s2g4%lnames(2,kk)
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
@@ -119,7 +120,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   allocate(hwork_x(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
   allocate(hwork_y(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
 
-! x derivative
+! x  and y derivative
   if(regional)then
      if(.not.uvflag) then
         do k=s2g4%kbegin_loc,s2g4%kend_loc
@@ -160,21 +161,15 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
      end if
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-        do j=1,nlon
-           do i=1,nlat
-              stx(i,j)=hwork(1,i,j,k)
-              vpx(i,j)=hwork(2,i,j,k)
-           end do
-        end do
 !$omp parallel sections
 !$omp section
-        call compact_dlon(stx,hwork_x(1,:,:,k),vector)
+        call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
 !$omp section
-        call compact_dlat(stx,hwork_y(1,:,:,k),vector)
+        call compact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
 !$omp section
-        call compact_dlon(vpx,hwork_x(2,:,:,k),vector)
+        call compact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
 !$omp section
-        call compact_dlat(vpx,hwork_y(2,:,:,k),vector)
+        call compact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
 !$omp end parallel sections
      end do
   end if
@@ -187,9 +182,9 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   allocate(hwork_suby(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
   call general_grid2sub(s2g4,hwork_y,hwork_suby)
   deallocate(hwork_y)
+!$omp parallel do private(i,j,k,kk,k2)      
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
      if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
         do j=1,s2g4%lon2
            do i=1,s2g4%lat2
@@ -202,6 +197,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
            end do
         end do
      else
+        k2=s2g4%lnames(2,kk)
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
@@ -301,9 +297,9 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   allocate(hwork_suby(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
 
   hwork_sub = zero
+!$omp parallel do private(i,j,k,kk,k2)      
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
      if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
         do j=1,s2g4%lon2
            do i=1,s2g4%lat2
@@ -316,6 +312,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
            end do
         end do
      else
+        k2=s2g4%lnames(2,kk)
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
@@ -369,7 +366,6 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
         end if
      end do
   else
-!       !$omp parallel do private(k,vector)      ! ????????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
 !$omp parallel sections
@@ -395,9 +391,9 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !     use t_x,etc since don't need to save contents
   call general_grid2sub(s2g4,hwork,hwork_sub)
   deallocate(hwork)
+!$omp parallel do private(i,j,k,kk,k2)      
   do kk=1,s2g4%num_fields
      k=s2g4%lnames(1,kk)
-     k2=s2g4%lnames(2,kk)
      if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
         do j=1,s2g4%lon2
            do i=1,s2g4%lat2
@@ -406,6 +402,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
            end do
         end do
      else
+        k2=s2g4%lnames(2,kk)
         if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
