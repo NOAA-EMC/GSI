@@ -1638,29 +1638,29 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   do i=1,nchanl
 
-!  Pass CRTM array of tb for surface emissiviy calculations
-
-     if (trim(obstype) /= 'modis_aod') &
-        surface(1)%sensordata%tb(i) = data_s(nreal+i)
 
 !  Set-up to return Tb jacobians.                                         
 
      rtsolution_k(i,1)%radiance = zero
      rtsolution_k(i,1)%brightness_temperature = one
 
-     ! set up to return layer_optical_depth jacobians
-     if (trim(obstype) == 'modis_aod') then
+     if (trim(obstype) /= 'modis_aod')then
+
+!  Pass CRTM array of tb for surface emissiviy calculations
+        surface(1)%sensordata%tb(i) = data_s(nreal+i)
+
+! set up to return layer_optical_depth jacobians
         rtsolution_k(i,1)%layer_optical_depth = one
      endif
 
   end do
 
+!$omp section 
+
 !  Zero atmosphere jacobian structures
 
   call crtm_atmosphere_zero(atmosphere_k(:,:))
   call crtm_surface_zero(surface_k(:,:))
-
-!$omp end parallel sections
 
   clw_guess = zero
 
@@ -1671,6 +1671,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         aero(k,:)=aero(k,:)*ugkg_kgm2(k)
      enddo
   endif
+
 
   do k = 1,msig
 
@@ -1743,6 +1744,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
   end do
 
+
 ! Set clouds for CRTM
   if(n_clouds>0) then
      call Set_CRTM_Cloud (msig,n_actual_clouds,cloud_names,icmask,n_clouds,cloud_cont,cloud_efr,jcloud,auxdp, &
@@ -1754,6 +1756,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      call Set_CRTM_Aerosol ( msig, n_aerosols, n_aerosols_crtm, aero_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
   endif
+
+!$omp end parallel sections
 
 ! Call CRTM K Matrix model
 
@@ -2029,15 +2033,15 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
   real(r_kind)    wei1s, wei2s
   integer(i_kind) n1, n2, mm, mmm, mmp
 !
-        anal_time=0
-        obs_time=0
-        tmp_time=zero
-        tmp_time(2)=data_s(itime)
-        anal_time(1)=iadate(1)
-        anal_time(2)=iadate(2)
-        anal_time(3)=iadate(3)
-        anal_time(5)=iadate(4)
-        call w3movdat(tmp_time,anal_time,obs_time)
+      anal_time=0
+      obs_time=0
+      tmp_time=zero
+      tmp_time(2)=data_s(itime)
+      anal_time(1)=iadate(1)
+      anal_time(2)=iadate(2)
+      anal_time(3)=iadate(3)
+      anal_time(5)=iadate(4)
+      call w3movdat(tmp_time,anal_time,obs_time)
 
       jdow = 0
       jdoy = 0
@@ -2046,28 +2050,29 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
       rjday=jdoy+obs_time(5)/24.0_r_kind
       if(rjday.lt.dayhf(1)) rjday=rjday+365.0
 
-          DO MM=1,2
-            MMM=MM
-            MMP=MM+1
-            IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
-                 N1=MMM
-                 N2=MMP
-               GO TO 10
-            ENDIF
-          ENDDO
-          PRINT *,'WRONG RJDAY',RJDAY
-   10     CONTINUE
-          WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
-          WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
-          IF(N2.EQ.3) N2=1
+      DO MM=1,2
+        MMM=MM
+        MMP=MM+1
+        IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
+            N1=MMM
+            N2=MMP
+            GO TO 10
+        ENDIF
+      ENDDO
+      PRINT *,'WRONG RJDAY',RJDAY
+   10 CONTINUE
+      WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
+      WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
+      IF(N2.EQ.3) N2=1
 
       do i =1,13
         lai_season(i,1) = lai_min(i)
         lai_season(i,2) = lai_max(i)
+        if(data_s(ilate) < 0.0_r_kind) then
+           lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
+        else
            lai(i) = wei1s * lai_season(i,n1) + wei2s * lai_season(i,n2)
-           if(data_s(ilate) < 0.0_r_kind) then
-              lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
-           endif
+        endif
       enddo
 
   return

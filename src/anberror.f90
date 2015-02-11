@@ -133,7 +133,7 @@ module anberror
   real(r_double) an_flen_u,an_flen_t,an_flen_z
   type(fgrid2agrid_parm):: pf2aP1,pf2aP2,pf2aP3
 !                          for full/zonal_patch, and polar_patches
-  real(r_single):: afact0(10)
+  real(r_kind),allocatable:: afact0(:)
   logical:: covmap         ! flag for covariance map
   logical:: lreadnorm      ! flag for normalization operation
 
@@ -234,6 +234,7 @@ contains
 
     rtma_subdomain_option=.false.
 
+    allocate(afact0(nvars))
     afact0=zero
     covmap=.false.
     lreadnorm=.false.
@@ -374,6 +375,7 @@ contains
     implicit none
 
     deallocate(an_amp)
+    deallocate(afact0)
     deallocate(qvar3d)
     if(diag_precon)deallocate(vprecond)
 
@@ -626,6 +628,7 @@ contains
     implicit none
 
     deallocate(an_amp)
+    deallocate(afact0)
     deallocate(qvar3d)
     if(diag_precon)deallocate(vprecond)
     call destroy_fgrid2agrid(pf2aP1)
@@ -651,6 +654,8 @@ contains
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-12-05  pondeca - add initialization of kvar_start, kvar_end, and levs_jdvar
 !                         for nrf2_sst>0 
+!   2013-04-04  pondeca - remove reference to stl and sti, which are now
+!   handled more generally as motley control variales
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -664,19 +669,19 @@ contains
 !$$$ end documentation block
 
     use gridmod, only: nsig,vlevs
-    use control_vectors, only: nrf_var,nrf,nrf_3d
+    use control_vectors, only: nrf_var,nrf,nrf_3d,mvars
     use control_vectors, only: cvars2d
     use mpeu_util, only: getindex
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) n,k,kk,klevb,kleve,nrf2_sst
+    integer(i_kind) n,k,kk,klevb,kleve
+
     integer(i_kind),allocatable,dimension(:):: nrf_levb,nrf_leve
 
     indices%kds=1        ; indices%kde=vlevs
     indices%kps=indices%kds ; indices%kpe=indices%kde
-    nrf2_sst=getindex(cvars2d,'sst')
 
 !  initialize nvars,idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
@@ -684,13 +689,9 @@ contains
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars),levs_jdvar(indices%kds:indices%kde))
     allocate(nrf_levb(nrf),nrf_leve(nrf))
-    do k=1,nrf
+    do k=1,nvars
        var_names(k)=nrf_var(k)
     end do
-    if (nrf2_sst>0) then
-       var_names(nrf+1)="stl"
-       var_names(nrf+2)="sti"
-    end if
 
 ! initialize level pointer to each control variable
     klevb=1
@@ -717,13 +718,12 @@ contains
        kvar_end(n)  =nrf_leve(n)
        idvar(kvar_start(n):kvar_end(n))=n
     end do
-    if (nrf2_sst>0) then
-       do n=nrf+1,nrf+2
-          kvar_start(n)=kvar_end(n-1)+1
-          kvar_end(n)=kvar_start(n)
-          idvar(kvar_start(n):kvar_end(n))=n
-       enddo
-    end if
+    
+    do n=nrf+1,nrf+mvars
+       kvar_start(n)=kvar_end(n-1)+1
+       kvar_end(n)=kvar_start(n)           !motley variables are all 2d, at least for now
+       idvar(kvar_start(n):kvar_end(n))=n
+    end do
     jdvar=idvar
 
     kk=0
@@ -739,10 +739,10 @@ contains
        end if
     end do
 
-    if (nrf2_sst>0) then
-       levs_jdvar(kk+1)=1
-       levs_jdvar(kk+2)=1
-    end if
+    do n=nrf+1,nrf+mvars
+       kk=kk+1
+       levs_jdvar(kk)=1
+    end do
 
     deallocate(nrf_levb,nrf_leve)
 

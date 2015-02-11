@@ -19,6 +19,8 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !   2012-02-08  kleist  - add uvflag to input arguments, remove ref to uv_hyb_ens parameter.
 !   2012-06-12  parrish - significant reorganization to replace sub2grid2/grid2sub2 with
 !                         general_sub2grid/general_grid2sub.
+!   2014-12-03  derber - changes to reduce data movement (including call to
+!                        stvp2uv and tstvp2uv
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -134,10 +136,16 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !       !$omp parallel do private (k,vector)     ! ??????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-        call delx_reg(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-        call dely_reg(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
-        call delx_reg(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
-        call dely_reg(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
+        do j=1,nlon
+           do i=1,nlat
+              stx(i,j)=hwork(1,i,j,k)
+              vpx(i,j)=hwork(2,i,j,k)
+           end do
+        end do
+        call delx_reg(stx,hwork_x(1,:,:,k),vector)
+        call dely_reg(stx,hwork_y(1,:,:,k),vector)
+        call delx_reg(vpx,hwork_x(2,:,:,k),vector)
+        call dely_reg(vpx,hwork_y(2,:,:,k),vector)
      end do
 !        !$omp end parallel do                     ! ?????fix later
 
@@ -145,17 +153,23 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
      if(.not. uvflag)then
         do k=s2g4%kbegin_loc,s2g4%kend_loc
            if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
-              call stvp2uv(hwork(1,:,:,k),hwork(2,:,:,k))
+              call stvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
            end if
         end do
      end if
 !       !$omp parallel do private(k,vector)      ! ????????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-        call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-        call compact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
-        call compact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
-        call compact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
+        do j=1,nlon
+           do i=1,nlat
+              stx(i,j)=hwork(1,i,j,k)
+              vpx(i,j)=hwork(2,i,j,k)
+           end do
+        end do
+        call compact_dlon(stx,hwork_x(1,:,:,k),vector)
+        call compact_dlat(stx,hwork_y(1,:,:,k),vector)
+        call compact_dlon(vpx,hwork_x(2,:,:,k),vector)
+        call compact_dlat(vpx,hwork_y(2,:,:,k),vector)
      end do
 !       !$omp end parallel do                        ! ???fix later
   end if
@@ -410,21 +424,19 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !       !$omp parallel do private (k,vector)     ! ??????????fix this later
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-        call tdelx_reg(hwork_x(1,:,:,k),hwork(1,:,:,k),vector)
-        call tdely_reg(hwork_y(1,:,:,k),hwork(1,:,:,k),vector)
-        call tdelx_reg(hwork_x(2,:,:,k),hwork(2,:,:,k),vector)
-        call tdely_reg(hwork_y(2,:,:,k),hwork(2,:,:,k),vector)
-!        !$omp end parallel do                     ! ?????fix later
-        if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
-           do j=1,nlon
-              do i=1,nlat
-                 ux(i,j)=hwork(1,i,j,k)
-                 vx(i,j)=hwork(2,i,j,k)
-                 hwork(1,i,j,k)=zero
-                 hwork(2,i,j,k)=zero
-              end do
-           end do
+        if(vector) then
+           ux=zero
+           vx=zero
+           call tdelx_reg(hwork_x(1,:,:,k),ux,vector)
+           call tdely_reg(hwork_y(1,:,:,k),ux,vector)
+           call tdelx_reg(hwork_x(2,:,:,k),vx,vector)
+           call tdely_reg(hwork_y(2,:,:,k),vx,vector)
            call psichi2uvt_reg(ux,vx,hwork(1,:,:,k),hwork(2,:,:,k))
+        else
+           call tdelx_reg(hwork_x(1,:,:,k),hwork(1,:,:,k),vector)
+           call tdely_reg(hwork_y(1,:,:,k),hwork(1,:,:,k),vector)
+           call tdelx_reg(hwork_x(2,:,:,k),hwork(2,:,:,k),vector)
+           call tdely_reg(hwork_y(2,:,:,k),hwork(2,:,:,k),vector)
         end if
      end do
   else
@@ -440,7 +452,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
      if(.not. uvflag)then
         do k=s2g4%kbegin_loc,s2g4%kend_loc
            if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
-              call tstvp2uv(hwork(1,:,:,k),hwork(2,:,:,k))
+              call tstvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
            end if
         end do
      end if

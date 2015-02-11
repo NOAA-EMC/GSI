@@ -74,6 +74,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !                        - on-the-spot handling of non-essential vars
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2013-05-26  zhu  - add aircraft temperature bias correction contribution
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -108,7 +109,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
-  use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -284,18 +285,18 @@ subroutine intt_(thead,rval,sval,rpred,spred)
         end do
      end if
 
-     if (lsaveobsens) then
-        tptr%diags%obssen(jiter) = val*tptr%raterr2*tptr%err2
-     else
-        if (tptr%luse) tptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*tptr%raterr2*tptr%err2
+           tptr%diags%obssen(jiter) = grad
+        else
+           if (tptr%luse) tptr%diags%tldepart(jiter)=val
+        endif
      endif
 
 !    Do adjoint
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad=tptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-tptr%res
  
 !          gradient of nonlinear operator

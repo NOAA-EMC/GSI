@@ -119,6 +119,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: r600=600.0_r_kind
   real(r_kind),parameter:: r700=700.0_r_kind
+  real(r_kind),parameter:: r850=850.0_r_kind
   real(r_kind),parameter:: r199=199.0_r_kind
   real(r_kind),parameter:: r299=299.0_r_kind
   real(r_kind),parameter:: r799=799.0_r_kind
@@ -254,7 +255,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=240 &
+     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and.  ictype(nc) >=240 &
              .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
@@ -510,7 +511,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
             .or. obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
            if(ppb >r10000) ppb=ppb/r100
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
-           if (twodvar_regional .and. ppb <r600) cycle loop_readsb
+           if (twodvar_regional .and. ppb <r850) cycle loop_readsb
 !   reject the data with bad quality mark from SDM
            if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
 !       Compare relative obs time with window.  If obs 
