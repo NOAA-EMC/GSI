@@ -1,0 +1,20 @@
+#!/bin/bash
+#======================================
+# Purpose:
+#    Specify utility location on cardinal
+#    and load modules needed to run
+#    Hurricane Intensity and Track package.
+# Author: Deyong Xu / RTi@JCSDA
+# History:
+#    2/11/2015, D. Xu / RTi@JCSDA , initial code.
+#
+#======================================
+set -a
+
+export NDATE=/usr/local/jcsda/nwprod_gdas_2014/util/exec/ndate
+
+module purge
+module load license_intel
+module load intel/14.0-2
+module load grads/2.0.2-precompiled
+module load subversion/1.7
