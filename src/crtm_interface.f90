@@ -25,6 +25,7 @@ module crtm_interface
 !   2013-10-19  todling - metguess now holds background
 !   2013-11-16  todling - merge in latest DTC AOD development;
 !                         revisit handling of green-house-gases
+!   2014-01-01  li     - change the protection of data_s(itz_tr)
 !
 ! subroutines included:
 !   sub init_crtm
@@ -1510,11 +1511,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         lai_type = itype
      end if
                                     
-     if (lwind) then
+     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(-uu5,-vv5)
-       if ( surface(1)%wind_direction < zero ) surface(1)%wind_direction = &
-          surface(1)%wind_direction + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
@@ -1806,7 +1805,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        emissivity_k(i) = rtsolution_k(i,1)%surface_emissivity
 
 !  Surface temperature sensitivity
-       if(nst_gsi>1) then
+       if(nst_gsi>1 .and. (data_s(itz_tr) > zero .and. data_s(itz_tr) <= one) ) then
           ts(i)   = surface_k(i,1)%water_temperature*data_s(itz_tr) + &
                     surface_k(i,1)%land_temperature + &
                     surface_k(i,1)%ice_temperature + &
