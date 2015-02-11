@@ -316,7 +316,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !  If no rad observations return
   if(.not.associated(radhead)) return
 ! Set required parameters
-  call setrad(sval)
   if(lgoback) return
 
 
