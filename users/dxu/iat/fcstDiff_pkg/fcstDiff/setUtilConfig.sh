@@ -10,7 +10,7 @@
 #======================================
 set -a 
 
-hnStr=`source getHostname.sh`
+hnStr=`source ./getHostname.sh`
 
 # Define two const strings
 notSupportStr="NOT_SUPPORTED_HOST"
@@ -22,7 +22,7 @@ then
    exit
 else
    # Load config file for the host
-   source  utilConfig.${hnStr}
+   source  ./utilConfig.${hnStr}
 fi
 
 
