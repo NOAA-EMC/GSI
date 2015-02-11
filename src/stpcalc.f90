@@ -222,6 +222,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
   use mpeu_util, only: getindex
+  use intradmod, only: setrad
   use timermod, only: timer_ini,timer_fnl
   implicit none
 
@@ -462,6 +463,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
      end if
 
+
+     call setrad(sval(1))
 !    penalties for Jo
      pbcjoi=zero_quad 
      call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 

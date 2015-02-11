@@ -110,7 +110,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
-          luseqr,luseqs,lusesst,setrad
+          luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
   implicit none
   
@@ -145,8 +145,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !  If no rad data return
   if(.not. associated(radhead))return
 
-! Set internal parameters
-  call setrad(xval)
   if(lgoback)return
 
 ! Retrieve pointers
