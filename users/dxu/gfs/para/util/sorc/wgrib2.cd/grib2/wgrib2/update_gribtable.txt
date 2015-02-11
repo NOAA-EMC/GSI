@@ -1,8 +1,0 @@
-Updating the grib table is automated
-
-./get_gribtab.sh
-	updates gribtab
-
-./mk_gribtab_dat.pl
-	gribtab -> gribtab.dat
-

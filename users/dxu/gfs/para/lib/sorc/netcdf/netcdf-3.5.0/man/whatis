@@ -1,5 +1,0 @@
-ncdump (1)		- Convert netCDF files to ASCII form (CDL)
-ncgen (1)		- From a CDL file generate a netCDF file, a C program, or a Fortran
-netcdf (3)		- Unidata Network Common Data Form (netCDF) library, version 3 interface
-netcdf (3)		- Unidata Network Common Data Form (netCDF) library, version 3 interface
-netcdf (3f90)		- Unidata Network Common Data Form (netCDF) library, version 3 interface
