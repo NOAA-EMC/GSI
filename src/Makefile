@@ -336,6 +336,7 @@ clean:
 	intpw.f90 \
 	intq.f90 \
 	intrad.f90 \
+        intrp_msk.f90 \
 	intrp2a.f90 \
 	intrp3oz.f90 \
 	intrw.f90 \
@@ -398,6 +399,7 @@ clean:
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
+	Nst_Var_ESMFMod.f90 \
         obserr_allsky_mw.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
@@ -572,6 +574,7 @@ clean:
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
+	read_nsstbufr.f90 \
 	read_obs.F90 \
 	read_ozone.f90 \
 	read_pblh.f90 \
