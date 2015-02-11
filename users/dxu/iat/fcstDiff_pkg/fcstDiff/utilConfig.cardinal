@@ -1,0 +1,22 @@
+#!/bin/bash
+#======================================
+# Purpose:
+#    Specify utility location on cardinal
+#    and load modules needed to run
+#    fcstDiff package.
+# Author: Deyong Xu / RTi@JCSDA
+# History:
+#    2/11/2015, D. Xu / RTi@JCSDA , initial code.
+#
+#======================================
+set -a
+
+export ndate_dir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
+export copygb_dir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
+export gribmap_dir=/opt/grads/2.0.2-intel-14.0-2/bin
+
+module purge
+module load license_intel
+module load intel/14.0-2
+module load grads/2.0.2-precompiled
+module load subversion/1.7
