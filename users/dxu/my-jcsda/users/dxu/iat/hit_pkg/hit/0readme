@@ -1,6 +1,0 @@
-1. track_mean.sh verifys all stroms in a given basin and makes plots of mean track and intensity errors. 
-   trackat${year}_at.sh and trackep${year)_ep.sh verify indiual storms.         
-
-2. Users only need to copy track_mean.sh, trackat${year}_at.sh and trackep${year)_ep.sh.  
-   There is no need to check out the entire package, which contains TPC offical tracks which are of large size.
-
