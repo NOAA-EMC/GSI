@@ -1,6 +1,0 @@
-# ps command
-alias psef="ps -ef  |grep ${LOGNAME} "     # all the process
-alias ptree="ps -ejH "   # process tree
-alias pthread="ps -eLf " # thread info
-alias pcmd="ps -fp "     # + PID#
-
