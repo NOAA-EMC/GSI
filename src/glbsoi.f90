@@ -92,7 +92,6 @@ subroutine glbsoi(mype)
 !   2014-02-05  todling - update interface to prebal
 !   2014-06-19  carley/zhu - Modify for R_option: optional variable correlation length twodvar_regional
 !                            lcbas analysis variable
-!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis     
 !
 !   input argument list:
 !     mype - mpi task id
@@ -145,8 +144,6 @@ subroutine glbsoi(mype)
        hybens_localization_setup,hybens_grid_setup
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
   use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc_pof,aircraft_t_bc,mype_airobst
-  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
-  use mpimod, only: ierror,mpi_comm_world
 
   implicit none
 
@@ -195,27 +192,6 @@ subroutine glbsoi(mype)
 
 ! Read observations and scatter
   call observer_set
-
-  if(i_gsdcldanal_type==2 .or. i_gsdcldanal_type==3 .or. &
-     i_gsdcldanal_type==6) then
-! cloud analysis
-     call gsdcloudanalysis(mype)
-     call MPI_BARRIER(mpi_comm_world,ierror)
-
-     if(i_gsdcldanal_type==3 .or. i_gsdcldanal_type==6) then
-! Write output analysis files
-        call write_all(-1,mype)
-        call prt_guess('analysis')
-
-! Finalize observer
-        call observer_finalize
-
-! Finalize timer for this procedure
-        call timer_fnl('glbsoi')
-
-        return
-     endif  ! i_gsdcldanal_type==3 cloud analysis only
-  endif
 
 ! Create/setup background error and background error balance
   if (regional)then

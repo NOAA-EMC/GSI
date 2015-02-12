@@ -1580,7 +1580,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               i_chem(iv)=i+1
               do k=1,lm
                 i=i+1
-!mhu                write(identity(i),'("record ",i3,"--"//trim(cvar(iv))//"(",i2,")")')i,k
                 jsig_skip(i)=0 ; igtype(i)=1
               end do
            end do

@@ -26,7 +26,6 @@ subroutine convert_netcdf_mass
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
-!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis     
 !
 !   input argument list:
 !
@@ -1871,7 +1870,6 @@ subroutine update_netcdf_mass
   use obsmod, only: iadate
   use chemmod, only: laeroana_gocart, ppmv_conv
   use gsi_chemguess_mod, only: gsi_chemguess_get
-  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
   implicit none
 
@@ -1894,7 +1892,7 @@ subroutine update_netcdf_mass
   character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
-  character (len=80) :: SysDepInfo
+
 
   integer(i_kind) :: it, n_actual_clouds, ierr, istatus, Status, Status_next_time
   real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
@@ -1937,7 +1935,6 @@ subroutine update_netcdf_mass
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file
 ! to temporary binary format
 
-  if( i_gsdcldanal_type==6) call ext_ncd_ioinit(sysdepinfo,status)
 !
 !           update mass core netcdf file with analysis variables from 3dvar
 !

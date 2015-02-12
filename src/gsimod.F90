@@ -1367,7 +1367,7 @@
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
-  if (regional.and.i_gsdcldanal_type.ne.6) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
   if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 
