@@ -202,6 +202,7 @@ subroutine get_gefs_for_regional
   if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
                                  iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
+     if(.not.l_ens_in_diff_time) call stop2(85)
   end if
      
 
@@ -233,7 +234,7 @@ subroutine get_gefs_for_regional
      end do
   else
      write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
-     if(.not.l_ens_in_diff_time) call stop2(85)
+     call stop2(85)
   endif
 ! Load reference temperature array (used by general coordinate)
   do k=1,sighead%levs
