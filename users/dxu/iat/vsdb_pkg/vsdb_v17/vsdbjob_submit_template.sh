@@ -4,12 +4,12 @@ set -ux
 # Take in configuration users enter via GUI
 myhome=`pwd`
 source ${myhome}/vsdbTop_gui.config
-source ${myhome}/vsdbStep1.config
-source ${myhome}/vsdbStep2.config
-source ${myhome}/vsdbStep3.config
-source ${myhome}/vsdbStep4.config
-source ${myhome}/vsdbStep5.config
-source ${myhome}/vsdbStep6.config
+source ${myhome}/vsdbStep1_gui.config
+source ${myhome}/vsdbStep2_gui.config
+source ${myhome}/vsdbStep3_gui.config
+source ${myhome}/vsdbStep4_gui.config
+source ${myhome}/vsdbStep5_gui.config
+source ${myhome}/vsdbStep6_gui.config
 
 #------------------------------------------
 # Set up flag to run each step: YES/NO
