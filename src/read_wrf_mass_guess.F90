@@ -54,7 +54,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
-!   2014-12-12  hu     - change l_use_2mQ4B to i_use_2mQ4B
+!   2014-12-12  hu     - change l_use_2mq4b to i_use_2mq4b
 !
 !   input argument list:
 !     mype     - pe number
@@ -88,7 +88,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use constants, only: r0_01
   use gsi_io, only: lendian_in
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mQ4B
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -265,7 +265,7 @@ subroutine read_wrf_mass_binary_guess(mype)
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus );ier=ier+istatus
            if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
         endif
-        if (i_use_2mQ4B>0) then
+        if (i_use_2mq4b>0) then
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m'  ,ges_q2_it,istatus);ier=ier+istatus
            if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier =',ier)
         endif
@@ -1081,7 +1081,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                  ges_tsk_it(j,i)=all_loc(j,i,i_tsk)
                  ges_soilt1_it(j,i)=all_loc(j,i,i_soilt1)
               endif
-              if(i_use_2mQ4B>0) then
+              if(i_use_2mq4b>0) then
                 ges_q2_it(j,i)=all_loc(j,i,i_q2)
 ! Convert 2m guess mixing ratio to specific humidity
                 ges_q2_it(j,i) = ges_q2_it(j,i)/(one+ges_q2_it(j,i))
@@ -1237,7 +1237,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use constants, only: r0_01, tiny_r_kind
   use gsi_io, only: lendian_in
   use chemmod, only: laeroana_gocart
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mQ4B
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1683,7 +1683,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv',ges_tv_it,istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q_it, istatus );ier=ier+istatus
         if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
-        if(i_use_2mQ4B>0) then
+        if(i_use_2mq4b>0) then
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'q2m',ges_q2_it,istatus ); ier=ier+istatus
            if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier =',ier)
         endif
@@ -1901,7 +1901,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  ges_soilt1_it(j,i)=all_loc(j,i,i_0+i_soilt1)
               endif
 ! Convert 2m guess mixing ratio to specific humidity
-              if(i_use_2mQ4B>0) then
+              if(i_use_2mq4b>0) then
                  ges_q2_it(j,i)=all_loc(j,i,i_0+i_q2)
                  ges_q2_it(j,i)=ges_q2_it(j,i)/(one+ges_q2_it(j,i))
               endif

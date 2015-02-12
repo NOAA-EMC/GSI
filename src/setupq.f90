@@ -112,8 +112,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use converr, only: ptabl 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
-  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr, &
-                                      i_use_2mQ4B
+  use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobsq,pblh_ration,pps_press_incr, &
+                                      i_use_2mq4b
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
 
@@ -182,8 +182,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(q_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-  real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc
-  real(r_single) :: qv,ee,DWPT
+  real(r_kind) :: thispbl_height,ratio_PBL_height,prestsfc,diffsfc
+  real(r_single) :: qv,ee,dwpt
 
   logical:: if_checkdp
 
@@ -270,9 +270,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   scale=one
 
   ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
-
-! new code
-! ice=.true.  ! get same (in rh) q obs error for mixed and ice phases
 
   iderivative=0
   do jj=1,nfldsig
@@ -373,7 +370,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      dprpx=zero
      if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
         dprpx=abs(one-exp(dpres-log(psges)))*r10
-!       dprpx=abs(presq-r10*psges)*0.0025_r_kind
      end if
 
 !    Put obs pressure in correct units to get grid coord. number
@@ -393,7 +389,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           mype,nfldsig)
 
 ! Interpolate 2-m qs to obs locations/times
-     if(i_use_2mQ4B>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
+     if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
         call tintrp2a11(qg2m,qsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
      endif
 
@@ -439,19 +435,19 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         hrdifsig,mype,nfldsig)
 
 ! Interpolate 2-m q to obs locations/times
-     if(i_use_2mQ4B>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
+     if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
         call tintrp2a11(ges_q2m,q2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
-        if(i_use_2mQ4B==1)then
-           qges=0.33*qges+0.67*q2mges
-        elseif(i_use_2mQ4B==2) then
-           if(q2mges.ge.qges) then
-              q2mges=min(q2mges, 1.15*qges)
+        if(i_use_2mq4b==1)then
+           qges=0.33_r_single*qges+0.67_r_single*q2mges
+        elseif(i_use_2mq4b==2) then
+           if(q2mges >= qges) then
+              q2mges=min(q2mges, 1.15_r_single*qges)
            else
-              q2mges=max(q2mges, 0.85*qges)
+              q2mges=max(q2mges, 0.85_r_single*qges)
            end if
            qges=q2mges
         else
-           write(6,*) 'Invalid i_use_2mQ4B number=',i_use_2mQ4B
+           write(6,*) 'Invalid i_use_2mq4b number=',i_use_2mq4b
            call stop2(100)
         endif
      endif
@@ -465,15 +461,15 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !
      if_checkdp=.false.
      if( if_checkdp .and. (itype > 179 .and. itype < 190)) then
-       qv = max(1.E-5,qob/(1.-qob))
-       ee=prest*qv/(0.62197+qv)
-       DWPT = (243.5*ALOG(ee)-440.8)/(19.48-ALOG(ee))+273.15 ! k
-       DWPT = (DWPT-273.17)*9.0/5.0+32.0   ! F
-       if(muse(i) .and. DWPT > 85.0) then
+       qv = max(1.e-5_r_single,qob/(1.-qob))
+       ee=prest*qv/(0.62197_r_single+qv)
+       dwpt = (243.5_r_single*alog(ee)-440.8_r_single)/(19.48_r_single-alog(ee))+273.15_r_single ! k
+       dwpt = (dwpt-273.17_r_single)*9.0_r_single/5.0_r_single+32.0_r_single   ! F
+       if(muse(i) .and. dwpt > 85.0_r_single) then
            muse(i)=.false.
            write(*,*) 'WARNING: station ',trim(station_id), &
                       ' has extreme high dew point ',&
-                        DWPT, ' Toss this dew point.'
+                        dwpt, ' Toss this dew point.'
        endif
      endif
 
@@ -745,18 +741,18 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
-     if( .not. last .and. l_PBL_pseudo_SurfobsQ .and.         &
+     if( .not. last .and. l_pbl_pseudo_surfobsq .and.         &
          ( itype==181 .or. itype==183 .or.itype==187 )  .and. &
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
         diffsfc=ddiff
-        call tintrp2a11(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+        call tintrp2a11(pbl_height,thispbl_height,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
-        if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
+        ratio_PBL_height = (prest - thispbl_height) * pblh_ration
+        if(ratio_PBL_height > zero) thispbl_height = prest - ratio_PBL_height
         prest = prest - pps_press_incr
-        DO while (prest > thisPBL_height)
-           ratio_PBL_height=1.0_r_kind-(prestsfc-prest)/(prestsfc-thisPBL_height)
+        DO while (prest > thispbl_height)
+           ratio_PBL_height=1.0_r_kind-(prestsfc-prest)/(prestsfc-thispbl_height)
               allocate(qtail(ibin)%head%llpoint,stat=istat)
               if(istat /= 0)write(6,*)' failure to write qtail%llpoint '
               qtail(ibin)%head => qtail(ibin)%head%llpoint
@@ -880,7 +876,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          call stop2(999)
      endif
 !    get q2m ...
-     if (i_use_2mQ4B>0) then
+     if (i_use_2mq4b>0) then
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
@@ -898,7 +894,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
         endif
-     endif ! i_use_2mQ4B
+     endif ! i_use_2mq4b
 !    get q ...
      varname='q'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)

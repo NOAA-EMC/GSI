@@ -94,29 +94,29 @@ SUBROUTINE  gsdcloudanalysis(mype)
   real(r_single),allocatable:: xlon(:,:)        ! 2D longitude in each grid
   real(r_single),allocatable:: xlat(:,:)        ! 2D latitude in each grid
   real(r_single),allocatable:: gsfc(:,:,:)
-  real(i_kind),  allocatable:: xland(:,:)
+  real(r_single),  allocatable:: xland(:,:)
   real(r_single),allocatable:: soiltbk(:,:)
 !  real(r_single),allocatable:: z_lcl(:,:)       ! lifting condensation level
   real(r_single),allocatable:: pblh(:,:)         ! PBL height (grid coordinate)
 !
 !  surface observation
 !
-  INTEGER(i_kind) :: NVARCLD_P
-  PARAMETER (NVARCLD_P=13)
+  INTEGER(i_kind) :: nvarcld_p
+  PARAMETER (nvarcld_p=13)
 
   INTEGER(i_kind)              :: numsao
-  real(r_single), allocatable  :: OI(:)
-  real(r_single), allocatable  :: OJ(:)
-  INTEGER(i_kind),allocatable  :: OCLD(:,:)
-  CHARACTER*10,   allocatable  :: OWX(:)
-  real(r_single), allocatable  :: Oelvtn(:)
-  real(r_single), allocatable  :: Odist(:)
+  real(r_single), allocatable  :: oi(:)
+  real(r_single), allocatable  :: oj(:)
+  INTEGER(i_kind),allocatable  :: ocld(:,:)
+  CHARACTER*10,   allocatable  :: owx(:)
+  real(r_single), allocatable  :: oelvtn(:)
+  real(r_single), allocatable  :: odist(:)
   character(8),   allocatable  :: cstation(:)
-  real(r_single), allocatable  :: OIstation(:)
-  real(r_single), allocatable  :: OJstation(:)
+  real(r_single), allocatable  :: oistation(:)
+  real(r_single), allocatable  :: ojstation(:)
   real(r_single), allocatable  :: wimaxstation(:)
 !
-  INTEGER(i_kind),allocatable  :: Osfc_station_map(:,:)
+  INTEGER(i_kind),allocatable  :: osfc_station_map(:,:)
 !
 !  lightning observation: 2D field in RR grid
 !
@@ -132,7 +132,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
   real(r_kind),allocatable :: ref_mos_3d(:,:,:)
   real(r_kind),allocatable :: ref_mos_3d_tten(:,:,:)
   real(r_kind),allocatable :: ref_mosaic31(:,:,:)
-  INTEGER(i_kind)          :: Nmsclvl_radar 
+  INTEGER(i_kind)          :: nmsclvl_radar 
 !
 !  GOES - NESDIS cloud products : 2d fields
 !
@@ -184,8 +184,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
 
 !
 ! collect cloud
-  REAL(r_kind)    :: Cloud_def_p
-  data  Cloud_def_p       / 0.000001_r_kind/
+  REAL(r_kind)    :: cloud_def_p
+  data  cloud_def_p       / 0.000001_r_kind/
   REAL(r_kind),allocatable :: sumqci(:,:,:)  ! total liquid water
   REAL(r_kind),allocatable :: watericemax(:,:)  ! max of total liquid water
   INTEGER(i_kind),allocatable :: kwatericemax(:,:)  ! lowest level of total liquid water
@@ -199,9 +199,9 @@ SUBROUTINE  gsdcloudanalysis(mype)
   INTEGER(i_kind) :: opt_cloudwaterice_retri  ! method for cloud water retrieval
   INTEGER(i_kind) :: opt_hydrometeor_retri    ! method for precipitation retrieval
   INTEGER(i_kind) :: opt_cloudtemperature     ! if open temperature adjustment scheme
-  INTEGER(i_kind) :: istat_Surface,istat_NESDIS,istat_radar    ! 1 has observation
-  INTEGER(i_kind) :: istat_NASALaRC,istat_lightning            ! 0 no observation
-  INTEGER(i_kind) :: imerge_NESDIS_NASALaRC  !  =1 merge NASA LaRC with NESDIS
+  INTEGER(i_kind) :: istat_surface,istat_nesdis,istat_radar    ! 1 has observation
+  INTEGER(i_kind) :: istat_nasalarc,istat_lightning            ! 0 no observation
+  INTEGER(i_kind) :: imerge_nesdis_nasalarc  !  =1 merge NASA LaRC with NESDIS
                                              !  =2 use NASA LaRC only
                                              !  = other, use NESDIS only
 !
@@ -273,7 +273,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
   opt_cloudtemperature=3        ! 3=latent heat, 4,5,6 = adiabat profile
   opt_cloudwaterice_retri=1     ! 1 = RUC layer saturation and autoconvert
                                 ! 2 = convective 
-  imerge_NESDIS_NASALaRC=1      !  =1 merge NASA LaRC with NESDIS
+  imerge_nesdis_nasalarc=1      !  =1 merge NASA LaRC with NESDIS
                                 !  =2 use NASA LaRC only
                                 !  =3 No Satellite cloud top used
                                 !  = other, use NESDIS only
@@ -281,11 +281,11 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
 ! initialize the observation flag  
 !
-  istat_Surface=0
-  istat_NESDIS=0
+  istat_surface=0
+  istat_nesdis=0
   istat_radar=0
   istat_lightning=0
-  istat_NASALaRC=0
+  istat_nasalarc=0
 
   call load_gsdpbl_hgt(mype)
 !
@@ -330,12 +330,12 @@ SUBROUTINE  gsdcloudanalysis(mype)
   w_frac=miss_obs_real
   nlev_cld=miss_obs_int
 
-  allocate(Osfc_station_map(lon2,lat2))
-  Osfc_station_map=miss_obs_int
+  allocate(osfc_station_map(lon2,lat2))
+  osfc_station_map=miss_obs_int
 !
 ! 1.2 start to read observations                 
 !
-  Nmsclvl_radar = -999
+  nmsclvl_radar = -999
   lunin=55
   open(lunin,file=obs_setup,form='unformatted')
   rewind lunin
@@ -349,21 +349,21 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
         if( dtype(is) == 'mta_cld' ) then
            numsao=nsat1(is) 
-           allocate(OI(numsao))
-           allocate(OJ(numsao))
-           allocate(OCLD(NVARCLD_P,numsao))
-           allocate(OWX(numsao))
-           allocate(Oelvtn(numsao))
-           allocate(Odist(numsao))
+           allocate(oi(numsao))
+           allocate(oj(numsao))
+           allocate(ocld(nvarcld_p,numsao))
+           allocate(owx(numsao))
+           allocate(oelvtn(numsao))
+           allocate(odist(numsao))
            allocate(cstation(numsao))
-           allocate(OIstation(numsao))
-           allocate(OJstation(numsao))
+           allocate(oistation(numsao))
+           allocate(ojstation(numsao))
            allocate(wimaxstation(numsao))
            call read_Surface(mype,lunin,regional_time,istart(mype+1),jstart(mype+1),lon2,lat2, &
-                             numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation,OIstation,OJstation)
+                             numsao,nvarcld_p,oi,oj,ocld,owx,oelvtn,odist,cstation,oistation,ojstation)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                                  &
                         'Surface cloud observations are read in successfully'
-           istat_Surface=1
+           istat_surface=1
 
         elseif( dtype(is) == 'gos_ctp' ) then 
 !
@@ -374,7 +374,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
                             jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                             &
                          'NESDIS cloud products are read in successfully'
-           istat_NESDIS = 1 
+           istat_nesdis = 1 
 
         elseif( dtype(is) == 'rad_ref' ) then
 !
@@ -384,7 +384,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
            ref_mosaic31=-99999.0_r_kind
 
            call read_radar_ref(mype,lunin,regional_time,istart(mype+1),jstart(mype+1), &
-                              lon2,lat2,Nmsclvl_radar,nsat1(is),ref_mosaic31)
+                              lon2,lat2,nmsclvl_radar,nsat1(is),ref_mosaic31)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                         &
                          ' radar reflectivity is read in successfully'
            istat_radar=1
@@ -409,7 +409,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
                               jstart(mype+1),lon2,lat2,nasalarc_cld)
            if(mype == 0) write(6,*) 'gsdcloudanalysis:',                       &
                          'NASA LaRC cloud products are read in successfully'
-           istat_NASALaRC = 1
+           istat_nasalarc = 1
 
         else
 !
@@ -425,8 +425,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !  1.4  if there are NASA LaRC cloud products, use them to replace NESDIS ones.
 !       So we use NASA LaRC data in the same way as NESDIS ones
 !
-  if(imerge_NESDIS_NASALaRC == 1 ) then
-     if(istat_NASALaRC == 1 ) then
+  if(imerge_nesdis_nasalarc == 1 ) then
+     if(istat_nasalarc == 1 ) then
         DO j=2,lat2-1
            DO i=2,lon2-1
              if(sat_ctp(i,j) < -99990.0) then   ! missing value is -999999.0
@@ -434,21 +434,21 @@ SUBROUTINE  gsdcloudanalysis(mype)
                 sat_tem(i,j) = nasalarc_cld(i,j,2)
                 w_frac(i,j)  = nasalarc_cld(i,j,3)
                 nlev_cld(i,j)= int(nasalarc_cld(i,j,5))
-                istat_NESDIS =istat_NASALaRC
+                istat_nesdis =istat_nasalarc
              endif
            ENDDO
         ENDDO
      endif
-  elseif ( imerge_NESDIS_NASALaRC == 2) then
-     if(istat_NASALaRC == 1 ) then
+  elseif ( imerge_nesdis_nasalarc == 2) then
+     if(istat_nasalarc == 1 ) then
        sat_ctp(:,:) = nasalarc_cld(:,:,1)
        sat_tem(:,:) = nasalarc_cld(:,:,2)
        w_frac(:,:)  = nasalarc_cld(:,:,3)
        nlev_cld(:,:)= int(nasalarc_cld(:,:,5))
-       istat_NESDIS =istat_NASALaRC
+       istat_nesdis =istat_nasalarc
      endif
-  elseif ( imerge_NESDIS_NASALaRC == 3) then
-       istat_NESDIS = 0
+  elseif ( imerge_nesdis_nasalarc == 3) then
+       istat_nesdis = 0
   endif
 !
 !
@@ -475,7 +475,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
           watericemax(i,j) = max(watericemax(i,j),sumqci(i,j,k))
        end do
        do k=1,nsig
-          if (sumqci(i,j,k) > Cloud_def_p .and. kwatericemax(i,j) == -1) then
+          if (sumqci(i,j,k) > cloud_def_p .and. kwatericemax(i,j) == -1) then
              kwatericemax(i,j) = k
           end if
        end do
@@ -503,10 +503,10 @@ SUBROUTINE  gsdcloudanalysis(mype)
   temp1=0.0_r_single
   call unfill_mass_grid2t(tempa,im,jm,temp1)
 
-  if(istat_Surface==1) then
+  if(istat_surface==1) then
      DO ista=1,numsao
-        iob = min(max(int(OIstation(ista)+0.5),1),im)
-        job = min(max(int(OJstation(ista)+0.5),1),jm)
+        iob = min(max(int(oistation(ista)+0.5),1),im)
+        job = min(max(int(ojstation(ista)+0.5),1),jm)
         wimaxstation(ista)=temp1(iob,job)
         if(wimaxstation(ista) > 0._r_single) then
             i=int(oi(ista))
@@ -517,15 +517,15 @@ SUBROUTINE  gsdcloudanalysis(mype)
   deallocate(all_loc,strp,tempa,temp1)
 
 ! make a surface station map in grid coordinate
-  if(istat_Surface==1) then
+  if(istat_surface==1) then
      DO ista=1,numsao
-        iob = int(OIstation(ista)-jstart(mype+1)+2)
-        job = int(OJstation(ista)-istart(mype+1)+2)
+        iob = int(oistation(ista)-jstart(mype+1)+2)
+        job = int(ojstation(ista)-istart(mype+1)+2)
         if(iob >=1 .and. iob<=lon2-1 .and. job >=1 .and. job<=lat2-1) then
-           Osfc_station_map(iob,job)=1
-           Osfc_station_map(iob+1,job)=1
-           Osfc_station_map(iob,job+1)=1
-           Osfc_station_map(iob+1,job+1)=1
+           osfc_station_map(iob,job)=1
+           osfc_station_map(iob+1,job)=1
+           osfc_station_map(iob,job+1)=1
+           osfc_station_map(iob+1,job+1)=1
         endif
      enddo
   endif
@@ -533,7 +533,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
 !  1.8 check if data available: if no data in this subdomain, return. 
 !
-  if( (istat_radar + istat_Surface + istat_NESDIS + istat_lightning ) == 0 ) then
+  if( (istat_radar + istat_surface + istat_nesdis + istat_lightning ) == 0 ) then
      write(6,*) ' No cloud observations available, return', mype
      deallocate(ref_mos_3d,ref_mos_3d_tten,lightning,sat_ctp,sat_tem,w_frac,nlev_cld)
      return
@@ -618,7 +618,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !  2.6 vertical interpolation of radar reflectivity
 !
   if(istat_radar ==  1 ) then
-     call vinterp_radar_ref(mype,lon2,lat2,nsig,Nmsclvl_radar, &
+     call vinterp_radar_ref(mype,lon2,lat2,nsig,nmsclvl_radar, &
                           ref_mos_3d,ref_mosaic31,h_bk,zh)
      deallocate( ref_mosaic31 )
      ref_mos_3d_tten=ref_mos_3d
@@ -648,23 +648,23 @@ SUBROUTINE  gsdcloudanalysis(mype)
   pcp_type_3d =miss_obs_int
 !
 !
-  if(istat_Surface ==  1) then
+  if(istat_surface ==  1) then
      call cloudCover_surface(mype,lat2,lon2,nsig,r_radius,thunderRadius,  &
               t_bk,p_bk,q_bk,h_bk,zh,                                     &
-              numsao,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,Odist,        &
+              numsao,nvarcld_p,numsao,oi,oj,ocld,owx,oelvtn,odist,        &
               cld_cover_3d,cld_type_3d,wthr_type_2d,pcp_type_3d,          &
               wimaxstation, kwatericemax)
      if(mype == 0) write(6,*) 'gsdcloudanalysis:',                        &  
                    'success in cloud cover analysis using surface data'
   endif
 
-  if(istat_NESDIS == 1 ) then
+  if(istat_nesdis == 1 ) then
      call cloudCover_NESDIS(mype,regional_time,lat2,lon2,nsig,            &
                          xlon,xlat,t_bk,p_bk,h_bk,zh,xland,               &
                          soiltbk,sat_ctp,sat_tem,w_frac,                  &
                          l_cld_bld,cld_bld_hgt,                           &
                          build_cloud_frac_p,clear_cloud_frac_p,nlev_cld,  &
-                         cld_cover_3d,cld_type_3d,wthr_type_2d,Osfc_station_map)
+                         cld_cover_3d,cld_type_3d,wthr_type_2d,osfc_station_map)
      if(mype == 0) write(6,*) 'gsdcloudanalysis:',                        & 
                    ' success in cloud cover analysis using NESDIS data'
   endif
@@ -750,7 +750,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
 ! 4.10 radar temperature tendency for DFI
 !
   dfi_lhtp=dfi_radar_latent_heat_time_period
-  if (istat_NESDIS==1) then
+  if (istat_nesdis==1) then
      call radar_ref2tten(mype,istat_radar,istat_lightning,lon2,lat2,nsig,ref_mos_3d_tten, &
                        cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp,krad_bot,pblh,sat_ctp)
   else
@@ -1020,7 +1020,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
 
 !  call check_cloud(mype,lat2,lon2,nsig,q_bk,rain_3d,snow_3d,graupel_3d, &
 !             cldwater_3d,cldice_3d,t_bk,p_bk,h_bk,                      &
-!             numsao,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,cstation,    &
+!             numsao,nvarcld_p,numsao,oi,oj,ocld,owx,oelvtn,cstation,    &
 !             sat_ctp,cld_cover_3d,xland)
 !----------------------------------------------
 ! 6.  save the analysis results
@@ -1064,11 +1064,11 @@ SUBROUTINE  gsdcloudanalysis(mype)
   deallocate(xlon,xlat,xland,soiltbk)
   deallocate(cldwater_3d,cldice_3d,rain_3d,nrain_3d,snow_3d,graupel_3d,cldtmp_3d)
 
-  if(istat_Surface ==  1 ) then
-     deallocate(OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation,OIstation,OJstation,wimaxstation)
+  if(istat_surface ==  1 ) then
+     deallocate(oi,oj,ocld,owx,oelvtn,odist,cstation,oistation,ojstation,wimaxstation)
      deallocate(watericemax,kwatericemax) 
   endif
-  if(istat_NASALaRC == 1 ) then
+  if(istat_nasalarc == 1 ) then
      deallocate(nasalarc_cld)
   endif
 

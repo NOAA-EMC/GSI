@@ -1302,13 +1302,10 @@ end subroutine normal_new_factorization_rf_y
 
 !     regional_ensemble_option = 1: use GEFS internally interpolated to ensemble grid.
 
-                if(i_en_perts_io /= 2) call get_gefs_for_regional
-
-                if(i_en_perts_io==1) then ! save en_perts and exit
-                   call en_perts_save
-                   return
-                elseif(i_en_perts_io==2) then ! get en_perts from save files
+                if(i_en_perts_io==2) then ! get en_perts from save files
                    call en_perts_get_from_save
+                else
+                   call get_gefs_for_regional
                 endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf

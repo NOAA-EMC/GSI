@@ -71,7 +71,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   use guess_grids, only: ges_tsen,isli,nfldsig,sno,coast_prox
   use wrf_mass_guess_mod, only: ges_xlon,ges_xlat
   use guess_grids, only: ges_prsl,nfldsig,ntguessig
-  use rapidrefresh_cldsurf_mod, only: l_gsd_soilTQ_nudge
+  use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
 
   implicit none
 
@@ -81,7 +81,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind),dimension(lat2,lon2), intent(in) :: qinc
 
 ! Declare local variables
-!  real(r_kind),dimension(lat2,lon2) :: coast_prox
   real(r_kind),dimension(lat2,lon2) :: csza
   INTEGER(i_kind)  :: gmt,nday,iyear,imonth,iday
   REAL(r_kind)     :: declin
@@ -140,7 +139,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      end do
    end do
 
-  if( l_gsd_soilTQ_nudge .and. is_t > 0) then
+  if( l_gsd_soiltq_nudge .and. is_t > 0) then
 !     --------------------------------------------
 ! --- Increment top level of soil temp and snow temp
 !       ONLY AT LAND POINTS according to
@@ -189,52 +188,42 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
               dts_min = dts_min*temp_fac*0.6_r_kind
 
 ! mhu, Jan 15,2015: move the land/sea masck check to fine grid update step
-!              IF (isli(i,j,it) == 1 .or. isli(i,j,it) == 2) THEN
-              IF (1 == 1) THEN
-                 tincf = ainc*temp_fac*coast_fac
+              tincf = ainc*temp_fac*coast_fac
 ! mhu and Tanya: Jan 14, 2015: do T soil nudging over snow
-!                 if (sno(i,j,it) < snowthreshold) THEN  
-                    if(nsig_soil == 9) then
+              if(nsig_soil == 9) then
 ! - top level soil temp
-                       ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
+                 ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
 ! - 0-1 cm level -  soil temp
-                       ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.55_r_kind))
+                 ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.55_r_kind))
 ! - 1-4 cm level -  soil temp
-                       ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
+                 ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 4-10 cm level -  soil temp
-                       ges_tslb(i,j,4) = ges_tslb(i,j,4) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.3_r_kind))
+                 ges_tslb(i,j,4) = ges_tslb(i,j,4) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.3_r_kind))
 ! - 10-30 cm level -  soil temp
-                       ges_tslb(i,j,5) = ges_tslb(i,j,5) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                    else
+                 ges_tslb(i,j,5) = ges_tslb(i,j,5) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
+              else
 ! - top level soil temp
-                       ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                 ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
 ! - 0-5 cm level -  soil temp
-                       ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
+                 ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 5-20 cm level -  soil temp
-                       ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                    endif
-                 if (sno(i,j,it) < snowthreshold) THEN
-                    ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                    ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                 else  ! if snow cover, then only adjust TSK and SOILT1
-                    ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-                    ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-!                    if (sno(i,j,it) > 32.0_r_kind) then
-! mhu and Tanya: Jan 14, 2015: do this check for ges_tslb(i,j,1) 
-!                       ges_tsk(i,j) = min(ges_tsk(i,j), 273.15_r_kind)
-!                       ges_soilt1(i,j) = min(ges_soilt1(i,j), 273.15_r_kind)
-!                       ges_tslb(i,j,1) = min(ges_tslb(i,j,1), 273.15_r_kind) 
-!                    endif
-                 endif ! sno(i,j,it) < snowthreshold
-              endif   ! isli(i,j,it) == 1
+                 ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
+              endif
+              if (sno(i,j,it) < snowthreshold) THEN
+                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                 ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+              else  ! if snow cover, then only adjust TSK and SOILT1
+                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+                 ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+              endif ! sno(i,j,it) < snowthreshold
            end do
         end do
      end do
@@ -537,7 +526,6 @@ subroutine gsd_update_th2(tinc)
 ! NOTE: for some odd reason the orig. code before bundle change was getting q
 !       from slot it=1 - to preserve zero diff I left as such - RTodling
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),'q' ,ges_q ,ihaveq)
-!    call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q' ,ges_q ,ihaveq)
      do j=1,lon2
         do i=1,lat2
            if(tsensible) then
@@ -637,7 +625,7 @@ subroutine gsd_gen_coast_prox
   use general_sub2grid_mod, only: general_gather2grid,general_scatter2sub
   use general_commvars_mod, only: g1
   use guess_grids, only: isli,coast_prox
-  use rapidrefresh_cldsurf_mod, only: l_gsd_soilTQ_nudge
+  use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
 
   implicit none
 
@@ -653,7 +641,7 @@ subroutine gsd_gen_coast_prox
 
 !*******************************************************************************
 !
-  if( l_gsd_soilTQ_nudge) then
+  if( l_gsd_soiltq_nudge) then
 
 ! water, land, seaice index
      allocate(worksub(g1%inner_vars*g1%nlat*g1%nlon))
@@ -680,16 +668,16 @@ subroutine gsd_gen_coast_prox
            ja = max(1   ,j-ico)
            jb = min(g1%nlon,j+ico+1)
            do i=1,g1%nlat
-             if (abs(hwork(1,i,j)-1.0_r_kind) <0.001 .or. &
-                 abs(hwork(1,i,j)-2.0_r_kind) <0.001 ) then
+             if (abs(hwork(1,i,j)-1.0_r_kind) <0.001_r_kind .or. &
+                 abs(hwork(1,i,j)-2.0_r_kind) <0.001_r_kind ) then
                 ia = max(1   ,i-ico)
                 ib = min(g1%nlat,i+ico+1)
                 nco = 0
                 nip = 0
                 do jc=ja,jb
                 do ic=ia,ib
-                   if (abs(hwork(1,i,j)-1.0_r_kind) <0.001 .or. &
-                       abs(hwork(1,i,j)-2.0_r_kind) <0.001 ) nco = nco+1
+                   if (abs(hwork(1,i,j)-1.0_r_kind) <0.001_r_kind .or. &
+                       abs(hwork(1,i,j)-2.0_r_kind) <0.001_r_kind ) nco = nco+1
                    nip = nip+1
                 end do
                 end do
@@ -712,7 +700,7 @@ subroutine gsd_gen_coast_prox
         end do
      end do
   else
-    coast_prox=0.0
+    coast_prox=0.0_r_kind
   endif
 
   return

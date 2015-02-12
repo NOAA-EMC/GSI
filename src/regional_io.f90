@@ -213,7 +213,7 @@ contains
     if (wrf_mass_regional) then
        if(netcdf) then
           call wrwrfmassa_netcdf(mype)
-          if (mype==0 .and. i_gsdcldanal_type.ne.5) then
+          if (mype==0 .and. i_gsdcldanal_type /=5) then
              call update_netcdf_mass
           endif
           call mpi_barrier(mpi_comm_world,ierror)

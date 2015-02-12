@@ -39,9 +39,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
-  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
-  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
-  use rapidrefresh_cldsurf_mod, only: i_use_2mT4B,i_sfct_gross
+  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
+  use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -264,7 +264,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   read(lunin)data,luse
 
 !  call GSD terrain match for surface temperature observation
-  if(l_gsd_terrain_match_surfTobs) then
+  if(l_gsd_terrain_match_surftobs) then
      call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
@@ -561,7 +561,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                 hrdifsig,mype,nfldsig)
         end if
 
-        if(i_use_2mT4B>0 .and. sfctype) then
+        if(i_use_2mt4b>0 .and. sfctype) then
 !          Interpolate guess th 2m to observation location and time
            call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
@@ -615,7 +615,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
 ! Compute innovation
-     if(i_use_2mT4B>0 .and. sfctype) then
+     if(i_use_2mt4b>0 .and. sfctype) then
         ddiff = tob-tges2m
      else
         ddiff = tob-tges
@@ -669,7 +669,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if (sfctype .and. i_sfct_gross==1) then
 ! extend the threshold for surface T
-        if(i_use_2mT4B<=0) tges2m=tges
+        if(i_use_2mt4b<=0) tges2m=tges
         if ( tges2m < 5.0_r_single) then
            if (ratiosfc > 1.4_r_single*qcgross &
               .or. ratiosfc < -2.4_r_single*qcgross  &
@@ -976,7 +976,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
-     if( .not. last .and. l_PBL_pseudo_SurfobsT .and.         &
+     if( .not. last .and. l_pbl_pseudo_surfobst .and.         &
          ( itype==181 .or. itype==183 .or.itype==187 )  .and. &
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
@@ -990,7 +990,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
         endif
 !
-        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
+        ratio_PBL_height = (prest - thisPBL_height) * pblh_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
         prest = prest - pps_press_incr
         DO while (prest > thisPBL_height)
@@ -1206,7 +1206,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if(i_use_2mT4B>0) then
+     if(i_use_2mt4b>0) then
 !    get th2m ...
         varname='th2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)

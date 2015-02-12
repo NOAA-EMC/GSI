@@ -65,7 +65,7 @@ subroutine wrwrfmassa_binary(mype)
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
-       i_use_2mQ4B
+       i_use_2mq4b
   use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -691,7 +691,7 @@ subroutine wrwrfmassa_binary(mype)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
-  if (i_use_2mQ4B > 0) then
+  if (i_use_2mq4b > 0) then
      do i=1,lon1
         ip1=i+1
         do j=1,lat1
@@ -1683,7 +1683,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
-       i_use_2mQ4B
+       i_use_2mq4b
   use chemmod, only: laeroana_gocart
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -2150,7 +2150,7 @@ subroutine wrwrfmassa_netcdf(mype)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
-  if (i_use_2mQ4B >0) then
+  if (i_use_2mq4b >0) then
      do i=1,lon2
         do j=1,lat2
 ! Convert 2m specific humidity to mixing ratio

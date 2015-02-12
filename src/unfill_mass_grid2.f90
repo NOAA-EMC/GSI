@@ -197,7 +197,7 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 end subroutine unfill_mass_grid2v
 
 subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
-                                   snow,seaice,i_snowT_check)
+                                   snow,seaice,i_snowt_check)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    unfill_mass_grid2t        opposite of fill_mass_grid2
@@ -240,7 +240,7 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
   implicit none
 
   integer(i_kind), intent(in   ) :: nx,ny
-  integer(i_kind), intent(in   ) :: i_snowT_check
+  integer(i_kind), intent(in   ) :: i_snowt_check
   real(r_single) , intent(in   ) :: gout(itotsub)
   real(r_single) , intent(inout) :: gin(nx,ny)
   real(r_single) , intent(in)    :: landmask(nx,ny)
@@ -264,14 +264,14 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
   if(nlon == nx .and. nlat == ny) then
 ! do nothing
   else
-     if(maxval(landmask) > 1.01 .or. minval(landmask) < -0.01 .or. &
-        maxval(seaice)   > 1.01 .or. minval(seaice)   < -0.01) then
+     if(maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single .or. &
+        maxval(seaice)   > 1.01_r_single .or. minval(seaice)   < -0.01_r_single) then
        write(*,*) 'bad landmask or seaice, do not use landmask filter soil nudging field'
      else
         do j=1,ny
            do i=1,nx
-              if(landmask(i,j) < 0.1)  b(i,j)=0.0_r_single 
-              if(i_snowT_check==2 .and. seaice(i,j) > 0.5)  b(i,j)=0.0_r_single 
+              if(landmask(i,j) < 0.1_r_single)  b(i,j)=0.0_r_single 
+              if(i_snowt_check==2 .and. seaice(i,j) > 0.5_r_single)  b(i,j)=0.0_r_single 
            end do
         end do
      endif

@@ -45,7 +45,6 @@ subroutine en_perts_get_from_save
   integer(i_kind) ic3,ic2
   integer(i_kind) iunit,nn
 
-!  if(mype==0) write(*,*) 'number=',n_ens
   iunit=20
   write(filename,'(a,I4.4)') 'saved_en_perts.pe',mype
   open(iunit,file=trim(filename),form='unformatted')
@@ -67,7 +66,6 @@ subroutine en_perts_get_from_save
         end if
 
         read(iunit) varname
-!     if(mype==0) write(*,*) '2 check==',ic3,trim(cvars3d(ic3)),varname
         if(trim(varname) == trim(cvars3d(ic3))) then
            read(iunit) w3
         else
@@ -85,7 +83,6 @@ subroutine en_perts_get_from_save
         end if
 
         read(iunit) varname
-!     if(mype==0) write(*,*) '4 check==',ic2,trim(cvars2d(ic2)),varname
         if(trim(varname) == trim(cvars2d(ic2))) then
            read(iunit) w2
         else

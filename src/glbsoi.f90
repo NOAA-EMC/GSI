@@ -93,7 +93,6 @@ subroutine glbsoi(mype)
 !   2014-06-19  carley/zhu - Modify for R_option: optional variable correlation length twodvar_regional
 !                            lcbas analysis variable
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis     
-!   2015-01-22  Hu      -  add option i_en_perts_io, when it is true, save en_perts and exit GSI.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -141,8 +140,7 @@ subroutine glbsoi(mype)
   use zrnmi_mod, only: zrnmi_initialize
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
-  use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters, &
-                                        i_en_perts_io
+  use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble,destroy_ensemble, &
        hybens_localization_setup,hybens_grid_setup
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
@@ -256,13 +254,6 @@ subroutine glbsoi(mype)
 ! If l_hyb_ens is true, then read in ensemble perturbations
   if(l_hyb_ens) then
      call load_ensemble
-     if(i_en_perts_io==1) then ! save en_perts and exit
-! Finalize
-        call observer_finalize
-        call destroy_ensemble
-        call timer_fnl('glbsoi')
-        return
-     endif
      call hybens_localization_setup
   end if
 

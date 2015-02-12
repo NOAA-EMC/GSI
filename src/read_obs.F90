@@ -1139,7 +1139,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar reflectivity Mosaic
              else if (obstype == 'rad_ref' ) then
-                call read_RadarRef_mosaic(nread,npuse,infile,obstype,lunout,twind,sis)
+                call read_radarref_mosaic(nread,npuse,infile,obstype,lunout,twind,sis)
                 string='READ_RADARREF_MOSAIC'
 
 !            Process  lightning
@@ -1149,7 +1149,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-                call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
+                call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis)
 !                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
                 string='READ_NASA_LaRC'
 

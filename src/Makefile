@@ -550,8 +550,8 @@ clean:
 	oneobmod.F90 \
 	radinfo.f90 \
 	read_Lightning.f90 \
-	read_NASA_LaRC.f90 \
-	read_RadarRef_mosaic.f90 \
+	read_nasa_larc.f90 \
+	read_radarref_mosaic.f90 \
 	read_aerosol.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \

@@ -206,7 +206,8 @@ module guess_grids
   integer(i_kind),allocatable,dimension(:,:,:):: isli    ! snow/land/ice mask
   integer(i_kind),allocatable,dimension(:,:,:):: isli_g  ! isli on horiz/global grid
   integer(i_kind),allocatable,dimension(:,:):: isli2     ! snow/land/ice mask at analysis time
-  integer(r_kind),allocatable,dimension(:,:):: coast_prox! coast proximity mask
+  real(r_kind),allocatable,dimension(:,:):: coast_prox   ! coast proximity mask
+!mhumhu  integer(i_kind),allocatable,dimension(:,:):: coast_prox   ! coast proximity mask
 
   real(r_kind),allocatable,dimension(:,:,:):: sno2  ! sno depth on subdomain
 
