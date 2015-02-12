@@ -21,6 +21,8 @@ module observermod
 !                          reg_tlnmc_type for two kinds of regional tlnmc.
 !   2013-10-19  todling - update cloud_efr module name
 !   2014-02-03  todling - remove B-dependence; move cost-create/destroy out
+!   2014-12-03  derber - modify for possibly not using obsdiag arrays, change
+!                        call to getsfc
 !
 !   input argument list:
 !     mype - mpi task id
@@ -44,7 +46,7 @@ module observermod
        destroy_ges_grids,destroy_sfc_grids,nfldsig
   use cloud_efr_mod, only: cloud_init,cloud_final
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
-       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate
+       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate,luse_obsdiag
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
@@ -305,13 +307,14 @@ subroutine set_
 !$$$
 
   use mpeu_util, only: tell,die
+  use gsi_io, only: mype_io
   implicit none
   character(len=*), parameter :: Iam="observer_set"
 
 ! Declare passed variables
 
 ! Declare local variables
-  logical:: lhere,use_sfc
+  logical:: lhere
   integer(i_kind):: lunsave,istat1,istat2
   
   data lunsave  / 22 /
@@ -358,8 +361,7 @@ _ENTRY_(Iam)
 
 !    Load isli2 and sno2 arrays using fields from surface guess file.  Arrays
 !    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
-     use_sfc=.false.
-     call getsfc(mype,use_sfc)
+     call getsfc(mype,mype_io,.false.,.false.)
      call destroy_sfc
 
   endif
@@ -458,7 +460,7 @@ _ENTRY_(Iam)
 
      last  = jiter == miter+1 ! there is no obsdiags output if
                               ! jiterstart==miter+1.  e.g. miter=2 and jiterstart=3
-     if (l4dvar.and.(.not.last) .and. last_pass_) then
+     if (l4dvar.and.(.not.last) .and. last_pass_ .and. luse_obsdiag) then
         clfile='obsdiags.ZZZ'
         write(clfile(10:12),'(I3.3)') jiter
         call write_obsdiags(clfile)

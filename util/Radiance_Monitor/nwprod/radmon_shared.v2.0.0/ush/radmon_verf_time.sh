@@ -262,7 +262,7 @@ EOF
 
          if [[ -s ${ctl_file} ]]; then
             $NCP ${ctl_file} ${time_ctl}
-            mv ${time_ctl}  ${TANKverf_rad}/.
+            $NCP ${time_ctl}  ${TANKverf_rad}/.
             ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
          fi
 
@@ -404,7 +404,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 #  run radmon_err_rpt.sh for chan and pen to create the error files
 #
    ${USHradmon}/radmon_err_rpt.sh ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
-   ${USHradmon}/radmon_err_rpt.sh ${prev_bad_chan} ${bad_chan} chan ${qdate} ${PDATE} ${diag_report} ${chan_err}
+#   ${USHradmon}/radmon_err_rpt.sh ${prev_bad_chan} ${bad_chan} chan ${qdate} ${PDATE} ${diag_report} ${chan_err}
 
 #-------------------------------------------------------------------
 #  put together the unified error report with any obs, chan, and

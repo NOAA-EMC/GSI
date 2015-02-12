@@ -19,6 +19,8 @@ subroutine get_derivatives (guess,xderivative,yderivative)
 !                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
 !                         and variable nsig1o.
 !   2013-10-19  todling - derivatives now in bundle
+!   2014-12-13  derber  - Switch order of if and do statements to allow eventual
+!                         threading and optimization
 !
 !   input argument list:
 !     guess    - bundle holding guess fields
@@ -133,25 +135,29 @@ subroutine get_derivatives (guess,xderivative,yderivative)
 
 !    x derivative
 !              !$omp parallel do private(k,vector)     !  fix later
-     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
-        if(regional) then
+     if(regional) then
+        do k=s2g_d%kbegin_loc,s2g_d%kend_loc
            call delx_reg(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-        else
+        end do
+     else
+        do k=s2g_d%kbegin_loc,s2g_d%kend_loc
            call compact_dlon(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-        end if
-     end do
+        end do
+     end if
 !                !$omp end parallel do                   !  fix later
      call general_grid2sub(s2g_d,hworkd,xderivative%values)
 
 !    y derivative
 !                  !$omp parallel do private(k,vector)    !  fix later ?????????
-     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
-        if(regional) then
+     if(regional) then
+        do k=s2g_d%kbegin_loc,s2g_d%kend_loc
            call dely_reg(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-        else
+        end do
+     else
+        do k=s2g_d%kbegin_loc,s2g_d%kend_loc
            call compact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-        end if
-     end do
+        end do
+     end if
 !
      call general_grid2sub(s2g_d,hworkd,yderivative%values)
      
@@ -263,25 +269,29 @@ subroutine tget_derivatives(guess,xderivative,yderivative)
 
   call general_sub2grid(s2g_d,yderivative%values,hworkd)
 !     !$omp parallel do private(k,vector)   !  fix later ???????????
-  do k=s2g_d%kbegin_loc,s2g_d%kend_loc
-     if(regional) then
+  if(regional) then
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         call tdely_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
-     else
+     end do
+  else
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         call tcompact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-     end if
-  end do
+     end do
+  end if
 
 !   adjoint of x derivative
 
   call general_sub2grid(s2g_d,xderivative%values,hworkd)
 !     !$omp parallel do private(k,vector)   ! fix later ?????
-  do k=s2g_d%kbegin_loc,s2g_d%kend_loc
-     if(regional) then
+  if(regional) then
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         call tdelx_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
-     else
+     end do
+  else
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         call tcompact_dlon(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
-     end if
-  end do
+     end do
+  end if
 !     !$omp end parallel do                 ! fix later ??????
 
   ier=0

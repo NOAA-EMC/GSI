@@ -23,6 +23,7 @@ module state_vectors
 !   2013-10-22  todling  - revisit edge/general rank-3 (level) handle
 !   2013-10-28  todling  - rename p3d to prse
 !   2014-11-02  todling  - negative levs indicate rank-3 array
+!   2014-12-03  derber   - remove unused variables
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -587,7 +588,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
   character(len=*)  ,optional, intent(in) :: which  ! variable name
 
   real(r_quad),dimension(1) :: zz
-  integer(i_kind) :: i,ii,nv,ipntx,ipnty,irkx,irky,ier,ist
+  integer(i_kind) :: i,ii,ipntx,ipnty,irkx,irky,ier,ist
 
   if (.not.present(which)) then
 
@@ -721,7 +722,6 @@ function dot_prod_red_st_r0(xst,yst,iroot,which) result(dotprod_red)
   real(r_quad):: dotprod_red
   real(r_quad),dimension(1):: zz
 
-  integer(i_kind):: i
   character(len=*),parameter::myname_=myname//'*dot_prod_red_st_r1'
 
   zz(1)=dot_prod_st(xst,yst,which=which)

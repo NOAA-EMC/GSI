@@ -126,16 +126,21 @@ EOF
 fi
       echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+
+      if [[ ${SUFFIX} = "wopr" && ${var} = "count" ]]; then
+         $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
+         ./nu_plot_time.sh ${type}
+#         rm -f nu_plot_time.sh
+      fi
+
    done
 
 
-
-   rm -f ${type}.ieee_d
-   rm -f ${type}.${PDATE}.ieee_d
-   rm -f ${type}.ctl
-
 done
 
+rm -f ${type}.ieee_d
+rm -f ${type}.${PDATE}.ieee_d
+#   rm -f ${type}.ctl
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.

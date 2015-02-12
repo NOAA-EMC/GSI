@@ -101,6 +101,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind),parameter:: mlat_sst = 3000
   integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
+  real(r_kind),parameter:: scan_start=-52.612_r_kind, scan_inc=1.182_r_kind
   real(r_double),parameter:: r360=360.0_r_double
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -141,7 +142,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: scan_pos,dfov,r01
+  real(r_kind) :: scan_pos,scan_angle,dfov,r01
 ! real(r_kind) :: ch_win,ch_win_flg
 
   real(r_double), dimension(13) :: hdr
@@ -258,8 +259,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         do k=1,nchanl
            if(bufrf(3,ich_offset+k) < zero .or. bufrf(3,ich_offset+k) > tbmax) then
               iskip=iskip+1
-           else
-              nread=nread+1
+!          else
+!             nread=nread+1
            end if
         end do
         if(iskip >= nchanl)cycle read_loop
@@ -310,6 +311,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
            call grdcrd1(dlat,rlats,nlat,1)
            call grdcrd1(dlon,rlons,nlon,1)
         endif
+
+        nread = nread + 1
+
         if (l4dvar) then
            crit1 = 0.01_r_kind
         else
@@ -346,7 +350,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !          print*,' sst_hires,klat1,klon1 : ',sst_hires,klat1,klon1
 !       endif
 
-
 !     "Score" observation.   We use this information to id "best" obs.
 
 !     Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -359,10 +362,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                3 snow
 !                4 mixed                          
 
-
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        if(isflg /= zero)  cycle read_loop
+                       ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        if(sfcpct(0) == zero)  cycle read_loop
+
 
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
@@ -380,6 +383,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         if ( scan_pos > nfov ) scan_pos = nfov
 
         ifov = nint(scan_pos)
+        scan_angle = (scan_start+real(ifov-1)*scan_inc)*deg2rad
 
 !       Set common predictor parameters
 
@@ -406,6 +410,32 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         call finalcheck(dist1,crit1,itx,iuse)
 
         if(.not. iuse)cycle read_loop
+
+        if (retrieval) then
+!         Interpolate hi-res sst analysis to observation location
+          dlat_sst = dlat_earth
+          dlon_sst = dlon_earth
+          call grdcrd1(dlat_sst,rlats_sst,nlat_sst,1)
+          call grdcrd1(dlon_sst,rlons_sst,nlon_sst,1)
+
+          klon1=int(dlon_sst); klat1=int(dlat_sst)
+          dx  =dlon_sst-klon1; dy  =dlat_sst-klat1
+          dx1 =one-dx;         dy1 =one-dy
+          w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+          klat1=min(max(1,klat1),nlat_sst); klon1=min(max(0,klon1),nlon_sst)
+          if(klon1==0) klon1=nlon_sst
+          klatp1=min(nlat_sst,klat1+1); klonp1=klon1+1
+          if(klonp1==nlon_sst+1) klonp1=1
+
+          sst_hires=w00*sst_an(klat1,klon1 ) + w10*sst_an(klatp1,klon1 ) + &
+                    w01*sst_an(klat1,klonp1) + w11*sst_an(klatp1,klonp1)
+
+!         if ( sst_hires < zero ) then
+!            print*,' sst_hires,klat1,klon1 : ',sst_hires,klat1,klon1
+!         endif
+
+        endif       !  if (retrieval) then
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -426,7 +456,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(4, itx) = dlat                   ! grid relative latitude
         data_all(5, itx) = hdr(11)*deg2rad        ! satellite zenith angle (radians)
         data_all(6, itx) = bmiss                  ! satellite azimuth angle
-        data_all(7, itx) = zero                   ! look angle
+        data_all(7, itx) = scan_angle             ! scan angle
         data_all(8, itx) = scan_pos               ! scan position
         data_all(9, itx) = hdr(12)                ! solar zenith angle (radians)
         data_all(10,itx) = bmiss                  ! solar azimuth angle (radians)
@@ -463,7 +493,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
            data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
         endif
 
-
         do k=1,nchanl
            data_all(k+nreal,itx)= bufrf(3,ich_offset+k) ! Tb for avhrr ch-3, ch-4 and ch-5; ich_offset is set to 2.
         end do
@@ -478,31 +507,32 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
-! write(6,*) 'READ_AVHRR:  mype, total number of obs info, nread,ndata : ',mype, nread,ndata
-
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
- if (mype_sub==mype_root.and.ndata>0) then
-  do n=1,ndata
-     do k=1,nchanl
-        if(data_all(k+nreal,n) > tbmin .and. &
-           data_all(k+nreal,n) < tbmax) nodata=nodata+1
-     end do
-     itt=nint(data_all(maxinfo,n))
-     super_val(itt)=super_val(itt)+val_avhrr
-  end do
+! write(6,*) 'READ_AVHRR:  mype, total number of obs info, nread,ndata : ',mype, nread,ndata
 
-! Write retained data to local file
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
- endif
+!    Identify "bad" observation (unreasonable brightness temperatures).
+!    Update superobs sum according to observation location
+  if (mype_sub==mype_root.and.ndata>0) then
+    do n=1,ndata
+       do k=1,nchanl
+          if(data_all(k+nreal,n) > tbmin .and. &
+             data_all(k+nreal,n) < tbmax) nodata=nodata+1
+       end do
+       itt=nint(data_all(maxinfo,n))
+       super_val(itt)=super_val(itt)+val_avhrr
+    end do
+
+!   Write retained data to local file
+    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+  endif
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
   if(retrieval) deallocate(sst_an)
 
 ! Deallocate arrays
-900 continue
   call destroygrids
 
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &

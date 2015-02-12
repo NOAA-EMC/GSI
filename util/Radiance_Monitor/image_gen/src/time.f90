@@ -102,8 +102,7 @@ program gatime
 
 !**************************************************
 !  Allocate space for variables
-!    note:  first 2 is for ges|anl, 
-!           second 2 is for value, value**2
+!    note:  first 2 is for ges|anl
 !**************************************************
    allocate ( cnt     (2,ncycle,nchanl,nregion) )
    allocate ( pen     (2,ncycle,nchanl,nregion) )
@@ -134,9 +133,9 @@ program gatime
    do ftyp=1,2
       do cyc=1,ncycle
          if ( ftyp == 1 ) then
-            data_file= 'time.' // trim(satname) // '.' // trim(times(cyc)) // '.ieee_d'
+            data_file= trim(satname) // '.' // trim(times(cyc)) // '.ieee_d'
          else
-            data_file= 'time.' // trim(satname) // '_anl.' // trim(times(cyc)) // '.ieee_d'
+            data_file= trim(satname) // '_anl.' // trim(times(cyc)) // '.ieee_d'
          end if
 
          inquire(file=data_file, exist=exist) 
@@ -440,7 +439,7 @@ program gatime
 
 
 !*****************************************************************************
-!  Second state, loop over channel and write count, penalty data for
+!  Second output file, loop over channel and write count, penalty data for
 !    every time to [satname].[chan].time.txt file
 !
    do chan=1,nchanl
@@ -500,9 +499,9 @@ program gatime
                           sdv_omgbc(2,cyc,chan,2), sdv_omgbc(2,cyc,chan,3), &
                           sdv_omgbc(2,cyc,chan,4), sdv_omgbc(2,cyc,chan,5)
       end do
+      close(lsatout)
    end do
 
-   close(lsatout)
 
 !*****************************************************************************
 !  Write penalty data to sat.pen.time file

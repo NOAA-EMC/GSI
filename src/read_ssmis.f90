@@ -58,6 +58,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-07-10  sienkiewicz  add control for choosing noise reduction method  0=no smoothing
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
+!   2014-12-03  derber remove unused variables
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -150,7 +151,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) :: isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
@@ -183,7 +183,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: dlat,dlon
   real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
   real(r_kind) :: utc_hour,sun_zenith,sun_azimuth
-  real(r_kind) :: sstx_1,sstx_2,sstx_3,sstx_4
 
   real(r_double),dimension(7)         :: bufrinit
   real(r_double),dimension(3,5)       :: bufrymd
@@ -193,7 +192,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   
   real(r_double) :: rnode
 
-  real(r_kind),dimension(0:3) :: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: ts
