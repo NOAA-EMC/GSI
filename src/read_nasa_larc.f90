@@ -64,7 +64,7 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
 
   integer(i_kind) ifn,i
  
-  logical :: LaRCobs
+  logical :: larcobs
 
 !
 !  for read in bufr
@@ -77,15 +77,15 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl
-    INTEGER(i_kind)  ::  numlvl,numlarc,numobsa
-    INTEGER(i_kind)  ::  k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
-    INTEGER(i_kind)  ::  nmsg,ntb
-    INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=4500000 
+    integer(i_kind)  ::  maxlvl
+    integer(i_kind)  ::  numlvl,numlarc,numobsa
+    integer(i_kind)  ::  k,iret
+    integer(i_kind),parameter  ::  nmsgmax=100000
+    integer(i_kind)  ::  nmsg,ntb
+    integer(i_kind)  ::  nrep(nmsgmax)
+    integer(i_kind),parameter  ::  maxobs=4500000 
 
-    REAL(r_kind),allocatable :: larccld_in(:,:)   ! 3D reflectivity in column
+    real(r_kind),allocatable :: larccld_in(:,:)   ! 3D reflectivity in column
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
@@ -95,11 +95,11 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
 !
 !            END OF DECLARATIONS....start of program
 !
-   LaRCobs = .false.
+   larcobs = .false.
    ikx=0
    do i=1,nconvtype
        if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
-           LaRCobs =.true.
+           larcobs =.true.
            ikx=i
        endif
    end do
@@ -109,14 +109,14 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
    ndata = 0
    ifn = 15
 !
-   if(LaRCobs) then
+   if(larcobs) then
       lunin = 10            
       maxlvl= 5
       allocate(larccld_in(maxlvl+2,maxobs))
 
-      OPEN  ( UNIT = lunin, FILE = trim(infile),form='unformatted',err=200)
-      CALL OPENBF  ( lunin, 'IN', lunin )
-      CALL DATELEN  ( 10 )
+      open  ( unit = lunin, file = trim(infile),form='unformatted',err=200)
+      call openbf  ( lunin, 'IN', lunin )
+      call datelen  ( 10 )
 
       nmsg=0
       nrep=0
@@ -141,14 +141,14 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
             if (l4dvar) then
                t4dv=hdr(4)
                if (t4dv<zero .OR. t4dv>winlen) then
-                  write(6,*)'read_NASALaRC:      time outside window ',&
+                  write(6,*)'read_nasalarc:      time outside window ',&
                        t4dv,' skip this report'
                   cycle loop_report
                endif
             else
                timeo=hdr(4)
                if (abs(timeo)>ctwind(ikx) .or. abs(timeo) > twind) then
-                  write(6,*)'read_NASALaRC:  time outside window ',&
+                  write(6,*)'read_nasalarc:  time outside window ',&
                        timeo,' skip this report'
                   cycle loop_report
                endif
@@ -168,7 +168,7 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis)
          enddo loop_report
       enddo msg_report
 
-      write(6,*)'read_NASALaRC: messages/reports = ',nmsg,'/',ntb
+      write(6,*)'read_nasalarc: messages/reports = ',nmsg,'/',ntb
       numlarc=ntb
 !
       ilon=1

@@ -82,8 +82,8 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2) :: csza
-  INTEGER(i_kind)  :: gmt,nday,iyear,imonth,iday
-  REAL(r_kind)     :: declin
+  integer(i_kind)  :: gmt,nday,iyear,imonth,iday
+  real(r_kind)     :: declin
   real(r_kind)     :: hrang,xxlat
   real(r_kind)     :: sumqc
 
@@ -96,15 +96,15 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf
   real(r_kind) :: snowthreshold
 ! 
-  REAL(r_kind), pointer :: ges_qc(:,:,:)  ! cloud water
-  REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
+  real(r_kind), pointer :: ges_qc(:,:,:)  ! cloud water
+  real(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
   real(r_kind),dimension(:,:  ),pointer:: ges_tsk   =>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_soilt1=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_tslb  =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_smois =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q     =>NULL()
 
-  INTEGER(i_kind) :: itsig
+  integer(i_kind) :: itsig
   
 !*******************************************************************************
 !

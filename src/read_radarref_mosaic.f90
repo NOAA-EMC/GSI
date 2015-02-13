@@ -77,15 +77,15 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind)  :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl
-    INTEGER(i_kind)  ::  numlvl,numref,numobsa
-    INTEGER(i_kind)  ::  k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
-    INTEGER(i_kind)  ::  nmsg,ntb
-    INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=2000000
+    integer(i_kind)  ::  maxlvl
+    integer(i_kind)  ::  numlvl,numref,numobsa
+    integer(i_kind)  ::  k,iret
+    integer(i_kind),parameter  ::  nmsgmax=100000
+    integer(i_kind)  ::  nmsg,ntb
+    integer(i_kind)  ::  nrep(nmsgmax)
+    integer(i_kind),parameter  ::  maxobs=2000000
 
-    REAL(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
+    real(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
@@ -114,9 +114,9 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       maxlvl= 31
       allocate(ref3d_column(maxlvl+2,maxobs))
 
-      OPEN  ( UNIT = lunin, FILE = trim(infile),form='unformatted',err=200)
-      CALL OPENBF  ( lunin, 'IN', lunin )
-      CALL DATELEN  ( 10 )
+      open  ( unit = lunin, file = trim(infile),form='unformatted',err=200)
+      call openbf  ( lunin, 'IN', lunin )
+      call datelen  ( 10 )
 
       nmsg=0
       nrep=0
