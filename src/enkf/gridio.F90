@@ -78,7 +78,7 @@
   iunitsig = 77
   if (use_gfs_nemsio) then
      filename =&
-     trim(adjustl(datapath))//"nemsiofg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+     trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_init, iret=',iret
@@ -375,11 +375,11 @@
      ! level.  This file is read in and modified.
      if (iau) then
         filenameout = &
-        trim(adjustl(datapath))//"nemsioanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+        trim(adjustl(datapath))//"sanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
      else
-        filenameout = trim(adjustl(datapath))//"nemsioanl_"//datestring//"_mem"//charnanal
+        filenameout = trim(adjustl(datapath))//"sanl_"//datestring//"_mem"//charnanal
      endif
-     filenamein = trim(adjustl(datapath))//"nemsiofg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+     filenamein = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
   else
      if (iau) then
         filenameout = &
@@ -2449,7 +2449,7 @@ integer(i_kind) iret,k,kk
 
 write(charnanal,'(i3.3)') nanal
 filename =&
-trim(adjustl(datapath))//"nemsiofg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
 
 call nemsio_init(iret=iret)
 if(iret/=0) then
@@ -2602,9 +2602,9 @@ clip = tiny(grdin(1,1))
 write(charnanal,'(i3.3)') nanal
 if (iau) then
    filename = &
-   trim(adjustl(datapath))//"nemsioanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+   trim(adjustl(datapath))//"sanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
 else
-   filename = trim(adjustl(datapath))//"nemsioanl_"//datestring//"_mem"//charnanal
+   filename = trim(adjustl(datapath))//"sanl_"//datestring//"_mem"//charnanal
 endif
 
 call nemsio_init(iret=iret)
