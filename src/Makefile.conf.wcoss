@@ -67,7 +67,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -D_REAL8_ -DWRF -g -traceback
+  FFLAGS_F90    = -D_REAL8_ -DWRF -g -traceback 
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
   		-I $(INCnetcdf) -I $(INCw3) \

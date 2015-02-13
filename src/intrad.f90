@@ -424,7 +424,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
+! !$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -490,7 +490,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
      if (l_foto) then
         time_rad=radptr%time*r3600
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
+! !$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
@@ -528,7 +528,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !  For all other configurations
 !  begin channel specific calculations
      allocate(val(radptr%nchan))
-!$omp parallel do schedule(dynamic,1) !private(nn,ic,ix,k,n,cg_rad,wnotgross,wgross,p0)
+! !$omp parallel do schedule(dynamic,1) !private(nn,ic,ix,k,n,cg_rad,wnotgross,wgross,p0)
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
         ix=(ic-1)*npred
@@ -588,7 +588,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !          Begin adjoint
 
      if (l_do_adjoint) then
-!$omp parallel do schedule(dynamic,1) private(k,nn)
+! !$omp parallel do schedule(dynamic,1) private(k,nn)
         do k=1,nsigradjac
            tval(k)=zero
 
@@ -601,7 +601,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !    Distribute adjoint contributions over surrounding grid points
  
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+! !$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
@@ -702,7 +702,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            end if
         end do
         if (l_foto) then
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+! !$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
            do k=1,nsig
               i1 = i1n(k)
               i2 = i2n(k)

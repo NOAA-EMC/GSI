@@ -723,10 +723,13 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
   if(mype == 0)then
 
      do n=1,nbins
-        pen = pen + bamp_jcpdry*dmass(n)*dmass(n)
-        b  = b - bamp_jcpdry*dmass(n+nbins)*dmass(n)
-        c  = c + bamp_jcpdry*dmass(n+nbins)*dmass(n+nbins)
+        pen = pen + dmass(n)*dmass(n)
+        b  = b - dmass(n+nbins)*dmass(n)
+        c  = c + dmass(n+nbins)*dmass(n+nbins)
      end do
+     pen=bamp_jcpdry*pen
+     b=bamp_jcpdry*b
+     c=bamp_jcpdry*c
   end if
 
   return

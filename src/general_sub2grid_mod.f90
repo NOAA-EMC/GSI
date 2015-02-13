@@ -509,30 +509,15 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
   integer(i_kind),intent(in) ::npe,nz
   integer(i_kind),intent(out)::iuse_pe(0:npe-1)
 
-  integer(i_kind) iskip_start,iskip,iskiptest,i,icount,left,iright,nskip,ipoint
+  integer(i_kind) i,icount,nskip,ipoint
   real(r_kind) :: point,skip2
 
 
-     iskip_start= nint((npe-one)/nz)
-     iskip=0
-     do iskiptest=iskip_start+1,1,-1
-        icount=0
-        do i=1,npe,iskiptest
-           icount=icount+1
-        end do
-        if(icount>=nz) then
-           iskip=iskiptest
-           exit
-        end if
-     end do
-     if(mype == 0)write(6,*) ' in get_pe ',nz,npe,iskip
-     if(iskip==0) then
-        write(6,*)' nz,npe=',nz,npe,' ---- no iskip found, program stops'
-        call stop2(999)
+     iuse_pe=1
+     if(npe <= nz) then
+        write(6,*)' nz,npe=',nz,npe,' ---- no iskip found, all processors used'
      else                    
-!    else if(iskip == 1)then
         nskip=npe-nz
-        iuse_pe=1
         if(nskip > 0)then
           skip2=float(npe)/float(nskip)
           point=zero
@@ -546,31 +531,14 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
         do i=0,npe-1
            if(iuse_pe(i) > 0)icount = icount+1
         end do
+        if(icount /= nz) then
+           write(6,*)' get_pe2 - inconsistent icount,nz ',nz,icount,'program stops',npe,skip2
+           call stop2(999)
+        end if
         if(mype == 0)write(6,*) ' in get_pe2 ',nz,icount,npe,skip2
    
-!    else
-
-!       icount=0
-!       iuse_pe(:)=0
-!       do i=npe-1,0,-iskip
-!          icount=icount+1
-!          iuse_pe(i)=1
-!          if(icount==nz) exit
-!       end do
-!       left=0
-!       do i=0,npe-1
-!          if(iuse_pe(i)==1) exit
-!          left=left+1
-!       end do
-!       iright=left/2
-!       iuse_pe(:)=0
-!       icount=0
-!       do i=npe-1-iright,0,-iskip
-!          icount=icount+1
-!          iuse_pe(i)=1
-!          if(icount==nz) exit
-!       end do
      end if
+     return
      
 end subroutine get_iuse_pe
 
