@@ -1231,10 +1231,36 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wtail(ibin)%head%b=cvar_b(ikx)
            wtail(ibin)%head%pg=cvar_pg(ikx)
            wtail(ibin)%head%luse=luse(i)
+
            if(luse_obsdiag)then
               wtail(ibin)%head%diagu => obsptr
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagu
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           1/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,1,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+
               wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
-           end if
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagv
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           2/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,2,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+           endif
 
            prest = prest - pps_press_incr
 

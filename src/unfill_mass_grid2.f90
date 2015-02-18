@@ -196,7 +196,8 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
   
 end subroutine unfill_mass_grid2v
 
-subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
+subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
+                                   snow,seaice,i_snowt_check)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    unfill_mass_grid2t        opposite of fill_mass_grid2
@@ -210,11 +211,17 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
 !                        Here input grid is larger than output grid.
 !   2014-04-04  todling - reposition ltosi and others to commvars
+!   2015-01-15  Hu      - apply the land/sea mask here for soil adjustment
+!                          fields
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
 !     gin      - preexisting input values to be added to on C-grid
 !     nx,ny    - input grid dimensions
+!     i_snowT_check - input option for snow Temperature adjustment
+!                     =0: input gin is not temperature
+!                     =1: make sure surface temperature onver snow is below 0C
+!                     =2: input gin is soil mositure, don't adjust over seaice
 !
 !   output argument list:
 !     gin      - output result on C grid
@@ -224,7 +231,7 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_single,i_kind
+  use kinds, only: r_single,i_kind,r_kind
   use gridmod, only: itotsub,iglobal
   use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
@@ -233,9 +240,12 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
   implicit none
 
   integer(i_kind), intent(in   ) :: nx,ny
+  integer(i_kind), intent(in   ) :: i_snowt_check
   real(r_single) , intent(in   ) :: gout(itotsub)
   real(r_single) , intent(inout) :: gin(nx,ny)
   real(r_single) , intent(in)    :: landmask(nx,ny)
+  real(r_single) , intent(in)    :: snow(nx,ny)
+  real(r_single) , intent(in)    :: seaice(nx,ny)
   
   real(r_single) ba(nlon,nlat)
   real(r_single) b(nx,ny)
@@ -254,12 +264,14 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
   if(nlon == nx .and. nlat == ny) then
 ! do nothing
   else
-     if(maxval(landmask) > 1.01 .or. minval(landmask) < -0.01) then
-       write(*,*) 'bad landmask, do not use landmask filter soil nudging field'
+     if(maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single .or. &
+        maxval(seaice)   > 1.01_r_single .or. minval(seaice)   < -0.01_r_single) then
+       write(*,*) 'bad landmask or seaice, do not use landmask filter soil nudging field'
      else
         do j=1,ny
            do i=1,nx
-              if(landmask(i,j) < 0.1)  b(i,j)=0.0_r_single 
+              if(landmask(i,j) < 0.1_r_single)  b(i,j)=0.0_r_single 
+              if(i_snowt_check==2 .and. seaice(i,j) > 0.5_r_single)  b(i,j)=0.0_r_single 
            end do
         end do
      endif
@@ -270,6 +282,16 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
         gin(i,j)=b(i,j)+gin(i,j)
      end do
   end do
+!  QC surface temperature over snow
+  if(i_snowT_check==1) then
+     do j=1,ny
+        do i=1,nx
+           if(snow(i,j) > 32.0_r_kind) then
+              gin(i,j) = min(gin(i,j), 273.15_r_kind)
+           endif
+        end do
+     end do
+  endif
   
 end subroutine unfill_mass_grid2t_ldmk
 
