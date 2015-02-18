@@ -124,6 +124,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-06-26  carley - simplify call to apply_hilbertcurve 
 !   2014-11-20  zhu  - added code for aircraft temperature kx=130
+!   2014-10-01  Xue    - add gsd surface observation uselist
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -167,6 +168,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
+  use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist,destroy_gsd_sfcuselist                       
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
@@ -176,6 +178,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
+  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist
 
   implicit none
 
@@ -283,7 +286,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind) time_correction
-  real(r_kind) obval
   real(r_kind) tcamt,lcbas,ceiling
   real(r_kind) tcamt_oe,lcbas_oe
   real(r_kind) low_cldamt,mid_cldamt,hig_cldamt
@@ -682,6 +684,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   call init_rjlists
   call init_aircraft_rjlists
+  if(i_gsdsfc_uselist==1) call init_gsd_sfcuselist
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
@@ -1467,9 +1470,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
               if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
 
-              if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
-                                            dlon_earth,dlat_earth,idate,t4dv-toff, &
+              if (sfctype) then 
+                 if (i_gsdsfc_uselist==1 ) then
+                    if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
+                    call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                            usage)
+                 else
+                    call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                            dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
+                 endif
+              endif
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
@@ -2304,6 +2315,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(cdata_out)
   call destroy_rjlists
   call destroy_aircraft_rjlists
+  if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
   if (twodvar_regional) call destroy_ndfdgrid
 
