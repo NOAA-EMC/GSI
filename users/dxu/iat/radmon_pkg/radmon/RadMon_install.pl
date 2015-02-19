@@ -26,10 +26,7 @@
    #
    #  zeus is the only little endian machine
    # 
-   my $little_endian = "export LITTLE_ENDIAN=1";
-   if( $machine eq "zeus" ) {
-      $little_endian = "export LITTLE_ENDIAN=1";   
-   }
+   my $little_endian = "export LITTLE_ENDIAN=0";
 
    my $my_os = "linux";
    if( $machine eq "ccs" ) {
