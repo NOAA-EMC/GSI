@@ -57,7 +57,7 @@
    #
    my $user_name = $ENV{ 'USER' };
    if( $machine eq "zeus" ) {
-      $tankdir = "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}/radmon_workspace/data/output/radmon_tank";
+      $tankdir = "/scratch2/portfolios/NESDIS/drt/noscrub/Deyong.Xu/workspace/radmon_workspace/data/output/radmon_tank";
    } 
    elsif( $machine eq "badger" ) {
       $tankdir = "/data/dxu/radmon_workspace/data/output/radmon_tank";
@@ -220,7 +220,7 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-ada}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-h-sandy}";
    if( $machine ne "zeus" ) {
       $account = "export ACCOUNT=";
    }
