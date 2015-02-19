@@ -57,7 +57,7 @@
    #
    my $user_name = $ENV{ 'USER' };
    if( $machine eq "zeus" ) {
-      $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
+      $tankdir = "/scratch2/portfolios/NESDIS/h-sandy/noscrub/${LOGNAME}/radmon_workspace/data/output/radmon_tank";
    } 
    elsif( $machine eq "badger" ) {
       $tankdir = "/data/dxu/radmon_workspace/data/output/radmon_tank";
