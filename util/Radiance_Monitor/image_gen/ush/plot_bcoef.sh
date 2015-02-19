@@ -54,6 +54,8 @@ echo ctldir = $ctldir
 # of radmon.YYYYMMDD directories under $TANKDIR.
 
 
+$NCP ${IG_SCRIPTS}/nu_plot_bcoef.sh .
+
 for type in ${SATYPE}; do
 
    $NCP $ctldir/${type}.ctl* ./
@@ -74,9 +76,9 @@ for type in ${SATYPE}; do
          fi
 
          if [[ -s $test_file_anl ]]; then
-            $NCP ${test_file_anl} ./${type}.${cdate}.ieee_d
+            $NCP ${test_file_anl} ./${type}_anl.${cdate}.ieee_d
          elif [[ -s ${test_file_anl}.${Z} ]]; then
-            $NCP ${test_file_anl}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+            $NCP ${test_file_anl}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
          fi
 
       fi
@@ -99,19 +101,18 @@ EOF
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
       if [[ ${SUFFIX} = "wopr" ]]; then
-         $NCP ${IG_SCRIPTS}/nu_plot_bcoef.sh .
          ./nu_plot_bcoef.sh ${type}
-#         rm -f nu_plot_time.sh
       fi
 
    done 
-
 
 
 #   rm -f ${type}.ieee_d
 #   rm -f ${type}.ctl
 
 done
+
+#         rm -f nu_plot_time.sh
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.

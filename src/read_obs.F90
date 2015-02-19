@@ -542,6 +542,7 @@ subroutine read_obs(ndata,mype)
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
     use gsi_nstcouplermod, only: gsi_nstcoupler_set
     use gsi_io, only: mype_io
+    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
     use m_extOzone, only: is_extOzone
     use m_extOzone, only: extOzone_read
@@ -1145,7 +1146,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar reflectivity Mosaic
              else if (obstype == 'rad_ref' ) then
-                call read_RadarRef_mosaic(nread,npuse,infile,obstype,lunout,twind,sis)
+                call read_radarref_mosaic(nread,npuse,infile,obstype,lunout,twind,sis)
                 string='READ_RADARREF_MOSAIC'
 
 !            Process  lightning
@@ -1155,9 +1156,11 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-!               write(6,*)'sliu :: NASA cld', infile, 'READ_NASA_LaRC'
-!               call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
-                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
+                if( i_gsdcldanal_type==1) then
+                   call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis)
+                else
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
+                endif
                 string='READ_NASA_LaRC'
 
 !            Process radar winds

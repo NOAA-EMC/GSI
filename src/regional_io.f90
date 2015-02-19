@@ -14,6 +14,7 @@ module regional_io
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
 !   2010-09-15  pagowski - add cmaq
 !   2012-02-16  parrish - if use_gfs_stratosphere true, then broadcast extra parameters to all pes from pe 0.
+!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis       
 !   
 ! Subroutines Included:
 !   sub convert_regional_guess  - convert regional guess to internal format
@@ -31,6 +32,7 @@ module regional_io
        nems_nmmb_regional,cmaq_regional,&
        twodvar_regional,netcdf
   use mpimod, only: mpi_comm_world,ierror
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   implicit none
 
 ! set default to private
@@ -211,7 +213,7 @@ contains
     if (wrf_mass_regional) then
        if(netcdf) then
           call wrwrfmassa_netcdf(mype)
-          if (mype==0) then
+          if (mype==0 .and. i_gsdcldanal_type /=5) then
              call update_netcdf_mass
           endif
           call mpi_barrier(mpi_comm_world,ierror)

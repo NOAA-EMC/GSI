@@ -13,45 +13,61 @@ program bcoef
 !    chan.txt  --> must contain the actual channel number for each channel,
 !                  the use flag, the wavelength, and frequency, in CSV format, 
 !                  one entry for a given channel per line.
+!
+!  Note to self:  apparently bcoef plots have never used region.  Bcor does, 
+!    but not bcoef.  
 !************************************************************************
 
   use IFPORT
 
   implicit none
 
-  integer nregion
+  integer ftyp,cyc,chan,open_status
 
   integer ntype,maxpred
   parameter (ntype=13)
   parameter (maxpred=12)
 
-  logical eof
+  logical eof, exist
+
+  character(20) str_nchanl
+  character(60) sat_out_file
 
   character(10),dimension(ntype):: ftype
   character(20) dum,stringd,satsis,isis,mod_satname
   character(10) satype,dplat
-  character(40) string,diag_rad,data_file,ctl_file
+  character(40) string,diag_rad,data_file
   character(10) suffix
 
   character(len=10),allocatable,dimension(:)::times
   character(len=2), allocatable,dimension(:)::useflg
-  character(len=5), allocatable,dimension(:)::chan_nums
+  character(len=5), allocatable,dimension(:)::chan_nums,wave,freq
+
+!        mean       pred(1) = global offset (mean)
+!        atmpath    pred(2) = not used when adp_anglebc=.true. and
+!        newpc4pred=.true.
+!        clw        pred(3) = cloud liquid water term
+!        lapse2     pred(4) = (temperature lapse rate)**2
+!        lapse      pred(5) = temperature lapse rate
+!        cos_ssmis  pred(6) = cosine term for SSMIS
+!        sin_ssmis  pred(7) = sine term for SSMIS
+!        emiss      pred(8) = emissivity sensitivity term
+!        ordang4    pred(9) = 4th order angle term
+!        ordang3    pred(10) = 3rd order angle term
+!        ordang2    pred(11) = 2nd order angle term
+!        ordang1    pred(12) = 1st order angle term
 
   integer luname,ldname,lpname,lsatchan,lsatout
   integer iyy,imm,idd,ihh,idhh,incr,iread
   integer ii, jj, iflag, n_chan,j,i,k,idum,ichan
   integer,allocatable,dimension(:):: io_chan,nu_chan
-  integer npred_radiag
-  integer angord,ntlapupdate 
+  
+  real rmiss
 
-  real pen,rmiss,weight,rread
-  real,allocatable,dimension(:):: wavenumbr,count,error,&
-       use,frequency,penalty,predr
-  real,allocatable,dimension(:,:):: coefs
-  real  tlapm, tsum
-
-  real,allocatable,dimension(:)      :: wave, freq
-  real,allocatable,dimension(:,:,:)  :: chi
+  real,allocatable,dimension(:,:,:):: mean,atmpath,clw,lapse2,lapse,cos_ssmis
+  real,allocatable,dimension(:,:,:):: sin_ssmis,emiss,ordang4,ordang3,ordang2,ordang1
+  real,allocatable,dimension(:)    :: penalty
+!  real,allocatable,dimension(:,:,:)  :: chi
 
 ! Namelist with defaults
   integer               :: nchanl               = 19
@@ -59,7 +75,6 @@ program bcoef
   character(15)         :: satname              ='ssmis_f18'
   namelist /input/ satname,nchanl,ncycle
 
-  data nregion / 5 /
   data luname,ldname,lpname,lsatchan / 5, 50, 51, 52 /
   data rmiss /-999./
 
@@ -81,25 +96,32 @@ program bcoef
       read(lpname, *) times(ii)
    end do
    close(lpname)
-
+   write(6,*) 'read times.txt'
 
 !************************************************************************
+! Don't bother with chan.txt.  Don't see any reason I can't use the 
+! channel file that time produces.  If I just use the region 1 value the
+! chi values should be the same, and freq, wave, and use values have to be
+! the same.
+!
 ! Read chan.txt input file, which is the actual channel number for each 
 ! channel.
 !************************************************************************
    allocate( chan_nums (nchanl) )
    allocate( useflg(nchanl), wave(nchanl), freq(nchanl) )
-   allocate( chi(2, nchanl, nregion) )
+!   allocate( chi(2, nchanl, nregion) )
 
    open( lpname, file='chan.txt' )
 
    do ii=1,nchanl
       read(lpname, *) chan_nums(ii), useflg(ii), wave(ii), freq(ii)
-      do jj=1,nregion
-         chi(1,ii,jj) = 0.00
-      end do
+!      do jj=1,nregion
+!         chi(1,ii,jj) = 0.00
+!      end do
    end do
    close(lpname)
+
+   write(6,*) 'read chan.txt'
 
 
 !************************************************************************
@@ -120,12 +142,6 @@ program bcoef
 !        ordang2    pred(11) = 2nd order angle term
 !        ordang1    pred(12) = 1st order angle term
 !
-!     Note that the npred namelist indicates how many of these terms
-!     will to be processed by this program.  The default value is 12, 
-!     meaning all will be processed.  Earlier versions processed only the
-!     first 5.  In all cases 12 values will be written to the resulting
-!     data file though if npred < 12 then the unprocessed values will
-!     all be set to rmiss.
 !************************************************************************
 !  data ftype / 'penalty','mean','atmpath','clw','lapse2','lapse',&
 !               'cos_ssmis','sin_ssmis','emiss','ordang4','ordang3',&
@@ -133,273 +149,134 @@ program bcoef
 !************************************************************************
 !
 
+!**************************************************
+!  Allocate space for variables
+!    note:  first 2 is for ges|anl, 
+!           second 2 is for value, value**2
+!**************************************************
+   allocate ( penalty   (nchanl)          )
+   allocate ( mean      (2,ncycle,nchanl) )
+   allocate ( atmpath   (2,ncycle,nchanl) )
+   allocate ( clw       (2,ncycle,nchanl) )
+   allocate ( lapse2    (2,ncycle,nchanl) )
+   allocate ( lapse     (2,ncycle,nchanl) )
+   allocate ( cos_ssmis (2,ncycle,nchanl) )
+   allocate ( sin_ssmis (2,ncycle,nchanl) )
+   allocate ( emiss     (2,ncycle,nchanl) )
+   allocate ( ordang4   (2,ncycle,nchanl) )
+   allocate ( ordang3   (2,ncycle,nchanl) )
+   allocate ( ordang2   (2,ncycle,nchanl) )
+   allocate ( ordang1   (2,ncycle,nchanl) )
 
-!************************************************************************
-!
-! Initialize variables
-!  iread=0
-!  npred_radiag = 12 
-!  angord = 0
+   write(6,*) 'allocated space for the 12 terms'
 
-! Read namelist input
-!  read(luname,input)
-!  write(6,input)
-!  write(6,*)'gesanl = ', gesanl
-!  write(6,*)' '
+
+!**************************************************
+!  Loop over ftyp (ges|anl), cyc, chan, region and
+!    read data from ges and anl files.
 !
-!! Check for user requests exceeding assumed limits
-!  if (npredr>maxpred) then
-!     write(6,*)' '
-!     write(6,*)'***ERROR*** user specified predictors > maximum allowed'
-!     write(6,*)'   npredr,maxpred=',npredr,maxpred
-!     call errexit(91)
-!  endif
+!  NOTE:  omg_bc/nbc are used for both ges and anl
+!         as a programming simplicity; the values 
+!         are really omabc|omanbc for anl files.
+!**************************************************
+   do ftyp=1,2
+      do cyc=1,ncycle
+         if ( ftyp == 1 ) then
+            data_file= trim(satname) // '.' // trim(times(cyc)) // '.ieee_d'
+         else
+            data_file= trim(satname) // '_anl.' // trim(times(cyc)) // '.ieee_d'
+         end if
+
+         inquire(file=data_file, exist=exist)
+!         write(6,*) 'data_file,exist = ', data_file, ' ', exist
+
+         if ( exist == .TRUE. ) then
+            open(ldname,file=data_file,form='unformatted')
+            read(ldname) (penalty(j),j=1,nchanl)
+!            write(6,*) 'penalty(1) = ', penalty(1)
+
+            read(ldname) (mean      (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (atmpath   (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (clw       (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (lapse2    (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (lapse     (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (cos_ssmis (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (sin_ssmis (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (emiss     (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (ordang4   (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (ordang3   (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (ordang2   (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (ordang1   (ftyp,cyc,j),j=1,nchanl)
+
+            close(ldname)
+         else
+            write(6,*)' data file does not exist:  ', data_file
+            do j=1,nchanl
+               mean     (ftyp,cyc,j) = 0.0
+               atmpath  (ftyp,cyc,j) = 0.0
+               clw      (ftyp,cyc,j) = 0.0
+               lapse2   (ftyp,cyc,j) = 0.0
+               lapse    (ftyp,cyc,j) = 0.0
+               cos_ssmis(ftyp,cyc,j) = 0.0
+               sin_ssmis(ftyp,cyc,j) = 0.0
+               emiss    (ftyp,cyc,j) = 0.0
+               ordang4  (ftyp,cyc,j) = 0.0
+               ordang3  (ftyp,cyc,j) = 0.0
+               ordang2  (ftyp,cyc,j) = 0.0
+               ordang1  (ftyp,cyc,j) = 0.0
+            end do
+         end if
+
+      end do
+!      write(6,*) 'mean(ftyp,120,1) = ', mean(ftyp,120,1)
+!      write(6,*) 'clw(ftyp,120,1) = ', clw(ftyp,120,1)
+!      write(6,*) 'cos_ssmis(ftyp,120,1) = ', cos_ssmis(ftyp,120,1)
+   end do
+
+!*****************************************************************************
+!  Write output files:  loop over channel and write bcoef terms for
+!    every cycle for the channel to [satname].[chan].bcoef.txt file.
 !
+!    File format is channel number, cycle time and the 24 terms (12 each for 
+!      ges and anl data), with 1 line for every cycle time.
 !
-!! Set satellite id for specified satellite/sensor
-!  write(6,*)'satname ',satname
-!
-!
-!! Create filenames for diagnostic input, binary output file
-!  write(stringd,100) iyy,imm,idd,ihh
-!100 format('.',i4.4,3i2.2)
-!
-!  if ( trim(gesanl) == 'ges' ) then
-!     diag_rad = trim(satname)
-!     data_file= trim(satname) // trim(stringd) // '.ieee_d'
-!     ctl_file = trim(satname) // '.ctl'
-!  else
-!     diag_rad = trim(satname) // '_anl'
-!     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
-!     ctl_file = trim(satname) // '_anl.ctl'
-!  endif 
-!
-!  write(6,*)'diag_rad =',diag_rad
-!  write(6,*)'data_file=',data_file
-!  write(6,*)'ctl_file =',ctl_file
-!  write(6,*)'suffix   =',suffix
-!
-!
-!! Open unit to diagnostic file.  Read portion of header to 
-!! see if file exists
-!  open(lndiag,file=diag_rad,form='unformatted')
-!  read(lndiag,err=900,end=900) dum
-!  rewind lndiag
-!
-!! File exists.  Read header
-!  write(6,*)'call read_diag_header'
-!  call read_radiag_header( lndiag, npred_radiag, retrieval, header_fix,&
-!        header_chan, data_name, iflag )
-!  if( iflag/=0 ) then
-!     write(6,*)'***ERROR*** problem reading diag file header, iflag=',iflag
-!     call errexit(91)
-!  endif
-!
-!! Extract observation type, satellite id, and number of channels
-!  satype = header_fix%obstype
-!  satsis = header_fix%isis
-!  dplat  = header_fix%id
-!  n_chan = header_fix%nchan
-!  angord = header_fix%angord 
-!  
-!  if (angord == 4 ) then
-!    npredr = 12
-!  endif
-! 
-!  write(6,*)'satype,n_chan=',satype,' ',dplat,n_chan
-!  write(6,*)'angord = ', angord
-!
-!  string = trim(satype)//'_'//trim(dplat)
-!  write(6,*)'string,satname=',string,' ',satname
-!  if ( trim(string) /= trim(satname) ) then
-!     write(6,*)'***ERROR*** inconsistent instrument types'
-!     write(6,*)'  satname,string  =',satname,' ',string
-!     call errexit(93)
-!  endif
-!
-!
-!! Allocate arrays to hold observational information
-!  write(6,*)' '
-!  write(6,*)'allocate arrays'
-!  allocate (io_chan(n_chan), nu_chan(n_chan), wavenumbr(n_chan))
-!!  allocate (count(n_chan), penalty(n_chan), use(n_chan), &
-!       frequency(n_chan))
-!  allocate(coefs(n_chan,maxpred))
-!  
-!! Zero accumulator arrays
-!  do j=1,n_chan
-!     count(j) = 0.0
-!     penalty(j) = 0.0
-!  end do
-!  coefs = rmiss
-!
-!
-!! Extract satinfo relative index
-!  do j=1,n_chan
-!     nu_chan(j)   = real( header_chan(j)%nuchan, 4 )
-!     io_chan(j)   = real( header_chan(j)%iochan, 4 )
-!     wavenumbr(j) = real( header_chan(j)%wave, 4 )
-!     use(j)       = real( header_chan(j)%iuse, 4 )
-!     frequency(j) = real( header_chan(j)%freq, 4)
-!  end do
-!        
-!! Loop to read entries in diagnostic file
-!  iflag = 0
-!  loopd:  do while (iflag == 0)
-!
-!!    Read a record.  If read flag, iflag does not equal zero, exit loopd
-!     call read_radiag_data( lndiag, header_fix, retrieval, data_fix, data_chan,&
-!           data_extra, iflag )
-!     if( iflag /= 0 ) exit loopd
-!     iread=iread+1
-!     rread=rread+1.0
-!
-!
-!!    Channel loop
-!     do j = 1, n_chan
-!
-!!       If observation was assimilated, accumulate sum
-!        if (data_chan(j)%errinv > 1.e-6) then
-!           pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
-!           count(j)   = count(j) + 1.0 
-!           penalty(j) = penalty(j) + pen
-!        endif
-!
-!     enddo ! channel loop
-!
-!! End of loop over diagnostic file
-!  enddo loopd
-!  close(lndiag)
-!  write(6,*)' '
-!  write(6,*)'read in ',iread,' obs ',rread
-!  write(6,*)' '
-!
-!! Compute average.
-!  do j=1,n_chan
-!     if (count(j)>0) then
-!        penalty(j)=penalty(j)/count(j)
-!     else
-!        count(j)=rmiss
-!        penalty(j)=rmiss
-!     endif
-!  end do
-!
-!
-!! Open unit to input data file.  See if file exists
-!  open(lncoef,file='biascr.txt',form='formatted')
-!  if (angord == 4 ) then
-!     read(lncoef,122,end=920,err=920) idum
-!  else
-!     read(lncoef,120,end=920,err=920) idum
-!  endif
-!  rewind(lncoef)
-!120 format(I5,1x,A20,1x,I5,10f12.6)
-!122 format(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))
-!
-!!read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat,end=1333)
-!!ich,isis,& ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred), where npred=12
-!
-!! Read coefficient file
-!  allocate(predr(npredr))
-!  i=0
-!  k=1
-!  eof=.false.
-!  do  
-!     if (angord /= 4 ) then
-!        read(lncoef,120,IOSTAT=iflag) ich,isis,ichan,(predr(j),j=1,npredr)
-!     else
-!        read(lncoef,122,IOSTAT=iflag) ich,isis,ichan, tlapm,tsum,ntlapupdate,(predr(j),j=1,npredr)
-!     endif
-!     if(iflag /=0) exit
-!     if (trim(isis)==trim(satsis)) then
-!        io_chan(k)=ichan
-!        do j=1,npredr
-!           coefs(k,j)=predr(j)
-!        end do
-!        k=k+1
-!        cycle 
-!     endif
-!  end do
-!  close(lncoef)
-!  deallocate(predr)
-!
-!  ! Create Control file
-!  if ( imkctl == 1 ) then
-!     write(6,*)'call create_ctl_bcoef'
-!
-!     if ( trim(gesanl) == 'ges' ) then
-!        mod_satname = trim(satname)
-!     else
-!        mod_satname = trim(satname) // '_anl'
-!     endif
-!   
-!     call create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-!          incr,ctl_file,lunctl,rmiss,mod_satname,satype,dplat,&
-!          nu_chan,use,penalty,frequency,wavenumbr,little_endian)
-!  else
-!     write(6,*) 'imkctl =',imkctl
-!  endif
-!
-!
-!! Write data to binary output file
-!  if ( imkdata == 1 ) then
-!     write(6,*)'write data to lungrd=',lungrd
-!     open(lungrd,file=data_file,form='unformatted')
-!     write(lungrd) (penalty(k),k=1,n_chan)
-!     do j=1,maxpred
-!        write(lungrd) (coefs(k,j),k=1,n_chan)
-!     end do
-!     close(lungrd)
-!  endif
-!
-!! Deallocate arrays
-!  write(6,*)'deallocate arrays'
-!  deallocate(coefs,io_chan,nu_chan,wavenumbr,count,penalty,use,frequency)
-!  goto 950
-!
-!
-!! Jump here if problem reading diagnostic file
-!900 continue
-!  write(6,*)'***PROBLEM*** reading diagnostic file'
-!
-!  n_chan=nchanl
-!  if (n_chan<=0) then
-!     write(6,*)'***ERROR*** invalid nchanl=',nchanl,'  STOP program'
-!     call errexit(94)
-!  endif
-!
-!  write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
-!       n_chan,npredr
-!  allocate(penalty(n_chan),coefs(n_chan,npredr))
-!  do k=1,n_chan
-!     penalty(k)=rmiss
-!  end do
-!  do j=1,npredr
-!     do k=1,n_chan
-!        coefs(k,j)=rmiss
-!     end do
-!  end do
-!
-!  if ( imkdata == 1 ) then
-!     open(lungrd,file=data_file,form='unformatted')
-!     write(lungrd) (penalty(k),k=1,n_chan)
-!     do j=1,npredr
-!        write(lungrd) (coefs(k,j),k=1,n_chan)
-!     end do
-!     write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
-!     close(lungrd)
-!  endif
-!  deallocate(penalty,coefs)
-!
-!  goto 950
-!
-!
-!! Jump here if problem reading coefficient file
-!920 continue
-!  write(6,*)'***PROBLEM*** reading coefficient file'
-!
-!
-!! End of program
-!950 continue
+   80 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3 &
+                        ',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3 &
+                        ',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3 &
+                        ',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3)
+          
+   do chan=1,nchanl
+
+      write(str_nchanl, '(i20)') chan-1
+      sat_out_file= trim(satname) // '.' // trim(adjustl(str_nchanl)) // '.bcoef.txt'
+      write(6,*)' after sat_out_file assigned:  ', sat_out_file
+
+      lsatout = 61 + chan
+      open(lsatout,file=sat_out_file,iostat=open_status, &
+                             action='write',status='new',form='formatted')
+      write(6,*)' sat_out_file opened, status:  ', open_status
+
+      do cyc=1,ncycle
+         write(lsatout,80) trim(chan_nums(chan)),  trim(times(cyc)),       &
+                           mean(1,cyc,chan),       mean(2,cyc,chan),       &
+                           atmpath(1,cyc,chan),    atmpath(2,cyc,chan),    &
+                           clw(1,cyc,chan),        clw(2,cyc,chan),        &
+                           lapse2(1,cyc,chan),     lapse2(1,cyc,chan),     &
+                           lapse(1,cyc,chan),      lapse(1,cyc,chan),      &
+                           cos_ssmis(1,cyc,chan),  cos_ssmis(1,cyc,chan),  &
+                           sin_ssmis(1,cyc,chan),  sin_ssmis(1,cyc,chan),  &
+                           emiss(1,cyc,chan),      emiss(1,cyc,chan),      &
+                           ordang4(1,cyc,chan),    ordang4(2,cyc,chan),    &
+                           ordang3(1,cyc,chan),    ordang3(2,cyc,chan),    &
+                           ordang2(1,cyc,chan),    ordang2(2,cyc,chan),    &
+                           ordang1(1,cyc,chan),    ordang1(2,cyc,chan)
+
+      end do                      
+      
+      close( lsatout )
+
+   end do
+
+
   stop
 end program bcoef

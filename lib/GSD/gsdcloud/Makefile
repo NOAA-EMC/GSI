@@ -31,42 +31,8 @@
 
 # SHELL=/bin/csh
 
-#-----------------------------------------------------------------------
-#
-# Default names of the loader and tar, can be replaced on the command
-# line for other system
-#
-#-----------------------------------------------------------------------
 
-FTN = ifort
-LDR = ifort
-CC  = cc
-
-GNRL_LD = $(LDR)
-
-TAR = tar
-AWK = awk
-RM  = rm
-LN  = ln
-
-ARFLAG =
-
-TOPDIR = 
-
-INCLDIR = 
-
-#-----------------------------------------------------------------------
-#
-# Compiler Flag of Options. The default is for AIX Fortran xlf.
-#
-#-----------------------------------------------------------------------
-
-FFLAGS = -O3 -fp-model strict -convert big_endian -assume byterecl -implicitnone -traceback #   -I../../../include 
-CFLAGS = 
-LDFLAGS =
-
-FIXFLAGS  = 
-FREEFLAGS = 
+include Makefile.conf
 
 #-----------------------------------------------------------------------
 #
@@ -117,18 +83,8 @@ GNRLCLDOBJS = kinds.o                    constants.o \
               build_missing_REFcone.o    get_sfm_1d_gnl.o       read_radar_ref.o     \
               cloudCover_NESDIS.o        smooth.o      \
               cloudCover_Surface.o       map_ctp.o              vinterp_radar_ref.o  \
-              hydro_mxr_thompson.o
+              hydro_mxr_thompson.o       pbl_height.o
 
-##BackgroundCld.o read_Surface.o read_NESDIS.o \
-              interp_NSSL_ref.o cloudCover_Surface.o     \
-              BckgrndCC.o cloudCover_NESDIS.o cloudCover_radar.o \
-              cloudLWC.o cloudLayers.o cloudType.o get_sfm_1d_gnl.o \
-              PrecipType.o PrecipMxr_radar.o TempAdjust.o  \
-              pcp_mxr_thompsonRUC.o \
-              adaslib.o ARPS_cldLib.o mthermo.o pcp_mxr_ARPSlib.o   \
-              convert_lghtn2ref.o mape_ctp.o read_NSSL_ref.o \
-              read_Lightning_cld.o NSSL_ref2tten.o smooth.o \
-	      build_missing_REFcone.o read_nasalarc_cld.o 
 
 #-----------------------------------------------------------------------
 #

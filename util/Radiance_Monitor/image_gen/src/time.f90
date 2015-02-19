@@ -102,7 +102,8 @@ program gatime
 
 !**************************************************
 !  Allocate space for variables
-!    note:  first 2 is for ges|anl
+!    note:  first 2 is for ges|anl, 
+!           second 2 is for value, value**2
 !**************************************************
    allocate ( cnt     (2,ncycle,nchanl,nregion) )
    allocate ( pen     (2,ncycle,nchanl,nregion) )
@@ -152,7 +153,6 @@ program gatime
             read(ldname) ((omg_bc2 (ftyp,cyc,j,k),j=1,nchanl),k=1,nregion)
             close(ldname)
          else
-            write(6,*)' data file does not exist:  ', data_file
             do j=1,nchanl
                do k=1,nregion
                   cnt(ftyp,cyc,j,k)      = 0.0
@@ -182,19 +182,11 @@ program gatime
              tot_pen = 0
              tot_cnt = 0
              do cyc=1,ncycle
-                if( cnt( ftyp,cyc,j,k ) > 0.00 ) then
-                   tot_pen = tot_pen + pen(ftyp,cyc,j,k)
-                   tot_cnt = tot_cnt + cnt(ftyp,cyc,j,k)
-                end if
+                tot_pen = tot_pen + pen(ftyp,cyc,j,k)
+                tot_cnt = tot_cnt + cnt(ftyp,cyc,j,k)
              end do
 
-             if( tot_cnt > 0.00 ) then
-                chi(ftyp,j,k) = (tot_pen/tot_cnt)
-             else
-                chi(ftyp,j,k) = rmiss
-             end if
-             write(6,*)'ftyp,j,k,tot_pen,tot_cnt,chi:  ', ftyp,j,k,tot_pen,tot_cnt,chi(ftyp,j,k)
- 
+             chi(ftyp,j,k) = (tot_pen/tot_cnt)
          end do
       end do
    end do
@@ -359,17 +351,8 @@ program gatime
 !            6-10 are the values for the ges data
 !
 !    Output file [satname].cnt.time.txt, (in CSV format).
-!!      line 1 is a file header containing satname, nchanl, ntimes 
-!!      lines 2..nchan+1 is a channel header containing actual channel number,
-!!             use flag, chi, freq, and wavelength values
-!!
-!      lines nchan+2..nchan+2+ntimes
 !*********************************************************************
    70 FORMAT(A15,',',A5,',',A5)
-   71 FORMAT(A5,',',A3,',',F9.3,',',F9.2,',',F9.2)
-
-   72 FORMAT(A5,',',A10,',',I5.1,',',I5.1,',',I5.1,',',I5.1,',',I5.1,',' & 
-                           ,I5.1,',',I5.1,',',I5.1,',',I5.1,',',I5.1) 
 
    73 FORMAT(A5,',',A3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
@@ -439,7 +422,7 @@ program gatime
 
 
 !*****************************************************************************
-!  Second output file, loop over channel and write count, penalty data for
+!  Second state, loop over channel and write count, penalty data for
 !    every time to [satname].[chan].time.txt file
 !
    do chan=1,nchanl
@@ -499,9 +482,9 @@ program gatime
                           sdv_omgbc(2,cyc,chan,2), sdv_omgbc(2,cyc,chan,3), &
                           sdv_omgbc(2,cyc,chan,4), sdv_omgbc(2,cyc,chan,5)
       end do
-      close(lsatout)
    end do
 
+   close(lsatout)
 
 !*****************************************************************************
 !  Write penalty data to sat.pen.time file
