@@ -118,6 +118,12 @@ if [ $MAKEMAPS = YES ] ; then
    #3. Running directory and score directory
    export rundir=$tmpdir/acrms$$
    export scoredir=$rundir/score
+   # Save output location where to extrac figures to generate PAR
+   export ENV_VSDB_DATA_LOC=$rundir
+   export ENV_VSDB_SCORE_LOC=$scoredir
+   echo $ENV_VSDB_DATA_LOC  > ${myhome}/vsdb_data_loc
+   echo $ENV_VSDB_SCORE_LOC > ${myhome}/vsdb_score_loc
+   
 
    #4. Case configuration 
    export fcycle=${ENV_2_FCYCLE}
