@@ -21,7 +21,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2011-01-05  hclin   - added three more BUFR records (STYP DBCF QAOD)
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -57,7 +57,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use chemmod,   only: aod_qa_limit, luse_deepblue
   use constants, only: deg2rad, zero, two, three, four, rad2deg, r60inv
   use obsmod,    only: iadate, rmiss_single
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,thin4d
   use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   implicit none
@@ -247,7 +247,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
               call w3fs21(idate5,nmind)
               t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-              if (l4dvar.or.l4densvar) then
+              if (thin4d) then
                  if(t4dv<zero .OR. t4dv>winlen) cycle read_modis
                  timedif = zero
               else

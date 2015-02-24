@@ -52,7 +52,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2013-08-26 McCarty -modified to remove automatic rejection of AVHRR winds
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
 !   2014-07-16  Su      - read VIIRS winds 
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -89,7 +89,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   implicit none
 
@@ -523,7 +523,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            idate5(5) = hdrdat(8)     ! minutes
            call w3fs21(idate5,nmind)
            t4dv = real((nmind-iwinbgn),r_kind)*r60inv
-           if (l4dvar.or.l4densvar) then
+           if (thin4d) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
               sstime = real(nmind,r_kind) 
@@ -930,7 +930,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if (ithin > 0 .and. iuse >=0) then
               ntmp=ndata  ! counting moved to map3gridS
  !         Set data quality index for thinning
-              if (l4dvar.or.l4densvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)

@@ -21,7 +21,8 @@ module gsi_4dvar
 !   2011-07-10 guo/zhang- add liauon
 !   2012-02-08 kleist   - add new features for 4dvar with ensemble/hybrid.
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs 
-!   2014-11-24 Rancic/Thomas - iwinbgn changed from hours to mins        
+!   2015-02-23 Rancic/Thomas - iwinbgn changed from hours to mins, added thin4d
+!                         option to remove thinning in time       
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -80,6 +81,8 @@ module gsi_4dvar
 !                       will be set to center of window for 4D-ens mode
 !   lwrite4danl       - logical to turn on writing out of 4D analysis state for 4D analysis modes
 !                       ** currently only set up for write_gfs in ncepgfs_io module
+!   thin4d            - When .t., removes thinning of observations due to
+!                       location in the time window
 !
 ! attributes:
 !   language: f90
@@ -108,7 +111,7 @@ module gsi_4dvar
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
-  public :: lwrite4danl
+  public :: lwrite4danl,thin4d
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -126,6 +129,7 @@ module gsi_4dvar
   logical         :: l4densvar
   logical         :: lnested_loops
   logical         :: lwrite4danl
+  logical         :: thin4d
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -203,6 +207,7 @@ ens4d_nstarthr=3
 ibin_anl=1
 
 lwrite4danl = .false.
+thin4d = .false.
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------

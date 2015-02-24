@@ -82,7 +82,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -130,7 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,thin4d
   use antcorr_application, only: remove_antcorr
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
@@ -578,7 +578,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
            t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-           if (l4dvar.or.l4densvar) then
+           if (thin4d) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
               timedif = zero
            else

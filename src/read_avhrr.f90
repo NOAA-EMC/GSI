@@ -43,7 +43,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         Add call to checkob. Bug fix for scoring of obs, by including newchn,
 !                         also add another ob scoring approach based on observed Tb only.
 !                         add check: bufsat(jsatid) == satellite id
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,7 +75,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
   use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis, &
                      nst_gsi,nstinfo,newpc4pred,newchn
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -275,7 +275,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         rsc       = hdr(6)          !second in real
         call w3fs21(idate5,nmind)
         t4dv=(real((nmind-iwinbgn),r_kind) + rsc*r60inv)*r60inv
-        if (l4dvar.or.l4densvar) then
+        if (thin4d) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
            sstime=real(nmind,r_kind) + rsc*r60inv
@@ -315,7 +315,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         nread = nread + 1
 
-        if (l4dvar.or.l4densvar) then
+        if (thin4d) then
            crit1 = 0.01_r_kind
         else
            timedif = r6*abs(tdiff)        ! range:  0 to 18

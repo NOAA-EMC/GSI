@@ -20,7 +20,7 @@ subroutine read_wrf_mass_files(mype)
 !   2012-04-13  whitaker - read times from sigf file, instead of using
 !   regional_time. Using regional_time was causing ntguessig and hrdifsig to be
 !   set incorrectly.
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   
 !   input argument list:
 !     mype     - pe number
@@ -38,7 +38,7 @@ subroutine read_wrf_mass_files(mype)
   use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
        ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,nhr_assimilation,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,nhr_assimilation,thin4d
   use gridmod, only: regional_time,regional_fhr
   use constants, only: zero,one,zero_single,r60inv
   use obsmod, only: iadate,time_offset
@@ -99,7 +99,7 @@ subroutine read_wrf_mass_files(mype)
            nming2=nmings+60*hourg
            write(6,*)'READ_wrf_mass_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
-           if (l4dvar.or.l4densvar) then
+           if (thin4d) then
               if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
               ndiff=nming2-nminanl

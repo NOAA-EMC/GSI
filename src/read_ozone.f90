@@ -62,7 +62,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2013-02-05  guo     - STOP in dec2bin() was replaced with die() to signal an _abort_.
 !   2014-02-03  guo	- removed unused "o3lev" handling, which can (and should) be
 !                         implemented again in module m_extOzone, if ever needed.
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -100,7 +100,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use obsmod, only: iadate,nloz_v6,nloz_v8
   use convinfo, only: nconvtype, &
       icuse,ictype,ioctype
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,thin4d
   use qcmod, only: use_poq7
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   implicit none
@@ -322,7 +322,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(5) = hdroz(8)  !minute
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         if(t4dv<zero .OR. t4dv>winlen) goto 110
      else
         sstime=real(nmind,r_kind)
@@ -495,7 +495,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(5) = hdrozg(7)  !minute
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         if(t4dv<zero .OR. t4dv>winlen) goto 120
      else
         sstime=real(nmind,r_kind)
@@ -520,7 +520,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    thin GOME data
 !    GOME data has bias when the satellite looks to the east. Consider QC out this data.
 
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         timedif = zero
      else
         timedif = r6*abs(tdiff)        ! range:  0 to 18
@@ -640,7 +640,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
 
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         if (t4dv<zero .OR. t4dv>winlen) go to 130
      else
         sstime=real(nmind,r_kind)
@@ -672,7 +672,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    thin OMI data
 
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         timedif = zero
      else
         timedif = r6*abs(tdiff)        ! range:  0 to 18
@@ -864,7 +864,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
 
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (l4dvar.or.l4densvar) then
+     if (thin4d) then
         if (t4dv<zero .OR. t4dv>winlen) go to 140
      else
         sstime=real(nmind,r_kind)

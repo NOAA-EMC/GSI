@@ -683,7 +683,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   call rhs_dealloc()   ! destroy the workspace: awork, bwork, etc.
 ! Print Jo table
   nprt=2
-  nprt=3
+!  nprt=3
   llouter=.true.
   if(luse_obsdiag)call evaljo(zjo,iobs,nprt,llouter)
 

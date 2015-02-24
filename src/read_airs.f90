@@ -69,7 +69,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2012-03-05  akella  nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!   2014-11-24  Rancic/Thomas - add l4densvar to time window logical
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -111,7 +111,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,five,rad2deg,r60inv
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use gsi_4dvar, only: iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -487,7 +487,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Retrieve obs time
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + real(allspot(7,ix),r_kind)*r60inv)*r60inv ! add in seconds
-        if (l4dvar.or.l4densvar) then
+        if (thin4d) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            crit1 = 0.01_r_kind
         else
