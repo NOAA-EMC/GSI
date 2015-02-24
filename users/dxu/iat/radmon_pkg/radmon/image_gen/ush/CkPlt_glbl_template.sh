@@ -75,6 +75,10 @@ fi
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${RADMON_IMAGE_GEN}/parm/glbl_conf
 
+# Save output location where to extrac figures to generate PAR
+echo $IMGNDIR/summary  > ${top_parm}/radmon_data_loc
+
+
 
 #--------------------------------------------------------------------
 #  Check for my monitoring use.  Abort if running on prod machine.
