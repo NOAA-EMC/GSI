@@ -233,44 +233,6 @@ subroutine update_guess(sval,sbias)
         endif
      endif
 
-! update surface and soil    
-     if (l_gsd_soilTQ_nudge ) then
-        tinc_1st=zero
-        qinc_1st=zero
-        if(is_q>0) then
-           do j=1,lon2
-              do i=1,lat2
-                  qinc_1st(i,j)=p_q(i,j,1)
-              end do
-           end do
-        endif
-        if(is_t > 0) then
-           do j=1,lon2
-              do i=1,lat2
-                  tinc_1st(i,j)=p_tv(i,j,1)
-              end do
-           end do
-        endif
-        call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q)
-        if (is_t>0) then
-           do j=1,lon2
-              do i=1,lat2
-                 tinc_1st(i,j)=p_tv(i,j,1)
-              end do
-           end do
-           call  gsd_update_th2(tinc_1st)
-        endif ! l_gsd_th2_adjust
-        if (is_q>0) then
-           do j=1,lon2
-              do i=1,lat2
-                 qinc_1st(i,j)=p_q(i,j,1)
-              end do
-           end do
-           call  gsd_update_q2(qinc_1st)
-        endif ! l_gsd_q2_adjust
-     endif  ! l_gsd_soilTQ_nudge
-
-
 !    Update extra met-guess fields
      do ic=1,nguess
         id=getindex(svars3d,guess(ic))
@@ -376,6 +338,41 @@ subroutine update_guess(sval,sbias)
            cycle
         endif
      enddo
+! update surface and soil    
+     if (l_gsd_soilTQ_nudge ) then
+        if(is_q>0) then
+           do j=1,lon2
+              do i=1,lat2
+                  qinc_1st(i,j)=p_q(i,j,1)
+              end do
+           end do
+        endif
+        if(is_t > 0) then
+           do j=1,lon2
+              do i=1,lat2
+                  tinc_1st(i,j)=p_tv(i,j,1)
+              end do
+           end do
+        endif
+        call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q)
+     endif  ! l_gsd_soilTQ_nudge
+     if (l_gsd_soilTQ_nudge .and. is_t>0) then
+        do j=1,lon2
+           do i=1,lat2
+              tinc_1st(i,j)=p_tv(i,j,1)
+           end do
+        end do
+        call  gsd_update_th2(tinc_1st)
+     endif ! l_gsd_th2_adjust
+     if (l_gsd_soilTQ_nudge .and. is_q>0) then
+        do j=1,lon2
+           do i=1,lat2
+              qinc_1st(i,j)=p_q(i,j,1)
+           end do
+        end do
+        call  gsd_update_q2(qinc_1st)
+     endif ! l_gsd_q2_adjust
+
   end do
 
   if(ngases>0) deallocate(gases)
