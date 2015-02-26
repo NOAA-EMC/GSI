@@ -20,7 +20,7 @@ source ./fcstDiff_template.config
 rm -r $run_dir; mkdir -p $run_dir; cd $run_dir || exit 8
 
 # Save output location where to extrac figures to generate PAR
-echo ${run_dir}  > ${ENV_FCSTDIFF_PKG_DIR}/fcstDiff_data_loc
+echo ${run_dir}  > ${fcstDiff_dir}/fcstDiff_data_loc
 
 export yy=`echo $CDATE |cut -c 1-4 `
 export mm=`echo $CDATE |cut -c 5-6 `
