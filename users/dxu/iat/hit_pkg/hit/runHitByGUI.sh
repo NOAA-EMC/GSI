@@ -26,6 +26,11 @@ fi
 
 # Run HIT package
 
+# Remove output location where to extrac figures to generate PAR
+if [ -e ${ENV_SCRDIR}/hit_data_loc ]
+then
+   rm -rf ${ENV_SCRDIR}/hit_data_loc
+fi
 
 if [ ${ENV_MEAN} = "yes" ]
 then 
