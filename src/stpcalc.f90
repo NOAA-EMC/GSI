@@ -203,7 +203,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind,r_quad,r_single
   use mpimod, only: mype
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
@@ -253,7 +253,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
-  real(r_quad),dimension(4):: pbcqmin,pbcqmax,pbcqmini,pbcqmaxi
+  real(r_quad),dimension(4,nobs_bins):: pbcqmin,pbcqmax
   real(r_quad) :: dirx_yhat,diry_xhat,xhat_yhat,dirx_diry
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
@@ -265,6 +265,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
+
 
 !************************************************************************************  
 ! Initialize timer
@@ -339,23 +340,19 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   pstart=zero_quad
   pbc=zero_quad
 
+
 ! penalty, b and c for background terms
-!$omp parallel sections
 
-!$omp section
-  xhat_yhat=qdot_prod_sub(xhatsave,yhatsave)
-!$omp section
-  dirx_yhat=qdot_prod_sub(dirx,yhatsave)
-!$omp section
-  diry_xhat=qdot_prod_sub(diry,xhatsave)
-!$omp section
-  dirx_diry=qdot_prod_sub(dirx,diry)
-!$omp end parallel sections
+  pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
 
-  pstart(1,1) = xhat_yhat
+  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
+
+! Penalty, b, c for JcDFI
+  pstart(3,1) = qdot_prod_sub(dirx,diry)
+
+! Penalty, b, c for dry pressure
+
 !  two terms in next line should be the same, but roundoff makes average more accurate.
-  pstart(2,1) =-0.5_r_quad*(dirx_yhat+diry_xhat)
-  pstart(3,1) = dirx_diry
 
 ! Contraint and 3dvar terms
   if(l_foto )then
@@ -364,12 +361,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      call stp3dvar(dval(1),dhat_dt)
   end if
 
-! Penalty, b, c for JcDFI
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
   end if
 
-! Penalty, b, c for dry pressure
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
        call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3),1)
@@ -418,23 +413,21 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(.not.ljc4tlevs) then
            call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
         else 
-           pbcqmin=zero_quad ; pbcqmax=zero_quad
            do ibin=1,nobs_bins
               if (nobs_bins /= nfldsig) then
                  it=ntguessig
               else
                  it=ibin
               end if
-              pbcqmini=zero_quad ; pbcqmaxi=zero_quad
-              call stplimq(dval(ibin),sval(ibin),sges,pbcqmini,pbcqmaxi,nstep,it)
-              do j=1,nstep
-                pbcqmin(j) = pbcqmin(j) + pbcqmini(j)
-                pbcqmax(j) = pbcqmax(j) + pbcqmaxi(j)
-              end do
+              call stplimq(dval(ibin),sval(ibin),sges,pbcqmin(1,ibin),pbcqmax(1,ibin),nstep,it)
            end do
-           do j=1,nstep
-              pbc(j,4) = pbcqmin(j)
-              pbc(j,5) = pbcqmax(j)
+           pbc(:,4)=zero_quad
+           pbc(:,5)=zero_quad
+           do ibin=1,nobs_bins
+              do j=1,nstep
+                 pbc(j,4) = pbc(j,4)+pbcqmin(j,ibin)
+                 pbc(j,5) = pbc(j,5)+pbcqmax(j,ibin)
+              end do
            end do
         end if
 
@@ -463,8 +456,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
      end if
 
+!       penalties for gust constraint
 
      call setrad(sval(1))
+
 !    penalties for Jo
      pbcjoi=zero_quad 
      call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 
@@ -485,7 +480,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
   
-
 !    save penalty  and stepsizes
      nsteptot=nsteptot+1
      do j=1,ipen
@@ -649,6 +643,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   endif
 
 ! Update solution
+!DIR$ IVDEP
   do i=1,nclen
      xhat%values(i)=xhat%values(i)+stpinout*dirx%values(i)
      xhatsave%values(i)=xhatsave%values(i)+stpinout*dirx%values(i)
@@ -672,6 +667,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      endif
      call deallocate_state(dhat_dt)
   end if
+
 
 ! Finalize timer
   call timer_fnl('stpcalc')

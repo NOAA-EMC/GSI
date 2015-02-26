@@ -2634,29 +2634,31 @@ subroutine beta12mult(grady)
        write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
        call stop2(999)
     endif
-!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,nn,k,j,i)
-    do j=1,lon2
-       do ii=1,nsubwin
+    do ii=1,nsubwin
+!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i)
+       do j=1,lon2
   
 !      multiply by betas_inv first:
          do ic3=1,nc3d
 !    check for ozone and skip if oz_univ_static = true
-          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+            if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
             do k=1,nsig
-              grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k)
+              do i=1,lat2
+                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+              end do
             enddo
          enddo
          do ic2=1,nc2d
 ! Default to static B estimate for SST
             if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-            grady%step(ii)%r2(ipc2d(ic2))%q(:,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(:,j)
+            do i=1,lat2
+               grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+            end do
          enddo
 
        end do
-    end do
-!$omp parallel do schedule(dynamic,1) private(ii,nn,k,j,i)
-    do j=1,grd_ens%lon2
-       do ii=1,nsubwin
+!$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
+       do j=1,grd_ens%lon2
 !      next multiply by betae_inv:
          do nn=1,n_ens
           do k=1,nsig

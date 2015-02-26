@@ -21,7 +21,7 @@ module stpjcmod
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero,two,one,half,zero_quad,one_quad,two_quad
+use constants, only: zero,two,one,half,zero_quad
 use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 use gsi_metguess_mod, only: gsi_metguess_bundle
 
@@ -78,16 +78,17 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                     ,intent(in   ) :: nstep,itbin
-  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(1,nstep)),intent(  out) :: outmin,outmax
-  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+  integer(i_kind)          ,intent(in   ) :: nstep,itbin
+  real(r_kind),dimension(4),intent(in   ) :: sges
+  real(r_quad),dimension(4),intent(  out) :: outmin,outmax
+  type(gsi_bundle)         ,intent(in   ) :: rval,sval
 
 ! Declare local variables
   integer(i_kind) i,j,k,kk,ier,istatus
   real(r_kind) q,qx
   real(r_kind),pointer,dimension(:,:,:) :: rq,sq
   real(r_kind),pointer,dimension(:,:,:) :: ges_q_it=>NULL()
+  real(r_kind),dimension(lat2,lon2,nstep) :: qmax,qmin
 
   outmin=zero_quad; outmax=zero_quad
 
@@ -98,37 +99,44 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
-  if(ier/=0)return
-
-  call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,ier)
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,istatus)
+  ier=istatus+ier
   if(ier/=0)return
 
 ! Loop over interior of subdomain
   if(nstep > 0)then
-     do k = 1,nsig
-        do j = 2,lon1+1
-           do i = 2,lat1+1
+     qmax=zero
+     qmin=zero
+!$omp parallel do  schedule(dynamic,1) private(kk,k,j,i,qx)
+     do j = 2,lon2-1
+        do kk=1,nstep
+           do k = 1,nsig
+              do i = 2,lat2-1
 
 !             Values for q using stepsizes
-              q  = ges_q_it(i,j,k) + sq(i,j,k)
-              do kk=1,nstep
-                 qx = q + sges(kk)*rq(i,j,k)
+                 qx = ges_q_it(i,j,k) + sq(i,j,k) + sges(kk)*rq(i,j,k)
                  if(qx < zero)then
-                    outmin(kk)=outmin(kk)+factqmin*qx*qx/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
-                 else
-                    if(qx > ges_qsat(i,j,k,itbin))then
-                       outmax(kk)=outmax(kk)+factqmax*(qx-ges_qsat(i,j,k,itbin))* &
-                            (qx-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
-                    end if
+                    qmin(i,j,kk)=qmin(i,j,kk)+factqmin*qx*qx/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                 else if(qx > ges_qsat(i,j,k,itbin))then
+                    qmax(i,j,kk)=qmax(i,j,kk)+factqmax*(qx-ges_qsat(i,j,k,itbin))* &
+                         (qx-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
                  end if
               end do
            end do
         end do
      end do
+     do j = 2,lon2-1
+        do kk=1,nstep
+          do i=2,lat2-1
+             outmin(kk)=outmin(kk)+qmin(i,j,kk)
+             outmax(kk)=outmax(kk)+qmax(i,j,kk)
+          end do
+        end do
+     end do
   else
      do k = 1,nsig
-        do j = 2,lon1+1
-           do i = 2,lat1+1
+        do j = 2,lon2-1
+           do i = 2,lat2-1
 
 !             Values for q using stepsizes
               q  = ges_q_it(i,j,k)
@@ -655,18 +663,19 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
 
 ! Declare local variables
   real(r_quad),dimension(2*nbins):: dmass
-  real(r_quad) :: rcon,con
+  real(r_kind) :: rcon,con
   integer(i_kind) i,j,k,it,mm1,ii,ier,icw,iql,iqi,istatus,n
   real(r_kind),pointer,dimension(:,:,:) :: rq,sq,rc,sc,rql,rqi,sql,sqi
   real(r_kind),pointer,dimension(:,:)   :: rp,sp
+  real(r_kind),dimension(lat2,lon2) :: dry,ddry
 
   pen=zero_quad ; b=zero_quad ; c=zero_quad
   it=ntguessig
 
-  dmass=zero_quad
-  rcon=one_quad/(two_quad*float(nlon))
+  rcon=one/(two*float(nlon))
   mm1=mype+1
 
+!$omp parallel do  schedule(dynamic,1) private(i,ii,j,k,istatus,ier,icw,iql,iqi,sq,sc,sql,sqi,sp,rq,rc,rql,rqi,rp,con,dry,ddry)
   do n=1,nbins
 !    Retrieve pointers
 !    Simply return if any pointer not found
@@ -683,17 +692,17 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
      call gsi_bundlegetpointer(rval(n),'ps',rp, istatus);ier=istatus+ier
      if(ier+icw*(iql+iqi)/=0)then
        if (mype==0) write(6,*)'stpjcpdry: checking ier+icw*(iql+iqi)=', ier+icw*(iql+iqi)
-       return
+       cycle
      end if
  
-
-!    Calculate mean surface pressure contribution in subdomain
      do j=2,lon2-1
        do i=2,lat2-1
          ii=istart(mm1)+i-2
          con=wgtlats(ii)*rcon
-         dmass(n)=dmass(n)+sp(i,j)*con
-         dmass(n+nbins)=dmass(n+nbins)+rp(i,j)*con
+         dry(i,j)=sp(i,j)*con
+         ddry(i,j)=rp(i,j)*con
+!        dmass(n)=dmass(n)+sp(i,j)*con
+!        dmass(n+nbins)=dmass(n+nbins)+rp(i,j)*con
        end do
      end do
 !    Remove water to get incremental dry ps
@@ -702,17 +711,32 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
            do i=2,lat2-1
               ii=istart(mm1)+i-2
               con=(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)*rcon
-              dmass(n)=dmass(n) - sq(i,j,k)*con
-              dmass(n+nbins)=dmass(n+nbins) - rq(i,j,k)*con
+              dry(i,j)=dry(i,j)-sq(i,j,k)*con
+              ddry(i,j)=ddry(i,j)-rq(i,j,k)*con
+!             dmass(n) = dmass(n) - sq(i,j,k)*con
+!             dmass(n+nbins)=dmass(n+nbins) - rq(i,j,k)*con
               if(icw==0)then
-                 dmass(n)=dmass(n) - sc(i,j,k)*con
-                 dmass(n+nbins)=dmass(n+nbins) - rc(i,j,k)*con
+                 dry(i,j)=dry(i,j)-sc(i,j,k)*con
+                 ddry(i,j)=ddry(i,j)-rc(i,j,k)*con
+!                dmass(n) = dmass(n) - sc(i,j,k)*con
+!                dmass(n+nbins)=dmass(n+nbins) - rc(i,j,k)*con
               else
-                 dmass(n)=dmass(n) - (sql(i,j,k)+sqi(i,j,k))*con
-                 dmass(n+nbins)=dmass(n+nbins) - (rql(i,j,k)+rqi(i,j,k))*con
+                 dry(i,j)=dry(i,j)-(sql(i,j,k)+sqi(i,j,k))*con
+                 ddry(i,j)=ddry(i,j)-(rql(i,j,k)+rqi(i,j,k))*con
+!                dmass(n) = dmass(n) - (sql(i,j,k)+sqi(i,j,k))*con
+!                dmass(n+nbins)=dmass(n+nbins) - (rql(i,j,k)+rqi(i,j,k))*con
               endif
            end do
         end do
+     end do
+!    Calculate mean surface pressure contribution in subdomain
+     dmass(n)=zero_quad
+     dmass(n+nbins)=zero_quad
+     do j=2,lon2-1
+       do i=2,lat2-1
+         dmass(n)=dmass(n)+dry(i,j)
+         dmass(n+nbins)=dmass(n+nbins)+ddry(i,j)
+       end do
      end do
   end do
 
