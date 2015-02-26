@@ -64,6 +64,9 @@ execdir=${rundir}/${storm}                     ;# working directory
 rm -r $execdir; mkdir -p $execdir
 cd $execdir; chmod u+rw *
 
+# Save output location where to extrac figures to generate PAR
+echo ${execdir}  >> ${ENV_SCRDIR}/hit_data_loc
+
 years=`echo $DATEST |cut -c 1-4 `
 yeare=`echo $DATEND |cut -c 1-4 `
 if [ $years -ne $yeare ]; then
