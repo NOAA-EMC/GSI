@@ -37,6 +37,9 @@ then
   mkdir -p ${working_dir}
 fi
 
+# Save output location where to extrac figures to generate PAR
+echo  ${working_dir}  > ${ENV_GRIBEXTR_DIR}/ge_data_loc
+
 # Go to working directory 
 cd ${working_dir}
 
