@@ -66,6 +66,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !   2013-09-10  guo        - patched to take reference pressure from the observation
 !   2013-10-19  todling - metguess now holds background
 !   2013-11-26  guo     - removed nkeep==0 escaping to allow more than one obstype sources.
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -100,7 +101,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : oz_ob_type,nloz_omi
-  use obsmod, only : obs_diag
+  use obsmod, only : obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -528,13 +529,14 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
               nlevp=max(nlev-1,1)
               if (obstype == 'omieff' .or. obstype == 'tomseff' ) nlevp = nloz_omi
-              allocate(oztail(ibin)%head%res(nlev),oztail(ibin)%head%diags(nlev),&
+              allocate(oztail(ibin)%head%res(nlev),&
                        oztail(ibin)%head%err2(nlev),oztail(ibin)%head%raterr2(nlev),&
                        oztail(ibin)%head%prs(nlevp), &
                        oztail(ibin)%head%wij(4,nsig), &
                        oztail(ibin)%head%ipos(nlev),  &
                        oztail(ibin)%head%apriori(nloz_omi), &
                        oztail(ibin)%head%efficiency(nloz_omi), stat=istatus)
+              if(luse_obsdiag)allocate(oztail(ibin)%head%diags(nlev))
               if (istatus/=0) write(6,*)'SETUPOZ:  allocate error for oz_point, istatus=',istatus
 
 !             Set number of levels for this obs
@@ -578,58 +580,62 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !       Link obs to diagnostics structure
         do k=1,nlevs
-           if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_oz_ob_type,ibin)%head)) then
-                 allocate(obsdiags(i_oz_ob_type,ibin)%head,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupozlay: failure to allocate obsdiags',istat
-                    call stop2(260)
+           if(luse_obsdiag)then
+              if (.not.lobsdiag_allocated) then
+                 if (.not.associated(obsdiags(i_oz_ob_type,ibin)%head)) then
+                    allocate(obsdiags(i_oz_ob_type,ibin)%head,stat=istat)
+                    if (istat/=0) then
+                       write(6,*)'setupozlay: failure to allocate obsdiags',istat
+                       call stop2(260)
+                    end if
+                    obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
+                 else
+                    allocate(obsdiags(i_oz_ob_type,ibin)%tail%next,stat=istat)
+                    if (istat/=0) then
+                       write(6,*)'setupozlay: failure to allocate obsdiags',istat
+                       call stop2(261)
+                    end if
+                    obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
                  end if
-                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
+
+                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%muse(miter+1))
+                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%nldepart(miter+1))
+                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%tldepart(miter))
+                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%obssen(miter))
+                 obsdiags(i_oz_ob_type,ibin)%tail%indxglb=i
+                 obsdiags(i_oz_ob_type,ibin)%tail%nchnperobs=-99999
+                 obsdiags(i_oz_ob_type,ibin)%tail%luse=.false.
+                 obsdiags(i_oz_ob_type,ibin)%tail%muse(:)=.false.
+                 obsdiags(i_oz_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+                 obsdiags(i_oz_ob_type,ibin)%tail%tldepart(:)=zero
+                 obsdiags(i_oz_ob_type,ibin)%tail%wgtjo=-huge(zero)
+                 obsdiags(i_oz_ob_type,ibin)%tail%obssen(:)=zero
+
+                 n_alloc(ibin) = n_alloc(ibin) +1
+                 my_diag => obsdiags(i_oz_ob_type,ibin)%tail
+                 my_diag%idv = is
+                 my_diag%iob = i
+                 my_diag%ich = k
               else
-                 allocate(obsdiags(i_oz_ob_type,ibin)%tail%next,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupozlay: failure to allocate obsdiags',istat
-                    call stop2(261)
+                 if (.not.associated(obsdiags(i_oz_ob_type,ibin)%tail)) then
+                    obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
+                 else
+                    obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
                  end if
-                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
-              end if
-
-              allocate(obsdiags(i_oz_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_oz_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_oz_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_oz_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_oz_ob_type,ibin)%tail%indxglb=i
-              obsdiags(i_oz_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_oz_ob_type,ibin)%tail%luse=.false.
-              obsdiags(i_oz_ob_type,ibin)%tail%muse(:)=.false.
-              obsdiags(i_oz_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_oz_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_oz_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_oz_ob_type,ibin)%tail%obssen(:)=zero
-
-              n_alloc(ibin) = n_alloc(ibin) +1
-              my_diag => obsdiags(i_oz_ob_type,ibin)%tail
-              my_diag%idv = is
-              my_diag%iob = i
-              my_diag%ich = k
-           else
-              if (.not.associated(obsdiags(i_oz_ob_type,ibin)%tail)) then
-                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%head
-              else
-                 obsdiags(i_oz_ob_type,ibin)%tail => obsdiags(i_oz_ob_type,ibin)%tail%next
-              end if
-              if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) then
-                 write(6,*)'setupozlay: index error'
-                 call stop2(262)
-              end if
-           endif
+                 if (obsdiags(i_oz_ob_type,ibin)%tail%indxglb/=i) then
+                    write(6,*)'setupozlay: index error'
+                    call stop2(262)
+                 end if
+              endif
+           end if
 
            if(in_curbin) then
-              obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
-              obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeepk(k)==1)
-              obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
-              obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+              if(luse_obsdiag)then
+                 obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
+                 obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeepk(k)==1)
+                 obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
+                 obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+              end if
  
               if (.not. last .and. ikeep==1) then
                  oztail(ibin)%head%ipos(k)    = ipos(k)
@@ -638,20 +644,23 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                  oztail(ibin)%head%raterr2(k) = ratio_errors(k)**2
                  oztail(ibin)%head%apriori(1:nloz_omi) = apriori(1:nloz_omi)
                  oztail(ibin)%head%efficiency(1:nloz_omi) = efficiency(1:nloz_omi)
-                 oztail(ibin)%head%diags(k)%ptr => obsdiags(i_oz_ob_type,ibin)%tail
+                 if(luse_obsdiag)then
+                    oztail(ibin)%head%diags(k)%ptr => obsdiags(i_oz_ob_type,ibin)%tail
 
-                 my_head => oztail(ibin)%head
-                 my_diag => oztail(ibin)%head%diags(k)%ptr
-                 if(my_head%idv /= my_diag%idv .or. &
-                    my_head%iob /= my_diag%iob .or. &
-                              k /= my_diag%ich ) then
-                    call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                          (/is,i,k,ibin/))
-                    call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
-                    call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                    call die(myname)
-                 endif
+                    my_head => oztail(ibin)%head
+                    my_diag => oztail(ibin)%head%diags(k)%ptr
+                    if(my_head%idv /= my_diag%idv .or. &
+                       my_head%iob /= my_diag%iob .or. &
+                                 k /= my_diag%ich ) then
+                       call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                             (/is,i,k,ibin/))
+                       call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
+                       call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                       call die(myname)
+                    endif
+                 end if
               endif
+       
 
               if (ozone_diagsave.and.lobsdiagsave.and.luse(i)) then
                  idia=6
@@ -842,7 +851,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : o3l_ob_type
-  use obsmod, only : obs_diag
+  use obsmod, only : obs_diag,luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
 
@@ -1015,52 +1024,54 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*) 'SETUPOZLEV: ', mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_o3l_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupozlev: failure to allocate obsdiags',istat
-              call stop2(256)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_o3l_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupozlev: failure to allocate obsdiags',istat
+                 call stop2(256)
+              end if
+              obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_o3l_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupozlev: failure to allocate obsdiags',istat
+                 call stop2(257)
+              end if
+              obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
+
+           allocate(obsdiags(i_o3l_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_o3l_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_o3l_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_o3l_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_o3l_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_o3l_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_o3l_ob_type,ibin)%tail%obssen(:)=zero
+
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_o3l_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
+
         else
-           allocate(obsdiags(i_o3l_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupozlev: failure to allocate obsdiags',istat
-              call stop2(257)
+           if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%tail)) then
+              obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
+           else
+              obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
-        end if
-
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_o3l_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_o3l_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_o3l_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_o3l_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_o3l_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_o3l_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_o3l_ob_type,ibin)%tail%obssen(:)=zero
-
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_o3l_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-
-     else
-        if (.not.associated(obsdiags(i_o3l_ob_type,ibin)%tail)) then
-           obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%head
-        else
-           obsdiags(i_o3l_ob_type,ibin)%tail => obsdiags(i_o3l_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_o3l_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupozlev: index error'
-           call stop2(258)
-        end if
+           if (obsdiags(i_o3l_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupozlev: index error'
+              call stop2(258)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -1186,10 +1197,12 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      if (rat_err2*varinv3>tiny_r_kind .and. luse(i)) &
         stats_oz(7,j) = stats_oz(7,j) + one
 
-     obsdiags(i_o3l_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_o3l_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv
-     obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo= varinv3*ratio_errors**2
+     if(luse_obsdiag)then
+        obsdiags(i_o3l_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_o3l_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_o3l_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv
+        obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo= varinv3*ratio_errors**2
+     end if
 
      if (.not. last .and. muse(i) ) then
 
@@ -1224,17 +1237,19 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         o3ltail(ibin)%head%b          = b_oz(j)
         o3ltail(ibin)%head%pg         = pg_oz(j)
 
-        o3ltail(ibin)%head%diags => obsdiags(i_o3l_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           o3ltail(ibin)%head%diags => obsdiags(i_o3l_ob_type,ibin)%tail
 
-        my_head => o3ltail(ibin)%head
-        my_diag => o3ltail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-           my_head%iob /= my_diag%iob ) then
-           call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                 (/is,i,k,ibin/))
-           call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
-           call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-           call die(myname)
+           my_head => o3ltail(ibin)%head
+           my_diag => o3ltail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                    (/is,i,k,ibin/))
+              call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
+              call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+              call die(myname)
+           endif
         endif
 
      endif

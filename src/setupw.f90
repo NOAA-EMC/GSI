@@ -18,7 +18,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        i_w_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,bmiss
   use obsmod, only: w_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
@@ -139,6 +139,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-07-19  Hu/Olson/Carley  - Add tall tower (type=261) winds
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 ! REMARKS:
 !   language: f90
@@ -172,7 +173,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables
 
   real(r_double) rstation_id
-  real(r_kind) qcu,qcv,qc_spd,qc_prs,trop5,tfact,fact
+  real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
   real(r_kind) residual,ressw,ress,val,val2,valqc2,dudiff,dvdiff
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc
@@ -192,6 +193,12 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
+
+! Variables needed for new polar winds QC based on Log Normalized Vector Departure (LNVD)
+  real(r_kind) LNVD_wspd
+  real(r_kind) LNVD_omb
+  real(r_kind) LNVD_ratio
+  real(r_kind) LNVD_threshold
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
   integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,icat
@@ -345,55 +352,57 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     do jj=1,2
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_w_ob_type,ibin)%head)) then
-              allocate(obsdiags(i_w_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupw: failure to allocate obsdiags',istat
-                 call stop2(304)
+     if(luse_obsdiag)then
+        do jj=1,2
+           if (.not.lobsdiag_allocated) then
+              if (.not.associated(obsdiags(i_w_ob_type,ibin)%head)) then
+                 allocate(obsdiags(i_w_ob_type,ibin)%head,stat=istat)
+                 if (istat/=0) then
+                    write(6,*)'setupw: failure to allocate obsdiags',istat
+                    call stop2(304)
+                 end if
+                 obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
+              else
+                 allocate(obsdiags(i_w_ob_type,ibin)%tail%next,stat=istat)
+                 if (istat/=0) then
+                    write(6,*)'setupw: failure to allocate obsdiags',istat
+                    call stop2(305)
+                 end if
+                 obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
               end if
-              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
+              allocate(obsdiags(i_w_ob_type,ibin)%tail%muse(miter+1))
+              allocate(obsdiags(i_w_ob_type,ibin)%tail%nldepart(miter+1))
+              allocate(obsdiags(i_w_ob_type,ibin)%tail%tldepart(miter))
+              allocate(obsdiags(i_w_ob_type,ibin)%tail%obssen(miter))
+              obsdiags(i_w_ob_type,ibin)%tail%indxglb=i
+              obsdiags(i_w_ob_type,ibin)%tail%nchnperobs=-99999
+              obsdiags(i_w_ob_type,ibin)%tail%luse=.false.
+              obsdiags(i_w_ob_type,ibin)%tail%muse(:)=.false.
+              obsdiags(i_w_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+              obsdiags(i_w_ob_type,ibin)%tail%tldepart(:)=zero
+              obsdiags(i_w_ob_type,ibin)%tail%wgtjo=-huge(zero)
+              obsdiags(i_w_ob_type,ibin)%tail%obssen(:)=zero
+   
+              n_alloc(ibin) = n_alloc(ibin) +1
+              my_diag => obsdiags(i_w_ob_type,ibin)%tail
+              my_diag%idv = is
+              my_diag%iob = i
+              my_diag%ich = jj
+   
            else
-              allocate(obsdiags(i_w_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupw: failure to allocate obsdiags',istat
-                 call stop2(305)
+              if (.not.associated(obsdiags(i_w_ob_type,ibin)%tail)) then
+                 obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
+              else
+                 obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
               end if
-              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
-           end if
-           allocate(obsdiags(i_w_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_w_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_w_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_w_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_w_ob_type,ibin)%tail%indxglb=i
-           obsdiags(i_w_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_w_ob_type,ibin)%tail%luse=.false.
-           obsdiags(i_w_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_w_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_w_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_w_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_w_ob_type,ibin)%tail%obssen(:)=zero
-
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_w_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = i
-           my_diag%ich = jj
-
-        else
-           if (.not.associated(obsdiags(i_w_ob_type,ibin)%tail)) then
-              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%head
-           else
-              obsdiags(i_w_ob_type,ibin)%tail => obsdiags(i_w_ob_type,ibin)%tail%next
-           end if
-           if (obsdiags(i_w_ob_type,ibin)%tail%indxglb/=i) then
-              write(6,*)'setupw: index error'
-              call stop2(306)
-           end if
-        endif
-        if (jj==1) obsptr => obsdiags(i_w_ob_type,ibin)%tail
-     enddo
+              if (obsdiags(i_w_ob_type,ibin)%tail%indxglb/=i) then
+                 write(6,*)'setupw: index error'
+                 call stop2(306)
+              end if
+           endif
+           if (jj==1) obsptr => obsdiags(i_w_ob_type,ibin)%tail
+        enddo
+     end if
 
      if(.not.in_curbin) cycle
 
@@ -720,20 +729,29 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
  
 !       Set and computes modis specific qc parameters
-        qcu = r7
-        qcv = r7
-        qc_spd = (spdges+r15)/three
-        qc_prs=zero
-        if (itype==257) qc_prs = prsfc - r200
-        if (itype==258 .or. itype==259) qc_prs = r400
-        if ( presw > qc_prs .and. qc_spd < qcu ) then
-           qcu = (spdob + r15)/three
-           qcv = (qcv*qcu)/r7
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
+           error = zero
         endif
+       endif ! ???
 
-!       if (presw < trop5-r50 .or. &                      !  tropopause check
-        if(abs(dudiff) > qcu .or. &                      !  u component check
-            abs(dvdiff) > qcv .or. &                      !  v component check
+!    QC AVHRR winds
+     if (itype==244) then
+!       Get guess values of tropopause pressure and sea/land/ice
+!       mask at observation location
+        prsfc = r10*prsfc       ! surface pressure in hPa
+
+!       Set and computes modis specific qc parameters
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
@@ -825,6 +843,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if(spdb <0 )then
+        if(itype ==244) then   ! AVHRR, use same as MODIS
+          qcgross=r0_7*cgross(ikx)
+        endif
         if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
@@ -845,7 +866,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (lowlevelsat .and. twodvar_regional) then
-        if (abs(ten*psges-presw) > 200._r_kind) then
+        if (data(idomsfc,i) /= 0 .and. data(idomsfc,i) /= 3 ) then
            error = zero
            ratio_errors = zero
         endif
@@ -871,7 +892,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if ( (itype==261) .and. (ratio_errors*error <= 1.0E-100_r_kind) ) muse(i)=.false.
 
-     if (nobskeep>0) muse(i)=obsdiags(i_w_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_w_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Oberror Tuning and Perturb Obs
      if(muse(i)) then
@@ -946,16 +967,18 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !    Fill obs to diagnostics structure
+     if(luse_obsdiag)then
 !    U
-     obsptr%luse=luse(i)
-     obsptr%muse(jiter)=muse(i)
-     obsptr%nldepart(jiter)=dudiff
-     obsptr%wgtjo= (error*ratio_errors)**2
+        obsptr%luse=luse(i)
+        obsptr%muse(jiter)=muse(i)
+        obsptr%nldepart(jiter)=dudiff
+        obsptr%wgtjo= (error*ratio_errors)**2
 !    V
-     obsdiags(i_w_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_w_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_w_ob_type,ibin)%tail%nldepart(jiter)=dvdiff
-     obsdiags(i_w_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+        obsdiags(i_w_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_w_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_w_ob_type,ibin)%tail%nldepart(jiter)=dvdiff
+        obsdiags(i_w_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
@@ -991,20 +1014,35 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         wtail(ibin)%head%b=cvar_b(ikx)
         wtail(ibin)%head%pg=cvar_pg(ikx)
         wtail(ibin)%head%luse=luse(i)
-        wtail(ibin)%head%diagu => obsptr
+        if(luse_obsdiag)then
+           wtail(ibin)%head%diagu => obsptr
 
-        my_head => wtail(ibin)%head
-        my_diag => wtail(ibin)%head%diagu
-        if(my_head%idv/=my_diag%idv .or. &
-           my_head%iob/=my_diag%iob .or. &
-                     1/=my_diag%ich ) then
-           call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
-                 (/is,i,1,ibin/))
-           call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
-           call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-           call die(myname)
+           my_head => wtail(ibin)%head
+           my_diag => wtail(ibin)%head%diagu
+           if(my_head%idv/=my_diag%idv .or. &
+              my_head%iob/=my_diag%iob .or. &
+                        1/=my_diag%ich ) then
+              call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                    (/is,i,1,ibin/))
+              call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
+              call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+              call die(myname)
+           endif
+
+           wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
+
+           my_head => wtail(ibin)%head
+           my_diag => wtail(ibin)%head%diagv
+           if(my_head%idv/=my_diag%idv .or. &
+              my_head%iob/=my_diag%iob .or. &
+                        2/=my_diag%ich ) then
+              call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                    (/is,i,2,ibin/))
+              call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
+              call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+              call die(myname)
+           endif
         endif
-
         if(oberror_tune) then
            wtail(ibin)%head%upertb=data(iptrbu,i)/error/ratio_errors
            wtail(ibin)%head%vpertb=data(iptrbv,i)/error/ratio_errors
@@ -1021,20 +1059,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                  endif
               enddo k_loop
            endif
-        endif
-
-        wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
-
-        my_head => wtail(ibin)%head
-        my_diag => wtail(ibin)%head%diagv
-        if(my_head%idv/=my_diag%idv .or. &
-           my_head%iob/=my_diag%iob .or. &
-                     2/=my_diag%ich ) then
-           call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
-                 (/is,i,2,ibin/))
-           call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
-           call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-           call die(myname)
         endif
  
      end if
@@ -1207,8 +1231,36 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wtail(ibin)%head%b=cvar_b(ikx)
            wtail(ibin)%head%pg=cvar_pg(ikx)
            wtail(ibin)%head%luse=luse(i)
-           wtail(ibin)%head%diagu => obsptr
-           wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
+
+           if(luse_obsdiag)then
+              wtail(ibin)%head%diagu => obsptr
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagu
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           1/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,1,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+
+              wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagv
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           2/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,2,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+           endif
 
            prest = prest - pps_press_incr
 

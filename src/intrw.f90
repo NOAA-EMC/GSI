@@ -63,6 +63,7 @@ subroutine intrw_(rwhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todlng   - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 ! usage: call intw(ru,rv,su,sv)
 !   input argument list:
@@ -83,7 +84,7 @@ subroutine intrw_(rwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: rw_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: rw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -165,17 +166,17 @@ subroutine intrw_(rwhead,rval,sval)
            w7*xhat_dt_v(j7)+w8*xhat_dt_v(j8))*rwptr%sinazm)*time_rw
      endif
 
-     if (lsaveobsens) then
-        rwptr%diags%obssen(jiter) = val*rwptr%raterr2*rwptr%err2
-     else
-        if (rwptr%luse) rwptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*rwptr%raterr2*rwptr%err2
+           rwptr%diags%obssen(jiter) = grad
+        else
+           if (rwptr%luse) rwptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = rwptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs ) val=val-rwptr%res
 
 !          gradient of nonlinear operator

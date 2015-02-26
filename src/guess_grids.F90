@@ -104,6 +104,7 @@ module guess_grids
 !   2013-10-19  todling - metguess now holds background
 !                         all tendencies now in a bundle (see tendsmod)
 !                         all derivaties now in a bundle (see derivsmod)
+!   2015-01-15  Hu      - Add coast_prox to hold coast proximity
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -138,9 +139,10 @@ module guess_grids
   public :: ges_teta
   public :: fact_tv,tropprs,sfct
   public :: ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
-  public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
+  public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi,coast_prox 
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
+  public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
 
@@ -204,6 +206,7 @@ module guess_grids
   integer(i_kind),allocatable,dimension(:,:,:):: isli    ! snow/land/ice mask
   integer(i_kind),allocatable,dimension(:,:,:):: isli_g  ! isli on horiz/global grid
   integer(i_kind),allocatable,dimension(:,:):: isli2     ! snow/land/ice mask at analysis time
+  real(r_kind),allocatable,dimension(:,:):: coast_prox   ! coast proximity mask
 
   real(r_kind),allocatable,dimension(:,:,:):: sno2  ! sno depth on subdomain
 
@@ -233,6 +236,7 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                           ! Guess Fields ...
+  real(r_kind),allocatable,dimension(:,:):: wgt_lcbas     ! weight given to base height of lowest cloud seen
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl  ! layer midpoint pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsl! log(layer midpoint pressure)
@@ -323,7 +327,7 @@ contains
          veg_type(lat2,lon2,nfldsfc),veg_frac(lat2,lon2,nfldsfc),&
          sfc_rough(lat2,lon2,nfldsfc),&
          soil_type(lat2,lon2,nfldsfc),soil_temp(lat2,lon2,nfldsfc),&
-         soil_moi(lat2,lon2,nfldsfc), &
+         soil_moi(lat2,lon2,nfldsfc), coast_prox(lat2,lon2),&
          stat=istatus)
     if (istatus/=0) write(6,*)'CREATE_SFC_GRIDS(2):  allocate error, istatus=',&
          istatus,lat2,lon2,nlat,nlon,nfldsfc
@@ -342,6 +346,7 @@ contains
        do j=1,lon2
           do i=1,lat2
              isli(i,j,it)=0
+             coast_prox(i,j)=zero
              fact10(i,j,it)=zero
              sfct(i,j,it)=zero
              dsfct(i,j,it)=zero
@@ -419,6 +424,7 @@ contains
 !   2011-02-09  zhu     - add ges_gust,ges_vis,ges_pblh
 !   2012-05-14  todling - revisit cw check to check also on some hydrometeors
 !   2013-10-19  todling - revisit initialization of certain vars wrt ESMF
+!   2014-06-09  carley/zhu - add wgt_lcbas
 !
 ! !REMARKS:
 !   language: f90
@@ -454,7 +460,7 @@ contains
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
-            pbl_height(lat2,lon2,nfldsig),&
+            pbl_height(lat2,lon2,nfldsig),wgt_lcbas(lat2,lon2), &
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
@@ -509,6 +515,12 @@ contains
                    geop_hgti(i,j,k,n)=zero
                 end do
              end do
+          end do
+       end do
+
+       do j=1,lon2
+          do i=1,lat2
+             wgt_lcbas(i,j)=0.01_r_kind
           end do
        end do
 
@@ -788,7 +800,7 @@ contains
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
-         tropprs,fact_tv,pbl_height,ges_qsat,stat=istatus)
+         tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
          istatus
@@ -858,6 +870,7 @@ contains
     if(allocated(soil_temp))deallocate(soil_temp)
     if(allocated(soil_moi))deallocate(soil_moi)
     if(allocated(dsfct))deallocate(dsfct)
+    if(allocated(coast_prox))deallocate(coast_prox)
 
     return
   end subroutine destroy_sfc_grids

@@ -4,7 +4,7 @@
 #  MkCtl_rgnl.sh
 #
 #    This script generates the control files for a given suffix
-#    (source), using the JGDAS_VRFYRAD.sms.prod job.  The resulting
+#    (source), using the JGDAS_VERFRAD job.  The resulting
 #    control files are stored in $TANKverf.
 #
 #    This script is designed to be run manually, and should only be
@@ -52,6 +52,12 @@ export MAKE_DATA=0
 
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
 
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
@@ -156,9 +162,9 @@ if [ -s $radstat -a -s $biascr ]; then
    #   Submit data processing jobs.
    #
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEradmon/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGdir}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGdir}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEradmon}/jobs/JGDAS_VERFRAD
    fi
 
 fi

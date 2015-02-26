@@ -20,7 +20,10 @@ subroutine anbkerror(gradx,grady)
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !   2010-08-19  lueken - add only to module use
 !   2012-10-09  Gu - add fut2ps as arg to (t)balance routine(s)
-!   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction 
+!   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction
+!   2014-02-07  pondeca - update to handle motley variables. rename p_st to p_sf
+!   2014-02-14  pondeca - update to handle optional separation of sf and vp control variables
+!                         into land-only and water-only parts
 !
 !   input argument list:
 !     gradx    - input field  
@@ -36,12 +39,14 @@ subroutine anbkerror(gradx,grady)
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
   use jfunc, only: nsclen,npclen,ntclen
-  use balmod, only: balance,tbalance
+  use balmod, only: balance,tbalance,ke_vp,bvk
   use berror, only: varprd,fpsproj,fut2ps
   use constants, only: zero
   use control_vectors, only: control_vector,assignment(=)
+  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d,cvarsmd
   use gsi_4dvar, only: nsubwin
-  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use timermod, only: timer_ini,timer_fnl
+  use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
   implicit none
 
 ! Declare passed variables
@@ -49,79 +54,137 @@ subroutine anbkerror(gradx,grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  integer(i_kind) i,j,ii,istatus
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(:,:,:),pointer::p_t,p_st,p_vp
-  real(r_kind),dimension(:,:  ),pointer::p_ps
-  logical lc_sf,lc_vp,lc_ps,lc_t
-  logical do_balance
-  integer(i_kind), parameter :: myvars = 4
+  integer(i_kind) i,j,k,ii,istatus
+  real(r_kind),dimension(:,:,:),pointer::p_t  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::p_sf =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::p_vp =>NULL()
+  real(r_kind),dimension(:,:  ),pointer::p_ps =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::p_sfwter =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::p_vpwter =>NULL()
+  real(r_kind),pointer::rank2a(:,:)  =>NULL()
+  real(r_kind),pointer::rank2b(:,:)  =>NULL()
+  real(r_kind),pointer::rank3a(:,:,:)=>NULL()
+  real(r_kind),pointer::rank3b(:,:,:)=>NULL()
+  logical do_balance, do_balancewter
+  integer(i_kind), parameter :: myvars = 6
   integer(i_kind) :: ipnts(myvars)
-  character(len=3), parameter :: myvnames(myvars) = (/  &
-                               'sf ', 'vp ', 'ps ', 't  '/)
+  type(gsi_bundle) :: mbundle
+  character(len=6), parameter :: myvnames(myvars) = (/  &
+       'sf    ', 'vp    ', 'ps    ', 't     ', 'sfwter', 'vpwter'/)
 
+! Initialize timer
+  call timer_ini('anbkerror')
 
 ! Put things in grady first since operations change input variables
   grady=gradx
 
-! Zero arrays for land, ocean, ice skin (surface) temperature.
-  do j=1,lon2
-     do i=1,lat2
-        slndt(i,j)=zero
-        sst(i,j)  =zero
-        sicet(i,j)=zero
-     end do
-  end do
-
 ! Since each internal vector [step(jj)] of grad has the same structure, pointers
 ! are the same independent of the subwindow jj
 call gsi_bundlegetpointer (grady%step(1),myvnames,ipnts,istatus)
-lc_sf =ipnts(1)>0;lc_vp =ipnts(2)>0;lc_ps=ipnts(3)>0;lc_t=ipnts(4)>0
 
 ! Define what to do depending on what's in CV and SV
-do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
+do_balance=ipnts(1)>0.and.ipnts(2)>0.and.ipnts(3)>0.and.ipnts(4)>0
+do_balancewter=ipnts(5)>0.and.ipnts(6)>0
 
 ! Loop on control steps
   do ii=1,nsubwin
 
-!    Get pointers to this subwin require state variables
-     call gsi_bundlegetpointer (grady%step(ii),'sf',p_st,  istatus)
-     call gsi_bundlegetpointer (grady%step(ii),'vp',p_vp,  istatus)
-     call gsi_bundlegetpointer (grady%step(ii),'ps',p_ps,  istatus)
-     call gsi_bundlegetpointer (grady%step(ii),'t ',p_t,   istatus)
+!    Create temporary bundle which merges grady%step(ii) with grady%motley(ii)
+     if(mvars>0) then
+        call gsi_bundlemerge(mbundle,grady%step(ii),grady%motley(ii),' add motley to step',istatus)
+     else
+        call gsi_bundledup(grady%step(ii),mbundle,' copy of step ',istatus)
+     end if
 
 !    Transpose of balance equation
-     if(do_balance) call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+     if(do_balancewter) then 
+        call gsi_bundlegetpointer (mbundle,'sfwter',p_sfwter,  istatus)
+        call gsi_bundlegetpointer (mbundle,'vpwter',p_vpwter,  istatus)
+
+       !Adjoint of contribution to velocity potential from streamfunction.
+        do k=1,ke_vp
+           do j=1,lon2
+              do i=1,lat2
+                 p_sfwter(i,j,k)=p_sfwter(i,j,k)+bvk(i,j,k)*p_vpwter(i,j,k)
+              end do
+           end do
+        end do
+     endif
+
+     if(do_balance) then 
+        call gsi_bundlegetpointer (mbundle,'sf',p_sf,  istatus)
+        call gsi_bundlegetpointer (mbundle,'vp',p_vp,  istatus)
+        call gsi_bundlegetpointer (mbundle,'ps',p_ps,  istatus)
+        call gsi_bundlegetpointer (mbundle,'t ',p_t,   istatus)
+        call gsi_bundlegetpointer (mbundle,'sfwter',p_sfwter,  istatus)
+        call gsi_bundlegetpointer (mbundle,'vpwter',p_vpwter,  istatus)
+        call tbalance(p_t,p_ps,p_sf,p_vp,fpsproj,fut2ps)
+     endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
-     call anbkgcov(grady%step(ii),sst,slndt,sicet)
+     call anbkgcov(mbundle)
 
 !    Balance equation
-     if(do_balance) call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+     if(do_balance) call balance(p_t,p_ps,p_sf,p_vp,fpsproj,fut2ps)
 
+     if(do_balancewter) then 
+       do k=1,ke_vp
+          do j=1,lon2
+             do i=1,lat2
+                p_vpwter(i,j,k)=p_vpwter(i,j,k)+bvk(i,j,k)*p_sfwter(i,j,k)
+             end do
+          end do
+       end do
+     endif
+
+!    Transfer step part of mbundle back to grady%step(ii)
+     do i=1,nrf
+        if(nrf_3d(i)) then
+           call gsi_bundlegetpointer(mbundle,trim(nrf_var(i)),rank3a,istatus)
+           call gsi_bundlegetpointer(grady%step(ii),trim(nrf_var(i)),rank3b,istatus)
+           rank3b=rank3a
+        else
+           call gsi_bundlegetpointer(mbundle,trim(nrf_var(i)),rank2a,istatus)
+           call gsi_bundlegetpointer(grady%step(ii),trim(nrf_var(i)),rank2b,istatus)
+           rank2b=rank2a
+        end if
+     end do
+
+!    Transfer motley part of mbundle back to grady%motley(ii)
+     do i=1,mvars
+        call gsi_bundlegetpointer(mbundle,trim(nrf_var(nrf+i)),rank2a,istatus)
+        call gsi_bundlegetpointer(grady%motley(ii),trim(nrf_var(nrf+i)),rank2b,istatus)
+        rank2b=rank2a
+     end do
   end do
 
+! clean work space
+  call gsi_bundledestroy(mbundle,istatus)
+  if(istatus/=0) then
+     write(6,*) ' in anbkerror: trouble destroying work mbundle'
+     call stop2(999)
+  endif
+
 ! Take care of background error for bias correction terms
-  if(nsclen>0)then
-     do i=1,nsclen
-        grady%predr(i)=grady%predr(i)*varprd(i)
-     end do
-  end if
-  if(npclen>0)then
-     do i=1,npclen
-        grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
-     end do
-  end if
+  do i=1,nsclen
+     grady%predr(i)=grady%predr(i)*varprd(i)
+  end do
+  do i=1,npclen
+     grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
+  end do
   if(ntclen>0)then
      do i=1,ntclen
         grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
 
+! Finalize timer
+  call timer_fnl('anbkerror')
+
 end subroutine anbkerror
 
 
-subroutine anbkgcov(bundle,sst,slndt,sicet)
+subroutine anbkgcov(bundle)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    anbkgcov    apply anisotropic background error covar
@@ -137,8 +200,11 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !   2010-06-29  lueken - added if(ipnts(2)>0) to second call of anbkgvar
 !   2011-02-22  zhu - replace the argument list of ansmoothrf_reg_subdomain_option by a bundle
 !   2012-06-25  parrish - replace sub2grid and grid2sub calls with general_sub2grid, general_grid2sub.
-!                 NOTE:  This will not work with sst and the motley variables slndt,sicet.  However
+!                 NOTE:  This will not work with sst and the motley variables stl,sti.  However
 !                        this is not currently used in this version of RTMA.
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -147,10 +213,24 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !     oz       - ozone on subdomain
 !     skint    - skin temperature on subdomain
 !     sst      - sea surface temperature on subdomain
-!     slndt    - land surface temperature on subdomain
-!     sicet    - ice surface temperature on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     stl      - land surface temperature on subdomain
+!     sti      - ice surface temperature on subdomain
+!     gust     - 10-m gust on subdomain
+!     vis      - surface visibility on subdomain
+!     wspd10m  - 10m-wind speed on subdomain
+!     td2m     - td on subdomain
+!     mxtm     - daily maximum temperature
+!     mitm     - daily  minimum temperature
+!     pmsl     - pressure at mean sea level
+!     howv     - significant wave height
+!     pswter   - water surface pressure on subdomain
+!     twter    - water 2m-temperature on subdomain
+!     qwter    - water 2m-specific humidity on subdomain
+!     gustwter - water 10m-gust on subdomain
+!     wspd10mwter  - water 10m-wind speed on subdomain
+!     td2mwter - water td on subdomain
+!     mxtmwter - water daily maximum temperature
+!     mitmwter - water daily minimum temperature
 !
 !   output argument list:
 !                 all after smoothing, combining scales
@@ -160,17 +240,31 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !     oz       - ozone on subdomain
 !     skint    - skin temperature on subdomain
 !     sst      - sea surface temperature on subdomain
-!     slndt    - land surface temperature on subdomain
-!     sicet    - ice surface temperature on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     stl      - land surface temperature on subdomain
+!     sti      - ice surface temperature on subdomain
+!     gust     - 10-m gust on subdomain
+!     vis      - surface visibility on subdomain
+!     wspd10m  - 10m-wind speed on subdomain
+!     td2m     - td on subdomain
+!     mxtm     - daily maximum temperature
+!     mitm     - daily minimum temperature
+!     pmsl     - pressure at mean sea level
+!     howv     - significant wave height
+!     pswter   - water surface pressure on subdomain
+!     twter    - water 2m-temperature on subdomain
+!     qwter    - water 2m-specific humidity on subdomain
+!     gustwter - water 10m-gust on subdomain
+!     wspd10mwter  - water 10m-wind speed on subdomain
+!     td2mwter - water td on subdomain
+!     mxtmwter - water daily maximum temperature
+!     mitmwter - water daily minimum temperature
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o
+  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,twodvar_regional
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
@@ -180,65 +274,226 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   implicit none
 
 ! Passed Variables
-  real(r_kind),dimension(lat2,lon2),intent(inout) :: sst,slndt,sicet
   type(gsi_bundle),                 intent(inout) :: bundle
 
 ! Local Variables
-  integer(i_kind) istatus
+
+  integer(i_kind) i,j,k,iflg,ier,n,istatus
+  integer(i_kind) i_sst,i_stl,i_sti,i_ps,i_t,i_q,i_gust,i_wspd10m, &
+                  i_td2m,i_mxtm,i_mitm, & 
+                  i_pswter,i_twter,i_qwter,i_gustwter,i_wspd10mwter, &
+                  i_td2mwter,i_mxtmwter,i_mitmwter                 
+
+  real(r_kind),dimension(lat2,lon2) :: skint,sst,stl,sti
+  real(r_kind),dimension(lat2,lon2) :: field,fld,fldwter
+
   real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
-  real(r_kind),pointer,dimension(:,:)  :: p,skint
-  real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
-
-  logical do_ansmoothrf
-  integer(i_kind), parameter :: myvars = 8 
-  integer(i_kind) :: ipnts(myvars)
-  character(len=3), parameter :: myvnames(myvars) = (/  &
-                               'ps ', 'sst', 't  ', 'q  ', 'oz ', &
-                               'cw ', 'sf ', 'vp '/)
-
-! Get pointer indexes
-  call gsi_bundlegetpointer (bundle,myvnames,ipnts,istatus)
-
-! Get required pointers
-  call gsi_bundlegetpointer (bundle, 'ps', p,    istatus)
-  call gsi_bundlegetpointer (bundle, 'sst',skint,istatus)
-  call gsi_bundlegetpointer (bundle, 't',  t,    istatus)
-  call gsi_bundlegetpointer (bundle, 'q',  q,    istatus)
-  call gsi_bundlegetpointer (bundle, 'cw',cwmr,  istatus)
-  call gsi_bundlegetpointer (bundle, 'oz',oz,    istatus)
-  call gsi_bundlegetpointer (bundle, 'sf',st,    istatus)
-  call gsi_bundlegetpointer (bundle, 'vp',vp,    istatus)
-
-! break up skin temp into components
-  if(ipnts(2)>0) call anbkgvar(skint,sst,slndt,sicet,0)
-
+  real(r_kind),dimension(:,:),   pointer :: ptrsst=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrstl=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrsti=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrps=>NULL()
+  real(r_kind),dimension(:,:,:), pointer :: ptrt=>NULL()
+  real(r_kind),dimension(:,:,:), pointer :: ptrq=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrgust=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrwspd10m=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrtd2m=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrmxtm=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrmitm=>NULL()
+  real(r_kind),dimension(:,:,:), pointer :: ptr3d=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrpswter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrtwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrqwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrgustwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrwspd10mwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrtd2mwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrmxtmwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrmitmwter=>NULL()
+   
 ! Perform simple vertical smoothing while fields are in sudomain mode.
 ! The accompanying smoothing in the horizontal is performed inside the
 ! recursive filter. Motivation: Reduce possible high frequency noise in
 ! the analysis that would arise from the use of a "non-blending" RF algorithm.
 
-  if(ipnts(3)>0) call vert_smther(t   ,nsmooth,nsmooth_shapiro)
-  if(ipnts(4)>0) call vert_smther(q   ,nsmooth,nsmooth_shapiro)
-  if(ipnts(5)>0) call vert_smther(oz  ,nsmooth,nsmooth_shapiro)
-  if(ipnts(6)>0) call vert_smther(cwmr,nsmooth,nsmooth_shapiro)
-  if(ipnts(7)>0) call vert_smther(st  ,nsmooth,nsmooth_shapiro)
-  if(ipnts(8)>0) call vert_smther(vp  ,nsmooth,nsmooth_shapiro)
+  do n=1,bundle%n3d
+     call gsi_bundlegetpointer ( bundle,bundle%r3(n)%shortname,ptr3d,istatus )
+     call vert_smther(ptr3d,nsmooth,nsmooth_shapiro)
+  end do
 
-  if(rtma_subdomain_option) then
+! Break up skin temp into components
 
-     do_ansmoothrf=ipnts(1)>0.and.ipnts(3)>0.and.ipnts(4)>0.and.ipnts(7)>0.and.ipnts(8)>0
-!!!     oz=zero
-!!!     cwmr=zero
-!!!     sst=zero
-!!!     slndt=zero
-!!!     sicet=zero
-     if(do_ansmoothrf) call ansmoothrf_reg_subdomain_option(bundle)
+! First get pointers
+  !SST
+  call gsi_bundlegetpointer (bundle, 'sst', i_sst,  istatus)
+  call gsi_bundlegetpointer (bundle, 'stl', i_stl,  istatus)
+  call gsi_bundlegetpointer (bundle, 'sti', i_sti,  istatus)
+  if (i_sst>0) call gsi_bundlegetpointer (bundle, 'sst', ptrsst, istatus)
+  if (i_stl>0) call gsi_bundlegetpointer (bundle, 'stl', ptrstl, istatus)
+  if (i_sti>0) call gsi_bundlegetpointer (bundle, 'sti', ptrsti, istatus)
 
+  if(twodvar_regional) then
+     !SURFACE PRESSURE
+     call gsi_bundlegetpointer (bundle, 'ps',     i_ps,      istatus)
+     call gsi_bundlegetpointer (bundle, 'pswter', i_pswter,  istatus)
+     if (i_ps>0)     call gsi_bundlegetpointer (bundle, 'ps',     ptrps,     istatus)
+     if (i_pswter>0) call gsi_bundlegetpointer (bundle, 'pswter', ptrpswter, istatus)
+
+     !TEMPERATURE
+     call gsi_bundlegetpointer (bundle, 't',     i_t,      istatus)
+     call gsi_bundlegetpointer (bundle, 'twter', i_twter,  istatus)
+     if (i_t>0)     call gsi_bundlegetpointer (bundle, 't',     ptrt,     istatus)
+     if (i_twter>0) call gsi_bundlegetpointer (bundle, 'twter', ptrtwter, istatus)
+
+     !SPECIFIC HUMIDITY
+     call gsi_bundlegetpointer (bundle, 'q',     i_q,      istatus)
+     call gsi_bundlegetpointer (bundle, 'qwter', i_qwter,  istatus)
+     if (i_q>0)     call gsi_bundlegetpointer (bundle, 'q',     ptrq,     istatus)
+     if (i_qwter>0) call gsi_bundlegetpointer (bundle, 'qwter', ptrqwter, istatus)
+
+     !WIND GUST
+     call gsi_bundlegetpointer (bundle, 'gust',     i_gust,      istatus)
+     call gsi_bundlegetpointer (bundle, 'gustwter', i_gustwter,  istatus)
+     if (i_gust>0)     call gsi_bundlegetpointer (bundle, 'gust',     ptrgust,     istatus)
+     if (i_gustwter>0) call gsi_bundlegetpointer (bundle, 'gustwter', ptrgustwter, istatus)
+
+     !10-m WIND SPEED
+     call gsi_bundlegetpointer (bundle, 'wspd10m',     i_wspd10m,      istatus)
+     call gsi_bundlegetpointer (bundle, 'wspd10mwter', i_wspd10mwter,  istatus)
+     if (i_wspd10m>0)     call gsi_bundlegetpointer (bundle, 'wspd10m',     ptrwspd10m,     istatus)
+     if (i_wspd10mwter>0) call gsi_bundlegetpointer (bundle, 'wspd10mwter', ptrwspd10mwter, istatus)
+
+     !2-m DEW POINT
+     call gsi_bundlegetpointer (bundle, 'td2m',     i_td2m,      istatus)
+     call gsi_bundlegetpointer (bundle, 'td2mwter', i_td2mwter,  istatus)
+     if (i_td2m>0)     call gsi_bundlegetpointer (bundle, 'td2m',     ptrtd2m,     istatus)
+     if (i_td2mwter>0) call gsi_bundlegetpointer (bundle, 'td2mwter', ptrtd2mwter, istatus)
+
+     !MAXIMUM TEMPERATURE
+     call gsi_bundlegetpointer (bundle, 'mxtm',     i_mxtm,      istatus)
+     call gsi_bundlegetpointer (bundle, 'mxtmwter', i_mxtmwter,  istatus)
+     if (i_mxtm>0)     call gsi_bundlegetpointer (bundle, 'mxtm',     ptrmxtm,     istatus)
+     if (i_mxtmwter>0) call gsi_bundlegetpointer (bundle, 'mxtmwter', ptrmxtmwter, istatus)
+
+     !MINIMUM TEMPERATURE
+     call gsi_bundlegetpointer (bundle, 'mitm',     i_mitm,      istatus)
+     call gsi_bundlegetpointer (bundle, 'mitmwter', i_mitmwter,  istatus)
+     if (i_mitm>0)     call gsi_bundlegetpointer (bundle, 'mitm',     ptrmitm,     istatus)
+     if (i_mitmwter>0) call gsi_bundlegetpointer (bundle, 'mitmwter', ptrmitmwter, istatus)
+  endif
+
+! Break up skin temp
+
+  if(i_sst>0 .and. i_stl>0 .and. i_sti>0) then
+    stl=zero
+    sst=zero
+    sti=zero
+    skint=ptrsst
+
+    call anbkgvar(skint,sst,stl,sti,0)
+
+    ptrsst=sst
+    ptrstl=stl
+    ptrsti=sti
+  endif
+
+  if(twodvar_regional) then
+    if(i_ps>0.and.i_pswter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrps
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+  
+      ptrps=fld
+      ptrpswter=fldwter
+    endif
+
+    if(i_t>0.and.i_twter>0) then
+      fld=zero
+      fldwter=zero
+      field(:,:)=ptrt(:,:,1)
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrt(:,:,1)=fld(:,:)
+      ptrtwter=fldwter
+    endif
+
+    if(i_q>0.and.i_qwter>0) then
+      fld=zero
+      fldwter=zero
+      field(:,:)=ptrq(:,:,1)
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrq(:,:,1)=fld(:,:)
+      ptrqwter=fldwter
+    endif
+
+    if(i_gust>0.and.i_gustwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrgust
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrgust=fld
+      ptrgustwter=fldwter
+    endif
+
+    if(i_wspd10m>0.and.i_wspd10mwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrwspd10m
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrwspd10m=fld
+      ptrwspd10mwter=fldwter
+    endif
+
+    if(i_td2m>0.and.i_td2mwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrtd2m
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrtd2m=fld
+      ptrtd2mwter=fldwter
+    endif
+
+
+    if(i_mxtm>0.and.i_mxtmwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrmxtm
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrmxtm=fld
+      ptrmxtmwter=fldwter
+    endif
+
+    if(i_mitm>0.and.i_mitmwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrmitm
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrmitm=fld
+      ptrmitmwter=fldwter
+    endif
+  endif
+
+! Apply auto-covariance 
+  if(rtma_subdomain_option) then 
+      call ansmoothrf_reg_subdomain_option(bundle)
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
      call general_sub2grid(s2g_raf,bundle%values,hwork)
-!  need to modify this to use with sst and motley variables slndt,sicet, but apparently this
+!  need to modify this to use with sst and motley variables stl,sti, but apparently this
 !    not implemented yet in RTMA.
 
 ! Apply horizontal smoother for number of horizontal scales
@@ -249,20 +504,119 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 
   end if
 
-  if(ipnts(8)>0) call tvert_smther(vp  ,nsmooth,nsmooth_shapiro)
-  if(ipnts(7)>0) call tvert_smther(st  ,nsmooth,nsmooth_shapiro)
-  if(ipnts(6)>0) call tvert_smther(cwmr,nsmooth,nsmooth_shapiro)
-  if(ipnts(5)>0) call tvert_smther(oz  ,nsmooth,nsmooth_shapiro)
-  if(ipnts(4)>0) call tvert_smther(q   ,nsmooth,nsmooth_shapiro)
-  if(ipnts(3)>0) call tvert_smther(t   ,nsmooth,nsmooth_shapiro)
+!Adjoint of simple vertical smoothing
+  do n=bundle%n3d,1,-1
+     call gsi_bundlegetpointer ( bundle,bundle%r3(n)%shortname,ptr3d,istatus )
+     call tvert_smther(ptr3d,nsmooth,nsmooth_shapiro)
+  end do
 
-! combine sst,sldnt, and sicet into skin temperature field
-  if(ipnts(2)>0) call anbkgvar(skint,sst,slndt,sicet,1)
+  if(twodvar_regional) then
+    if(i_mitm>0.and.i_mitmwter>0) then
+      fld=ptrmitm
+      fldwter=ptrmitmwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrmitm=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_mxtm>0.and.i_mxtmwter>0) then
+      fld=ptrmxtm
+      fldwter=ptrmxtmwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrmxtm=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_td2m>0.and.i_td2mwter>0) then
+      fld=ptrtd2m
+      fldwter=ptrtd2mwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrtd2m=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_wspd10m>0.and.i_wspd10mwter>0) then
+      fld=ptrwspd10m
+      fldwter=ptrwspd10mwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrwspd10m=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_gust>0.and.i_gustwter>0) then
+      fld=ptrgust
+      fldwter=ptrgustwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrgust=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_q>0.and.i_qwter>0) then
+      fld(:,:)=ptrq(:,:,1)
+      fldwter=ptrqwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrq(:,:,1)=field(:,:)
+!     ignore content of remaining arrays
+    endif
+
+    if(i_t>0.and.i_twter>0) then
+      fld(:,:)=ptrt(:,:,1)
+      fldwter=ptrtwter
+      field(:,:)=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrt(:,:,1)=field(:,:)
+!     ignore content of remaining arrays
+    endif
+
+    if(i_ps>0.and.i_pswter>0) then
+      fld=ptrps
+      fldwter=ptrpswter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+  
+      ptrps=field
+!     ignore content of remaining arrays
+    endif
+  endif
+
+!==> combine sst,stl, and sti into skin temperature field
+  if(i_sst>0 .and. i_stl>0 .and. i_sti>0) then
+    sst=ptrsst
+    stl=ptrstl
+    sti=ptrsti
+    skint=zero
+
+    call anbkgvar(skint,sst,stl,sti,1)
+
+    ptrsst=skint
+!   ignore contents of remaining arrays
+  endif
 
 end subroutine anbkgcov
 
 
-subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
+subroutine anbkgvar(skint,sst,stl,sti,iflg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    anbkgvar_reg      manipulate skin temp
@@ -278,17 +632,17 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 !   input argument list:
 !     skint    - skin temperature grid values
 !     sst      - sst grid values
-!     slndt    - land surface temperature grid values
-!     sicet    - snow/ice covered surface temperature grid values
+!     stl      - land surface temperature grid values
+!     sti      - snow/ice covered surface temperature grid values
 !     iflg     - flag for skin temperature manipulation
-!                0: skint --> sst,slndt,sicet
-!                1: sst,slndt,sicet --> skint
+!                0: skint --> sst,stl,sti
+!                1: sst,stl,sti --> skint
 !
 !   output argument list:
 !     skint    - skin temperature grid values
 !     sst      - sst grid values
-!     slndt    - land surface temperature grid values
-!     sicet    - snow/ice covered surface temperature grid values
+!     stl      - land surface temperature grid values
+!     sti      - snow/ice covered surface temperature grid values
 !
 ! attributes:
 !   language: f90
@@ -303,7 +657,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 
 ! Declare passed variables
   integer(i_kind)                  ,intent(in   ) :: iflg
-  real(r_kind),dimension(lat2,lon2),intent(inout) :: skint,sst,slndt,sicet
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: skint,sst,stl,sti
 
 ! Declare local variables
   integer(i_kind) i,j
@@ -314,23 +668,23 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 ! Break skin temperature into components
 !          If land point
                 if(isli2(i,j) == 1) then
-                   slndt(i,j)=skint(i,j)
+                   stl(i,j)=skint(i,j)
 !          If ice
                 else if(isli2(i,j) == 2) then
-                   sicet(i,j)=skint(i,j)
+                   sti(i,j)=skint(i,j)
 !          Else treat as a water point
                 else
                    sst(i,j)=skint(i,j)
                 end if
 
              else if (iflg==1) then
-! Combine sst,slndt, and sicet into skin temperature field
+! Combine sst,stl, and sti into skin temperature field
 !          Land point, load land sfc t into skint
                 if(isli2(i,j) == 1) then
-                   skint(i,j)=slndt(i,j)
+                   skint(i,j)=stl(i,j)
 !          Ice, load ice temp into skint
                 else if(isli2(i,j) == 2) then
-                   skint(i,j)=sicet(i,j)
+                   skint(i,j)=sti(i,j)
 !          Treat as a water point, load sst into skint
                 else
                    skint(i,j)=sst(i,j)
@@ -342,6 +696,172 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
   return
 end subroutine anbkgvar
 
+subroutine anbkgvar_lw_original(field,fld,fldwter,iflg)
+!$$$  subprogram documentation block
+!                .      .    .                                       
+! subprogram:    anbkgvar_lw land/water field manipulation
+!   prgmmr: pondeca          org: np22                date: 2013-04-02
+!
+! abstract: manipulate field  <--> fld,fldwter
+!           (based on anbkgvar)
+!
+! program history log:
+!   2013-04-02 pondeca
+!
+!   input argument list:
+!     field   - field grid values
+!     fld     - field grid values over land
+!     fldwter - field grid values over water
+!     iflg    - flag for field manipulation
+!               0: field --> fld,fldwter
+!               1: fld,fldwter --> field
+!
+!   output argument list:
+!     field   - field grid values
+!     fld     - field grid values over land
+!     fldwter - field grid values over water
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2
+  use guess_grids, only: isli2
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: field, &
+                                                     fld,fldwter
+
+! Declare local variables
+  integer(i_kind) i,j
+
+       do j=1,lon2
+          do i=1,lat2
+             if(iflg == 0) then
+! Break field into components
+!          If land point
+                if(isli2(i,j) == 1) then
+                   fld(i,j)=field(i,j)
+
+!          Else treat as a water point
+                else
+                   fldwter(i,j)=field(i,j)
+                end if
+
+             else if (iflg==1) then
+! Combine fld,fldwter into field
+!          Land point
+                if(isli2(i,j) == 1) then
+                   field(i,j)=fld(i,j)
+!          Treat as a water point,
+                else
+                   field(i,j)=fldwter(i,j)
+                end if
+             end if
+          end do
+       end do
+
+  return
+end subroutine anbkgvar_lw_original
+
+subroutine anbkgvar_lw(field,fld,fldwter,iflg)
+!$$$  subprogram documentation block
+!                .      .    .                                       
+! subprogram:    anbkgvar_lw land/water field manipulation
+!   prgmmr: pondeca          org: np22                date: 2013-04-02
+!
+! abstract: manipulate field  <--> fld,fldwter
+!           (based on anbkgvar)
+!
+! program history log:
+!   2013-04-02 pondeca
+!
+!   input argument list:
+!     field   - field grid values
+!     fld     - field grid values over land
+!     fldwter - field grid values over water
+!     iflg    - flag for field manipulation
+!               0: field --> fld,fldwter
+!               1: fld,fldwter --> field
+!
+!   output argument list:
+!     field   - field grid values
+!     fld     - field grid values over land
+!     fldwter - field grid values over water
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig,region_lat,region_lon, &
+                     nlon_regional,nlat_regional,istart,jstart
+  use guess_grids, only: isli2
+  use mpimod, only: mype
+  use constants, only: rad2deg
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: iflg
+  real(r_kind),dimension(lat2,lon2),intent(inout) :: field, &
+                                                     fld,fldwter
+
+! Declare local variables
+  integer(i_kind) i,j
+  integer(i_kind) iglob,jglob
+  integer(i_kind) mm1
+  real(r_kind) flon,flat
+  logical glerlarea
+
+! Declare local parameters
+  real(r_kind),parameter::flon1=-93._r_kind
+  real(r_kind),parameter::flon2=-75._r_kind
+  real(r_kind),parameter::flat1=40.5_r_kind
+  real(r_kind),parameter::flat2=49.5_r_kind
+
+  mm1=mype+1
+
+       do j=1,lon2
+          jglob=max(1,min(j+jstart(mm1)-2,nlon_regional))
+          do i=1,lat2
+             iglob=max(1,min(i+istart(mm1)-2,nlat_regional)) 
+             flat=region_lat(iglob,jglob)*rad2deg
+             flon=region_lon(iglob,jglob)*rad2deg
+             glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+
+             if(iflg == 0) then
+! Break field into components
+!          If land point
+                if(isli2(i,j) == 1 .or. .not.glerlarea) then
+                   fld(i,j)=field(i,j)
+
+!          Else treat as a water point
+                else
+                   fldwter(i,j)=field(i,j)
+                end if
+
+             else if (iflg==1) then
+! Combine fld,fldwter into field
+!          Land point
+                if(isli2(i,j) == 1 .or. .not.glerlarea) then
+                   field(i,j)=fld(i,j)
+!          Treat as a water point,
+                else
+                   field(i,j)=fldwter(i,j)
+                end if
+             end if
+          end do
+       end do
+
+  return
+end subroutine anbkgvar_lw
 
 subroutine ansmoothrf(work)
 !$$$  subprogram documentation block
@@ -690,12 +1210,13 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 ! program history log:
 !   2005-02-14  parrish
 !   2011-02-22  zhu - use cstate to replace argument list such as p,t,q,vp,st 
+!   2014-02-07  pondeca - update to include motley variables as well in 2d set of filtered variables
 !
 !   input argument list:
-!     t,p,q,oz,st,slndt,sicet,cwmr,st,vp   -  fields to be smoothed
+!     t,p,q,oz,st,stl,sti,cwmr,st,vp   -  fields to be smoothed
 !
 !   output argument list:
-!     t,p,q,oz,st,slndt,sicet,cwmr,st,vp   -  smoothed fields
+!     t,p,q,oz,st,stl,sti,cwmr,st,vp   -  smoothed fields
 !
 ! attributes:
 !   language: f90
@@ -707,14 +1228,12 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   use constants, only: zero,zero_single
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
-  use control_vectors, only: nrf,nrf_var,nrf_3d
+  use control_vectors, only: nvars,nrf,nrf_var,nrf_3d
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-! real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
-! real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,vp,st
   type(gsi_bundle),intent(inout) :: cstate
 
 ! Declare local variables
@@ -741,8 +1260,8 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 
 !  transfer variables to ngauss copies
   kk=0
-  do n=1,nrf
-     if (nrf_3d(n)) then
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -758,7 +1277,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
               end do
            end do
         endif
-     else
+     else        !2d flds including motley flds
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
         if(istatus==0) then
            kk=kk+1
@@ -782,8 +1301,8 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 
 !  add together ngauss copies
   kk=0
-  do n=1,nrf
-     if (nrf_3d(n)) then
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig

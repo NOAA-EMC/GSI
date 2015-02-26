@@ -22,6 +22,7 @@ use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc, idmodel
 use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only : xhatsave,yhatsave
+use jfunc, only: nrclen,nsclen,npclen,ntclen
 use jcmod, only: ljcdfi,ljcpdry
 use intjcmod, only: intjcpdry
 use jfunc, only: nclen,l_foto,xhat_dt,jiter,jiterend
@@ -42,6 +43,7 @@ use intjcmod, only: intjcdfi
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
+use mpl_allreducemod, only: mpl_allreduce
 
 implicit none
 
@@ -65,6 +67,7 @@ integer(i_kind)      :: i,ii,iobs,ibin
 !real(r_kind)         :: zdummy(lat2,lon2,nsig)
 logical              :: llprt,llouter
 character(len=255)   :: seqcalls
+  real(r_quad),dimension(max(1,nrclen)) :: qpred
 
 !**********************************************************************
 
@@ -139,10 +142,27 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
+qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins
-   call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
+   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
 end do
+! Take care of background error for bias correction terms
+
+call mpl_allreduce(nrclen,qpvals=qpred)
+
+do i=1,nsclen
+   rbias%predr(i)=rbias%predr(i)+qpred(i)
+end do
+do i=1,npclen
+   rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
+end do
+if (ntclen>0) then
+   do i=1,ntclen
+      rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
+   end do
+end if
+
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)
@@ -168,9 +188,7 @@ if (l_do_adjoint) then
 ! Dry mass constraint
    zjd=zero_quad
    if (ljcpdry) then
-      do ibin=1,nobs_bins
-         call intjcpdry(rval(ibin),sval(ibin),pjc=zjd)
-      enddo
+      call intjcpdry(rval,sval,nobs_bins,pjc=zjd)
    endif
 
    if (ljcdfi) then

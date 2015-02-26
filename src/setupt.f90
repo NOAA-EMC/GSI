@@ -17,10 +17,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: ttail,thead,sfcmodel,perturb_obs,oberror_tune,&
        i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: t_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
-  use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
+  use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -35,12 +35,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
-  use constants, only: huge_single,r1000,wgtlim,r10
+  use constants, only: huge_single,r1000,wgtlim,r10,fv
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
-  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
-  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
+  use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -49,6 +50,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use buddycheck_mod, only: buddy_check_t
 
   implicit none
 
@@ -144,6 +146,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
 !   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
+!   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
+!   2014-10-06  carley  - add call to buddy check for twodvar_regional option
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2011-10-14  Hu      - add code for using 2-m temperature as background to
+!                            calculate surface temperauture observation
+!                            innovation
 !
 ! !REMARKS:
 !   language: f90
@@ -178,7 +186,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
   real(r_kind) pof_idx,poaf,effective
   real(r_kind) tges
-  real(r_kind) obserror,ratio,val2,obserrlm
+  real(r_kind) obserror,ratio,val2,obserrlm,ratiosfc
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
   real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -204,6 +212,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+
+  integer(i_kind),dimension(nobs):: buddyuse
+
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -223,6 +234,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(t_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
+  real(r_kind) :: tges2m,qges2m
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -234,6 +246,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -250,7 +264,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   read(lunin)data,luse
 
 !  call GSD terrain match for surface temperature observation
-  if(l_gsd_terrain_match_surfTobs) then
+  if(l_gsd_terrain_match_surftobs) then
      call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
@@ -292,6 +306,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
+  if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
+
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -315,7 +331,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=19
      if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
-          nreal=nreal+npredt+1
+          nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
@@ -362,50 +378,52 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_t_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_t_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupt: failure to allocate obsdiags',istat
-              call stop2(298)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_t_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_t_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupt: failure to allocate obsdiags',istat
+                 call stop2(298)
+              end if
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_t_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupt: failure to allocate obsdiags',istat
+                 call stop2(298)
+              end if
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_t_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupt: failure to allocate obsdiags',istat
-              call stop2(298)
-           end if
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_t_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_t_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_t_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_t_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_t_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_t_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_t_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_t_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_t_ob_type,ibin)%tail%obssen(:)=zero
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_t_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_t_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_t_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_t_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_t_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_t_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_t_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_t_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_t_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_t_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-     else
-        if (.not.associated(obsdiags(i_t_ob_type,ibin)%tail)) then
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_t_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
         else
-           obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_t_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupt: index error'
-           call stop2(300)
-        end if
+           if (.not.associated(obsdiags(i_t_ob_type,ibin)%tail)) then
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%head
+           else
+              obsdiags(i_t_ob_type,ibin)%tail => obsdiags(i_t_ob_type,ibin)%tail%next
+           end if
+           if (obsdiags(i_t_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupt: index error'
+              call stop2(300)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -420,7 +438,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    aircraftobst = itype>129.and.itype<140
-     aircraftobst = (itype==131) .or. (itype==133)
+     aircraftobst = (itype==131) .or. (itype==133) .or. (itype==130)
      ix = 0
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext)) then 
         ix = data(idx,i)
@@ -542,6 +560,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
                 hrdifsig,mype,nfldsig)
         end if
+
+        if(i_use_2mt4b>0 .and. sfctype) then
+!          Interpolate guess th 2m to observation location and time
+           call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
+           tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
+           if(iqtflg)then
+              call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
+                     mype,nfldsig)
+              tges2m=tges2m*(one+fv*qges2m)  ! convert to virtual T
+           endif
+        endif
+
      endif
 
 !    Get approximate k value of surface by using surface pressure
@@ -584,7 +615,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
 ! Compute innovation
-     ddiff = tob-tges
+     if(i_use_2mt4b>0 .and. sfctype) then
+        ddiff = tob-tges2m
+     else
+        ddiff = tob-tges
+     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &
@@ -607,6 +642,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
+     ratiosfc = ddiff/obserrlm
 
  ! modify gross check limit for quality mark=3
      if(data(iqc,i) == three ) then
@@ -615,17 +651,58 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
-     if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
-        if (luse(i)) awork(4) = awork(4)+one
-        error = zero
-        ratio_errors = zero
+     if (twodvar_regional) then                  
+        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind )then 
+            qcgross=three*qcgross                    ! Terrain aware modification
+                                                     ! to gross error check
+            if (buddycheck_t .and.buddyuse(i)==1) then
+               qcgross=two*qcgross                  ! Relax even more for terrain in cases where 
+               data(iuse,i)=data(iuse,i)+0.50_r_kind ! buddy check passes.  Label usage so we can identify obs  
+                                                     ! with extra relaxed gross qc in diag files 
+            end if                                   ! (will show as an extra 0.75 appended)
+        else if (buddycheck_t .and. buddyuse(i)==1) then
+            qcgross=three*qcgross
+            data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
+                                                  ! in diag files  (will show as an extra 0.50 appended)            
+        end if  
+     endif
+
+     if (sfctype .and. i_sfct_gross==1) then
+! extend the threshold for surface T
+        if(i_use_2mt4b<=0) tges2m=tges
+        if ( tges2m < 5.0_r_single) then
+           if (ratiosfc > 1.4_r_single*qcgross &
+              .or. ratiosfc < -2.4_r_single*qcgross  &
+              .or. ratio_errors < tiny_r_kind) then
+              if (luse(i)) awork(4) = awork(4)+one
+              error = zero
+              ratio_errors = zero
+           else
+              ratio_errors = ratio_errors/sqrt(dup(i))
+           end if
+        else
+           if (ratiosfc > qcgross .or. ratiosfc < -1.4_r_single*qcgross  &
+              .or. ratio_errors < tiny_r_kind) then
+              if (luse(i)) awork(4) = awork(4)+one
+              error = zero
+              ratio_errors = zero
+           else
+              ratio_errors = ratio_errors/sqrt(dup(i))
+           end if
+        endif
      else
-        ratio_errors = ratio_errors/sqrt(dup(i))
-     end if
+        if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
+           if (luse(i)) awork(4) = awork(4)+one
+           error = zero
+           ratio_errors = zero
+        else
+           ratio_errors = ratio_errors/sqrt(dup(i))
+        end if
+     endif
      
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
-     if (nobskeep>0) muse(i)=obsdiags(i_t_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_t_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Oberror Tuning and Perturb Obs
      if(muse(i)) then
@@ -691,10 +768,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    Fill obs diagnostics structure
-     obsdiags(i_t_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_t_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_t_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-     obsdiags(i_t_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     if(luse_obsdiag)then
+        obsdiags(i_t_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_t_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_t_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+        obsdiags(i_t_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
@@ -711,10 +790,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head => ttail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) +1
-	my_head => ttail(ibin)%head
-	my_head%idv = is
-	my_head%iob = i
+        m_alloc(ibin) = m_alloc(ibin) +1
+        my_head => ttail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
         allocate(ttail(ibin)%head%pred(npredt))
 
@@ -788,17 +867,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            endif
         endif
 
-        ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
 
-        my_head => ttail(ibin)%head
-        my_diag => ttail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-           my_head%iob /= my_diag%iob ) then
-           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                 (/is,i,ibin/))
-           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-           call die(myname)
+           my_head => ttail(ibin)%head
+           my_diag => ttail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                    (/is,i,ibin/))
+              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+              call die(myname)
+           endif
         endif
 
      endif
@@ -853,8 +934,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
            rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+           rdiagbuf(21,ii) = data(ivvlc,i)      ! data vertical velocity
            do j=1,npredt
-              rdiagbuf(20+j,ii) = predbias(j)
+              rdiagbuf(21+j,ii) = predbias(j)
            end do
         end if
         idia=idia0
@@ -894,7 +976,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
-     if( .not. last .and. l_PBL_pseudo_SurfobsT .and.         &
+     if( .not. last .and. l_pbl_pseudo_surfobst .and.         &
          ( itype==181 .or. itype==183 .or.itype==187 )  .and. &
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
@@ -908,7 +990,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
         endif
 !
-        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
+        ratio_PBL_height = (prest - thisPBL_height) * pblh_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
         prest = prest - pps_press_incr
         DO while (prest > thisPBL_height)
@@ -963,7 +1045,20 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head%luse    = luse(i)
            ttail(ibin)%head%tv_ob   = iqtflg
 
-           ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+           if(luse_obsdiag)then
+              ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+
+              my_head => ttail(ibin)%head
+              my_diag => ttail(ibin)%head%diags
+              if(my_head%idv /= my_diag%idv .or. &
+                 my_head%iob /= my_diag%iob ) then
+                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                       (/is,i,ibin/))
+                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+                 call die(myname)
+              endif
+           endif
 
            prest = prest - pps_press_incr
 
@@ -1110,6 +1205,44 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
+     endif
+     if(i_use_2mt4b>0) then
+!    get th2m ...
+        varname='th2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_th2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_th2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get q2m ...
+        varname='q2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_q2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_q2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_q2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
      endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&

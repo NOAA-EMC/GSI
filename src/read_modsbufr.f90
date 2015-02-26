@@ -28,6 +28,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                       - (2) use t4dv rather than tdiff in calls to deter_sfc
 !                       - (3) use tsavg that is computed at observation depth
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2014-1-28   xli     - modify NSST related tz
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -106,7 +107,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind) :: tdiff,sstime,usage,sfcr,tsavg,ff10,t4dv
   real(r_kind) :: vty,vfr,sty,stp,sm,sn,zz
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
-  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
+  real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
 
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   integer(i_kind) ntest
@@ -478,7 +479,15 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
            call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
                           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-           if(isflg /= zero)  cycle read_loop                            ! use data over water only
+
+           if( idomsfc /= zero)  cycle read_loop                         ! use data over water only
+
+           nodata = nodata + 1
+           ndata = ndata + 1
+           if(ndata > maxobs) then
+              write(6,*)'READ_MODSBUFR:  ***WARNING*** ndata > maxobs for ',obstype
+              ndata = maxobs
+           end if
 
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -490,7 +499,12 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               tz_tr = one
               if(isflg == zero) then
                  call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                 tz = tref
+                 if ( nst_gsi > 2 ) then
+                    tz = tref+dtw-dtc            ! Tz: Background temperature at depth of zob
+                 endif
               endif
+
            endif
 
            nodata = nodata + 1
@@ -514,11 +528,10 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(12,ndata) = sstoe                   ! original obs error
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
-           data_all(15,ndata) = tsavg                   ! Tz: Background temperature at depth of zob
+           data_all(15,ndata) = tz                      ! Tz: Background temperature at depth of zob
            data_all(16,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
            data_all(17,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
            data_all(18,ndata) = hdr(8)                  ! station elevation
- 
 
            if(nst_gsi>0) then
               data_all(maxinfo+1,ndata) = tref           ! foundation temperature
