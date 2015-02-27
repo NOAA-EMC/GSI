@@ -10,16 +10,19 @@ package iatgui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JTextArea;
 import javax.swing.Spring;
 import javax.swing.SpringLayout;
@@ -81,6 +84,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public JButton[] theStep1ConfigBrowseBtnArr = new JButton[SIZE_STEP1];
 	public JButton theStep1ConfigSaveBtn = new JButton("Save");
 	public JButton theStep1ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep1RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep1Group = new ButtonGroup();
 
 	// Step 2 config panel
 	public JLabel[] theStep2ConfigLblArr = new JLabel[SIZE_STEP2];
@@ -91,6 +97,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public String[] theStep2ConfigTxtInitValueArr = new String[SIZE_STEP2];
 	public JButton theStep2ConfigSaveBtn = new JButton("Save");
 	public JButton theStep2ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep2RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep2Group = new ButtonGroup();
 
 	// Step 3 config panel
 	public JLabel[] theStep3ConfigLblArr = new JLabel[SIZE_STEP3];
@@ -102,6 +111,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public JButton[] theStep3ConfigBrowseBtnArr = new JButton[SIZE_STEP3];
 	public JButton theStep3ConfigSaveBtn = new JButton("Save");
 	public JButton theStep3ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep3RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep3Group = new ButtonGroup();
 
 	// Step 4 config panel
 	public JLabel[] theStep4ConfigLblArr = new JLabel[SIZE_STEP4];
@@ -112,6 +124,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public String[] theStep4ConfigTxtInitValueArr = new String[SIZE_STEP4];
 	public JButton theStep4ConfigSaveBtn = new JButton("Save");
 	public JButton theStep4ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep4RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep4Group = new ButtonGroup();
 
 	// Step 5 config panel
 	public JLabel[] theStep5ConfigLblArr = new JLabel[SIZE_STEP5];
@@ -123,6 +138,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public JButton[] theStep5ConfigBrowseBtnArr = new JButton[SIZE_STEP5];
 	public JButton theStep5ConfigSaveBtn = new JButton("Save");
 	public JButton theStep5ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep5RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep5Group = new ButtonGroup();
 
 	// Step 6 config panel
 	public JLabel[] theStep6ConfigLblArr = new JLabel[SIZE_STEP6];
@@ -134,6 +152,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public JButton[] theStep6ConfigBrowseBtnArr = new JButton[SIZE_STEP6];
 	public JButton theStep6ConfigSaveBtn = new JButton("Save");
 	public JButton theStep6ConfigResetBtn = new JButton("Default");
+	private JRadioButton[] theStep6RadioBtnArr = new JRadioButton[2];
+	// Group the radio buttons.
+	ButtonGroup theStep6Group = new ButtonGroup();
 
 	// Constructor
 	Vsdb() {
@@ -320,6 +341,29 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theNotes1 = theNotes1 + initialLblValueArr[index] + " :   "
 					+ initialLblNoteArr[index] + "\n";
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep1RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep1RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep1RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep1Group.add(theStep1RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep1RadioBtnArr[0].setSelected(true);
+
 	}
 
 	// Initial step 2 config panel's label and textareas
@@ -354,6 +398,28 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theNotes2 = theNotes2 + initialLblValueArr[index] + " :   "
 					+ initialLblNoteArr[index] + "\n";
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep2RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep2RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep2RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep2Group.add(theStep2RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep2RadioBtnArr[1].setSelected(true);
 	}
 
 	// Initial step 3 config panel's label and textareas
@@ -397,6 +463,29 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					+ initialLblNoteArr[index] + "\n";
 
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep3RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep3RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep3RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep3Group.add(theStep3RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep3RadioBtnArr[0].setSelected(true);
+
 	}
 
 	// Initial step 4 config panel's label and textareas
@@ -427,6 +516,29 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theNotes4 = theNotes4 + initialLblValueArr[index] + " :   "
 					+ initialLblNoteArr[index] + "\n";
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep4RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep4RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep4RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep4Group.add(theStep4RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep4RadioBtnArr[1].setSelected(true);
+
 	}
 
 	// Initial step 5 config panel's label and textareas
@@ -468,6 +580,29 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theNotes5 = theNotes5 + initialLblValueArr[index] + " :   "
 					+ initialLblNoteArr[index] + "\n";
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep5RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep5RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep5RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep5Group.add(theStep5RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep5RadioBtnArr[0].setSelected(true);
+
 	}
 
 	// Initial step 6 config panel's label and textareas
@@ -510,6 +645,29 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theNotes6 = theNotes6 + initialLblValueArr[index] + " :   "
 					+ initialLblNoteArr[index] + "\n";
 		}
+
+		String tmpStr = "";
+		for (int i = 0; i < 2; i++) {
+			switch (i) {
+			case 0:
+				tmpStr = "YES";
+				break;
+			case 1:
+				tmpStr = "NO";
+				break;
+			}
+
+			// Create radio button
+			theStep6RadioBtnArr[i] = new JRadioButton(tmpStr);
+			theStep6RadioBtnArr[i].setMnemonic(KeyEvent.VK_B);
+			theStep6RadioBtnArr[i].setName(tmpStr);
+			// Group radio buttons together
+			theStep6Group.add(theStep6RadioBtnArr[i]);
+		}
+
+		// First radio button is selected by default
+		theStep6RadioBtnArr[0].setSelected(true);
+
 	}
 
 	// Display Top-level config panel
@@ -652,7 +810,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep1ConfigPanel.add(theStep1ConfigLblArr[index]);
-			theStep1ConfigPanel.add(theStep1ConfigTxtArr[index]);
+			if (index > 0)
+				theStep1ConfigPanel.add(theStep1ConfigTxtArr[index]);
 
 			// Add "Browse" buttons for items that are directories.
 			if (index == 1) {
@@ -668,13 +827,37 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			contraint_2_Arr[index] = step1ConfigPanelLayout
-					.getConstraints(theStep1ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step1ConfigPanelLayout
+						.getConstraints(theStep1ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+			}
+
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep1ConfigPanel.add(theStep1RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step1ConfigPanelLayout
+							.getConstraints(theStep1RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
 
 			// Position Browse button
 			contraint_3_Arr[index] = step1ConfigPanelLayout
@@ -753,7 +936,28 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep2ConfigPanel.add(theStep2ConfigLblArr[index]);
-			theStep2ConfigPanel.add(theStep2ConfigTxtArr[index]);
+			if (index > 0)
+				theStep2ConfigPanel.add(theStep2ConfigTxtArr[index]);
+
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep2ConfigPanel.add(theStep2RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step2ConfigPanelLayout
+							.getConstraints(theStep2RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
 
 			// Position labels
 			contraint_1_Arr[index] = step2ConfigPanelLayout
@@ -764,13 +968,18 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
 			// Position TextAreas
-			contraint_2_Arr[index] = step2ConfigPanelLayout
-					.getConstraints(theStep2ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step2ConfigPanelLayout
+						.getConstraints(theStep2ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+
+			}
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -839,7 +1048,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep3ConfigPanel.add(theStep3ConfigLblArr[index]);
-			theStep3ConfigPanel.add(theStep3ConfigTxtArr[index]);
+			if (index > 0)
+				theStep3ConfigPanel.add(theStep3ConfigTxtArr[index]);
 
 			// Add "Browse" buttons for items that are directories.
 			if (index == 1) {
@@ -854,14 +1064,38 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep3ConfigPanel.add(theStep3RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step3ConfigPanelLayout
+							.getConstraints(theStep3RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
+
 			// Position TextAreas
-			contraint_2_Arr[index] = step3ConfigPanelLayout
-					.getConstraints(theStep3ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step3ConfigPanelLayout
+						.getConstraints(theStep3ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+			}
 
 			// Position Browse button
 			contraint_3_Arr[index] = step3ConfigPanelLayout
@@ -940,7 +1174,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep4ConfigPanel.add(theStep4ConfigLblArr[index]);
-			theStep4ConfigPanel.add(theStep4ConfigTxtArr[index]);
+			if (index > 0)
+				theStep4ConfigPanel.add(theStep4ConfigTxtArr[index]);
 
 			// Position labels
 			contraint_1_Arr[index] = step4ConfigPanelLayout
@@ -950,14 +1185,38 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep4ConfigPanel.add(theStep4RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step4ConfigPanelLayout
+							.getConstraints(theStep4RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
+
 			// Position TextAreas
-			contraint_2_Arr[index] = step4ConfigPanelLayout
-					.getConstraints(theStep4ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step4ConfigPanelLayout
+						.getConstraints(theStep4ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+			}
 
 			yPos += LBL_HEIGHT;
 			yPos += SPACER;
@@ -1027,7 +1286,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep5ConfigPanel.add(theStep5ConfigLblArr[index]);
-			theStep5ConfigPanel.add(theStep5ConfigTxtArr[index]);
+			if (index > 0)
+				theStep5ConfigPanel.add(theStep5ConfigTxtArr[index]);
 
 			// Add "Browse" buttons for items that are directories.
 			if (index == 1) {
@@ -1042,14 +1302,38 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep5ConfigPanel.add(theStep5RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step5ConfigPanelLayout
+							.getConstraints(theStep5RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
+
 			// Position TextAreas
-			contraint_2_Arr[index] = step5ConfigPanelLayout
-					.getConstraints(theStep5ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step5ConfigPanelLayout
+						.getConstraints(theStep5ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+			}
 
 			// Position Browse button
 			contraint_3_Arr[index] = step5ConfigPanelLayout
@@ -1128,7 +1412,8 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 			// Add Labels and TextAreas
 			theStep6ConfigPanel.add(theStep6ConfigLblArr[index]);
-			theStep6ConfigPanel.add(theStep6ConfigTxtArr[index]);
+			if (index > 0)
+				theStep6ConfigPanel.add(theStep6ConfigTxtArr[index]);
 
 			// Add "Browse" buttons for items that are directories.
 			if (index == 1) {
@@ -1143,14 +1428,38 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			contraint_1_Arr[index].setWidth(Spring.constant(LBL_WIDTH));
 			contraint_1_Arr[index].setHeight(Spring.constant(LBL_HEIGHT));
 
+			if (index == 0) {
+				SpringLayout.Constraints[] contraintArr = new SpringLayout.Constraints[2];
+				for (int index1 = 0; index1 < 2; index1++) {
+					// Add Region radio button
+					theStep6ConfigPanel.add(theStep6RadioBtnArr[index1]);
+
+					// Position Region radio buttons
+					contraintArr[index1] = step6ConfigPanelLayout
+							.getConstraints(theStep6RadioBtnArr[index1]);
+					int tmpX_Pos = xPos + LBL_WIDTH + SPACER + index1
+							* (BUTTON_WIDTH + SPACER);
+					contraintArr[index1].setX(Spring.constant(tmpX_Pos));
+					contraintArr[index1].setY(Spring.constant(yPos));
+					contraintArr[index1]
+							.setWidth(Spring.constant(BUTTON_WIDTH));
+					contraintArr[index1].setHeight(Spring
+							.constant(BUTTON_HEIGHT));
+				}
+			}
+
 			// Position TextAreas
-			contraint_2_Arr[index] = step6ConfigPanelLayout
-					.getConstraints(theStep6ConfigTxtArr[index]);
-			contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
-					+ SPACER));
-			contraint_2_Arr[index].setY(Spring.constant(yPos));
-			contraint_2_Arr[index].setWidth(Spring.constant(TEXTAREA_WIDTH));
-			contraint_2_Arr[index].setHeight(Spring.constant(TEXTAREA_HEIGHT));
+			if (index > 0) {
+				contraint_2_Arr[index] = step6ConfigPanelLayout
+						.getConstraints(theStep6ConfigTxtArr[index]);
+				contraint_2_Arr[index].setX(Spring.constant(xPos + LBL_WIDTH
+						+ SPACER));
+				contraint_2_Arr[index].setY(Spring.constant(yPos));
+				contraint_2_Arr[index]
+						.setWidth(Spring.constant(TEXTAREA_WIDTH));
+				contraint_2_Arr[index].setHeight(Spring
+						.constant(TEXTAREA_HEIGHT));
+			}
 
 			// Position Browse button
 			contraint_3_Arr[index] = step6ConfigPanelLayout
@@ -1465,9 +1774,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep1ConfigEnvArr[index]
-						+ "=\"" + theStep1ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep1RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep1ConfigEnvArr[index] + "=\""
+									+ theStep1RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep1ConfigEnvArr[index]
+							+ "=\"" + theStep1ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
@@ -1497,9 +1824,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep2ConfigEnvArr[index]
-						+ "=\"" + theStep2ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep2RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep2ConfigEnvArr[index] + "=\""
+									+ theStep2RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep2ConfigEnvArr[index]
+							+ "=\"" + theStep2ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
@@ -1529,9 +1874,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep3ConfigEnvArr[index]
-						+ "=\"" + theStep3ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep3RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep3ConfigEnvArr[index] + "=\""
+									+ theStep3RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep3ConfigEnvArr[index]
+							+ "=\"" + theStep3ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
@@ -1561,9 +1924,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep4ConfigEnvArr[index]
-						+ "=\"" + theStep4ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep4RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep4ConfigEnvArr[index] + "=\""
+									+ theStep4RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep4ConfigEnvArr[index]
+							+ "=\"" + theStep4ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
@@ -1593,9 +1974,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep5ConfigEnvArr[index]
-						+ "=\"" + theStep5ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep5RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep5ConfigEnvArr[index] + "=\""
+									+ theStep5RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep5ConfigEnvArr[index]
+							+ "=\"" + theStep5ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
@@ -1625,9 +2024,27 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.getText();
 
 				// Save values in GUI into file
-				String tmpString = "export " + theStep6ConfigEnvArr[index]
-						+ "=\"" + theStep6ConfigTxtArr[index].getText() + "\"";
-				print_line.printf("%s%n", tmpString);
+				String tmpString2 = "";
+				if (index == 0) {
+					for (int index2 = 0; index2 < 2; index2++) {
+						if (theStep6RadioBtnArr[index2].isSelected()) {
+							tmpString2 = "export "
+									+ theStep6ConfigEnvArr[index] + "=\""
+									+ theStep6RadioBtnArr[index2].getName()
+									+ "\"";
+							print_line.printf("%s%n", tmpString2);
+							break;
+						}
+					}
+				}
+
+				// Save values in GUI into file
+				if (index > 0) {
+					String tmpString = "export " + theStep6ConfigEnvArr[index]
+							+ "=\"" + theStep6ConfigTxtArr[index].getText()
+							+ "\"";
+					print_line.printf("%s%n", tmpString);
+				}
 			}
 
 			// Close PrintWriter
