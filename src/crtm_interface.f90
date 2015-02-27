@@ -812,6 +812,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
 !                       invoked by the global_anavinfo.ghg.l64.txt
 !   2014-01-31  mkim-- remove 60.0degree boundary for icmask for all-sky MW radiance DA 
+!   2015-02-27  eliu-- wind direction fix for using CRTM FASTEM model 
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -867,7 +868,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gridmod, only: istart,jstart,nlon,nlat,lon1
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
-  use constants, only: max_varname_length
+  use constants, only: max_varname_length,pi  
 
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
@@ -901,8 +902,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
+  real(r_kind),parameter:: windscale = 999999.0_r_kind
+  real(r_kind),parameter:: windlimit = 0.0001_r_kind
+  real(r_kind),parameter:: quadcof  (4, 2  ) =      &
+      reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
+               -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
 
 ! Declare local variables  
+  integer(i_kind):: iquadrant  
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
@@ -918,6 +925,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! ******************************
   integer(i_kind):: lai_type
 
+  real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
 ! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
@@ -1485,6 +1493,21 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (lwind) then
         f10=data_s(iff10)
         sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
+        wind10    = sfc_speed
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
+        if (abs(vv5*f10) >= windlimit) then
+          windratio = (uu5*f10) / (vv5*f10)
+        else
+          windratio = 0.0_r_kind
+          if (abs(uu5*f10) > windlimit) then
+             windratio = windscale * uu5*f10
+          endif
+        endif
+        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
+        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)                          
      endif
 
 ! Load surface structure
@@ -1510,14 +1533,24 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         surface(1)%Soil_Type = istype
         lai_type = itype
      end if
-                                    
-     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
+
+!    Meteorological definition of wind direction                                    
+!     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
+!       surface(1)%wind_speed           = sfc_speed
+!       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
+!     else !RTodling: not sure the following option makes any sense
+!       surface(1)%wind_speed           = zero
+!       surface(1)%wind_direction       = zero
+!     endif
+
+     if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*wind10_direction  
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
      endif
+
 
 ! CRTM will reject surface coverages if greater than one and it is possible for
 ! these values to be larger due to round off.
