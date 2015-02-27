@@ -51,17 +51,12 @@ public final class DirSetter {
 			// IAT Root directory, remove "GUI" ( 3 chars ) from string.
 			theIAT_Home = theGUI_Home.substring(0, theGUI_Home.length() - 4);
 
-			System.out.println("IAT home " + theIAT_Home);
-
 			// Package HOME
 			theVsdbHome = theIAT_Home + "\\vsdb_pkg\\vsdb_v17";
 			theRadmonHome = theIAT_Home + "\\radmon_pkg\\radmon";
 			theGeHome = theIAT_Home + "\\ge_pkg\\ge";
 			theHitHome = theIAT_Home + "\\hit_pkg\\hit";
 			theFcstDiffHome = theIAT_Home + "\\fcstDiff_pkg\\fcstDiff";
-
-			System.out.println("vsdb home with DirSetter");
-			System.out.println(theVsdbHome);
 
 			// Package workspace
 			theVsdbWorkspace = theIAT_Home + "\\workspace\\vsdb_workspace";

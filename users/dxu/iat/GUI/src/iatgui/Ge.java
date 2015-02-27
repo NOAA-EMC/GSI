@@ -44,6 +44,9 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 
 	private JButton theConfigSaveBtn = new JButton("Save");
 	private JButton theConfigResetBtn = new JButton("Default");
+	private JButton theNotesBtn = new JButton("Notes");
+
+	private String theNotes = "";
 
 	// Constructor
 	Ge() {
@@ -60,6 +63,10 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 		// Reset buttons
 		theConfigResetBtn.setActionCommand("Reset");
 		theConfigResetBtn.addActionListener(this);
+
+		// Notes buttons
+		theNotesBtn.setActionCommand("Notes");
+		theNotesBtn.addActionListener(this);
 
 		// Step 1 browse button
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
@@ -86,15 +93,24 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 				"title1", "crnt_anl_input_dir", "crnt_anl_input_file",
 				"title2", "ref_anl_input_dir", "ref_anl_input_file", "title3" };
 
+		String[] initialLblNoteArr = {
+				"gribExtr worksapce for input, output and temporary data",
+				"gribExtr package directory", "Cycle information",
+				"GFS guess input data directory ", "GFS guess input file",
+				"GFS guess title ", "Control run analysis input directory",
+				"Control run analysis input file",
+				"Control run analysis title",
+				"Reference analysis input directory",
+				"Reference analysis input file", "Reference analysis title" };
+
 		String[] initialTxtValueArr = {
 				"/data/users/dxu/workspace/ge_workspace",
 				"/data/users/dxu/iat/ge_pkg/ge", "2013073012",
-				"${WORKSPACE}/data/input/gfs",
-				"pgbf06.gfs.2013073006", "gfs_ges",
-				"${WORKSPACE}/data/input/gfs",
+				"${WORKSPACE}/data/input/gfs", "pgbf06.gfs.2013073006",
+				"gfs_ges", "${WORKSPACE}/data/input/gfs",
 				"pgbanl.gfs.2013073012", "gfs_anl",
-				"${WORKSPACE}/data/input/ecm",
-				"pgbanl.ecm.2013073012", "ecmwf_anl" };
+				"${WORKSPACE}/data/input/ecm", "pgbanl.ecm.2013073012",
+				"ecmwf_anl" };
 
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			// These values will be updated once "save" button is clicked.
@@ -106,6 +122,9 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 			theConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theConfigTxtArr[index] = new JTextArea(initialTxtValueArr[index]);
 			theConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes = theNotes + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 
 	}
@@ -198,7 +217,7 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theConfigPanel.add(theConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints contraint_5 = configPanelLayout
 				.getConstraints(theConfigResetBtn);
 		contraint_5.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -207,14 +226,23 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 		contraint_5.setWidth(Spring.constant(BUTTON_WIDTH));
 		contraint_5.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "Notes" button
+		theConfigPanel.add(theNotesBtn);
+		// Position "Notes" button
+		SpringLayout.Constraints contraint_6 = configPanelLayout
+				.getConstraints(theNotesBtn);
+		contraint_6.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		contraint_6.setY(Spring.constant(yPos + 3 * SPACER));
+		contraint_6.setWidth(Spring.constant(BUTTON_WIDTH));
+		contraint_6.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// Get name of action component
 		String actName = e.getActionCommand();
-
-		System.out.println("actName is (ge) " + actName);
 
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			if (actName.equals(theConfigLblValueArr[index])) {
@@ -239,6 +267,9 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "Reset":
 			resetConfig();
+			break;
+		case "Notes":
+			displayNotes();
 			break;
 		}
 
@@ -265,7 +296,6 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/scripts/" + "ge_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -287,7 +317,6 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 					print_line.printf("%s%n", tmpString);
 
 				}
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -312,6 +341,12 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 		}
 	}
 
+	// Display notes
+	public void displayNotes() {
+		JOptionPane.showMessageDialog(null, theNotes, "InfoBox:",
+				JOptionPane.INFORMATION_MESSAGE);
+	}
+
 	// Get directory via "browse" button
 	public int getDir(String[] strArr) {
 		// Create the log first, because the action listeners
@@ -324,12 +359,7 @@ public class Ge extends JPanel implements SizeDefinition, ActionListener {
 
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
 			File file = fc.getSelectedFile();
-			System.out.println("dir selected is: " + file.toString());
 			strArr[0] = file.toString();
-			System.out.println("dddd is " + strArr[0]);
-			System.out.println("val " + returnVal);
-		} else {
-			System.out.println("val " + returnVal);
 		}
 
 		return returnVal;
