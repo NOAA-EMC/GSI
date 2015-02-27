@@ -1,6 +1,17 @@
+/*
+ * Purpose: This is the main GUI to run IAT. Specific GUI for individual 
+ *          IAT package is handled in separate classes.   
+ *       
+ * Author: Deyong Xu / RTI @ JCSDA
+ * Last update: 1/27/2015, Initial coding
+ *  
+ */
+
 package iatgui;
 
 import java.io.*;
+import java.util.List;
+import java.util.ArrayList;
 import java.awt.*;
 import java.awt.event.*;
 
@@ -24,16 +35,11 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	private JButton theRunBtn = new JButton("Run");
 	private JButton theStatBtn = new JButton("Check job status");
 	private JButton theParBtn = new JButton("Generate PAR");
+	private JButton theExitBtn = new JButton("Exit");
 
 	// 3. Components of theConfigPanel
 
-	/*
-	 * 4. Configuration for individual IAT config panels
-	 */
-	// 0) Default Empty config panel
-	// private JTextArea theEmptyTxt = new JTextArea("");
-
-	// 5. IAT choice and its components
+	// 4. IAT choice and its components
 	private Choice theIAT_Choice = new Choice();
 	private Choice theVsdb_Choice = new Choice();
 	private Choice theRadmon_Choice = new Choice();
@@ -46,7 +52,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	private JCheckBox theRadmonCbox = new JCheckBox("Radmon", false);
 	private JCheckBox theVsdbCbox = new JCheckBox("Vsdb", false);
 
-	// 6. Five package classes
+	// 5. Five package classes
 	private JobStat theJobStat = new JobStat();
 	private EmptyConfig theEmptyConfig = new EmptyConfig();
 
@@ -68,6 +74,8 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 		theRunBtn.addActionListener(this);
 		theStatBtn.addActionListener(this);
+		theParBtn.addActionListener(this);
+		theExitBtn.addActionListener(this);
 
 	}
 
@@ -85,6 +93,20 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		if (evt.getSource() == theRunBtn) {
 			executeRunBtn();
 		}
+
+		// PAR button is clicked
+		if (evt.getSource() == theParBtn) {
+			executeParBtn();
+		}
+
+		// Exit button is clicked
+		if (evt.getSource() == theExitBtn) {
+			int n = JOptionPane.showConfirmDialog(null, "Exit IAT?", "",
+					JOptionPane.YES_NO_OPTION);
+			if (n == 0)
+				System.exit(0);
+		}
+
 	}
 
 	// Check job status
@@ -107,16 +129,12 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 						new InputStreamReader(prcs.getErrorStream()));
 
 				// read the output from the command
-				System.out
-						.println("Here is the standard output of the command:\n");
 				while ((aStr = stdout.readLine()) != null) {
-					System.out.println(aStr);
 					aTxt.append(aStr + "\n");
 				}
 
 				// read any errors from the attempted command
 				while ((aStr = stderr.readLine()) != null) {
-					System.out.println(aStr);
 					aTxt.append(aStr + "\n");
 				}
 
@@ -126,7 +144,6 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 			} catch (IOException e) {
 				JOptionPane.showMessageDialog(null, "exception thrown");
-				System.out.println("exception happened - here's what I know: ");
 				e.printStackTrace();
 				System.exit(-1);
 			}
@@ -135,55 +152,137 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		showJobStatPanel();
 	}
 
-	// Run IAT
-	private void executeRunBtn() {
-		String pkgToRun = "";
+	// Generate PAR
+	private void executeParBtn() {
+		List<String> pkgList = new ArrayList<String>();
 
 		if (theFcstDiffCbox.isSelected())
-			pkgToRun += "   - FcstDiff \n";
+			pkgList.add("   - FcstDiff\n");
 
 		if (theGeCbox.isSelected())
-			pkgToRun += "   - Ge \n";
+			pkgList.add("   - Ge\n");
 
 		if (theHitCbox.isSelected())
-			pkgToRun += "   - Hit \n";
+			pkgList.add("   - Hit\n");
 
 		if (theRadmonCbox.isSelected())
-			pkgToRun += "   - Radmon \n";
+			pkgList.add("   - Radmon\n");
 
 		if (theVsdbCbox.isSelected())
-			pkgToRun += "   - Vsdb \n";
+			pkgList.add("   - Vsdb\n");
 
-		if (pkgToRun == "") {
+		// Check how many packages are selected.
+		if (pkgList.size() == 0)
+			JOptionPane.showMessageDialog(null,
+					"No package selected, please select package.");
+		else {
+			for (String str : pkgList) {
+				System.out.println(str);
+			}
+		}
+
+	}
+
+	// Run IAT
+	private void executeRunBtn() {
+		List<String> pkgList = new ArrayList<String>();
+
+		if (theFcstDiffCbox.isSelected())
+			pkgList.add("   - FcstDiff\n");
+
+		if (theGeCbox.isSelected())
+			pkgList.add("   - Ge\n");
+
+		if (theHitCbox.isSelected())
+			pkgList.add("   - Hit\n");
+
+		if (theRadmonCbox.isSelected())
+			pkgList.add("   - Radmon\n");
+
+		if (theVsdbCbox.isSelected())
+			pkgList.add("   - Vsdb\n");
+
+		if (pkgList.size() == 0) {
 			JOptionPane.showMessageDialog(null,
 					"No package selected, please select package.");
 		} else {
+			String pkgToRun = "";
+			for (String str : pkgList) {
+				pkgToRun = pkgToRun + str;
+			}
 
-			int n = confirm("run following IAT packages: \n" + pkgToRun);
+			boolean confirmed = confirm("run following IAT packages: \n"
+					+ pkgToRun);
 
-			if (n == 0) {
+			// Run fcstDiff
+			if (confirmed == true) {
+				// Run FcstDiff
 				if (theFcstDiffCbox.isSelected()) {
-					System.out.println("fcstDiff is selected");
+					if (DirSetter.isLinux()) {
+						try {
+							// Run fcstDiff main script in VSDB HOME directory.
+							Process prcs = Runtime.getRuntime().exec(
+									"./runFcstDiffByGUI.sh",
+									null,
+									new File(DirSetter.getFcstDiffRoot())
+											.getAbsoluteFile());
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							System.out.println("error in running fcstDiff!!!");
+							e.printStackTrace();
+						}
+					}
 				}
 
+				// Run GE
 				if (theGeCbox.isSelected()) {
-					System.out.println("ge is selected");
+					if (DirSetter.isLinux()) {
+						try {
+							// Run fcstDiff main script in VSDB HOME directory.
+							Process prcs = Runtime
+									.getRuntime()
+									.exec("./runGeByGUI.sh",
+											null,
+											new File(
+													(DirSetter.getGeRoot() + "/scripts"))
+													.getAbsoluteFile());
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							System.out
+									.println("error in running gribExtremes !!!");
+							e.printStackTrace();
+						}
+					}
 				}
 
+				// RUN HIT
 				if (theHitCbox.isSelected()) {
-					System.out.println("hit is selected");
+					if (DirSetter.isLinux()) {
+						try {
+							// Run fcstDiff main script in VSDB HOME directory.
+							Process prcs = Runtime.getRuntime().exec(
+									"./runHitByGUI.sh",
+									null,
+									new File(DirSetter.getHitRoot())
+											.getAbsoluteFile());
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							System.out
+									.println("error in running Hurricane Intensity and Track !!!");
+							e.printStackTrace();
+						}
+					}
 				}
 
 				if (theRadmonCbox.isSelected()) {
-					System.out.println("radmon is selected.");
 					if (DirSetter.isLinux()) {
 						try {
 							// Run vsdb main script in VSDB HOME directory.
 							Process prcs = Runtime.getRuntime().exec(
 									"./runRadmonByGUI.sh",
 									null,
-									new File(DirSetter.getRadmonRoot()+"/parm")
-											.getAbsoluteFile());
+									new File(DirSetter.getRadmonRoot()
+											+ "/parm").getAbsoluteFile());
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
 							System.out.println("error in running radmon!!!");
@@ -193,12 +292,11 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 				}
 
 				if (theVsdbCbox.isSelected()) {
-					System.out.println("vsdb is selected.");
 					if (DirSetter.isLinux()) {
 						try {
 							// Run vsdb main script in VSDB HOME directory.
 							Process prcs = Runtime.getRuntime().exec(
-									"./vsdbjob_submit_template.sh",
+									"./runVsdbByGUI.sh",
 									null,
 									new File(DirSetter.getVsdbRoot())
 											.getAbsoluteFile());
@@ -231,7 +329,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 			case "Ge":
 				addGE_ConfigPanel();
 				break;
-			case "hit":
+			case "Hit":
 				addHIT_ConfigPanel();
 				break;
 			case "Radmon":
@@ -282,7 +380,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		// Wipe out stuff within theConfigPanel
 		theConfigPanel.removeAll();
 
-		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		// Add theIAT_Choice and JobStatPanel into theConfigPanel
 		theConfigPanel.add(theIAT_Choice);
 		theConfigPanel.add(theJobStat.theJobStatPanel);
 
@@ -352,7 +450,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
 		theConfigPanel.add(theIAT_Choice);
-		theConfigPanel.add(theFcstDiff.theFcstDiffConfigPanel);
+		theConfigPanel.add(theFcstDiff.theConfigPanel);
 
 		// Position theIAT_Choice within the config panel
 		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
@@ -364,7 +462,7 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 
 		// Position theFcstDiffConfigPanel within the config panel
 		SpringLayout.Constraints fcstDiffConfigPanelCons = theConfigPanelLayout
-				.getConstraints(theFcstDiff.theFcstDiffConfigPanel);
+				.getConstraints(theFcstDiff.theConfigPanel);
 		fcstDiffConfigPanelCons.setX(Spring.constant(10));
 		fcstDiffConfigPanelCons.setY(Spring.constant(35));
 		fcstDiffConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
@@ -378,11 +476,71 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	}
 
 	private void addGE_ConfigPanel() {
+		// ======================================
+		// Step 1: Set up theConfigPanel
+		// ======================================
+		// Wipe out stuff within theConfigPanel
+		theConfigPanel.removeAll();
 
+		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		theConfigPanel.add(theIAT_Choice);
+		theConfigPanel.add(theGe.theConfigPanel);
+
+		// Position theIAT_Choice within the config panel
+		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
+				.getConstraints(theIAT_Choice);
+		iatChoiceCons.setX(Spring.constant(10));
+		iatChoiceCons.setY(Spring.constant(10));
+		iatChoiceCons.setWidth(Spring.constant(150));
+		iatChoiceCons.setHeight(Spring.constant(30));
+
+		// Position theFcstDiffConfigPanel within the config panel
+		SpringLayout.Constraints geConfigPanelCons = theConfigPanelLayout
+				.getConstraints(theGe.theConfigPanel);
+		geConfigPanelCons.setX(Spring.constant(10));
+		geConfigPanelCons.setY(Spring.constant(35));
+		geConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		geConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+
+		theGe.showConfigPanel();
+
+		// Now refresh theConfigPanel
+		theConfigPanel.revalidate();
+		theConfigPanel.repaint();
 	}
 
 	private void addHIT_ConfigPanel() {
+		// ======================================
+		// Step 1: Set up theConfigPanel
+		// ======================================
+		// Wipe out stuff within theConfigPanel
+		theConfigPanel.removeAll();
 
+		// Add theIAT_Choice and theFcstDiffConfigPanel into theConfigPanel
+		theConfigPanel.add(theIAT_Choice);
+		theConfigPanel.add(theHit.theConfigPanel);
+
+		// Position theIAT_Choice within the config panel
+		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
+				.getConstraints(theIAT_Choice);
+		iatChoiceCons.setX(Spring.constant(10));
+		iatChoiceCons.setY(Spring.constant(10));
+		iatChoiceCons.setWidth(Spring.constant(150));
+		iatChoiceCons.setHeight(Spring.constant(30));
+
+		// Position theFcstDiffConfigPanel within the config panel
+		SpringLayout.Constraints geConfigPanelCons = theConfigPanelLayout
+				.getConstraints(theHit.theConfigPanel);
+		geConfigPanelCons.setX(Spring.constant(10));
+		geConfigPanelCons.setY(Spring.constant(35));
+		geConfigPanelCons.setWidth(Spring.constant(PANEL_WIDTH));
+		geConfigPanelCons.setHeight(Spring.constant(PANEL_HEIGHT));
+
+		theHit.showConfigPanel();
+
+		// Now refresh theConfigPanel
+		theConfigPanel.revalidate();
+		theConfigPanel.repaint();
 	}
 
 	private void addRADMON_ConfigPanel() {
@@ -832,62 +990,76 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		theRunPanel.add(theRunBtn);
 		theRunPanel.add(theStatBtn);
 		theRunPanel.add(theParBtn);
+		theRunPanel.add(theExitBtn);
 
 		// 3.3 Position 3 components within theRunPanel
 		SpringLayout theRunPanelLayout = new SpringLayout();
 		theRunPanel.setLayout(theRunPanelLayout);
 
 		int spacer = 5;
-		int box1_width = 300;
-		int box1_height = 100;
-		int box1_x = 0;
-		int box1_y = 0;
+		int choiceWidth = 300;
+		int choiceHgt = 100;
+		int x1 = 0;
+		int y1 = 0;
 
-		int box2_width = 150;
-		int box2_height = 30;
-		int box2_x = box1_x + box1_width + spacer;
-		int box2_y = box1_height - box2_height - box1_y;
+		int btnWidth = 150;
+		int btnHgt = 30; 
+		
+		// Position of Run btn
+		int x2 = x1 + choiceWidth + spacer;
+		int y2 = choiceHgt - btnHgt - y1;
 
-		int box3_width = 150;
-		int box3_height = 30;
-		int box3_x = box2_x + box2_width + spacer;
-		int box3_y = box2_y;
+		// Position of Status btn
+		int x3 = x2 + btnWidth + spacer;
+		int y3 = y2;
 
-		int box4_width = 150;
-		int box4_height = 30;
-		int box4_x = box3_x + box3_width + spacer;
-		int box4_y = box3_y;
+		// Position of PAR btn
+		int x4 = x3 + btnWidth + spacer;
+		int y4 = y3;
 
-		int xWidth = 150;
-		int yHeight = 30;
+		// Position of Exit btn
+		int x5 = x4 + btnWidth + spacer;
+		int y5 = y4;
 
+		// Set IAT Choice box panel
 		SpringLayout.Constraints iatCheckBoxPanelCons = theRunPanelLayout
 				.getConstraints(theIatCboxPanel);
-		iatCheckBoxPanelCons.setX(Spring.constant(box1_x));
-		iatCheckBoxPanelCons.setY(Spring.constant(box1_y));
-		iatCheckBoxPanelCons.setWidth(Spring.constant(box1_width));
-		iatCheckBoxPanelCons.setHeight(Spring.constant(box1_height));
+		iatCheckBoxPanelCons.setX(Spring.constant(x1));
+		iatCheckBoxPanelCons.setY(Spring.constant(y1));
+		iatCheckBoxPanelCons.setWidth(Spring.constant(choiceWidth));
+		iatCheckBoxPanelCons.setHeight(Spring.constant(choiceHgt));
 
+		// Set Run btn
 		SpringLayout.Constraints runButtonCons = theRunPanelLayout
 				.getConstraints(theRunBtn);
-		runButtonCons.setX(Spring.constant(box2_x));
-		runButtonCons.setY(Spring.constant(box2_y));
-		runButtonCons.setWidth(Spring.constant(box2_width));
-		runButtonCons.setHeight(Spring.constant(box2_height));
+		runButtonCons.setX(Spring.constant(x2));
+		runButtonCons.setY(Spring.constant(y2));
+		runButtonCons.setWidth(Spring.constant(btnWidth));
+		runButtonCons.setHeight(Spring.constant(btnHgt));
 
+		// Set Status btn
 		SpringLayout.Constraints statButtonCons = theRunPanelLayout
 				.getConstraints(theStatBtn);
-		statButtonCons.setX(Spring.constant(box3_x));
-		statButtonCons.setY(Spring.constant(box3_y));
-		statButtonCons.setWidth(Spring.constant(box3_width));
-		statButtonCons.setHeight(Spring.constant(box3_height));
+		statButtonCons.setX(Spring.constant(x3));
+		statButtonCons.setY(Spring.constant(y3));
+		statButtonCons.setWidth(Spring.constant(btnWidth));
+		statButtonCons.setHeight(Spring.constant(btnHgt));
 
+		// Set PAR btn
 		SpringLayout.Constraints parButtonCons = theRunPanelLayout
 				.getConstraints(theParBtn);
-		parButtonCons.setX(Spring.constant(box4_x));
-		parButtonCons.setY(Spring.constant(box4_y));
-		parButtonCons.setWidth(Spring.constant(box4_width));
-		parButtonCons.setHeight(Spring.constant(box4_height));
+		parButtonCons.setX(Spring.constant(x4));
+		parButtonCons.setY(Spring.constant(y4));
+		parButtonCons.setWidth(Spring.constant(btnWidth));
+		parButtonCons.setHeight(Spring.constant(btnHgt));
+
+		// Set Exit btn
+		SpringLayout.Constraints exitButtonCons = theRunPanelLayout
+				.getConstraints(theExitBtn);
+		exitButtonCons.setX(Spring.constant(x5));
+		exitButtonCons.setY(Spring.constant(y5));
+		exitButtonCons.setWidth(Spring.constant(btnWidth));
+		exitButtonCons.setHeight(Spring.constant(btnHgt));
 
 		// ==================================================================
 		// 4. theConfigPanel ( 800 x 600 )
@@ -927,6 +1099,9 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		// 4.2 Position components within theConfigPanel using SpringLayout and
 		// Contraint.
 		theConfigPanel.setLayout(theConfigPanelLayout);
+
+		int xWidth = 150;
+		int yHeight = 30;
 
 		// Position theIAT_Choice within the config panel
 		SpringLayout.Constraints iatChoiceCons = theConfigPanelLayout
@@ -980,14 +1155,14 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		frame.setLocationRelativeTo(null);
 	}
 
-	public int confirm(String aString) {
+	public boolean confirm(String aString) {
 		int n = JOptionPane.showConfirmDialog(null, aString, "",
 				JOptionPane.YES_NO_OPTION);
 		if (n == 0) {
 			JOptionPane.showMessageDialog(null, aString);
 		} else
 			JOptionPane.showMessageDialog(null, "NOT to " + aString);
-		return n;
+		return n == 0 ? true : false;
 	}
 
 	/**

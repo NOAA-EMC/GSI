@@ -1,3 +1,11 @@
+/*
+ * Purpose: This is the GUI to configure RADMON.     
+ *       
+ * Author: Deyong Xu / RTI @ JCSDA
+ * Last update: 1/27/2015, Initial coding 
+ * 
+ */
+
 package iatgui;
 
 import java.awt.event.ActionEvent;
@@ -21,10 +29,6 @@ import javax.swing.Spring;
 import javax.swing.SpringLayout;
 
 public class Radmon extends JPanel implements SizeDefinition, ActionListener {
-	// Redefine constants below for local use.
-	private final int TEXTAREA_WIDTH = 400;
-	private final int TEXTAREA_HEIGHT = 15;
-
 	// Number of ENV vars in each step
 	private final int ENV_VAR_SIZE = 9;
 
@@ -40,20 +44,21 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 	private String[] theConfigTxtInitValueArr = new String[ENV_VAR_SIZE];
 	private JButton[] theConfigBrowseBtnArr = new JButton[ENV_VAR_SIZE];
 
-	private JRadioButton theStep1SelectionBtn = new JRadioButton("data extract");
-	private JRadioButton theStep2SelectionBtn = new JRadioButton(
-			"img generation");
+	private JRadioButton theStep1RadioBtn = new JRadioButton("data extract");
+	private JRadioButton theStep2RadioBtn = new JRadioButton("img generation");
 	// Group the radio buttons.
-	ButtonGroup theBtnGroup = new ButtonGroup();
+	ButtonGroup theRadioBtnGroup = new ButtonGroup();
 
 	private JButton theConfigSaveBtn = new JButton("Save");
 	private JButton theConfigResetBtn = new JButton("Default");
 
+	// Constructor
 	Radmon() {
-		initializeLblTxt();
+		initialize();
 		addListeners();
 	}
 
+	// Events this class will handle.
 	public void addListeners() {
 		// Save buttons
 		theConfigSaveBtn.setActionCommand("step1Save");
@@ -70,32 +75,26 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			theConfigBrowseBtnArr[index].addActionListener(this);
 		}
 
-		theStep1SelectionBtn.addActionListener(this);
-		theStep2SelectionBtn.addActionListener(this);
-
-	}
-
-	// Initialize labels and text areas
-	public void initializeLblTxt() {
-		initialize();
+		 theStep1RadioBtn.addActionListener(this);
+		 theStep2RadioBtn.addActionListener(this);
 
 	}
 
 	// Initial step 1 config panel's label and textareas
 	public void initialize() {
-		String[] initialEnvValueArr = { "ENV_MY_RADMON", "ENV_WORKSPACE",
+		String[] initialENV_ValueArr = { "ENV_MY_RADMON", "ENV_WORKSPACE",
 				"ENV_MY_TANKDIR", "ENV_PTMP", "ENV_STMP",
 				"ENV_RADSTAT_LOCATION", "ENV_LITTLE_ENDIAN", "ENV_ID",
 				"ENV_CYCLES" };
 		String[] initialLblValueArr = { "RADMON_HOME", "RADMON_WORKSPACE",
 				"TANKDIR", "PTMP", "STMP", "RADSTAT_LOCATION", "LITTLE_ENDIAN",
-				"ID", "CYCLES (seperated by space)" };
+				"ID", "Date range: " };
 		String[] initialTxtValueArr = {
-				"/data/users/dxu/iat/radmon_pkg/radmon/util/Radiance_Monitor",
+				"/data/users/dxu/iat/radmon_pkg/radmon",
 				"/data/users/dxu/workspace/radmon_workspace",
 				"${WORKSPACE}/data/output/radmon_tank", "${WORKSPACE}/log",
-				"${WORKSPACE}/run", "${WORKSPACE}/data/input/input_for_test", "1", "mytest",
-				"2013063000 2013063006" };
+				"${WORKSPACE}/run", "${WORKSPACE}/data/input/input_for_test",
+				"1", "mytest", "20130630 20130702" };
 
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			// These values will be updated once "save" button is clicked.
@@ -103,21 +102,21 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			theConfigTxtValueArr[index] = initialTxtValueArr[index];
 			theConfigTxtInitValueArr[index] = initialTxtValueArr[index];
 
-			theConfigEnvArr[index] = initialEnvValueArr[index];
+			theConfigEnvArr[index] = initialENV_ValueArr[index];
 			theConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theConfigTxtArr[index] = new JTextArea(initialTxtValueArr[index]);
 			theConfigBrowseBtnArr[index] = new JButton("Browse");
 		}
 
-		theStep1SelectionBtn.setMnemonic(KeyEvent.VK_B);
-		theStep1SelectionBtn.setActionCommand("data extract");
-		theStep1SelectionBtn.setSelected(true);
+		theStep1RadioBtn.setMnemonic(KeyEvent.VK_B);
+		theStep1RadioBtn.setActionCommand("data extract");
+		theStep1RadioBtn.setSelected(true);
 
-		theStep2SelectionBtn.setMnemonic(KeyEvent.VK_C);
-		theStep2SelectionBtn.setActionCommand("img generation");
+		theStep2RadioBtn.setMnemonic(KeyEvent.VK_C);
+		theStep2RadioBtn.setActionCommand("img generation");
 
-		theBtnGroup.add(theStep1SelectionBtn);
-		theBtnGroup.add(theStep2SelectionBtn);
+		theRadioBtnGroup.add(theStep1RadioBtn);
+		theRadioBtnGroup.add(theStep2RadioBtn);
 
 	}
 
@@ -186,17 +185,17 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		}
 
 		// Add radio button
-		theConfigPanel.add(theStep1SelectionBtn);
+		theConfigPanel.add(theStep1RadioBtn);
 		SpringLayout.Constraints contraint_1 = configPanelLayout
-				.getConstraints(theStep1SelectionBtn);
+				.getConstraints(theStep1RadioBtn);
 		contraint_1.setX(Spring.constant(xPos + LBL_WIDTH));
 		contraint_1.setY(Spring.constant(yPos + SPACER));
 		contraint_1.setWidth(Spring.constant(BUTTON_WIDTH));
 		contraint_1.setHeight(Spring.constant(BUTTON_HEIGHT));
 
-		theConfigPanel.add(theStep2SelectionBtn);
+		theConfigPanel.add(theStep2RadioBtn);
 		SpringLayout.Constraints contraint_2 = configPanelLayout
-				.getConstraints(theStep2SelectionBtn);
+				.getConstraints(theStep2RadioBtn);
 		contraint_2.setX(Spring.constant(xPos + 2 * LBL_WIDTH + SPACER));
 		contraint_2.setY(Spring.constant(yPos + SPACER));
 		contraint_2.setWidth(Spring.constant(BUTTON_WIDTH));
@@ -308,20 +307,21 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
 
-				// Copy ENV_WORKSPAC	E to WORKSPACE to keep the same naming convention: ENV_VARNAME
-				if (index == 1){
+				// Copy ENV_WORKSPAC E to WORKSPACE to keep the same naming
+				// convention: ENV_VARNAME
+				if (index == 1) {
 					tmpString = "export WORKSPACE=${ENV_WORKSPACE}";
 					print_line.printf("%s%n", tmpString);
 					System.out.println(tmpString);
-				}							
+				}
 			}
-			
-			if (theStep1SelectionBtn.isSelected()) {
+
+			if (theStep1RadioBtn.isSelected()) {
 				// Save values in GUI into file
 				String tmpString = "export ENV_RUN_STEP=1";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);
-			} else if (theStep2SelectionBtn.isSelected()) {
+			} else if (theStep2RadioBtn.isSelected()) {
 				String tmpString = "export ENV_RUN_STEP=2";
 				print_line.printf("%s%n", tmpString);
 				System.out.println(tmpString);

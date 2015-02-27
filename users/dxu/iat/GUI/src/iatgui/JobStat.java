@@ -12,6 +12,10 @@ public class JobStat implements SizeDefinition {
 	public JLabel theLbl = new JLabel("Job Stats:");
 	public JTextArea theTxt = new JTextArea("");
 	public JScrollPane theScroll;
+	
+	// Overwrite constant set in SizeDefinition class
+	final int TEXTAREA_WIDTH = 700;
+	final int TEXTAREA_HEIGHT = 400;	
 
 	// Constructor
 	JobStat() {
@@ -51,7 +55,7 @@ public class JobStat implements SizeDefinition {
 		lblCons.setWidth(Spring.constant(LBL_WIDTH));
 		lblCons.setHeight(Spring.constant(LBL_HEIGHT));
 
-		// Position textarea
+		// Position text area
 		txtCons = aLayout.getConstraints(theScroll);
 		txtCons.setX(Spring.constant(xPos));
 		txtCons.setY(Spring.constant(yPos + LBL_HEIGHT + SPACER));

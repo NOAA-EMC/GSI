@@ -1,4 +1,17 @@
+/*
+ * Purpose: This is a helper class to configure paths 
+ *          of various IAT packages.       
+ *       
+ * Author: Deyong Xu / RTI @ JCSDA
+ * Last update: 1/27/2015, Initial coding
+ *  
+ */
+
 package iatgui;
+
+import java.io.File;
+
+import javax.swing.JFileChooser;
 
 public final class DirSetter {
 
@@ -42,9 +55,8 @@ public final class DirSetter {
 
 			// Package HOME
 			theVsdbHome = theIAT_Home + "\\vsdb_pkg\\vsdb_v17";
-			theRadmonHome = theIAT_Home
-					+ "\\radmon_pkg\\radmon\\util\\Radiance_Monitor";
-			theGeHome = theIAT_Home + "\\ge_pkg\\ge_pkg\\ge";
+			theRadmonHome = theIAT_Home + "\\radmon_pkg\\radmon";
+			theGeHome = theIAT_Home + "\\ge_pkg\\ge";
 			theHitHome = theIAT_Home + "\\hit_pkg\\hit";
 			theFcstDiffHome = theIAT_Home + "\\fcstDiff_pkg\\fcstDiff";
 
@@ -62,13 +74,12 @@ public final class DirSetter {
 		} else {
 			// Setting for Linux
 			// Package HOME
-//			theIAT_Home = theGUI_Home + "/../..";
+			// theIAT_Home = theGUI_Home + "/../..";
 			theIAT_Home = theGUI_Home.substring(0, theGUI_Home.length() - 8);
 
 			theVsdbHome = theIAT_Home + "/vsdb_pkg/vsdb_v17";
-			theRadmonHome = theIAT_Home
-					+ "/radmon_pkg/radmon/util/Radiance_Monitor";
-			theGeHome = theIAT_Home + "/ge_pkg/ge_pkg/ge/";
+			theRadmonHome = theIAT_Home + "/radmon_pkg/radmon";
+			theGeHome = theIAT_Home + "/ge_pkg/ge";
 			theHitHome = theIAT_Home + "/hit_pkg/hit";
 			theFcstDiffHome = theIAT_Home + "/fcstDiff_pkg/fcstDiff";
 
