@@ -52,6 +52,10 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 	private JButton theConfigSaveBtn = new JButton("Save");
 	private JButton theConfigResetBtn = new JButton("Default");
 
+	private JButton theNotesBtn = new JButton("Notes");
+
+	private String theNotes = "";
+
 	// Constructor
 	Radmon() {
 		initialize();
@@ -68,6 +72,10 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		theConfigResetBtn.setActionCommand("step1Reset");
 		theConfigResetBtn.addActionListener(this);
 
+		// Param description buttons
+		theNotesBtn.setActionCommand("Notes");
+		theNotesBtn.addActionListener(this);
+
 		// Step 1 browse button
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			theConfigBrowseBtnArr[index]
@@ -75,8 +83,8 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			theConfigBrowseBtnArr[index].addActionListener(this);
 		}
 
-		 theStep1RadioBtn.addActionListener(this);
-		 theStep2RadioBtn.addActionListener(this);
+		theStep1RadioBtn.addActionListener(this);
+		theStep2RadioBtn.addActionListener(this);
 
 	}
 
@@ -89,6 +97,13 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "RADMON_HOME", "RADMON_WORKSPACE",
 				"TANKDIR", "PTMP", "STMP", "RADSTAT_LOCATION", "LITTLE_ENDIAN",
 				"ID", "Date range: " };
+		String[] initialLblNoteArr = { "Radmon source code directory",
+				"workspace for input, output and running directory",
+				"tank directory where stats files are saved.",
+				"temporary directory", "Running directory",
+				"where Radmon input data is",
+				"input diagnostic data format",
+				"ID to identify your experiment", "Date range of experiment " };
 		String[] initialTxtValueArr = {
 				"/data/users/dxu/iat/radmon_pkg/radmon",
 				"/data/users/dxu/workspace/radmon_workspace",
@@ -106,6 +121,9 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			theConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theConfigTxtArr[index] = new JTextArea(initialTxtValueArr[index]);
 			theConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes = theNotes + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 
 		theStep1RadioBtn.setMnemonic(KeyEvent.VK_B);
@@ -217,7 +235,7 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theConfigPanel.add(theConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints contraint_4 = configPanelLayout
 				.getConstraints(theConfigResetBtn);
 		contraint_4.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -225,6 +243,18 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		contraint_4.setY(Spring.constant(yPos + 3 * SPACER));
 		contraint_4.setWidth(Spring.constant(BUTTON_WIDTH));
 		contraint_4.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
+		// Add "Notes" button
+		theConfigPanel.add(theNotesBtn);
+		// Position "Notes" button
+		SpringLayout.Constraints contraint_5 = configPanelLayout
+				.getConstraints(theNotesBtn);
+		contraint_5.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		contraint_5.setY(Spring.constant(yPos + 3 * SPACER));
+		contraint_5.setWidth(Spring.constant(BUTTON_WIDTH));
+		contraint_5.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
 	}
 
 	@Override
@@ -255,6 +285,9 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "step1Reset":
 			resetStep1();
+			break;
+		case "Notes":
+			displayNotes();
 			break;
 		}
 
@@ -342,6 +375,12 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		}
 	}
 
+	// Display notes
+	public void displayNotes() {
+		JOptionPane.showMessageDialog(null, theNotes, "InfoBox:",
+				JOptionPane.INFORMATION_MESSAGE);
+	}
+
 	// Get directory via "browse" button
 	public int getDir(String[] strArr) {
 		// Create the log first, because the action listeners
@@ -356,7 +395,7 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			File file = fc.getSelectedFile();
 			strArr[0] = file.toString();
 		}
-		
+
 		return returnVal;
 	}
 
