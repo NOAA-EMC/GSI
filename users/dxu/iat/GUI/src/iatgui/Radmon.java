@@ -313,7 +313,7 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 1 config
 	public void saveChanges() throws IOException {
-		int n = saveChangesMsg("step1");
+		int n = saveChangesMsg("Radmon");
 		if (n == 0) {
 			String filename = DirSetter.getRadmonRoot();
 
