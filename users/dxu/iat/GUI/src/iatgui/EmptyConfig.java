@@ -1,3 +1,11 @@
+/*
+ * Purpose: This is a dummy class for testing purpose.     
+ *       
+ * Author: Deyong Xu / RTI @ JCSDA
+ * Last update: 1/27/2015, Initial coding 
+ * 
+ */
+
 package iatgui;
 
 import javax.swing.JLabel;

@@ -1,3 +1,11 @@
+/*
+ * Purpose: This is the GUI to configure VSDB.     
+ *       
+ * Author: Deyong Xu / RTI @ JCSDA
+ * Last update: 1/27/2015, Initial coding
+ *  
+ */
+
 package iatgui;
 
 import java.awt.event.ActionEvent;
@@ -17,10 +25,6 @@ import javax.swing.Spring;
 import javax.swing.SpringLayout;
 
 public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
-	// Redefine constants below for local use.
-	private final int TEXTAREA_WIDTH = 400;
-	private final int TEXTAREA_HEIGHT = 15;
-
 	// Number of ENV vars in each step
 	private final int SIZE_TOP_LEVEL = 12;
 	private final int SIZE_STEP1 = 9;
@@ -121,6 +125,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		addListeners();
 	}
 
+	// Events this class will handle
 	public void addListeners() {
 		// Save buttons
 		theTopLevelConfigSaveBtn.setActionCommand("toplevelSave");
