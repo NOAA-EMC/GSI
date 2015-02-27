@@ -155,30 +155,65 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	// Generate PAR
 	private void executeParBtn() {
 		List<String> pkgList = new ArrayList<String>();
+		String paramStr = "";
 
-		if (theFcstDiffCbox.isSelected())
+		if (theFcstDiffCbox.isSelected()) {
+			paramStr = paramStr + " fd ";
 			pkgList.add("   - FcstDiff\n");
+		}
 
-		if (theGeCbox.isSelected())
+		if (theGeCbox.isSelected()) {
+			paramStr = paramStr + " ge ";
 			pkgList.add("   - Ge\n");
+		}
 
-		if (theHitCbox.isSelected())
+		if (theHitCbox.isSelected()) {
+			paramStr = paramStr + " hit ";
 			pkgList.add("   - Hit\n");
+		}
 
-		if (theRadmonCbox.isSelected())
+		if (theRadmonCbox.isSelected()) {
+			paramStr = paramStr + " radmon ";
 			pkgList.add("   - Radmon\n");
+		}
 
-		if (theVsdbCbox.isSelected())
+		if (theVsdbCbox.isSelected()) {
+			paramStr = paramStr + " vsdb ";
 			pkgList.add("   - Vsdb\n");
+		}
 
 		// Check how many packages are selected.
 		if (pkgList.size() == 0)
 			JOptionPane.showMessageDialog(null,
 					"No package selected, please select package.");
 		else {
+			String tmpStr = "";
 			for (String str : pkgList) {
 				System.out.println(str);
+				tmpStr = tmpStr + str;
 			}
+
+			boolean confirmed = confirm("Genereate PAR for following packages:\n"
+					+ tmpStr);
+
+			// TODO
+			if (confirmed == true) {
+				// Run FcstDiff
+				System.out.println(paramStr);
+				if (DirSetter.isLinux()) {
+					try {
+						// Run fcstDiff main script in VSDB HOME directory.
+						Process prcs = Runtime.getRuntime().exec(
+								DirSetter.getGUI_Root() + "/generatePar.sh " + paramStr);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						System.out.println("error in generating PAR!!!");
+						e.printStackTrace();
+					}
+				}
+
+			}
+
 		}
 
 	}
@@ -1003,8 +1038,8 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		int y1 = 0;
 
 		int btnWidth = 150;
-		int btnHgt = 30; 
-		
+		int btnHgt = 30;
+
 		// Position of Run btn
 		int x2 = x1 + choiceWidth + spacer;
 		int y2 = choiceHgt - btnHgt - y1;
@@ -1158,10 +1193,9 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 	public boolean confirm(String aString) {
 		int n = JOptionPane.showConfirmDialog(null, aString, "",
 				JOptionPane.YES_NO_OPTION);
-		if (n == 0) {
+		if (n == 0)
 			JOptionPane.showMessageDialog(null, aString);
-		} else
-			JOptionPane.showMessageDialog(null, "NOT to " + aString);
+
 		return n == 0 ? true : false;
 	}
 
