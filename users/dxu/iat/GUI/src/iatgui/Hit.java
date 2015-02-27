@@ -52,6 +52,9 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 
 	private JButton theConfigSaveBtn = new JButton("Save");
 	private JButton theConfigResetBtn = new JButton("Default");
+	private JButton theNotesBtn = new JButton("Notes");
+
+	private String theNotes = "";
 
 	private JRadioButton[] theRegionRadioBtnArr = new JRadioButton[2];
 	// Group the radio buttons.
@@ -81,6 +84,10 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 		theConfigResetBtn.setActionCommand("Reset");
 		theConfigResetBtn.addActionListener(this);
 
+		// Param description buttons
+		theNotesBtn.setActionCommand("Notes");
+		theNotesBtn.addActionListener(this);
+
 		// Step 1 browse button
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			theConfigBrowseBtnArr[index]
@@ -101,6 +108,28 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "scrdir", "expdir", "mdlist", "mdplot",
 				"cyc", "STMP", "Region", "Year", "Storms", "Generate Mean?" };
 
+		String tmpStrArr[] = {
+				"First 4 letters such as (prhw) in mdlist must be the model name in the initial time storm center file.\n",
+				"   a) value in 'mdlist' such as 'prhw2014' must be a sub-dir under $expdir.\n",
+				"   b) First 4 letter of the value of 'mdlist' such as 'prhw' in\n",
+				"      'prhw2014' must be a model name.\n",
+				"   c) Value of 'modplot' is restricted to exactly 4-character string.\n",
+				"   d) Both 'mdlist' and 'mdplot' could contain multiple values to\n",
+				"      include multiple experiments.\n", 
+				"   eg:\n",
+				"       export mdlist='prhw2011 prhw2012' \n",
+				"       export mdplot='hw14     hw15    '\n" };
+		String mdlist_decr="";
+		for (String  tmpStr : tmpStrArr)
+			mdlist_decr = mdlist_decr + tmpStr;
+
+		String[] initialLblNoteArr = {
+				"Hurricane Intensity and Track package location",
+				"Input data location", mdlist_decr,
+
+				"Plot title", "cycle informaton", "temporary running directory", "Storm Region", "Year", "which hurricanes to run",
+				"Generate Mean" };
+
 		String[] initialTxtValueArr = { "/data/users/dxu/iat/hit_pkg/hit",
 				"/data/users/dxu/workspace/hit_workspace/data/input",
 				"prhw2014", "hw14", "00 06 12 18",
@@ -117,6 +146,9 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 			theConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theConfigTxtArr[index] = new JTextArea(initialTxtValueArr[index]);
 			theConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes = theNotes + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 
 		String regionName = "";
@@ -348,7 +380,7 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theConfigPanel.add(theConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints contraint_5 = configPanelLayout
 				.getConstraints(theConfigResetBtn);
 		contraint_5.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -356,6 +388,17 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 		contraint_5.setY(Spring.constant(yPos + 3 * SPACER));
 		contraint_5.setWidth(Spring.constant(BUTTON_WIDTH));
 		contraint_5.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
+		// Add "Notes" button
+		theConfigPanel.add(theNotesBtn);
+		// Position "ParamDescr" button
+		SpringLayout.Constraints contraint_6 = configPanelLayout
+				.getConstraints(theNotesBtn);
+		contraint_6.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		contraint_6.setY(Spring.constant(yPos + 3 * SPACER));
+		contraint_6.setWidth(Spring.constant(BUTTON_WIDTH));
+		contraint_6.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
 	}
 
@@ -387,6 +430,9 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "Reset":
 			resetConfig();
+			break;
+		case "Notes":
+			displayNotes();
 			break;
 		}
 
@@ -488,6 +534,12 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 				theConfigTxtArr[index].setText(theConfigTxtInitValueArr[index]);
 			}
 		}
+	}
+
+	// Display notes
+	public void displayNotes() {
+		JOptionPane.showMessageDialog(null, theNotes, "InfoBox:",
+				JOptionPane.INFORMATION_MESSAGE);
 	}
 
 	// Get directory via "browse" button

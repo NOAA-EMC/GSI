@@ -55,6 +55,22 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 	public JButton theTopLevelConfigSaveBtn = new JButton("Save");
 	public JButton theTopLevelConfigResetBtn = new JButton("Default");
 
+	private JButton theNotesTopBtn = new JButton("Notes");
+	private JButton theNotes1Btn = new JButton("Notes");
+	private JButton theNotes2Btn = new JButton("Notes");
+	private JButton theNotes3Btn = new JButton("Notes");
+	private JButton theNotes4Btn = new JButton("Notes");
+	private JButton theNotes5Btn = new JButton("Notes");
+	private JButton theNotes6Btn = new JButton("Notes");
+
+	private String theNotesTop = "";
+	private String theNotes1 = "";
+	private String theNotes2 = "";
+	private String theNotes3 = "";
+	private String theNotes4 = "";
+	private String theNotes5 = "";
+	private String theNotes6 = "";
+
 	// Step 1 config panel
 	public JLabel[] theStep1ConfigLblArr = new JLabel[SIZE_STEP1];
 	public JTextArea[] theStep1ConfigTxtArr = new JTextArea[SIZE_STEP1];
@@ -161,6 +177,22 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		theStep5ConfigResetBtn.addActionListener(this);
 		theStep6ConfigResetBtn.addActionListener(this);
 
+		// Param description buttons
+		theNotesTopBtn.setActionCommand("NotesTop");
+		theNotesTopBtn.addActionListener(this);
+		theNotes1Btn.setActionCommand("Notes1");
+		theNotes1Btn.addActionListener(this);
+		theNotes2Btn.setActionCommand("Notes2");
+		theNotes2Btn.addActionListener(this);
+		theNotes3Btn.setActionCommand("Notes3");
+		theNotes3Btn.addActionListener(this);
+		theNotes4Btn.setActionCommand("Notes4");
+		theNotes4Btn.addActionListener(this);
+		theNotes5Btn.setActionCommand("Notes5");
+		theNotes5Btn.addActionListener(this);
+		theNotes6Btn.setActionCommand("Notes6");
+		theNotes6Btn.addActionListener(this);
+
 		// Top Level Browse buttons
 		for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
 			theTopLevelConfigBrowseBtnArr[index]
@@ -218,6 +250,16 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "VSDBHOME", "WORKSPACE", "ACCOUNT",
 				"CUE2RUN", "CUE2FTP", "GROUP", "gstat", "canldir", "ecmanldir",
 				"OBSPCP", "gfsfitdir", "obdata" };
+
+		String[] initialLblNoteArr = { "VSDB source code directory",
+				"workspace for input, output and temporary data",
+				"account allowed to submit jobs", "default to batch queue",
+				"queue for data transfer", "group of account, g01 etc",
+				"global stats directory", "consensus analysis directory",
+				"ecmwf analysis directory", "observed precip for verification",
+				"operational gfs vsdb database",
+				"observation data for making 2dmaps" };
+
 		String[] initialTxtValueArr = { DirSetter.getVsdbRoot(),
 				DirSetter.getVsdbWorkspace(), "glbss", "batch", "batch", "g01",
 				"${WORKSPACE}/data/input/gstat", "$gstat/canl", "$gstat/ecm",
@@ -237,6 +279,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theTopLevelConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
 			theTopLevelConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotesTop = theNotesTop + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -249,6 +294,13 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "MAKEVSDBDATA", "myarch", "expnlist",
 				"fcyclist", "dumplist", "vhrlist", "DATEST", "DATEND",
 				"vlength" };
+		String[] initialLblNoteArr = { "To create VSDB date",
+				"Input directory", "experiment name",
+				"forecast cycles to be verified",
+				"file format pgb${asub}${fhr}${dump}${yyyymmdd}${cyc}",
+				"verification hours for each day",
+				"verification starting date", "verification ending date",
+				"forecast length in hour" };
 		String[] initialTxtValueArr = { "YES",
 				"${WORKSPACE}/data/input/fcst_data", "gfs ecm", "00",
 				".gfs. .ecm.", "00", "20140201", "20140228", "120" };
@@ -264,6 +316,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep1ConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
 			theStep1ConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes1 = theNotes1 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -274,6 +329,14 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				"ENV_2_DATEND", "ENV_2_VLENGTH", "ENV_2_MAPTOP" };
 		String[] initialLblValueArr = { "MAKEMAPS", "fcycle", "mdlist",
 				"vhrlist", "DATEST", "DATEND", "vlength", "maptop" };
+		String[] initialLblNoteArr = { "To make AC and RMS maps",
+				"forecast cycles to be verified",
+				"experiment names, up to 10, to compare on maps",
+				"verification hours for each day to show on map",
+				"verification starting date to show on map",
+				"verification ending date to show on map",
+				"forecast length in hour to show on map",
+				"can be set to 10, 50 or 100 hPa for cross-section maps" };
 		String[] initialTxtValueArr = { "NO", "00 ", "gfs ecm", "00",
 				"20140201", "20140228", "120", "10" };
 
@@ -287,6 +350,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep2ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theStep2ConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
+
+			theNotes2 = theNotes2 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -299,6 +365,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "CONUSDATA", "COMROT", "expnlist",
 				"ftyplist", "dumplist", "ptyplist", "bucket", "fhout", "cycle",
 				"DATEST", "DATEND" };
+		String[] initialLblNoteArr = {
+				"To generate precip verification stats",
+				"Input directory",
+				"experiment names",
+				"file types: pgb or flx",
+				"file format ${ftyp}f${fhr}${dump}${yyyymmdd}${cyc}",
+				"precip types in GRIB: PRATE or APCP",
+				"accumulation bucket in hours. bucket=0 -- continuous accumulation",
+				"forecast output frequency in hours",
+				"forecast cycle to verify, give only one",
+				"forecast starting date", "forecast ending date" };
 		String[] initialTxtValueArr = { "NO",
 				"${WORKSPACE}/data/input/fcst_data", "gfs gfs2", "pgb pgb",
 				".gfs. .gfs.", "PRATE PRATE", "6", "6", "00", "20140201",
@@ -316,6 +393,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					initialTxtValueArr[index]);
 			theStep3ConfigBrowseBtnArr[index] = new JButton("Browse");
 
+			theNotes3 = theNotes3 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
+
 		}
 	}
 
@@ -325,6 +405,11 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				"ENV_4_CYCLIST", "ENV_4_DATEST", "ENV_4_DATEND" };
 		String[] initialLblValueArr = { "CONUSPLOTS", "expnlist", "cyclist",
 				"DATEST", "DATEND" };
+		String[] initialLblNoteArr = { "To make precip verification maps ",
+				"experiment names, up to 6 , gfs is operational GFS",
+				"forecast cycles for making QPF maps, 00Z and/or 12Z",
+				"forecast starting date to show on map",
+				"forecast ending date to show on map" };
 		String[] initialTxtValueArr = { "NO", "gfs gfs2", "00", "20140201",
 				"20140228" };
 
@@ -338,6 +423,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep4ConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theStep4ConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
+
+			theNotes4 = theNotes4 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -350,6 +438,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "FIT2OBS", "fitdir", "expnlist",
 				"endianlist", "cycle", "oinc_f2o", "finc_f2o", "fmax_f2o",
 				"DATEST", "DATEND" };
+		String[] initialLblNoteArr = {
+				"To make fit-to-obs maps",
+				"input directory",
+				"experiment names, only two allowed, fnl is operatinal GFS",
+				"big_endian or little_endian of fits data, CCS-big, Zeus-little",
+				"forecast cycle to verify, only one cycle allowed",
+				"increment (hours) between observation verify times for timeout plots",
+				"increment (hours) between forecast lengths for timeout plots",
+				"max forecast length to show for timeout plots",
+				"forecast starting date to show on map",
+				"forecast ending date to show on map" };
 		String[] initialTxtValueArr = { "YES", "${WORKSPACE}/data/input/f2o",
 				"fit_model  fit_model2", "little little", "00", "24", "24",
 				"120", "20130801", "20130814" };
@@ -365,6 +464,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep5ConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
 			theStep5ConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes5 = theNotes5 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -377,6 +479,18 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		String[] initialLblValueArr = { "MAPS2D", "myarch", "expnlist",
 				"dumplist", "fdlist", "cycle", "DATEST", "ndays", "nlev",
 				"grid", "pbtm", "ptop" };
+		String[] initialLblNoteArr = {
+				"To make maps of lat-lon distributions and zonal-mean corss-sections",
+				"input data directory",
+				"experiments, up to 8; gfs will point to ops data",
+				"file format pgb${asub}${fhr}${dump}${yyyymmdd}${cyc}",
+				"fcst day to verify, e.g., d-5 uses f120 f114 f108 and f102; anl-->analysis; -1->skip",
+				"forecast cycle to verify, given only one",
+				"starting verifying date", "number of days (cases)",
+				"pgb file vertical layers",
+				"pgb file resolution, G2-> 2.5deg;   G3-> 1deg",
+				"bottom pressure for zonal mean maps",
+				"top pressure for zonal mean maps" };
 		String[] initialTxtValueArr = { "NO",
 				"${WORKSPACE}/data/input/fcst_data", "gfs ecm", ".gfs. .ecm.",
 				"anl 1 5 10", "00", "20140201", "28", "26", "G2", "1000", "1" };
@@ -392,6 +506,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			theStep6ConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
 			theStep6ConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes6 = theNotes6 + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 	}
 
@@ -486,7 +603,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theTopLevelConfigPanel.add(theTopLevelConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints resetBtnCons = topLevelConfigPanelLayout
 				.getConstraints(theTopLevelConfigResetBtn);
 		resetBtnCons.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -495,6 +612,16 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "Notes" button
+		theTopLevelConfigPanel.add(theNotesTopBtn);
+		// Position "Notes" button
+		SpringLayout.Constraints resetBtnCons1 = topLevelConfigPanelLayout
+				.getConstraints(theNotesTopBtn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 	}
 
 	// Display step 1 config panel
@@ -576,7 +703,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theStep1ConfigPanel.add(theStep1ConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints resetBtnCons = step1ConfigPanelLayout
 				.getConstraints(theStep1ConfigResetBtn);
 		resetBtnCons.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -584,6 +711,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setY(Spring.constant(yPos + 3 * SPACER));
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
+		// Add "Notes" button
+		theStep1ConfigPanel.add(theNotes1Btn);
+		// Position "Notes" button
+		SpringLayout.Constraints resetBtnCons1 = step1ConfigPanelLayout
+				.getConstraints(theNotes1Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 	}
 
 	// Display step 2 config panel
@@ -660,6 +798,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setY(Spring.constant(yPos + 3 * SPACER));
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
+		// Add "reset" button
+		theStep2ConfigPanel.add(theNotes2Btn);
+		// Position "save" button
+		SpringLayout.Constraints resetBtnCons1 = step2ConfigPanelLayout
+				.getConstraints(theNotes2Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 	}
 
 	// Display step 3 config panel
@@ -750,6 +899,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "reset" button
+		theStep3ConfigPanel.add(theNotes3Btn);
+		// Position "save" button
+		SpringLayout.Constraints resetBtnCons1 = step3ConfigPanelLayout
+				.getConstraints(theNotes3Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
 	}
 
 	// Display step 4 config panel
@@ -825,6 +985,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setY(Spring.constant(yPos + 3 * SPACER));
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
+		// Add "reset" button
+		theStep4ConfigPanel.add(theNotes4Btn);
+		// Position "save" button
+		SpringLayout.Constraints resetBtnCons1 = step4ConfigPanelLayout
+				.getConstraints(theNotes4Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
 	}
 
@@ -916,6 +1087,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "reset" button
+		theStep5ConfigPanel.add(theNotes5Btn);
+		// Position "save" button
+		SpringLayout.Constraints resetBtnCons1 = step5ConfigPanelLayout
+				.getConstraints(theNotes5Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
 	}
 
 	// Display step 6 config panel
@@ -1006,6 +1188,17 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		resetBtnCons.setWidth(Spring.constant(BUTTON_WIDTH));
 		resetBtnCons.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "reset" button
+		theStep6ConfigPanel.add(theNotes6Btn);
+		// Position "save" button
+		SpringLayout.Constraints resetBtnCons1 = step6ConfigPanelLayout
+				.getConstraints(theNotes6Btn);
+		resetBtnCons1.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		resetBtnCons1.setY(Spring.constant(yPos + 3 * SPACER));
+		resetBtnCons1.setWidth(Spring.constant(BUTTON_WIDTH));
+		resetBtnCons1.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
+
 	}
 
 	public void actionPerformed(ActionEvent e) {
@@ -1085,6 +1278,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		case "toplevelReset":
 			resetTopLevel();
 			break;
+		case "NotesTop":
+			displayNotes(theNotesTop);
+			break;
 		case "step1Save":
 			try {
 				saveChangesStep1();
@@ -1095,6 +1291,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "step1Reset":
 			resetStep1();
+			break;
+		case "Notes1":
+			displayNotes(theNotes1);
 			break;
 		case "step2Save":
 			try {
@@ -1107,6 +1306,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		case "step2Reset":
 			resetStep2();
 			break;
+		case "Notes2":
+			displayNotes(theNotes2);
+			break;
 		case "step3Save":
 			try {
 				saveChangesStep3();
@@ -1117,6 +1319,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "step3Reset":
 			resetStep3();
+			break;
+		case "Notes3":
+			displayNotes(theNotes3);
 			break;
 		case "step4Save":
 			try {
@@ -1129,6 +1334,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		case "step4Reset":
 			resetStep4();
 			break;
+		case "Notes4":
+			displayNotes(theNotes4);
+			break;
 		case "step5Save":
 			try {
 				saveChangesStep5();
@@ -1140,6 +1348,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		case "step5Reset":
 			resetStep5();
 			break;
+		case "Notes5":
+			displayNotes(theNotes5);
+			break;
 		case "step6Save":
 			try {
 				saveChangesStep6();
@@ -1150,6 +1361,9 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "step6Reset":
 			resetStep6();
+			break;
+		case "Notes6":
+			displayNotes(theNotes6);
 			break;
 		}
 
@@ -1503,6 +1717,12 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						.setText(theStep6ConfigTxtInitValueArr[index]);
 			}
 		}
+	}
+
+	// Display notes
+	public void displayNotes(String aStr) {
+		JOptionPane.showMessageDialog(null, aStr, "InfoBox:",
+				JOptionPane.INFORMATION_MESSAGE);
 	}
 
 	// Get directory via "browse" button
