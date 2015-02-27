@@ -450,7 +450,7 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 
 	// Save values in GUI to a file for step 1 config
 	public void saveChanges() throws IOException {
-		int n = saveChangesMsg("ge");
+		int n = saveChangesMsg("hit");
 		if (n == 0) {
 			String filename = DirSetter.getHitRoot();
 
