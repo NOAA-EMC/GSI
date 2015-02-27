@@ -364,8 +364,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 		// Get name of action component
 		String actName = e.getActionCommand();
 
-		System.out.println("actName is (ge) " + actName);
-
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			if (actName.equals(theConfigLblValueArr[index])) {
 				String[] strArr = new String[1];
@@ -415,7 +413,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "hit_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -434,7 +431,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 									+ theRegionRadioBtnArr[index2].getName()
 									+ "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -446,7 +442,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 									+ theYearRadioBtnArr[index2].getName()
 									+ "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -458,7 +453,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 									+ theMeanRadioBtnArr[index2].getName()
 									+ "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -467,7 +461,6 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 					tmpString = "export " + theConfigEnvArr[index] + "=\""
 							+ theConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 			}
 
@@ -509,12 +502,7 @@ public class Hit extends JPanel implements SizeDefinition, ActionListener {
 
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
 			File file = fc.getSelectedFile();
-			System.out.println("dir selected is: " + file.toString());
 			strArr[0] = file.toString();
-			System.out.println("dddd is " + strArr[0]);
-			System.out.println("val " + returnVal);
-		} else {
-			System.out.println("val " + returnVal);
 		}
 
 		return returnVal;

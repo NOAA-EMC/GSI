@@ -189,7 +189,6 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 		else {
 			String tmpStr = "";
 			for (String str : pkgList) {
-				System.out.println(str);
 				tmpStr = tmpStr + str;
 			}
 
@@ -199,7 +198,6 @@ public class IAT extends JPanel implements SizeDefinition, ActionListener,
 			// TODO
 			if (confirmed == true) {
 				// Run FcstDiff
-				System.out.println(paramStr);
 				if (DirSetter.isLinux()) {
 					try {
 						// Run fcstDiff main script in VSDB HOME directory.

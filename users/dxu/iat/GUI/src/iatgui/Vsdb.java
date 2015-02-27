@@ -236,8 +236,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					initialLblValueArr[index]);
 			theTopLevelConfigTxtArr[index] = new JTextArea(
 					initialTxtValueArr[index]);
-			System.out.println("deyong " + initialTxtValueArr[index]);
-
 			theTopLevelConfigBrowseBtnArr[index] = new JButton("Browse");
 		}
 	}
@@ -1014,14 +1012,11 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 		// Get name of action component
 		String actName = e.getActionCommand();
 
-		System.out.println("actName is vsdb" + actName);
-
 		// Check if browse button clicked.
 		for (int index = 0; index < SIZE_TOP_LEVEL; index++) {
 			if (actName.equals(theTopLevelConfigLblValueArr[index])) {
 				String[] strArr = new String[1];
 				int result = getDir(strArr);
-				System.out.println("string is " + strArr[0]);
 				if (result == 0)
 					theTopLevelConfigTxtValueArr[index] = strArr[0];
 				theTopLevelConfigTxtArr[index].setText(strArr[0]);
@@ -1202,7 +1197,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 						+ "=\"" + theTopLevelConfigTxtArr[index].getText()
 						+ "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 
 				// Need to export VSDBHOME, WORKSPACE and gstat explicitly
 				// because they
@@ -1212,7 +1206,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					tmpString = "export " + "VSDBHOME=\""
 							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 
 				// export WORKSPACE
@@ -1220,7 +1213,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					tmpString = "export " + "WORKSPACE=\""
 							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 
 				// export gstat
@@ -1228,7 +1220,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 					tmpString = "export " + "gstat=\""
 							+ theTopLevelConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 
 			}
@@ -1249,7 +1240,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "vsdbStep1_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1264,7 +1254,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep1ConfigEnvArr[index]
 						+ "=\"" + theStep1ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1283,7 +1272,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "vsdbStep2_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1298,7 +1286,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep2ConfigEnvArr[index]
 						+ "=\"" + theStep2ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1317,7 +1304,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "vsdbStep3_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1332,7 +1318,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep3ConfigEnvArr[index]
 						+ "=\"" + theStep3ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1351,7 +1336,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "vsdbStep4_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1366,7 +1350,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep4ConfigEnvArr[index]
 						+ "=\"" + theStep4ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1385,7 +1368,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "vsdbStep5_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1400,7 +1382,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep5ConfigEnvArr[index]
 						+ "=\"" + theStep5ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1418,7 +1399,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				filename = filename + "\\" + "vsdbStep6_gui.config";
 			else
 				filename = filename + "/" + "vsdbStep6_gui.config";
-			System.out.println(filename);
+
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -1433,7 +1414,6 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theStep6ConfigEnvArr[index]
 						+ "=\"" + theStep6ConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -1537,12 +1517,7 @@ public class Vsdb extends JPanel implements SizeDefinition, ActionListener {
 
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
 			File file = fc.getSelectedFile();
-			System.out.println("val " + returnVal);
-			System.out.println("dir selected is: " + file.toString());
 			strArr[0] = file.toString();
-			System.out.println("dddd is " + strArr[0]);
-		} else {
-			System.out.println("val " + returnVal);
 		}
 
 		return returnVal;

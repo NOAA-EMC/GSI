@@ -44,6 +44,9 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 
 	private JButton theConfigSaveBtn = new JButton("Save");
 	private JButton theConfigResetBtn = new JButton("Default");
+	private JButton theNotesBtn = new JButton("Notes");
+
+	private String theNotes = "";
 
 	private JRadioButton[] theAirRadioBtnArr = new JRadioButton[2];
 	// Group the radio buttons.
@@ -73,6 +76,10 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 		theConfigResetBtn.setActionCommand("Reset");
 		theConfigResetBtn.addActionListener(this);
 
+		// Param description buttons
+		theNotesBtn.setActionCommand("Notes");
+		theNotesBtn.addActionListener(this);
+
 		// Step 1 browse button
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			theConfigBrowseBtnArr[index]
@@ -92,10 +99,21 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 
 		String[] initialLblValueArr = { "Workspace Dir", "FcstDiff pkg dir",
 				"CDATE (yyyymmdd)", "edate (ddMMMyyy)", "cycle",
-				"expr names (2)", "model Type of exp 1 (gfs/gdas/ecm)",
+				"expr names (2)", "model type of exp 1 (gfs/gdas/ecm)",
 				"model type of exp 2 (gfs/gdas/ecm)", "input dir of exp 1",
 				"input dir of exp 2", "map air option (yes/no)",
 				"map sfc option (yes/no)", "map uv option (yes/no)" };
+
+		String[] initialLblNoteArr = {
+				"Data directories for input, output and temp data",
+				"FcstDiff pkg location", "Date in format of yyyymmdd",
+				"Date in format of ddMMMyyy", "Cycle information",
+				"Two expr names ",
+				"Model type of exp 1 : choice of gfs/gdas/ecm",
+				"Model type of exp 1 : choice of gfs/gdas/ecm",
+				"Input directory of exp 1", "Input directory of exp 2",
+				"OPtion to make map air data", "Option to make map sfc data",
+				"Option to make map uv data" };
 
 		String[] initialTxtValueArr = {
 				"/data/users/dxu/workspace/fcstDiff_workspace",
@@ -114,6 +132,9 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 			theConfigLblArr[index] = new JLabel(initialLblValueArr[index]);
 			theConfigTxtArr[index] = new JTextArea(initialTxtValueArr[index]);
 			theConfigBrowseBtnArr[index] = new JButton("Browse");
+
+			theNotes = theNotes + initialLblValueArr[index] + " :   "
+					+ initialLblNoteArr[index] + "\n";
 		}
 
 		String airName = "";
@@ -309,7 +330,7 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 
 		// Add "reset" button
 		theConfigPanel.add(theConfigResetBtn);
-		// Position "save" button
+		// Position "reset" button
 		SpringLayout.Constraints contraint_5 = configPanelLayout
 				.getConstraints(theConfigResetBtn);
 		contraint_5.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
@@ -318,14 +339,22 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 		contraint_5.setWidth(Spring.constant(BUTTON_WIDTH));
 		contraint_5.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 
+		// Add "Notes" button
+		theConfigPanel.add(theNotesBtn);
+		// Position "ParamDescr" button
+		SpringLayout.Constraints contraint_6 = configPanelLayout
+				.getConstraints(theNotesBtn);
+		contraint_6.setX(Spring.constant(xPos + LBL_WIDTH + SPACER
+				+ BUTTON_WIDTH + SPACER + BUTTON_WIDTH + SPACER));
+		contraint_6.setY(Spring.constant(yPos + 3 * SPACER));
+		contraint_6.setWidth(Spring.constant(BUTTON_WIDTH));
+		contraint_6.setHeight(Spring.constant(2 * BUTTON_HEIGHT));
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// Get name of action component
 		String actName = e.getActionCommand();
-
-		System.out.println("actName is (fcstDiff) " + actName);
 
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			if (actName.equals(theConfigLblValueArr[index])) {
@@ -350,6 +379,9 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 			break;
 		case "Reset":
 			resetConfig();
+			break;
+		case "Notes":
+			displayNotes();
 			break;
 		}
 
@@ -376,7 +408,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/" + "fcstDiff_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -396,7 +427,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 									+ theAirRadioBtnArr[index2].getName()
 									+ "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -408,7 +438,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 									+ theSfcRadioBtnArr[index2].getName()
 									+ "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -419,7 +448,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 									+ "=\""
 									+ theUvRadioBtnArr[index2].getName() + "\"";
 							print_line.printf("%s%n", tmpString);
-							System.out.println(tmpString);
 							break;
 						}
 					}
@@ -427,7 +455,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 					tmpString = "export " + theConfigEnvArr[index] + "=\""
 							+ theConfigTxtArr[index].getText() + "\"";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 
 				// Copy ENV_WORKSPACE to WORKSPACE to keep the same naming
@@ -435,7 +462,6 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 				if (index == 1) {
 					tmpString = "export WORKSPACE=${ENV_WORKSPACE_DIR}";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 			}
 
@@ -461,6 +487,12 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 		}
 	}
 
+	// Display notes
+	public void displayNotes() {
+		JOptionPane.showMessageDialog(null, theNotes, "InfoBox:",
+				JOptionPane.INFORMATION_MESSAGE);
+	}
+
 	// Get directory via "browse" button
 	public int getDir(String[] strArr) {
 		// Create the log first, because the action listeners
@@ -473,12 +505,7 @@ public class FcstDiff extends JPanel implements SizeDefinition, ActionListener {
 
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
 			File file = fc.getSelectedFile();
-			System.out.println("dir selected is: " + file.toString());
 			strArr[0] = file.toString();
-			System.out.println("dddd is " + strArr[0]);
-			System.out.println("val " + returnVal);
-		} else {
-			System.out.println("val " + returnVal);
 		}
 
 		return returnVal;

@@ -232,8 +232,6 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 		// Get name of action component
 		String actName = e.getActionCommand();
 
-		System.out.println("actName is (radmon) " + actName);
-
 		for (int index = 0; index < ENV_VAR_SIZE; index++) {
 			if (actName.equals(theConfigLblValueArr[index])) {
 				String[] strArr = new String[1];
@@ -291,7 +289,6 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 			else
 				filename = filename + "/parm/" + "radmon_gui.config";
 
-			System.out.println(filename);
 			FileWriter configFile = new FileWriter(filename, false);
 			PrintWriter print_line = new PrintWriter(configFile);
 
@@ -305,14 +302,12 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 				String tmpString = "export " + theConfigEnvArr[index] + "=\""
 						+ theConfigTxtArr[index].getText() + "\"";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 
 				// Copy ENV_WORKSPAC E to WORKSPACE to keep the same naming
 				// convention: ENV_VARNAME
 				if (index == 1) {
 					tmpString = "export WORKSPACE=${ENV_WORKSPACE}";
 					print_line.printf("%s%n", tmpString);
-					System.out.println(tmpString);
 				}
 			}
 
@@ -320,11 +315,9 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 				// Save values in GUI into file
 				String tmpString = "export ENV_RUN_STEP=1";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			} else if (theStep2RadioBtn.isSelected()) {
 				String tmpString = "export ENV_RUN_STEP=2";
 				print_line.printf("%s%n", tmpString);
-				System.out.println(tmpString);
 			}
 
 			// Close PrintWriter
@@ -361,14 +354,9 @@ public class Radmon extends JPanel implements SizeDefinition, ActionListener {
 
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
 			File file = fc.getSelectedFile();
-			System.out.println("dir selected is: " + file.toString());
 			strArr[0] = file.toString();
-			System.out.println("dddd is " + strArr[0]);
-			System.out.println("val " + returnVal);
-		} else {
-			System.out.println("val " + returnVal);
 		}
-
+		
 		return returnVal;
 	}
 
