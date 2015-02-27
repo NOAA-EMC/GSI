@@ -15,7 +15,7 @@ function get_fd_data
    for loc in ${locs}
    do
        cd ${loc}
-       files=`find . -type f -name "*.gif"  `
+       files=`find . -type f -name "*500*.gif"  `
        for file in $files
        do 
           file_list="${file_list} ${loc}/${file}"
@@ -128,6 +128,26 @@ function get_vsdb_data
    echo $file_list
 }
 
+function get_score_data
+{
+   local file_list=""
+   locs=$@
+   for loc in ${locs}
+   do
+
+       cd ${loc}
+       files=`ls *html *.css `
+       for file in $files
+       do
+          file_list="${file_list} ${loc}/${file}"
+       done
+
+   done
+   
+   # Return file list 
+   echo $file_list
+}
+
 
 # Get GUI src directory
 gui_dir=`pwd`
@@ -151,7 +171,8 @@ fi
 # Pakcage names expected are: fd, ge, hit, radmon and vsdb
 pkgs=$@
 
-all_file_list="${gui_dir}/iat_title.png "
+all_file_list="${gui_dir}/../data/iat_title.png "
+score_file_list="${gui_dir}/../data/vsdb_title.png "
 
 for pkg in $pkgs 
 do
@@ -163,7 +184,7 @@ do
        then
 	  cat ${fd_dir}/fcstDiff_data_loc 
 	  locs=`cat ${fd_dir}/fcstDiff_data_loc  `
-	  all_file_list="${all_file_list} ${gui_dir}/fd_title.png $(get_fd_data ${locs}) "
+	  all_file_list="${all_file_list} ${gui_dir}/../data/fd_title.png $(get_fd_data ${locs}) "
        fi
        ;;
    "ge") 
@@ -172,7 +193,7 @@ do
        then
           cat ${ge_dir}/ge_data_loc 
           locs=`cat ${ge_dir}/ge_data_loc   `
-          all_file_list="${all_file_list} ${gui_dir}/ge_title.png $(get_ge_data ${locs}) "
+          all_file_list="${all_file_list} ${gui_dir}/../data/ge_title.png $(get_ge_data ${locs}) "
        fi
        ;;
    "hit") 
@@ -181,7 +202,7 @@ do
        then
 	  cat ${hit_dir}/hit_data_loc 
 	  locs=`cat ${hit_dir}/hit_data_loc  `
-	  all_file_list="${all_file_list} ${gui_dir}/hit_title.png $(get_hit_data ${locs}) "
+	  all_file_list="${all_file_list} ${gui_dir}/../data/hit_title.png $(get_hit_data ${locs}) "
        fi
        ;;
    "radmon") 
@@ -190,7 +211,7 @@ do
        then
 	  cat ${radmon_dir}/radmon_data_loc 
 	  locs=`cat ${radmon_dir}/radmon_data_loc  `
-	  all_file_list="${all_file_list} ${gui_dir}/radmon_title.png $(get_radmon_data ${locs}) "
+	  all_file_list="${all_file_list} ${gui_dir}/../data/radmon_title.png $(get_radmon_data ${locs}) "
        fi
        ;;
    "vsdb") 
@@ -199,9 +220,13 @@ do
        then
 	  cat ${vsdb_dir}/vsdb_data_loc  
 	  locs=`cat ${vsdb_dir}/vsdb_data_loc   `
-	  all_file_list="${all_file_list} ${gui_dir}/vsdb_title.png $(get_vsdb_data ${locs}) "
-	  #locs=`cat ${vsdb_dir}/vsdb_score_loc `
-	  #all_file_list="${all_file_list} ${gui_dir}/vsdb_title.png $(get_vsdb_data ${locs}) "
+	  all_file_list="${all_file_list} ${gui_dir}/../data/vsdb_title.png $(get_vsdb_data ${locs}) "
+       fi
+       if [ -e ${vsdb_dir}/vsdb_score_loc ]
+       then
+	  cat ${vsdb_dir}/vsdb_score_loc
+	  locs=`cat ${vsdb_dir}/vsdb_score_loc `
+	  score_file_list="$(get_score_data ${locs}) "
        fi
        ;;
    esac
@@ -212,6 +237,7 @@ echo "${all_file_list} "
 echo "------------------------------"
 
 convert ${all_file_list}  ${gui_dir}/par.pdf
+cp ${score_file_list} ${gui_dir}/score
 exit
 
 
