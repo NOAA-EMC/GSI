@@ -224,8 +224,8 @@ do jj=1,nsubwin
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
       if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
-         if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter',cv_sfwter,istatus)
-         if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter',cv_vpwter,istatus)
+         call gsi_bundlegetpointer (wbundle,'sfwter',cv_sfwter,istatus)
+         call gsi_bundlegetpointer (wbundle,'vpwter',cv_vpwter,istatus)
          allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
                   uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
          call getuv(uland,vland,cv_sf,cv_vp,0)

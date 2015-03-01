@@ -1047,7 +1047,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
        else
           if(use_gfs_nemsio)then
-             call write_nemsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+             call write_nemsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
                aux_z,aux_ps,&
                aux_tv,aux_q,&
                aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &

@@ -68,7 +68,7 @@ module general_commvars_mod
 
 ! Declare types
 
-   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s1q4,s2g4,s2guv,s2g_d,g1,g3,g33p1
+   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s1q4,s1g4,s2g4,s2guv,s2g_d,g1,g3,g33p1
 
 contains
 
@@ -115,6 +115,8 @@ contains
 !     character(len=8) names(4*nsig+2)
       character(len=64) names2(2,2*nsig+1)
       integer(i_kind) lnames2(2,2*nsig+1)
+      character(len=64) names3(1,4*nsig+1)
+      integer(i_kind) lnames3(1,4*nsig+1)
 
 
 !  create general_sub2grid structure variable s2g_raf, which is used in sub2grid.f90
@@ -278,26 +280,26 @@ contains
       kk=0
       do k=1,nsig
          kk=kk+1
-         names2(1,kk)='u'
-         lnames2(1,kk)=k
+         names3(1,kk)='u'
+         lnames3(1,kk)=k
       end do
       do k=1,nsig
          kk=kk+1
-         names2(1,kk)='v'
-         lnames2(1,kk)=k
+         names3(1,kk)='v'
+         lnames3(1,kk)=k
       end do
       do k=1,nsig
          kk=kk+1
-         names2(1,kk)='t'
-         lnames2(1,kk)=k
+         names3(1,kk)='t'
+         lnames3(1,kk)=k
       end do
       do k=1,nsig+1
          kk=kk+1
-         names2(1,kk)='prse'
-         lnames2(1,kk)=k
+         names3(1,kk)='prse'
+         lnames3(1,kk)=k
       end do
       call general_sub2grid_create_info(s1g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
-                                names=names2,lnames=lnames2,s_ref=s2g_raf)
+                                names=names3,lnames=lnames3,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2g2, used in getprs.f90
 

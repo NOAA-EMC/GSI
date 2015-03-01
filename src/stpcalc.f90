@@ -254,7 +254,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
   real(r_quad),dimension(4,nobs_bins):: pbcqmin,pbcqmax
-  real(r_quad) :: dirx_yhat,diry_xhat,xhat_yhat,dirx_diry
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   

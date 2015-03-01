@@ -2634,31 +2634,29 @@ subroutine beta12mult(grady)
        write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
        call stop2(999)
     endif
-    do ii=1,nsubwin
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i)
-       do j=1,lon2
+!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,k,j,i)
+    do j=1,lon2
+       do ii=1,nsubwin
   
 !      multiply by betas_inv first:
          do ic3=1,nc3d
 !    check for ozone and skip if oz_univ_static = true
-            if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
             do k=1,nsig
-              do i=1,lat2
-                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
-              end do
+              grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k)
             enddo
          enddo
          do ic2=1,nc2d
 ! Default to static B estimate for SST
             if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-            do i=1,lat2
-               grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
-            end do
+            grady%step(ii)%r2(ipc2d(ic2))%q(:,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(:,j)
          enddo
 
        end do
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
-       do j=1,grd_ens%lon2
+    end do
+!$omp parallel do schedule(dynamic,1) private(ii,nn,k,j,i)
+    do j=1,grd_ens%lon2
+       do ii=1,nsubwin
 !      next multiply by betae_inv:
          do nn=1,n_ens
           do k=1,nsig
@@ -3984,11 +3982,9 @@ subroutine hybens_localization_setup
          read(lunin,101) s_ens_hv(k),s_ens_vv(k)
        end do
        close(lunin)
-       if(regional)then
-          nz=grd_ens%nsig
-          kl=grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-          allocate( s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
-       end if
+      nz=msig
+     kl=grd_loc%kend_alloc-grd_loc%kbegin_loc+1
+     allocate( s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
     else 
       write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
       call stop2(999)
@@ -3999,13 +3995,11 @@ subroutine hybens_localization_setup
   else
 !          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
 !                                                      rungsi62_hyb_dualres.sh)
+     kl=1
+     allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
      s_ens_hv=s_ens_h
      s_ens_vv=s_ens_v
-     if(regional)then
-        kl=1
-        allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
-        nz=1
-     end if
+     nz=1
   end if
 
 ! Set up localization filters
@@ -4023,9 +4017,8 @@ subroutine hybens_localization_setup
         call init_rf_x(s_ens_h_gu_x,kl)
         call init_rf_y(s_ens_h_gu_y,kl)
      endif
-     call normal_new_factorization_rf_x
-     call normal_new_factorization_rf_y
-     deallocate( s_ens_h_gu_x,s_ens_h_gu_y)
+        call normal_new_factorization_rf_x
+        call normal_new_factorization_rf_y
   else
      call init_sf_xy(jcap_ens)
   end if

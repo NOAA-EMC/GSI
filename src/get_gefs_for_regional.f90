@@ -47,6 +47,7 @@ subroutine get_gefs_for_regional
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
   use general_sub2grid_mod, only: general_suba2sube,general_sube2suba
+  use general_sub2grid_mod, only: general_sub2grid_destroy_info
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
@@ -55,12 +56,13 @@ subroutine get_gefs_for_regional
   use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
+  use mpimod, only: npe
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   implicit none
 
-  type(sub2grid_info) grd_gfs,grd_mix
+  type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs
   real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl,prsl1000
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
@@ -88,7 +90,7 @@ subroutine get_gefs_for_regional
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
-  integer(i_kind) nord_g2r
+  integer(i_kind) nord_g2r,num_fieldst
   logical,allocatable :: vector(:)
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
@@ -250,9 +252,12 @@ subroutine get_gefs_for_regional
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
+  num_fieldst=min(num_fields,npe)
   allocate(vector(num_fields))
   vector=.false.
   vector(1:2*nsig_gfs)=uv_hyb_ens
+  call general_sub2grid_create_info(grd_gfst,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fieldst, &
+                                  .not.regional)
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
   jcap_gfs=sighead%jcap
@@ -307,9 +312,9 @@ subroutine get_gefs_for_regional
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if(use_gfs_nemsio)then
-        call read_nemsatm(grd_gfs,filename,mype,sp_gfs,sp_gfs,uv_hyb_ens,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+        call read_nemsatm(grd_gfst,filename,mype,sp_gfs,sp_gfs,uv_hyb_ens,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
      else
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
                z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
      end if
      inithead = .false.
@@ -1070,6 +1075,9 @@ subroutine get_gefs_for_regional
      end do
   end do
 
+  call general_sub2grid_destroy_info(grd_gfs)
+  call general_sub2grid_destroy_info(grd_mix)
+  call general_sub2grid_destroy_info(grd_gfst)
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
   deallocate(st_eg,vp_eg,t_eg,rh_eg)
