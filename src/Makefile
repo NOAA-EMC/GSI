@@ -252,6 +252,7 @@ clean:
 	enorm_state.f90 \
 	ensctl2state.f90 \
 	ensctl2model.f90 \
+        en_perts_io.f90 \
 	evaljgrad.f90 \
 	evaljo.f90 \
 	evalqlim.f90 \
@@ -284,11 +285,6 @@ clean:
 	getsiga.f90 \
 	getuv.f90 \
 	getvvel.f90 \
-        gfs_gscond_ad.f90 \
-        gfs_gscond_tl.f90 \
-        gfs_moistphys_mod.f90 \
-        gfs_precip_tl.f90 \
-        gfs_precip_ad.f90 \
 	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
@@ -341,6 +337,7 @@ clean:
 	intpw.f90 \
 	intq.f90 \
 	intrad.f90 \
+        intrp_msk.f90 \
 	intrp2a.f90 \
 	intrp3oz.f90 \
 	intrw.f90 \
@@ -402,8 +399,8 @@ clean:
 	ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
-        normal_rhtot_mod.f90 \
 	nstio_module.f90 \
+	Nst_Var_ESMFMod.f90 \
         obserr_allsky_mw.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
@@ -522,7 +519,6 @@ clean:
 	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
-        tsen_to_tv.f90 \
         tune_pbl_height.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
@@ -556,8 +552,8 @@ clean:
 	oneobmod.F90 \
 	radinfo.f90 \
 	read_Lightning.f90 \
-	read_NASA_LaRC.f90 \
-	read_RadarRef_mosaic.f90 \
+	read_nasa_larc.f90 \
+	read_radarref_mosaic.f90 \
 	read_aerosol.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \
@@ -579,6 +575,7 @@ clean:
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
+	read_nsstbufr.f90 \
 	read_obs.F90 \
 	read_ozone.f90 \
 	read_pblh.f90 \

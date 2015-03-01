@@ -31,17 +31,15 @@ subroutine control2state(xhat,sval,bval)
 !   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
 !                             ensemble_forward_model_dual_res, and related parameters
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - updated for obs adjoint test and added ladtest_obs  
-!   2012-12-10  eliu     - add calls to linearized GFS moisture physics, normalized RH total, and                            
-!                          additional conversion of tsen to tv if linearized GFS moisture physics         
-!                          is turned on 
-!   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !   2013-10-24  todling  - nullify work pointers
 !   2013-10-28  todling  - rename p3d to prse
+!   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
 !   2014-03-19  pondeca  - add wspd10m
 !   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
+!   2014-12-03  derber   - introduce parallel regions for optimization
 !
 !   input argument list:
 !     xhat - Control variable
@@ -58,12 +56,9 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb, ladtest_obs
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional            
 use jfunc, only: nsclen,npclen,ntclen,nrclen
-use jfunc, only: use_rhtot,do_gfsphys  
-use normal_rhtot_mod, only: normal_rhtot_tl,cw2hydro_beta_tl 
 use cwhydromod, only: cw2hydro_tl
-use gfs_moistphys_mod, only: moistphys_tl  
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -89,7 +84,7 @@ character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)      :: hwork
-integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz,ierr
+integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -104,7 +99,6 @@ integer(i_kind) :: icsfwter,icvpwter,ictcamt,iclcbas
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'ql ', 'qi ' /)
-logical :: pdf 
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
@@ -113,7 +107,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
-real(r_kind),pointer,dimension(:,:,:) :: cv_cw=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
 
@@ -127,16 +120,12 @@ real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_wspd10m,sv_tcamt,sv_lcbas
 real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
-real(r_kind),pointer,dimension(:,:,:) :: sv_ql,sv_qi  
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
-real(r_kind),pointer,dimension(:,:,:) :: sv_qc  !emliy
 
 real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
-logical :: do_normal_rhtot_to_q_hydro 
-logical :: do_tsen_to_tv  ! only involoves this when trun do_gfsphys is true    
 
 !******************************************************************************
 
@@ -181,9 +170,6 @@ do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
 do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
-do_normal_rhtot_to_q_hydro=(lc_rh.and.lc_t.and.ls_prse).and.(.not.lc_cw).and. &                 
-                           (ls_q.and.ls_ql.and.ls_qi.and.ls_tsen).and.use_rhtot           
-do_tsen_to_tv    =(do_gfsphys .and. lc_cw) .or. (do_gfsphys .and. use_rhtot)
 
 do_cw_to_hydro=.false.
 if (regional) then
@@ -219,17 +205,8 @@ do jj=1,nsubwin
    wbundle=xhat%step(jj)
 
 !  Get pointers to required control variables
-   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
-   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
-   call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
-   call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
-   call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
-   if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
-   if (lc_cw) call gsi_bundlegetpointer (wbundle,'cw',cv_cw,istatus)     
-
    if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter',cv_sfwter,istatus)
    if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter',cv_vpwter,istatus)
-   if (iclcbas >0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
 
    if(ladtest_obs) then
 ! Convert from subdomain to full horizontal field distributed among processors
@@ -238,41 +215,57 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!  Get pointers to required state variables
-   call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
-   call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
-   call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
-   call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-   if (do_normal_rhtot_to_q_hydro) then
-      ierr = 0 
-      if(ls_ql) call gsi_bundlegetpointer (sval(jj),'ql',sv_ql,istatus); ierr=ierr+istatus                      
-      if(ls_qi) call gsi_bundlegetpointer (sval(jj),'qi',sv_qi,istatus); ierr=ierr+istatus                      
-      if (ierr/=0) write(6,*) 'control2state: can not get pointer for sv_ql & sv_qi'                
-   endif
-
 !$omp parallel sections private(istatus)
 
 !$omp section
 
+   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
+   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
       if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
-          allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
-                   uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
+         allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
+                  uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
+         call getuv(uland,vland,cv_sf,cv_vp,0)
+         call getuv(uwter,vwter,cv_sfwter,cv_vpwter,0)
 
-          call getuv(uland,vland,cv_sf,cv_vp,0)
-          call getuv(uwter,vwter,cv_sfwter,cv_vpwter,0)
+         call landlake_uvmerge(sv_u,sv_v,uland,vland,uwter,vwter,1)
+         deallocate(uland,vland,uwter,vwter)
+      else
+         call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
+      end if
+   end if
 
-          call landlake_uvmerge(sv_u,sv_v,uland,vland,uwter,vwter,1)
-          deallocate(uland,vland,uwter,vwter)
-       else
-          call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
-       end if
-    end if
+   if(jj == 1)then
+!    Biases
+      do ii=1,nsclen
+         bval%predr(ii)=xhat%predr(ii)
+      enddo
+
+      do ii=1,npclen
+         bval%predp(ii)=xhat%predp(ii)
+      enddo
+
+      if (ntclen>0) then
+         do ii=1,ntclen
+            bval%predt(ii)=xhat%predt(ii)
+         enddo
+      end if
+   end if
 
 !$omp section
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
+   call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
+   call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
+   call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
+
+   call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
+   call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
+   call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
+
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
@@ -280,29 +273,32 @@ do jj=1,nsubwin
    if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
 
 !  Calculate sensible temperature
-!  if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)  !orig
-   if(do_tv_to_tsen .and. .not. do_normal_rhtot_to_q_hydro) call tv_to_tsen(cv_t,sv_q,sv_tsen)                                                
-!  Convert input normalized rhtot to q and hydrometeors
-   if (do_normal_rhtot_to_q_hydro) then
-      pdf=.true.
-      allocate(sv_qc(lat2,lon2,nsig))
-      call normal_rhtot_tl(cv_rh,cv_t,sv_prse,sv_q,sv_qc,sv_tsen,pdf)
-      if (do_gfsphys) &
-      call moistphys_tl(sv_tsen,sv_q,sv_qc)
-      call cw2hydro_beta_tl(sv_qc,sv_tsen,sv_ql,sv_qi)
-      if (do_tsen_to_tv) &
-      call tsen_to_tv(sv_tsen,sv_q,sv_tv)                      
-      deallocate(sv_qc)
-   else
-!  Call GFS moisture physics (update state variables related to moisture
-!  physics)
-      if (do_gfsphys .and. lc_cw) call moistphys_tl(sv_tsen,sv_q,cv_cw)
-      if (do_tsen_to_tv) call tsen_to_tv(sv_tsen,sv_q,sv_tv)   
-   endif
+   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen) 
 
 !  Copy other variables
-   if (.not. do_tsen_to_tv) &                          
    call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )  
+
+   if (do_cw_to_hydro) then
+!     Case when cloud-vars do not map one-to-one (cv-to-sv)
+!     e.g. cw-to-ql&qi
+      if (.not. do_tv_to_tsen) then
+         allocate(sv_tsen(lat2,lon2,nsig))
+         call tv_to_tsen(cv_t,sv_q,sv_tsen)
+      end if
+      call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
+      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
+   else
+!     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
+!     e.g. cw-to-cw
+      do ic=1,nclouds
+         id=getindex(cvars3d,clouds(ic))
+         if (id>0) then
+             call gsi_bundlegetpointer (sval(jj),clouds(ic),sv_rank3,istatus)
+             call gsi_bundlegetvar     (wbundle, clouds(ic),sv_rank3,istatus)
+         endif
+      enddo
+   end if
+
 !$omp section
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
@@ -323,6 +319,7 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
    end if
    if (icvis >0) then
+      call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
       call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
       !  Convert log(vis) to vis
       call logvis_to_vis(cv_vis,sv_vis)
@@ -356,32 +353,10 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'tcamt', sv_tcamt, istatus )
    end if
    if (iclcbas >0) then 
+      call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
       call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
       ! Convert log(lcbas) to lcbas
       call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
-   end if
-
-!$omp end parallel sections
-
-   if (do_cw_to_hydro) then
-!     Case when cloud-vars do not map one-to-one (cv-to-sv)
-!     e.g. cw-to-ql&qi
-      if (.not. do_tv_to_tsen) then
-         allocate(sv_tsen(lat2,lon2,nsig))
-         call tv_to_tsen(cv_t,sv_q,sv_tsen)
-      end if
-      call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
-      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
-   else
-!     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
-!     e.g. cw-to-cw
-      do ic=1,nclouds
-         id=getindex(cvars3d,clouds(ic))
-         if (id>0) then
-             call gsi_bundlegetpointer (sval(jj),clouds(ic),sv_rank3,istatus)
-             call gsi_bundlegetvar     (wbundle, clouds(ic),sv_rank3,istatus)
-         endif
-      enddo
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together 
@@ -398,6 +373,9 @@ do jj=1,nsubwin
       endif
    enddo
 
+!$omp end parallel sections
+
+! Clean up
    call gsi_bundledestroy(wbundle,istatus)
    if(istatus/=0) then
       write(6,*) trim(myname), ': trouble destroying work bundle'
@@ -406,25 +384,7 @@ do jj=1,nsubwin
 
 end do
 
-! Biases
-do ii=1,nsclen
-   bval%predr(ii)=xhat%predr(ii)
-enddo
-
-do ii=1,npclen
-   bval%predp(ii)=xhat%predp(ii)
-enddo
-
-if (ntclen>0) then
-   do ii=1,ntclen
-      bval%predt(ii)=xhat%predt(ii)
-   enddo
-end if
-
-! Clean up
-if (ngases>0) then
-    deallocate(gases)
-endif
+if (ngases>0)  deallocate(gases)
 
 if (nclouds>0) deallocate(clouds)
 

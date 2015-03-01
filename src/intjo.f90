@@ -34,7 +34,7 @@ end interface
 
 contains
 
-subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
+subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -167,11 +167,11 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !     sval     - solution on grid
 !     sbias
 !     rval
-!     rbias
+!     qpred
 !
 !   output argument list:      
 !     rval     - RHS on grid
-!     rbias
+!     qpred
 !
 ! remarks:
 !     1) if strong initialization, then svalt, svalp, svaluv
@@ -192,7 +192,6 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: zero_quad
 use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
 use bias_predictors, only: predictors
@@ -236,16 +235,14 @@ type(obs_handle), intent(in   ) :: yobs
 type(gsi_bundle), intent(in   ) :: sval
 type(predictors), intent(in   ) :: sbias
 type(gsi_bundle), intent(inout) :: rval
-type(predictors), intent(inout) :: rbias
+real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! Declare local variables
 integer(i_kind) :: i,ier
 real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
-real(r_quad),dimension(max(1,nrclen)):: qpred
 
 
 !******************************************************************************
-  qpred=zero_quad
 
 ! Calculate sensible temperature time derivative
   if(l_foto)then
@@ -291,7 +288,6 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS for pm2_5
   call intpm2_5(yobs%pm2_5,rval,sval)
-
 
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)
@@ -351,20 +347,6 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   call intlcbas(yobs%lcbas,rval,sval)
 
 ! Take care of background error for bias correction terms
-
-  call mpl_allreduce(nrclen,qpvals=qpred)
-
-  do i=1,nsclen
-     rbias%predr(i)=rbias%predr(i)+qpred(i)
-  end do
-  do i=1,npclen
-     rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
-  end do
-  if (ntclen>0) then 
-     do i=1,ntclen
-        rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
-     end do
-  end if
 
 return
 end subroutine intjo_

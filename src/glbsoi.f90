@@ -164,6 +164,7 @@ subroutine glbsoi(mype)
 
   if(mype==0) write(6,*) 'glbsoi: starting ...'
 
+
 ! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
   if(l_hyb_ens) then
      call hybens_grid_setup
@@ -424,4 +425,5 @@ subroutine glbsoi(mype)
   call timer_fnl('glbsoi')
 
 ! End of routine
+
 end subroutine glbsoi
