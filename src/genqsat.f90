@@ -25,7 +25,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
 !   2010-12-17  pagowski - add cmaq
 !   2011-08-15  gu/todling - add pseudo-q2 options
-!   2012-12-03  eliu - add variables & computations related to total water
 !   2014-12-03  derber - add additional threading
 !
 !   input argument list:
@@ -53,11 +52,9 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
-       xa,psat,ttp,half,one_tenth,epsm1
+       xa,psat,ttp,half,one_tenth
   use derivsmod, only:  qgues,dqdt,dqdrh,dqdp
-  use derivsmod, only:  dqsdt,dqsdp,qtgues
   use jfunc, only:  pseudo_q2
-  use jfunc, only:  use_rhtot
   use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
   use guess_grids, only: tropprs,ges_prslavg,ges_psfcavg
   implicit none
@@ -138,7 +135,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 
            tdry = tsen(i,j,k)
            tr = ttp/tdry
-!          unit of saturation vapor pressure (es) is Pascal 
            if (tdry >= ttp .or. .not. ice) then
               es = psat * (tr**xa) * exp(xb*(one-tr))
            elseif (tdry < tmix) then
@@ -153,7 +149,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 
            endif
 
-           pw = onep3*prsl(i,j,k) !pw:[Pa] & prsl:[cb]; convert [cb] to [Pa]   
+           pw = onep3*prsl(i,j,k)    
            esmax = es
            if(lmint(i) < k)then
               esmax=0.1_r_kind*pw
@@ -205,12 +201,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                    desidt = esi * (-xai/tdry + xbi*ttp/(tdry*tdry))
                    desdt = dwdt*esw + w*deswdt - dwdt*esi + (one-w)*desidt
                 endif
-             if (use_rhtot) then                                                            
-                   dqdt(i,j,k) =(desdt/es)*qtgues(i,j,k)                      !dqdt : [1/K]                    
-                   dqsdt(i,j,k)=qsat(i,j,k)*pw*desdt/(es*(pw+epsm1*es))       !dqsdt: [1/K]                    
-                else                                                                      
-                   dqdt(i,j,k)=(desdt/es)*qgues(i,j,k)                                 
-                endif                                                              
                 if(pseudo_q2)then
                   dqdt(i,j,k)=zero
                 else
@@ -218,15 +208,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                 endif
               else
                 dqdt(i,j,k)=zero                                       
-                dqsdt(i,j,k)=zero                                                         
               end if
               if(idpupdate)then
-                if (use_rhtot) then                                            
-                   dqdp(i,j,k) =half*qtgues(i,j,k)/prsl(i,j,k)                ![1/cb]                   
-                   dqsdp(i,j,k)=half*qsat(i,j,k)/((pw+epsm1*es)*0.001_r_kind) !dqsdp: [1/cb]                   
-                else                                                                             
-                   dqdp(i,j,k)=half*qgues(i,j,k)/prsl(i,j,k)                                  
-                endif                                                                 
                 if(pseudo_q2)then
                   dqdp(i,j,k)=zero
                 else
@@ -234,13 +217,10 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                 endif
               else
                 dqdp(i,j,k)=zero
-                dqsdp(i,j,k)=zero                                                   
               end if
             else
               dqdt(i,j,k)=zero
               dqdp(i,j,k)=zero
-              dqsdt(i,j,k)=zero                                                       
-              dqsdp(i,j,k)=zero                                                          
             end if
             dqdrh(i,j,k) = qsat(i,j,k)
            end if

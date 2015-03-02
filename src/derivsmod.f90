@@ -62,10 +62,6 @@ public :: cwgues,cwgues0
 public :: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 public :: w10mgues,howvgues
 public :: qsatg,qgues,dqdt,dqdrh,dqdp
-public :: dqsdt,dqsdp,qtgues                  
-public :: rhtgues,cfgues,qtdist_gues          
-public :: sl,del_si                          
-public :: tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg  
 
 logical :: drv_initialized = .false.
 
@@ -78,11 +74,6 @@ real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp
 real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 real(r_kind),allocatable,dimension(:,:):: w10mgues,howvgues
 real(r_kind),target,allocatable,dimension(:,:,:):: cwgues,cwgues0        
-real(r_kind),target,allocatable,dimension(:,:,:):: dqsdt,dqsdp,qtgues   
-real(r_kind),allocatable,dimension(:,:,:)::rhtgues,cfgues,qtdist_gues                                 
-real(r_kind),allocatable,dimension(:,:,:)::sl,del_si                                                 
-real(r_kind),allocatable,dimension(:,:,:):: tgs,qgs,cwgs,tlrg,qlrg,cwlrg  
-real(r_kind),allocatable,dimension(:,:):: rnlrg                          
 
 ! below this point: declare vars not to be made public
 
@@ -425,7 +416,6 @@ drv_set_=.true.
 !$$$
     use constants, only: zero
     use gridmod, only: lat2,lon2,nsig
-!   use jfunc, only: use_rhtot   
     implicit none
 
     integer(i_kind) i,j,k
@@ -448,49 +438,6 @@ drv_set_=.true.
           end do
        end do
     endif
-!    if (use_rhtot) then
-       allocate(qtgues(lat2,lon2,nsig),&
-            dqsdt(lat2,lon2,nsig),dqsdp(lat2,lon2,nsig))
-       allocate(rhtgues(lat2,lon2,nsig))
-       allocate(cfgues(lat2,lon2,nsig))
-       allocate(qtdist_gues(lat2,lon2,nsig))
-
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                rhtgues(i,j,k)=zero
-                cfgues(i,j,k)=zero
-                qtdist_gues(i,j,k)=zero
-                qtgues(i,j,k)=zero
-                dqsdt(i,j,k)=zero
-                dqsdp(i,j,k)=zero
-             end do
-          end do
-       end do
-!    endif
-
-!    if (use_gfsphys) then
-       allocate(tgs(lat2,lon2,nsig),qgs(lat2,lon2,nsig),cwgs(lat2,lon2,nsig))
-       allocate(tlrg(lat2,lon2,nsig),qlrg(lat2,lon2,nsig),cwlrg(lat2,lon2,nsig))
-       allocate(rnlrg(lat2,lon2))
-       allocate(sl(lat2,lon2,nsig),del_si(lat2,lon2,nsig))
-
-       do j=1,lon2
-          do i=1,lat2
-             rnlrg(i,j)=zero
-             do k=1,nsig
-                tgs(i,j,k)=zero
-                qgs(i,j,k)=zero
-                cwgs(i,j,k)=zero
-                tlrg(i,j,k)=zero
-                qlrg(i,j,k)=zero
-                cwlrg(i,j,k)=zero
-                sl(i,j,k)=zero
-                del_si(i,j,k)=zero
-             end do
-          end do
-       end do
-!    endif
 
     allocate(cwgues(lat2,lon2,nsig))
     allocate(cwgues0(lat2,lon2,nsig))  
@@ -598,19 +545,6 @@ drv_set_=.true.
     if(allocated(vgues)) deallocate(vgues)
     if(allocated(dvisdlog)) deallocate(dvisdlog)
     if(allocated(pgues)) deallocate(pgues)
-    if(allocated(qtgues)) deallocate(qtgues) 
-    if(allocated(dqsdt)) deallocate(dqsdt)    
-    if(allocated(dqsdp)) deallocate(dqsdp)    
-    if(allocated(rhtgues)) deallocate(rhtgues)
-    if(allocated(cfgues)) deallocate(cfgues)          
-    if(allocated(qtdist_gues)) deallocate(qtdist_gues)
-    if(allocated(tgs)) deallocate(tgs)  
-    if(allocated(qgs)) deallocate(qgs)   
-    if(allocated(cwgs)) deallocate(cwgs) 
-    if(allocated(tlrg)) deallocate(tlrg)  
-    if(allocated(qlrg)) deallocate(qlrg)  
-    if(allocated(cwlrg)) deallocate(cwlrg)
-    if(allocated(rnlrg)) deallocate(rnlrg)
     if(allocated(lgues)) deallocate(lgues)
     if(allocated(dlcbasdlog)) deallocate(dlcbasdlog)
     if(allocated(w10mgues)) deallocate(w10mgues)

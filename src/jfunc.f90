@@ -42,7 +42,6 @@ module jfunc
 !   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
 !                         or aircraft_t_bc_pof=.true.
 !   2013-10-30  jung    - added logical clip_supersaturation
-!   2013-12-10  eliu    - add variables realted to total water  
 !   2013-12-10  zhu     - add variables varcw and cwoption
 !   2014-03-19  pondeca - add factw10m
 !   2014-05-07  pondeca - add facthowv
@@ -136,11 +135,9 @@ module jfunc
   public :: factg,factv,factp,factl,R_option,factw10m,facthowv,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
-  public :: use_rhtot,do_gfsphys 
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical clip_supersaturation,R_option
-  logical use_rhtot,do_gfsphys
   logical pseudo_q2
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
@@ -200,8 +197,6 @@ contains
     tsensible=.false.
     lgschmidt=.false.
     diag_precon=.false.
-    use_rhtot=.false.  
-    do_gfsphys=.false. 
     step_start=1.e-4_r_kind
     R_option=.false.
 

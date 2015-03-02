@@ -60,7 +60,7 @@
      factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,use_rhtot,do_gfsphys
+     clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
@@ -287,7 +287,6 @@
 !  12-03-2013 wu        add parameter coef_bw for option:betaflg
 !  12-03-2013 Hu        add parameter grid_ratio_wrfmass for analysis on larger
 !                              grid than mass background grid
-!  12-10-2013 eliu      add logic variables to use RH total, and linearized GFS moisture physics 
 !  12-10-2013 zhu       add cwoption
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
@@ -499,8 +498,7 @@
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
-       use_sp_eqspace,lnested_loops,use_reflectivity,lsingleradob,&
-       use_rhtot,do_gfsphys
+       use_sp_eqspace,lnested_loops,use_reflectivity,lsingleradob
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1099,15 +1097,6 @@
 
 
 ! Check user input for consistency among parameters for given setups.
-
-! RH total check for hybrid option
-  if (l_hyb_ens .and. use_rhtot) then
-     if(mype==0) then
-        write(6,*)'  Invalid option: using normalized RH total is not ready for hybrid option'
-        write(6,*) ' ERROR EXIT FROM GSI'
-     endif
-     call stop2(338)
-  endif
 
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.

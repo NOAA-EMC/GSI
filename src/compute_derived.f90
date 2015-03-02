@@ -63,7 +63,6 @@ subroutine compute_derived(mype,init_pass)
 !                       - efr_q vars move to cloud_efr
 !                       - unlike original code, now all derivates available at all time slots
 !   2013-10-30  jung    - add test and removal of supersaturation
-!   2012-12-03  eliu    - add variables and computations related to total water
 !   2013-02-26  m.kim   - applying qcmin to  ges_cwmr_it
 !   2013-03-04  m.kim   - saving starting ges_cwmr_it(with negative values) as cwgues_original                          
 !   
@@ -86,13 +85,12 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,clip_supersaturation,&
-       use_rhtot,do_gfsphys
+       tendsflag,varq,clip_supersaturation
   use control_vectors, only: cvars3d,cvars2d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
   use mpimod, only: levs_id
-  use guess_grids, only: ges_tsen,ges_qsat,ges_prsl,ges_prsi,ntguessig,nfldsig,&
+  use guess_grids, only: ges_tsen,ges_qsat,ges_prsl,ntguessig,nfldsig,&
        ges_teta,fact_tv
   use guess_grids, only: nfldsig
   use cloud_efr_mod, only: efr_ql
@@ -101,12 +99,9 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: gsi_yderivative_bundle
   use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,lgues,dlcbasdlog,&
        dvisdlog,w10mgues,howvgues,cwgues,cwgues0
-  use derivsmod, only: rhtgues,qtgues,qtdist_gues,cfgues,&
-                     sl,del_si
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
-  use gridmod, only: lat2,lon2,nsig,nlat,nlon,nnnn1o,aeta2_ll,nsig1o  
-  use gridmod, only: istart,rbs2   
+  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o  
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional
@@ -119,8 +114,7 @@ subroutine compute_derived(mype,init_pass)
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,two,one_tenth,half,fv,qmin,qcmin,ten,t0c,five,r0_05 
-  use constants, only: rhctop,rhcbot,dx_min,dx_inv  
+  use constants, only: zero,one,one_tenth,half,fv,qmin,qcmin,ten,t0c,five,r0_05 
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -147,15 +141,11 @@ subroutine compute_derived(mype,init_pass)
   logical ice,fullfield
   integer(i_kind) i,j,k,ii,it,l,l2,iderivative,nrf3_q,istatus,ier
   integer(i_kind) nt,n_actual_clouds
-  integer(i_kind) mm1   
 
-  real(r_kind),parameter:: r0_99=0.99_r_kind  
-  real(r_kind) work1,work2,tem,rcs,qx         
   real(r_kind) dl1,dl2
   real(r_kind) tem4,indexw
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
-  real(r_kind),dimension(nsig):: rhc 
 
   real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten
   real(r_kind),allocatable,dimension(:,:,:):: ges_u_ten
@@ -180,7 +170,6 @@ subroutine compute_derived(mype,init_pass)
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
      call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
-  mm1=mype+1  
 
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
@@ -437,78 +426,6 @@ subroutine compute_derived(mype,init_pass)
       call genqsat(ges_qsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2, &
              nsig,ice,iderivative)
     end do
-  endif
-
-! Calculate sigma levels and delta sigma levels 
-  if (do_gfsphys) then
-     it = ntguessig
-     do j=1,lon2
-        do i=1,lat2
-           do k=1,nsig
-              sl(i,j,k)     = ges_prsl(i,j,k,it)/ges_ps(i,j)
-              del_si(i,j,k) = (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))/ges_ps(i,j)                                                                                
-           end do
-        end do
-     end do
-  endif
-! Calculate cloud cover and total water uniform distribution width
-  if (use_rhtot) then
-     do i=1,lat2
-     ii = i+istart(mm1)-2
-!    ii = min0(max0(1,ii),nlat)
-     ii = max(1,min(ii,nlat))
-     rcs = sqrt(rbs2(ii))
-     tem = (rhctop-rhcbot)/(nsig-one)
-     work1 = (log(one/(rcs*nlon))-dx_min)*dx_inv
-     work1 = max(zero,min(one,work1))
-     work2 = one - work1
-     do j=1,lon2
-        do k=1,nsig
-           qtgues(i,j,k) = ges_q(i,j,k)+ges_cwmr(i,j,k)
-           rhtgues(i,j,k)= qtgues(i,j,k)/qsatg(i,j,k)
-           rhgues(i,j,k) = qgues(i,j,k)/qsatg(i,j,k)
-!          Get critical relative humidity first
-           rhc(k) = rhcbot + tem*(k-1)
-           rhc(k) = r0_99*work1 + rhc(k)*work2
-           rhc(k) = max(zero,min(one,rhc(k)))
-!          Calculate distribution width
-           qx = qsatg(i,j,k)-qgues(i,j,k)
-           if (qx > zero) then
-              if (cwgues(i,j,k) > qcmin) then ! when cloud exists
-                 qtdist_gues(i,j,k) = cwgues(i,j,k)+qx+two*sqrt(cwgues(i,j,k)*qx)                                               
-              else
-                 qtdist_gues(i,j,k) = (one-rhc(k))*qsatg(i,j,k)
-              endif
-           else
-              qtdist_gues(i,j,k) = (one-rhc(k))*qsatg(i,j,k)
-           endif
-!          Add constraint to distribution width to prevent negative total water
-           qtdist_gues(i,j,k) = min(qtdist_gues(i,j,k),qtgues(i,j,k))
-           qtdist_gues(i,j,k) = max(qtdist_gues(i,j,k),qsatg(i,j,k)*0.0001_r_kind)                                                   
-!          Diagnose cloud cover
-           if (rhgues(i,j,k) >= one) then
-              cfgues(i,j,k) = one
-           else
-              qx = qtgues(i,j,k)-qsatg(i,j,k)
-              if (qtdist_gues(i,j,k) > 1.0e-12) then
-                 if (qx <= -qtdist_gues(i,j,k)) then
-                    cfgues(i,j,k) = zero
-                 else if (qx >= qtdist_gues(i,j,k)) then
-                    cfgues(i,j,k) = one
-                 else
-                    cfgues(i,j,k) = half*qx/qtdist_gues(i,j,k)+half
-                 endif
-              else
-                 if (qx > zero) then
-                    cfgues(i,j,k) = one
-                 else
-                    cfgues(i,j,k) = zero
-                 endif
-              endif
-           endif ! RH condition
-        end do ! K-Loop
-     end do ! J-Loop
-     end do ! I-Loop
   endif
 
   call final_vars_('guess')

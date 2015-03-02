@@ -280,7 +280,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
-  use jfunc, only: use_rhtot 
 
   implicit none
 
@@ -391,7 +390,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     if(n_clouds>0) then
        call gsi_metguess_get ( 'clouds::3d', n_actual_clouds, ier )
        if (getindex(cvars3d,'cw')>0 .or. getindex(cvars3d,'ql')>0 .or. getindex(cvars3d,'qi')>0) lcw4crtm=.true.
-       if (getindex(cvars3d,'cw')>0 .or. use_rhtot) lcw4crtm=.true.                                                
                                                                                                                               
        if (mype==0) write(0,*) myname_, " n_clouds, n_actual_clouds: ", n_clouds, n_actual_clouds
 
