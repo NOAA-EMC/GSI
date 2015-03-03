@@ -103,7 +103,7 @@ subroutine glbsoi(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   use constants, only: rearth
   use mpimod, only: npe
   use adjtest_obs, only: adtest_obs
@@ -147,20 +147,27 @@ subroutine glbsoi(mype)
 
   implicit none
 
+  integer(i_kind), parameter :: ntimer=22
+
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   logical laltmin
 
-  integer(i_kind) jiterlast
+  integer(i_kind) jiterlast,i
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
+  real(r_single) :: timer,secnds
+  real(r_single),dimension(ntimer) :: timertot
+
 
 !*******************************************************************************************
 !
 ! Initialize timer for this procedure
   call timer_ini('glbsoi')
+  timer=secnds(0.0)
+  timertot=0.0
 
   if(mype==0) write(6,*) 'glbsoi: starting ...'
 
@@ -171,11 +178,17 @@ subroutine glbsoi(mype)
      call create_ensemble
   end if
 
+  timertot(1)=timertot(1)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! Check for alternative minimizations
   laltmin = lsqrtb.or.lbicg
 
 ! Initialize observer
   call observer_init
+
+  timertot(2)=timertot(2)+secnds(0.0)-timer
+  timer=secnds(0.0)
 
 ! Check GSI options against available number of guess time levels
   if (nfldsig == 1) then
@@ -190,8 +203,14 @@ subroutine glbsoi(mype)
 ! Set cost function
   call create_jfunc
 
+  timertot(3)=timertot(3)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! Read observations and scatter
   call observer_set
+
+  timertot(4)=timertot(4)+secnds(0.0)-timer
+  timer=secnds(0.0)
 
 ! Create/setup background error and background error balance
   if (regional)then
@@ -227,17 +246,29 @@ subroutine glbsoi(mype)
      end if
   end if
 
+  timertot(5)=timertot(5)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! If l_hyb_ens is true, then read in ensemble perturbations
   if(l_hyb_ens) then
      call load_ensemble
      call hybens_localization_setup
   end if
 
+  timertot(6)=timertot(6)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! Set error (variance) for predictors (only use guess)
   call set_predictors_var
 
+  timertot(7)=timertot(7)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! Set errors and create variables for dynamical constraint
   if (ljcdfi) call init_jcdfi
+
+  timertot(8)=timertot(8)+secnds(0.0)-timer
+  timer=secnds(0.0)
 
 ! Read output from previous min.
   if (l4dvar.and.jiterstart>1) then
@@ -259,6 +290,9 @@ subroutine glbsoi(mype)
      endif
   endif
 
+  timertot(9)=timertot(9)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
   jiterlast=miter
   if (lsensrecompute) jiterlast=jiterend
   if (l4dvar) jiterlast=jiterstart
@@ -267,11 +301,17 @@ subroutine glbsoi(mype)
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
+     timertot(10)=timertot(10)+secnds(0.0)-timer
+     timer=secnds(0.0)
+
      if (mype==0) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
         jiter,jiterstart,jiterlast,jiterend
 
 !    Set up right hand side of analysis equation
      call setuprhsall(ndata,mype,.true.,.true.)
+
+     timertot(11)=timertot(11)+secnds(0.0)-timer
+     timer=secnds(0.0)
 
 !    Estimate correlation length for lcbas if R_option==.true.
 !      For this to work we need to have run setuplcbas first to get the weights.
@@ -292,12 +332,18 @@ subroutine glbsoi(mype)
         return
      end if
 
+     timertot(12)=timertot(12)+secnds(0.0)-timer
+     timer=secnds(0.0)
+
      if (jiter<=miter) then
 
 !       Set up right hand side of adjoint of analysis equation
         if (lsensrecompute) lobsensfc=(jiter==jiterend)
         if (lobsensfc.or.iobsconv>0) call init_fc_sens
  
+        timertot(13)=timertot(13)+secnds(0.0)-timer
+        timer=secnds(0.0)
+
 !       Call inner minimization loop
         if (laltmin) then
            if (newpc4pred) then
@@ -320,6 +366,9 @@ subroutine glbsoi(mype)
            if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
            call pcgsoi
         end if
+
+        timertot(14)=timertot(14)+secnds(0.0)-timer
+        timer=secnds(0.0)
 
 !       Save information for next minimization
         if (lobsensfc) then
@@ -353,7 +402,13 @@ subroutine glbsoi(mype)
 
 !       Save output of adjoint of analysis equation
         if (lobsensfc.or.iobsconv>0) call save_fc_sens
+        timertot(15)=timertot(15)+secnds(0.0)-timer
+        timer=secnds(0.0)
+
      endif
+
+     timertot(16)=timertot(16)+secnds(0.0)-timer
+     timer=secnds(0.0)
 
 ! End of outer iteration loop
   end do
@@ -363,6 +418,9 @@ subroutine glbsoi(mype)
 !    If requested, write obs-anl information to output files
      if (write_diag(jiter)) then 
         call setuprhsall(ndata,mype,.true.,.true.)
+        timertot(17)=timertot(17)+secnds(0.0)-timer
+        timer=secnds(0.0)
+
         if (.not. lsqrtb) call pcinfo
         if (any(ditype=='rad') .and. passive_bc) call prad_bias
      end if
@@ -370,6 +428,9 @@ subroutine glbsoi(mype)
 !    Write xhat- and yhat-save for use as a guess for the solution
      if (iguess==0 .or. iguess==1) call write_guess_solution(mype)
   endif
+
+  timertot(18)=timertot(18)+secnds(0.0)-timer
+  timer=secnds(0.0)
 
 ! Deallocate arrays
   if(perturb_obs) call converr_destroy
@@ -391,7 +452,13 @@ subroutine glbsoi(mype)
      if (norsp > 0) call destroy_smooth_polcas
   endif
 
+  timertot(19)=timertot(19)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
   if (l_hyb_ens) call destroy_hybens_localization_parameters
+
+  timertot(20)=timertot(20)+secnds(0.0)-timer
+  timer=secnds(0.0)
 
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
@@ -408,6 +475,9 @@ subroutine glbsoi(mype)
      endif
   endif
 
+  timertot(21)=timertot(21)+secnds(0.0)-timer
+  timer=secnds(0.0)
+
 ! Finalize cost function 
   call destroy_jfunc
 
@@ -419,7 +489,14 @@ subroutine glbsoi(mype)
     call destroy_ensemble
   endif
 
- if(mype==0) write(6,*) 'glbsoi: complete'
+  if(mype==0) write(6,*) 'glbsoi: complete'
+
+  timertot(22)=timertot(22)+secnds(0.0)-timer
+  timer=secnds(0.0)
+  do i=1,ntimer
+     write(300+mype,*) 'timer glbsoi',i,timertot(i)
+  end do
+
 
 ! Finalize timer for this procedure
   call timer_fnl('glbsoi')

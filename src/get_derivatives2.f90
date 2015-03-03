@@ -650,6 +650,7 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
   integer(i_kind) k,i,j,kk
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_suby
+  real(r_kind),dimension(s1g4%nlat,s1g4%nlon) :: tmp1,tmp2
   logical vector
 
   allocate(hwork_sub(1,s1g4%lat2,s1g4%lon2,s1g4%num_fields))
@@ -696,19 +697,32 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
   allocate(hwork(s1g4%inner_vars,s1g4%nlat,s1g4%nlon,s1g4%kbegin_loc:s1g4%kend_alloc))
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
-  hwork = zero
 
   if(regional)then
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(2,k))=='v'
-        call tdelx_reg(hwork_x(1,:,:,k),hwork(1,:,:,k),vector)
-        call tdely_reg(hwork_y(1,:,:,k),hwork(1,:,:,k),vector)
+!$omp parallel sections
+!$omp section
+        tmp1=zero
+        call tdelx_reg(hwork_x(1,:,:,k),tmp1,vector)
+!$omp section
+        tmp2=zero
+        call tdely_reg(hwork_y(1,:,:,k),tmp2,vector)
+!$omp end parallel sections
+        hwork(1,:,:,k)=tmp1(:,:)+tmp2(:,:)
      end do
   else
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.and.trim(s1g4%names(2,k))=='v'
-        call tcompact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-        call tcompact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+!$omp parallel sections
+!$omp section
+        tmp1=zero
+        call tcompact_dlon(tmp1,hwork_x(1,:,:,k),vector)
+!$omp section
+        tmp2=zero
+        call tcompact_dlat(tmp2,hwork_y(1,:,:,k),vector)
+!$omp end parallel sections
+        hwork(1,:,:,k)=tmp1(:,:)+tmp2(:,:)
      end do
   end if
   deallocate(hwork_x,hwork_y)

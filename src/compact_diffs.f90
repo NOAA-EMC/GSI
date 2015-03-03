@@ -741,7 +741,7 @@ end subroutine uv2vordiv
   integer(i_kind) iy,ix,i,j
   real(r_kind) polsu,polsv,polnu,polnv
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
-  real(r_kind),dimension(nlat-2,nlon):: a,b,grid2,grid3,grid1,grid4
+  real(r_kind),dimension(nlat-2,nlon):: a,b,c,d,grid2,grid3,grid1,grid4
 
 
   if(idim <=1) write(6,*) ' error in call to tstvp2uv ',idim
@@ -801,41 +801,31 @@ end subroutine uv2vordiv
   call xdcirdp(grid3,b, &
        coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2), &
        nlon,ny,noq)
-  call tydsphdp(b,grid4, &
+!$omp section
+  call tydsphdp(c,grid4, &
        coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
        nlon,ny,noq)
+!$omp section
+  call xdcirdp(grid1,a, &
+       coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2), &
+       nlon,ny,noq)
+!$omp section
+  call tydsphdp(d,grid2, &
+       coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
+       nlon,ny,noq)
+!$omp end parallel sections
   do j=1,nlon
      do i=1,nlat
         if(i /= 1 .and. i /= nlat)then
 !          NOTE:  Adjoint of first derivative is its negative
-           work(2,i,j)=-b(i-1,j)
+           work(1,i,j)=-(a(i-1,j)+d(i-1,j))
+           work(2,i,j)=-(b(i-1,j)+c(i-1,j))
         else
+           work(1,i,j)=zero
            work(2,i,j)=zero
         end if
      end do
   end do
-!$omp section
-
-  call xdcirdp(grid1,a, &
-       coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2), &
-       nlon,ny,noq)
-
-  call tydsphdp(a,grid2, &
-       coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2), &
-       nlon,ny,noq)
-  do j=1,nlon
-     do i=1,nlat
-        if(i /= 1 .and. i /= nlat)then
-!          NOTE:  Adjoint of first derivative is its negative
-           work(1,i,j)=-a(i-1,j)
-        else
-           work(1,i,j)=zero
-        end if
-     end do
-  end do
-!$omp end parallel sections
-
-
   
   return
   end subroutine tstvp2uv
@@ -1119,8 +1109,8 @@ end subroutine uv2vordiv
   do ix=1,nxh
      ix1=nxh+ix
      do iy=1,ny
-        p(iy,ix )=p(iy,ix )-v1(iy,ix)-v2(iy,ix1)
-        p(iy,ix1)=p(iy,ix1)-v1(iy,ix)+v2(iy,ix1)
+        p(iy,ix )=-(v1(iy,ix)+v2(iy,ix1))
+        p(iy,ix1)= -v1(iy,ix)+v2(iy,ix1)
      enddo
   enddo
   
@@ -2351,7 +2341,6 @@ end subroutine uv2vordiv
   end if
 
 ! adjoint of y derivative on sphere
-  work2=zero
   call tydsphdp(work2,grid4, &
        coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2),&
        nlon,ny,noq)

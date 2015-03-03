@@ -157,6 +157,7 @@ subroutine pcgsoi()
 ! Declare passed variables
 
 ! Declare local parameters
+  integer(i_kind), parameter :: ntimer=41
 
 ! Declare local variables  
   logical iout_6,restart,end_iter,llprt,llouter
@@ -182,6 +183,8 @@ subroutine pcgsoi()
   type(control_vector), allocatable, dimension(:) :: cglworkhat
   integer(i_kind) :: iortho
   real(r_quad) :: zdla
+  real(r_single) :: timer,secnds 
+  real(r_single),dimension(ntimer) :: timertot
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
 !     inmi generates a linear correction to t,u,v,p.  already have xhatuv which can
@@ -195,6 +198,8 @@ subroutine pcgsoi()
 
 ! Initialize timer
   call timer_ini('pcgsoi')
+  timer=secnds(0.0) 
+  timertot=0.0 
 
   if (ladtest) call adtest()
 
@@ -233,15 +238,22 @@ subroutine pcgsoi()
   if(anisotropic) converge=1.e-9_r_kind
 
 ! Allocate required memory and initialize fields
+  timertot(1)=timertot(1)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   call init_
+  timertot(2)=timertot(2)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   if(print_diag_pcg)call prt_guess('guess')
 
   lanlerr=.false.
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   if ( ltlint ) nlnqc_iter=.false.
+  timertot(3)=timertot(3)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   call stpjo_setup(yobs,nobs_bins)
-
+  timertot(4)=timertot(4)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -255,6 +267,8 @@ subroutine pcgsoi()
         varqc_iter=one
      endif
 
+     timertot(5)=timertot(5)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      do ii=1,nobs_bins
         rval(ii)=zero
      end do
@@ -264,7 +278,11 @@ subroutine pcgsoi()
 !    Convert from control space directly to physical
 !    space for comparison with obs.
 
+     timertot(6)=timertot(6)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      call control2state(xhat,mval,sbias)
+     timertot(7)=timertot(7)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      if (l4dvar) then
         if (l_hyb_ens) then
            call ensctl2state(xhat,mval(1),eval)
@@ -288,6 +306,8 @@ subroutine pcgsoi()
            end do
         end if
      end if
+     timertot(8)=timertot(8)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
      if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
@@ -295,8 +315,12 @@ subroutine pcgsoi()
         enddo
      end if
 
+     timertot(9)=timertot(9)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
+     timertot(10)=timertot(10)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
      if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
@@ -304,6 +328,8 @@ subroutine pcgsoi()
         enddo
      endif
 
+     timertot(11)=timertot(11)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      if (l4dvar) then
 !       Run adjoint model
         call model_ad(mval,rval,llprt)
@@ -330,8 +356,12 @@ subroutine pcgsoi()
         end if
 
      end if
+     timertot(12)=timertot(12)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 !    Adjoint of convert control var to physical space
      call control2state_ad(mval,rbias,gradx)
+     timertot(13)=timertot(13)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Print initial Jo table
      if (iter==0 .and. print_diag_pcg .and. luse_obsdiag) then
@@ -339,6 +369,8 @@ subroutine pcgsoi()
         call evaljo(zjo,iobs,nprt,llouter)
         call prt_control_norms(gradx,'gradx')
      endif
+     timertot(14)=timertot(14)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Add contribution from background term
 !    grady is being used as a temporary array
@@ -347,6 +379,8 @@ subroutine pcgsoi()
      end do
 
      dprod(3) = qdot_prod_sub(grady,gradx)
+     timertot(15)=timertot(15)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Multiply by background error
      if(anisotropic) then
@@ -355,6 +389,8 @@ subroutine pcgsoi()
      else
         call bkerror(gradx,grady)
      end if
+     timertot(16)=timertot(16)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    first re-orthonormalization
      if(iorthomax>0) then 
@@ -369,6 +405,8 @@ subroutine pcgsoi()
         end if
      end if
 
+     timertot(17)=timertot(17)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
      if(l_hyb_ens) then
@@ -387,6 +425,8 @@ subroutine pcgsoi()
         call beta12mult(grady)
 
      end if
+     timertot(18)=timertot(18)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    second re-orthonormalization
      if(iorthomax>0) then
@@ -410,6 +450,8 @@ subroutine pcgsoi()
 
 !    Add potential additional preconditioner 
      if(diag_precon)call precond(grady)
+     timertot(19)=timertot(19)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
      if (lanlerr) then
         do i=1,nclen
@@ -420,6 +462,8 @@ subroutine pcgsoi()
      if (iter==0 .and. print_diag_pcg) then
         call prt_control_norms(grady,'grady')
      endif
+     timertot(20)=timertot(20)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
@@ -443,6 +487,8 @@ subroutine pcgsoi()
         b=zero
      endif
      if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
+     timertot(21)=timertot(21)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Calculate new search direction
      if (.not. restart) then
@@ -458,17 +504,14 @@ subroutine pcgsoi()
 !$omp section
         if(diag_precon)then
           do i=1,nclen
-             diry%values(i)=dirw%values(i)
-          end do
-        end if
-        do i=1,nclen
-           diry%values(i)=-gradx%values(i)+b*diry%values(i)
-        end do
-        if(diag_precon)then
-          do i=1,nclen
+             diry%values(i)=-gradx%values(i)+b*dirw%values(i)
              dirw%values(i)=diry%values(i)
           end do
           call precond(diry)
+        else
+           do i=1,nclen
+              diry%values(i)=-gradx%values(i)+b*diry%values(i)
+           end do
         end if
 !$omp end parallel sections
      else
@@ -477,9 +520,13 @@ subroutine pcgsoi()
         call read_guess_solution(dirx,diry,mype)
         stp=one
      endif
+     timertot(22)=timertot(22)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Convert search direction form control space to physical space
      call control2state(dirx,mval,rbias)
+     timertot(23)=timertot(23)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      if (l4dvar) then
 !       Convert from control space to model space
         if (l_hyb_ens) then
@@ -506,11 +553,15 @@ subroutine pcgsoi()
         end if
 
      end if
+     timertot(24)=timertot(24)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
 
 !    Calculate stepsize
      call stpcalc(stp,sval,sbias,xhat,dirx,rval,rbias, &
                   diry,penalty,penaltynew,fjcost,fjcostnew,end_iter)
 
+     timertot(25)=timertot(25)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
      if (lanlerr) call writeout_gradients(gradx,grady,niter(jiter),stp,b,mype)
 
 !    Diagnostic calculations
@@ -592,6 +643,8 @@ subroutine pcgsoi()
      end if
      pennorm=penx
 
+     timertot(26)=timertot(26)+secnds(0.0)-timer 
+     timer=secnds(0.0) 
   end do inner_iteration
   if(iorthomax>0) then 
      do ii=1,iorthomax+1
@@ -626,13 +679,19 @@ subroutine pcgsoi()
      call clean_
      return
   endif
+  timertot(27)=timertot(27)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 
 ! Update contributions of incremental values from current outer loop
 
   if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
   llprt=(mype==0)
+  timertot(28)=timertot(28)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   call control2state(xhat,mval,sbias)
+  timertot(29)=timertot(29)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   if (l4dvar) then
     if (l_hyb_ens) then
        call ensctl2state(xhat,mval(1),eval)
@@ -651,6 +710,8 @@ subroutine pcgsoi()
        end do
     end if
   end if
+  timertot(30)=timertot(30)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 
   if(print_diag_pcg)then
 
@@ -772,15 +833,21 @@ subroutine pcgsoi()
 888  format(A,5(1X,ES25.18))
 
   end if
+  timertot(31)=timertot(31)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 ! Calculate increments of vorticity/divergence
   call xhat_vordiv_init
   call xhat_vordiv_calc(sval)
 
+  timertot(32)=timertot(32)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 ! Update guess (model background, bias correction) fields
 ! if (mype==0) write(6,*)'pcgsoi: Updating guess'
   if(iwrtinc<=0) call update_guess(sval,sbias)
   if(l_foto) call update_geswtend(xhat_dt)
 
+  timertot(33)=timertot(33)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 ! cloud analysis  after iteration
   if(jiter == miter) then
     if(use_reflectivity) then
@@ -790,18 +857,32 @@ subroutine pcgsoi()
     endif
   endif
 
+  timertot(34)=timertot(34)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 ! Write output analysis files
   if(.not.l4dvar) call prt_guess('analysis')
+  timertot(35)=timertot(35)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   call prt_state_norms(sval(1),'increment')
+  timertot(36)=timertot(36)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
       if(jiter == miter) then
+  timertot(37)=timertot(37)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
          call clean_
+  timertot(38)=timertot(38)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
          call write_all(-1,mype)
+  timertot(39)=timertot(39)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
       endif
   endif
 
+  timertot(40)=timertot(40)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
      call inc2guess(sval)
@@ -819,6 +900,11 @@ subroutine pcgsoi()
 
 ! Clean up major fields
   if (jiter < miter) call clean_
+  timertot(41)=timertot(41)+secnds(0.0)-timer 
+  timer=secnds(0.0) 
+  do i=1,ntimer 
+     write(300+mype,*) 'timer pcgsoi',i,timertot(i) 
+  end do 
 
 ! Finalize timer
   call timer_fnl('pcgsoi')
