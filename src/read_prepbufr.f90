@@ -1524,6 +1524,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
                  if(ppb < r100)toe=toe*r1_2
+                 if (aircraft_t_bc .and. kx==130 .and. ppb>=500.0_r_kind) toe=toe*r10
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
