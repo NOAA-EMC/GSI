@@ -34,10 +34,15 @@ program adderrspec_nmcmeth
 !$$$
 
   use sigio_module
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,&
+       nemsio_readrec,nemsio_writerec
   use mersenne_twister, only: random_setseed, random_number
   implicit none
+
+  real,parameter :: zero=0.0_4
   
-  logical :: meanonly,lexist
+  logical :: meanonly,lexist,nemsio,sigio
   
   character(len=3)   :: charnanal
   character(len=4)   :: string
@@ -46,32 +51,36 @@ program adderrspec_nmcmeth
        datapath,filenameoutmean,fname,filenameoutr
   character(len=10),allocatable,dimension(:):: datepert
 
-  integer :: iargc,iret,numproc,nproc,nanal,nanals
+  integer :: iargc,iret,npe,mype,nanal,nanals
   integer :: nlevs,ntrac,ntrunc,nc,i,j,k,iscalefact
   integer :: iunit,iunitsf,iunitmean,iunitp,iunitpr
   integer :: npert,window,iseed
+  integer:: nrec,latb,lonb,npts,n
   integer,dimension(4) :: iadate,idateout
   integer,allocatable,dimension(:) ::iwork,smoothparm
 
   real :: scalefact,rnanals
   real(8) :: rseed
   real,allocatable,dimension(:):: rwork
+  real,allocatable,dimension(:)   :: rwork1d
 
   type(sigio_head) :: sigheado,sigheadi,sigheadim,sigheadpin
   type(sigio_data) :: sigdata,sigdatai,sigdataim,sigdatap,sigdatapm,sigdatao,sigdatapin
+
+  type(nemsio_gfile) :: gfile, gfileo, gfilei, gfileim, gfilepin
 
 ! mpi definitions.
   include 'mpif.h'
 
 ! -----------------------------------------------------------------------------
 ! MPI setup
-!   nproc is process number, numproc is total number of processes.
+!   mype is process number, npe is total number of processes.
 
   call mpi_init(iret)
-  call mpi_comm_rank(mpi_comm_world,nproc,iret)
-  call mpi_comm_size(mpi_comm_world,numproc,iret)
+  call mpi_comm_rank(mpi_comm_world,mype,iret)
+  call mpi_comm_size(mpi_comm_world,npe,iret)
   
-  if (nproc==0) call w3tagb('ADDERRSPEC_NMCMETH',2011,0319,0055,'NP25')
+  if (mype==0) call w3tagb('ADDERRSPEC_NMCMETH',2011,0319,0055,'NP25')
 
 ! Get command line arguments
 !   nanals,datestring,scalefact,datapath,npert
@@ -101,7 +110,7 @@ program adderrspec_nmcmeth
 ! Hardwire smoothing option
   window = 1 ! cosine bell window for smoothing
 
-  if (nproc == 0) then
+  if (mype == 0) then
      write(6,*)'number of arguments ',iargc(),' meanonly ',meanonly
      write(6,*)' nanals= ',nanals,' rnanals= ',rnanals
      write(6,*)' datestring= ',trim(datestring),' iadate=',iadate
@@ -111,8 +120,8 @@ program adderrspec_nmcmeth
      write(6,*)' window= ',window
   endif
   
-  if (numproc < nanals) then
-     write(6,*)'***ERROR** numproc=',numproc,' too small.  nanals=',nanals
+  if (npe < nanals) then
+     write(6,*)'***ERROR** npe=',npe,' too small.  nanals=',nanals
      flush(6)
      flush(0)
      call mpi_abort(mpi_comm_world,101,iret)
@@ -135,7 +144,7 @@ program adderrspec_nmcmeth
   end do
 
 ! Randomize dates (done on single task)
-  if (nproc == 0) then
+  if (mype == 0) then
      allocate(datepert(npert))
      
 !    Read file with sequential pertubration dates.
@@ -156,7 +165,7 @@ program adderrspec_nmcmeth
      deallocate(datepert)
   endif
 
-! All tasks wait for nproc==0
+! All tasks wait for mype==0
   call mpi_barrier(mpi_comm_world,iret)
   deallocate(rwork,iwork)
 
@@ -168,32 +177,43 @@ program adderrspec_nmcmeth
   iunitp    = 53
   iunitpr   = 54
 
+  sigio=.false.
+  nemsio=.false.
 
 ! Read ensemble mean file for header information
   filenamein = "sfg_"//datestring//"_fhr06_ensmean"
+  call nemsio_init(iret)
   call sigio_sropen(iunit,trim(filenamein),iret)
-  if (iret /= 0) then
-     write(6,*)'***ERROR*** cannot read file ',trim(filenamein),iret
-     flush(6)
-     flush(0)
-     call mpi_abort(mpi_comm_world,101,iret)
-     stop
-  end if
-  call sigio_srhead(iunit,sigheado,iret)
-  call sigio_sclose(iunit,iret)
+  if (iret == 0) then
+     sigio=.true.
+     write(6,*)'Read sigio ',trim(filenamein),' iret=',iret
+     call sigio_srhead(iunit,sigheado,iret)
+     call sigio_sclose(iunit,iret)
+     ntrunc = sigheado%jcap
+     nlevs  = sigheado%levs
+     ntrac  = sigheado%ntrac
+     nlevs  = sigheado%levs
+  else
+     call nemsio_open(gfile,trim(filenamein),'READ',iret)
+     if (iret == 0 ) then
+        nemsio = .true.
+        write(6,*)'Read nemsio ',trim(filenamein),' iret=',iret
+        call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
+             dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, iret=iret)
+     else
+        write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+     endif
+  endif
+  if (.not.nemsio .and. .not.sigio) goto 100
+  if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sigio=',sigio
 
-  ntrunc = sigheado%jcap
-  nlevs  = sigheado%levs
-  ntrac  = sigheado%ntrac
-  nlevs  = sigheado%levs
   nc     = (ntrunc+1)*(ntrunc+2)
-  if (nproc == 0) write(6,*)' read ',trim(filenamein),&
+  if (mype == 0) write(6,*)' read ',trim(filenamein),&
        ' nlevs=',nlevs,' ntrac=',ntrac,' ntrunc=',ntrunc,' nc=',nc
 
 
-
 ! Map processor number to ensemble member
-  nanal = nproc + 1
+  nanal = mype + 1
 
 
 ! Only processors up to nanals have data to process
@@ -223,9 +243,9 @@ program adderrspec_nmcmeth
            read(9,'(i3)') smoothparm(k)
         enddo
         close(9)
-        if (nproc == 0) write(6,*)'smoothparm=',smoothparm
+        if (mype == 0) write(6,*)'smoothparm=',smoothparm
      else
-        if (nproc == 0) write(6,*)'***NOTE*** hybens_smoothinfo not found - no smoothing'
+        if (mype == 0) write(6,*)'***NOTE*** hybens_smoothinfo not found - no smoothing'
      endif
 
 !    Set initial date and forecast hour
@@ -233,20 +253,23 @@ program adderrspec_nmcmeth
      read(datestring(5:6), '(i2)') idateout(2)
      read(datestring(7:8), '(i2)') idateout(3)
      read(datestring(9:10),'(i2)') idateout(1)
-     sigheado%idate = idateout
-     sigheado%fhour = 0.
+     if (sigio) then
+        sigheado%idate = idateout
+        sigheado%fhour = 0.
 
-!    Set ensemble info
-!      http://www.emc.ncep.noaa.gov/gmb/ens/info/ens_grib.html#gribex
-     sigheado%iens(1) = 3 ! pos pert
-     sigheado%iens(2) = nanal ! ensemble member number
-     sigheado%icen2 = 2 ! sub-center, must be 2 or ens info not used
+!       Set ensemble info
+!         http://www.emc.ncep.noaa.gov/gmb/ens/info/ens_grib.html#gribex
+        sigheado%iens(1) = 3 ! pos pert
+        sigheado%iens(2) = nanal ! ensemble member number
+        sigheado%icen2 = 2 ! sub-center, must be 2 or ens info not used
 
-!    Copy sigheado to ensemble mean sigheadim (sigheadim altered later)
-     sigheadim=sigheado
+!       Copy sigheado to ensemble mean sigheadim (sigheadim altered later)
+        sigheadim=sigheado
 
-!    Read each ensemble member analysis.
-     call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
+!       Read each ensemble member analysis.
+        call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
+        elseif (nemsio) then
+        endif
 
   else
      call sigio_aldata(sigheado,sigdatai,iret)
@@ -277,7 +300,7 @@ program adderrspec_nmcmeth
 
 
 !    Write out ensemble mean from task 0
-     if (nproc == 0) then
+     if (mype == 0) then
         sigheadim%iens(1) = 1 ! unperturbed control
         sigheadim%iens(2) = 2 ! low res control
         sigheadim%icen2 = 2 ! sub-center, must be 2 or ens info not used
@@ -359,7 +382,7 @@ program adderrspec_nmcmeth
         call init_sigdata(sigheado,sigdatap)
      endif ! scalefact > 0.
   else
-     write(6,*)'no member to process for nanal=',nanal,' nproc=',nproc
+     write(6,*)'no member to process for nanal=',nanal,' mype=',mype
      call sigio_aldata(sigheado,sigdatap,iret)
      call init_sigdata(sigheado,sigdatap)
   endif
@@ -393,7 +416,7 @@ program adderrspec_nmcmeth
      sigdatap%ps =  sigdatap%ps - sigdatapm%ps
 
 !    Compute total perturbations.
-     if (nproc == 0) write(6,*)'compute total perturbations'
+     if (mype == 0) write(6,*)'compute total perturbations'
      sigdatap%z  = sigdatai%z - sigdataim%z + sigdatap%z
      sigdatap%d  = sigdatai%d - sigdataim%d + sigdatap%d
      sigdatap%t  = sigdatai%t - sigdataim%t + sigdatap%t
@@ -402,7 +425,7 @@ program adderrspec_nmcmeth
 
 !    Optionally smooth perturbations
      if (maxval(smoothparm) > 0) then
-        if (nproc == 0) write(6,*)'call smooth'
+        if (mype == 0) write(6,*)'call smooth'
         call smooth(sigdatap%z,ntrunc,nlevs,smoothparm,window)
         call smooth(sigdatap%d,ntrunc,nlevs,smoothparm,window)
         call smooth(sigdatap%t,ntrunc,nlevs,smoothparm,window)
@@ -414,7 +437,7 @@ program adderrspec_nmcmeth
         end do
         call smooth(sigdatap%ps,ntrunc,1,smoothparm(1),window)
      else
-        if (nproc == 0) write(6,*)'skip call smooth because maxval(smoothparm)=',maxval(smoothparm)
+        if (mype == 0) write(6,*)'skip call smooth because maxval(smoothparm)=',maxval(smoothparm)
      endif
      deallocate(smoothparm)
 
@@ -423,7 +446,7 @@ program adderrspec_nmcmeth
      call copy_sigdata(sigheado,sigdatai,sigdatao)
 
 !    Add mean back in
-     if (nproc == 0) write(6,*)'add mean back in'
+     if (mype == 0) write(6,*)'add mean back in'
      sigdatao%z  = sigdataim%z + sigdatap%z
      sigdatao%d  = sigdataim%d + sigdatap%d
      sigdatao%t  = sigdataim%t + sigdatap%t
@@ -444,17 +467,24 @@ program adderrspec_nmcmeth
 
 
 ! Wait for all tasks to finish
+100 continue
   call mpi_barrier(mpi_comm_world,iret)
-  if (nproc == 0) write(6,*) 'all done!'
+  if (.not.nemsio .and. .not.sigio) then
+     if (mype==0) write(6,*)'***ERROR***  invalid surface file format'
+     call MPI_Abort(MPI_COMM_WORLD,98,iret)
+     stop
+  endif
 
-  if (nproc==0) call w3tage('ADDERRSPEC_NMCMETH')
+  if (mype == 0) write(6,*) 'all done!'
+
+  if (mype==0) call w3tage('ADDERRSPEC_NMCMETH')
   call mpi_finalize(iret)
-  if (nproc == 0 .and. iret .ne. 0) then
+  if (mype == 0 .and. iret .ne. 0) then
      write(6,*)'***ERROR*** MPI_Finalize error status = ',iret
   end if
 
 ! Create log file that can be checked for normal completion
-  if (nproc == 0) then
+  if (mype == 0) then
      open(91,form='formatted',file='adderrspec.log')
      write(91,*) datestring
      close(91)

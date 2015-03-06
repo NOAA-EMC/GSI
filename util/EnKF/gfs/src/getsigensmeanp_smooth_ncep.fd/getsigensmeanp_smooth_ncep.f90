@@ -21,22 +21,33 @@ program getsigensmeanp_smooth
 !$$$
   
   use sigio_module
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
+       nemsio_writerec,nemsio_readrecv,nemsio_writerecv
+
   implicit none
-  
-  logical lexist,dosmooth
+
+  real,parameter :: zero=0.0_4
+
+  logical lexist,dosmooth,nemsio,sigio
   character(len=3) charnanal
   character(len=500) filenamein,filenameout,filenameouts,datapath,fileprefix,fname
   integer iret,nlevs,ntrac,ntrunc,nanals,ngrd,k,iunit,window
   integer nsize2,nsize3,nsize3t
   integer, dimension(:), allocatable :: smoothparm
   integer mype,mype1,npe,orig_group, new_group, new_comm
+  integer:: nrec,latb,lonb,npts,n
   integer,dimension(:),allocatable:: new_group_members
   real(8) rnanals
   real(8),dimension(:,:,:), allocatable :: smoothfact
   real(4),dimension(:),allocatable :: sigdatapert_ps,sigdatapert_z,sigdatapert_d,&
        sigdatapert_t,sigdatapert_q,sigdatapert_oz,sigdatapert_cw
+  real,allocatable,dimension(:)   :: rwork1d,swork1d
+
   type(sigio_head) :: sigheadi,sigheadm
   type(sigio_data) :: sigdatai,sigdatam
+
+  type(nemsio_gfile) :: gfile, gfileo, gfilem, gfilei
 
 ! mpi definitions.
   include 'mpif.h'
@@ -95,9 +106,13 @@ program getsigensmeanp_smooth
      call mpi_abort(mpi_comm_world,101,iret)
   endif
 
+  sigio=.false.
+  nemsio=.false.
 
 ! Process input files (one file per task)
   if (mype1 <= nanals) then
+
+     call nemsio_init(iret)
      
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
@@ -105,15 +120,30 @@ program getsigensmeanp_smooth
      
 !    Read each ensemble member FHDFI forecast.
      call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
-     write(6,*)'Read ',trim(filenamein),' iret=',iret
-     
-     ntrunc  = sigheadi%jcap
-     ntrac   = sigheadi%ntrac
-     nlevs   = sigheadi%levs
+     if (iret == 0 ) then
+        sigio = .true.
+        write(6,*)'Read sigio ',trim(filenamein),' iret=',iret
+        ntrunc  = sigheadi%jcap
+        ntrac   = sigheadi%ntrac
+        nlevs   = sigheadi%levs
+     else
+        call nemsio_open(gfile,trim(filenamein),'READ',iret)
+        if (iret == 0 ) then
+           nemsio = .true.
+           write(6,*)'Read nemsio ',trim(filenamein),' iret=',iret
+           call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
+                dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, iret=iret)
+        else
+           write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+        endif
+     endif
+     if (.not.nemsio .and. .not.sigio) goto 100
+     if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sigio=',sigio
+
+
      nsize2  = (ntrunc+1)*(ntrunc+2)
      nsize3  = nsize2*nlevs
      nsize3t = nsize3*ntrac
-     
      if (mype==0) then
         write(6,*)'Read header information from ',trim(filenamein)
         write(6,*)' ntrunc = ',ntrunc
@@ -124,36 +154,70 @@ program getsigensmeanp_smooth
         write(6,*)' nsize3t= ',nsize3t
      endif
 
-!    Compute ensemble sums.
-     call sigio_aldata(sigheadi,sigdatam,iret)
-     call mpi_allreduce(sigdatai%z,sigdatam%z,  nsize3, mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sigdatai%d,sigdatam%d,  nsize3, mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sigdatai%t,sigdatam%t,  nsize3, mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sigdatai%q,sigdatam%q,  nsize3t,mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sigdatai%ps,sigdatam%ps,nsize2, mpi_real,mpi_sum,new_comm,iret)
-     
-!    Compute ensemble mean on all tasks
-     sigdatam%hs = sigdatai%hs
-     sigdatam%ps = sigdatam%ps*rnanals
-     sigdatam%z  = sigdatam%z*rnanals
-     sigdatam%d  = sigdatam%d*rnanals
-     sigdatam%t  = sigdatam%t*rnanals
-     sigdatam%q  = sigdatam%q*rnanals
+     if (sigio) then
 
-!    Write ensemble mean from task 0
-     if (mype==0) then
-        sigheadm = sigheadi
-        ngrd = sigheadi%nxgr
-        write(6,*)'ngrd=',ngrd
-        if (ngrd>0) sigdatam%xgr = sigdatai%xgr
-        
-        sigheadm%iens(1) = 1 ! unperturbed control
-        sigheadm%iens(2) = 2 ! low res control
-        sigheadm%icen2 = 2 ! sub-center, must be 2 or ens info not used
-        call sigio_swohdc(iunit,filenameout,sigheadm,sigdatam,iret)
-        write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
+!       Compute ensemble sums.
+        call sigio_aldata(sigheadi,sigdatam,iret)
+        call mpi_allreduce(sigdatai%z,sigdatam%z,  nsize3, mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%d,sigdatam%d,  nsize3, mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%t,sigdatam%t,  nsize3, mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%q,sigdatam%q,  nsize3t,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%ps,sigdatam%ps,nsize2, mpi_real,mpi_sum,new_comm,iret)
+     
+!       Compute ensemble mean on all tasks
+        sigdatam%hs = sigdatai%hs
+        sigdatam%ps = sigdatam%ps*rnanals
+        sigdatam%z  = sigdatam%z*rnanals
+        sigdatam%d  = sigdatam%d*rnanals
+        sigdatam%t  = sigdatam%t*rnanals
+        sigdatam%q  = sigdatam%q*rnanals
+
+!       Write ensemble mean from task 0
+        if (mype==0) then
+           sigheadm = sigheadi
+           ngrd = sigheadi%nxgr
+           write(6,*)'ngrd=',ngrd
+           if (ngrd>0) sigdatam%xgr = sigdatai%xgr
+           
+           sigheadm%iens(1) = 1 ! unperturbed control
+           sigheadm%iens(2) = 2 ! low res control
+           sigheadm%icen2 = 2 ! sub-center, must be 2 or ens info not used
+           call sigio_swohdc(iunit,filenameout,sigheadm,sigdatam,iret)
+           write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
+        endif
+        call sigio_axdata(sigdatai,iret)
+     elseif (nemsio) then
+        if (mype==0) then
+           gfileo=gfile
+           call nemsio_open(gfileo,trim(filenameout),'WRITE',iret )
+        end if
+
+        npts=lonb*latb
+        if (.not.allocated(rwork1d)) allocate(rwork1d(npts))
+        if (.not.allocated(swork1d)) allocate(swork1d(npts))
+
+        do n=1,nrec
+           rwork1d=zero
+           call nemsio_readrec (gfile, n,rwork1d,iret)
+           swork1d=zero
+           call mpi_allreduce(rwork1d,swork1d,npts,mpi_real,mpi_sum,new_comm,iret)
+           swork1d = swork1d * rnanals
+
+           if (mype==0) then
+              call nemsio_writerec(gfileo,n,swork1d,iret)
+           end if
+        end do
+
+        deallocate(rwork1d)
+        deallocate(swork1d)
+
+        call nemsio_close(gfile, iret)
+        if (mype==0) then
+           call nemsio_close(gfileo,iret)
+           write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
+        endif
+
      endif
-     call sigio_axdata(sigdatai,iret)
 
 !    Read smoothing parameters, if available
      fname='hybens_smoothinfo'
@@ -188,52 +252,57 @@ program getsigensmeanp_smooth
         filenameouts= trim(adjustl(datapath))// &
              trim(adjustl(fileprefix)) // 's' //'_mem'//charnanal
 
-!       Read each ensemble member FHDFI forecast.
-        call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
+        if (sigio) then
+!          Read each ensemble member FHDFI forecast.
+           call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
         
-        allocate(sigdatapert_z(nsize2),sigdatapert_d(nsize2),sigdatapert_t(nsize2),&
-             sigdatapert_q(nsize2),sigdatapert_oz(nsize2),sigdatapert_cw(nsize2),&
-             sigdatapert_ps(nsize2))
-
-        k=1
-        if (smoothparm(k)>0) then
-           sigdatapert_ps  = sigdatai%ps(:)  - sigdatam%ps(:)
-           call smooth(sigdatapert_ps,ntrunc,smoothfact(:,:,k))
-           sigdatai%ps(:) = sigdatam%ps(:) + sigdatapert_ps
-        endif
-
-        do k=2,nlevs
+           allocate(sigdatapert_z(nsize2),sigdatapert_d(nsize2),sigdatapert_t(nsize2),&
+                sigdatapert_q(nsize2),sigdatapert_oz(nsize2),sigdatapert_cw(nsize2),&
+                sigdatapert_ps(nsize2))
+           
+           k=1
            if (smoothparm(k)>0) then
-              sigdatapert_z  = sigdatai%z(:,k)   - sigdatam%z(:,k)
-              sigdatapert_d  = sigdatai%d(:,k)   - sigdatam%d(:,k)
-              sigdatapert_t  = sigdatai%t(:,k)   - sigdatam%t(:,k)
-              sigdatapert_q  = sigdatai%q(:,k,1) - sigdatam%q(:,k,1)
-              sigdatapert_oz = sigdatai%q(:,k,2) - sigdatam%q(:,k,2)
-              sigdatapert_cw = sigdatai%q(:,k,3) - sigdatam%q(:,k,3)
-              
-              call smooth(sigdatapert_z, ntrunc,smoothfact(:,:,k))
-              call smooth(sigdatapert_d, ntrunc,smoothfact(:,:,k))
-              call smooth(sigdatapert_t, ntrunc,smoothfact(:,:,k))
-              call smooth(sigdatapert_q, ntrunc,smoothfact(:,:,k))
-              call smooth(sigdatapert_oz,ntrunc,smoothfact(:,:,k))
-              call smooth(sigdatapert_cw,ntrunc,smoothfact(:,:,k))
-              
-              sigdatai%z(:,k)   = sigdatam%z(:,k)   + sigdatapert_z
-              sigdatai%d(:,k)   = sigdatam%d(:,k)   + sigdatapert_d
-              sigdatai%t(:,k)   = sigdatam%t(:,k)   + sigdatapert_t
-              sigdatai%q(:,k,1) = sigdatam%q(:,k,1) + sigdatapert_q
-              sigdatai%q(:,k,2) = sigdatam%q(:,k,2) + sigdatapert_oz
-              sigdatai%q(:,k,3) = sigdatam%q(:,k,3) + sigdatapert_cw
-              
+              sigdatapert_ps  = sigdatai%ps(:)  - sigdatam%ps(:)
+              call smooth(sigdatapert_ps,ntrunc,smoothfact(:,:,k))
+              sigdatai%ps(:) = sigdatam%ps(:) + sigdatapert_ps
            endif
-        end do
-        deallocate(sigdatapert_z,sigdatapert_d,sigdatapert_t,sigdatapert_q,&
-             sigdatapert_oz,sigdatapert_cw,sigdatapert_ps)
+           
+           do k=2,nlevs
+              if (smoothparm(k)>0) then
+                 sigdatapert_z  = sigdatai%z(:,k)   - sigdatam%z(:,k)
+                 sigdatapert_d  = sigdatai%d(:,k)   - sigdatam%d(:,k)
+                 sigdatapert_t  = sigdatai%t(:,k)   - sigdatam%t(:,k)
+                 sigdatapert_q  = sigdatai%q(:,k,1) - sigdatam%q(:,k,1)
+                 sigdatapert_oz = sigdatai%q(:,k,2) - sigdatam%q(:,k,2)
+                 sigdatapert_cw = sigdatai%q(:,k,3) - sigdatam%q(:,k,3)
+                 
+                 call smooth(sigdatapert_z, ntrunc,smoothfact(:,:,k))
+                 call smooth(sigdatapert_d, ntrunc,smoothfact(:,:,k))
+                 call smooth(sigdatapert_t, ntrunc,smoothfact(:,:,k))
+                 call smooth(sigdatapert_q, ntrunc,smoothfact(:,:,k))
+                 call smooth(sigdatapert_oz,ntrunc,smoothfact(:,:,k))
+                 call smooth(sigdatapert_cw,ntrunc,smoothfact(:,:,k))
+                 
+                 sigdatai%z(:,k)   = sigdatam%z(:,k)   + sigdatapert_z
+                 sigdatai%d(:,k)   = sigdatam%d(:,k)   + sigdatapert_d
+                 sigdatai%t(:,k)   = sigdatam%t(:,k)   + sigdatapert_t
+                 sigdatai%q(:,k,1) = sigdatam%q(:,k,1) + sigdatapert_q
+                 sigdatai%q(:,k,2) = sigdatam%q(:,k,2) + sigdatapert_oz
+                 sigdatai%q(:,k,3) = sigdatam%q(:,k,3) + sigdatapert_cw
+                 
+              endif
+           end do
+           deallocate(sigdatapert_z,sigdatapert_d,sigdatapert_t,sigdatapert_q,&
+                sigdatapert_oz,sigdatapert_cw,sigdatapert_ps)
         
-!       Write out
-        call sigio_swohdc(iunit,trim(filenameouts),sigheadi,sigdatai,iret)
+!          Write out
+           call sigio_swohdc(iunit,trim(filenameouts),sigheadi,sigdatai,iret)
+
+        elseif (nemsio) then
+           call nemsio_writerec(gfilei,n,swork1d,iret)
+        endif
         write(6,*)'Write smoothed ',trim(filenameouts),' iret=',iret
-        call sigio_axdata(sigdatai,iret)
+        
 
 !       Deallocate smoothing factors
         deallocate(smoothfact)
@@ -241,7 +310,10 @@ program getsigensmeanp_smooth
 !    End of smoothing block
      endif
 
-     call sigio_axdata(sigdatam,iret)
+     if (sigio) then
+        call sigio_axdata(sigdatai,iret)
+        call sigio_axdata(sigdatam,iret)
+     endif
 
 !    Deallocate smoothing parameter array
      if (lexist) deallocate(smoothparm)
@@ -252,8 +324,15 @@ program getsigensmeanp_smooth
      write(6,*) 'No files to process for mpi task = ',mype
   endif
 
+100 continue
   call mpi_barrier(mpi_comm_world,iret)
   
+  if (.not.nemsio .and. .not.sigio) then
+     if (mype==0) write(6,*)'***ERROR***  invalid surface file format'
+     call MPI_Abort(MPI_COMM_WORLD,98,iret)
+     stop
+  endif
+
   if (mype==0) then
      write(6,*) 'all done!'
      call w3tage('GETSIGENSMEAN_SMOOTH')
