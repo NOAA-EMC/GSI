@@ -57,7 +57,9 @@ module general_commvars_mod
    public :: g33p1                   !  for 3 3d fields + 1 2d field, no particular order
 
    public :: fill_ns
+   public :: fill2_ns
    public :: filluv_ns
+   public :: filluv2_ns
    public :: load_grid
    public :: ltosj_s,ltosi_s,ltosj,ltosi
 
@@ -532,6 +534,111 @@ contains
    
    return
  end subroutine fill_ns
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  fill2_ns --- add southern/northern latitude rows output 2d array
+!
+! !INTERFACE:
+!
+ subroutine fill2_ns(grid_in,grid_out,nlat,nlon)
+
+! !USES:
+
+   use constants, only: zero,one
+   implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                    ,intent(in   ) :: nlat,nlon
+   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: grid_in  ! input grid
+   real(r_kind),dimension(nlat,nlon)  ,intent(  out) :: grid_out ! output grid
+
+! !DESCRIPTION: This routine adds a southern and northern latitude
+!               row to the input grid.  The southern row contains
+!               the longitudinal mean of the adjacent latitude row.
+!               The northern row contains the longitudinal mean of
+!               the adjacent northern row.
+!               
+!               The added rows correpsond to the south and north poles.
+!
+!               In addition to adding latitude rows corresponding to the
+!               south and north poles, the routine reorder the output 
+!               array so that it is consistent with that assumed for total domain
+!               gsi grids.
+!
+!               The assumed order for the input grid is longitude as
+!               the first dimension with array index increasing from 
+!               east to west.  The second dimension is latitude with
+!               the index increasing from north to south.  This ordering
+!               differs from that used in the GSI.  
+!
+!               The GSI ordering is latitude first with the index 
+!               increasing from south to north.  The second dimension is
+!               longitude with the index increasing from east to west.
+!
+!               Thus, the code below also rearranges the indexing and
+!               order of the dimensions to make the output grid 
+!               consistent with that which is expected in the rest of
+!               gsi.
+!               
+!
+! !REVISION HISTORY:
+!   2004-08-27  treadon
+!   2013-10-25  todling - move from gridmod to this module
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000
+!
+! !AUTHOR:
+!   treadon          org: np23                date: 2004-08-27
+!
+!EOP
+!-------------------------------------------------------------------------
+!  Declare local variables
+   integer(i_kind) i,j,k,jj,nlatm2
+   real(r_kind) rnlon,sumn,sums
+   real(r_kind),dimension(nlon,nlat):: grid
+
+!  Transfer contents of input grid to local work array
+!  Reverse ordering in j direction from n-->s to s-->n
+   do j=2,nlat-1
+      jj=nlat-j
+      do i=1,nlon
+         grid(i,j)=grid_in(i,jj)
+      end do
+   end do
+   
+!  Compute mean along southern and northern latitudes
+   sumn=zero
+   sums=zero
+   nlatm2=nlat-2
+   do i=1,nlon
+      sumn=sumn+grid_in(i,1)
+      sums=sums+grid_in(i,nlatm2)
+   end do
+   rnlon=one/float(nlon)
+   sumn=sumn*rnlon
+   sums=sums*rnlon
+
+!  Load means into local work array
+   do i=1,nlon
+      grid(i,1)   =sums
+      grid(i,nlat)=sumn
+   end do
+   
+!  Transfer local work array to output grid
+   do j=1,nlon
+      do i=1,nlat
+        grid_out(i,j)=grid(j,i)
+      end do
+   end do
+   
+   return
+ end subroutine fill2_ns
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -646,4 +753,117 @@ contains
    
    return
  end subroutine filluv_ns
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  filluv2_ns --- add southern/northern latitude rows
+!
+! !INTERFACE:
+!
+ subroutine filluv2_ns(gridu_in,gridv_in,gridu_out,gridv_out,nlat,nlon,sinlon,coslon)
+
+! !USES:
+
+   use constants, only: zero
+   implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                    ,intent(in   ) :: nlat,nlon
+   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: gridu_in,gridv_in   ! input grid
+   real(r_kind),dimension(nlat,nlon)  ,intent(  out) :: gridu_out,gridv_out ! output grid
+   real(r_kind),dimension(nlon)       ,intent(in   ) :: sinlon,coslon
+
+! !DESCRIPTION: This routine adds a southern and northern latitude
+!               row to the input grid.  The southern row contains
+!               the longitudinal mean of the adjacent latitude row.
+!               The northern row contains the longitudinal mean of
+!               the adjacent northern row.
+!               
+!               The added rows correpsond to the south and north poles.
+!
+!               In addition to adding latitude rows corresponding to the
+!               south and north poles, the routine reorder the output 
+!               array so that it is in
+!               an order consistent with that assumed for total domain
+!               gsi grids.
+!
+!               The assumed order for the input grid is longitude as
+!               the first dimension with array index increasing from 
+!               east to west.  The second dimension is latitude with
+!               the index increasing from north to south.  This ordering
+!               differs from that used in the GSI.  
+!
+!               The GSI ordering is latitude first with the index 
+!               increasing from south to north.  The second dimension is
+!               longitude with the index increasing from east to west.
+!
+!               Thus, the code below also rearranges the indexing and
+!               order of the dimensions to make the output grid 
+!               consistent with that which is expected in the rest of
+!               gsi.
+!               
+!
+! !REVISION HISTORY:
+!   2004-08-27  treadon
+!   2013-10-25  todling - move from gridmod to this module
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000
+!
+! !AUTHOR:
+!   treadon          org: np23                date: 2004-08-27
+!
+!EOP
+!-------------------------------------------------------------------------
+!  Declare local variables
+   integer(i_kind) i,j,k,jj
+   real(r_kind) polnu,polnv,polsu,polsv
+   real(r_kind),dimension(nlon,nlat):: grid,grid2
+
+!  Transfer contents of input grid to local work array
+!  Reverse ordering in j direction from n-->s to s-->n
+   do j=2,nlat-1
+      jj=nlat-j
+      do i=1,nlon
+         grid(i,j)=gridu_in(i,jj)
+         grid2(i,j)=gridv_in(i,jj)
+      end do
+   end do
+   
+!  Compute mean along southern and northern latitudes
+   polnu=zero
+   polnv=zero
+   polsu=zero
+   polsv=zero
+   do i=1,nlon
+      polnu=polnu+grid(i,nlat-1)*coslon(i)-grid2(i,nlat-1)*sinlon(i)
+      polnv=polnv+grid(i,nlat-1)*sinlon(i)+grid2(i,nlat-1)*coslon(i)
+      polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
+      polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
+   end do
+   polnu=polnu/float(nlon)
+   polnv=polnv/float(nlon)
+   polsu=polsu/float(nlon)
+   polsv=polsv/float(nlon)
+   do i=1,nlon
+      grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
+      grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
+      grid (i,1   )= polsu*coslon(i)+polsv*sinlon(i)
+      grid2(i,1   )= polsu*sinlon(i)-polsv*coslon(i)
+   end do
+
+!  Transfer local work array to output grid
+   do j=1,nlon
+      do i=1,nlat
+         gridu_out(i,j)=grid(j,i)
+         gridv_out(i,j)=grid2(j,i)
+      end do
+   end do
+   
+   return
+ end subroutine filluv2_ns
 end module general_commvars_mod

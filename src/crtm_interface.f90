@@ -278,6 +278,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
+  use obsmod, only: dval_use
 
   implicit none
 
@@ -294,7 +295,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind) :: ier,ii,error_status,iderivative
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
-  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm
+  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm,icount
 ! ...all "additional absorber" variables
   integer(i_kind) :: j
   integer(i_kind) :: ig
@@ -461,18 +462,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  iff10     = 29 ! index of ten meter wind factor
  ilone     = 30 ! index of earth relative longitude (degrees)
  ilate     = 31 ! index of earth relative latitude (degrees)
- itref     = 34 ! index of foundation temperature: Tr
- idtw      = 35 ! index of diurnal warming: d(Tw) at depth zob
- idtc      = 36 ! index of sub-layer cooling: d(Tc) at depth zob
- itz_tr    = 37 ! index of d(Tz)/d(Tr)
-
- if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) then         ! when an independent SST analysis is read in
-   itref     = 36 ! index of foundation temperature: Tr
-   idtw      = 37 ! index of diurnal warming: d(Tw) at depth zob
-   idtc      = 38 ! index of sub-layer cooling: d(Tc) at depth zob
-   itz_tr    = 39 ! index of d(Tz)/d(Tr)
- endif
-
+ icount=ilate
+ if(dval_use) icount=icount+2
+ if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) icount=icount+2 ! when an independent SST analysis is read in
+ itref     = icount+1 ! index of foundation temperature: Tr
+ idtw      = icount+2 ! index of diurnal warming: d(Tw) at depth zob
+ idtc      = icount+3 ! index of sub-layer cooling: d(Tc) at depth zob
+ itz_tr    = icount+4 ! index of d(Tz)/d(Tr)
 
  if (obstype == 'goes_img') then
     iclr_sky      =  7 ! index of clear sky amount

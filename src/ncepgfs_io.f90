@@ -1019,39 +1019,31 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
-       nlon_b=((2*jcap_b+1)/nlon+1)*nlon
-       if (nlon_b /= sp_a%imax) then
-          hires_b=.true.
-          call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
-          if (mype==0) &
-               write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
-               sp_b%jcap,sp_b%imax,sp_b%jmax
+       if(use_gfs_nemsio)then
+          call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
+            aux_z,aux_ps,&
+            aux_tv,aux_q,&
+            aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
+            aux_u,aux_v,ges_prsi(:,:,:,it),it)
+       else
+          nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+          if (nlon_b /= sp_a%imax) then
+             hires_b=.true.
+             call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+             if (mype==0) &
+                  write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+                  sp_b%jcap,sp_b%imax,sp_b%jmax
 
-          if(use_gfs_nemsio)then
-             call write_nemsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
-               aux_z,aux_ps,&
-               aux_tv,aux_q,&
-               aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
-               aux_u,aux_v,ges_prsi(:,:,:,it),it)
-          else
              call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
-               aux_z,aux_ps,&
-               aux_vor,aux_div,&
-               aux_tv,aux_q,&
-               aux_oz,aux_cwmr,it,inithead,&
-               iret_write)
-          end if
+                  aux_z,aux_ps,&
+                  aux_vor,aux_div,&
+                  aux_tv,aux_q,&
+                  aux_oz,aux_cwmr,it,inithead,&
+                  iret_write)
 
-          call general_destroy_spec_vars(sp_b)
+             call general_destroy_spec_vars(sp_b)
 
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
-       else
-          if(use_gfs_nemsio)then
-             call write_nemsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
-               aux_z,aux_ps,&
-               aux_tv,aux_q,&
-               aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
-               aux_u,aux_v,ges_prsi(:,:,:,it),it)
           else
              call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
                aux_z,aux_ps,&

@@ -208,7 +208,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       l_foto,xhat_dt,dhat_dt,nvals_len
+       l_foto,xhat_dt,dhat_dt,nvals_len,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
@@ -249,7 +249,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
-  integer(i_kind) istp_use,nstep,nsteptot
+  integer(i_kind) istp_use,nstep,nsteptot,iprt,kprt
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
@@ -259,6 +259,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(0:istp_iter):: stp   
   real(r_kind),dimension(istp_iter):: stprat
   real(r_quad),dimension(ipen):: bsum,csum,psum
+  real(r_quad),dimension(ipen,nobs_bins):: pj
   real(r_kind) delpen
   real(r_kind) outpensave
   real(r_kind),dimension(4)::sges
@@ -275,6 +276,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   stp(0)=stpinout
   outpen = zero
   nsteptot=0
+  pj=zero_quad
 
 !   Begin calculating contributions to penalty and stepsize for various terms
 !
@@ -343,6 +345,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! penalty, b and c for background terms
 
   pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
+  pj(1,1)=pstart(1,1)
 
   pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
 
@@ -362,6 +365,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
+    pj(2,1)=pstart(1,2)
   end if
 
   if(ljcpdry)then
@@ -370,6 +374,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
     else
        call stpjcpdry(dval,sval,pstart(1,3),pstart(2,3),pstart(3,3),nobs_bins)
     end if
+    pj(3,1)=pstart(1,3)
   end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
@@ -411,6 +416,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(.not. ltlint)then
         if(.not.ljc4tlevs) then
            call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
+           if(ii == 1)then
+               pj(4,1)=pbc(1,4)+pbc(ipenloc,4)
+               pj(5,1)=pbc(1,5)+pbc(ipenloc,5)
+           end if
         else 
            do ibin=1,nobs_bins
               if (nobs_bins /= nfldsig) then
@@ -428,31 +437,43 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
                  pbc(j,5) = pbc(j,5)+pbcqmax(j,ibin)
               end do
            end do
+           if(ii == 1)then
+              do ibin=1,nobs_bins
+                 pj(4,ibin)=pj(4,ibin)+pbcqmin(1,ibin)+pbcqmin(ipenloc,ibin)
+                 pj(5,ibin)=pj(5,ibin)+pbcqmax(1,ibin)+pbcqmax(ipenloc,ibin)
+              end do
+           end if
         end if
 
 !       penalties for gust constraint
         if(getindex(cvars2d,'gust')>0) & 
         call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
+        if(ii == 1)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
 
 !       penalties for vis constraint
         if(getindex(cvars2d,'vis')>0) &
         call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
+        if(ii == 1)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
 
 !       penalties for pblh constraint
         if(getindex(cvars2d,'pblh')>0) &
         call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
+        if(ii == 1)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
 
 !       penalties for wspd10m constraint
         if(getindex(cvars2d,'wspd10m')>0) & 
         call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
+        if(ii == 1)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
 
 !       penalties for howv constraint
         if(getindex(cvars2d,'howv')>0) & 
         call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
+        if(ii == 1)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
 
 !       penalties for lcbas constraint
         if(getindex(cvars2d,'lcbas')>0) &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
+        if(ii == 1)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
      end if
 
 !       penalties for gust constraint
@@ -470,6 +491,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            end do 
         end do 
      enddo
+     if(ii == 1)then
+        do ibin=1,nobs_bins
+           do j=1,nobs_type 
+              pj(n0+j,ibin)=pj(n0+j,ibin)+pbcjoi(ipenloc,j,ibin)+pbcjoi(1,j,ibin)
+           end do 
+        enddo
+     endif
      do j=1,nobs_type 
         do i=1,nstep 
            pbc(i,n0+j)=pbcjo(i,j) 
@@ -593,6 +621,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(stprat(ii) < 1.e-4_r_kind) exit stepsize
 
   end do stepsize
+  kprt=3
+  if(kprt >= 2 .and. iter == 0)then
+     call mpl_allreduce(ipen,nobs_bins,pj)
+     if(mype == 0)call prnt_j(pj,ipen,kprt)
+  end if
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
@@ -673,5 +706,95 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   return
 end subroutine stpcalc
+
+subroutine prnt_j(pj,ipen,kprt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prnt_j
+!   prgmmr: derber
+!
+! abstract: prints J components
+!
+! program history log:
+!   2015=03-06  derber
+!
+!   input argument list:
+!   pj   - array containing contributions to penalty
+!   ipen - number of penalty terms
+!   kprt - print type flag
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+  use kinds, only: r_kind,i_kind,r_quad
+  use gsi_4dvar, only: nobs_bins
+  use constants, only: zero_quad
+  use jfunc, only: jiter,iter
+  use mpimod, only: mype
+  use obsmod, only: cobstype,nobs_type
+  real(r_quad),dimension(ipen,nobs_bins),intent(in   ) :: pj
+  integer(i_kind)                       ,intent(in   ) :: ipen,kprt
+
+  real(r_quad),dimension(ipen) :: zjt
+  real(r_quad)                 :: zj
+  integer(i_kind)              :: ii,jj
+  character(len=20) :: ctype(ipen)
+
+  if(kprt <=0 .or. mype /=0)return
+  ctype(1)='background          '
+  ctype(2)='                    '
+  ctype(3)='dry mass constraint '
+  ctype(4)='negative moisture   '
+  ctype(5)='excess   moisture   '
+  ctype(6)='negative gust       '
+  ctype(7)='negative visability '
+  ctype(8)='negative boundary Lr'
+  ctype(9)='negative 10m wind ssp'
+  ctype(10)='negative howv       '
+  ctype(11)='negative lcbas      '
+  do ii=1,nobs_type
+    ctype(11+ii)=cobstype(ii)
+  end do
+
+  zjt=zero_quad
+  do ii=1,nobs_bins
+     zjt(:)=zjt(:)+pj(:,ii)
+  end do
+
+  zj=zero_quad
+  do ii=1,nobs_type
+     zj=zj+zjt(ii)
+  end do
+
+! Prints
+  if (kprt>=2) write(6,*)'Begin J table inner/outer loop',iter,jiter
+
+   if (kprt>=3.and.nobs_bins>1) then
+      write(6,400)'J contribution  ','Bin','J'
+      do ii=1,ipen
+         do jj=1,nobs_bins
+            if (pj(ii,jj)>zero_quad) then
+               write(6,100)ctype(ii),jj,real(pj(ii,jj),r_kind)
+            endif
+         enddo
+      enddo
+   endif
+   write(6,400)' J term         ',' ',' J  '
+   do ii=1,ipen
+      if (zjt(ii)>0) then
+         write(6,200)ctype(ii),real(zjt(ii),r_kind)
+      endif
+   enddo
+
+   write(6,400)'----------------------------------------------------- '
+   write(6,200)"J Global           ",real(zj,r_kind)
+
+   write(6,*)'End Jo table inner/outer loop',iter,jiter
+
+100 format(a20,2x,i3,2x,es24.16)
+200 format(a20,2x,3x,2x,es24.16)
+400 format(a20,2x,a3,2x,a24)
+   end subroutine prnt_j
 
 end module stpcalcmod

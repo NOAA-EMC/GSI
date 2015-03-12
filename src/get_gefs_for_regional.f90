@@ -312,7 +312,7 @@ subroutine get_gefs_for_regional
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if(use_gfs_nemsio)then
-        call read_nemsatm(grd_gfst,filename,mype,sp_gfs,sp_gfs,uv_hyb_ens,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+        call read_nemsatm(grd_gfst,filename,mype,sp_gfs,uv_hyb_ens,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
      else
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
                z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)

@@ -162,12 +162,13 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: doy,mon,m
   integer(i_kind) :: ibfms,maxinfo
 
-  integer(i_kind),pointer :: ifov,iscan,iorbn,inode
+! integer(i_kind),pointer :: ifov,iscan,iorbn,inode
+  integer(i_kind),pointer :: ifov,inode
 
   integer(i_kind),allocatable        :: sorted_index(:)
   integer(i_kind),allocatable,target :: ifov_save(:)
-  integer(i_kind),allocatable,target :: iscan_save(:)
-  integer(i_kind),allocatable,target :: iorbn_save(:)
+! integer(i_kind),allocatable,target :: iscan_save(:)
+! integer(i_kind),allocatable,target :: iorbn_save(:)
   integer(i_kind),allocatable,target :: inode_save(:)
 
   integer(i_kind),dimension(12):: mlen,mday
@@ -181,7 +182,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind) :: disterr,disterrmax,cdist,dlon00,dlat00
-  real(r_kind) :: fovn,scan,orbn,rainf
+  real(r_kind) :: fovn,sscan,orbn,rainf
   real(r_kind) :: sort_time1, sort_time2   
   real(r_kind) :: flgch
   real(r_kind) :: clat,clon
@@ -353,8 +354,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allocate arrays for BUFR I/O
   allocate(ifov_save(maxobs))
-  allocate(iscan_save(maxobs))
-  allocate(iorbn_save(maxobs))
+! allocate(iscan_save(maxobs))
+! allocate(iorbn_save(maxobs))
   allocate(inode_save(maxobs))
   allocate(rsat_save(maxobs))
   allocate(t4dv_save(maxobs))
@@ -390,8 +391,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         dlat_earth  => dlat_earth_save(iobs)
         crit1       => crit1_save(iobs)
         ifov        => ifov_save(iobs)
-        iscan       => iscan_save(iobs)
-        iorbn       => iorbn_save(iobs)
+!       iscan       => iscan_save(iobs)
+!       iorbn       => iorbn_save(iobs)
         inode       => inode_save(iobs)
         lza         => lza_save(iobs)
         satazi      => satazi_save(iobs)
@@ -406,19 +407,21 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         said = nint( bufrinit(1))  
         if( said /= bufsat) cycle read_subset
 
+        rainf = bufrinit(6)
+        irain = nint(rainf)
+
+!       Rain check (-1=indeterminate 0=no rain 1=rain)
+        if(irain == 1 .or. irain < 0) cycle read_loop    ! rain check
+
         rsat=bufsat
 
         fovn  = bufrinit(4)
-        scan  = bufrinit(3)
+        sscan  = bufrinit(3)
         orbn  = bufrinit(7)
-        rainf = bufrinit(6)
         ifov  = nint(fovn)
-        iscan = nint(scan)
-        iorbn = nint(orbn)
-        irain = nint(rainf)
+!       iscan = nint(sscan)
+!       iorbn = nint(orbn)
   
-!       Rain check (-1=indeterminate 0=no rain 1=rain)
-        if(irain == 1 .or. irain < 0) cycle read_loop    ! rain check
 
 !       if not doing noise reduction, try reading node information
         if ( .not. do_noise_reduction ) then
@@ -532,8 +535,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      dlat_earth_save(1:num_obs)          = dlat_earth_save(sorted_index)
      crit1_save(1:num_obs)               = crit1_save(sorted_index)
      ifov_save(1:num_obs)                = ifov_save(sorted_index)
-     iscan_save(1:num_obs)               = iscan_save(sorted_index)
-     iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
+!    iscan_save(1:num_obs)               = iscan_save(sorted_index)
+!    iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
      lza_save(1:num_obs)                 = lza_save(sorted_index)
      satazi_save(1:num_obs)              = satazi_save(sorted_index)
      solzen_save(1:num_obs)              = solzen_save(sorted_index)
@@ -780,9 +783,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Deallocate I/O arrays
   deallocate(rsat_save)
   deallocate(ifov_save)
-  deallocate(iscan_save)
+! deallocate(iscan_save)
   deallocate(inode_save)
-  deallocate(iorbn_save)
+! deallocate(iorbn_save)
   deallocate(t4dv_save)
   deallocate(dlon_earth_save)
   deallocate(dlat_earth_save)

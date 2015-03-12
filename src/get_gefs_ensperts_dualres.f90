@@ -168,7 +168,7 @@ subroutine get_gefs_ensperts_dualres
           if (use_gfs_ens) then
              if (mype==npe)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
              if(use_gfs_nemsio) then
-                call read_nemsatm(grd_ens,filename,mype,sp_ens,sp_ens,uv_hyb_ens,.false.,zflag, &
+                call read_nemsatm(grd_ens,filename,mype,sp_ens,uv_hyb_ens,.false.,zflag, &
                               z,ps,vor,div,u,v,tv,q,cwmr,oz)
              else
                 call general_read_gfsatm(grd_t,sp_ens,sp_ens,filename,mype,uv_hyb_ens,.false., &

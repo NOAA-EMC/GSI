@@ -302,9 +302,9 @@ subroutine add_gfs_stratosphere
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if(use_gfs_nemsio)then
         if(hires) then
-           call read_nemsatm(grd_gfst,filename,mype,sp_gfs,sp_b,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+           call read_nemsatm(grd_gfst,filename,mype,sp_gfs,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
         else
-           call read_nemsatm(grd_gfst,filename,mype,sp_gfs,sp_gfs,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+           call read_nemsatm(grd_gfst,filename,mype,sp_gfs,.true.,.false.,.true.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
         end if
      else
         if (hires) then
