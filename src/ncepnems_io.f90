@@ -1233,7 +1233,7 @@ contains
 
 
 
-  subroutine write_atm_ (grd,sp_a,filename,mype,mype_out,sub_z,sub_ps,&
+  subroutine write_atm_ (grd,sp_a,filename,mype,mype_out,sub_ps,&
        sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
        sub_u,sub_v,sub_prsi,ibin)
 
@@ -1258,7 +1258,6 @@ contains
 !     filename  - file to open and write to
 !     mype      - mpi task number
 !     mype_out  - mpi task to write output file
-!     sub_z     - NEMS terrain field on subdomains
 !     sub_ps    - surface pressure on subdomains
 !     sub_tv    - virtual temperature on subdomains
 !     sub_q     - specific humidity on subdomains
@@ -1319,7 +1318,6 @@ contains
     
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
     type(sub2grid_info)                    ,intent(in   ) :: grd
-    real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
     real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains

@@ -249,7 +249,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
-  integer(i_kind) istp_use,nstep,nsteptot,iprt,kprt
+  integer(i_kind) istp_use,nstep,nsteptot,kprt
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 

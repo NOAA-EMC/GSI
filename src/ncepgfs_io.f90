@@ -1021,7 +1021,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   uses double FFT.   Need to pass in sp_a and sp_b
        if(use_gfs_nemsio)then
           call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
-            aux_z,aux_ps,&
+            aux_ps,&
             aux_tv,aux_q,&
             aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
             aux_u,aux_v,ges_prsi(:,:,:,it),it)

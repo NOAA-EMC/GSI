@@ -599,7 +599,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 !  Declare local variables
-   integer(i_kind) i,j,k,jj,nlatm2
+   integer(i_kind) i,j,jj,nlatm2
    real(r_kind) rnlon,sumn,sums
    real(r_kind),dimension(nlon,nlat):: grid
 
@@ -820,7 +820,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 !  Declare local variables
-   integer(i_kind) i,j,k,jj
+   integer(i_kind) i,j,jj
    real(r_kind) polnu,polnv,polsu,polsv
    real(r_kind),dimension(nlon,nlat):: grid,grid2
 
