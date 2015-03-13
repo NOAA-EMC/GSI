@@ -1678,7 +1678,7 @@ contains
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             call nemsio_readrecv(gfile,'tmp','mid_layer',k,rwork1d,iret=iret)
+             call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
              rwork1d1 = r0_001*rwork1d
              grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
@@ -1714,7 +1714,7 @@ contains
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             call nemsio_readrecv(gfile,'spfh','mid_layer',k,rwork1d,iret=iret)
+             call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
              rwork1d1 = r0_001*rwork1d
              grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
@@ -1750,7 +1750,7 @@ contains
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             call nemsio_readrecv(gfile,'o3mr','mid_layer',k,rwork1d,iret=iret)
+             call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
              rwork1d1 = r0_001*rwork1d
              grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
@@ -1787,7 +1787,7 @@ contains
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
              if(diff_res)then
-                call nemsio_readrecv(gfile,'clwmr','mid_layer',k,rwork1d,iret=iret)
+                call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
                 rwork1d1 = r0_001*rwork1d
                 grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
@@ -1819,8 +1819,8 @@ contains
 !
 ! Deallocate local array
 !
-    if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3)
     if (mype==mype_out) then
+       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3)
        call nemsio_close(gfile,iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges),null,'close',istop,iret)
 

@@ -5,33 +5,37 @@
 # Set library versions
 # ----------------------------------
 
-NETCDF_VERSION = 3.6.3
-SFCIO_VERSION = 1.0.0
-SIGIO_VERSION = 1.0.1
-SP_VERSION = 2.0.1
-W3EMC_VERSION = 2.0.5
-W3NCO_VERSION = 2.0.6
-NEMSIO_VERSION = 2.2.1
-BACIO_VERSION = 2.0.1
-BUFR_VERSION = 10.2.5
-CRTM_VERSION = 2.1.3
+BACIO_VER = v2.0.1
+BUFR_VER = v10.2.5
+CRTM_VER = v2.1.3
+NEMSIO_VER = v2.2.1
+NETCDF_VER = 3.6.3
+SFCIO_VER = v1.0.0
+SIGIO_VER = v2.0.1
+SP_VER = v2.0.2
+W3EMC_VER = v2.0.5
+W3NCO_VER = v2.0.6
 
-COREINC  = /nwprod/lib/incmod
 CORELIB  = /nwprod/lib
-INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
-INCsigio = $(COREINC)/sigio_v$(SIGIO_VERSION)_4
-INCnemsio = $(COREINC)/nemsio_v$(NEMSIO_VERSION)
 
-NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
-INCnetcdf  = $(NETCDFPATH)/include
+NEMSIO_INC=$(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_$(NEMSIO_VER)
+SFCIO_INC4=$(CORELIB)/sfcio/$(SFCIO_VER)/incmod/sfcio_$(SFCIO_VER)_4
+SIGIO_INC4=$(CORELIB)/sigio/$(SIGIO_VER)/incmod/sigio_$(SIGIO_VER)_4
 
-# Empty out definition of libs use by GMAO EnKF building structure
-LIBtransf = #-L$(CORELIB) -ltransf
-LIBhermes = #-L$(CORELIB) -lhermes
-LIBgfio   = #-L$(CORELIB) -lgfio
-INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
-LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
-# 
+BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
+BUFR_LIBd=$(CORELIB)/bufr/$(BUFR_VER)/libbufr_$(BUFR_VER)_d_64.a
+CRTM_LIB=$(CORELIB)/crtm/$(CRTM_VER)/libcrtm_$(CRTM_VER).a
+NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
+SFCIO_LIB4=$(CORELIB)/sfcio/$(SFCIO_VER)/libsfcio_$(SFCIO_VER)_4.a
+SIGIO_LIB4=$(CORELIB)/sigio/$(SIGIO_VER)/libsigio_$(SIGIO_VER)_4.a
+SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
+W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/libw3emc_$(W3EMC_VER)_d.a
+W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_d.a
+
+NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VER)
+NETCDF_INCLUDE = $(NETCDFPATH)/include
+NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
+
 # WRF locations
 WRFPATH = /nwprod/sorc/wrf_shared.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -39,7 +43,14 @@ LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
-GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_64 -lcrtm_v$(CRTM_VERSION) $(WRFLIB)
+
+
+# Empty out definition of libs use by GMAO EnKF building structure
+LIBtransf = #-L$(CORELIB) -ltransf
+LIBhermes = #-L$(CORELIB) -lhermes
+LIBgfio   = #-L$(CORELIB) -lgfio
+INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
+LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 # ---------------------------
 # General targets/definitions
@@ -60,18 +71,20 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
 
   FFLAGS_F90    = -DGFS
   EXE_FILE = global_enkf
-  #FFLAGS_F90    = -DWRF   
+  #FFLAGS_F90    = -DWRF
   #EXE_FILE = wrf_enkf
   #FFLAGS_F90    = -DNMMB
   #EXE_FILE = nmmb_enkf
 
-  FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio) \
-		-O3 -fp-model strict -convert big_endian -assume byterecl \
+  FFLAGS_COM_N  = -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		-I $(NETCDF_INCLUDE) \
+		-O3 -fp-model source -convert big_endian -assume byterecl \
 		-implicitnone $(OMP)
 
-  FFLAGS_COM_N_NOSWAP  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
-		-O3 -fp-model strict -convert big_endian -assume byterecl \
-		-implicitnone $(OMP)
+  FFLAGS_COM_N_NOSWAP  = -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC)-I \
+  		       $(NETCDF_INCLUDE) \
+		       -O3 -fp-model source -convert big_endian -assume byterecl \
+		       -implicitnone $(OMP)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
   FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
@@ -80,11 +93,13 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
 
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
-		-O0 -fp-model strict -convert big_endian -assume byterecl \
+  FFLAGS_COM_D  =  -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		-I $(NETCDF_INCLUDE) \
+		-O0 -fp-model source -convert big_endian -assume byterecl \
 		-implicitnone -warn all -g -traceback -debug all -check all
-  FFLAGS_COM_NOSWAP_D  =  -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
-  		       -O0 -fp-model strict -convert big_endian -assume byterecl \
+  FFLAGS_COM_NOSWAP_D  =  -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		       -I $(NETCDF_INCLUDE) \
+  		       -O0 -fp-model source -convert big_endian -assume byterecl \
 		       -implicitnone -warn all -g -traceback -debug all -check all
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
@@ -114,10 +129,9 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
 
 #--- Normal mode options
 
-  LIBS_N        = -L$(CORELIB) -lsp_v$(SP_VERSION)_d -lnemsio_v$(NEMSIO_VERSION) -lbacio_v$(BACIO_VERSION)_4 \
-  		-lw3nco_v$(W3NCO_VERSION)_d -lsigio_v$(SIGIO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4 \
-  		$(GSILIBS) -L$(NETCDFPATH)/lib -lnetcdf
-
+  LIBS_N        = $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIBd) \
+  		  $(W3EMC_LIBd) $(SIGIO_LIB4) $(SFCIO_LIB4) $(CRTM_LIB) \
+		  $(BUFR_LIBd) $(WRFLIB) $(NETCDF_LDFLAGS_F)
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
