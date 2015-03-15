@@ -52,7 +52,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_rtsolution_destroy, crtm_rtsolution_associated, &
     crtm_irlandcoeff_classification, &
     crtm_kind => fp
-use crtm_spccoeff, only: SpcCoeff_IsMicrowaveSensor, SC
+use SensorInfo_Parameters, only: MICROWAVE_SENSOR
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
@@ -280,6 +280,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
+  use SensorInfo_Parameters, only: MICROWAVE_SENSOR
 
   implicit none
 
@@ -600,9 +601,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
- if ( SpcCoeff_IsMicrowaveSensor(SC(1)) ) THEN
+ if ( ChannelInfo(1)%Sensor_Type == MICROWAVE_SENSOR ) &
    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
- end if
+
 !_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
@@ -1682,7 +1683,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (trim(obstype) /= 'modis_aod')then
 
 !  Pass CRTM array of tb for surface emissiviy calculations
-        surface(1)%sensordata%tb(i) = data_s(nreal+i)
+       if ( ChannelInfo(1)%Sensor_Type == MICROWAVE_SENSOR ) &
+         surface(1)%sensordata%tb(i) = data_s(nreal+i)
 
 ! set up to return layer_optical_depth jacobians
         rtsolution_k(i,1)%layer_optical_depth = one
