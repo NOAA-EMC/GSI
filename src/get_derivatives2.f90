@@ -531,14 +531,14 @@ subroutine get_derivatives2uv(st,vp,t,p3d,u,v, &
 ! x  and y derivative
   if(regional)then
      do k=s1g4%kbegin_loc,s1g4%kend_loc
-        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(2,k))=='v'
+        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
         call delx_reg(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
         call dely_reg(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
      end do
 
   else
      do k=s1g4%kbegin_loc,s1g4%kend_loc
-        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(2,k))=='v'
+        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
 !$omp parallel sections
 !$omp section
         call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
@@ -700,7 +700,7 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
 
   if(regional)then
      do k=s1g4%kbegin_loc,s1g4%kend_loc
-        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(2,k))=='v'
+        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
 !$omp parallel sections
 !$omp section
         tmp1=zero
@@ -713,7 +713,7 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
      end do
   else
      do k=s1g4%kbegin_loc,s1g4%kend_loc
-        vector=trim(s1g4%names(1,k))=='u'.and.trim(s1g4%names(2,k))=='v'
+        vector=trim(s1g4%names(1,k))=='u'.and.trim(s1g4%names(1,k))=='v'
 !$omp parallel sections
 !$omp section
         tmp1=zero

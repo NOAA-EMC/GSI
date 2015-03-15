@@ -771,13 +771,11 @@ subroutine prnt_j(pj,ipen,kprt)
   if (kprt>=2) write(6,*)'Begin J table inner/outer loop',iter,jiter
 
    if (kprt>=3.and.nobs_bins>1) then
-      write(6,400)'J contribution  ','Bin','J'
+      write(6,410)'J contribution  ',(jj,jj=1,nobs_bins)
       do ii=1,ipen
-         do jj=1,nobs_bins
-            if (pj(ii,jj)>zero_quad) then
-               write(6,100)ctype(ii),jj,real(pj(ii,jj),r_kind)
-            endif
-         enddo
+         if (zjt(ii)>zero_quad) then
+            write(6,100)ctype(ii),(real(pj(ii,jj),r_kind),jj=1,nobs_bins)
+         endif
       enddo
    endif
    write(6,400)' J term         ',' ',' J  '
@@ -787,12 +785,13 @@ subroutine prnt_j(pj,ipen,kprt)
       endif
    enddo
 
-   write(6,400)'----------------------------------------------------- '
+   write(6,*)'----------------------------------------------------- '
    write(6,200)"J Global           ",real(zj,r_kind)
 
    write(6,*)'End Jo table inner/outer loop',iter,jiter
 
-100 format(a20,2x,i3,2x,es24.16)
+100 format(a20,2x,10es14.6)
+410 format(a20,2x,10I14)
 200 format(a20,2x,3x,2x,es24.16)
 400 format(a20,2x,a3,2x,a24)
    end subroutine prnt_j

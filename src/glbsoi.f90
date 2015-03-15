@@ -154,7 +154,7 @@ subroutine glbsoi(mype)
 ! Declare local variables
   logical laltmin
 
-  integer(i_kind) jiterlast,i
+  integer(i_kind) jiterlast
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
 

@@ -128,6 +128,7 @@ subroutine get_gefs_ensperts_dualres
      do n=1,n_ens
 
        en_perts(n,m)%valuesr4=zero_single
+       iret=0
        if (enspreproc) then
           ! read pre-processed ensemble data (one file for each bin that has all
           ! the ensemble members for a subdomain).

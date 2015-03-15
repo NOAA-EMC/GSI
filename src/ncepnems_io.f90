@@ -421,100 +421,99 @@ contains
 !******************************************************************************  
 !   Initialize variables used below
     mm1=mype+1
-    mype_hs=npe-2
-    mype_ps=npe-1
+    mype_hs=min(1,npe-1)
+    mype_ps=0
     nlatm2=grd%nlat-2
     nflds=5*grd%nsig+1
     if(zflag) nflds=nflds+1
     if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
+    nflds=npe
+!   nflds=grd%nsig
 
+    allocate( work(grd%itotsub),work_v(grd%itotsub) )
+    work=zero
+    work_v=zero
+    allocate( sub(grd%lat2*grd%lon2,max(grd%nsig,npe)),sub_v(grd%lat2*grd%lon2,max(grd%nsig,npe)) )
+    allocate( sub_div(grd%lat2*grd%lon2,max(grd%nsig,npe)),sub_vor(grd%lat2*grd%lon2,max(grd%nsig,npe)) )
+    if(mype < nflds)then
 
-    call nemsio_init(iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
+      call nemsio_init(iret=iret)
+      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
 
-    call nemsio_open(gfile,filename,'READ',iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop+1,iret)
+      call nemsio_open(gfile,filename,'READ',iret=iret)
+      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop+1,iret)
 
-    call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
-         nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-         idate=idate, dimx=lonb, dimy=latb,dimz=levs)
+      call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
+           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
+           idate=idate, dimx=lonb, dimy=latb,dimz=levs)
+  
+      if( nframe /= 0 ) then
+         if ( mype == 0 ) &
+         write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
+         call stop2(101)
+      end if
 
-    if( nframe /= 0 ) then
-       if ( mype == 0 ) &
-       write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
-       call stop2(101)
-    end if
-
-    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-    odate(1) = idate(4)  !hour
-    odate(2) = idate(2)  !month
-    odate(3) = idate(3)  !day
-    odate(4) = idate(1)  !year
+      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+      odate(1) = idate(4)  !hour
+      odate(2) = idate(2)  !month
+      odate(3) = idate(3)  !day
+      odate(4) = idate(1)  !year
 !
 !  g_* array already pre-allocate as (lat2,lon2,<nsig>) => 2D and <3D> array
 !
-    diff_res=.false.
-    if(sp_a%jcap /= jcap_b) then
-       diff_res=.true.
-       if ( mype == 0 ) write(6, &
-          '('' different resolution for nems sp_a%jcap,jcap_b = '',2i6)') &
-          sp_a%jcap,jcap_b
-!      call stop2(101)
-    end if
-    if(latb /= nlatm2) then
-       diff_res=.true.
-       if ( mype == 0 ) write(6, &
-          '(a,'': different spatial dimension nlatm2 = '',i4,tr1,''latb = '',i4)') &
-          trim(my_name),nlatm2,latb
-!      call stop2(101)
-    end if
-    if(lonb /= grd%nlon) then
-       diff_res=.true.
-       if ( mype == 0 ) write(6, &
-          '(a,'': different spatial dimension nlon   = '',i4,tr1,''lonb = '',i4)') &
-          trim(my_name),grd%nlon,lonb
-!      call stop2(101)
-    end if
-    if(levs /= grd%nsig)then
-       if ( mype == 0 ) write(6, &
-          '(a,'': inconsistent spatial dimension nsig   = '',i4,tr1,''levs = '',i4)') &
-          trim(my_name),grd%nsig,levs
-       call stop2(101)
-    end if
+      diff_res=.false.
+      if(latb /= nlatm2) then
+         diff_res=.true.
+         if ( mype == 0 ) write(6, &
+            '(a,'': different spatial dimension nlatm2 = '',i4,tr1,''latb = '',i4)') &
+            trim(my_name),nlatm2,latb
+  !      call stop2(101)
+      end if
+      if(lonb /= grd%nlon) then
+         diff_res=.true.
+         if ( mype == 0 ) write(6, &
+            '(a,'': different spatial dimension nlon   = '',i4,tr1,''lonb = '',i4)') &
+            trim(my_name),grd%nlon,lonb
+  !      call stop2(101)
+      end if
+      if(levs /= grd%nsig)then
+         if ( mype == 0 ) write(6, &
+            '(a,'': inconsistent spatial dimension nsig   = '',i4,tr1,''levs = '',i4)') &
+            trim(my_name),grd%nsig,levs
+         call stop2(101)
+      end if
 !
-    allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
-    if(diff_res)then
-       allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
-       allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
-    end if
-    allocate( work(grd%itotsub),work_v(grd%itotsub) )
-    allocate( sub(grd%lat2*grd%lon2,max(2*grd%nsig,npe)),sub_v(grd%lat2*grd%lon2,max(2*grd%nsig,npe)) )
-    allocate( sub_div(grd%lat2*grd%lon2,max(2*grd%nsig,npe)),sub_vor(grd%lat2*grd%lon2,max(2*grd%nsig,npe)) )
-    allocate( rwork1d0(latb*lonb) )
-    allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
-    allocate(rwork1d1(latb*lonb))
-    call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
-    call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
-    do j=1,latb
-      rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
-    end do
-    do j=1,lonb
-      rlons(j)=deg2rad*r4lons(j)
-    end do
-    deallocate(r4lats,r4lons)
-    rlats(1)=-half*pi
-    rlats(latb+2)=half*pi
-    do j=1,lonb
-       clons(j)=cos(rlons(j))
-       slons(j)=sin(rlons(j))
-    end do
+      allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
+      if(diff_res)then
+         allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
+         allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
+      end if
+      allocate( rwork1d0(latb*lonb) )
+      allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
+      allocate(rwork1d1(latb*lonb))
+      call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
+      call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
+      do j=1,latb
+        rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
+      end do
+      do j=1,lonb
+        rlons(j)=deg2rad*r4lons(j)
+      end do
+      deallocate(r4lats,r4lons)
+      rlats(1)=-half*pi
+      rlats(latb+2)=half*pi
+      do j=1,lonb
+         clons(j)=cos(rlons(j))
+         slons(j)=sin(rlons(j))
+      end do
 
-    nord_int=4
-    eqspace=.false.
-    call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
-                            latb+2,rlats,lonb,rlons,&
-                            nord_int,p_high,eqspace)
-    deallocate(rlats,rlons)
+      nord_int=4
+      eqspace=.false.
+      call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
+                              latb+2,rlats,lonb,rlons,&
+                              nord_int,p_high,eqspace)
+      deallocate(rlats,rlons)
+    end if
 !
 !   Load values into rows for south and north pole before scattering
 !
@@ -528,13 +527,7 @@ contains
              grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             do j=1,10
-                 write(6,*) j,(grid_c(i,j,1),i=1,10)
-             end do
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do j=1,5
-                 write(6,*) j,(grid2(i,j,1),i=1,5)
-             end do
              do kk=1,itotsub
                i=ltosi_s(kk)
                j=ltosj_s(kk)
@@ -797,13 +790,16 @@ contains
        g_cwmr = zero
     endif
 
-    if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid2)
-    call destroy_egrid2agrid(p_high)
-    deallocate(rwork1d1,clons,slons)
-    deallocate(rwork1d0)
-    deallocate(grid,grid_v,work,sub)
-    call nemsio_close(gfile,iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop+9,iret)
+    if(mype < nflds)then
+       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid2)
+       call destroy_egrid2agrid(p_high)
+       deallocate(rwork1d1,clons,slons)
+       deallocate(rwork1d0)
+       deallocate(grid,grid_v)
+       call nemsio_close(gfile,iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop+9,iret)
+    end if
+    deallocate(work,sub)
 
 !   Print date/time stamp 
     if ( mype == 0 ) write(6, &
