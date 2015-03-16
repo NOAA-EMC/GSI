@@ -280,7 +280,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
-  use SensorInfo_Parameters, only: MICROWAVE_SENSOR
 
   implicit none
 
@@ -601,9 +600,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
- if ( ChannelInfo(1)%Sensor_Type == MICROWAVE_SENSOR ) &
+ if ( channelinfo(sensorindex)%Sensor_Type == MICROWAVE_SENSOR ) THEN
    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
-
+   surface(1)%sensordata%sensor_id        = channelinfo(sensorindex)%sensor_id
+   surface(1)%sensordata%WMO_sensor_id    = channelinfo(sensorindex)%WMO_sensor_id
+   surface(1)%sensordata%WMO_Satellite_id = channelinfo(sensorindex)%WMO_Satellite_id
+   surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
+ end if
 !_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
@@ -637,19 +640,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !!  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(1)%wmo_sensor_id
 !! RB-1.1.rev1855 CRTM
 
- surface(1)%sensordata%sensor_id             =  channelinfo(sensorindex)%sensor_id
- surface(1)%sensordata%WMO_sensor_id         =  channelinfo(sensorindex)%WMO_sensor_id
- surface(1)%sensordata%WMO_Satellite_id      =  channelinfo(sensorindex)%WMO_Satellite_id
- surface(1)%sensordata%sensor_channel        =  channelinfo(sensorindex)%sensor_channel
-
-
  atmosphere(1)%n_layers = msig
  atmosphere(1)%absorber_id(1) = H2O_ID
  atmosphere(1)%absorber_id(2) = O3_ID
  atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
  atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
  atmosphere(1)%level_pressure(0) = TOA_PRESSURE
-
 
 ! Currently all considered trace gases affect CRTM. Load trace gases into CRTM atmosphere
  ico2=-1
