@@ -520,10 +520,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    GOME data has bias when the satellite looks to the east. Consider QC out this data.
 
      if (thin4d) then
-        timedif = zero
-     else
+        timedif = zero 
+     else 
         timedif = r6*abs(tdiff)        ! range:  0 to 18
-     endif
+     endif 
      crit1 = 0.01_r_kind+timedif
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse) goto 120
@@ -672,10 +672,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    thin OMI data
 
      if (thin4d) then
-        timedif = zero
-     else
+        timedif = zero 
+     else 
         timedif = r6*abs(tdiff)        ! range:  0 to 18
-     endif
+     endif 
      crit1 = 0.01_r_kind+timedif
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)go to 130

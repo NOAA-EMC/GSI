@@ -496,15 +496,14 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
+        nread = nread + nchanl
+
         if (thin4d) then
            crit1 = 0.01_r_kind
         else
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif 
         endif
-
-        nread = nread + nchanl
-
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 

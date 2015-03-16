@@ -580,20 +580,19 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
            sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
            tdiff=(sstime-gstime)*r60inv
-
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
               if(abs(tdiff) > twind) cycle read_loop
            endif
 
+           nread=nread+nchanl
+
            if (thin4d) then
               timedif = zero
            else
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
-
-           nread=nread+nchanl
 
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   

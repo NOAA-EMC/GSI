@@ -51,7 +51,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       rlats,rlons,twodvar_regional
   use deter_sfc_mod, only: deter_sfc2
   use obsmod, only: iadate,bmiss,oberrflg,perturb_obs,perturb_fact,ran01dom
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar,thin4d,l4densvar
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use adjust_cloudobs_mod, only: adjust_goescldobs
 
   implicit none

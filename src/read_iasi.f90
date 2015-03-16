@@ -476,16 +476,16 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
+
+!   Increment nread counter by n_totchan
+        nread = nread + n_totchan
+
         if (thin4d) then
            crit1 = 0.01_r_kind
         else
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif
-        endif
- 
-!   Increment nread counter by n_totchan
-        nread = nread + n_totchan
-
+        endif 
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 

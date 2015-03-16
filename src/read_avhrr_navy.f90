@@ -313,9 +313,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
            crit1 = 0.01_r_kind
         else
            timedif = r6*abs(tdiff)        ! range:  0 to 18
-!          Compute "score" for observation.  All scores>=0.0.  Lowest score is
-!          "best"
-           crit1 = 0.01_r_kind+timedif
+!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+           crit1 = 0.01_r_kind+timedif 
         endif
 
 !       Map obs to thinning grid

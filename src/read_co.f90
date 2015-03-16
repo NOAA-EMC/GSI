@@ -68,7 +68,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 
   integer(i_kind) ipoq7
 
-  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq  
+  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq
   real(r_kind) slons0,slats0,rsat,solzen,dlat_earth,dlon_earth
   real(r_kind) rlat,rlon,rpress,rsza
   real(r_kind),allocatable,dimension(:):: pco

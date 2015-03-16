@@ -254,13 +254,14 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               else
                  if ( abs(tdiff) > twind ) cycle read_modis
               end if
+
+              nread = nread + 1   !nread = nread + nchanl
+
               if (thin4d) then
                  timedif = zero
               else
                  timedif = two*abs(tdiff)        ! range:  0 to 6
-              end if
-
-              nread = nread + 1   !nread = nread + nchanl
+              endif
 
               crit1 = 0.01_r_kind + timedif
 
