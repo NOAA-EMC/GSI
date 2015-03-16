@@ -108,7 +108,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -469,17 +469,20 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Retrieve obs time
         call w3fs21(idate5,nmind)
         t4dv = (real(nmind-iwinbgn,r_kind) + real(allspot(7),r_kind)*r60inv)*r60inv ! add in seconds
-        if (thin4d) then
+        sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
+        tdiff = (sstime - gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+        else
+           if (abs(tdiff)>twind) cycle read_loop
+        endif
+        if (thin4d) then
            crit1 = 0.01_r_kind
         else
-           sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
-           tdiff = (sstime - gstime)*r60inv
-           if (abs(tdiff)>twind) cycle read_loop
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif
         endif
-     
+ 
 !   Increment nread counter by n_totchan
         nread = nread + n_totchan
 

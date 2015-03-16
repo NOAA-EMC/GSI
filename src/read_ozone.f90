@@ -100,7 +100,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use obsmod, only: iadate,nloz_v6,nloz_v8
   use convinfo, only: nconvtype, &
       icuse,ictype,ioctype
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use qcmod, only: use_poq7
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   implicit none
@@ -322,11 +322,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(5) = hdroz(8)  !minute
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (thin4d) then
+     sstime=real(nmind,r_kind)
+     tdiff=(sstime-gstime)*r60inv
+     if (l4dvar.or.l4densvar) then
         if(t4dv<zero .OR. t4dv>winlen) goto 110
      else
-        sstime=real(nmind,r_kind)
-        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff) > twind) goto 110
      end if
      
@@ -495,14 +495,13 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      idate5(5) = hdrozg(7)  !minute
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (thin4d) then
+     sstime=real(nmind,r_kind)
+     tdiff=(sstime-gstime)*r60inv
+     if (l4dvar.or.l4densvar) then
         if(t4dv<zero .OR. t4dv>winlen) goto 120
      else
-        sstime=real(nmind,r_kind)
-        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff) > twind) goto 120
      end if
-
 
 !    extract total ozone
      call ufbint(lunin,totoz,1,1,iret,'OZON')
@@ -640,11 +639,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
 
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (thin4d) then
+     sstime=real(nmind,r_kind)
+     tdiff=(sstime-gstime)*r60inv
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) go to 130
      else
-        sstime=real(nmind,r_kind)
-        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff) > twind) go to 130
      end if
 
@@ -864,11 +863,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
 
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-     if (thin4d) then
+     sstime=real(nmind,r_kind)
+     tdiff=(sstime-gstime)*r60inv
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) go to 140
      else
-        sstime=real(nmind,r_kind)
-        tdiff=(sstime-gstime)*r60inv
         if(abs(tdiff) > twind) go to 140
      end if
 

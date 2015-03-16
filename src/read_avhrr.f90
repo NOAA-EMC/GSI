@@ -75,7 +75,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
   use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis, &
                      nst_gsi,nstinfo,newpc4pred,newchn
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -275,12 +275,13 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         rsc       = hdr(6)          !second in real
         call w3fs21(idate5,nmind)
         t4dv=(real((nmind-iwinbgn),r_kind) + rsc*r60inv)*r60inv
-        if (thin4d) then
+        sstime=real(nmind,r_kind) + rsc*r60inv
+        tdiff=(sstime-gstime)*r60inv
+
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + rsc*r60inv
-           tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind) cycle read_loop
+           if (abs(tdiff) > twind) cycle read_loop
         endif
 
 !       Convert obs location to radians

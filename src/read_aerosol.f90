@@ -57,7 +57,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use chemmod,   only: aod_qa_limit, luse_deepblue
   use constants, only: deg2rad, zero, two, three, four, rad2deg, r60inv
   use obsmod,    only: iadate, rmiss_single
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   implicit none
@@ -247,13 +247,16 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
               call w3fs21(idate5,nmind)
               t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-              if (thin4d) then
+              sstime=real(nmind,r_kind)
+              tdiff=(sstime-gstime)*r60inv
+              if (l4dvar.or.l4densvar) then
                  if(t4dv<zero .OR. t4dv>winlen) cycle read_modis
+              else
+                 if ( abs(tdiff) > twind ) cycle read_modis
+              end if
+              if (thin4d) then
                  timedif = zero
               else
-                 sstime=real(nmind,r_kind)
-                 tdiff=(sstime-gstime)*r60inv
-                 if ( abs(tdiff) > twind ) cycle read_modis
                  timedif = two*abs(tdiff)        ! range:  0 to 6
               end if
 

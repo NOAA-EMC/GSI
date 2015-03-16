@@ -78,7 +78,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -269,12 +269,12 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         call w3fs21(idate5,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrf(6),r_kind)*r60inv)*r60inv
+        sstime=real(nmind,r_kind) + real(bufrf(6),r_kind)*r60inv
+        tdiff=(sstime-gstime)*r60inv
 
-        if (thin4d) then
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + real(bufrf(6),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
            if(abs(tdiff) > twind) cycle read_loop
         endif
 

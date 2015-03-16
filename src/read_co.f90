@@ -34,7 +34,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
   use obsmod, only: iadate,nlco
   use convinfo, only: nconvtype, &
       icuse,ictype,ioctype
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: iwinbgn
   use qcmod, only: use_poq7
   implicit none
 

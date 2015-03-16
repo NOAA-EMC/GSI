@@ -130,7 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use antcorr_application, only: remove_antcorr
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
@@ -578,13 +578,18 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
            t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-           if (thin4d) then
+           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+           tdiff=(sstime-gstime)*r60inv
+
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           else
+              if(abs(tdiff) > twind) cycle read_loop
+           endif
+
+           if (thin4d) then
               timedif = zero
            else
-              sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-              tdiff=(sstime-gstime)*r60inv
-              if(abs(tdiff) > twind) cycle read_loop
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
 

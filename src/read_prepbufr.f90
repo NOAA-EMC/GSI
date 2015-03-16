@@ -163,7 +163,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
-  use gsi_4dvar, only: time_4dvar,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,noiqc,newvad
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
@@ -891,7 +891,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            driftl=kx==120.or.kx==220.or.kx==221
 
            if (.not. (aircraft_t_bc .and. acft_profl_file)) then
-              if (thin4d) then
+              if (l4dvar.or.l4densvar) then
                  if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
               else
                  if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
@@ -1317,7 +1317,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
                  t4dv=t4dv + time_correction
                  time=timeobs + time_correction
-                 if (thin4d) then
+                 if (l4dvar.or.l4densvar) then
                     if (t4dv<zero.OR.t4dv>winlen) cycle LOOP_K_LEVS
                  else
                     if (real(abs(time))>real(ctwind(nc)) .or.  real(abs(time))>real(twindin)) cycle LOOP_K_LEVS
@@ -1346,7 +1346,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (abs(time_drift-time)>four) time_drift = time
  
 !                Check to see if the time is outside range
-                 if (thin4d) then
+                 if (l4dvar.or.l4densvar) then
                     t4dv=toff+time_drift
                     if (t4dv<zero .or. t4dv>winlen) then
                        t4dv=toff+timex
@@ -1525,6 +1525,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
                  if(ppb < r100)toe=toe*r1_2
+                 if (aircraft_t_bc .and. kx==130 .and. ppb>=500.0_r_kind) toe=toe*r10
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
