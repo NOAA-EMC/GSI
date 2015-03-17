@@ -1063,6 +1063,14 @@ subroutine get_gefs_for_regional
      end do
   end do
 
+!
+! CALCULATE ENSEMBLE SPREAD
+  if(write_ens_sprd)then
+     call mpi_barrier(mpi_comm_world,ierror)
+     call ens_spread_dualres_regional(mype)
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
+
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
   deallocate(st_eg,vp_eg,t_eg,rh_eg)

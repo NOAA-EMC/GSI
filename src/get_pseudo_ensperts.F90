@@ -219,7 +219,7 @@ subroutine get_pseudo_ensperts
   call mpi_scatterv(temp,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
        wgt,grd_ens%ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
 
-  call grads2d(grd_ens,wgt,mype,'wgt')
+  call grads3d(grd_ens,wgt,1,mype,'wgt')
 
   deallocate(temp)
 

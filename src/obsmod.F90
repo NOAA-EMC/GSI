@@ -1770,6 +1770,7 @@ contains
     if (l4dvar .or. lsqrtb .or. lbicg) then
        luse_obsdiag = .true.
     endif
+    luse_obsdiag = .true.
     if(.not. luse_obsdiag) then
       if(lsaveobsens .or. lobsdiagsave)then
           write(6,*)'incompatabile luse_obsdiag and lsaveobsens or lobsdiagsave ', &
