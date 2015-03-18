@@ -30,7 +30,8 @@ subroutine get_wrf_nmm_ensperts
                          rd_over_cp,one_tenth,ten
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens, &
-                                          merge_two_grid_ensperts,uv_hyb_ens,grid_ratio_ens
+                                          merge_two_grid_ensperts,uv_hyb_ens, &
+                                          grid_ratio_ens,write_ens_sprd
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use mpeu_util, only: getindex
     use gsi_io, only: lendian_in
