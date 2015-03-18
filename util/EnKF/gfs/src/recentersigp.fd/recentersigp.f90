@@ -136,7 +136,6 @@ program recentersigp
 
         gfileo=gfilei
         call nemsio_open(gfileo,trim(filenameout)//"_mem"//charnanal,'WRITE',iret)
-        write(6,*)'open ',trim(filenameout)//"_mem"//charnanal,iret
         
         npts=lonb*latb
         allocate(rwork1di(npts,nrec))

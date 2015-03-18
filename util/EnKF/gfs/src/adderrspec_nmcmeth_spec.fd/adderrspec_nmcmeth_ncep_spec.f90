@@ -51,12 +51,14 @@ program adderrspec_nmcmeth
        datapath,filenameoutmean,fname,filenameoutr
   character(len=10),allocatable,dimension(:):: datepert
 
-  integer :: iargc,iret,npe,mype,nanal,nanals
+  integer :: iargc,iret,npe,mype,nanals
+  integer :: mype1,orig_group, new_group, new_comm
   integer :: nlevs,ntrac,ntrunc,nc,i,j,k,iscalefact
   integer :: iunit,iunitsf,iunitmean,iunitp,iunitpr
   integer :: npert,window,iseed
   integer:: nrec,latb,lonb,npts,n
   integer,dimension(4) :: iadate,idateout
+  integer,dimension(:),allocatable:: new_group_members
   integer,allocatable,dimension(:) ::iwork,smoothparm
 
   real :: scalefact,rnanals
@@ -127,8 +129,28 @@ program adderrspec_nmcmeth
      call mpi_abort(mpi_comm_world,101,iret)
      stop
   end if
-  
 
+! Map processor number to ensemble member
+  mype1 = mype + 1
+
+
+! Create sub-communicator to handle number of cases (nanals)
+  call mpi_comm_group(mpi_comm_world,orig_group,iret)
+
+  allocate(new_group_members(nanals))
+  do k=1,nanals
+     new_group_members(k)=k-1
+  end do
+  new_group=orig_group
+  if (mype1 <= nanals) then
+     call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
+  endif
+  call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
+  if (iret.ne.0) then
+     write(6,*)'***ERROR*** after mpi_comm_create with iret=',iret
+     call mpi_abort(mpi_comm_world,101,iret)
+  endif
+  
 ! Generate random numbers to select perturbations.  
 ! Use analysis date as random seed
   rseed = 1.0e6_8*iadate(1) + 1.0e4_8*iadate(2) + 1.0e2_8*iadate(3) + iadate(4)
@@ -205,20 +227,19 @@ program adderrspec_nmcmeth
      endif
   endif
   if (.not.nemsio .and. .not.sigio) goto 100
-  if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sigio=',sigio
 
   nc     = (ntrunc+1)*(ntrunc+2)
-  if (mype == 0) write(6,*)' read ',trim(filenamein),&
-       ' nlevs=',nlevs,' ntrac=',ntrac,' ntrunc=',ntrunc,' nc=',nc
 
-
-! Map processor number to ensemble member
-  nanal = mype + 1
+  if (mype==0) then
+     write(6,*)'computing mean with nemsio=',nemsio,' sigio=',sigio
+     write(6,*)' read ',trim(filenamein),' nlevs=',nlevs,&
+          ' ntrac=',ntrac,' ntrunc=',ntrunc,' nc=',nc
+  endif
 
 
 ! Only processors up to nanals have data to process
-  if (nanal <= nanals) then
-     write(charnanal,'(i3.3)') nanal
+  if (mype1 <= nanals) then
+     write(charnanal,'(i3.3)') mype1
      if (meanonly) then
         filenamein = "sanl_"//datestring//"_ensmean"
      else
@@ -229,7 +250,6 @@ program adderrspec_nmcmeth
      filenameout = "sanlp_"//datestring//"_mem"//charnanal
      filenameoutr = "sanlpr_"//datestring//"_mem"//charnanal
      filenameoutmean = "sanlensmean_"//datestring//"_mem"//charnanal
-
 
 !    Set up level dependent smoothing parameters
      allocate(smoothparm(nlevs))
@@ -260,66 +280,67 @@ program adderrspec_nmcmeth
 !       Set ensemble info
 !         http://www.emc.ncep.noaa.gov/gmb/ens/info/ens_grib.html#gribex
         sigheado%iens(1) = 3 ! pos pert
-        sigheado%iens(2) = nanal ! ensemble member number
+        sigheado%iens(2) = mype1 ! ensemble member number
         sigheado%icen2 = 2 ! sub-center, must be 2 or ens info not used
 
 !       Copy sigheado to ensemble mean sigheadim (sigheadim altered later)
         sigheadim=sigheado
 
+
 !       Read each ensemble member analysis.
         call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
-        elseif (nemsio) then
+
+        call sigio_aldata(sigheado,sigdataim,iret)
+        call copy_sigdata(sigheado,sigdatai,sigdataim)
+
+
+        call mpi_allreduce(sigdatai%z,sigdataim%z,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%d,sigdataim%d,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%t,sigdataim%t,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%q,sigdataim%q,nc*nlevs*ntrac,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatai%ps,sigdataim%ps,nc,mpi_real,mpi_sum,new_comm,iret)
+
+!       Compute ensemble mean full fields
+        sigdataim%z  = rnanals*sigdataim%z
+        sigdataim%d  = rnanals*sigdataim%d
+        sigdataim%t  = rnanals*sigdataim%t
+        sigdataim%q  = rnanals*sigdataim%q
+        sigdataim%ps = rnanals*sigdataim%ps
+        
+!       Write out ensemble mean from task 0
+        if (mype == 0) then
+           sigheadim%iens(1) = 1 ! unperturbed control
+           sigheadim%iens(2) = 2 ! low res control
+           sigheadim%icen2 = 2 ! sub-center, must be 2 or ens info not used
+           call sigio_swohdc(iunitmean,filenameoutmean,sigheadim,sigdataim,iret)
+           write(6,*)'write mean data to filenameoutmean= ',trim(filenameoutmean)
         endif
 
+     elseif (nemsio) then
+        write(6,*)'NEMSIO section not yet complete'
+     endif
+
+! Jump here if more mpi processors than files to process
   else
-     call sigio_aldata(sigheado,sigdatai,iret)
-     call init_sigdata(sigheado,sigdatai)
+     write(6,*) 'No files to process for mpi task = ',mype
   endif
 
 
-! Sum full fields over all tasks
-  call sigio_aldata(sigheado,sigdataim,iret)
-  call copy_sigdata(sigheado,sigdatai,sigdataim)
-
-  call mpi_allreduce(sigdatai%z,sigdataim%z,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatai%d,sigdataim%d,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatai%t,sigdataim%t,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatai%q,sigdataim%q,nc*nlevs*ntrac,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatai%ps,sigdataim%ps,nc,mpi_real,mpi_sum,mpi_comm_world,iret)
-
-
 ! Only tasks nanal <= nanals have fields to process
-  if (nanal <= nanals) then
+  if ( (mype1 <= nanals) .and. (scalefact > 0.0) ) then
 
-!    Compute ensemble mean full fields
-     sigdataim%z  = rnanals*sigdataim%z
-     sigdataim%d  = rnanals*sigdataim%d
-     sigdataim%t  = rnanals*sigdataim%t
-     sigdataim%q  = rnanals*sigdataim%q
-     sigdataim%ps = rnanals*sigdataim%ps
+     if (sigio) then
 
+!       Allocate structure for perturbation
+        call sigio_aldata(sigheado,sigdatap,iret)
 
-!    Write out ensemble mean from task 0
-     if (mype == 0) then
-        sigheadim%iens(1) = 1 ! unperturbed control
-        sigheadim%iens(2) = 2 ! low res control
-        sigheadim%icen2 = 2 ! sub-center, must be 2 or ens info not used
-        call sigio_swohdc(iunitmean,filenameoutmean,sigheadim,sigdataim,iret)
-        write(6,*)'write mean data to filenameoutmean= ',trim(filenameoutmean)
-     endif
-
-!    Allocate structure for perturbation
-     call sigio_aldata(sigheado,sigdatap,iret)
-
-     if (scalefact > 0.0) then
-     
         open(9,form='formatted',file='dates_ran.dat')
-        do i=1,nanal
+        do i=1,mype1
            read(9,'(a10,1x,a10)') datestringpert
         enddo
         close(9)
         filenamepert = trim(datapath)//'sigf48_f24.gfs.'//trim(datestringpert)
-
+        
         call sigio_srohdc(iunitsf,trim(filenamepert),sigheadpin,sigdatapin,iret)
         write(6,*)'member=',trim(filenamein),'   perturbation=',trim(filenamepert)
         
@@ -330,29 +351,29 @@ program adderrspec_nmcmeth
            call mpi_abort(mpi_comm_world,101,iret)
            stop
         end if
- 
+        
         write(6,*) 'compare resolution, jcapout, jcappert = ',sigheado%jcap,sigheadpin%jcap
 
-! Change resolution of spectral perturbations if necessary
+!       Change resolution of spectral perturbations if necessary
         if (sigheadpin%jcap.ne.sigheado%jcap) then
-          call sppad(0,sigheadpin%jcap,sigdatapin%ps,0,sigheado%jcap,sigdatap%ps)
-          do k=1,sigheado%levs
-            call sppad(0,sigheadpin%jcap,sigdatapin%z(:,k),0,sigheado%jcap,sigdatap%z(:,k))
-            call sppad(0,sigheadpin%jcap,sigdatapin%d(:,k),0,sigheado%jcap,sigdatap%d(:,k))
-            call sppad(0,sigheadpin%jcap,sigdatapin%t(:,k),0,sigheado%jcap,sigdatap%t(:,k))
+           call sppad(0,sigheadpin%jcap,sigdatapin%ps,0,sigheado%jcap,sigdatap%ps)
+           do k=1,sigheado%levs
+              call sppad(0,sigheadpin%jcap,sigdatapin%z(:,k),0,sigheado%jcap,sigdatap%z(:,k))
+              call sppad(0,sigheadpin%jcap,sigdatapin%d(:,k),0,sigheado%jcap,sigdatap%d(:,k))
+              call sppad(0,sigheadpin%jcap,sigdatapin%t(:,k),0,sigheado%jcap,sigdatap%t(:,k))
               do j=1,ntrac
-                call sppad(0,sigheadpin%jcap,sigdatapin%q(:,k,j),0,sigheado%jcap,sigdatap%q(:,k,j))
+                 call sppad(0,sigheadpin%jcap,sigdatapin%q(:,k,j),0,sigheado%jcap,sigdatap%q(:,k,j))
               end do
-          end do
+           end do
         else
-          sigdatap%z  = sigdatapin%z
-          sigdatap%d  = sigdatapin%d
-          sigdatap%t  = sigdatapin%t
-          sigdatap%q  = sigdatapin%q
-          sigdatap%ps = sigdatapin%ps
+           sigdatap%z  = sigdatapin%z
+           sigdatap%d  = sigdatapin%d
+           sigdatap%t  = sigdatapin%t
+           sigdatap%q  = sigdatapin%q
+           sigdatap%ps = sigdatapin%ps
         end if
 
-! Rescale the perturbation here
+!       Rescale the perturbation here
         sigdatap%z  = scalefact*sigdatap%z
         sigdatap%d  = scalefact*sigdatap%d
         sigdatap%t  = scalefact*sigdatap%t
@@ -377,93 +398,81 @@ program adderrspec_nmcmeth
         call sigio_axdata(sigdatao,iret)
         call sigio_axdata(sigdatapin,iret)
 
-     else ! if scalefact = 0, set perts to zero.
-        write(6,*)' set pert1 to 0.0 since scalefact=',scalefact
-        call init_sigdata(sigheado,sigdatap)
-     endif ! scalefact > 0.
-  else
-     write(6,*)'no member to process for nanal=',nanal,' mype=',mype
-     call sigio_aldata(sigheado,sigdatap,iret)
-     call init_sigdata(sigheado,sigdatap)
-  endif
+
+!       Sum perturbation fields over all tasks
+        call sigio_aldata(sigheado,sigdatapm,iret)
+        call copy_sigdata(sigheado,sigdatai,sigdatapm)
+
+        call mpi_allreduce(sigdatap%z,sigdatapm%z,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatap%d,sigdatapm%d,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatap%t,sigdatapm%t,nc*nlevs,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatap%q,sigdatapm%q,nc*nlevs*ntrac,mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sigdatap%ps,sigdatapm%ps,nc,mpi_real,mpi_sum,new_comm,iret)
 
 
-! Sum perturbation fields over all tasks
-  call sigio_aldata(sigheado,sigdatapm,iret)
-  call copy_sigdata(sigheado,sigdatai,sigdatapm)
+!       Compute ensemble mean perturbation fields
+        sigdatapm%z  = rnanals*sigdatapm%z
+        sigdatapm%d  = rnanals*sigdatapm%d
+        sigdatapm%t  = rnanals*sigdatapm%t
+        sigdatapm%q  = rnanals*sigdatapm%q
+        sigdatapm%ps = rnanals*sigdatapm%ps
 
-  call mpi_allreduce(sigdatap%z,sigdatapm%z,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatap%d,sigdatapm%d,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatap%t,sigdatapm%t,nc*nlevs,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatap%q,sigdatapm%q,nc*nlevs*ntrac,mpi_real,mpi_sum,mpi_comm_world,iret)
-  call mpi_allreduce(sigdatap%ps,sigdatapm%ps,nc,mpi_real,mpi_sum,mpi_comm_world,iret)
+        sigdatap%z  =  sigdatap%z - sigdatapm%z
+        sigdatap%d  =  sigdatap%d - sigdatapm%d
+        sigdatap%t  =  sigdatap%t - sigdatapm%t
+        sigdatap%q  =  sigdatap%q - sigdatapm%q
+        sigdatap%ps =  sigdatap%ps - sigdatapm%ps
 
-
-! Only tasks nanal <= nanals have fields to process
-  if (nanal <= nanals) then
-
-!    Compute ensemble mean perturbation fields
-     sigdatapm%z  = rnanals*sigdatapm%z
-     sigdatapm%d  = rnanals*sigdatapm%d
-     sigdatapm%t  = rnanals*sigdatapm%t
-     sigdatapm%q  = rnanals*sigdatapm%q
-     sigdatapm%ps = rnanals*sigdatapm%ps
-
-     sigdatap%z  =  sigdatap%z - sigdatapm%z
-     sigdatap%d  =  sigdatap%d - sigdatapm%d
-     sigdatap%t  =  sigdatap%t - sigdatapm%t
-     sigdatap%q  =  sigdatap%q - sigdatapm%q
-     sigdatap%ps =  sigdatap%ps - sigdatapm%ps
-
-!    Compute total perturbations.
-     if (mype == 0) write(6,*)'compute total perturbations'
-     sigdatap%z  = sigdatai%z - sigdataim%z + sigdatap%z
-     sigdatap%d  = sigdatai%d - sigdataim%d + sigdatap%d
-     sigdatap%t  = sigdatai%t - sigdataim%t + sigdatap%t
-     sigdatap%q  = sigdatai%q - sigdataim%q + sigdatap%q
-     sigdatap%ps = sigdatai%ps - sigdataim%ps + sigdatap%ps
-
-!    Optionally smooth perturbations
-     if (maxval(smoothparm) > 0) then
-        if (mype == 0) write(6,*)'call smooth'
-        call smooth(sigdatap%z,ntrunc,nlevs,smoothparm,window)
-        call smooth(sigdatap%d,ntrunc,nlevs,smoothparm,window)
-        call smooth(sigdatap%t,ntrunc,nlevs,smoothparm,window)
+!       Compute total perturbations.
+        if (mype == 0) write(6,*)'compute total perturbations'
+        sigdatap%z  = sigdatai%z - sigdataim%z + sigdatap%z
+        sigdatap%d  = sigdatai%d - sigdataim%d + sigdatap%d
+        sigdatap%t  = sigdatai%t - sigdataim%t + sigdatap%t
+        sigdatap%q  = sigdatai%q - sigdataim%q + sigdatap%q
+        sigdatap%ps = sigdatai%ps - sigdataim%ps + sigdatap%ps
         
+!       Optionally smooth perturbations
+        if (maxval(smoothparm) > 0) then
+           if (mype == 0) write(6,*)'call smooth'
+           call smooth(sigdatap%z,ntrunc,nlevs,smoothparm,window)
+           call smooth(sigdatap%d,ntrunc,nlevs,smoothparm,window)
+           call smooth(sigdatap%t,ntrunc,nlevs,smoothparm,window)
+           
 !       Only smooth q field?  this is what's done in getsigensmeanp_smooth.f90
 !       call smooth(sigdatap%q,ntrunc,nlevs,smoothparm,window)
-        do k=1,ntrac
-           call smooth(sigdatap%q(:,:,k),ntrunc,nlevs,smoothparm,window)
-        end do
-        call smooth(sigdatap%ps,ntrunc,1,smoothparm(1),window)
-     else
-        if (mype == 0) write(6,*)'skip call smooth because maxval(smoothparm)=',maxval(smoothparm)
+           do k=1,ntrac
+              call smooth(sigdatap%q(:,:,k),ntrunc,nlevs,smoothparm,window)
+           end do
+           call smooth(sigdatap%ps,ntrunc,1,smoothparm(1),window)
+        else
+           if (mype == 0) write(6,*)'skip call smooth because maxval(smoothparm)=',maxval(smoothparm)
+        endif
+        deallocate(smoothparm)
+
+!       Allocate structure for output.  Initialize with input
+        call sigio_aldata(sigheado,sigdatao,iret)
+        call copy_sigdata(sigheado,sigdatai,sigdatao)
+
+!       Add mean back in
+        if (mype == 0) write(6,*)'add mean back in'
+        sigdatao%z  = sigdataim%z + sigdatap%z
+        sigdatao%d  = sigdataim%d + sigdatap%d
+        sigdatao%t  = sigdataim%t + sigdatap%t
+        sigdatao%q  = sigdataim%q + sigdatap%q
+        sigdatao%ps = sigdataim%ps + sigdatap%ps
+
+!       Write out perturbed and recentered analysis
+        call sigio_swohdc(iunitpr,filenameoutr,sigheado,sigdatao,iret)
+        call sigio_axdata(sigdatao,iret)
+
+!       Deallocate and nullify sigio data structures
+        call sigio_axdata(sigdatai,iret)
+        call sigio_axdata(sigdataim,iret)
+        call sigio_axdata(sigdatap,iret)
+        call sigio_axdata(sigdatapm,iret)
+
      endif
-     deallocate(smoothparm)
-
-!    Allocate structure for output.  Initialize with input
-     call sigio_aldata(sigheado,sigdatao,iret)
-     call copy_sigdata(sigheado,sigdatai,sigdatao)
-
-!    Add mean back in
-     if (mype == 0) write(6,*)'add mean back in'
-     sigdatao%z  = sigdataim%z + sigdatap%z
-     sigdatao%d  = sigdataim%d + sigdatap%d
-     sigdatao%t  = sigdataim%t + sigdatap%t
-     sigdatao%q  = sigdataim%q + sigdatap%q
-     sigdatao%ps = sigdataim%ps + sigdatap%ps
-
-!    Write out perturbed and recentered analysis
-     call sigio_swohdc(iunitpr,filenameoutr,sigheado,sigdatao,iret)
-     call sigio_axdata(sigdatao,iret)
-
   endif
-
-! Deallocate and nullify sigio data structures
-  call sigio_axdata(sigdatai,iret)
-  call sigio_axdata(sigdataim,iret)
-  call sigio_axdata(sigdatap,iret)
-  call sigio_axdata(sigdatapm,iret)
 
 
 ! Wait for all tasks to finish
@@ -475,9 +484,10 @@ program adderrspec_nmcmeth
      stop
   endif
 
-  if (mype == 0) write(6,*) 'all done!'
-
-  if (mype==0) call w3tage('ADDERRSPEC_NMCMETH')
+  if (mype == 0) then
+     write(6,*) 'all done!'
+     call w3tage('ADDERRSPEC_NMCMETH')
+  endif
   call mpi_finalize(iret)
   if (mype == 0 .and. iret .ne. 0) then
      write(6,*)'***ERROR*** MPI_Finalize error status = ',iret
