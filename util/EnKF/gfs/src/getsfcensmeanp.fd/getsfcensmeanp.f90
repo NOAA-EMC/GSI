@@ -36,8 +36,7 @@ program getsfcensmeanp
   character*3 charnanal
   integer lunin,lunout,iret,nanals,k
   integer mype,mype1,npe,orig_group, new_group, new_comm
-  integer nrec, lonb, latb, i, n, npts
-  integer nfhour, nfminute, nfsecondn, nfsecondd
+  integer nrec, lonb, latb, n, npts
   integer,dimension(7):: idate
   integer,dimension(:),allocatable:: new_group_members
   real(8) rnanals

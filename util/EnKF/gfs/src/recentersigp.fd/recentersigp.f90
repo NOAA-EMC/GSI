@@ -38,7 +38,7 @@ program recentersigp
   TYPE(SIGIO_HEAD) :: SIGHEADI,SIGHEADO,SIGHEADMI,SIGHEADMO
   TYPE(SIGIO_DATA) :: SIGDATAI,SIGDATAO,SIGDATAMI,SIGDATAMO
   logical:: nemsio, sigio
-  character*500 filename_meani,filename_meano,filenamein,filenameout,filenameo
+  character*500 filename_meani,filename_meano,filenamein,filenameout
   character*3 charnanal
   character(len=4) charnin
   integer nsigi,nsigo,iret,mype,mype1,npe,nanals,ierr

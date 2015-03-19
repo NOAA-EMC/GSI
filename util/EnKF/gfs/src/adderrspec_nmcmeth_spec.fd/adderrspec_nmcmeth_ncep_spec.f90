@@ -222,6 +222,7 @@ program adderrspec_nmcmeth
         write(6,*)'Read nemsio ',trim(filenamein),' iret=',iret
         call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
              dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, iret=iret)
+        npts=lonb*latb
      else
         write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
      endif
