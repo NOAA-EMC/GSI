@@ -291,8 +291,8 @@ program getsfcensmeanp
 100 continue
   call mpi_barrier(mpi_comm_world,iret)
 
-  if (.not.nemsio .and. .not.sfcio) then
-     if (mype==0) write(6,*)'***ERROR***  invalid surface file format'
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sfcio) then
+     write(6,*)'***ERROR***  invalid surface file format'
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop
   endif

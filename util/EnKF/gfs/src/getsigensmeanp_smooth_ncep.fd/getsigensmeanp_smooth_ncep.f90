@@ -98,11 +98,10 @@ program getsigensmeanp_smooth
   do k=1,nanals
      new_group_members(k)=k-1
   end do
-  new_group=orig_group
-  if (mype1 <= nanals) then
-     call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
-  endif
+
+  call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
   call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
+
   if (iret.ne.0) then
      write(6,*)'***ERROR*** after mpi_comm_create with iret=',iret
      call mpi_abort(mpi_comm_world,101,iret)
@@ -388,8 +387,8 @@ program getsigensmeanp_smooth
 100 continue
   call mpi_barrier(mpi_comm_world,iret)
   
-  if (.not.nemsio .and. .not.sigio) then
-     if (mype==0) write(6,*)'***ERROR***  invalid surface file format'
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio) then
+     write(6,*)'***ERROR***  invalid atmospheric file format'
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop
   endif
