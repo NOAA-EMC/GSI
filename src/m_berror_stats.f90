@@ -57,7 +57,7 @@ module m_berror_stats
       interface berror_get_dims; module procedure get_dims; end interface
       interface berror_read_bal; module procedure read_bal; end interface
       interface berror_read_wgt; module procedure read_wgt; end interface
-      interface berror_set;      module procedure lset; end interface
+      interface berror_set;      module procedure lset;     end interface
 
 ! !REVISION HISTORY:
 !       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
@@ -292,6 +292,8 @@ end subroutine read_bal
 !       15Dec12 - Zhu - Add varcw and cwoption
 !       03Feb14 - Todling - varq & qoption in arg list (remove dep on jfunc)
 !       05Feb14 - Todling - Allow for overwrite of cw with q cov
+!       07Jun14 - Zhu - set up new error variance and corr. lengths 
+!                       of cw for allsky radiance
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -360,8 +362,7 @@ end subroutine read_bal
      if (isig>1) allocate ( vscalesin(nlat,isig) )
 
      if (var/='sst') then
-!       if (var=='q' .or. var=='Q' .or. var=='cw' .or. var=='CW') then !yanqiu's change for cw2                            
-        if (var=='q' .or. var=='Q') then   !original from trunk
+        if (var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2)) then
            read(inerr,iostat=ier) corzin,corq2
            if(ier/=0) call die(myname_, &
               'read("'//trim(berror_stats)//'") for (corzin,corq2) error, iostat =',ier)
@@ -466,17 +467,27 @@ end subroutine read_bal
   enddo
 
 ! if so, overwrite cw-cov with q-cov
+  iq=-1;icw=-1
+  do n=1,size(cvars3d)
+     if(trim(cvars3d(n))=='q' ) iq =n
+     if(trim(cvars3d(n))=='cw') icw=n
+  enddo
   if (cwcoveqqcov_) then
-     iq=-1;icw=-1
-     do n=1,size(cvars3d)
-        if(trim(cvars3d(n))=='q' ) iq =n
-        if(trim(cvars3d(n))=='cw') icw=n
-     enddo
      if(iq>0.and.icw>0) then
        hwll(:,:,icw)=hwll(:,:,iq)
        vz  (:,:,icw)=vz  (:,:,iq)
-    endif
-    
+     end if
+  end if
+  if (cwoption==1 .or. cwoption==3) then
+     do k=1,nsig
+        do i=1,nlat
+           corz(i,k,icw)=one
+        end do
+     end do
+     if (iq>0.and.icw>0) then
+        hwll(:,:,icw)=0.5_r_kind*hwll(:,:,iq)
+        vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
+     end if 
   endif
 
 ! need simliar general template for undefined 2d variables ...

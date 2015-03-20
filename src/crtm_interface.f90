@@ -22,10 +22,13 @@ module crtm_interface
 !                        (2) skip loading geometry and surface structures for modis_aod
 !                        (3) separate jacobian calculation for modis_aod
 !   2012-01-17  sienkiewicz - pass date to crtm for SSU cell pressure
+!   2013-02-25  zhu - add cold_start option for regional applications
 !   2013-10-19  todling - metguess now holds background
 !   2013-11-16  todling - merge in latest DTC AOD development;
 !                         revisit handling of green-house-gases
 !   2014-01-01  li     - change the protection of data_s(itz_tr)
+!   2014-02-26  zhu - add non zero jacobian
+!   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
 !
 ! subroutines included:
 !   sub init_crtm
@@ -42,7 +45,7 @@ use kinds,only: r_kind,i_kind,r_single
 use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
-    crtm_surface_create,crtm_k_matrix, &
+    crtm_surface_create,crtm_k_matrix,crtm_forward, &   
     ssu_input_setvalue, &
     crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
@@ -181,6 +184,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   type(crtm_atmosphere_type),save,allocatable,dimension(:,:):: atmosphere_k
   type(crtm_surface_type),save,allocatable,dimension(:,:):: surface_k
   type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution
+  type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution0              
   type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution_k
 
 ! Mapping land surface type of GFS to CRTM
@@ -246,8 +250,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !   2011-07-20  zhu     - modified codes for lcw4crtm
 !   2012-03-12  yang    - modify to use ch4,n2o,and co
 !   2012-12-03  eliu    - add logic for RH total 
-!   2014-01-31  mkim    - add flexibility for the case when ql and qi are separate control variables
-!                         for all-sky MW radiance DA   
+!   2014-01-31  mkim    - add flexibility in the variable lcw4crtm for the case when ql and 
+!                         qi are separate control variables for all-sky MW radiance DA   
+!   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
+!                         clear-sky Tb under all-sky condition 
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -579,6 +585,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Allocate structures for radiative transfer
 
+ if (lcw4crtm) allocate(rtsolution0(channelinfo(sensorindex)%n_channels,1))       
+
  allocate(&
     rtsolution  (channelinfo(sensorindex)%n_channels,1),&
     rtsolution_k(channelinfo(sensorindex)%n_channels,1),&
@@ -602,6 +610,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
     call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
 !_RTod-NOTE endif
+ if (lcw4crtm) &                                       
+ call crtm_rtsolution_create(rtsolution0,msig) 
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
  call crtm_options_create(options,nchanl)
@@ -612,6 +622,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     write(6,*)myname_,' ***ERROR** creating surface.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
+ if (lcw4crtm) then                                            
+ if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution0)))) &  
+    write(6,*)' ***ERROR** creating rtsolution0.'             
+ endif                                                        
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution_k)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution_k.'
  if (.NOT.(ANY(crtm_options_associated(options)))) &
@@ -749,6 +763,8 @@ subroutine destroy_crtm
   endif
   call crtm_atmosphere_destroy(atmosphere(1))
   call crtm_surface_destroy(surface(1))
+  if (lcw4crtm) &     
+  call crtm_rtsolution_destroy(rtsolution0)    
   call crtm_rtsolution_destroy(rtsolution)
   call crtm_rtsolution_destroy(rtsolution_k)
   call crtm_options_destroy(options)
@@ -758,11 +774,17 @@ subroutine destroy_crtm
      write(6,*)myname_,' ***ERROR** destroying surface.'
   if (ANY(crtm_rtsolution_associated(rtsolution))) &
      write(6,*)myname_,' ***ERROR** destroying rtsolution.'
+  if (lcw4crtm) then            
+  if (ANY(crtm_rtsolution_associated(rtsolution0))) &    
+     write(6,*)' ***ERROR** destroying rtsolution0.'    
+  endif                                                 
   if (ANY(crtm_rtsolution_associated(rtsolution_k))) &
      write(6,*)myname_,' ***ERROR** destroying rtsolution_k.'
   if (ANY(crtm_options_associated(options))) &
      write(6,*)myname_,' ***ERROR** destroying options.'
   deallocate(rtsolution,atmosphere_k,surface_k,rtsolution_k)
+  if (lcw4crtm) &         
+  deallocate(rtsolution0) 
   if(n_aerosols>0)then
      deallocate(aero_names)
      deallocate(aero,aero_conc,auxrh)
@@ -788,8 +810,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                    h,q,clw_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,ptau5,ts, &
-                   emissivity_k,temp,wmix,jacobian,error_status, &
-                   layer_od,jacobian_aero)
+                   emissivity_k,temp,wmix,jacobian,error_status,tsim_clr, &
+                   layer_od,jacobian_aero)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    call_crtm   creates vertical profile of t,q,oz,p,zs,etc., 
@@ -808,12 +830,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2011-05-17  auligne/todling - add handling for hydrometeors
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-07-05  zhu - add cloud_efr & cloudefr; add cloud_efr & jcloud in the interface of Set_CRTM_Cloud
-!   2011-07-05  zhu - rewrite cloud_cont & cwj when total cloud condensate is control variable (lcw4crtm)
+!   2011-07-05  zhu - rewrite cloud_cont & cwj for cloud control variables (lcw4crtm)
 !   2012-03-12  veldelst-- add a internal interpolation function (option)
 !   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
 !                       invoked by the global_anavinfo.ghg.l64.txt
-!   2013-02-25  zhu - add cold_start option 
+!   2013-02-25  zhu - add cold_start option for regional applications
 !   2014-01-31  mkim-- remove 60.0degree boundary for icmask for all-sky MW radiance DA 
+!   2014-02-26  zhu - add non zero jacobian so jacobian will be produced for            
+!                     clear-sky background or background with small amount of cloud     
+!   2014-04-27  eliu - add option to calculate clear-sky Tb under all-sky condition                
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -844,6 +869,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !     error_status - error status from crtm
 !     layer_od     - layer optical depth
 !     jacobian_aero- nsigaerojac level jacobians for use in intaod
+!     tsim_clr     - option to output simulated brightness temperatures for clear sky                  
 !
 ! attributes:
 !   language: f90
@@ -870,7 +896,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use regional_io, only: cold_start
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
-  use constants, only: max_varname_length,qmin,qcmin 
+  use constants, only: max_varname_length,qmin,qcmin,pi 
 
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
@@ -895,6 +921,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out) :: temp,ptau5,wmix
   real(r_kind),dimension(nsigradjac,nchanl),intent(out):: jacobian
   real(r_kind)                          ,intent(  out) :: clw_guess
+  real(r_kind),dimension(nchanl)        ,intent(  out), optional  :: tsim_clr      
   real(r_kind),dimension(nsigaerojac,nchanl),intent(out),optional :: jacobian_aero
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out)  ,optional :: layer_od
 
@@ -906,9 +933,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
 
 ! Declare local variables  
+  real(r_kind),parameter:: windscale = 999999.0_r_kind
+  real(r_kind),parameter:: windlimit = 0.0001_r_kind
+  real(r_kind),parameter:: quadcof  (4, 2  ) =      &
+      reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
+               -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
+  integer(i_kind):: iquadrant
   integer(i_kind):: itsig,itsigp,itsfc,itsfcp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
   integer(i_kind):: iqs,iozs
@@ -924,6 +957,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
 ! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
+  real(r_kind):: wind10,wind10_direction,windratio,windangle
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind),dimension(0:3):: wgtavg
@@ -1487,6 +1521,21 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (lwind) then
         f10=data_s(iff10)
         sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
+        wind10    = sfc_speed
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
+        if (abs(vv5*f10) >= windlimit) then
+          windratio = (uu5*f10) / (vv5*f10)
+        else
+          windratio = 0.0_r_kind
+          if (abs(uu5*f10) > windlimit) then
+            windratio = windscale * uu5*f10
+          endif
+        endif
+        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
+        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2) 
      endif
 
 ! Load surface structure
@@ -1513,9 +1562,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         lai_type = itype
      end if
                                     
-     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
+     if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*wind10_direction
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
@@ -1726,6 +1775,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               end if
 
               clw_guess = clw_guess +  cloud_cont(k,1)
+              do ii=1,n_clouds
+                 if (ii==1 .and. atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
+                    cloud_cont(k,1)=max(1.001_r_kind*1.0E-6, cloud_cont(k,1))
+                 if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
+                    cloud_cont(k,2)=max(1.001_r_kind*1.0E-6, cloud_cont(k,2))
+              end do
+
           endif   
         else 
            kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
@@ -1748,6 +1804,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Set clouds for CRTM
   if(n_clouds>0) then
+     atmosphere(1)%n_clouds = n_clouds  
      call Set_CRTM_Cloud (msig,n_actual_clouds,cloud_names,icmask,n_clouds,cloud_cont,cloud_efr,jcloud,auxdp, &
                           atmosphere(1)%temperature,atmosphere(1)%pressure,auxq,atmosphere(1)%cloud)
   endif
@@ -1779,6 +1836,28 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         error_status
   end if
 
+! Calculate clear-sky Tb for AMSU-A over sea when allsky condition is on
+  if (lcw4crtm .and. present(tsim_clr)) then
+     if(n_clouds>0) then
+        ! Zero out data array in cloud structure: water content, effective
+        ! radius and variance
+
+        atmosphere(1)%n_clouds = 0
+!       call crtm_cloud_zero(atmosphere(1)%cloud)
+
+        ! call crtm forward model for clear-sky calculation
+        error_status = crtm_forward(atmosphere,surface,&
+                                    geometryinfo,channelinfo(sensorindex:sensorindex),&
+                                    rtsolution0,options=options)
+        ! If the CRTM returns an error flag, do not assimilate any channels for this ob
+        ! and set the QC flag to 10 (done in setuprad).
+        if (error_status /=0) then
+           write(6,*)'CRTM_FORWARD  ***ERROR*** during crtm_forward call ',&
+           error_status
+        end if
+     endif 
+  endif 
+
   if (trim(obstype) /= 'modis_aod' ) then
 ! Secant of satellite zenith angle
 
@@ -1799,6 +1878,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
+
+       if (lcw4crtm .and. present(tsim_clr)) &                          
+       tsim_clr(i)=rtsolution0(i,1)%brightness_temperature  
 
 !  Estimated emissivity
        emissivity(i)   = rtsolution(i,1)%surface_emissivity
