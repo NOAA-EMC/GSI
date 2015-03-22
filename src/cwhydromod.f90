@@ -113,6 +113,7 @@ subroutine cw2hydro_tl(sval,wbundle,sv_tsen,clouds,nclouds)
 !
 ! program history log:
 !   2011-07-12  zhu - initial code
+!   2014-04-24  zhu - comment out temperature increment impact on cloud for now
 !
 !   input argument list:
 !     sval - State variable
@@ -164,8 +165,10 @@ do ic=1,nclouds
    do k=1,nsig
       do j=1,lon2
          do i=1,lat2
-            if (clouds(ic)=='ql') sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))-cwgues(i,j,k)*work(i,j,k)
-            if (clouds(ic)=='qi') sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)+cwgues(i,j,k)*work(i,j,k)
+!           if (clouds(ic)=='ql') sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))-cwgues(i,j,k)*work(i,j,k)
+!           if (clouds(ic)=='qi') sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)+cwgues(i,j,k)*work(i,j,k)
+            if (clouds(ic)=='ql') sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))
+            if (clouds(ic)=='qi') sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)
          end do
       end do
    end do
@@ -184,6 +187,7 @@ subroutine cw2hydro_ad(rval,wbundle,rv_tsen,clouds,nclouds)
 !
 ! program history log:
 !   2011-07-12  zhu - initial code
+!   2014-04-24  zhu - comment out temperature increment impact on cloud for now
 !
 !   input argument list:
 !     rval - State variable
@@ -231,22 +235,22 @@ do ic=1,nclouds
    do k=1,nsig
       do j=1,lon2
          do i=1,lat2
-            work=zero
+!           work=zero
             if (clouds(ic)=='ql') then
-               work=work-rv_rank3(i,j,k)*cwgues(i,j,k)
+!              work=work-rv_rank3(i,j,k)*cwgues(i,j,k)
                cv_cw(i,j,k)=cv_cw(i,j,k)+rv_rank3(i,j,k)*(one-work0(i,j,k))
                rv_rank3(i,j,k)=zero
             end if
 
             if (clouds(ic)=='qi') then
-               work=work+rv_rank3(i,j,k)*cwgues(i,j,k)
+!              work=work+rv_rank3(i,j,k)*cwgues(i,j,k)
                cv_cw(i,j,k)=cv_cw(i,j,k)+rv_rank3(i,j,k)*work0(i,j,k)
                rv_rank3(i,j,k)=zero
             end if
 
-            if (work0(i,j,k)<=zero) work=zero
-            if (work0(i,j,k)>=one)  work=zero
-            rv_tsen(i,j,k)=rv_tsen(i,j,k)-r0_05*work
+!           if (work0(i,j,k)<=zero) work=zero
+!           if (work0(i,j,k)>=one)  work=zero
+!           rv_tsen(i,j,k)=rv_tsen(i,j,k)-r0_05*work
          end do
       end do
    end do

@@ -70,6 +70,8 @@ subroutine prewgt(mype)
 !   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-02-01  todling - update interface to berror_read_wgt
 !   2014-02-05  mkim/todling - move cw overwrite w/ q to m_berror_stats
+!   2014-08-02  zhu     - set up new background error variance and correlation lengths of cw 
+!                         for all-sky radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -87,7 +89,7 @@ subroutine prewgt(mype)
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
        pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf,&
-       adjustozvar
+       adjustozvar,cwcoveqqcov
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
@@ -110,6 +112,7 @@ subroutine prewgt(mype)
   use blendmod, only: blend
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_bundle
+  use ncepgfs_io, only: write_ghg_grid
 
   implicit none
 
@@ -123,7 +126,7 @@ subroutine prewgt(mype)
   integer(i_kind) ix,jx,mlat
   integer(i_kind) nf2p,istatus
   integer(i_kind),dimension(0:40):: iblend
-  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst
+  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst,nrf3_cw
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) wlipi,wlipih,df
@@ -132,6 +135,7 @@ subroutine prewgt(mype)
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
   real(r_kind),dimension(lat2,lon2)::temp
+  real(r_kind),dimension(lat2,lon2,nsig):: cwvar
   real(r_kind),dimension(nlat,nlon):: sl,factx
   real(r_kind),dimension(-nf:nf,-nf:nf) :: fact1,fact2
   real(r_kind),dimension(mr:nlat-2):: rs
@@ -158,7 +162,7 @@ subroutine prewgt(mype)
   real(r_single),allocatable,dimension(:,:)  :: hwllinp
   real(r_single),allocatable,dimension(:,:)  :: hsst
 
-  real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar
+  real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar,qvar
   real(r_kind),dimension(lat2,lon2):: psvar
   real(r_kind),dimension(:,:,:),pointer :: ges_oz=>NULL()
 ! real(r_kind),parameter:: eight_tenths = 0.8_r_kind
@@ -199,6 +203,7 @@ subroutine prewgt(mype)
   nrf3_sf   = getindex(cvars3d,'sf')
   nrf3_vp   = getindex(cvars3d,'vp')
   nrf3_q    = getindex(cvars3d,'q')
+  nrf3_cw   = getindex(cvars3d,'cw')
   nrf2_ps   = getindex(cvars2d,'ps')
   nrf2_sst  = getindex(cvars2d,'sst')
 ! nrf2_stl  = getindex(cvarsmd,'stl')
@@ -414,6 +419,7 @@ subroutine prewgt(mype)
         end do
      end do
   end if
+  call write_ghg_grid(tvar,'cot',mype)
 
   if(nrf2_ps>0) then
      do i=1,lat2
@@ -483,8 +489,12 @@ subroutine prewgt(mype)
     enddo
   end do
 
-! Special case of dssv for qoption=2
-  if (qoption==2 .or. cwoption==2) call compute_qvar3d
+! Special case of dssv for qoption=2 and cw
+  if (qoption==2 .or. ((.not. cwcoveqqcov) .and. nrf3_cw>0)) then 
+     call compute_qvar3d(cwvar,qvar)
+     call write_ghg_grid(cwvar,'cov',mype)
+     call write_ghg_grid(qvar,'coq',mype)
+  end if
 
 !!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
   do n=1,nc2d

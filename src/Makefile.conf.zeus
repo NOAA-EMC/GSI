@@ -115,7 +115,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 #<<orig
 #>>emily
   LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
-       -lsfcio -lbufr_d_64 -lw3nco_d -lw3emc_d $(WRFLIB) -L$(NETCDF)/lib -lnetcdf \
+        -lsfcio -lbufr_d_64 -lw3nco_d -lw3emc_d $(WRFLIB) -L$(NETCDF)/lib -lnetcdf \
         -L${LIBcrtm} -lcrtm
 #<<emily
 

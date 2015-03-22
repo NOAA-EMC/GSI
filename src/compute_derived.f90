@@ -70,6 +70,8 @@ subroutine compute_derived(mype,init_pass)
 !   2014-03-19  pondeca - add "load wspd10m guess"
 !   2014-05-07  pondeca - add "load howv guess"
 !   2014-06-19  carley/zhu - add lgues and dlcbasdlog
+!   2014-11-28  zhu     - move cwgues0 to cloud_efr
+!   2014-11-28  zhu     - re-compute ges_cwmr & cwgues the same way as in the regional when cw is not state variable
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -98,7 +100,7 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
   use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,lgues,dlcbasdlog,&
-       dvisdlog,w10mgues,howvgues,cwgues,cwgues0
+       dvisdlog,w10mgues,howvgues,cwgues
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o  
@@ -203,64 +205,59 @@ subroutine compute_derived(mype,init_pass)
 ! Load guess cw for use in inner loop
 ! Get pointer to cloud water mixing ratio
   it=ntguessig
-  if (regional) then
-     call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
-     if (n_actual_clouds>0) then
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,istatus);ier=istatus
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,istatus);ier=ier+istatus
-        if (ier==0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
+  if (n_actual_clouds>0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,istatus);ier=istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,istatus);ier=ier+istatus
+     if (ier==0) then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 cwgues(i,j,k)=max(ges_ql(i,j,k)+ges_qi(i,j,k),qcmin)
+              end do
+           end do
+        end do
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
+        if (istatus==0) then  ! temporarily, revise after moist physics is ready
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    cwgues(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    ges_cwmr(i,j,k)=cwgues(i,j,k)
                  end do
               end do
            end do
         end if
+     else
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
-        if (istatus/=0) ges_cwmr => cwgues    ! temporarily, revise after moist physics is ready 
+        if (istatus==0) then
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    ges_cwmr(i,j,k)=max(ges_cwmr(i,j,k),qcmin)
+                    cwgues(i,j,k)=ges_cwmr(i,j,k)
+                 end do
+              end do
+           end do
+        endif
+     end if  ! end of ier==0
 
-!       update efr_ql
-        if(regional .and. (.not. wrf_mass_regional) .and. jiter>jiterstart) then
-          do ii=1,nfldsig
-             do k=1,nsig
-                do j=1,lon2
-                   do i=1,lat2
-                      tem4=max(zero,(t0c-ges_tsen(i,j,k,ii))*r0_05)
-                      indexw=five + five * min(one, tem4) 
-                      efr_ql(i,j,k,ii)=1.5_r_kind*indexw
-                   end do
+!    update efr_ql
+     if(regional .and. (.not. wrf_mass_regional) .and. jiter>jiterstart) then
+       do ii=1,nfldsig
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   tem4=max(zero,(t0c-ges_tsen(i,j,k,ii))*r0_05)
+                   indexw=five + five * min(one, tem4) 
+                   efr_ql(i,j,k,ii)=1.5_r_kind*indexw
                 end do
              end do
           end do
-        end if  ! jiter
-     else
-        if(associated(ges_cwmr)) ges_cwmr => cwgues
-     end if  ! end of n_actual_clouds
+       end do
+     end if  ! jiter
   else
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
-     if (istatus==0) then
-
-        if(jiter==jiterstart) then
-            do j=1,lon2
-               do i=1,lat2
-                  do k=1,nsig
-                     cwgues0(i,j,k)=ges_cwmr(i,j,k)
-                  end do
-               end do
-            end do
-        endif
-
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 ges_cwmr(i,j,k)=max(ges_cwmr(i,j,k),qcmin)
-                 cwgues(i,j,k)=ges_cwmr(i,j,k)
-              end do
-           end do
-        end do
-     endif
-  end if
+     if(associated(ges_cwmr)) ges_cwmr => cwgues
+  end if  ! end of n_actual_clouds
 
 ! RTodling: The following call is in a completely undesirable place
 ! -----------------------------------------------------------------

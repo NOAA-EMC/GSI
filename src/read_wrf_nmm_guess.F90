@@ -1676,6 +1676,7 @@ subroutine read_nems_nmmb_guess(mype)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
+  use derivsmod, only: cwgues0
   implicit none
 
 ! Declare passed variables here
@@ -1856,7 +1857,7 @@ subroutine read_nems_nmmb_guess(mype)
                       efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
               end if
            end do
-           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv)
+           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv,cwgues0)
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 

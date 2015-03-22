@@ -42,7 +42,7 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
-!   2012-12-15  zhu     - add treatment of dssv for cw
+!   2012-12-15  zhu     - add treatment of dssv for cw for all-sky radiance
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !                          (fixes WCOSS debug compile error)
 !
@@ -74,7 +74,7 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw,nhscrf
+       init_rftable,hzscl,slw,nhscrf,cwcoveqqcov
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: varq,qoption,varcw,cwoption
   use control_vectors, only: cvars2d,cvars3d
@@ -315,7 +315,7 @@ subroutine prewgt_reg(mype)
   end do
 
 ! Special case of dssv for qoption=2 and cw
-  if (qoption==2 .or. nrf3_cw>0) call compute_qvar3d
+  if (qoption==2 .or. ((.not. cwcoveqqcov) .and. nrf3_cw>0)) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d

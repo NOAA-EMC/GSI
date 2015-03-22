@@ -56,6 +56,7 @@ module ncepgfs_io
   public write_gfs_sfc_nst
   public sfc_interpolate
   public sigio_cnvtdv8
+  public write_ghg_grid
 
 contains
 
@@ -77,6 +78,8 @@ contains
 !                         rearrange Min-Jeong's code  
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
+!   2014-11-28  zhu     - assign cwgues0 right after reading in fg,
+!                       - set lower bound to cloud after assigning cwgues0
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -98,6 +101,7 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
+    use derivsmod, only: cwgues0
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -186,8 +190,13 @@ contains
 !      call set_cloud_lower_bound(ges_cwmr_it)
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
-       if (l_cld_derived) &            
-       call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
+       if (l_cld_derived) then
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
+          if (it==2) then
+             call write_ghg_grid(ges_ql_it,'qlb',mype)
+             call write_ghg_grid(ges_qi_it,'qib',mype)
+          end if
+       end if
 
     end do
 
@@ -968,6 +977,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
 
     type(spec_vars):: sp_b
 
@@ -1093,6 +1104,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
   if(istatus==0) aux_oz = ges_oz_it
   call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
   if(istatus==0) aux_cwmr = ges_cwmr_it
+!yanqiu_testb
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ql',ges_ql_it,istatus)
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'qi',ges_qi_it,istatus)
+    call write_ghg_grid(ges_ql_it,'qla',mype)
+    call write_ghg_grid(ges_qi_it,'qia',mype)
+!yanqiu_teste
 
   end subroutine set_analysis_
 

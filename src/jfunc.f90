@@ -212,7 +212,7 @@ contains
     iout_iter=220
     miter=1
     qoption=1
-    cwoption=1
+    cwoption=0
     pseudo_q2=.false.
     do i=0,50
        niter(i)=0

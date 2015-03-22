@@ -186,6 +186,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! Determine whether CW used in CRTM
   call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
+  icw4crtm=0  !emily: do clear ATMS assimilation for now
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
