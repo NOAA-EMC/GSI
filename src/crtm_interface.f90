@@ -606,6 +606,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
    surface(1)%sensordata%WMO_sensor_id    = channelinfo(sensorindex)%WMO_sensor_id
    surface(1)%sensordata%WMO_Satellite_id = channelinfo(sensorindex)%WMO_Satellite_id
    surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
+   if (.NOT.(crtm_surface_associated(surface(1)))) &
+      write(6,*)myname_,' ***ERROR** creating surface.'
  end if
 !_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
@@ -614,8 +616,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
  if (.NOT.(crtm_atmosphere_associated(atmosphere(1)))) &
     write(6,*)myname_,' ***ERROR** creating atmosphere.'
- if (.NOT.(crtm_surface_associated(surface(1)))) &
-    write(6,*)myname_,' ***ERROR** creating surface.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution_k)))) &
