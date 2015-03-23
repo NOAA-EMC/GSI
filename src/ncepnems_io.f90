@@ -118,6 +118,7 @@ module ncepnems_io
   public read_nemsnst
   public write_nemssfc_nst
   public sfc_interpolate
+  public error_msg
 
   interface read_nems
      module procedure read_
@@ -152,7 +153,7 @@ module ncepnems_io
   end interface
 
   interface error_msg
-     module procedure error_msg
+     module procedure error_msg_
   end interface
 
   character(len=*),parameter::myname='ncepnems_io'
@@ -236,12 +237,19 @@ contains
        if (ier/=0) cycle ! this allows code to be free from met-fields
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
-       call read_atm_ (grd_a,filename,mype,sp_a,.true.,.true.,.true.,&
+       
+       call general_read_gfsatm_nems(grd_a,sp_a,filename,mype,.true.,.true.,.true.,&
             ges_z_it,ges_ps_it,&
             ges_vor_it,ges_div_it,&
             ges_u_it,ges_v_it,&
             ges_tv_it,ges_q_it,&
-            ges_cwmr_it,ges_oz_it)
+            ges_cwmr_it,ges_oz_it,.true.,ier)
+!      call read_atm_ (grd_a,filename,mype,sp_a,.true.,.true.,.true.,&
+!           ges_z_it,ges_ps_it,&
+!           ges_vor_it,ges_div_it,&
+!           ges_u_it,ges_v_it,&
+!           ges_tv_it,ges_q_it,&
+!           ges_cwmr_it,ges_oz_it)
     end do
   end subroutine read_
 
@@ -427,8 +435,9 @@ contains
     nflds=5*grd%nsig+1
     if(zflag) nflds=nflds+1
     if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
-    nflds=npe
-!   nflds=grd%nsig
+!   nflds=npe
+    nflds=grd%nsig
+    levs=grd%nsig
 
     allocate( work(grd%itotsub),work_v(grd%itotsub) )
     work=zero
@@ -2430,7 +2439,7 @@ contains
 
 
 
-  subroutine error_msg(mype,sub_name,file_name,var_name,action,stop_code,error_code)
+  subroutine error_msg_(mype,sub_name,file_name,var_name,action,stop_code,error_code)
     use kinds, only: i_kind
     implicit none
 
@@ -2454,7 +2463,7 @@ contains
        end select
      end if
      if ( stop_code /= 0 ) call stop2(stop_code)
-  end subroutine error_msg
+  end subroutine error_msg_
 
 
   subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)

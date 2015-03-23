@@ -284,7 +284,8 @@ subroutine read_gfs_ozone_for_regional
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
   if(use_gfs_nemsio)then
-     call read_nemsatm(grd_gfst,filename,mype,sp_gfs,uv_hyb_ens,.false.,.false.,z,ps,vor,div,u,v,tv,q,cwmr,oz)
+     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
   else
      if (hires) then
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
