@@ -85,6 +85,7 @@ program getsigensmeanp_smooth
   do k=1,nanals
      new_group_members(k)=k-1
   end do
+  new_group=orig_group
   if (mype1 <= nanals) then
      call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
   endif
