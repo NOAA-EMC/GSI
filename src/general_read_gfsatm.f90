@@ -93,7 +93,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     iret=0
     nlatm2=grd%nlat-2
     i=1
-    nflds=5*grd%nsig+1
+    nflds=6*grd%nsig+1
     if(zflag) nflds=nflds+1
     if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
 
