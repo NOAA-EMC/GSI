@@ -1,7 +1,7 @@
-subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
+subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:  read_RadarRef_mosaic     Reading in reflectivity mosaic in RR grid
+! subprogram:  read_radarref_mosaic     Reading in reflectivity mosaic in RR grid
 !
 !   PRGMMR: Ming Hu          ORG: NP22        DATE: 2006-03-27
 !
@@ -12,6 +12,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2008-12-20  Hu  make it read in BUFR form reflectivity  data
 !    2010-04-09  Hu  make changes based on current trunk style
+!    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
 !
 !   input argument list:
 !     infile   - unit from which to read mosaic information file
@@ -44,11 +45,13 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
+  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
+  use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
   implicit none
 !
 
-  character(len=*), intent(in)    :: infile,obstype
+  character(10),    intent(in)    :: infile,obstype
   integer(i_kind),  intent(in)    :: lunout
   integer(i_kind),  intent(inout) :: nread,ndata
   real(r_kind),     intent(in   ) :: twind
@@ -74,18 +77,19 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind)  :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl
-    INTEGER(i_kind)  ::  numlvl,numref
-    INTEGER(i_kind)  ::  k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
-    INTEGER(i_kind)  ::  nmsg,ntb
-    INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=200000
+    integer(i_kind)  ::  maxlvl
+    integer(i_kind)  ::  numlvl,numref,numobsa
+    integer(i_kind)  ::  k,iret
+    integer(i_kind),parameter  ::  nmsgmax=100000
+    integer(i_kind)  ::  nmsg,ntb
+    integer(i_kind)  ::  nrep(nmsgmax)
+    integer(i_kind),parameter  ::  maxobs=2000000
 
-    REAL(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
+    real(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
+
 
 !**********************************************************************
 !
@@ -110,9 +114,9 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       maxlvl= 31
       allocate(ref3d_column(maxlvl+2,maxobs))
 
-      OPEN  ( UNIT = lunin, FILE = trim(infile),form='unformatted',err=200)
-      CALL OPENBF  ( lunin, 'IN', lunin )
-      CALL DATELEN  ( 10 )
+      open  ( unit = lunin, file = trim(infile),form='unformatted',err=200)
+      call openbf  ( lunin, 'IN', lunin )
+      call datelen  ( 10 )
 
       nmsg=0
       nrep=0
@@ -120,14 +124,14 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       msg_report: do while (ireadmg(lunin,subset,idate) == 0)
          nmsg=nmsg+1
          if (nmsg>nmsgmax) then
-            write(6,*)'read_RadarRef_mosaic: messages exceed maximum ',nmsgmax
+            write(6,*)'read_radarref_mosaic: messages exceed maximum ',nmsgmax
             call stop2(50)
          endif
          loop_report: do while (ireadsb(lunin) == 0)
             ntb = ntb+1
             nrep(nmsg)=nrep(nmsg)+1
             if (ntb>maxobs) then
-                write(6,*)'read_RadarRef_mosaic: reports exceed maximum ',maxobs
+                write(6,*)'read_radarref_mosaic: reports exceed maximum ',maxobs
                 call stop2(50)
             endif
 
@@ -138,14 +142,14 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
             if (l4dvar) then
                t4dv=hdr(4)
                if (t4dv<zero .OR. t4dv>winlen) then
-                  write(6,*)'read_RadarRef_mosaic:      time outside window ',&
+                  write(6,*)'read_radarref_mosaic:      time outside window ',&
                        t4dv,' skip this report'
                   cycle loop_report
                endif
             else
                timeo=hdr(4)
                if (abs(timeo)>ctwind(ikx) .or. abs(timeo) > twind) then
-                  write(6,*)'read_RadarRef_mosaic:  time outside window ',&
+                  write(6,*)'read_radarref_mosaic:  time outside window ',&
                        timeo,' skip this report'
                   cycle loop_report
                endif
@@ -164,7 +168,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
          enddo loop_report
       enddo msg_report
 
-      write(6,*)'read_RadarRef_mosaic: messages/reports = ',nmsg,'/',ntb
+      write(6,*)'read_radarref_mosaic: messages/reports = ',nmsg,'/',ntb
       numref=ntb
 !
 !  covert BUFR value of missing (-64) and no echo (-63) to cloud analysis
@@ -186,17 +190,25 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numref
       nreal=maxlvl+2
       if(numref > 0 ) then
-        write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-        write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
-        deallocate(ref3d_column)
+         if(nlon==nlon_regional .and. nlat==nlat_regional) then
+            write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+            write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
+         else
+            call wrfmass_obs_to_a8(ref3d_column,nreal,numref,ilat,ilon,numobsa)
+            nread=numobsa
+            ndata=numobsa
+            write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+            write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numobsa)
+         endif
+         deallocate(ref3d_column)
       endif
     endif
  
     call closbf(lunin)
     return
 200 continue
-    write(6,*) 'read_RadarRef_mosaic, Warning : cannot find radar data file'
+    write(6,*) 'read_radarref_mosaic, Warning : cannot find radar data file'
 
-end subroutine read_RadarRef_mosaic
+end subroutine read_radarref_mosaic
 !
 !

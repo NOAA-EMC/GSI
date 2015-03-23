@@ -35,12 +35,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
-  use constants, only: huge_single,r1000,wgtlim,r10
+  use constants, only: huge_single,r1000,wgtlim,r10,fv
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
-  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
-  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
+  use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -148,6 +149,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !   2014-10-06  carley  - add call to buddy check for twodvar_regional option
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2011-10-14  Hu      - add code for using 2-m temperature as background to
+!                            calculate surface temperauture observation
+!                            innovation
 !
 ! !REMARKS:
 !   language: f90
@@ -182,7 +186,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
   real(r_kind) pof_idx,poaf,effective
   real(r_kind) tges
-  real(r_kind) obserror,ratio,val2,obserrlm
+  real(r_kind) obserror,ratio,val2,obserrlm,ratiosfc
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
   real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -230,6 +234,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(t_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
+  real(r_kind) :: tges2m,qges2m
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -241,6 +246,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -257,7 +264,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   read(lunin)data,luse
 
 !  call GSD terrain match for surface temperature observation
-  if(l_gsd_terrain_match_surfTobs) then
+  if(l_gsd_terrain_match_surftobs) then
      call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
@@ -553,6 +560,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
                 hrdifsig,mype,nfldsig)
         end if
+
+        if(i_use_2mt4b>0 .and. sfctype) then
+!          Interpolate guess th 2m to observation location and time
+           call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
+           tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
+           if(iqtflg)then
+              call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
+                     mype,nfldsig)
+              tges2m=tges2m*(one+fv*qges2m)  ! convert to virtual T
+           endif
+        endif
+
      endif
 
 !    Get approximate k value of surface by using surface pressure
@@ -595,7 +615,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
 ! Compute innovation
-     ddiff = tob-tges
+     if(i_use_2mt4b>0 .and. sfctype) then
+        ddiff = tob-tges2m
+     else
+        ddiff = tob-tges
+     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &
@@ -618,6 +642,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
+     ratiosfc = ddiff/obserrlm
 
  ! modify gross check limit for quality mark=3
      if(data(iqc,i) == three ) then
@@ -642,13 +667,38 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if  
      endif
 
-     if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
-        if (luse(i)) awork(4) = awork(4)+one
-        error = zero
-        ratio_errors = zero
+     if (sfctype .and. i_sfct_gross==1) then
+! extend the threshold for surface T
+        if(i_use_2mt4b<=0) tges2m=tges
+        if ( tges2m < 5.0_r_single) then
+           if (ratiosfc > 1.4_r_single*qcgross &
+              .or. ratiosfc < -2.4_r_single*qcgross  &
+              .or. ratio_errors < tiny_r_kind) then
+              if (luse(i)) awork(4) = awork(4)+one
+              error = zero
+              ratio_errors = zero
+           else
+              ratio_errors = ratio_errors/sqrt(dup(i))
+           end if
+        else
+           if (ratiosfc > qcgross .or. ratiosfc < -1.4_r_single*qcgross  &
+              .or. ratio_errors < tiny_r_kind) then
+              if (luse(i)) awork(4) = awork(4)+one
+              error = zero
+              ratio_errors = zero
+           else
+              ratio_errors = ratio_errors/sqrt(dup(i))
+           end if
+        endif
      else
-        ratio_errors = ratio_errors/sqrt(dup(i))
-     end if
+        if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
+           if (luse(i)) awork(4) = awork(4)+one
+           error = zero
+           ratio_errors = zero
+        else
+           ratio_errors = ratio_errors/sqrt(dup(i))
+        end if
+     endif
      
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
@@ -926,7 +976,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
-     if( .not. last .and. l_PBL_pseudo_SurfobsT .and.         &
+     if( .not. last .and. l_pbl_pseudo_surfobst .and.         &
          ( itype==181 .or. itype==183 .or.itype==187 )  .and. &
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
@@ -940,7 +990,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
         endif
 !
-        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
+        ratio_PBL_height = (prest - thisPBL_height) * pblh_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
         prest = prest - pps_press_incr
         DO while (prest > thisPBL_height)
@@ -995,7 +1045,20 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head%luse    = luse(i)
            ttail(ibin)%head%tv_ob   = iqtflg
 
-           ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+           if(luse_obsdiag)then
+              ttail(ibin)%head%diags => obsdiags(i_t_ob_type,ibin)%tail
+
+              my_head => ttail(ibin)%head
+              my_diag => ttail(ibin)%head%diags
+              if(my_head%idv /= my_diag%idv .or. &
+                 my_head%iob /= my_diag%iob ) then
+                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                       (/is,i,ibin/))
+                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+                 call die(myname)
+              endif
+           endif
 
            prest = prest - pps_press_incr
 
@@ -1142,6 +1205,44 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
+     endif
+     if(i_use_2mt4b>0) then
+!    get th2m ...
+        varname='th2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_th2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_th2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get q2m ...
+        varname='q2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_z))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_q2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_q2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_q2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
      endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
