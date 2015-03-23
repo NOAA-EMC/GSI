@@ -94,13 +94,14 @@ SUBROUTINE read_radar_ref(mype,lunin,regional_time,istart,jstart,   &
   DO i=1,numref
     ii=int(ref_in(ilon1s,i)+0.001_r_kind) - ib + 2
     jj=int(ref_in(ilat1s,i)+0.001_r_kind) - jb + 2
-    if( ii < 1 .or. ii > nlon ) write(6,*) 'read_radar_ref: ', &
-                                'Error in read in ref ii:',mype,ii,jj,i,ib,jb
-    if( jj < 1 .or. jj > nlat ) write(6,*) 'read_radar_ref: ', &
-                                'Error in read in ref jj:',mype,ii,jj,i,ib,jb
-    DO k=1,Nmsclvl
-      ref_mosaic31(ii,jj,k)=ref_in(2+k,i)
-    ENDDO
+    if( ( ii >= 1 .and. ii <= nlon ) .and.   &
+        ( jj >= 1 .and. jj <= nlat ) ) then
+       DO k=1,Nmsclvl
+         ref_mosaic31(ii,jj,k)=ref_in(2+k,i)
+       ENDDO
+    else
+       write(6,*) 'read_radar_ref: Error ii or jj:',mype,ii,jj,i,ib,jb
+    endif
   ENDDO
   deallocate(ref_in)
 
