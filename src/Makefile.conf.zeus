@@ -12,8 +12,10 @@ INCnemsio= $(COREINC)/nemsio
 INCw3    = $(COREINC)/w3emc_d
 #INCcrtm=$(COREINC)/crtm_v2.1.3
 #>>emily
-INCcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/EXP-TestClouds/src/Build/crtm_v2.2.0-alpha/include
-LIBcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/EXP-TestClouds/src/Build/crtm_v2.2.0-alpha/lib
+#INCcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/EXP-TestClouds/src/Build/crtm_v2.2.0-alpha/include
+#LIBcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/EXP-TestClouds/src/Build/crtm_v2.2.0-alpha/lib
+INCcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/tags/REL-2.2.0_alpha.r50970.2015-02-05/src/Build/crtm_v2.2.0-alpha/include
+LIBcrtm=/scratch1/portfolios/NCEPDEV/da/save/Emily.Liu/RTM/CRTM/tags/REL-2.2.0_alpha.r50970.2015-02-05/src/Build/crtm_v2.2.0-alpha/lib
 #<<emily
 
 
