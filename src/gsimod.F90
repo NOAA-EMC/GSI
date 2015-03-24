@@ -103,7 +103,7 @@
                          full_ensemble,pseudo_hybens,betaflg,pwgtflg,coef_bw,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
-                         readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens
+                         readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,nq_hyb_ens
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs, &
@@ -746,6 +746,7 @@
 !                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
 !     q_hyb_ens     - if true, then use specific humidity ensemble perturbations,
 !                       otherwise, use relative humidity
+!     nq_hyb_ens    - if true, then use q=zero ensemble perturbations,
 !     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
@@ -793,7 +794,7 @@
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
-                grid_ratio_ens, &
+                grid_ratio_ens, nq_hyb_ens&
                 oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 

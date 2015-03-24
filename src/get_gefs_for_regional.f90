@@ -34,7 +34,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,ntlevs_ens
+  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,ntlevs_ens,nq_hyb_ens
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -914,7 +914,15 @@ do it=1,ntlevs_ens
               end do
            end do
 
-           if (.not.q_hyb_ens) then
+           if (nq_hyb_ens) then
+              do k=1,grd_ens%nsig
+                 do j=1,grd_ens%lon2
+                    do i=1,grd_ens%lat2
+                       rht(i,j,k) = zero
+                    end do
+                 end do
+              end do
+           else if (.not.q_hyb_ens) then
               do k=1,grd_ens%nsig
                  do j=1,grd_ens%lon2
                     do i=1,grd_ens%lat2
