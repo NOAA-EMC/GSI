@@ -794,7 +794,7 @@
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
-                grid_ratio_ens, nq_hyb_ens&
+                grid_ratio_ens, nq_hyb_ens,&
                 oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
