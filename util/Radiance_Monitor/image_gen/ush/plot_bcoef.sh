@@ -100,7 +100,7 @@ cat << EOF > ${type}_${var}.gs
 EOF
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
-      if [[ ${SUFFIX} = "wopr" ]]; then
+      if [[ ${SUFFIX} = "wopr" || ${SUFFIX} = "pr4dev" ]]; then
          ./nu_plot_bcoef.sh ${type}
       fi
 

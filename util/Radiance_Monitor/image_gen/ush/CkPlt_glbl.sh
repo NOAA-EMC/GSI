@@ -253,9 +253,11 @@ else
    fi
 fi
 
+
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
+
 ${IG_SCRIPTS}/mk_angle_plots.sh
 
 ${IG_SCRIPTS}/mk_bcoef_plots.sh
@@ -276,6 +278,8 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
 fi
 
 ${IG_SCRIPTS}/mk_time_plots.sh
+
+
 
 #------------------------------------------------------------------
 #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.

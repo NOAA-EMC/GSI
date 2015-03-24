@@ -127,10 +127,12 @@ fi
       echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
-      if [[ ${SUFFIX} = "wopr" && ${var} = "count" ]]; then
-         $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
-         ./nu_plot_time.sh ${type}
-#         rm -f nu_plot_time.sh
+      if [[ ${SUFFIX} = "wopr" || ${SUFFIX} = "pr4dev" ]]; then
+         if [[ ${var} = "count" ]]; then
+            $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
+            ./nu_plot_time.sh ${type}
+#            rm -f nu_plot_time.sh
+         fi
       fi
 
    done

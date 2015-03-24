@@ -6,7 +6,7 @@ program bcoef
 !  Extract necessary data for bcoef plots from *.ieee_d files (ges and anl) 
 !  and export to an ascii data file for use by javascript.
 !
-!  In addition to the namelist, a 3 other files -- times.txt, use.txt,
+!  In addition to the namelist, a 1 other file -- times.txt
 !  and chan.txt must be available.  
 !    times.txt --> must contain the 10 digit date(s) to be processed, 
 !                  one time per line and comma separated. 
@@ -24,20 +24,12 @@ program bcoef
 
   integer ftyp,cyc,chan,open_status
 
-  integer ntype,maxpred
-  parameter (ntype=13)
-  parameter (maxpred=12)
-
   logical eof, exist
 
   character(20) str_nchanl
   character(60) sat_out_file
 
-  character(10),dimension(ntype):: ftype
-  character(20) dum,stringd,satsis,isis,mod_satname
-  character(10) satype,dplat
-  character(40) string,diag_rad,data_file
-  character(10) suffix
+  character(40) data_file
 
   character(len=10),allocatable,dimension(:)::times
   character(len=2), allocatable,dimension(:)::useflg
@@ -58,12 +50,8 @@ program bcoef
 !        ordang1    pred(12) = 1st order angle term
 
   integer luname,ldname,lpname,lsatchan,lsatout
-  integer iyy,imm,idd,ihh,idhh,incr,iread
-  integer ii, jj, iflag, n_chan,j,i,k,idum,ichan
-  integer,allocatable,dimension(:):: io_chan,nu_chan
+  integer ii, jj
   
-  real rmiss
-
   real,allocatable,dimension(:,:,:):: mean,atmpath,clw,lapse2,lapse,cos_ssmis
   real,allocatable,dimension(:,:,:):: sin_ssmis,emiss,ordang4,ordang3,ordang2,ordang1
   real,allocatable,dimension(:)    :: penalty
@@ -76,7 +64,6 @@ program bcoef
   namelist /input/ satname,nchanl,ncycle
 
   data luname,ldname,lpname,lsatchan / 5, 50, 51, 52 /
-  data rmiss /-999./
 
 !************************************************************************
 ! Read namelist input
@@ -103,6 +90,8 @@ program bcoef
 ! channel file that time produces.  If I just use the region 1 value the
 ! chi values should be the same, and freq, wave, and use values have to be
 ! the same.
+!       - not so fast.  chan_nums is written to the output txt file so
+!         will need a way around that.
 !
 ! Read chan.txt input file, which is the actual channel number for each 
 ! channel.
@@ -143,11 +132,6 @@ program bcoef
 !        ordang1    pred(12) = 1st order angle term
 !
 !************************************************************************
-!  data ftype / 'penalty','mean','atmpath','clw','lapse2','lapse',&
-!               'cos_ssmis','sin_ssmis','emiss','ordang4','ordang3',&
-!               'ordang2','ordang1' /
-!************************************************************************
-!
 
 !**************************************************
 !  Allocate space for variables
@@ -192,45 +176,42 @@ program bcoef
 
          if ( exist == .TRUE. ) then
             open(ldname,file=data_file,form='unformatted')
-            read(ldname) (penalty(j),j=1,nchanl)
+            read(ldname) (penalty(jj),jj=1,nchanl)
 !            write(6,*) 'penalty(1) = ', penalty(1)
 
-            read(ldname) (mean      (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (atmpath   (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (clw       (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (lapse2    (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (lapse     (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (cos_ssmis (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (sin_ssmis (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (emiss     (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (ordang4   (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (ordang3   (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (ordang2   (ftyp,cyc,j),j=1,nchanl)
-            read(ldname) (ordang1   (ftyp,cyc,j),j=1,nchanl)
+            read(ldname) (mean      (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (atmpath   (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (clw       (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (lapse2    (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (lapse     (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (cos_ssmis (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (sin_ssmis (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (emiss     (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (ordang4   (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (ordang3   (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (ordang2   (ftyp,cyc,jj),jj=1,nchanl)
+            read(ldname) (ordang1   (ftyp,cyc,jj),jj=1,nchanl)
 
             close(ldname)
          else
             write(6,*)' data file does not exist:  ', data_file
-            do j=1,nchanl
-               mean     (ftyp,cyc,j) = 0.0
-               atmpath  (ftyp,cyc,j) = 0.0
-               clw      (ftyp,cyc,j) = 0.0
-               lapse2   (ftyp,cyc,j) = 0.0
-               lapse    (ftyp,cyc,j) = 0.0
-               cos_ssmis(ftyp,cyc,j) = 0.0
-               sin_ssmis(ftyp,cyc,j) = 0.0
-               emiss    (ftyp,cyc,j) = 0.0
-               ordang4  (ftyp,cyc,j) = 0.0
-               ordang3  (ftyp,cyc,j) = 0.0
-               ordang2  (ftyp,cyc,j) = 0.0
-               ordang1  (ftyp,cyc,j) = 0.0
+            do jj=1,nchanl
+               mean     (ftyp,cyc,jj) = 0.0
+               atmpath  (ftyp,cyc,jj) = 0.0
+               clw      (ftyp,cyc,jj) = 0.0
+               lapse2   (ftyp,cyc,jj) = 0.0
+               lapse    (ftyp,cyc,jj) = 0.0
+               cos_ssmis(ftyp,cyc,jj) = 0.0
+               sin_ssmis(ftyp,cyc,jj) = 0.0
+               emiss    (ftyp,cyc,jj) = 0.0
+               ordang4  (ftyp,cyc,jj) = 0.0
+               ordang3  (ftyp,cyc,jj) = 0.0
+               ordang2  (ftyp,cyc,jj) = 0.0
+               ordang1  (ftyp,cyc,jj) = 0.0
             end do
          end if
 
       end do
-!      write(6,*) 'mean(ftyp,120,1) = ', mean(ftyp,120,1)
-!      write(6,*) 'clw(ftyp,120,1) = ', clw(ftyp,120,1)
-!      write(6,*) 'cos_ssmis(ftyp,120,1) = ', cos_ssmis(ftyp,120,1)
    end do
 
 !*****************************************************************************

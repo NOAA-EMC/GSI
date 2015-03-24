@@ -84,10 +84,22 @@ for type in ${SATYPE2}; do
 
       if [[ -d ${TANKDIR}/radmon.${day} ]]; then
          test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
+         if [[ $USE_ANL = 1 ]]; then
+            test_file2=${TANKDIR}/radmon.${day}/angle.${type}_anl.${cdate}.ieee_d
+         else
+            test_file2=
+         fi
+
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
          elif [[ -s ${test_file}.${Z} ]]; then
             $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+         fi
+
+         if [[ -s $test_file2 ]]; then
+            $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
+         elif [[ -s ${test_file2}.${Z} ]]; then
+            $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
          fi
       fi
       if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
@@ -103,6 +115,11 @@ for type in ${SATYPE2}; do
    for var in ${PTYPE}; do
       echo $var
       if [ "$var" =  'count' ]; then
+
+         if [[ ${SUFFIX} = "pr4dev" ]]; then
+            $NCP ${IG_SCRIPTS}/nu_plot_angle.sh .
+            ./nu_plot_angle.sh ${type}
+         fi
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'

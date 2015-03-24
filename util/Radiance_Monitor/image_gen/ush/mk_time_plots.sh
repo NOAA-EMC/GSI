@@ -112,7 +112,7 @@ fi
    rm ${logfile}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:30 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 0:30 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
@@ -165,7 +165,7 @@ fi
          wall_tm="0:45"
       fi
 
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       
    else							# zeus/linux
       for sat in ${SATLIST}; do
@@ -220,7 +220,7 @@ fi
             wall_tm="1:00"
          fi
 
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
 
       else						# zeus/linux
          for var in $list; do
