@@ -16,7 +16,7 @@ export ACCOUNT=${ACCOUNT:-}
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
 #  empty on other platforms.
 #
-export PROJECT=${PROJECT:-GDAS-T20}
+export PROJECT=${PROJECT:-GDAS-T2O}
 
 #
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
