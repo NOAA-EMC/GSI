@@ -578,6 +578,11 @@
         write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_open for output, iret=',iret
         call stop2(23)
      end if
+
+!    read/write orographay
+     call nemsio_readrecv(gfilein,'hgt','sfc',1,nems_wrk,iret=iret)
+     call nemsio_writerecv(gfileout,'hgt','sfc',1,nems_wrk,iret=iret)
+
      call nemsio_readrecv(gfilein,'pres','sfc',1,nems_wrk,iret=iret)
      psfg = 0.01*nems_wrk ! convert ps to millibars.
      ! increment (in hPa) to reg grid.
@@ -733,7 +738,7 @@
            call stop2(23)
         endif
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,k),vg)
+           call reducedtoreg(grdin(:,nlevs+k),vg)
         else
            vg = grdin(:,nlevs+k)
         endif
