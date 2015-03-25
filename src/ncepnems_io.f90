@@ -1355,7 +1355,7 @@ contains
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm, cwsm
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1,work2
-    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid, grid2
+    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
     real(r_kind),allocatable,dimension(:) :: rwork1d,rwork1d1,rlats,rlons,clons,slons
     real(4),allocatable,dimension(:) :: r4lats,r4lons
     real(r_kind),allocatable,dimension(:,:) :: grid_b,grid_b2
@@ -1378,20 +1378,6 @@ contains
         diff_res=.true.
     end if
 
-    do k=1,grd%nsig
-       sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
-    end do
-
-!   Strip off boundary points from subdomains
-    call strip(sub_ps  ,psm)
-    call strip(sub_tv  ,tvsm  ,grd%nsig)
-    call strip(sub_q   ,qsm   ,grd%nsig)
-    call strip(sub_oz  ,ozsm  ,grd%nsig)
-    call strip(sub_cwmr,cwsm  ,grd%nsig)
-    call strip(sub_dp  ,dpsm  ,grd%nsig)
-    call strip(sub_prsl,prslm ,grd%nsig)
-    call strip(sub_u   ,usm   ,grd%nsig)
-    call strip(sub_v   ,vsm   ,grd%nsig)
 
 !   Single task writes analysis data to analysis file
     if (mype==mype_out) then
@@ -1488,7 +1474,30 @@ contains
 
           deallocate(rlats,rlons,r4lats,r4lons)
        end if
+
+!   Terrain
+!   Write out input file surface height
+
+       call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','writeread',istop,iret)
+       call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','write',istop,iret)
     end if
+
+    do k=1,grd%nsig
+       sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
+    end do
+
+!   Strip off boundary points from subdomains
+    call strip(sub_ps  ,psm)
+    call strip(sub_tv  ,tvsm  ,grd%nsig)
+    call strip(sub_q   ,qsm   ,grd%nsig)
+    call strip(sub_oz  ,ozsm  ,grd%nsig)
+    call strip(sub_cwmr,cwsm  ,grd%nsig)
+    call strip(sub_dp  ,dpsm  ,grd%nsig)
+    call strip(sub_prsl,prslm ,grd%nsig)
+    call strip(sub_u   ,usm   ,grd%nsig)
+    call strip(sub_v   ,vsm   ,grd%nsig)
 !
 !   Thermodynamic variable
 !   The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
@@ -1497,15 +1506,6 @@ contains
 !   Convert Tv to T
     tvsm = tvsm/(one+fv*qsm)
 !   Generate and write analysis fields
-!   Terrain
-!   Write out input file surface height
-
-    if (mype==mype_out) then
-       call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','writeread',istop,iret)
-       call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','write',istop,iret)
-    endif
 
 !   Surface pressure.  
     call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
@@ -1535,8 +1535,8 @@ contains
           rwork1d = reshape(grid_b,(/size(rwork1d)/))
        else
           call load_grid(work1,grid)
-          grid2 = grid*r1000
-          rwork1d = reshape(grid2,(/size(rwork1d)/))
+          grid = grid*r1000
+          rwork1d = reshape(grid,(/size(rwork1d)/))
        end if
        call nemsio_writerecv(gfileo,'pres','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'psfc','write',istop,iret)
@@ -1571,8 +1571,8 @@ contains
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
-             grid2 = grid*r1000
-             rwork1d = reshape(grid2,(/size(rwork1d)/))
+             grid = grid*r1000
+             rwork1d = reshape(grid,(/size(rwork1d)/))
           end if
           call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'dpres','write',istop,iret)
@@ -1608,8 +1608,8 @@ contains
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
-             grid2 = grid*r1000
-             rwork1d = reshape(grid2,(/size(rwork1d)/))
+             grid = grid*r1000
+             rwork1d = reshape(grid,(/size(rwork1d)/))
           end if
           call nemsio_writerecv(gfileo,'pres','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'pres','write',istop,iret)
@@ -1685,8 +1685,7 @@ contains
           if(diff_res)then
              call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-             rwork1d1 = r0_001*rwork1d
-             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
@@ -1701,7 +1700,7 @@ contains
                grid3(j,i,1)=work1(kk)
              end do
              call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=r1000*(grid_b+grid_c(:,:,1))
+             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1721,8 +1720,7 @@ contains
           if(diff_res)then
              call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-             rwork1d1 = r0_001*rwork1d
-             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
@@ -1737,7 +1735,7 @@ contains
                grid3(j,i,1)=work1(kk)
              end do
              call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=r1000*(grid_b+grid_c(:,:,1))
+             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1757,8 +1755,7 @@ contains
           if(diff_res)then
              call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-             rwork1d1 = r0_001*rwork1d
-             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
@@ -1773,7 +1770,7 @@ contains
                grid3(j,i,1)=work1(kk)
              end do
              call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=r1000*(grid_b+grid_c(:,:,1))
+             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1794,8 +1791,7 @@ contains
              if(diff_res)then
                 call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-                rwork1d1 = r0_001*rwork1d
-                grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+                grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 vector(1)=.false.
                 call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
                 call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
@@ -1810,7 +1806,7 @@ contains
                   grid3(j,i,1)=work1(kk)
                 end do
                 call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-                grid_b=r1000*(grid_b+grid_c(:,:,1))
+                grid_b=grid_b+grid_c(:,:,1)
                 rwork1d = reshape(grid_b,(/size(rwork1d)/))
              else
                 call load_grid(work1,grid)

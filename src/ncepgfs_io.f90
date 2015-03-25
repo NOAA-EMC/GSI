@@ -39,7 +39,6 @@ module ncepgfs_io
 !
 !$$$ end documentation block
   use sigio_module, only: sigio_head
-  use egrid2agrid_mod,only: egrid2agrid_parm
   implicit none
 
   private
@@ -52,10 +51,8 @@ module ncepgfs_io
   public write_gfs_sfc_nst
   public sigio_cnvtdv8
   public sighead 
-  public p_high
 
   type(sigio_head) :: sighead 
-  type(egrid2agrid_parm) :: p_high
 
 contains
 
@@ -1023,17 +1020,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
        if(use_gfs_nemsio)then
-          call general_write_gfsatm_nems(grd_a,sp_a,filename,mype,mype_atm, &
-               aux_ps,&
-               aux_u,aux_v,&
-               aux_tv,aux_q,&
-               aux_oz,aux_cwmr,ges_prsl(:,:,:,it),ges_prsi(:,:,:,it),it,inithead,&
-               iret_write)
-!         call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
-!           aux_ps,&
-!           aux_tv,aux_q,&
-!           aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
-!           aux_u,aux_v,ges_prsi(:,:,:,it),it)
+          call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
+            aux_ps,&
+            aux_tv,aux_q,&
+            aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
+            aux_u,aux_v,ges_prsi(:,:,:,it),it)
        else
           nlon_b=((2*jcap_b+1)/nlon+1)*nlon
           if (nlon_b /= sp_a%imax) then
