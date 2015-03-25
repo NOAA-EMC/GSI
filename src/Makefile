@@ -241,6 +241,7 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
+	convthin_time.f90 \
         correlated_obsmod.F90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
