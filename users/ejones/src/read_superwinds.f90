@@ -93,7 +93,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
@@ -143,7 +143,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
   
 ! Open, then read date from bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   rewind lnbufr
   read(lnbufr,end=1010,err=1010)ndata_in,iord_in,iuvw_in,nbar_in,iyref,imref,idref,ihref
   if(offtime_data) then

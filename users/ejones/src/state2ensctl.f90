@@ -8,6 +8,8 @@ subroutine state2ensctl(eval,mval,grad)
 !
 ! program history log:
 !   2011-11-17  kleist - initial code
+!   2013-10-28  todling - rename p3d to prse
+!   2013-11-22  kleist - add option for q perturbations
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -21,7 +23,7 @@ subroutine state2ensctl(eval,mval,grad)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
 use balmod, only: strong_bk_ad
@@ -37,6 +39,7 @@ use constants, only: zero,max_varname_length
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
+use timermod, only: timer_ini,timer_fnl
 implicit none
 
 ! Declare passed variables
@@ -47,7 +50,7 @@ type(gsi_bundle)    , intent(in   ) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='state2ensctl'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds
+integer(i_kind) :: jj,ic,id,istatus,nclouds
 
 integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
@@ -62,15 +65,18 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
 integer(i_kind), parameter :: nsvars = 5
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen' /)
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
+real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
 
 !****************************************************************************
+
+! Initialize timer
+call timer_ini(trim(myname))
 
 ! Inquire about chemistry
 call gsi_metguess_get('clouds::3d',nclouds,istatus)
@@ -88,15 +94,16 @@ lc_t  =icps(4)>0; lc_rh =icps(5)>0
 ! Since each internal vector of grad has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
-ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
-do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
-do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
+do_normal_rh_to_q_ad=(.not.q_hyb_ens).and.&
+                     lc_t .and.lc_rh.and.ls_prse.and.ls_q
+do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 ! Initialize
 mval%values=zero
@@ -121,7 +128,7 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'u'   ,rv_u,   istatus)
    call gsi_bundlegetpointer (eval(jj),'v'   ,rv_v,   istatus)
    call gsi_bundlegetpointer (eval(jj),'ps'  ,rv_ps,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'p3d' ,rv_p3d, istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',rv_prse,istatus)
    call gsi_bundlegetpointer (eval(jj),'tv'  ,rv_tv,  istatus)
    call gsi_bundlegetpointer (eval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (eval(jj),'q'   ,rv_q ,  istatus)
@@ -133,7 +140,7 @@ do jj=1,ntlevs_ens
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
 !  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_p3d)
+   if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 ! If calling TLNMC, already have u,v (so set last argument to true)
    if(lstrong_bk_vars) then
@@ -145,7 +152,7 @@ do jj=1,ntlevs_ens
          if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
 !  Adjoint to convert ps to 3-d pressure
-         if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_p3d)
+         if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 !  Adjoint of strong_bk
          call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
@@ -184,10 +191,12 @@ do jj=1,ntlevs_ens
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_p3d,rv_q)
+   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
+!  Else q option
+   if(q_hyb_ens) call gsi_bundleputvar ( wbundle_c, 'q', rv_q, istatus )
 
 !  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_p3d)
+   if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
 
    if(dual_res) then
       call ensemble_forward_model_ad_dual_res(wbundle_c,grad%aens(1,:),jj)
@@ -205,6 +214,8 @@ end do
 
 if (nclouds>0) deallocate(clouds)
 
+! Finalize timer
+call timer_fnl(trim(myname))
 
 return 
 end subroutine state2ensctl

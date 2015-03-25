@@ -22,6 +22,8 @@ subroutine strong_baldiag_inc(sval,nsval)
 !   2012-02-08  kleist   - add uvflag=.true. to call to strong_bal_correction
 !   2012-03-11  tong     - modified to take into account the case when cw is not
 !                          a control variable or not included in met_guess
+!   2013-10-19  todling  - guess in metguess now
+!   2013-10-28  todling  - rename p3d to prse
 !
 !   input argument list:
 !     sval    - current solution in state space
@@ -55,16 +57,16 @@ subroutine strong_baldiag_inc(sval,nsval)
 
 ! Declare local variables
   integer(i_kind) ii,ier,iqi,iql,icw,istatus
-  integer(i_kind) is_u,is_v,is_t,is_q,is_qi,is_ql,is_cw,is_oz,is_p,is_p3d
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_u
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_v
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_t
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_q
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_oz
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_cw
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_ql
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_qi
-  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_p3d
+  integer(i_kind) is_u,is_v,is_t,is_q,is_qi,is_ql,is_cw,is_oz,is_p,is_prse
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_u  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_v  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_t  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_q  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_oz =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_cw =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_ql =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_qi =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_prse=>NULL()
 !
   real(r_kind),pointer,dimension(:,:,:) :: p_u  =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_v  =>NULL()
@@ -73,9 +75,8 @@ subroutine strong_baldiag_inc(sval,nsval)
   real(r_kind),pointer,dimension(:,:,:) :: p_cw =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_ql =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_qi =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_oz =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_p3d=>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: p_ps =>NULL()
+  real(r_kind),allocatable,dimension(:,:,:) :: cw_hold
   logical fullfield
   type(gsi_bundle) dhat_dt
   logical lcld
@@ -94,7 +95,7 @@ subroutine strong_baldiag_inc(sval,nsval)
   call gsi_bundlegetpointer(sval(1),'ql', is_ql, istatus);iql=istatus+iql  
   call gsi_bundlegetpointer(sval(1),'qi', is_qi, istatus);iqi=istatus+iqi  
   call gsi_bundlegetpointer(sval(1),'ps', is_p,  istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval(1),'p3d',is_p3d,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval(1),'prse',is_prse,istatus);ier=istatus+ier
 !  if(ier+icw*(iql+iql)/=0) then ! for now ... just die ... _RT 
   if(ier/=0)then
     write(6,*) 'strong_baldiag_inc: trouble getting sval pointers, ier               =', ier 
@@ -115,7 +116,7 @@ subroutine strong_baldiag_inc(sval,nsval)
   call gsi_bundlegetpointer(dhat_dt,'cw', dhat_dt_cw, istatus);icw=istatus+icw
   call gsi_bundlegetpointer(dhat_dt,'ql', dhat_dt_ql, istatus);iql=istatus+iql
   call gsi_bundlegetpointer(dhat_dt,'qi', dhat_dt_qi, istatus);iqi=istatus+iqi
-  call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
 !  if(ier+icw*(iql+iql)/=0) then ! for now ... just die ... _RT 
   if(ier/=0) then
     write(6,*) 'strong_baldiag_inc: trouble getting sval pointers, ier               =', ier 
@@ -139,46 +140,44 @@ subroutine strong_baldiag_inc(sval,nsval)
      call gsi_bundlegetpointer(sval(ii),'v',  p_v,  istatus)
      call gsi_bundlegetpointer(sval(ii),'tv', p_t,  istatus)
      call gsi_bundlegetpointer(sval(ii),'q',  p_q,  istatus)
-     call gsi_bundlegetpointer(sval(ii),'oz', p_oz, istatus)
+!_RT call gsi_bundlegetpointer(sval(ii),'oz', p_oz, istatus)
 !    call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
      call gsi_bundlegetpointer(sval(ii),'ps', p_ps, istatus)
-     call gsi_bundlegetpointer(sval(ii),'p3d',p_p3d,istatus)
+!_RT     call gsi_bundlegetpointer(sval(ii),'prse',p_prse,istatus)
 
      if (lcld) then
         if (icw==0) then
-           call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
-           call calctends_tl( &
-             p_u,p_v ,p_t,  &
-             p_q,p_oz,p_cw, &
-             mype, nnnn1o,          &
-             dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_p3d, &
-             dhat_dt_q,dhat_dt_oz,dhat_dt_cw,p_p3d)
+!_RT       call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
+           call calctends_tl(sval(ii),dhat_dt,mype)
         else
+           call gsi_bundlegetpointer(sval(ii),'qi', p_cw, istatus)
            call gsi_bundlegetpointer(sval(ii),'ql', p_ql, istatus)
            call gsi_bundlegetpointer(sval(ii),'qi', p_qi, istatus)
-           call calctends_tl( &
-             p_u,p_v ,p_t,  &
-             p_q,p_oz,(p_ql+p_qi), &
-             mype, nnnn1o,          &
-             dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_p3d, &
-             dhat_dt_q,dhat_dt_oz,dhat_dt_ql,p_p3d)    ! eliu: for now, just use
+           allocate(cw_hold(size(p_ql,1),size(p_ql,2),size(p_ql,3)))
+           cw_hold=p_cw
+           p_cw=p_ql+p_qi
+           call calctends_tl(sval(ii),dhat_dt,mype)
+           p_cw=cw_hold
+           deallocate(cw_hold)
+!          call calctends_tl( &
+!            p_u,p_v ,p_t,  &
+!            p_q,p_oz,(p_ql+p_qi), &
+!            mype, nnnn1o,          &
+!            dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_prse, &
+!            dhat_dt_q,dhat_dt_oz,dhat_dt_ql,p_prse)    ! eliu: for now, just use
                                                        ! dhat_dt_ql to hold time tendency terms for cw
                                                        ! since it is
                                                        ! calculated but
                                                        ! not used 
+             !RTodling: Emily we need to talk about ... dhat_dt_ql not used anyway!
         end if
      else
-        call calctends_tl( &
-          p_u,p_v ,p_t,  &
-          p_q,p_oz,p_cw, &
-          mype, nnnn1o,          &
-          dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_p3d, &
-          dhat_dt_q,dhat_dt_oz,dhat_dt_cw,p_p3d)
+        call calctends_tl(sval(ii),dhat_dt,mype) 
      end if
 
      if(nvmodes_keep>0) then
         fullfield=.false.
-        call strong_bal_correction(dhat_dt_u,dhat_dt_v,dhat_dt_t,dhat_dt_p3d,&
+        call strong_bal_correction(dhat_dt_u,dhat_dt_v,dhat_dt_t,dhat_dt_prse,&
                     mype,p_u,p_v,&
                          p_t,p_ps,&
                    .true.,fullfield,.false.,.true.)

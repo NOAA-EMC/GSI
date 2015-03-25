@@ -868,7 +868,7 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
 
 end subroutine ens_mirror
 !=======================================================================
-subroutine pges_minmax(mype,pmin,pmax)
+subroutine pges_minmax(mype,nt,pmin,pmax)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    pges_minmax
@@ -880,6 +880,7 @@ subroutine pges_minmax(mype,pmin,pmax)
 ! program history log:
 !   2007-04-05  pondeca
 !   2010-04-01  treadon - move strip to gridmod
+!   2013-10-24  todling - pass nt (time slot) argument
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -901,6 +902,7 @@ subroutine pges_minmax(mype,pmin,pmax)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
+  integer(i_kind),intent(in   ) :: nt
   real(r_kind)   ,intent(  out) :: pmin(nsig),pmax(nsig)
 
 ! Declare local variables
@@ -908,7 +910,7 @@ subroutine pges_minmax(mype,pmin,pmax)
   real(r_kind):: p3d(lat1,lon1,nsig)
   real(r_kind):: p1,p2
 
-  call strip(ges_prsl,p3d,nsig)
+  call strip(ges_prsl(:,:,:,nt),p3d,nsig)
 
   do k=1,nsig
      p1=minval(p3d(:,:,k))

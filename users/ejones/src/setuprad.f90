@@ -141,8 +141,13 @@
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
-!   2014-12-03  ejones  - Add amsr2 and gmi, gwp variable, and call to
-!   retrieval_gmi
+!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-01-16  ejones  - Added call to qc_gmi for gmi observations
+!                       - Added saphir
+!   2015-02-12  ejones  - Write gwp to diag file for GMI
+!   2015-03-11  ejones  - Added call to qc_amsr2 for amsr2 observations
+!   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -181,8 +186,8 @@
       i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
-  use obsmod, only: obs_diag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use obsmod, only: obs_diag,luse_obsdiag
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
@@ -196,13 +201,15 @@
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
-  use clw_mod, only: calc_clw, ret_amsua,retrieval_gmi     !retrieval_mi is gmao gmi change
-  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
+  use clw_mod, only: calc_clw, ret_amsua 
+  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms,qc_gmi,qc_amsr2,qc_saphir
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc,ifail_scanedge_qc         !ifail_scanedge_qc is gmao tmi change
+  use qcmod, only: setup_tzr_qc,ifail_outside_range,ifail_scanedge_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
+  use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian
+
   implicit none
 
 ! Declare passed variables
@@ -227,10 +234,9 @@
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
-  integer(i_kind) kk,n,nlev,kval,ibin,ioff,ioff0,iii
-  integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag,nchanl2   ! nchanl2 - gmao gmi change
-  integer(i_kind) kraintype_guess_retrieval, ierrret_guess_retrieval     !gmao gmi changes
-  integer(i_kind) nadir,kraintype,ierrret            !,ichanl_diag
+  integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
+  integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
+  integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
@@ -242,17 +248,18 @@
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
-!  real(r_kind) wltm1,wltm2,wltm3  
+! real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval,gwp,clw_obs !clw_obs is gmao gmi change
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) gwp,clw_obs
   real(r_kind) dtsavg,r90,coscon,sincon
-!  real(r_kind) dlat,wlat 
+! real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
-  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi
+  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
   logical microwave, microwave_low
@@ -284,16 +291,16 @@
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
-  real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval           !,clwtmp
-  real(r_kind) :: predchan6_save   
+  real(r_kind) :: ptau5deriv, ptau5derivmax
+  real(r_kind) :: clw_guess,clw_guess_retrieval
+! real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical channel_passive
 
+  logical channel_passive
   logical,dimension(nobs):: luse
 
   character(10) filex
@@ -360,13 +367,15 @@
   cris       = obstype == 'cris'
   seviri     = obstype == 'seviri'
   atms       = obstype == 'atms'
+  saphir     = obstype == 'saphir'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-            ssmi  .or. ssmis  .or. amsre .or. atms .or. amsr2 .or. gmi
+            ssmi  .or. ssmis  .or. amsre .or. atms .or. &
+            amsr2 .or. gmi  .or.  saphir
 
-  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre !.or. amsr2  !.or. gmi
+  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
 
 ! Determine whether or not cloud-condensate is present in MetGuess
   lcw4crtm=.false.
@@ -767,34 +776,25 @@
            end do
         end if
 
-!       Compute microwave cloud liquid water for bias correction and QC.
+!       Compute microwave cloud liquid water or graupel water path for bias correction and QC.
         clw=zero
-        clwp_amsua=zero          
-        clw_obs=zero   ! ej ! gmao gmi change
+        clwp_amsua=zero
+        clw_obs=zero
         clw_guess_retrieval=zero
+        gwp=zero
         tpwc_amsua=zero
         tpwc_guess_retrieval=zero
         ierrret=0
         tpwc=zero
         kraintype=0
         if(microwave .and. sea) then 
-           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms,amsr2,gmi, &
-                tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
-! call to retrieval_mi for gmi from gmao gmi code goes here
-           if(gmi) then               ! ej
+           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
+                amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
+             if(gmi .or. amsr2) then   ! set clw_obs for gmi and amsr2
              clw_obs = clw
-             call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
-!             tpwc_amsua = tpwc
-!             nchanl2 = nchanl - 2    ! cha 1&2 for TMI are not available for SSMI.
-!             nchanl2 = 7
-!             call retrieval_mi(tsim(3),nchanl2,no85GHz, &
-!             call retrieval_mi(tsim(3:9),nchanl2,no85GHz, &
-!                 tpwc_guess_retrieval,clw_guess_retrieval,kraintype_guess_retrieval,&
-!                 ierrret_guess_retrieval )
-           endif 
-
+             endif
            if(lcw4crtm) then
-              call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua,ierrret) ! slightly different function call in the gmao code 
+              call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua, ierrret)
               call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval, ierrret)
            end if
            if (ierrret /= 0) then 
@@ -813,7 +813,7 @@
            if (.not. newpc4pred) then
               pred(1,i) = r0_01
               pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
-              if(ssmi .or. ssmis .or. amsre .or. gmi .or. amsr2)pred(2,i)=zero   ! ej  ! gmi added here in gmao code
+              if(ssmi .or. ssmis .or. amsre .or. gmi .or. amsr2)pred(2,i)=zero
            else
               pred(1,i) = one
               if (adp_anglebc) then
@@ -841,17 +841,14 @@
 ! assignment (needed for vertical localization).
               weightmax(i) = zero
               do k=2,nsig
-                 ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
+                 ptau5deriv = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
                     (log(prsltmp(k-1))-log(prsltmp(k))) )
-                 if (ptau5deriv(k,i) > ptau5derivmax) then
-                    ptau5derivmax = ptau5deriv(k,i)
+                 if (ptau5deriv > ptau5derivmax) then
+                    ptau5derivmax = ptau5deriv
                     kmax(i) = k
                     weightmax(i) = r10*prsitmp(k) ! cb to mb.
                  end if
               enddo
-! normalize weighting function
-              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax(i),i)
-              ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
            tlapchn(i)= (ptau5(2,i)-ptau5(1,i))*(tsavg5-tvp(2))
@@ -936,9 +933,7 @@
            error0(i)     = tnoise(i)
 
 !          Assign observation error if assimilating all-sky MW radiance data 
-           ! this call to obserr_allshy_mw slightly different in gmao gmi code
-           ! (clw_obs used instead of clwp_amsua)
-           if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clw_obs,clw_guess_retrieval) 
+           if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clwp_amsua,clw_guess_retrieval) 
 
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
@@ -1010,6 +1005,7 @@
               zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv)
 
+
 !  If cloud impacted channels not used turn off predictor
 
            do i=1,nchanl
@@ -1040,6 +1036,7 @@
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
               zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv)
+
 !  ---------- GOES imager --------------
 !       GOES imager Q C
 !
@@ -1100,7 +1097,7 @@
 !  ---------- SSM/I , SSMIS, AMSRE  -------------------
 !       SSM/I, SSMIS, & AMSRE Q C
 
-        else if( ssmi .or. amsre .or. ssmis .or. gmi .or. amsr2 )then    ! gmi added here in gmao gmi code 
+        else if( ssmi .or. amsre .or. ssmis )then   
 
            if(amsre)then
               bearaz= (270._r_kind-data_s(ilazi_ang,n))*deg2rad
@@ -1110,39 +1107,39 @@
                        coscon * sin( bearaz ) * cos( sun_zenith ) * sin( sun_azimuth ) +  &
                        sincon *  sin( sun_zenith )) * rad2deg
            end if
-
-! from gmao gmi code - scan edge QC:
-! ej
-            if(gmi .and. data_s(32,n) > 0_i_kind) &
-              id_qc(1:nchanl) = ifail_scanedge_qc   ! Remove some obs near scan edges.
-
-
-! qc_ssmi had snow and ice passed pre-update
            call qc_ssmi(nchanl,nsig,ich, &
               zsges,luse(n),sea,mixed, &
               temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-              amsr2,gmi,varinv,errf,aivals(1,is),id_qc)  ! ej  ! gmi_low added here in gmao gmi code 
-
+              varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- AMSR2  -------------------
 !       AMSR2 Q C
- 
-!        elseif (amsr2) then
-           
-!           call qc_amsr2(nchanl)
 
+        else if (amsr2) then
+
+           call qc_amsr2(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+              kraintype,clw,tb_obs,amsr2,varinv,aivals(1,is),id_qc)
 
 
 !  ---------- GMI  -------------------
 !       GMI Q C
 
-!        elseif (gmi) then
- 
-!           call qc_gmi(nchanl)
+        else if (gmi) then
+! remove some data near the scan edge
+           if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
 
+           call qc_gmi(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+              kraintype,clw,tb_obs,gmi,varinv,aivals(1,is),id_qc)
 
+!  ---------- SAPHIR -----------------
+!       SAPHIR Q C
+        
+        else if (saphir) then
 
+        call qc_saphir(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+              kraintype,saphir,varinv,aivals(1,is),id_qc)
+        
 !  ---------- SSU  -------------------
 !       SSU Q C
 
@@ -1156,11 +1153,6 @@
 !       Done with sensor qc blocks.  Now make final qc decisions.
 
 !       Apply gross check to observations.  Toss obs failing test.
-
-! for testing, do not include gmi in gross check - EJ
-!        if(.not.gmi) then
-! /EJ
-
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
@@ -1186,10 +1178,6 @@
 
            end if
         end do
-
-! EJ
-!        endif
-!/EJ
 
         if(amsua .or. amsub .or. mhs .or. msu .or. hsb)then
            if(amsua)nlev=6
@@ -1222,9 +1210,6 @@
 !       If requested, generate SST retrieval (output)
         if(retrieval) then
            if(avhrr_navy .or. avhrr) then
-!              call avhrr_sst_retrieval(dplat(is),nchanl,tnoise,&
-!                 varinv,tsavg5,sstnv,sstph,temp,wmix,ts,tbc,cenlat,cenlon,&
-!                 dtime,dtp_avh,tb_obs,dta,dqa,luse(n))
               call avhrr_sst_retrieval(dplat(is),nchanl,tnoise,&
                  varinv,tsavg5,sstph,temp,wmix,ts,tbc,cenlat,cenlon,&
                  dtime,dtp_avh,tb_obs,dta,dqa,luse(n))
@@ -1233,7 +1218,29 @@
 
         icc = 0
         iccm= 0
+
         do i = 1,nchanl
+
+!          Reject radiances for single radiance test
+           if (lsingleradob) then
+              ! if the channels are beyond 0.01 of oblat/oblon, specified
+              ! in gsi namelist, or aren't of type 'oneob_type', reject
+              if ( (abs(cenlat - oblat) > one/r100 .or. &
+                    abs(cenlon - oblon) > one/r100) .or. &
+                    obstype /= oneob_type ) then
+                 varinv(i) = zero
+                 varinv_use(i) = zero
+                 if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+              else
+                 ! if obchan <= zero, keep all footprints, if obchan > zero,
+                 ! keep only that which has channel obchan
+                 if (i /= obchan .and. obchan > zero) then
+                    varinv(i) = zero
+                    varinv_use(i) = zero
+                    if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+                 endif
+              endif !cenlat/lon
+           endif !lsingleradob
 
 !          Only process observations to be assimilated
 
@@ -1340,11 +1347,11 @@
               my_head%iob = n
 
               allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
-                       radtail(ibin)%head%diags(icc),&
                        radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
                        radtail(ibin)%head%dtb_dvar(nsigradjac,icc), &
                        radtail(ibin)%head%ich(icc),&
                        radtail(ibin)%head%icx(icc))
+              if(luse_obsdiag)allocate(radtail(ibin)%head%diags(icc))
 
               call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
               radtail(ibin)%head%time=dtime
@@ -1446,6 +1453,8 @@
 !       Link obs to diagnostics structure
         iii=0
         do ii=1,nchanl
+          m=ich(ii)
+          if (luse_obsdiag) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
@@ -1523,8 +1532,9 @@
 
               endif
            endif ! (in_curbin)
+          end if
         enddo
-        if(in_curbin) then
+        if(in_curbin .and. luse_obsdiag) then
            if(.not. retrieval.and.(iii/=icc)) then
               write(6,*)'setuprad: error iii icc',iii,icc
               call stop2(279)
@@ -1636,23 +1646,15 @@
               diagbuf(17) = sstph                             ! Physical SST retrieval             
               diagbuf(18) = sstnv                             ! Navy SST retrieval               
               diagbuf(19) = dta                               ! d(ta) corresponding to sstph
-              diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
+              if (gmi .or. saphir) then
+                diagbuf(20) = gwp                             ! graupel water path
+              else
+                diagbuf(20) = dqa                             ! d(qa) corresponding to sstph
+              endif
               diagbuf(21) = dtp_avh                           ! data type             
            endif
-              ! gmao gmi code conditional- if gmi, diagbuf(22) = tpwc_amsua
-           if((lcw4crtm .and. sea) .or. gmi) then   ! ej
-              diagbuf(22) = tpwc_amsua
-           else
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
-           endif
-
-              ! gmao gmi code conditional- if gmi, diagbuf(23) = clw_guess_retrieval
-           if((lcw4crtm .and. sea) .or. gmi) then    ! ej
-              diagbuf(23) = clw_guess_retrieval
-           else
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
-           endif
-
               diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
  
 !          Note:  The following quantities are not computed for all sensors
@@ -1660,13 +1662,11 @@
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
            else
-              if((lcw4crtm .and. sea) .or. gmi) then
-                 if (gmi) then                    ! ej
-                 diagbuf(25)  = clw_obs
-write(6,*)"***SETUPRAD clw_obs=",clw_obs          ! ej erin debug
+              if((lcw4crtm .and. sea) .or. gmi .or. amsr2) then
+                 if (gmi .or. amsr2) then
+                   diagbuf(25)  = clw_obs                       ! clw (kg/m**2) from retrievals
                  else
-                 diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
-                 ! gmao uses clw_obs
+                   diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
                  endif
                  diagbuf(26)  = clw_guess                     ! total column precip. water (km/m**2)
               else

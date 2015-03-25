@@ -49,7 +49,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
   implicit none
 !
   
-  character(10),    intent(in)   :: infile,obstype
+  character(len=*), intent(in)   :: infile,obstype
   integer(i_kind),  intent(in)   :: lunout
   integer(i_kind),  intent(inout):: nread,ndata
   real(r_kind),     intent(in   ):: twind
@@ -59,7 +59,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 !
   integer(i_kind) nreal,nchanl,ilat,ilon
 
-  integer(i_kind) ifn,i,j
+  integer(i_kind) ifn,i
  
   logical :: LaRCobs
 
@@ -71,15 +71,14 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
     character(80):: obsstr='POB'
 
     INTEGER(i_kind),PARAMETER ::  MXBF = 160000
-    INTEGER(i_kind) :: ibfmsg = MXBF/4
 
-    character(8) subset,sid
+    character(8) subset
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl,nlon,nlat
+    INTEGER(i_kind)  ::  maxlvl
     INTEGER(i_kind)  ::  numlvl,numLaRC
-    INTEGER(i_kind)  ::  n,k,iret
+    INTEGER(i_kind)  ::  k,iret
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
@@ -89,9 +88,6 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
-
-    REAL(r_double)  :: rid
-    EQUIVALENCE (sid,rid)
 
 !**********************************************************************
 !

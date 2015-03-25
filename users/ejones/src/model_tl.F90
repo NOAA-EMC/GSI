@@ -76,10 +76,13 @@ type(gsi_bundle), target, intent(inout) :: xobs(nobs_bins) ! State variable at o
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_tl'
 
-integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr,n
+#ifdef _LAG_MODEL_
+integer(i_kind)    :: ii,jj
+real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
+#endif
+integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ierr,n
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt,ndtpert
 real(r_kind)       :: tstep,zz,d0
-real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
 
 type(gsi_bundle), pointer :: p_xini, q_xini
 type(gsi_bundle), pointer :: p_xobs

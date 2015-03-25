@@ -22,7 +22,7 @@ subroutine logvis_to_vis(logvis,vis)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: dvisdlog
+  use derivsmod, only: dvisdlog
 
   implicit none
   real(r_kind),intent(in   ) :: logvis(lat2,lon2)
@@ -65,7 +65,7 @@ subroutine logvis_to_vis_ad(logvis,vis)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2
-  use jfunc, only: dvisdlog
+  use derivsmod, only: dvisdlog
 
   implicit none
   real(r_kind),intent(inout) :: logvis(lat2,lon2)

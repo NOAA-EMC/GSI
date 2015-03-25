@@ -14,6 +14,7 @@ subroutine getprs(ps,prs)
 !   2008-06-04  safford - rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-09-15  pagowski  - added cmaq
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -32,7 +33,9 @@ subroutine getprs(ps,prs)
   use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,cmaq_regional,twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -41,7 +44,8 @@ subroutine getprs(ps,prs)
 
 ! Declare local variables
   real(r_kind) kapr,trk
-  integer(i_kind) i,j,k,k2,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,k2,it,istatus
 
 ! Declare local parameter
   real(r_kind),parameter:: ten = 10.0_r_kind
@@ -93,11 +97,21 @@ subroutine getprs(ps,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 trk=(half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
-                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))
               end do
            end do
         end do
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    trk=(half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k))**kapr
+                    prs(i,j,k)=prs(i,j,k)+(ck5(k)*trk)
+                 end do
+              end do
+           end do
+        end if
      end if
   end if
 
@@ -228,6 +242,7 @@ subroutine getprs_tl(ps,t,prs)
 !                       - fix buf for t dimension
 !   2008-06-04  safford - complete doc block, rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -246,7 +261,9 @@ subroutine getprs_tl(ps,t,prs)
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,idvc5,tref5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,cmaq_regional,&
        twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -256,7 +273,8 @@ subroutine getprs_tl(ps,t,prs)
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
-  integer(i_kind) i,j,k,k2,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,k2,it,istatus
 
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
@@ -301,13 +319,23 @@ subroutine getprs_tl(ps,t,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k)
-                 tc1=half/tref5(k)
-                 trk=kapr*tc1*(t(i,j,k-1)+t(i,j,k))*(t9trm**kaprm1)
-                 prs(i,j,k)=bk5(k)*ps(i,j) + ck5(k)*trk
+                 prs(i,j,k)=bk5(k)*ps(i,j)
               end do
            end do
         end do
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
+                    tc1=half/tref5(k)
+                    trk=kapr*tc1*(t(i,j,k-1)+t(i,j,k))*(t9trm**kaprm1)
+                    prs(i,j,k)=prs(i,j,k) + ck5(k)*trk
+                 end do
+              end do
+           end do
+        end if
      end if
   end if
 
@@ -439,6 +467,7 @@ subroutine getprs_ad(ps,t,prs)
 !                       - remove gues_tv from argument list; clean up code
 !   2008-06-04  safford - complete doc block, rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     prs        - 3d pressure
@@ -459,8 +488,10 @@ subroutine getprs_ad(ps,t,prs)
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,cmaq_regional,eta1_ll,&
        twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig 
+  use guess_grids, only: ntguessig 
   use constants,only: zero,half,one,rd_over_cp
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
@@ -471,7 +502,8 @@ subroutine getprs_ad(ps,t,prs)
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
-  integer(i_kind) i,j,k,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,it,istatus
 
 
   if (regional) then
@@ -506,18 +538,29 @@ subroutine getprs_ad(ps,t,prs)
         kapr=one/rd_over_cp
         kaprm1=kapr-one
         it=ntguessig
-        do k=2,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-1,it)+ges_tv(i,j,k,it))/tref5(k)
-                 tc1=half/tref5(k)
-                 ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
-                 trk = ck5(k)*prs(i,j,k)
-                 t(i,j,k-1) = t(i,j,k-1) + kapr*tc1*trk*(t9trm**kaprm1)
-                 t(i,j,k     ) = t(i,j,k     ) + kapr*tc1*trk*(t9trm**kaprm1)
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
+                    tc1=half/tref5(k)
+                    ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+                    trk = ck5(k)*prs(i,j,k)
+                    t(i,j,k-1) = t(i,j,k-1) + kapr*tc1*trk*(t9trm**kaprm1)
+                    t(i,j,k  ) = t(i,j,k  ) + kapr*tc1*trk*(t9trm**kaprm1)
+                 end do
               end do
            end do
-        end do
+        else
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+                 end do
+              end do
+           end do
+        end if
      end if
      k=1
      do j=1,lon2

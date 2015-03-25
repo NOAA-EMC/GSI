@@ -84,7 +84,7 @@ subroutine intspd_(spdhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero, half, one, tiny_r_kind,cg_term,r3600
   use gridmod, only: latlon1n
@@ -163,20 +163,21 @@ subroutine intspd_(spdhead,rval,sval)
            spdatl=spdptr%uges*uatl+spdptr%vges*vatl
            spdatl=spdatl/spdtra
 
-           if (lsaveobsens) then
-              spdptr%diags%obssen(jiter)=spdptr%raterr2*spdptr%err2*spdatl
-           else
-              if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
+           if(luse_obsdiag)then
+              if (lsaveobsens) then
+                 grad=spdptr%raterr2*spdptr%err2*spdatl
+                 spdptr%diags%obssen(jiter)=grad
+              else
+                 if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
+              endif
            endif
 
            if (l_do_adjoint) then
-              if (lsaveobsens) then
-                 grad=spdptr%diags%obssen(jiter)
-              else
+              if (.not. lsaveobsens) then
                  if( ladtest_obs ) then
                     grad=spdatl
                  else
-                    spd=spdatl-spdptr%diags%nldepart(jiter)
+                    spd=spdatl-spdptr%res+sqrt(spdptr%uges*spdptr%uges+spdptr%vges*spdptr%vges)
                     grad=spdptr%raterr2*spdptr%err2*spd
                  end if
               endif
@@ -186,8 +187,10 @@ subroutine intspd_(spdhead,rval,sval)
               valv=grad*spdptr%vges/spdtra
            endif
         else
-           if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero
-           if (lsaveobsens) spdptr%diags%obssen(jiter)=zero
+           if(luse_obsdiag)then
+              if (spdptr%luse) spdptr%diags%tldepart(jiter)=zero
+              if (lsaveobsens) spdptr%diags%obssen(jiter)=zero
+           end if
         endif
 
 
@@ -206,7 +209,7 @@ subroutine intspd_(spdhead,rval,sval)
                           w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))
         endif
         spdanl=sqrt(uanl*uanl+vanl*vanl)
-        if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
+        if (luse_obsdiag .and. spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
 
         if (l_do_adjoint) then
            valu=zero
@@ -217,7 +220,7 @@ subroutine intspd_(spdhead,rval,sval)
 !          Adjoint
 !          if(spdanl > tiny_r_kind*100._r_kind) then
            if (spdanl>EPSILON(spdanl)) then
-              if (lsaveobsens) spdptr%diags%obssen(jiter)=grad
+              if (luse_obsdiag .and. lsaveobsens) spdptr%diags%obssen(jiter)=grad
               valu=uanl/spdanl
               valv=vanl/spdanl
               if (nlnqc_iter .and. spdptr%pg > tiny_r_kind .and.  &

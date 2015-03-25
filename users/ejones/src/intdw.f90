@@ -65,6 +65,7 @@ subroutine intdw_(dwhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 ! usage: call intdw(ru,rv,su,sv)
 !   input argument list:
@@ -84,7 +85,7 @@ subroutine intdw_(dwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: dw_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: dw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -166,18 +167,18 @@ subroutine intdw_(dwhead,rval,sval)
             *time_dwi
      endif
 
-     if (lsaveobsens) then
-        dwptr%diags%obssen(jiter) = val * dwptr%raterr2 * dwptr%err2
-     else
-        if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val * dwptr%raterr2 * dwptr%err2
+           dwptr%diags%obssen(jiter) = grad
+        else
+           if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
+        endif
      endif
 
 !    Do Adjoint
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = dwptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-dwptr%res
  
 !          gradient of nonlinear operator

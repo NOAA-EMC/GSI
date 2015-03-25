@@ -54,8 +54,11 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                       fix UTC hour used by zensun
 !   2012-01-10  eliu  - add handling to do spatial averaging (noise reduction) for 
 !                       observed brightness temperatures 
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2012-07-10  sienkiewicz  add control for choosing noise reduction method  0=no smoothing
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
+!   2014-12-03  derber remove unused variables
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -88,7 +91,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,ssmis_method
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad,&   
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,adp_anglebc         
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl    
@@ -98,6 +101,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use ssmis_spatial_average_mod, only : ssmis_spatial_average 
   use m_sortind
  
@@ -105,7 +109,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)    ,intent(inout) :: val_ssmis
   integer(i_kind) ,intent(in   ) :: mype
@@ -130,7 +134,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter    :: tbmin=70.0_r_kind
   real(r_kind),parameter    :: tbmax=320.0_r_kind
   real(r_kind),parameter    :: one_minute=0.01666667_r_kind
-  real(r_kind),parameter    :: minus_one_minute=-0.01666667_r_kind
 
   logical :: do_noise_reduction
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
@@ -140,7 +143,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   integer(i_kind) :: i,k,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
-  integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) :: n,ireadsb,ireadmg,irec
   integer(i_kind) :: nmind,itx,nele,itt
   integer(i_kind) :: iskip
   integer(i_kind) :: lnbufr,isflg,idomsfc(1)
@@ -148,12 +151,11 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) :: isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
-  integer(i_kind) :: bch
   integer(i_kind) :: doy,mon,m
+  integer(i_kind) :: ibfms
 
   integer(i_kind),pointer :: ifov,iscan,iorbn,inode
 
@@ -173,7 +175,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: disterr,disterrmax,dlon00,dlat00
+  real(r_kind) :: disterr,disterrmax,cdist,dlon00,dlat00
   real(r_kind) :: fovn,scan,orbn,rainf
   real(r_kind) :: sort_time1, sort_time2   
   real(r_kind) :: flgch
@@ -181,15 +183,15 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: dlat,dlon
   real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
   real(r_kind) :: utc_hour,sun_zenith,sun_azimuth
-  real(r_kind) :: sstx_1,sstx_2,sstx_3,sstx_4
 
   real(r_double),dimension(7)         :: bufrinit
   real(r_double),dimension(3,5)       :: bufrymd
   real(r_double),dimension(2,2)       :: bufrhm
   real(r_double),dimension(2,29)      :: bufrloc
   real(r_double),dimension(2,maxchanl):: bufrtbb
+  
+  real(r_double) :: rnode
 
-  real(r_kind),dimension(0:3) :: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: ts
@@ -223,7 +225,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do
 
   do_noise_reduction = .true.
-
+  if (ssmis_method .eq. 0) do_noise_reduction = .false.
+  
   nchanl     = maxchanl
   disterrmax = zero
   ntest      = 0
@@ -236,7 +239,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   lnbufr     = 15
   r07        = 0.7_r_kind * deg2rad
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 ! If all channels of a given sensor are set to monitor or not
@@ -364,7 +367,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Open unit to satellite bufr file
   iobs=1
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted',status='old',err=500)  
+  open(lnbufr,file=trim(infile),form='unformatted',status='old',err=500)  
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
@@ -409,6 +412,16 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Rain check (-1=indeterminate 0=no rain 1=rain)
         if(irain == 1 .or. irain < 0) cycle read_loop    ! rain check
 
+!       if not doing noise reduction, try reading node information
+        if ( .not. do_noise_reduction ) then
+           inode = 1000
+           call ufbint(lnbufr,rnode,1,1,nlv, 'STKO')
+           if (ibfms(rnode) == 0) then
+              if (rnode == 1.) inode = -1
+              if (rnode == 0.) inode = 1
+           end if
+        end if
+        
 !       Check date/time
 !       BUFR read 2/3 --- read in observation date/time
         call ufbrep(lnbufr,bufrymd,3,5,nlv,"YEAR MNTH DAYS" )
@@ -541,8 +554,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    method=2 --- similar to 1 (for testing only)
 !    method=3 --- AAPP package 
 
-     write(*,*) 'READ_SSMIS: Calling ssmis_spatial_average'
-     method = 1 
+     method = ssmis_method
+     write(*,*) 'READ_SSMIS: Calling ssmis_spatial_average, method =', method
+
      call ssmis_spatial_average(mype,mype_sub,bufsat,method,num_obs,nchanl, & 
                                 ifov_save,iscan_save,inode_save,relative_time_in_seconds, & 
                                 dlat_earth_save,dlon_earth_save, &
@@ -597,8 +611,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
            ntest=ntest+1
-           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+           cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
            disterrmax=max(disterrmax,disterr)
         end if
 
@@ -668,21 +684,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
      else
-        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
-           idomsfc(1),sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
-           idomsfc(1),sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
-           idomsfc(1),sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
-           idomsfc(1),sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-        sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/four
-        sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/four
-        sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/four
-        sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/four
      endif ! isfcalc==1
 
      crit1 = crit1 + rlndsea(isflg)
@@ -707,7 +710,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         dtc   = zero
         tz_tr = one
         if ( sfcpct(0) > zero ) then
-           call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
         endif
      endif
 

@@ -24,6 +24,8 @@ subroutine tpause(mype,method)
 !                      - use sensible temperature rather than virtual
 !   2006-07-31  kleist - change to ges_ps from ln(ps)
 !   2008-04-03  safford - rm unused vars and uses
+!   2013-10-19  todling - metguess now holds background
+!                         revised how method is chosen based on guess fields
 !
 !   input argument list:
 !     mype   - mpi task id
@@ -38,9 +40,11 @@ subroutine tpause(mype,method)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: rd_over_cp,grav,rad2deg,one,r1000,r0_01
-  use guess_grids, only: ges_ps,tropprs,ges_oz,ges_vor,geop_hgtl,&
-       ntguessig,ges_prsl,ges_tv,ges_tsen
+  use guess_grids, only: tropprs,geop_hgtl,&
+       ntguessig,ges_prsl,ges_tsen
   use gridmod, only: istart,nlat,rlats,nsig,lat2,lon2
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_bundle
   implicit none
 
 ! Declare passed variables
@@ -48,6 +52,7 @@ subroutine tpause(mype,method)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
+  character(len=*),parameter::myname='tpause'
   real(r_kind),parameter:: r3em7=3.0e-7_r_kind
   real(r_kind),parameter:: r2em6=2.0e-6_r_kind
   real(r_kind),parameter:: r0_001=0.001_r_kind
@@ -57,10 +62,10 @@ subroutine tpause(mype,method)
   real(r_kind),parameter:: r1e5=1.0e5_r_kind
 
 ! Declare local variables
-  logical t_method
+  logical t_method,pvoz_capable
 
-  integer(i_kind) i,j,k,mm1
-  integer(i_kind) npassh,npassv,latrad
+  integer(i_kind) i,j,k,mm1,nt,istatus
+  integer(i_kind) latrad
   integer(i_kind) ifound_pv,ifound_oz,itrp_pv,itrp_oz,itrop_k
 
   real(r_kind) pm1,pp1
@@ -73,11 +78,38 @@ subroutine tpause(mype,method)
 
   real(r_kind) psi
 
+  real(r_kind),dimension(:,:)  ,pointer :: ges_ps_nt=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: ges_tv_nt=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: ges_oz_nt=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: ges_vor_nt=>NULL()
+
 !================================================================================
 ! Set local constants
-  npassh=6; npassv=0
   t_method = .false.
   if (index(method,'pvoz') == 0) t_method = .true.
+
+  nt=ntguessig
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nt),'ps',ges_ps_nt,istatus)
+  if(istatus/=0) return ! if ps not defined forget it ...
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nt),'tv',ges_tv_nt,istatus)
+  pvoz_capable=istatus==0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nt),'oz',ges_oz_nt,istatus)
+  pvoz_capable=pvoz_capable.and.istatus==0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nt),'vor',ges_vor_nt,istatus)
+  pvoz_capable=pvoz_capable.and.istatus==0
+
+  if (trim(method)=='pvoz') then
+     if(.not.pvoz_capable) then
+       if (mype==0) then
+         write(6,*) trim(myname), ': Warning, user request pv-based method to',&
+              'identify tropaupose,'
+         write(6,*) 'but not all fields needed are available, resetting',&
+               'method to temperature-based one'
+       endif
+       t_method=.true.
+     endif
+  endif
 
 ! Locate tropopause based on temperature profile (WMO approach)
   if (t_method) then
@@ -114,7 +146,7 @@ subroutine tpause(mype,method)
 !     Compute pv.  Use for locating tropopause poleward 30S/N
      do j=1,lon2
         do i = 1,lat2
-           psi=one/ges_ps(i,j,ntguessig)
+           psi=one/ges_ps_nt(i,j)
            do k=1,nsig
               prs(k) = r1000*ges_prsl(i,j,k,ntguessig)
            end do
@@ -123,9 +155,9 @@ subroutine tpause(mype,method)
            do k = 2,nsig-1
               pm1 = prs(k-1)
               pp1 = prs(k+1)
-              thetam1 = ges_tv(i,j,k-1,ntguessig)*(r1e5/pm1)**(rd_over_cp)
-              thetap1 = ges_tv(i,j,k+1,ntguessig)*(r1e5/pp1)**(rd_over_cp)
-              pv = grav*ges_vor(i,j,k,ntguessig)*(thetam1-thetap1)/(pm1-pp1)
+              thetam1 = ges_tv_nt(i,j,k-1)*(r1e5/pm1)**(rd_over_cp)
+              thetap1 = ges_tv_nt(i,j,k+1)*(r1e5/pp1)**(rd_over_cp)
+              pv = grav*ges_vor_nt(i,j,k)*(thetam1-thetap1)/(pm1-pp1)
               pvort(k) = abs(pv)
            end do
            pvort(1) = pvort(2)
@@ -145,7 +177,7 @@ subroutine tpause(mype,method)
                  endif
                
 !                Trop at level where ozone greater than 3e-7
-                 if (ges_oz(i,j,k,ntguessig)>r3em7 .and. ifound_oz==0) then
+                 if (ges_oz_nt(i,j,k)>r3em7 .and. ifound_oz==0) then
                     ifound_oz=1
                     itrp_oz = k
                  endif
@@ -186,7 +218,7 @@ subroutine tpause(mype,method)
 !  pressure to make sure we are deflating at the very
 !  minimum above 150 mb, and nowhere below 350 mb
 
-   do j=1,lon2
+  do j=1,lon2
      do i=1,lat2
         tropprs(i,j)=max(150.0_r_kind,min(350.0_r_kind,tropprs(i,j)))
      end do

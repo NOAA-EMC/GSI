@@ -12,6 +12,7 @@ module inttmod
 !   2008-11-26  Todling - remove intt_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub intt_
@@ -73,6 +74,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !                        - on-the-spot handling of non-essential vars
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2013-05-26  zhu  - add aircraft temperature bias correction contribution
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -107,7 +109,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
-  use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -132,8 +134,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   real(r_kind),dimension(:),pointer :: rt,rtv,rq,ru,rv
   real(r_kind),dimension(:),pointer :: rsst
   real(r_kind),dimension(:),pointer :: rp
-  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_p3d
-  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_p3d
+  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_prse
+  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_prse
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst,ix,n
@@ -157,7 +159,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   call gsi_bundlegetpointer(sval,'q',    sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'u',    su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',    sv,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval,'p3d',  sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'prse', sp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'sst',ssst,istatus);isst=istatus+isst
   if(ier/=0) return
 
@@ -166,7 +168,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   call gsi_bundlegetpointer(rval,'q',    rq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',    ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',    rv,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'p3d',  rp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse', rp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'sst',rsst,istatus);isst=istatus+isst
   if(ier/=0) return
 
@@ -176,13 +178,13 @@ subroutine intt_(thead,rval,sval,rpred,spred)
      call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'p3d',  xhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'tv',     dhat_dt_t,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'p3d',  dhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
      if(ier/=0)return
   endif
 
@@ -240,8 +242,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
                     (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
                      w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_t
            psfc_prime0=psfc_prime0+ &
-                    (w1*xhat_dt_p3d(j1)+w2*xhat_dt_p3d(j2)+ &
-                     w3*xhat_dt_p3d(j3)+w4*xhat_dt_p3d(j4))*time_t
+                    (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                     w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_t
         endif
 
         val=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
@@ -283,18 +285,18 @@ subroutine intt_(thead,rval,sval,rpred,spred)
         end do
      end if
 
-     if (lsaveobsens) then
-        tptr%diags%obssen(jiter) = val*tptr%raterr2*tptr%err2
-     else
-        if (tptr%luse) tptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*tptr%raterr2*tptr%err2
+           tptr%diags%obssen(jiter) = grad
+        else
+           if (tptr%luse) tptr%diags%tldepart(jiter)=val
+        endif
      endif
 
 !    Do adjoint
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad=tptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-tptr%res
  
 !          gradient of nonlinear operator
@@ -357,10 +359,10 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rsst(j4)=rsst(j4)+w4*tg_grad
            end if
            if (l_foto) then
-              dhat_dt_p3d(j1)=dhat_dt_p3d(j1)+w1*psfc_grad*time_t
-              dhat_dt_p3d(j2)=dhat_dt_p3d(j2)+w2*psfc_grad*time_t
-              dhat_dt_p3d(j3)=dhat_dt_p3d(j3)+w3*psfc_grad*time_t
-              dhat_dt_p3d(j4)=dhat_dt_p3d(j4)+w4*psfc_grad*time_t
+              dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*psfc_grad*time_t
+              dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*psfc_grad*time_t
+              dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*psfc_grad*time_t
+              dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*psfc_grad*time_t
               dhat_dt_v(j1)=dhat_dt_v(j1)+w1*vs_grad*time_t
               dhat_dt_v(j2)=dhat_dt_v(j2)+w2*vs_grad*time_t
               dhat_dt_v(j3)=dhat_dt_v(j3)+w3*vs_grad*time_t

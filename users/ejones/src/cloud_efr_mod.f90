@@ -1,4 +1,4 @@
-module cloud_efr
+module cloud_efr_mod
 !$$$   module documentation block
 !                .      .    .                                       .
 ! module:    cloud_efr
@@ -9,6 +9,10 @@ module cloud_efr
 ! program history log:
 !   2011-06-20 Yanqiu Zhu
 !   2011-11-01 Emily Liu 
+!   2013-10-19 Todling    - add initialize/finalize routines; move efr_q vars
+!                           from guess to this package
+!   2014-06-02 Carley     - Move inquire/read routines associated with use of Ferrier microphysics 
+!                           lookup tables from EFFRDS to cloud_init to reduce I/O problems
 !
 ! subroutines included:
 !   sub cloud_calc            - cloud composition
@@ -26,14 +30,128 @@ module cloud_efr
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one,three,five,pi,t0c,r0_05,fv,qcmin
+  use gridmod, only: lat2,lon2,nsig,regional
+  use guess_grids, only: nfldsig
   implicit none
+  save
 
 ! set subroutines to public
+  public :: cloud_init
   public :: cloud_calc
   public :: cloud_calc_gfs
+  public :: cloud_final
   public :: set_cloud_lower_bound
+  public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qr     ! effective radius for rain
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qs     ! effective radius for snow
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qg     ! effective radius for graupel
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qh     ! effective radius for hail
+
+! local variables to this module (not public)
+  logical,save:: cloud_initialized_=.false.
+
+! - Begin specification of microphysics parameters for Ferrier scheme
+!     Mean ice diameters
+  real(r_kind), parameter :: DMImin=.05e-3_r_kind, DMImax=1.e-3_r_kind,      &
+                             XMImin=1.e6_r_kind*DMImin, XMImax=1.e6_r_kind*DMImax
+  integer(i_kind), parameter :: MDImin=XMImin, MDImax=XMImax
+!     Mean rain drop diameters vary from 50 microns to 450 microns
+  real(r_kind), parameter :: DMRmin=.05E-3_r_kind, DMRmax=.45E-3_r_kind, DelDMR=1.E-6_r_kind,   &
+                             XMRmin=1.E6_r_kind*DMRmin, XMRmax=1.E6_r_kind*DMRmax,              &
+			     N0r0=8.E6_r_kind, N0rmin=1.e4_r_kind
+  integer(i_kind), parameter :: MDRmin=XMRmin, MDRmax=XMRmax
+!     Mean mass of precpitation ice particles as functions of their mean
+!     size (in microns)
+  real(r_kind) :: MASSI(MDImin:MDImax)
+!      Lookup tables for rain  
+  real(r_kind) :: MASSR(MDRmin:MDRmax)
+!
+  logical,save :: use_lookup_table=.false.
+! - End specification of Ferrier microphysics related variables  
 contains
+
+subroutine cloud_init
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cloud_init       initialize cloud mixing ratio and effective radius
+!   prgmmr: todling      org: np22                date: 2013-09-30
+!
+! abstract: allocate variables related to effective cloud radii
+!
+! program history log:
+!   2013-09-30 Todling
+!   2014-06-02 Carley - Added implicit none and inquire/read of Ferrier microphysics
+!                       lookup tables (for later use via clous_calc)
+use gridmod, only: wrf_mass_regional
+implicit none
+integer(i_kind) i,j,k,n
+logical pcexist
+
+ if(.not.regional) return
+ if(cloud_initialized_) return
+
+ allocate (efr_ql(lat2,lon2,nsig,nfldsig),efr_qi(lat2,lon2,nsig,nfldsig), &
+           efr_qr(lat2,lon2,nsig,nfldsig),efr_qs(lat2,lon2,nsig,nfldsig), &
+           efr_qg(lat2,lon2,nsig,nfldsig),efr_qh(lat2,lon2,nsig,nfldsig))
+ do n=1,nfldsig
+    do k=1,nsig
+       do j=1,lon2
+          do i=1,lat2
+             efr_ql(i,j,k,n)=zero
+             efr_qi(i,j,k,n)=zero
+             efr_qr(i,j,k,n)=zero
+             efr_qs(i,j,k,n)=zero
+             efr_qg(i,j,k,n)=zero
+             efr_qh(i,j,k,n)=zero
+          end do
+       end do
+    end do
+ end do
+ cloud_initialized_=.true.
+ if (.not. wrf_mass_regional) then
+!   READ IN MASSI FROM LOOKUP TABLES
+    inquire(file='eta_micro_lookup.dat',exist=pcexist)
+    if (pcexist) then
+       print *,'cloud init: Reading eta_micro_lookup.dat'
+       OPEN (UNIT=1,FILE="eta_micro_lookup.dat",FORM="UNFORMATTED")
+       DO I=1,3
+          READ(1)
+       ENDDO
+       READ(1) MASSR
+       DO I=1,5
+          READ(1)
+       ENDDO
+       READ(1) MASSI
+       CLOSE(1)
+       use_lookup_table=.true.
+    else
+       use_lookup_table=.false.
+    end if
+ else
+    use_lookup_table=.false.
+ end if
+ 
+end subroutine cloud_init
+
+subroutine cloud_final
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cloud_final      finalize cloud mixing ratio and effective radius
+!   prgmmr: todling      org: np22                date: 2013-09-30
+!
+! abstract: deallocate variables related to effective cloud radii
+!
+! program history log:
+!   2013-09-30 Todling
+
+  if(.not.cloud_initialized_) return
+  deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
+  cloud_initialized_=.false.
+
+end subroutine cloud_final
 
 subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,& 
                       ges_ql,ges_qi,ges_qr,ges_qs,ges_qg,ges_qh,&
@@ -53,7 +171,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
 
   integer(i_kind) i,j
   real(r_kind) precice,t1,t2,coef1,coef2,coef
-  real(r_kind) tc,qi1,nlice1
+  real(r_kind) qi1
   real(r_kind),dimension(lat2,lon2):: p0d      ! pressure (cb)
   real(r_kind),dimension(lat2,lon2):: p1d      ! pressure (pa)
   real(r_kind),dimension(lat2,lon2):: t1d      ! temperature
@@ -236,6 +354,7 @@ end subroutine set_cloud_lower_bound
 !   04-11-10  Brad Ferrier - Removed cloud fraction algorithm
 !   04-11-17  H CHUANG - WRF VERSION     
 !   11-06-20  Yanqiu Zhu - made changes on CALMICT to be called in GSI
+!   14-06-02  Jacob Carley - Move lookup table inquire/read to cloud_init
 !
 ! USAGE:    CALL effrds(T1D,Q1D,QW1,QI1,QR1,FS1D,NLICE1)
 !   INPUT ARGUMENT LIST:
@@ -276,37 +395,23 @@ end subroutine set_cloud_lower_bound
       real(r_kind),parameter:: NLImax=5.0e3_r_kind
       real(r_kind),parameter:: RHOL=1000.0_r_kind
 
-      real(r_kind), parameter :: DMImin=.05e-3_r_kind, DMImax=1.e-3_r_kind,      &
-                                 XMImin=1.e6_r_kind*DMImin, XMImax=1.e6_r_kind*DMImax
-      integer(i_kind), parameter :: MDImin=XMImin, MDImax=XMImax
-
-!     Mean rain drop diameters vary from 50 microns to 450 microns
-      real(r_kind), parameter :: DMRmin=.05E-3_r_kind, DMRmax=.45E-3_r_kind, DelDMR=1.E-6_r_kind,   &
-        XMRmin=1.E6_r_kind*DMRmin, XMRmax=1.E6_r_kind*DMRmax, N0r0=8.E6_r_kind, N0rmin=1.e4_r_kind
-      integer(i_kind), parameter :: MDRmin=XMRmin, MDRmax=XMRmax
 
       real(r_kind),intent(in) :: P1D,T1D,Q1D
       real(r_kind),intent(in) :: QW1,QI1,QR1,FS1D
       
 !     local variables
-      integer(i_kind) I,J
       real(r_kind) tem4,indexw,indexi
       real(r_kind) N0r,RHgrd,C_N0r0
       real(r_kind) TC,Flimass,Flarge,     &
            Fsmall,RimeF,Xsimass,Qice,Qsat,ESAT,WV,RHO,RRHO,RQR,          &
-           Qsigrd,WVQW,Dum,XLi,Qlice,WC,DLI,xlimass,NLICE1
-
-!     Mean mass of precpitation ice particles as functions of their mean
-!     size (in microns)
-      REAL(R_KIND) MASSI(MDImin:MDImax)
+           Qsigrd,WVQW,Dum,XLi,Qlice,DLI,xlimass,NLICE1
 
 !     Various rain lookup tables
-      REAL(R_KIND) MASSR(MDRmin:MDRmax),RQR_DRmin,RQR_DRmax,           &
-           CN0r0,CN0r_DMRmin,CN0r_DMRmax
+      REAL(R_KIND) RQR_DRmin,RQR_DRmax,CN0r0,CN0r_DMRmin,CN0r_DMRmax
 
       real(r_kind) rhox  ! assumed density of the large ice in kg m^-3
       real(r_kind) efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
-      logical pcexist
+
 !************************************************************************
 !     liquid water cloud drop size
       tem4=max(zero,(t0c-T1D)*r0_05)
@@ -333,29 +438,16 @@ end subroutine set_cloud_lower_bound
       RHO=P1D/(RD*T1D*(one+D608*Q1D))  ! air density in kg m^-3
       RRHO=one/RHO
 
-     
-      inquire(file='eta_micro_lookup.dat',exist=pcexist)
-      if (pcexist) then
-
-!        READ IN MASSI FROM LOOKUP TABLES
-         OPEN (UNIT=1,FILE="eta_micro_lookup.dat",FORM="UNFORMATTED")
-         DO I=1,3
-           READ(1)
-         ENDDO
-         READ(1) MASSR
-         DO I=1,5
-           READ(1)
-         ENDDO
-         READ(1) MASSI
-         CLOSE(1)
+      if (use_lookup_table) then
+         ! MASSR and MASSI are read and initialized in cloud_init
          RQR_DRmin=N0r0*MASSR(MDRmin)    ! Rain content for mean drop diameter of .05 mm
          RQR_DRmax=N0r0*MASSR(MDRmax)    ! Rain content for mean drop diameter of .45 mm
          C_N0r0=PI*RHOL*N0r0
          CN0r0=1.E6_r_kind/C_N0r0**.25_r_kind
          CN0r_DMRmin=1.0_r_kind/(PI*RHOL*DMRmin**4)
          CN0r_DMRmax=1.0_r_kind/(PI*RHOL*DMRmax**4)
-         print *,'MICROINIT: MDRmin, MASSR(MDRmin)=',MDRmin,MASSR(MDRmin)
-         print *,'MICROINIT: MDRmax, MASSR(MDRmax)=',MDRmax,MASSR(MDRmax)
+!         print *,'MICROINIT: MDRmin, MASSR(MDRmin)=',MDRmin,MASSR(MDRmin)
+!         print *,'MICROINIT: MDRmax, MASSR(MDRmax)=',MDRmax,MASSR(MDRmax)
 !        print *,  'ETA2P:MASSI(50)= ', MASSI(50)
 !        print *,  'ETA2P:MASSI(450)= ', MASSI(450)
 !        print *,  'ETA2P:MASSI(1000)= ', MASSI(1000)
@@ -447,11 +539,9 @@ end subroutine set_cloud_lower_bound
          ENDIF                 ! End IF (QI1>0.) THEN
 
       else ! "eta_micro_lookup.dat" not exist
-
          IF (QR1>qcmin) efr_qr=1.5_r_kind*300_r_kind
          NLICE1=20.0e3_r_kind
          QLICE=0.95_r_kind*QI1
-
       end if ! pcexist   
 
 
@@ -495,4 +585,4 @@ end subroutine set_cloud_lower_bound
       return
       end function fpvsx
 
-end module cloud_efr
+end module cloud_efr_mod

@@ -118,7 +118,7 @@
  integer(i_long), intent(inout) :: i4(num)
 
  integer(i_byte), dimension(4) :: byte_arr, byte_arr_tmp
- integer(i_long) :: i,n
+ integer(i_long) :: n
 
  do n=1,num
     byte_arr_tmp = transfer (i4(n), byte_arr)
@@ -171,7 +171,7 @@
  real(r_single), intent(inout) :: r4(num)
 
  integer(i_byte), dimension(4) :: byte_arr, byte_arr_tmp
- integer(i_long) :: i,n
+ integer(i_long) :: n
 
  do n=1,num
     byte_arr_tmp = transfer (r4(n), byte_arr)

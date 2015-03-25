@@ -22,6 +22,9 @@ subroutine model2control(rval,bval,grad)
 !   2012-06-12  parrish  - modify bundle wbundle so motley variables are included if available.  The
 !                          subroutine ckgcov_ad now looks for motley variables as part of the input bundle.
 !   2012-06-12  parrish  - remove nnnn1o--no longer needed.
+!   2012-10-09  wgu      - update interface to tbalance (fut2ps)
+!   2013-10-25  todling  - nullify work pointers
+!   2013-10-28  todling  - rename p3d to prse
 !   2013-05-23  zhu      - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
@@ -38,7 +41,7 @@ use control_vectors, only: nc2d,nc3d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: lat2,lon2,nsig
-use berror, only: varprd,fpsproj
+use berror, only: varprd,fpsproj,fut2ps
 use balmod, only: tbalance
 use jfunc, only: nsclen,npclen,ntclen,nrclen,nval_lenz
 use cwhydromod, only: cw2hydro_ad
@@ -64,7 +67,7 @@ character(len=*),parameter::myname='model2control'
 character(len=10),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: ii,jj,i,ic,id,ngases,nclouds,istatus
 real(r_kind) :: gradz(nval_lenz)
 type(gsi_bundle) :: wbundle
 type(gsi_grid)   :: grid
@@ -73,19 +76,26 @@ type(gsi_grid)   :: grid
 !       the state and control vectors, but rather the ones
 !       explicitly needed by this routine.
 ! Declare required local state variables
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_tv,ls_ps,ls_ql,ls_qi
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_tv,ls_ps,ls_ql,ls_qi
 integer(i_kind), parameter :: nsvars = 9
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen',   &
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen',   &
                                'tv  ', 'ps  ','ql  ', 'qi  ' /)
 character(len=max_varname_length),allocatable,dimension(:) :: cvars2dpm  ! names of 2d fields including
                                                                          !  motley vars (if any)
 
-real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
-real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
-real(r_kind),pointer,dimension(:,:)   :: rv_rank2
+real(r_kind),pointer,dimension(:,:)   :: rv_ps=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_u=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_v=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_q=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_tsen=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_tv=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_rank2=>NULL()
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_tbalance,cw_to_hydro_ad
 
@@ -117,7 +127,7 @@ endif
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (rval(1),mysvars,isps,istatus)
-ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_tv =isps(6)>0
 ls_ps =isps(7)>0; ls_ql  =isps(8)>0; ls_qi =isps(9)>0
 
@@ -125,8 +135,8 @@ ls_ps =isps(7)>0; ls_ql  =isps(8)>0; ls_qi =isps(9)>0
 ! what's explictly needed in this routine
 do_getuv            =ls_u .and.ls_v
 do_tv_to_tsen_ad    =ls_tv.and.ls_q  .and.ls_tsen
-do_normal_rh_to_q_ad=ls_tv.and.ls_p3d.and.ls_q
-do_getprs_ad        =ls_ps.and.ls_tv .and.ls_p3d
+do_normal_rh_to_q_ad=ls_tv.and.ls_prse.and.ls_q
+do_getprs_ad        =ls_ps.and.ls_tv .and.ls_prse
 do_tbalance         =ls_tv.and.ls_ps
 
 ! Inquire about clouds-variables
@@ -149,7 +159,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
    call gsi_bundlegetpointer (rval(jj),'v'   ,rv_v,   istatus)
    call gsi_bundlegetpointer (rval(jj),'ps'  ,rv_ps,  istatus)
-   call gsi_bundlegetpointer (rval(jj),'p3d' ,rv_p3d, istatus)
+   call gsi_bundlegetpointer (rval(jj),'prse',rv_prse,istatus)
    call gsi_bundlegetpointer (rval(jj),'tv'  ,rv_tv,  istatus)
    call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
@@ -165,16 +175,16 @@ do jj=1,nsubwin
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(workrh,rv_tv,rv_p3d,rv_q)
+   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(workrh,rv_tv,rv_prse,rv_q)
 
 !  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_p3d)
+   if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 !  Multiply by sqrt of background error adjoint (ckerror_ad)
 !  -----------------------------------------------------------------------------
 
 !  Transpose of balance equation
-   if(do_tbalance) call tbalance(rv_tv,rv_ps,workst,workvp,fpsproj)
+   if(do_tbalance) call tbalance(rv_tv,rv_ps,workst,workvp,fpsproj,fut2ps)
 
 !  Apply variances, as well as vertical & horizontal parts of background error
    gradz(:)=zero

@@ -14,6 +14,7 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !   2006-03-28  wu,parrish, extrapolate full analysis result to points on eastern
 !                          edge of E grid not used by model to eliminate problems
 !                           with graphic output of model fields.
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gout     - input unstaggered half grid  (reorganized for 
@@ -36,7 +37,8 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use gridmod, only: iglobal,ltosi,ltosj,itotsub,ltosj_s,ltosi_s
+  use gridmod, only: iglobal,itotsub
+  use general_commvars_mod, only: ltosi,ltosj,ltosj_s,ltosi_s
   implicit none
 
 ! Declare passed variables

@@ -14,6 +14,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
 !   2009-09-18  lueken - added subprogram doc block
 !   2010-03-30  zhu    - use nvars from control_vectors
 !   2010-12-05  pondeca - change variable names: "tv" is now "t" , and "st" is "sf" 
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !    mype
@@ -33,15 +34,19 @@ subroutine antest_maps0(mype,theta0f,z0f)
   use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2,twodvar_regional
   use constants, only: zero_single,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
-  use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
+  use guess_grids, only: ntguessig,ges_prsl
   use fgrid2agrid_mod, only: fgrid2agrid
   use control_vectors, only: nvars
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
   real(r_single) ,intent(in   ) :: theta0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
   real(r_single) ,intent(in   ) :: z0f(pf2aP1%nlatf,pf2aP1%nlonf,nsig1o)
 
+  character(len=*),parameter::myname='antest_maps0'
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
   real(r_kind) tempf(nlat,nlon),tempc(pf2aP1%nlatf,pf2aP1%nlonf)
   real(r_single) outwork(nlon,nlat),outwork0(nlon,nlat)
@@ -49,9 +54,12 @@ subroutine antest_maps0(mype,theta0f,z0f)
   character(80) var_plotcor
   integer(i_kind) i_plotcor,j_plotcor,k_plotcor
 
+  real(r_kind),dimension(:,:  ),pointer::ges_z_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+
   real(r_kind)h00,h000
   integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
-  integer(i_kind) it,mm1
+  integer(i_kind) it,mm1,ier,istatus
 
   integer(i_kind):: iref, idxy
 
@@ -115,6 +123,13 @@ subroutine antest_maps0(mype,theta0f,z0f)
         stop
      end if
 
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it, istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      hwork=zero
      if( var_plotcor=='ps' .or. twodvar_regional ) then
         k_plotcor=1
@@ -163,7 +178,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
            jglob=jstart(mm1)-2+j
            do i=2,lat2-1
               iglob=istart(mm1)-2+i
-              outwork(jglob,iglob)=ges_tv(i,j,k,it)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
+              outwork(jglob,iglob)=ges_tv_it(i,j,k)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
            end do
         end do
         call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
@@ -215,7 +230,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
         jglob=jstart(mm1)-2+j
         do i=2,lat2-1
            iglob=istart(mm1)-2+i
-           outwork(jglob,iglob)=ges_z(i,j,it)
+           outwork(jglob,iglob)=ges_z_it(i,j)
         end do
      end do
      call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
@@ -267,6 +282,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !   2009-09-18  lueken - added subprogram doc block
 !   2013-01-15  parrish - ansmoothrf_reg_subdomain_option now uses bundle input.
 !                             Add changes to update from old to new version.
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !    mype
@@ -284,7 +300,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   use gridmod, only: nsig,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
-  use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
+  use guess_grids, only: ntguessig,ges_prsl
   use control_vectors, only: nvars
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
@@ -293,6 +309,9 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use mpeu_util, only: die
 
   implicit none
 
@@ -300,6 +319,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   real(r_single) ,intent(in   ) :: theta0f(lat2,lon2,nsig)
   real(r_single) ,intent(in   ) :: z0f(lat2,lon2,nsig)
 
+  character(len=*),parameter::myname='antest_maps0_subdomain_option'
   real(r_kind),dimension(lat2,lon2,nsig):: twork,qwork,stwork,vpwork
   real(r_kind),dimension(lat2,lon2):: pwork
   real(r_single) outwork(nlon,nlat),outwork0(nlon,nlat)
@@ -307,10 +327,13 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   character(80) var_plotcor
   character(80) plotname
   integer(i_kind) i_plotcor,j_plotcor,k_plotcor
-  integer(i_kind) iloc,jloc,kloc,ier
+  integer(i_kind) iloc,jloc,kloc,ier,istatus
+
+  real(r_kind),dimension(:,:  ),pointer::ges_z_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
 
   real(r_kind) h00,h000
-  integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
+  integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot
   integer(i_kind) it,mm1
   integer(i_kind) lvar
   integer(i_kind):: ips,ipe,jps,jpe,kps,kpe
@@ -358,9 +381,16 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 
      call gsi_gridcreate(grid,lat2,lon2,nsig)
   ref_plotcor='theta'
+  ier=0
   it=ntguessig
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+  
   do 200 lvar=1,5
-     if (lvar==1)      var_plotcor='sf'
+     if (lvar==1)  var_plotcor='sf'
      if (lvar==2)  var_plotcor='vp'
      if (lvar==3)  var_plotcor='ps'
      if (lvar==4)  var_plotcor='t'
@@ -445,7 +475,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
            jglob=jstart(mm1)-2+j
            do i=2,lat2-1
               iglob=istart(mm1)-2+i
-              outwork(jglob,iglob)=ges_tv(i,j,k,it)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
+              outwork(jglob,iglob)=ges_tv_it(i,j,k)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
            end do
         end do
         call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
@@ -501,7 +531,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
         jglob=jstart(mm1)-2+j
         do i=2,lat2-1
            iglob=istart(mm1)-2+i
-           outwork(jglob,iglob)=ges_z(i,j,it)
+           outwork(jglob,iglob)=ges_z_it(i,j)
         end do
      end do
      call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
