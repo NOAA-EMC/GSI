@@ -52,7 +52,6 @@ module m_berror_stats
       public :: berror_read_bal ! get cross-cov.stats., balmod::prebal()
       public :: berror_read_wgt ! get auto-cov.stats., prewgt()
       public :: berror_set      ! set internal parameters
-      public :: berror_set      ! set internal parameters
 
         ! external interfaces relating to internal procedures.
       interface berror_get_dims; module procedure get_dims; end interface
@@ -501,7 +500,6 @@ end subroutine read_wgt
 ! !REVISION HISTORY:
 !       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
 !               - adopted from PREWGT of previous version
-!       2013-10-19 oz guess field in metguess now 
 !       2013-10-19 oz guess field in metguess now 
 !EOP ___________________________________________________________________
 
