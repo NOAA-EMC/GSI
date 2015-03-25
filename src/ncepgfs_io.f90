@@ -192,10 +192,6 @@ contains
 
        if (l_cld_derived) then
           call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
-!         if (it==2) then
-!            call write_ghg_grid(ges_ql_it,'qlb',mype)
-!            call write_ghg_grid(ges_qi_it,'qib',mype)
-!         end if
        end if
 
     end do
@@ -1104,12 +1100,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
   if(istatus==0) aux_oz = ges_oz_it
   call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
   if(istatus==0) aux_cwmr = ges_cwmr_it
-!yanqiu_testb
-!    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ql',ges_ql_it,istatus)
-!    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'qi',ges_qi_it,istatus)
-!    call write_ghg_grid(ges_ql_it,'qla',mype)
-!    call write_ghg_grid(ges_qi_it,'qia',mype)
-!yanqiu_teste
 
   end subroutine set_analysis_
 
