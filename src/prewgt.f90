@@ -112,7 +112,6 @@ subroutine prewgt(mype)
   use blendmod, only: blend
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_bundle
-  use ncepgfs_io, only: write_ghg_grid
 
   implicit none
 
@@ -419,7 +418,6 @@ subroutine prewgt(mype)
         end do
      end do
   end if
-  call write_ghg_grid(tvar,'cot',mype)
 
   if(nrf2_ps>0) then
      do i=1,lat2
