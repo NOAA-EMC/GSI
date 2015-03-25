@@ -490,11 +490,7 @@ subroutine prewgt(mype)
   end do
 
 ! Special case of dssv for qoption=2 and cw
-  if (qoption==2 .or. ((.not. cwcoveqqcov) .and. nrf3_cw>0)) then 
-     call compute_qvar3d(cwvar,qvar)
-     call write_ghg_grid(cwvar,'cov',mype)
-     call write_ghg_grid(qvar,'coq',mype)
-  end if
+  if (qoption==2 .or. ((.not. cwcoveqqcov) .and. nrf3_cw>0)) call compute_qvar3d
 
 !!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
   do n=1,nc2d

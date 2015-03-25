@@ -1,4 +1,4 @@
-subroutine compute_qvar3d(cwvar,qvar)
+subroutine compute_qvar3d
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -60,7 +60,6 @@ subroutine compute_qvar3d(cwvar,qvar)
   real(r_kind):: cwtmp
   real(r_kind),dimension(nlat,nsig):: work_cw
   real(r_kind),dimension(nlat,nsig):: cw_avg
-  real(r_kind),dimension(lat2,lon2,nsig):: cwvar,qvar
   real(r_kind),dimension(lat2*lon2*nsig):: cw_tmp
   real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work
   real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
@@ -141,7 +140,6 @@ subroutine compute_qvar3d(cwvar,qvar)
               n=min0(max(1,n),25)
               np=min0(max(1,np),25)
               dssv(i,j,k,nrf3_q)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(i,j,k,nrf3_q)
-              qvar(i,j,k)=varq(n,k)*dn1 + varq(np,k)*dn2
            end do
         end do
      end do
@@ -204,8 +202,7 @@ subroutine compute_qvar3d(cwvar,qvar)
            do j=1,lon2
               do i=1,lat2
                  ii=ii+1
-                 cwvar(i,j,k)=cw_tmp(ii)
-                 dssv(i,j,k,nrf3_cw)=cwvar(i,j,k)*dssv(i,j,k,nrf3_cw)
+                 dssv(i,j,k,nrf3_cw)=cw_tmp(ii)*dssv(i,j,k,nrf3_cw)
               end do
            end do
         end do
