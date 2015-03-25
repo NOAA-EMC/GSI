@@ -260,6 +260,8 @@ subroutine read_wrf_nmm_files(mype)
 !   2008-04-16  safford - remove unsused vars
 !   2009-10-09  wu - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
+!   2014-12-05  wu - remove check to allow FGAT/4DEnVar guess files beyond
+!                    nhr_half
 !
 !   input argument list:
 !     mype     - pe number
@@ -308,7 +310,6 @@ subroutine read_nems_nmmb_files(mype)
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
 !   2012-01-22  parrish - move nming2 calculation before write(6 statement to prevent runtime
 !                           failure in debug mode on WCOSS
-!   2014-12-05  wu - remove check to allow FGAT/4DEnVar guess files beyond nhr_half
 !
 !   input argument list:
 !     mype     - pe number
@@ -390,7 +391,7 @@ subroutine read_nems_nmmb_files(mype)
               if (t4dv<zero .OR. t4dv>winlen) go to 110
            else
               ndiff=nming2-nminanl
-!for test with the 3 hr files with FGAT turn off the check for now
+!for test with the 3 hr files with FGAT
 !              if(abs(ndiff) > 60*nhr_half ) go to 110
            endif
            iwan=iwan+1

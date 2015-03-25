@@ -37,7 +37,8 @@ module radinfo
 !   2013-02-19  sienkiewicz   - add adjustable SSMIS bias term weight
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
-!   2014-04-24  li      - apply abs (absolute) to AA and be for safeguarding
+!   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
+!   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -1493,8 +1494,7 @@ contains
       seviri     = obstype == 'seviri'
       tmi        = obstype == 'tmi'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy .or. seviri   .or. tmi
-
+                .or. seviri .or. tmi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1
@@ -1653,7 +1653,6 @@ contains
          end do
          close(lntemp)
       end if
-
 
       if (new_chan/=0) then
          if (all(iobs<nthreshold)) then

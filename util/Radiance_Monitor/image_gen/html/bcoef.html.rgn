@@ -74,6 +74,13 @@ parent.fmain.document.location.href=parentnew
 <OPTION VALUE="lapse">Lapse rate
 <OPTION VALUE="lapse2">(Lapse rate)**2
 <OPTION VALUE="clw">Cloud liquid water
+<OPTION VALUE="cos_ssmis">Cosin for SSMIS
+<OPTION VALUE="sin_ssmis">Sin for SSMIS
+<OPTION VALUE="emiss">Emissivity sensitivity
+<OPTION VALUE="ordang1">1st order angle
+<OPTION VALUE="ordang2">2nd order angle
+<OPTION VALUE="ordang3">3rd order angle
+<OPTION VALUE="ordang4">4th order angle
 </SELECT><P>
 </TD></TR>
 
