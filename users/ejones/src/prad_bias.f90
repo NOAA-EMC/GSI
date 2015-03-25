@@ -8,6 +8,7 @@
 !
 ! program history log:
 !   2010-05-15  zhu
+!   2013-10-27  todling - move destroy to module where init reside (gsimod)
 !
 ! attributes:
 !   language: f90
@@ -19,7 +20,7 @@
   use mpimod, only: mype
   use radinfo, only: npred,jpch_rad,iuse_rad,predx,inew_rad
   use gsi_4dvar, only: nobs_bins
-  use obsmod, only: radheadm,radptrm,destroyobs_passive
+  use obsmod, only: radheadm,radptrm
   use berror, only: varprd
   use mpl_allreducemod, only: mpl_allreduce
   use timermod, only: timer_ini,timer_fnl
@@ -166,7 +167,6 @@
      deallocate(AA,be)
   end do  ! end of jpassive loop
 
-  call destroyobs_passive
   deallocate(A,b,iobs)
 
 ! Finalize timer

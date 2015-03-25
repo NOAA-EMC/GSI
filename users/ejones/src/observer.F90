@@ -1,6 +1,5 @@
 module observermod
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
@@ -20,6 +19,10 @@ module observermod
 !   2011-04-29  todling - add metguess initialization/finalization
 !   2013-07-02  parrish - changes to remove tlnmc_type for global tlnmc and add
 !                          reg_tlnmc_type for two kinds of regional tlnmc.
+!   2013-10-19  todling - update cloud_efr module name
+!   2014-02-03  todling - remove B-dependence; move cost-create/destroy out
+!   2014-12-03  derber - modify for possibly not using obsdiag arrays, change
+!                        call to getsfc
 !
 !   input argument list:
 !     mype - mpi task id
@@ -35,15 +38,15 @@ module observermod
   use kinds, only: i_kind
   use constants, only: rearth
   use mpimod, only: mype
-  use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
-       set_pointer,&
-       switch_on_derivatives,tendsflag,create_jfunc
+  use jfunc, only: miter,jiter,jiterstart,&
+       switch_on_derivatives,tendsflag
   use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig,&
                      lat2,lon2
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
        destroy_ges_grids,destroy_sfc_grids,nfldsig
+  use cloud_efr_mod, only: cloud_init,cloud_final
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
-       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate
+       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate,luse_obsdiag
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
@@ -58,7 +61,6 @@ module observermod
   use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
   use strong_fast_global_mod, only: init_strongvars
   use zrnmi_mod, only: zrnmi_initialize
-  use tendsmod, only: create_tendvars,destroy_tendvars
   use turblmod, only: create_turblvars,destroy_turblvars
 
   use guess_grids, only: create_chemges_grids, destroy_chemges_grids
@@ -121,6 +123,7 @@ subroutine guess_init_
 !   2010-05-19  todling - update interface to read_guess
 !   2010-06-25  treadon - pass mlat into create_jfunc
 !   2011-05-24  yang    - pass iadate(3) (day of the month) into read_guess
+!   2014-02-03  todling - remove dependence on B & major cost func settings
 !
 !   input argument list:
 !     mype - mpi task id
@@ -144,7 +147,6 @@ subroutine guess_init_
 
 ! Declare local variables
 
-  integer(i_kind):: msig,mlat,mlon
   integer(i_kind):: ierr
 
 !*******************************************************************************************
@@ -153,28 +155,18 @@ subroutine guess_init_
   fg_initialized_ = .true.
 
 ! Allocate arrays to hold surface and sigma guess fields.
+#ifndef HAVE_ESMF
+  call create_metguess_grids(mype,ierr)
+  call create_chemges_grids(mype,ierr)
+#endif /*/ HAVE_ESMF */
+
   call create_ges_grids(switch_on_derivatives,tendsflag)
   call create_bias_grids()
   call create_sfc_grids()
-
-#ifndef HAVE_ESMF
-  call create_metguess_grids(ierr)
-  call create_chemges_grids(ierr)
-#endif /*/ HAVE_ESMF */
+  call cloud_init()
 
 ! Read model guess fields.
   call read_guess(iadate(1),iadate(2),iadate(3),mype)
-
-! Set length of control vector and other control vector constants
-  call set_pointer
-
-! Allocate arrays used in minimization
-  if(.not.regional)then                    ! If global, use msig, mlat, and mlon
-     call berror_get_dims(msig,mlat,mlon)  ! _RT: observer should not depend on B
-  else                                     ! If regional, use msig and mlat only
-     call berror_get_dims_reg(msig,mlat)
-  endif
-  call create_jfunc(mlat)
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons
   if(l4dvar) then
@@ -197,7 +189,6 @@ subroutine guess_init_
   endif
 
   if (tendsflag) then
-     call create_tendvars()
      call create_turblvars()
   endif
   if ( (l_tlnmc) .and. nvmodes_keep>0) then
@@ -284,6 +275,7 @@ _ENTRY_(Iam)
 
   call tell('observer.init_','exiting')
 #endif
+  if(mype==0) write(6,*) Iam, ': successfully initialized'
 ! End of routine
   call timer_fnl('observer.init_')
 _EXIT_(Iam)
@@ -315,13 +307,14 @@ subroutine set_
 !$$$
 
   use mpeu_util, only: tell,die
+  use gsi_io, only: mype_io
   implicit none
   character(len=*), parameter :: Iam="observer_set"
 
 ! Declare passed variables
 
 ! Declare local variables
-  logical:: lhere,use_sfc
+  logical:: lhere
   integer(i_kind):: lunsave,istat1,istat2
   
   data lunsave  / 22 /
@@ -368,8 +361,7 @@ _ENTRY_(Iam)
 
 !    Load isli2 and sno2 arrays using fields from surface guess file.  Arrays
 !    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
-     use_sfc=.false.
-     call getsfc(mype,use_sfc)
+     call getsfc(mype,mype_io,.false.,.false.)
      call destroy_sfc
 
   endif
@@ -468,7 +460,7 @@ _ENTRY_(Iam)
 
      last  = jiter == miter+1 ! there is no obsdiags output if
                               ! jiterstart==miter+1.  e.g. miter=2 and jiterstart=3
-     if (l4dvar.and.(.not.last) .and. last_pass_) then
+     if (l4dvar.and.(.not.last) .and. last_pass_ .and. luse_obsdiag) then
         clfile='obsdiags.ZZZ'
         write(clfile(10:12),'(I3.3)') jiter
         call write_obsdiags(clfile)
@@ -484,7 +476,7 @@ _ENTRY_(Iam)
 
   endif
 
-  call timer_ini('observer.run_')
+  call timer_fnl('observer.run_')
 ! End of routine
 _EXIT_(Iam)
 end subroutine run_
@@ -521,7 +513,6 @@ subroutine final_
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) error_status
   character(len=*),parameter:: Iam="observer_final"
 
 !*******************************************************************************************
@@ -532,7 +523,6 @@ _ENTRY_(Iam)
   ob_initialized_=.false.
  
   if (tendsflag) then
-     call destroy_tendvars()
      call destroy_turblvars()
   endif
   if ( (l_tlnmc ) .and. nvmodes_keep>0) call destroy_vtrans
@@ -547,6 +537,7 @@ _ENTRY_(Iam)
   call convinfo_destroy
 
   deallocate(ndata)
+  if(mype==0) write(6,*) Iam, ': successfully finalized'
 
 ! Finalize timer for this procedure
   call timer_fnl('observer.final_')
@@ -570,6 +561,7 @@ subroutine guess_final_
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2010-04-20  todling - add call to destroy tracer grid
+!   2013-10-23  todling - first-in, last-out alloc/dealloc
 !
 !   input argument list:
 !     mype - mpi task id
@@ -594,14 +586,14 @@ subroutine guess_final_
   fg_initialized_=.false.
  
 ! Deallocate remaining arrays
-#ifndef HAVE_ESMF
-  call destroy_metguess_grids(ierr)
-  call destroy_chemges_grids(ierr)
-#endif /* HAVE_ESMF */
+  call cloud_final()
   call destroy_sfc_grids()
-  call destroy_ges_grids(switch_on_derivatives,tendsflag)
   call destroy_bias_grids()
-  call destroy_jfunc
+  call destroy_ges_grids
+#ifndef HAVE_ESMF
+  call destroy_chemges_grids(ierr)
+  call destroy_metguess_grids(mype,ierr)
+#endif /* HAVE_ESMF */
 
 ! End of routine
 end subroutine guess_final_

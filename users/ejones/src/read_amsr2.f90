@@ -3,30 +3,22 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub)
 
 ! subprogram:    read_amsr2                  read bufr format amsr2 data
-! prgmmr :   e.jones         org: copied from read_amsre.f90   date: 2014-10-17
-!
+!   prgmmr: ejones         copied from read_amsre.f90         date: 2014-03-15
 ! abstract:  This routine reads BUFR format AMSR2 radiance (brightness
-!            temperature) files.  Optionally, the data are thinned to 
-!            a specified resolution using simple quality control checks.
+!            temperature) files that contain the first 14 channels of AMSR2 
+!            (all at the same resolution).
 !
 !            When running the gsi in regional mode, the code only
 !            retains those observations that fall within the regional
 !            domain
 !
-! Special Notes:
-!     10/14/04  okamoto  looks like AMSRE overlap problem is not as bad as SSM/I
-!
 ! program history log:
-!   2014-04-25  ejones - copy read_amsre.f90, and modify to ingest amsr2 data.
-!                  obstype=amsr2
-!   2014-06-20  ejones - modify so amsr2 channels are read in all at once
-!                  (single bufr file),getting rid of the need for classifications 
-!                  for LR and HR channels (from separate bufr files).
-!                  obstype=amsr2
+!   2014-03-15  ejones   - read amsr2
+! 
 !
 ! input argument list:
 !     mype     - mpi task id
-!     val_amsr2- weighting factor applied to super obs
+!     val_amsre- weighting factor applied to super obs
 !     ithin    - flag to thin data
 !     isfcalc  - flag to specify method to calculate sfc fields within FOV
 !                when set to one, account for size/shape of FOV.  otherwise
@@ -50,6 +42,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 !
 ! attributes:
 !     language: f90
+!     machine:  ibm RS/6000 SP
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind
@@ -61,7 +54,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   use constants, only: deg2rad,rad2deg,zero,one,three,r60inv,two
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
-  use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
+  use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
@@ -87,8 +80,8 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind)  ,intent(inout) :: ndata,nodata
 
 ! Number of channels for sensors in BUFR
-  integer(i_kind),parameter :: N_AMSR2CH  =  14
-  integer(i_kind) :: said, GCOMW1_SAID  = 122   !WMO satellite identifier 
+  integer(i_kind),parameter :: N_AMSRCH  =  14  ! only channels 1-14 processed
+  integer(i_kind) :: said, GCOMW1_SAID  = 122  !WMO satellite identifier 
   integer(i_kind) :: siid, AMSR2_SIID = 478   !WMO instrument identifier 
   integer(i_kind),parameter :: maxinfo    =  33
 
@@ -111,7 +104,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind)   :: itx, k, nele, itt
   integer(i_kind)   :: ifov, ilat, ilon
   integer(i_kind)   :: i, l, n
-  integer(i_kind),dimension(n_amsr2ch) :: kchamsr2
+  integer(i_kind),dimension(n_amsrch) :: kchamsr2
   real(r_kind)     :: sfcr
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth
@@ -123,6 +116,8 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+
+! needed? (nst_gsi: zob, tz_tr, etc)
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   character(len=7),parameter:: fov_flag="conical"
@@ -132,39 +127,39 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 
   logical :: valid
 
-  real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc 
+! - needed? (sun glint)
+  real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc   !do we need this sun glint calc stuff?
   real(r_kind) :: date5_4_sun_glint_calc
+
   real(r_kind) :: expansion, dlat_earth_deg, dlon_earth_deg
 
 ! Set standard parameters
-!  logical       :: amsr2_low
-!  logical       :: amsr2_mid
-!  logical       :: amsr2_hig
   integer(i_kind) ntest
   integer(i_kind) :: nscan,iskip,kskip,kch,kchanl
-! real(r_kind),parameter :: TEN      =  10._r_kind
-! real(r_kind),parameter :: R45      =  45._r_kind
   real(r_kind),parameter :: R90      =  90._r_kind
-! real(r_kind),parameter :: R180     = 180._r_kind
   real(r_kind),parameter :: R360     = 360._r_kind
   real(r_kind),parameter :: tbmin    = 3._r_kind           
   real(r_kind),parameter :: tbmax    = 340._r_kind         
-  real(r_kind) disterrmax
-  real(r_kind),dimension(N_AMSR2CH) :: tbob_org
-  real(r_kind) :: clath, clonh, fovn, iang, aang, soel, solazi         !????
-  real(r_kind) :: flgch  !used for thinning priority  range:1-36
+
+! - needed? disterrmax
+!  real(r_kind) disterrmax
+
+  real(r_kind),dimension(N_AMSRCH) :: tbob_org
+  real(r_kind) :: clath, clonh, fovn, iang, aang, soel, solazi         
+
+!  real(r_kind) :: flgch  !used for thinning priority  range:1-36
 
 
-! BUFR format for AMSR2SPOT
-  integer(i_kind),parameter :: N_AMSR2SPOT_LIST = 12
+! BUFR format for AMSRSPOT
+  integer(i_kind),parameter :: N_AMSRSPOT_LIST = 12
 
-! BUFR format for AMSR2CHAN
-  integer(i_kind),parameter :: N_AMSR2CHAN_LIST = 3
+! BUFR format for AMSRCHAN
+  integer(i_kind),parameter :: N_AMSRCHAN_LIST = 3
 
 ! Variables for BUFR IO
   real(r_double),dimension(4):: gcomspot_d
-  real(r_double),dimension(12):: amsr2spot_d                !????
-  real(r_double),dimension(3,14):: amsr2chan_d              !????
+  real(r_double),dimension(12):: amsrspot_d               
+  real(r_double),dimension(3,14):: amsrchan_d             
 
 ! ---- sun glint ----
   integer(i_kind) doy,mlen(12),mday(12),mon,m
@@ -214,6 +209,7 @@ kskipped2=0
   ilon = 3
   ilat = 4
 
+! - nst_gsi needed?
   if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
@@ -223,7 +219,7 @@ kskipped2=0
      mday(mon) = m 
      m = m + mlen(mon) 
   end do 
-  disterrmax=zero
+!  disterrmax=zero
   ntest = 0
   nreal = maxinfo+nstinfo
   ndata = 0
@@ -236,9 +232,8 @@ kskipped2=0
   kchamsr2(1:14)=(/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
 
   senname = 'AMSR'
-  nchanl  = N_AMSR2CH
-  nscan  = 243  !for the lower frequency channels
-!     nscan  = 486  !for amsr2 89.0GHz ch         
+  nchanl  = N_AMSRCH
+  nscan  = 243  
   kidsat = 549
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -260,7 +255,7 @@ kskipped2=0
   end do search
   if (.not.assim) val_amsr2=zero
 
-! note, fov-based surface code does not have equations for amsr-e or amsr2, but
+! note, fov-based surface code does not have equations for amsr-e/amsr2, but
 ! the fov size/shape is similar to ssmi/s.  so call
 ! fov code using f16 specs.
 
@@ -291,11 +286,8 @@ kskipped2=0
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
-!write(6,*)'amsr2 check3'
-
 ! Allocate local array to contain observation information
   nele=nreal+nchanl
-write(6,*)'AMSR2 NREAL=',nreal
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
@@ -309,25 +301,25 @@ write(6,*)'AMSR2 NREAL=',nreal
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)
 
-!    Retrieve bufr 1/4 :get gcomspot (said,orbn,soza)
-        call ufbint(lnbufr,gcomspot_d,4,1,iret,'SAID ORBN SOLAZI SOEL')
+!    Retrieve bufr 1/4 :get gcomspot (said,orbn,solazi,soel)
+        call ufbint(lnbufr,gcomspot_d,4,1,iret,'SAID ORBN SOLAZI SOEL')    !???
 
         said = nint(gcomspot_d(1))
 
-!       Retrieve bufr 2/4 :get amsr2spot (siid,ymdhs,lat,lon)
-        call ufbrep(lnbufr,amsr2spot_d,N_AMSR2SPOT_LIST,1,iret, &
-           'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH AANG IANG FOVN')
+!       Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
+        call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
+           'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH AANG IANG FOVN')!???
 
-        siid = nint(amsr2spot_d(1)) 
+        siid = nint(amsrspot_d(1)) 
         if(siid /= AMSR2_SIID)   cycle read_loop
 
 
 !       Check obs time
-        idate5(1) = amsr2spot_d(02)! year
-        idate5(2) = amsr2spot_d(03)! month
-        idate5(3) = amsr2spot_d(04)! day
-        idate5(4) = amsr2spot_d(05)! hour
-        idate5(5) = amsr2spot_d(06)! min
+        idate5(1) = amsrspot_d(02)! year
+        idate5(2) = amsrspot_d(03)! month
+        idate5(3) = amsrspot_d(04)! day
+        idate5(4) = amsrspot_d(05)! hour
+        idate5(5) = amsrspot_d(06)! min
         if( idate5(1) < 1900 .or. idate5(1) > 3000 .or. &
             idate5(2) < 1    .or. idate5(2) >   12 .or. &
             idate5(3) < 1    .or. idate5(3) >   31 .or. &
@@ -343,12 +335,12 @@ write(6,*)'AMSR2 NREAL=',nreal
 
 
         call w3fs21(idate5,nmind)
-        t4dv = (real((nmind-iwinbgn),r_kind) + amsr2spot_d(7)*r60inv)*r60inv ! add in seconds
+        t4dv = (real((nmind-iwinbgn),r_kind) + amsrspot_d(7)*r60inv)*r60inv ! add in seconds
 
         if (l4dvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime = real(nmind,r_kind) + amsr2spot_d(7)*r60inv ! add in seconds
+           sstime = real(nmind,r_kind) + amsrspot_d(7)*r60inv ! add in seconds
            tdiff  = (sstime - gstime)*r60inv
            if (abs(tdiff)>twind) then !cycle read_loop !then 
 ! ---- erin debug stuff ----
@@ -366,8 +358,8 @@ endif
 
 
 !     --- Check observing position -----
-        clath= amsr2spot_d(08)
-        clonh= amsr2spot_d(09)
+        clath= amsrspot_d(08)
+        clonh= amsrspot_d(09)
 
         if( abs(clath) > R90  .or. abs(clonh) > R360 .or. &
           ( abs(clath) == R90 .and. clonh /= ZERO) )  then
@@ -382,11 +374,7 @@ endif
 !              cycle read_loop        ! remove filter for debugging
 !            endif 
 
-!    Pick up every three scene  3,6,9,,,,195 (num=65)
-!    because of too small scene size and too many scene numbers
-!    (low-freq ch FOV are overlapped side by side)
-        fovn = amsr2spot_d(12)
-
+        fovn = amsrspot_d(12)
      
 !    Set position in a given region
         if(clonh >= R360)then
@@ -456,7 +444,7 @@ endif
 !       Otherwise, use bilinear interpolation.
 
         if (isfcalc==1)then
-           call deter_sfc_fov(fov_flag,idum,instr,ichan,real(amsr2spot_d(11),r_kind),dlat_earth_deg,&
+           call deter_sfc_fov(fov_flag,idum,instr,ichan,real(amsrspot_d(11),r_kind),dlat_earth_deg,&
               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else
@@ -477,7 +465,6 @@ endif
 !endif
 ! ---- /erin debug stuff ----
 
-         ! move this to QC - 
            if(isflg/=0) cycle read_loop                            ! use data over water only
         endif
 
@@ -503,27 +490,26 @@ endif
 !endif
 ! ---- /erin debug stuff ----
 
-!       Retrieve bufr 3/4 : get amsr2chan (chnm,tbb)
-        call ufbrep(lnbufr,amsr2chan_d,3,14,iret,'SCCF ACQF TMBR')   
+!       Retrieve bufr 3/4 : get amsrchan (chnm,tbb)
+        call ufbrep(lnbufr,amsrchan_d,3,14,iret,'SCCF ACQF TMBR')   
 
-        tbob_org(1)=amsr2chan_d(3,1)         
-        tbob_org(2)=amsr2chan_d(3,2)
-        tbob_org(3)=amsr2chan_d(3,3)
-        tbob_org(4)=amsr2chan_d(3,4)
-        tbob_org(5)=amsr2chan_d(3,5)
-        tbob_org(6)=amsr2chan_d(3,6)
-        tbob_org(7)=amsr2chan_d(3,7)
-        tbob_org(8)=amsr2chan_d(3,8)
-        tbob_org(9)=amsr2chan_d(3,9)
-        tbob_org(10)=amsr2chan_d(3,10)
-        tbob_org(11)=amsr2chan_d(3,11)
-        tbob_org(12)=amsr2chan_d(3,12)
-        tbob_org(13)=amsr2chan_d(3,13)
-        tbob_org(14)=amsr2chan_d(3,14)
+        tbob_org(1)=amsrchan_d(3,1)          
+        tbob_org(2)=amsrchan_d(3,2)
+        tbob_org(3)=amsrchan_d(3,3)
+        tbob_org(4)=amsrchan_d(3,4)
+        tbob_org(5)=amsrchan_d(3,5)
+        tbob_org(6)=amsrchan_d(3,6)
+        tbob_org(7)=amsrchan_d(3,7)
+        tbob_org(8)=amsrchan_d(3,8)
+        tbob_org(9)=amsrchan_d(3,9)
+        tbob_org(10)=amsrchan_d(3,10)
+        tbob_org(11)=amsrchan_d(3,11)
+        tbob_org(12)=amsrchan_d(3,12)
+        tbob_org(13)=amsrchan_d(3,13)
+        tbob_org(14)=amsrchan_d(3,14)
 
 
 !       Set obs information
-
         iskip = 0
         do l=1,nchanl
            if(tbob_org(l)<tbmin .or. tbob_org(l)>tbmax)then
@@ -548,10 +534,13 @@ endif
 endif
 
 ! ** INVESIGATE THIS flgch=iskip*three
-        flgch=iskip*three  !used for thin, range 0 to 36
-        crit1 = crit1 + flgch
+!!!!!!!!!!!!! do we want this flgch=iskip*three stuff in here???
+!        flgch=iskip*three  !used for thin, range 0 to 36
+!        crit1 = crit1 + flgch
 
-!    Set data quality predictor ***NEED TO COME UP WITH THIS***
+
+! - needed?? (pred)
+!    Set data quality predictor 
         pred = zero
 
 
@@ -570,8 +559,11 @@ endif
 !  cycle read_loop          ! remove filtering for debugging
 !endif
 ! ---- /erin debug stuff ----
+
+
      
-        soel = gcomspot_d(4)
+        solazi = gcomspot_d(3)     !solar azimuth angle
+        soel = gcomspot_d(4)       !solar elevation angle
 
 !    Check observational info 
 
@@ -599,19 +591,16 @@ endif
         if(clonh>180_r_kind) clonh_sun_glint_calc = clonh -360.0_r_kind
 !       date5_4_sun_glint_calc = idate5(4)  
         date5_4_sun_glint_calc =  &                                                                                                
-        real(idate5(4),r_kind)+real(idate5(5),r_kind)*r60inv+real(amsr2spot_d(7),r_kind)*r60inv*r60inv   
+        real(idate5(4),r_kind)+real(idate5(5),r_kind)*r60inv+real(amsrspot_d(7),r_kind)*r60inv*r60inv   
 
 
 !write(6,*)'amsr2 check6'
 !----- erin stuff - is call zensun needed??      
         call zensun(doy,date5_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth)
 
-        saz = amsr2spot_d(11)*deg2rad    ! satellite zenith/incidence angle (rad) ???
+        saz = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
 
-!          saz = amsr2spot(10,1)*deg2rad   ! satellite zenith angle (rad) 
-!             ==> not use this value but fixed values(55.0 deg)   10/12/04
-!             because BUFR saza value looks strange (raging -3 to 25),
-!
+! - needed? - nst_gsi
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
         if ( nst_gsi > 0 ) then
@@ -629,33 +618,32 @@ endif
         data_all(3,itx) = dlon                       ! grid relative longitude
         data_all(4,itx) = dlat                       ! grid relative latitude
         data_all(5,itx) = saz                        ! satellite zenith angle (rad)
-        data_all(6,itx) = amsr2spot_d(10)             ! satellite azimuth angle
+        data_all(6,itx) = amsrspot_d(10)             ! satellite azimuth angle
         data_all(7,itx) = zero                       ! look angle (rad)
-        data_all(8,itx) = ifov                       ! fov number    1-196
-!        data_all(8,itx) = ifov/3 + 1                 ! fov number/3  1-65 !kozo
+        data_all(8,itx) = ifov                       ! fov number    1-243
         data_all(9,itx) = sun_zenith                 ! solar zenith angle (deg)
-        data_all(10,itx) = sun_azimuth                ! solar azimuth angle (deg)
+        data_all(10,itx)= sun_azimuth                ! solar azimuth angle (deg)
         data_all(11,itx) = sfcpct(0)                 ! sea percentage of
         data_all(12,itx) = sfcpct(1)                 ! land percentage
         data_all(13,itx) = sfcpct(2)                 ! sea ice percentage
         data_all(14,itx) = sfcpct(3)                 ! snow percentage
-        data_all(15,itx) = ts(0)                      ! ocean skin temperature
-        data_all(16,itx) = ts(1)                      ! land skin temperature
-        data_all(17,itx) = ts(2)                      ! ice skin temperature
-        data_all(18,itx) = ts(3)                      ! snow skin temperature
-        data_all(19,itx) = tsavg                      ! average skin temperature
-        data_all(20,itx) = vty                        ! vegetation type
-        data_all(21,itx) = vfr                        ! vegetation fraction
-        data_all(22,itx) = sty                        ! soil type
-        data_all(23,itx) = stp                        ! soil temperature
-        data_all(24,itx) = sm                         ! soil moisture
-        data_all(25,itx) = sn                         ! snow depth
-        data_all(26,itx) = zz                         ! surface height
-        data_all(27,itx) = idomsfc(1) + 0.001_r_kind  ! dominate surface type
-        data_all(28,itx) = sfcr                       ! surface roughness
-        data_all(29,itx) = ff10                       ! ten meter wind factor
-        data_all(30,itx) = dlon_earth*rad2deg         ! earth relative longitude (degrees)
-        data_all(31,itx) = dlat_earth*rad2deg         ! earth relative latitude (degrees)
+        data_all(15,itx)= ts(0)                      ! ocean skin temperature
+        data_all(16,itx)= ts(1)                      ! land skin temperature
+        data_all(17,itx)= ts(2)                      ! ice skin temperature
+        data_all(18,itx)= ts(3)                      ! snow skin temperature
+        data_all(19,itx)= tsavg                      ! average skin temperature
+        data_all(20,itx)= vty                        ! vegetation type
+        data_all(21,itx)= vfr                        ! vegetation fraction
+        data_all(22,itx)= sty                        ! soil type
+        data_all(23,itx)= stp                        ! soil temperature
+        data_all(24,itx)= sm                         ! soil moisture
+        data_all(25,itx)= sn                         ! snow depth
+        data_all(26,itx)= zz                         ! surface height
+        data_all(27,itx)= idomsfc(1) + 0.001_r_kind  ! dominate surface type
+        data_all(28,itx)= sfcr                       ! surface roughness
+        data_all(29,itx)= ff10                       ! ten meter wind factor
+        data_all(30,itx)= dlon_earth*rad2deg         ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth*rad2deg         ! earth relative latitude (degrees)
 
         data_all(32,itx)= val_amsr2
         data_all(33,itx)= itt
@@ -695,9 +683,6 @@ endif
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
-!write(6,*) '**POST COMBINERADOBS** nread,ndata=', nread, ndata
-
-
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
   if (mype_sub==mype_root.and.ndata>0) then
@@ -724,7 +709,7 @@ endif
   call destroygrids    ! Deallocate satthin arrays
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
      write(6,*)'READ_AMSR2:  ',&
-        'mype,ntest,disterrmax=',mype,ntest,disterrmax
+        'mype,ntest,disterrmax=',mype,ntest !,disterrmax
 
   return
 

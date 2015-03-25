@@ -13,6 +13,8 @@ module pcgsoimod
 !   2008-11-26  Todling - remove pcgsoi_tl
 !   2009-08-12  lueken  - update documentation
 !   2009-09-17  parrish - add bkerror_a_en and anbkerror_reg_a_en for hybrid ensemble control variable a_en
+!   2014-12-03  derber - thread dot products and modify so obsdiag can be turned
+!               off
 !
 ! subroutines included:
 !   sub pcgsoi
@@ -95,10 +97,11 @@ subroutine pcgsoi()
 !   2011-04-25  eL akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
-!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to state2ensctl
+!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to ensctl2state_ad
 !                          and ensctl2state.  I put in temporary fix to allow debug compile
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
+!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
 !                       
 !
 ! input argument list:
@@ -117,7 +120,7 @@ subroutine pcgsoi()
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
-  use obsmod, only: destroyobs,oberror_tune
+  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,diag_precon,step_start, &
@@ -128,25 +131,28 @@ subroutine pcgsoi()
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
+  use mpl_allreducemod, only: mpl_allreduce
   use intallmod, only: intall
   use stpcalcmod, only: stpcalc
   use mod_strong, only: l_tlnmc,baldiag_inc
   use adjtest, only : adtest
   use control_vectors, only: control_vector, allocate_cv, deallocate_cv,&
-       prt_control_norms,dot_product,assignment(=)
+       prt_control_norms,dot_product,qdot_prod_sub,assignment(=)
   use state_vectors, only : allocate_state,deallocate_state,&
        prt_state_norms,inquire_state
   use bias_predictors, only: allocate_preds,deallocate_preds,predictors,assignment(=)
+  use bias_predictors, only: update_bias_preds
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en,ntlevs_ens
-  use hybrid_ensemble_isotropic, only: beta12mult
+  use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
+    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
   implicit none
 
@@ -163,6 +169,7 @@ subroutine pcgsoi()
   real(r_kind) gnormx,penx,penalty,penaltynew
   real(r_double) pennorm
   real(r_quad) zjo
+  real(r_quad),dimension(3):: dprod
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
@@ -175,7 +182,7 @@ subroutine pcgsoi()
   
   type(control_vector), allocatable, dimension(:) :: cglwork
   type(control_vector), allocatable, dimension(:) :: cglworkhat
-  integer      :: iortho
+  integer(i_kind) :: iortho
   real(r_quad) :: zdla
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
@@ -304,10 +311,10 @@ subroutine pcgsoi()
 
         if (l_hyb_ens) then
            eval(1)=mval(1)
-           call state2ensctl(eval,mval(1),gradx)
+           call ensctl2state_ad(eval,mval(1),gradx)
         end if
 !       Adjoint of convert control var to physical space
-        call state2control(mval,rbias,gradx)
+        call control2state_ad(mval,rbias,gradx)
      else
 
 !       Convert to control space directly from physical space.
@@ -315,7 +322,7 @@ subroutine pcgsoi()
            do ii=1,nobs_bins
               eval(ii)=rval(ii)
            end do
-           call state2ensctl(eval,mval(1),gradx)
+           call ensctl2state_ad(eval,mval(1),gradx)
         else
            mval(1)=rval(1)
            if (nobs_bins > 1 ) then
@@ -324,12 +331,12 @@ subroutine pcgsoi()
               enddo
            end if
         end if
-        call state2control(mval,rbias,gradx)
+        call control2state_ad(mval,rbias,gradx)
 
      end if
 
 !    Print initial Jo table
-     if (iter==0 .and. print_diag_pcg) then
+     if (iter==0 .and. print_diag_pcg .and. luse_obsdiag) then
         nprt=2
         call evaljo(zjo,iobs,nprt,llouter)
         call prt_control_norms(gradx,'gradx')
@@ -373,8 +380,8 @@ subroutine pcgsoi()
            call bkerror_a_en(gradx,grady)
         end if
 
-!       multiply static (Jb) part of grady by beta1_inv, and
-!       multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!       multiply static (Jb) part of grady by betas_inv(:), and
+!       multiply ensemble (Je) part of grady by betae_inv(:) [default : betae_inv(:) = 1 - betas_inv(:)] 
 !         (this determines relative contributions from static background Jb and ensemble background Je)
 
         call beta12mult(grady)
@@ -392,11 +399,13 @@ subroutine pcgsoi()
            end do
         end if
 !       save gradients
-        zdla = sqrt(dot_product(gradx,grady,r_quad))
-        do i=1,nclen
-           cglwork(iter+1)%values(i)=gradx%values(i)/zdla
-           cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
-        end do
+        if (iter <= iortho) then
+           zdla = sqrt(dot_product(gradx,grady,r_quad))
+           do i=1,nclen
+              cglwork(iter+1)%values(i)=gradx%values(i)/zdla
+              cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
+           end do
+        end if
      end if
 
 !    Add potential additional preconditioner 
@@ -420,10 +429,15 @@ subroutine pcgsoi()
 
 !    Calculate new norm of gradients
      if (iter>0) gsave=gnorm(1)
-     gnorm(1)=dot_product(gradx,grady,r_quad)
+     dprod(1) = qdot_prod_sub(gradx,grady)
+     dprod(2) = qdot_prod_sub(xdiff,grady)
+     dprod(3) = qdot_prod_sub(ydiff,gradx)
+     call mpl_allreduce(3,dprod)
+
+     gnorm(1)=dprod(1)
 !    Two dot products in gnorm(2) should be same, but are slightly different due to round off
 !    so use average.
-     gnorm(2)=0.5_r_quad*(dot_product(xdiff,grady,r_quad)+dot_product(ydiff,gradx,r_quad))
+     gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
 
@@ -435,17 +449,27 @@ subroutine pcgsoi()
         endif
         b=zero
      endif
+     if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
+        if(diag_precon)then
+          do i=1,nclen
+             diry%values(i)=dirw%values(i)
+          end do
+        end if
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)
            ydiff%values(i)=grady%values(i)
            dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-           dirw%values(i)=-gradx%values(i)+b*dirw%values(i)
-           diry%values(i)= dirw%values(i)
+           diry%values(i)=-gradx%values(i)+b*diry%values(i)
         end do
-        if(diag_precon)call precond(diry)
+        if(diag_precon)then
+          do i=1,nclen
+             dirw%values(i)=diry%values(i)
+          end do
+          call precond(diry)
+        end if
      else
 !    If previous solution available, transfer into local arrays.
         xdiff=zero
@@ -644,15 +668,15 @@ subroutine pcgsoi()
        call model_ad(mval,rval,llprt)
        if (l_hyb_ens) then
           eval(1)=mval(1)
-          call state2ensctl(eval,mval(1),gradx)
+          call ensctl2state_ad(eval,mval(1),gradx)
        end if
-       call state2control(mval,rbias,gradx)
+       call control2state_ad(mval,rbias,gradx)
      else
        if (l_hyb_ens) then
           do ii=1,nobs_bins
             eval(ii)=rval(ii)
           end do
-          call state2ensctl(eval,mval(1),gradx)
+          call ensctl2state_ad(eval,mval(1),gradx)
        else
           mval(1)=rval(1)
           if (nobs_bins > 1 ) then
@@ -661,7 +685,7 @@ subroutine pcgsoi()
              enddo
           end if
        end if
-       call state2control(mval,rbias,gradx)
+       call control2state_ad(mval,rbias,gradx)
      end if
   
 !    Add contribution from background term
@@ -687,8 +711,8 @@ subroutine pcgsoi()
           call bkerror_a_en(gradx,grady)
        end if
 
-!      multiply static (Jb) part of grady by beta1_inv, and
-!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!    multiply static (Jb) part of grady by betas_inv(:), and
+!    multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
 !      (this determines relative contributions from static background Jb and ensemble background Je)
 
        call beta12mult(grady)
@@ -745,7 +769,7 @@ subroutine pcgsoi()
 !    Print final diagnostics
         write(6,888)'Final   cost function=',zfend
         write(6,888)'Final   gradient norm=',sqrt(zgend)
-        write(6,888)'Final/Initial cost function=',zfend/zfini
+        if(zfini>tiny_r_kind) write(6,888)'Final/Initial cost function=',zfend/zfini
         if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
      endif
 888  format(A,5(1X,ES25.18))
@@ -757,11 +781,11 @@ subroutine pcgsoi()
 
 ! Update guess (model background, bias correction) fields
 ! if (mype==0) write(6,*)'pcgsoi: Updating guess'
-  call update_guess(sval,sbias)
+  if(iwrtinc<=0) call update_guess(sval,sbias)
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
-  if(jiter == miter) then
+  if(jiter == miter .and. i_gsdcldanal_type==1) then
     if(use_reflectivity) then
      call gsdcloudanalysis4nmmb(mype)
     else
@@ -770,8 +794,8 @@ subroutine pcgsoi()
   endif
 
 ! Write output analysis files
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
+  if(.not.l4dvar) call prt_guess('analysis')
+  call prt_state_norms(sval(1),'increment')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
@@ -786,6 +810,11 @@ subroutine pcgsoi()
      call inc2guess(sval)
      call write_all(iwrtinc,mype)
      call prt_guess('increment')
+     ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent way
+     ! as when in 3dvar - that is, the state is not updated, but the biases are.
+     ! This assumes GSI handles a single iteration of the outer loop at a time
+     ! when doing 4dvar (that is, multiple iterations require stop-and-go).
+     call update_bias_preds(twodvar_regional,sbias)
   endif
 
 ! Clean up increments of vorticity/divergence
@@ -823,6 +852,7 @@ subroutine init_
 !
 !$$$ end documentation block
 
+  use jfunc, only: diag_precon
   implicit none
 
 ! Allocate local variables
@@ -831,7 +861,7 @@ subroutine init_
   call allocate_cv(grady)
   call allocate_cv(dirx)
   call allocate_cv(diry)
-  call allocate_cv(dirw)
+  if(diag_precon)call allocate_cv(dirw)
   call allocate_cv(ydiff)
   call allocate_cv(xdiff)
   do ii=1,nobs_bins
@@ -852,7 +882,7 @@ subroutine init_
   grady=zero
   dirx=zero
   diry=zero
-  dirw=zero
+  if(diag_precon)dirw=zero
   ydiff=zero
   xdiff=zero
   xhat=zero
@@ -885,6 +915,7 @@ subroutine clean_
 !
 !$$$ end documentation block
 
+  use jfunc, only: diag_precon
   implicit none
 
 ! Deallocate obs file
@@ -896,7 +927,7 @@ subroutine clean_
   call deallocate_cv(grady)
   call deallocate_cv(dirx)
   call deallocate_cv(diry)
-  call deallocate_cv(dirw)
+  if(diag_precon)call deallocate_cv(dirw)
   call deallocate_cv(ydiff)
   call deallocate_cv(xdiff)
  

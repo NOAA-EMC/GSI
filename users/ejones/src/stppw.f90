@@ -100,7 +100,7 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   integer(i_kind) ier,istatus
   integer(i_kind) i1,i2,i3,i4,k,kk
   real(r_kind) val,val2,w1,w2,w3,w4,time_pw,pg_pw
-  real(r_kind) cg_pw,pw,wgross,wnotgross,pwx
+  real(r_kind) cg_pw,wgross,wnotgross,pwx
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind),pointer,dimension(:) :: rq,sq
   real(r_kind),pointer,dimension(:) :: xhat_dt_q

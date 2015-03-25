@@ -1,3 +1,4 @@
+#ifdef WRF
 subroutine get_wrf_nmm_ensperts
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -62,7 +63,7 @@ subroutine get_wrf_nmm_ensperts
 
     real(r_kind):: bar_norm,sig_norm
 
-    integer(i_kind):: i,j,k,m,n,apm_idx,istatus,ii
+    integer(i_kind):: i,j,k,n,istatus,ii
     integer(i_kind):: ic2,ic3,iratio_e2ens
      
     integer(i_kind) inner_vars,num_fields
@@ -82,7 +83,7 @@ subroutine get_wrf_nmm_ensperts
     real(r_kind),allocatable,dimension(:,:) :: mask
     real(r_single),allocatable,dimension(:,:) :: outwork
 
-    character(24) filename,fileout,blendname
+    character(24) filename,blendname
     logical test
     logical(4) fexist
     integer(i_kind) :: nrf3_cw, nrf3_oz
@@ -960,7 +961,6 @@ subroutine get_wrf_nmm_ensperts
 return
 end subroutine get_wrf_nmm_ensperts
 
-#ifdef WRF
 subroutine convert_binary_nmm_ens
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1007,7 +1007,6 @@ subroutine convert_binary_nmm_ens
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlon,nlat
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  real(r_single) dy_nmm
   integer(i_kind) i,k,n
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:)
   real(r_single),allocatable:: glat(:,:),glon(:,:)
@@ -1019,9 +1018,7 @@ subroutine convert_binary_nmm_ens
 
   integer(i_kind) index
   integer(i_kind) nlp
-  integer(i_kind) i0,j0,ireturn
-
-  real(r_kind) DPH, DTR, ERAD
+  integer(i_kind) i0,j0
 
   if(.not. merge_two_grid_ensperts)then
      nlp=n_ens
@@ -1292,34 +1289,6 @@ subroutine convert_binary_nmm_ens
 
 end subroutine convert_binary_nmm_ens
 
-#else /* Start no WRF-library block */
-subroutine convert_binary_nmm_ens
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convert_binary_nmm_ens
-!   pgrmmr:
-!
-! abstract: dummy call... does nothing
-!
-! program history log:
-!   2012-02-27  parrish - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  write(6,*)'CONVERT_BINARY_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
-  return
-end subroutine convert_binary_nmm_ens
-
-#endif /* end NO WRF-library block */
 
 subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
                                        region_lat,region_lon)
@@ -1354,7 +1323,7 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass, &
                          one_tenth,h300,rad2deg,ten,half
     use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
-    use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
+    use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts,q_hyb_ens
     use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
          mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
     use general_sub2grid_mod, only: sub2grid_info
@@ -1402,11 +1371,11 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     integer(i_kind) this_length
     integer(i_kind) ifld,im,jm,lm,num_nmm_fields
     integer(i_kind) num_loc_groups,num_j_groups
-    integer(i_kind) i,j,k,istatus
+    integer(i_kind) i,j,k
     integer(i_kind) i_pd,i_t,i_q,i_u,i_v
     real(r_kind) pd,psfc_this
     integer(i_llong) n_position
-    integer(i_kind) iskip,ksize,jextra,nextra
+    integer(i_kind) jextra,nextra
     integer(i_kind) status(mpi_status_size)
     integer(i_kind) jbegin(0:npe),jend(0:npe-1)
     integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -1415,9 +1384,9 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     integer(i_kind) iderivative
     integer(i_kind) iadd
     character(132) memoryorder
-    integer(i_kind) i0,j0,ireturn
+    integer(i_kind) ireturn
     logical ice
-    character(24) fileout
+!   character(24) fileout
     character(9) wrfens
 
     open(lendian_in,file=trim(filename),form='unformatted')
@@ -1713,17 +1682,27 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
        end do
     end do
 
-    ice=.true.
-    iderivative=0
-    call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
+    if (.not.q_hyb_ens) then
+       ice=.true.
+       iderivative=0
+       call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
 
-    do k=1,grd%nsig
-       do i=1,grd%lon2
-          do j=1,grd%lat2
-             g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+       do k=1,grd%nsig
+          do i=1,grd%lon2
+             do j=1,grd%lat2
+                g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+             end do
           end do
        end do
-    end do
+    else
+       do k=1,grd%nsig
+          do i=1,grd%lon2
+             do j=1,grd%lat2
+	        g_rh(j,i,k)=g_q(j,i,k)
+	     end do
+	  end do
+       end do
+    end if   
 
 !    call grads3a(grd,g_u,g_v,g_tv,g_prsl,g_ps,grd%nsig,mype,wrfens)
 
@@ -1734,7 +1713,6 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
 return       
 end subroutine general_read_wrf_nmm_binary
 
-#ifdef WRF
 subroutine convert_netcdf_nmm_ens
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1782,7 +1760,7 @@ subroutine convert_netcdf_nmm_ens
      integer(i_kind) n, nlp
      integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
      integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlat,nlon
-     real(r_single) pt_regional,pdtop_regional,dy_nmm
+     real(r_single) pt_regional,pdtop_regional
      real(r_single) dlmd_regional,dphd_regional
      real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
      integer(i_kind),allocatable::ifield2(:,:)
@@ -2111,34 +2089,6 @@ subroutine convert_netcdf_nmm_ens
 
 end subroutine convert_netcdf_nmm_ens
 
-#else /* Start no WRF-library block */
-subroutine convert_netcdf_nmm_ens
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convert_netcdf_nmm_ens
-!   pgrmmr:
-!
-! abstract: dummy call... does nothing
-!
-! program history log:
-!   2012-02-27  parrish - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  write(6,*)'CONVERT_NETCDF_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
-  return
-end subroutine convert_netcdf_nmm_ens
-
-#endif /* end NO WRF-library block */
 
 subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
                                        region_lat,region_lon)
@@ -2172,7 +2122,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
      use constants, only: zero,one,ten,one_tenth,half,grav,zero_single,fv,rad2deg
      use gsi_io, only: lendian_in
      use general_sub2grid_mod, only: sub2grid_info
-     use hybrid_ensemble_parameters, only: merge_two_grid_ensperts
+     use hybrid_ensemble_parameters, only: merge_two_grid_ensperts,q_hyb_ens
      implicit none
    
    ! Declare passed variables here
@@ -2190,7 +2140,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
    
      integer(i_kind) :: kt,kq,ku,kv
      real(r_kind),parameter :: r0_01 = 0.01_r_kind
-     integer(i_kind) :: nlon_regional,nlat_regional,nsig,nlon,nlat
+     integer(i_kind) :: nlon_regional,nlat_regional,nsig
      real(r_single) :: dlmd,dphd
      real(r_single) :: pt,pdtop
      real(r_single),allocatable :: aeta1(:),aeta2(:)
@@ -2210,7 +2160,6 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
      real(r_kind) pd,psfc_this
      integer(i_kind) ireturn
      logical ice
-     character(24) fileout
 
      lm=grd%nsig
      num_nmm_fields=1+4*lm
@@ -2374,17 +2323,21 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
         end do
      end do
 
-     ice=.true.
-     iderivative=0
-     call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
+     if (.not.q_hyb_ens) then
+        ice=.true.
+        iderivative=0
+        call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
 
-     do k=1,grd%nsig
-        do i=1,grd%lon2
-           do j=1,grd%lat2
-              g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+        do k=1,grd%nsig
+           do i=1,grd%lon2
+              do j=1,grd%lat2
+                 g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+              end do
            end do
         end do
-     end do
+     else
+        g_rh(j,i,k)=g_q(j,i,k)
+     end if
 
      do k=1,grd%nsig
         do i=1,grd%lon2
@@ -2405,6 +2358,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
 
 return
 end subroutine general_read_wrf_nmm_netcdf
+
 
 subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
 !$$$  subprogram documentation block
@@ -2704,6 +2658,7 @@ subroutine general_half_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
 
 end subroutine general_half_nmm_grid2
 
+
 subroutine generic_grid2sub_ens(grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2906,7 +2861,7 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      type(llxy_cons) gt_a
      character(24) :: filename
      integer(i_kind):: nlon_regional,nlat_regional,nlon_e,nlat_e
-     integer(i_kind):: i,j,k,n,istr,jstr,iend,jend
+     integer(i_kind):: i,j,n,istr,jstr,iend,jend
      real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
      real(r_kind) :: xe_a,ye_a,xstr,ystr,xend,yend
 
@@ -2916,7 +2871,7 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      real(r_kind),allocatable::blendx(:),wgt_x(:),wgt_y(:)
      logical :: outside
 
-     call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,mype,gt_a)
+     call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,gt_a)
 
      n=0
      xstr=-huge(xstr)
@@ -3162,7 +3117,6 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
     close(ioutdat)
   end if
 end subroutine grads3a
-
 subroutine grads2d(grd,field,mype,fname)
 
   use kinds, only: r_kind,i_kind,r_single
@@ -3243,93 +3197,393 @@ subroutine grads2d(grd,field,mype,fname)
 
 end subroutine grads2d
 
-subroutine grads3d(grd,field,nvert,mype,fname)
+#else /* Start no WRF-library block */
+subroutine get_wrf_nmm_ensperts
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_wrf_nmm_ensperts  read wrf nmm model ensemble members
+!   prgmmr: mtong           org: np22                date: 2010-06-28
+!
+! abstract: dummy for read ensemble members from the wrf nmm model in both binary and netcdf 
+!             format, for use with hybrid ensemble option. ensemble spread is also
+!             written out as a byproduct for diagnostic purposes.
+!
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_single
-  use general_sub2grid_mod, only: sub2grid_info
+
+    implicit none
+
+  write(6,*)'GET_WRF_NMM_ENSPERTS:     ***WARNING*** dummy call ... does nothing!'
+return
+end subroutine get_wrf_nmm_ensperts
+
+subroutine convert_binary_nmm_ens
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_binary_nmm_ens
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2012-02-27  parrish - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
   implicit none
 
-  type(sub2grid_info)                   ,intent(in   ) :: grd
-  integer(i_kind) nvert
-  integer(i_kind), intent(in)::mype
-  character(*) fname
-  real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
+  write(6,*)'CONVERT_BINARY_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
+  return
+end subroutine convert_binary_nmm_ens
 
-  real(r_kind),dimension(grd%nlat,grd%nlon)::work
-  real(r_single) outfield(grd%nlon,grd%nlat)
+subroutine convert_netcdf_nmm_ens
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_netcdf_nmm_ens
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2012-02-27  parrish - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
 
-  character(50) dsname,title,filename
-! data dsname/'test.dat'/
-  data title/'inmi'/
-  character(112) datdes(50000)
-  character(1) blank
-  data blank/' '/
-  data undef/-9.99e33_r_single/
+  write(6,*)'CONVERT_NETCDF_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
+  return
+end subroutine convert_netcdf_nmm_ens
 
-  integer(i_kind) i,k,next,ioutdes,ioutdat
-  integer(i_kind) last,j,koutmax
-  real(r_single) undef
-  real(r_single) startp,pinc
+subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fill_nmm_grid2         fill holes in (wrf) nmm e-grid
+!   prgmmr: parrish          org: np22                date: 2004-06-22
+!
+! abstract: creates an unstaggered A grid from the staggered E grid used
+!           by the wrf nmm.  This is done by interpolation to fill the
+!           holes in the E grid.  This is necessary because the gsi is
+!           not yet able to work with anything other than unstaggered
+!           grids.  This solution minimizes additional interpolation error
+!           but doubles the number of grid points.  This routine will be
+!           eliminated when the gsi has the capability to work directly
+!           with staggered grids.
+!
+! program history log:
+!   2010-11-21  mtong, add structure variable grd to make the program more general
+!
+!   input argument list:
+!     grd      - structure variable containing information about grid
+!                    (initialized by general_sub2grid_create_info, located in general_sub2grid_mod.f90)
+!     gin      - input staggered E grid field over entire horizontal domain
+!     nx,ny    - input grid dimensions
+!     igtype   - =1, then (1,1) on staggered grid is at corner of grid
+!                (mass point for nmm)
+!              - =2, then (1,1) is staggered (wind point for nmm,
+!                see illustration below)
+!
+!                   igtype=1:
+!
+!
+!
+!       ^   3             x     x     x     x
+!       |
+!       y   2                x     x     x     x
+!
+!           1             x     x     x     x
+!
+!                         1     2     3
+!
+!                           x -->
+!
+!                   igtype=2:
+!
+!
+!
+!       ^   3             x     x     x     x
+!       |
+!       y   2          x     x     x     x
+!
+!           1             x     x     x     x
+!
+!                         1     2     3
+!
+!                           x -->
+!
+!   output argument list
+!     gout     - output filled grid  (reorganized for distibution to local domains)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_single,r_kind,i_kind
+  use constants, only: quarter,half,zero
+  use general_sub2grid_mod, only: sub2grid_info
 
-  if(mype.eq.0) then
-    startp=1._r_single
-    pinc=1._r_single
-    ioutdes=98752
-    ioutdat=98753
-    write(filename,'(a,"x3d.des")')trim(fname)
-    write(dsname,'(a,"x3d.dat")')trim(fname)
-    open(unit=ioutdes,file=trim(filename),form='formatted')
-    open(unit=ioutdat,file=trim(dsname),form='unformatted')
-    rewind ioutdes
-    rewind ioutdat
-    do i=1,50000
-      write(datdes(i),'(112a1)')(blank,k=1,112)
-    end do
-    write(datdes(1),'("DSET ",a50)')dsname
-    write(datdes(2),'("options big_endian sequential")')
-    write(datdes(3),'("TITLE ",a50)')title
-    write(datdes(4),'("UNDEF ",e11.2)')undef
-    next=5
-    write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
-    next=next+1
-    write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
-    next=next+1
-    write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
-    next=next+1
-    koutmax=1
-    write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
-    next=next+1
-    write(datdes(next),'("VARS 1")')
-    next=next+1
-    write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
-    next=next+1
-    write(datdes(next),'("ENDVARS")')
-    last=next
-    write(ioutdes,'(a112)')(datdes(i),i=1,last)
-    write(6,'(a112)')(datdes(i),i=1,last)
+  implicit none
+
+!   Declare passed variables
+  type(sub2grid_info) ,intent(in   ) :: grd
+  integer(i_kind)     ,intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single)      ,intent(in   ) :: gin(nx,ny)
+  real(r_single)      ,intent(  out) :: gout(grd%itotsub)
+  integer(i_kind)     ,intent(  out) :: ireturn
+
+  real(r_single) b(2*nx-1,ny)
+  integer(i_kind) i,im,ip,j,jm,jp
+  real(r_single) fill,test
+
+  ireturn=0
+  if(2*nx-1 /= grd%nlon .or. ny /= grd%nlat)then
+    print *,'input grid and output grid are not consistant'
+    ireturn=1
+    return
   endif
 
-  do k=1,nvert
-    call sub2grid_3a(grd,field(1,1,k),work,0,mype)
-    if(mype.eq.0) then
-      do j=1,grd%nlon ; do i=1,grd%nlat
-          outfield(j,i)=work(i,j)
-      end do ; end do
-      write(ioutdat)outfield
-    end if
+  fill=0.95_r_kind*huge(fill) ; test=0.95_r_kind*fill
+  do j=1,ny
+     do i=1,2*nx-1
+        b(i,j)=fill
+     end do
   end do
 
-  if(mype.eq.0) then
-    close(ioutdes)
-    close(ioutdat)
+! First transfer all staggered points to appropriate
+! points on filled output grid
+  if(igtype==1) then
+     do j=1,ny,2
+        do i=1,nx
+           b(2*i-1,j)=gin(i,j)
+        end do
+     end do
+     do j=2,ny,2
+        do i=1,nx-1
+           b(2*i,j)=gin(i,j)
+        end do
+     end do
+  else
+     do j=1,ny,2
+        do i=1,nx-1
+           b(2*i,j)=gin(i,j)
+        end do
+     end do
+     do j=2,ny,2
+        do i=1,nx
+           b(2*i-1,j)=gin(i,j)
+        end do
+     end do
   end if
 
-end subroutine grads3d
+
+!  Now fill in holes
+
+! Top and bottom rows:
+  do j=1,ny,ny-1
+     do i=1,2*nx-1
+        if(b(i,j)>test) then
+           ip=i+1 ; if(ip>2*nx-1) ip=i-1
+           im=i-1 ; if(im<1) im=i+1
+           b(i,j)=half*(b(im,j)+b(ip,j))
+        end if
+     end do
+  end do
+
+
+! Left and right rows:
+  do j=1,ny
+     jp=j+1 ; if(jp>ny)   jp=j-1
+     jm=j-1 ; if(jm<1) jm=j+1
+     do i=1,2*nx-1,2*nx-2
+        if(b(i,j)>test) b(i,j)=half*(b(i,jm)+b(i,jp))
+     end do
+  end do
+
+! Interior points
+  do j=1,ny
+     jp=j+1 ; if(jp>ny) jp=j-1
+     jm=j-1 ; if(jm<1) jm=j+1
+     do i=1,2*nx-1
+        if(b(i,j)>test) then
+           ip=i+1 ; if(ip>2*nx-1) ip=i-1
+           im=i-1 ; if(im<1)      im=i+1
+           b(i,j)=quarter*(b(ip,j)+b(im,j)+b(i,jp)+b(i,jm))
+        end if
+     end do
+  end do
+
+
+! Reorganize for eventual distribution to local domains
+  do i=1,grd%itotsub
+     gout(i)=zero
+  end do
+  if(iorder==1)then
+     do i=1,grd%itotsub
+        gout(i)=b(grd%ltosj_s(i),grd%ltosi_s(i))
+     end do
+  else
+     do i=1,grd%iglobal
+        gout(i)=b(grd%ltosj(i),grd%ltosi(i))
+     end do
+  endif
+
+end subroutine general_fill_nmm_grid2
+
+subroutine general_half_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    half_nmm_grid2    make a-grid from every other row of e-grid
+!   prgmmr: parrish          org: np22                date: 2004-06-22
+!
+! abstract: creates an unstaggered A grid from the staggered E grid used by the wrf nmm.
+!           This is done by keeping every other row of the original E grid.  If this
+!           is a mass variable (igtype=1), then no interpolation is required.  If this
+!           is a wind variable (igtype=2), then interpolation is necessary.  This procedure
+!           is necessary because the gsi is not yet able to work with anything other than
+!           unstaggered grids.  This solution introduces greater interpolation error
+!           compared to the option fill_nmm_grid2, but has the advantage of 4 times fewer
+!           grid points compared to the output of fill_nmm__grid2.  This routine will be
+!           eliminated when the gsi has the capability to work directly with staggered grids.
+!
+! program history log:
+!   2010-11-21  mtong, add structure variable grd
+!
+!   input argument list:
+!     gin      - input staggered E grid field over entire horizontal domain
+!     nx,ny    - input grid dimensions
+!     igtype   - =1, then (1,1) on staggered grid is at corner of grid (mass point for nmm)
+!              - =2, then (1,1) is staggered (wind point for nmm, see illustration below)
+!
+!                   igtype=1:
+!
+!
+!
+!       ^   3             x     x     x     x
+!       |
+!       y   2                x     x     x     x
+!
+!           1             x     x     x     x
+!
+!                         1     2     3
+!
+!                           x -->
+!
+!                   igtype=2:
+!
+!
+!
+!       ^   3             x     x     x     x
+!       |
+!       y   2          x     x     x     x
+!
+!           1             x     x     x     x
+!
+!                         1     2     3
+!
+!                           x -->
+!
+!   output argument list
+!     gout     - output unstaggered half grid  (reorganized for distibution to local domains)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_single,i_kind
+  use constants, only: quarter, zero
+  use general_sub2grid_mod, only: sub2grid_info
+
+  implicit none
+
+! Declare passed variables
+  type(sub2grid_info)                  ,intent(in   ) :: grd
+  integer(i_kind)                      ,intent(in   ) :: nx,ny,igtype,iorder
+  real(r_single),dimension(nx,ny)      ,intent(in   ) :: gin
+  real(r_single),dimension(grd%itotsub),intent(  out) :: gout
+  integer(i_kind)                      ,intent(  out) :: ireturn
+
+! Declare local variables
+  integer(i_kind) i,i0,im,j,jj,jm,jp
+  real(r_single),dimension(nx,(ny+5)/2):: c
+
+  ireturn=0
+  if(grd%nlon /= nx .or. grd%nlat /= 1+ny/2)then
+    print *,'input grid and output grid are not consistant'
+    ireturn=1
+    return
+  endif
+
+  if(igtype==1) then
+     jj=0
+     do j=1,ny,2
+        jj=jj+1
+        do i=1,nx
+           c(i,jj)=gin(i,j)
+        end do
+     end do
+  else
+     jj=0
+     do j=1,ny,2
+        jj=jj+1
+        jp=j+1 ; if(jp>ny)   jp=j-1
+        jm=j-1 ; if(jm<1) jm=j+1
+        do i=1,nx
+           im=i-1 ; if(im<1) im=i
+           i0=i      ; if(i==nx)   i0=im
+           c(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
+        end do
+     end do
+  end if
+
+! Reorganize for eventual distribution to local domains
+  do i=1,grd%itotsub
+     gout(i)=zero
+  end do
+  if(iorder==1)then
+     do i=1,grd%itotsub
+        gout(i)=c(grd%ltosj_s(i),grd%ltosi_s(i))
+     end do
+  else
+     do i=1,grd%iglobal
+        gout(i)=c(grd%ltosj(i),grd%ltosi(i))
+     end do
+  endif
+
+end subroutine general_half_nmm_grid2
+#endif /* end NO WRF-library block */
 
 subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
 !     straightforward, but inefficient code to convert a single variable on subdomains to complete
 !      slab on one processor.
+!  2013-10-24 todling - revisit strip interface
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
@@ -3351,7 +3605,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
   do j=1,grd%lon1*grd%lat1
     zsm(j)=zero
   end do
-  call strip_grd(grd,sub,zsm,1)
+  call strip_grd(grd,sub,zsm)
   call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
                  work1,grd%ijn,grd%displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
@@ -3364,7 +3618,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
 end subroutine sub2grid_3a
 
-subroutine strip_grd(grd,field_in,field_out,nz)
+subroutine strip_grd(grd,field_in,field_out)
 
 ! !USES:
 
@@ -3375,13 +3629,12 @@ subroutine strip_grd(grd,field_in,field_out,nz)
 ! !INPUT PARAMETERS:
 
     type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind)                     , intent(in   ) :: nz          !  number of levs in subdomain array
-    real(r_kind),dimension(grd%lat2,grd%lon2,nz), intent(in   ) :: field_in    ! full subdomain
+    real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
                                                                        !    array containing
                                                                        !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(grd%lat1,grd%lon1,nz), intent(  out) :: field_out  ! subdomain array
+    real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
                                                                       !   with buffer points
                                                                       !   stripped off
 
@@ -3405,17 +3658,17 @@ subroutine strip_grd(grd,field_in,field_out,nz)
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,jp1
+    integer(i_kind) i,j,jp1
 
-    do k=1,nz
-       do j=1,grd%lon1
-          jp1 = j+1
-          do i=1,grd%lat1
-             field_out(i,j,k)=field_in(i+1,jp1,k)
-          end do
+    do j=1,grd%lon1
+       jp1 = j+1
+       do i=1,grd%lat1
+          field_out(i,j)=field_in(i+1,jp1)
        end do
     end do
 
     return
   end subroutine strip_grd
+
+
 

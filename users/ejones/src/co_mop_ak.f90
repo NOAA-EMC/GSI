@@ -42,11 +42,7 @@ subroutine co_mop_ak(g,ga,nlevs,ak,ap)
   real(r_kind),dimension(nlevs)               ,intent(  out) :: ga
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ix,ix1,iy,iy1,kk,itsig,itsigp,iz1,iz2
-  integer(i_kind) ixp,iyp,mm1
-  real(r_kind) w00,w01,w10,w11,delx,dely,delx1,dely1
-  real(r_kind) delz,dz1,dtsig,dtsigp,pob
-  real(r_kind) delp1,delp2,delp3,delp4,delp5,delp6,delp7,delp8
+  integer(i_kind) j,k
   real(r_kind) rsum
   logical,parameter::debug=.false.
 

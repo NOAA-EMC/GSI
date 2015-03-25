@@ -39,6 +39,7 @@ module aircraftinfo
 ! set passed variables to public
   public :: aircraft_t_bc
   public :: aircraft_t_bc_pof
+  public :: aircraft_t_bc_ext
   public :: cleanup_tail
   public :: biaspredt
   public :: max_tail
@@ -51,6 +52,7 @@ module aircraftinfo
 
   logical :: aircraft_t_bc ! logical to turn off or on the aircraft temperature bias correction
   logical :: aircraft_t_bc_pof ! logical to turn off or on the aircraft temperature bias correction with pof
+  logical :: aircraft_t_bc_ext ! logical to turn off or on the externally supplied aircraft bias correction
   logical :: cleanup_tail ! logical to remove tail number no longer used
   logical :: upd_aircraft ! indicator if update bias at 06Z & 18Z
   
@@ -91,6 +93,7 @@ contains
 !
 ! program history log:
 !   2013-05-17  Zhu
+!   2014-03-04  Sienkiewicz - added aircraft_t_bc_ext option
 !
 !   input argument list:
 !
@@ -111,6 +114,7 @@ contains
     biaspredt = one
     aircraft_t_bc = .false.   ! .true.=turn on bias correction
     aircraft_t_bc_pof = .false.   ! .true.=turn on bias correction
+    aircraft_t_bc_ext = .false.   ! .true.=turn on bias correction
     cleanup_tail = .false.    ! no removal of tail number 
     mype_airobst = 0
 
@@ -131,6 +135,7 @@ contains
 !
 ! program history log:
 !   2013-05-17  Yanqiu Zhu
+!   2014-03-04  Sienkiewicz - changes for external table aircraft_t_bc_ext option
 !
 !   input argument list:
 !
@@ -149,7 +154,7 @@ contains
     use obsmod, only: iadate
     implicit none
 
-    integer(i_kind) i,j,k,lunin,nlines,ip,istat
+    integer(i_kind) j,k,lunin,nlines,ip,istat
     integer(i_kind) anal_time
     integer(i_kind) isort
     real(r_kind),dimension(npredt):: ostatsx
@@ -292,7 +297,7 @@ contains
 
     integer(i_kind) i,j,jj,lunout
     integer(i_kind) iyyyymm,obsolete
-    real(r_kind),dimension(npredt):: varx
+!   real(r_kind),dimension(npredt):: varx
 
     data lunout / 51 /
 
@@ -311,7 +316,7 @@ contains
     print*, 'ntail=', ntail, ' ntail_update=',ntail_update
     allocate(csort(ntail_update),idx_csort(ntail_update))
 
-!   sorting in aphabetic order with new tail numbers
+!   sorting in alphabetic order with new tail numbers
     do i=1,ntail_update
        csort(i) = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
        idx_csort(i) = i

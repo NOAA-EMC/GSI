@@ -89,7 +89,6 @@
 !   2006-01-10  treadon - move deallocate array calls from gsisub to gsimain
 !   2006-01-27  guo     - add namelist to handle gmao grid
 !   2006-02-03  derber  - modify for new obs control and obs count
-!   2006-02-27  todling - introduced ndatmax (set in obsmod)
 !   2006-03-01  eliu    - add logical variable gmao_rtm to the namelist to handle gmao rtm
 !   2006-03-21  treadon - modify optional perturbation to observation
 !   2006-04-06  middlecoff - added three exit states
@@ -177,7 +176,7 @@
 !         fill_mass_grid2, fill_nmm_grid2, fpvsx_ad, gengrid_vars, genqsat,
 !         glbsoi, grdcrd, grdsphdp, grid2sub, gridmod, gscond_ad,
 !         gsimain, gsisub, guess_grids, half_nmm_grid2, hopers, iceem_amsu,
-!         inguesfc, inisph, init_commvars, intall, intall_qc, intdw, intlimq,
+!         inguesfc, inisph, intall, intall_qc, intdw, intlimq,
 !         intoz, intpcp, intps, intpw, intq, intrad, intref, intbend, intrp2a, intrp3,
 !         intrp3oz, intrppx, intrw, intspd, intsrw, intsst, intt, intw, jfunc,
 !         kinds, landem, locatelat_reg, mpimod, nlmsas_ad, obs_para, obsmod,
@@ -316,7 +315,7 @@
 !          = 132 - gsi_4dvar: Error in observation binning
 !          = 133 - gsi_4dvar: Error in sub-windows definition
 !          = 134 - setup_4dvar: unable to fullfil request for increment output
-!          = 135 - setup_4dvar: iwrtinc l4dvar inconsistent
+!          = 135 - setup_4dvar: iwrtinc or lwrite4danl inconsistent
 !          = 136 - time_4dvar: minutes should be 0
 !          = 137 - gsimod: adjoint computation requires contrad
 !          = 138 - setup_congrad: kamxit>maxiter
@@ -327,7 +326,7 @@
 !          = 143 - m_stats: MPI_allreduce(dot-sum)
 !          = 144 - m_stats: MPI_allreduce(min-max)
 !          = 145 - m_stats: MPI_allreduce(dim)
-!          = 146 - model2control: assumes lsqrtb
+!          = 146 - control2model_ad: assumes lsqrtb
 !          = 147 - model_tl: error nstep
 !          = 148 - model_tl: error nfrctl
 !          = 149 - model_tl: error nfrobs
@@ -493,7 +492,7 @@
 !          = 308 - sqrtmin: congrad requires ltlint
 !          = 309 - sqrtmin: congrad requires ltlint
 !          = 310 - sqrtmin: error estimated gradient
-!          = 311 - state2control: not for sqrt(B)
+!          = 311 - control2state_ad: not for sqrt(B)
 !          = 312 - allocate_state: state already allocated
 !          = 313 - allocate_state:  error length
 !          = 314 - stpspd:ltlint & foto not compatible at this time
@@ -623,9 +622,9 @@
       if(ier/=0) call die(myname,'gsi_4dcoupler_final_traj(), rc =',ier)
    endif
 
-   call gsimain_finalize
-
    call timer_pri(6)
+
+   call gsimain_finalize
 
    end program gsi
 

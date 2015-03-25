@@ -37,7 +37,8 @@ module radinfo
 !   2013-02-19  sienkiewicz   - add adjustable SSMIS bias term weight
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
-!   2014-04-24  li      - apply abs (absolute) to AA and be for safeguarding
+!   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
+!   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -339,23 +340,14 @@ contains
 !   inquire number of clouds to participate in CRTM calculations
     call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds, ier )
     n_clouds=max(0,n_clouds)
-    allocate(clouds_names(n_clouds))
-    if (n_clouds>0) then
-        call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
-    endif
 
 !   inquire number of aerosols to participate in CRTM calculations
     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros, ier )
     n_aeros=max(0,n_aeros)
-    allocate(aeros_names(n_aeros))
-    if (n_aeros>0) then
-        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
-    endif
 
     nvarjac=size(wirednames)+n_meteo+n_clouds+n_aeros
     allocate(radjacnames(nvarjac))
     allocate(radjacindxs(nvarjac))
-    allocate(aux(nvarjac))
 
 !   Fill in with wired names first
     do ii=1,size(wirednames)
@@ -376,6 +368,8 @@ contains
 !   Fill in clouds next 
     jj=0
     if (n_clouds>0) then
+       allocate(clouds_names(n_clouds))
+       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
        ib=size(wirednames)+n_meteo+1
        ie=ib+n_clouds-1
        do ii=ib,ie
@@ -383,10 +377,13 @@ contains
           radjacnames(ii) = trim(clouds_names(jj))
           radjacindxs(ii) = mxlvs
        enddo
+       deallocate(clouds_names)
     endif
 !   Fill in aerosols next 
     jj=0
     if (n_aeros>0) then
+        allocate(aeros_names(n_aeros))
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
        ib=size(wirednames)+n_meteo+n_clouds+1
        ie=ib+n_aeros-1
        do ii=ib,ie
@@ -394,6 +391,7 @@ contains
           radjacnames(ii) = trim(aeros_names(jj))
           radjacindxs(ii) = mxlvs
        enddo
+       deallocate(aeros_names)
     endif
 
 !   Overwrite levels for certain fields (this must be revisited)
@@ -404,6 +402,7 @@ contains
     enddo
 
 !   Determine initial pointer location for each var in the Jacobian
+    allocate(aux(nvarjac))
     if(size(radjacnames)>0) then
        nsigradjac = sum(radjacindxs)
        isum=0
@@ -415,8 +414,6 @@ contains
        radjacindxs=aux
     endif
     deallocate(aux)
-    deallocate(aeros_names)
-    deallocate(clouds_names)
     deallocate(meteo_names)
 
     if(mype==0) then
@@ -580,6 +577,10 @@ contains
        call stop2(79)
     endif
     jpch_rad = j
+    if(jpch_rad == 0)then
+      close(lunin)
+      return
+    end if
 
 
 !   Allocate arrays to hold radiance information
@@ -598,7 +599,7 @@ contains
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
     inew_rad=.true.
-    ifactq=0
+    ifactq=15
     air_rad=one
     ang_rad=one
 
@@ -1309,6 +1310,8 @@ contains
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !   2013-01-03  j.jin   - adding logical tmi for mean_only. (radinfo file not yet ready. JJ)
 !   2013-07-19  zhu  - unify the weight assignments for both active and passive channels
+!   2014-10-01  ejones  - add gmi and amsr2 logical
+!   2015-01-16  ejones  - add saphir logical
 !
 ! attributes:
 !   language: f90
@@ -1318,7 +1321,7 @@ contains
 
 ! !USES:
 
-   use obsmod, only: ndat,dplat,dfile,dtype,dsis
+   use obsmod, only: ndat,dplat,dtype,dsis
    use mpimod, only:  npe,mype,mpi_comm_world,ierror
    use read_diag, only: read_radiag_header,read_radiag_data,diag_header_fix_list,&
         diag_header_chan_list,diag_data_fix_list,diag_data_chan_list,&
@@ -1339,7 +1342,7 @@ contains
    logical lverbose 
    logical update
    logical mean_only
-   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,amsr2,gmi
+   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,gmi,amsr2,saphir
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
    logical avhrr,avhrr_navy,goessndr,goes_img,seviri
 
@@ -1359,7 +1362,8 @@ contains
    integer(i_kind),dimension(maxdat):: ipoint
  
    real(r_kind):: bias,scan,errinv,rnad,atiny
-   real(r_kind):: tlaptmp,tsumtmp,ratio,wgtlap
+   real(r_kind):: tlaptmp,tsumtmp,ratio
+!  real(r_kind):: wgtlap
    real(r_kind),allocatable,dimension(:):: tsum0,tsum,tlap0,tlap1,tlap2,tcnt
    real(r_kind),allocatable,dimension(:,:):: AA
    real(r_kind),allocatable,dimension(:):: be
@@ -1483,7 +1487,6 @@ contains
       amsre_mid  = obstype == 'amsre_mid'
       amsre_hig  = obstype == 'amsre_hig'
       amsre      = amsre_low .or. amsre_mid .or. amsre_hig
-      amsr2      = obstype == 'amsr2'
       ssmis      = obstype == 'ssmis'
       ssmis_las  = obstype == 'ssmis_las'
       ssmis_uas  = obstype == 'ssmis_uas'
@@ -1493,9 +1496,10 @@ contains
       seviri     = obstype == 'seviri'
       tmi        = obstype == 'tmi'
       gmi        = obstype == 'gmi'
+      saphir     = obstype == 'saphir'
+      amsr2      = obstype == 'amsr2'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy .or. seviri   .or. tmi   ! .or. amsr2  .or. gmi?
-
+                .or. seviri .or. tmi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1
@@ -1654,7 +1658,6 @@ contains
          end do
          close(lntemp)
       end if
-
 
       if (new_chan/=0) then
          if (all(iobs<nthreshold)) then

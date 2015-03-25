@@ -185,6 +185,7 @@ subroutine read_cmaq_guess(mype)
 !   2010-08-02 pagowski - largely based on reading wrf intermediate binary file
 !                         routine read_wrf_mass_netcdf_guess
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     mype     - pe number
@@ -199,8 +200,7 @@ subroutine read_cmaq_guess(mype)
   use kinds, only: r_kind,r_single,i_kind
   
   use mpimod, only: mpi_real4,mpi_comm_world,npe,ierror
-  use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
-       nfldsig,ifilesig,ges_tsen
+  use guess_grids, only: nfldsig,ifilesig,ges_tsen
   use guess_grids, only: isli,fact10,sfct,dsfct,sno,veg_type,veg_frac,&
        soil_type,soil_temp,soil_moi,sfc_rough
   
@@ -211,11 +211,14 @@ subroutine read_cmaq_guess(mype)
   use gsi_io, only: lendian_in
   
   use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_chemguess_mod, only: gsi_chemguess_bundle
+
   use constants, only : max_varname_length
   use chemmod, only : nmet2d_cmaq,nmet3d_cmaq,&
        naero_cmaq,pm2_5_guess,init_pm2_5_guess
     
+  use mpeu_util, only: die
   implicit none
   
 ! declare passed variables
@@ -228,6 +231,7 @@ subroutine read_cmaq_guess(mype)
 !soil_type,soil_temp,soil_moi,sfc_rough
 
 !for cmaq declare default values for constant/semi constant sfc fields
+  character(len=*),parameter::myname='read_cmaq_guess'
   integer(i_kind),parameter :: isli_default=1
   real(r_kind),parameter :: fact10_default=one,&
        sno_default=zero,veg_type_default=2.0_r_kind,&
@@ -255,11 +259,17 @@ subroutine read_cmaq_guess(mype)
   integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v
   
-  integer(i_kind) :: kfis,kpsfc,kt,kq,ku,kv
+  integer(i_kind) :: kfis,kpsfc,kt,kq,ku,kv,ier,istatus
   
   integer(i_kind) :: nskip
-  integer(i_kind) :: irank, ipnt
   
+  real(r_kind),dimension(:,:  ),pointer::ges_ps_it=>NULL()
+  real(r_kind),dimension(:,:  ),pointer::ges_z_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_u_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_v_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_q_it =>NULL()
+
   if(mype==0) write(6,*)' at 0 in read_cmaq_guess'
   
 ! big section of operations done only on first outer iteration
@@ -370,6 +380,21 @@ subroutine read_cmaq_guess(mype)
      ku=i_0+i_u-1
      kv=i_0+i_v-1
 
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it ,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it ,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it ,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it ,  istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      do k=1,nsig
         kt=kt+1
         kq=kq+1
@@ -377,14 +402,14 @@ subroutine read_cmaq_guess(mype)
         kv=kv+1
         do i=1,lon2
            do j=1,lat2
-              ges_u(j,i,k,it) = all_loc(j,i,ku)
-              ges_v(j,i,k,it) = all_loc(j,i,kv)
-              ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
-              ges_q(j,i,k,it) = all_loc(j,i,kq)
+              ges_u_it(j,i,k) = all_loc(j,i,ku)
+              ges_v_it(j,i,k) = all_loc(j,i,kv)
+              ges_tsen(j,i,k,it) = all_loc(j,i,kt)
+              ges_q_it(j,i,k) = all_loc(j,i,kq)
 !                convert guess mixing ratio to specific humidity
-              ges_q(j,i,k,it) = ges_q(j,i,k,it)/(one+ges_q(j,i,k,it))
-              ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * &
-                   (one+fv*ges_q(j,i,k,it))
+              ges_q_it(j,i,k) = ges_q_it(j,i,k)/(one+ges_q_it(j,i,k))
+              ges_tv_it(j,i,k) = ges_tsen(j,i,k,it) * &
+                   (one+fv*ges_q_it(j,i,k))
            end do
         end do
 
@@ -392,8 +417,8 @@ subroutine read_cmaq_guess(mype)
 
      do i=1,lon2
         do j=1,lat2
-           ges_z(j,i,it)    = all_loc(j,i,kfis)
-           ges_ps(j,i,it)=r0_001*all_loc(j,i,kpsfc)! convert from Pa to cb
+           ges_z_it(j,i) = all_loc(j,i,kfis)
+           ges_ps_it(j,i)=r0_001*all_loc(j,i,kpsfc)! convert from Pa to cb
         end do
      end do
 
@@ -512,7 +537,8 @@ subroutine write_cmaq(mype)
 !
 ! program history log:
 !   2010-09-23  pagowski 
-
+!   2013-10-24  todling - revisit strip interface
+!
 !   input argument list:
 !     mype     - pe number
 !
@@ -529,7 +555,7 @@ subroutine write_cmaq(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: lat2,iglobal,itotsub,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
-       strip_single
+       strip
   use constants, only: zero_single,&
        tiny_single,max_varname_length
   use gsi_io, only: lendian_in, lendian_out
@@ -560,7 +586,7 @@ subroutine write_cmaq(mype)
   integer(i_kind) :: ncmaqin,nskip
   integer(i_kind) :: regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_single) aeta10(nsig),eta10(nsig+1),aeta20(nsig),eta20(nsig+1),pt0,pdt0
-  integer(i_kind) :: irank, ipnt,ifld
+  integer(i_kind) :: ifld
   integer :: status
   character(len=max_varname_length) :: cvar
   character(len=maxstr) :: cmaq_outfile_name,cmaq_incrementfile_name
@@ -637,7 +663,7 @@ subroutine write_cmaq(mype)
      
      do k=1,nsig
         
-        call strip_single(all_loc(1,1,k),strp,1)
+        call strip(all_loc(:,:,k),strp)
         
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4,&
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
@@ -679,7 +705,7 @@ subroutine write_cmaq(mype)
      
      do k=1,nsig
 
-        call strip_single(incr(1,1,k),strp,1)
+        call strip(incr(:,:,k),strp)
 
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4,&
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)

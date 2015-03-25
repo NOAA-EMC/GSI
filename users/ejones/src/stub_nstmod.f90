@@ -1,4 +1,100 @@
-subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
+!----------------------------------------------------------------------------
+!BOP
+!  
+! !MODULE:  GSI_NSTCouplerMod ---
+!
+! !DESCRIPTION: This stub provides the default interfaces to the 
+!               NST analysis calculations in GSI.
+!
+! !REVISION HISTORY:
+!
+!  07Oct2011 Akella/RT - Initial code
+!  05Mar2012 Akella    - Create_nst and getnst from satthin are now nst_int_ & nst_set_
+!                        Destroy_nst from satthin is nst_final_
+!
+!EOP
+!-------------------------------------------------------------------------
+
+subroutine nst_init_()
+
+     use mpimod,           only: mype
+     use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon
+     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+     use mpeu_util,   only: die, perr
+
+     implicit none
+
+     if(.not.allocated(tref_full))    allocate(tref_full    (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(dt_cool_full)) allocate(dt_cool_full (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(z_c_full))     allocate(z_c_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(dt_warm_full)) allocate(dt_warm_full (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(z_w_full))     allocate(z_w_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(c_0_full))     allocate(c_0_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(c_d_full))     allocate(c_d_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(w_0_full))     allocate(w_0_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(w_d_full))     allocate(w_d_full     (nlat_sfc,nlon_sfc,nfldnst))
+     if(.not.allocated(nst_mask_full))allocate(nst_mask_full(nlat_sfc,nlon_sfc))
+
+     if( ntguesnst < 1 .or. ntguesnst > nfldnst ) then 
+            call perr('nst_init','ntguesnst = ',ntguesnst)
+            call  die('nst_init')
+     endif
+
+     if(mype == 0)write(6,*)'GETNST: enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+                            ' and nlat,nlon=',nlat,nlon
+
+end subroutine nst_init_
+!*******************************************************************************************
+
+subroutine nst_set_(mype)
+
+     use kinds,       only: r_kind,i_kind
+     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use ncepgfs_io,  only: read_gfsnst
+     use satthin,     only: isli_full
+     use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+     implicit none
+     integer(i_kind),intent(in   ) :: mype
+
+     integer(i_kind)               :: it
+     character(24)                    filename
+
+     nst_mask_full = isli_full
+
+     do it=1,nfldnst
+        write(filename,200)ifilenst(it)
+200  format('nstf',i2.2)
+        call read_gfsnst(filename,mype,tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
+                         dt_warm_full(1,1,it), z_w_full(1,1,it), &
+                         c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
+     end do
+
+end subroutine nst_set_
+!*******************************************************************************************
+
+subroutine nst_final_ ()
+
+     use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+
+     if(allocated(tref_full))    deallocate(tref_full)
+     if(allocated(dt_cool_full)) deallocate(dt_cool_full)
+     if(allocated(z_c_full))     deallocate(z_c_full)
+     if(allocated(dt_warm_full)) deallocate(dt_warm_full)
+     if(allocated(z_w_full))     deallocate(z_w_full)
+     if(allocated(c_0_full))     deallocate(c_0_full)
+     if(allocated(c_d_full))     deallocate(c_d_full)
+     if(allocated(w_0_full))     deallocate(w_0_full)
+     if(allocated(w_d_full))     deallocate(w_d_full)
+     if(allocated(nst_mask_full))deallocate(nst_mask_full)
+
+end subroutine nst_final_
+!*******************************************************************************************
+
+subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    deter_nst                     determine NSST variable at observation location over water
@@ -8,11 +104,11 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !
 ! program history log:
 !   2011-04-08 Li
-!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-23 parrish - change from grdcrd to grdcrd1 (to allow successful
 !
 !   input argument list:
 !     obstime                             - observation time relative to analysis time
-!     dlat_earth                          - earth latitude in radians
+!     dlat_earth                          - earth latitude  in radians
 !     dlon_earth                          - earth longitude in radians
 !     zob                                 - obs. depth in the water
 !
@@ -26,12 +122,13 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-     use kinds, only: r_kind,i_kind
-     use constants, only: zero,one,z_w_max
-     use satthin, only: isli_full,tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full
-     use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use kinds,       only: r_kind,i_kind
+     use constants,   only: zero,one,z_w_max
+     use gridmod,     only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldnst,hrdifnst
-     use radinfo, only: fac_dtl,fac_tsl
+     use radinfo,     only: fac_dtl,fac_tsl
+     use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
      implicit none
 
      real(r_kind), intent(in ) :: dlat_earth,dlon_earth,obstime,zob
@@ -54,7 +151,6 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      real(r_kind):: w_d_00,w_d_01,w_d_10,w_d_11
      real(r_kind):: wgtavg,dlat,dlon
      logical outside
-
 
      if(regional)then
         call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
@@ -97,10 +193,10 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 
 !    Set surface type flag.
 
-     istyp00 = isli_full(ix ,iy )
-     istyp10 = isli_full(ixp,iy )
-     istyp01 = isli_full(ix ,iyp)
-     istyp11 = isli_full(ixp,iyp)
+     istyp00 = nst_mask_full(ix ,iy )
+     istyp10 = nst_mask_full(ixp,iy )
+     istyp01 = nst_mask_full(ix ,iyp)
+     istyp11 = nst_mask_full(ixp,iyp)
 !
 !    Use the time interpolation factors for nst files
 !
@@ -233,8 +329,85 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
           dtc = zero
         endif
 
-        call cal_tztr(dt_warm,c_0,c_d,w_0,w_d,z_c,z_w,zob,tz_tr)
+        call cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,z_c,z_w,zob,tz_tr)
 
      end if
-end subroutine deter_nst
+end subroutine deter_nst_
+!*******************************************************************************************
 
+subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
+!
+! abstract: calculate d(Tz)/d(Ts) with T-Profile info from NSST Model
+!
+!   prgmmr: li, xu           org: np23                date: 2011-04-08
+! input variables
+!
+! dt_warm :       diurnal warming amount at the surface
+! xz      :       DTL depth                           (M)
+! c_0     :       coefficint 1 to calculate d(Tc)/d(Ts)
+! c_d     :       coefficint 2 to calculate d(Tc)/d(Ts)
+! w_0     :       coefficint 1 to calculate d(Tw)/d(Ts)
+! w_d     :       coefficint 2 to calculate d(Tw)/d(Ts)
+!
+! output variables
+!
+! tztr     :      d(Tz)/d(Tr)
+
+  use kinds, only: r_kind
+  use constants, only: one,half,zero
+  use radinfo, only: fac_dtl,fac_tsl
+  real(kind=r_kind), intent(in)  :: dt_warm,c_0,c_d,w_0,w_d,zc,zw,z
+  real(kind=r_kind), intent(out) :: tztr
+! local variables
+  real(kind=r_kind) :: c1,c2
+
+  c1 = one-fac_dtl*w_0+fac_tsl*c_0
+  c2 = one+fac_tsl*c_0
+
+  tztr = one
+
+  if ( dt_warm > zero .and.  c1 /= zero ) then
+     if ( z <= zc  ) then
+       tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
+     elseif ( z > zc .and. z < zw ) then
+       tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
+     endif
+   elseif ( dt_warm == zero .and. c2 /= zero ) then
+     if ( z <= zc ) then
+       tztr = (one-z*fac_tsl*c_d)/c2
+     endif
+   endif
+
+   if ( tztr <= one .and. tztr > half ) then
+     tztr = tztr
+   else
+!    write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+   endif
+
+end subroutine cal_tztr_
+!*******************************************************************************************
+
+!*******************************************************************************************
+subroutine skindepth_(obstype,sd_rad)
+!
+! abstract: Get skin depth (instrument dependent). Ideally, a skin-depth model calculates the channel dependent sd
+!
+! program history log:
+!   2011-04-08  li
+
+
+ use kinds, only: r_kind
+ implicit none
+ character(10),     intent(in)  :: obstype
+ real(kind=r_kind), intent(out) :: sd_rad
+
+  sd_rad = 0.000015_r_kind
+  if ( obstype == 'amsre' ) then
+      sd_rad = 0.03_r_kind
+  elseif ( obstype == 'amsua' .or. obstype == 'amsub' .or.  obstype == 'ssmis' .or.  obstype == 'ssmi' .or. &
+      obstype == 'mhs' .or.  obstype == 'msu' .or.  obstype == 'hsb' ) then
+      sd_rad = 0.001_r_kind
+  endif
+
+end subroutine skindepth_
+!*******************************************************************************************

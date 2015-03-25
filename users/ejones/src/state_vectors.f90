@@ -20,6 +20,10 @@ module state_vectors
 !   2011-05-20  guo      - add a rank-1 interface of dot_product()
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS - bug fix for function dot_prod_st
+!   2013-10-22  todling  - revisit edge/general rank-3 (level) handle
+!   2013-10-28  todling  - rename p3d to prse
+!   2014-11-02  todling  - negative levs indicate rank-3 array
+!   2014-12-03  derber   - remove unused variables
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -45,11 +49,10 @@ use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
 use constants, only: one,zero,zero_quad,max_varname_length
 use mpimod, only: mype
 use file_utility, only : get_lun
-use mpl_allreducemod, only: mpl_allreduce
+use mpl_allreducemod, only: mpl_allreduce,mpl_reduce
 use GSI_BundleMod, only : GSI_BundleCreate
 use GSI_BundleMod, only : GSI_Bundle
 use GSI_BundleMod, only : GSI_BundleGetPointer
-use GSI_BundleMod, only : GSI_BundlePrint
 use GSI_BundleMod, only : dplevs => GSI_BundleDplevs
 use GSI_BundleMod, only : sum_mask => GSI_BundleSum
 use GSI_BundleMod, only : GSI_BundleDestroy
@@ -70,6 +73,7 @@ private
   public  prt_state_norms
   public  setup_state_vectors
   public  dot_product
+  public  dot_product_red
   public  set_random 
   public  inquire_state
   public  init_anasv
@@ -77,7 +81,7 @@ private
   public  svars2d
   public  svars3d
   public  svars
-  public  edges
+  public  levels
   public  ns2d,ns3d
 
 ! State vector definition
@@ -95,7 +99,7 @@ integer(i_kind) :: nvars,ns2d,ns3d
 character(len=max_varname_length),allocatable,dimension(:) :: svars
 character(len=max_varname_length),allocatable,dimension(:) :: svars3d
 character(len=max_varname_length),allocatable,dimension(:) :: svars2d
-logical,allocatable,dimension(:)          :: edges
+integer(i_kind)                  ,allocatable,dimension(:) :: levels
 
 
 ! ----------------------------------------------------------------------
@@ -104,8 +108,13 @@ INTERFACE PRT_STATE_NORMS
 END INTERFACE
 
 INTERFACE DOT_PRODUCT
-MODULE PROCEDURE dot_prod_st
+MODULE PROCEDURE dot_prod_st_r0
 MODULE PROCEDURE dot_prod_st_r1
+END INTERFACE
+
+INTERFACE DOT_PRODUCT_RED                   ! same as DOT_PRODUCT except reduce to one processor rather than all
+MODULE PROCEDURE dot_prod_red_st_r0
+MODULE PROCEDURE dot_prod_red_st_r1
 END INTERFACE
 
 INTERFACE SET_RANDOM
@@ -139,7 +148,6 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 
   implicit none
   integer(i_kind), intent(in   ) :: katlon11,katlon1n,kval_len,kat2,kon2,ksig
-  integer(i_kind) i,ii
 
   latlon11=katlon11
   latlon1n=katlon1n
@@ -166,7 +174,7 @@ character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
 character(len=*),parameter:: tbname='state_vector::'
 integer(i_kind) luin,i,ii,ntot
 character(len=256),allocatable,dimension(:):: utable
-character(len=20) var,amedge,source,funcof
+character(len=20) var,source,funcof
 character(len=*),parameter::myname_=myname//'*init_anasv'
 integer(i_kind) ilev, itracer
 
@@ -191,31 +199,27 @@ close(luin)
 ! Count variables first
 ns3d=0; ns2d=0
 do ii=1,nvars
-   read(utable(ii),*) var, ilev, itracer, amedge, source, funcof
-   if(ilev>1) then
-       ns3d=ns3d+1
-   else if(ilev==1) then
+   read(utable(ii),*) var, ilev, itracer, source, funcof
+   if(ilev==1) then
        ns2d=ns2d+1
    else
-       write(6,*) myname_,': error, unknown number of levels'
-       call stop2(999)
+       ns3d=ns3d+1
    endif
 enddo
 
-allocate(svars3d(ns3d),svars2d(ns2d),edges(ns3d))
+allocate(svars3d(ns3d),svars2d(ns2d),levels(ns3d))
 
 ! Now load information from table
 ns3d=0;ns2d=0
-edges=.false.
 do ii=1,nvars
-   read(utable(ii),*) var, ilev, itracer, amedge, source, funcof
-   if(ilev>1) then
-      ns3d=ns3d+1
-      svars3d(ns3d)=trim(adjustl(var))
-      if(trim(amedge)=='yes') edges(ns3d)=.true. 
-   else
+   read(utable(ii),*) var, ilev, itracer, source, funcof
+   if(ilev==1) then
       ns2d=ns2d+1
       svars2d(ns2d)=trim(adjustl(var))
+   else
+      ns3d=ns3d+1
+      svars3d(ns3d)=trim(adjustl(var))
+      levels(ns3d)=abs(ilev)
    endif
 enddo
 
@@ -244,7 +248,7 @@ end subroutine init_anasv
 subroutine final_anasv
 implicit none
 deallocate(svars)
-deallocate(svars3d,svars2d,edges)
+deallocate(svars3d,svars2d,levels)
 end subroutine final_anasv
 ! ----------------------------------------------------------------------
 subroutine allocate_state(yst)
@@ -278,7 +282,7 @@ subroutine allocate_state(yst)
   call GSI_GridCreate(grid,lat2,lon2,nsig)
   write(bname,'(a)') 'State Vector'
   call GSI_BundleCreate(yst,grid,bname,ierror, &
-                        names2d=svars2d,names3d=svars3d,edges=edges,bundle_kind=r_kind)  
+                        names2d=svars2d,names3d=svars3d,levels=levels,bundle_kind=r_kind)  
 
   if (yst%ndim/=nval_len) then
      write(6,*)'allocate_state: error length'
@@ -343,6 +347,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 !   2010-05-15  todling - update to use gsi_bundle
 !   2010-06-02  todling - generalize to be order-independent
 !   2010-06-10  treadon - correct indexing for psum,pnum arrays
+!   2014-02-13  todling - revisit calculations due to generalized levels
 !
 !   input argument list:
 !    xst
@@ -361,14 +366,19 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   real(r_kind)    , intent(  out) :: pmin(nvars),pmax(nvars),psum(nvars),pnum(nvars)
 
 ! local variables
-  real(r_kind) :: zloc(3*nvars+3),zall(3*nvars+3,npe),zz
+  real(r_kind),allocatable,dimension(:)   :: zloc,nloc
+  real(r_kind),allocatable,dimension(:,:) :: zall,nall
   integer(i_kind) :: i,ii
 
-  zloc=zero
   pmin=zero
   pmax=zero
   psum=zero
   pnum=one
+
+! Find number of non-compliant 3d fields (i.e., those with dim/=nsig)
+  allocate(zloc(3*nvars),zall(3*nvars,npe))
+  allocate(nloc(  nvars),nall(  nvars,npe))
+  zloc=zero
 
 ! Independent part of vector
 ! Sum
@@ -380,6 +390,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
      else
         zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
      endif
+     nloc(ii) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
   enddo
   do i = 1,ns2d
      ii=ii+1
@@ -388,6 +399,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
      else
         zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
      endif
+     nloc(ii) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
   enddo
 ! Min
   do i = 1,ns3d
@@ -423,41 +435,32 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
         zloc(ii)= maxval(xst%r2(i)%q)
      endif
   enddo
-  if(ns3d>0)      zloc(3*nvars+1) = real((lat2-2)*(lon2-2)*nsig, r_kind)      ! dim of 3d fields
-  if(any(edges))  zloc(3*nvars+2) = real((lat2-2)*(lon2-2)*(nsig+1),r_kind)   ! dim of 3d(edge) fields
-  if(ns2d>0)      zloc(3*nvars+3) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &
-                   & zall,3*nvars+3,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(zloc,size(zloc),mpi_rtype, &
+                   & zall,size(zloc),mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(nloc,size(nloc),mpi_rtype, &
+                   & nall,size(nloc),mpi_rtype, mpi_comm_world,ierror)
 
-  zz=SUM(zall(3*nvars+1,:))
   ii=0
   do i=1,ns3d
      ii=ii+1
-     if(edges(i)) cycle
      psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=zz
+     pnum(ii)=SUM(nall(ii,:))
   enddo
-  zz=SUM(zall(3*nvars+2,:))
-  ii=0
-  do i=1,ns3d
-     ii=ii+1
-     if(edges(i))then
-        psum(ii)=SUM(zall(ii,:))
-        pnum(ii)=zz
-     endif
-  enddo
-  zz=SUM(zall(3*nvars+3,:))
   do i=1,ns2d
      ii=ii+1
      psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=zz
+     pnum(ii)=SUM(nall(ii,:))
   enddo
   do ii=1,nvars
      pmin(ii)=MINVAL(zall(  nvars+ii,:))
      pmax(ii)=MAXVAL(zall(2*nvars+ii,:))
   enddo
+
+! Release work space
+  deallocate(nloc,nall)
+  deallocate(zloc,zall)
 
   return
 end subroutine norms_vars
@@ -584,21 +587,19 @@ real(r_quad) function dot_prod_st(xst,yst,which)
   type(gsi_bundle)         , intent(in) :: xst, yst
   character(len=*)  ,optional, intent(in) :: which  ! variable name
 
-  real(r_quad),allocatable :: zz(:)
-  integer(i_kind) :: i,ii,nv,ipntx,ipnty,irkx,irky,ier,ist
+  real(r_quad),dimension(1) :: zz
+  integer(i_kind) :: i,ii,ipntx,ipnty,irkx,irky,ier,ist
 
   if (.not.present(which)) then
 
-     nv=nvars
-     allocate(zz(nv))
-     zz=zero_quad
+     zz(1)=zero_quad
      ii=0
      do i = 1,ns3d
         ii=ii+1
         if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)then
-           zz(ii)= dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
         else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double)then
-           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
         else
            dot_prod_st=zero_quad
            return
@@ -607,9 +608,9 @@ real(r_quad) function dot_prod_st(xst,yst,which)
      do i = 1,ns2d
         ii=ii+1
         if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single)then
-           zz(ii)= dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
         else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double)then
-           zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
+           zz(1)= zz(1)+dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
         else ! this is an error ...
            dot_prod_st=zero_quad
            return
@@ -628,9 +629,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 
      if(irkx==irky) then
 
-        nv=1
-        allocate(zz(nv))
-        zz=zero_quad
+        zz(1)=zero_quad
         if (irkx==2) then
            if(xst%r2(ipntx)%mykind==r_single .and. yst%r2(ipnty)%mykind==r_single) then
               zz(1)=dplevs(xst%r2(ipntx)%qr4,yst%r2(ipnty)%qr4,ihalo=1)
@@ -659,27 +658,44 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 
   endif
 
-  call mpl_allreduce(nv,qpvals=zz)
+  dot_prod_st=zz(1)
 
-  dot_prod_st=zero_quad
-  do ii=1,nv
-     dot_prod_st=dot_prod_st+zz(ii)
-  enddo
-
-  deallocate(zz)
   return
 end function dot_prod_st
-function dot_prod_st_r1(xst,yst,which) result(dotprod_)
+! ----------------------------------------------------------------------
+function dot_prod_st_r0(xst,yst,which) result(dotprod_red)
+!  Same as dot_prod_red_st_r0 except reduce to all processors.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  integer(i_kind):: nz
+  character(len=*),parameter::myname_=myname//'*dot_prod_st_r0'
+
+
+  nz=1
+  zz(1)=0._r_quad
+ 
+  zz(1)=dot_prod_st(xst,yst,which=which)
+  call mpl_allreduce(1,zz)
+  dotprod_red=zz(1)
+end function dot_prod_st_r0
+! ----------------------------------------------------------------------
+function dot_prod_st_r1(xst,yst,which) result(dotprod_red)
+!  Same as dot_prod_red_st_r1 except reduce to all processors.
   use mpeu_util, only: perr,die
   implicit none
   type(gsi_bundle), dimension(:), intent(in) :: xst, yst
   character(len=*), optional    , intent(in) :: which  ! variable component name
-  real(r_quad):: dotprod_
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
 
   integer(i_kind):: i
   character(len=*),parameter::myname_=myname//'*dot_prod_st_r1'
 
-  dotprod_=0._r_quad
   if(size(xst)/=size(yst)) then
     call perr(myname_,'size(xst)/=size(yst))')
     call perr(myname_,'size(xst) =',size(xst))
@@ -687,10 +703,69 @@ function dot_prod_st_r1(xst,yst,which) result(dotprod_)
     call die(myname_)
   endif
 
+  zz(1)=0._r_quad
+ 
   do i=1,size(xst)
-    dotprod_=dotprod_+dot_prod_st(xst(i),yst(i),which=which)
+    zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
   enddo
+  call mpl_allreduce(1,zz)
+  dotprod_red=zz(1)
 end function dot_prod_st_r1
+! ----------------------------------------------------------------------
+function dot_prod_red_st_r0(xst,yst,iroot,which) result(dotprod_red)
+!  Same as dot_prod_st_r0 except only reduce to one (iroot) processor.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  integer(i_kind)               , intent(in) :: iroot
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  character(len=*),parameter::myname_=myname//'*dot_prod_red_st_r1'
+
+  zz(1)=dot_prod_st(xst,yst,which=which)
+
+  call mpl_reduce(1,iroot,zz)
+  if(mype == iroot)then
+     dotprod_red=zz(1)
+  else
+     dotprod_red=0._r_quad
+  end if
+end function dot_prod_red_st_r0
+! ----------------------------------------------------------------------
+function dot_prod_red_st_r1(xst,yst,iroot,which) result(dotprod_red)
+!  Same as dot_prod_st_r1 except only reduce to one (iroot) processor.
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), dimension(:), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  integer(i_kind)               , intent(in) :: iroot
+  real(r_quad):: dotprod_red
+  real(r_quad),dimension(1):: zz
+
+  integer(i_kind):: i
+  character(len=*),parameter::myname_=myname//'*dot_prod_red_st_r1'
+
+  if(size(xst)/=size(yst)) then
+    call perr(myname_,'size(xst)/=size(yst))')
+    call perr(myname_,'size(xst) =',size(xst))
+    call perr(myname_,'size(yst) =',size(yst))
+    call die(myname_)
+  endif
+
+  zz(1)=0._r_quad
+ 
+  do i=1,size(xst)
+    zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
+  enddo
+  call mpl_reduce(1,iroot,zz)
+  if(mype == iroot)then
+     dotprod_red=zz(1)
+  else
+    dotprod_red=0._r_quad
+  end if
+end function dot_prod_red_st_r1
 ! ----------------------------------------------------------------------
 subroutine set_random_st ( xst )
 !$$$  subprogram documentation block
@@ -718,10 +793,9 @@ subroutine set_random_st ( xst )
   implicit none
   type(gsi_bundle), intent(inout) :: xst
 
-  integer(i_kind):: i,ii,jj,iseed,itsn,ip3d,ips,itv,iq,ierror,ier
+  integer(i_kind):: i,jj,iseed,itsn,iprse,ierror,ier
   integer, allocatable :: nseed(:) ! Intentionaly default integer
-  real(r_kind), allocatable :: zz(:)
-  real(r_kind), pointer,dimension(:,:,:):: p_tv,p_q,p_p3d,p_tsen
+  real(r_kind), pointer,dimension(:,:,:):: p_tv,p_q,p_prse,p_tsen
   real(r_kind), pointer,dimension(:,:  ):: p_ps
 
   iseed=nsig ! just a number
@@ -737,10 +811,10 @@ subroutine set_random_st ( xst )
   deallocate(nseed)
 
   ier=0
-  call gsi_bundlegetpointer ( xst, 'p3d' , ip3d, ierror );ier=ierror+ier
-  call gsi_bundlegetpointer ( xst, 'tsen', itsn, ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'prse', iprse, ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tsen', itsn , ierror );ier=ierror+ier
   do i = 1,ns3d
-     if (i/=ip3d.and.i/=itsn) then ! Physical consistency
+     if (i/=iprse.and.i/=itsn) then ! Physical consistency
          if(xst%r3(i)%mykind==r_single) then
            call random_number ( xst%r3(i)%qr4 )
          else
@@ -762,12 +836,12 @@ subroutine set_random_st ( xst )
   call gsi_bundlegetpointer ( xst, 'ps'  , p_ps,  ierror );ier=ierror+ier
   call gsi_bundlegetpointer ( xst, 'tv'  , p_tv,  ierror );ier=ierror+ier
   call gsi_bundlegetpointer ( xst, 'q'   , p_q ,  ierror );ier=ierror+ier
-  call gsi_bundlegetpointer ( xst, 'p3d' , p_p3d ,ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'prse', p_prse,ierror );ier=ierror+ier
   call gsi_bundlegetpointer ( xst, 'tsen', p_tsen,ierror );ier=ierror+ier
 
 ! There must be physical consistency when creating random vectors
   if (ier==0) then
-      call getprs_tl (p_ps,p_tv,p_p3d)
+      call getprs_tl (p_ps,p_tv,p_prse)
       call tv_to_tsen(p_tv,p_q,p_tsen)
   endif
 

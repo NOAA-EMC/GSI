@@ -39,7 +39,6 @@ CONTAINS
     integer(i_kind), parameter :: atms1c_h_wmosatid=224
     integer(i_kind), parameter :: lninfile=15
     integer(i_kind), parameter :: max_fov=96
-    integer(i_kind), parameter :: max_obs=1000000
     real(r_kind), parameter    :: scan_interval = 8.0_r_kind/3.0_r_kind
     ! Maximum number of channels 
     integer(i_kind), parameter :: MaxChans = 22
@@ -162,7 +161,7 @@ CONTAINS
        ! Set all scan positions to missing in a scanline if one is missing
        do iscan=1,max_scan
           if (ANY(bt_image1(:,iscan) > 500.0_r_kind)) &
-	     bt_image1(:,iscan)=1000.0_r_kind
+             bt_image1(:,iscan)=1000.0_r_kind
        enddo
 
        ! If the channel number is present in the channelnumber array we should process it 
@@ -202,7 +201,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      Minval, MaxVal, Error)
      
 !-----------------------------------------
-! Name: $Id: modify_beamwidth.F 222 2010-08-11 14:39:09Z frna $
+! Name: $Id: atms_spatial_average_mod.f90,v 1.5 2013-04-02 23:30:37 jguo Exp $
 !
 ! Purpose:
 !   Manipulate the effective beam width of an image. For example, convert ATMS

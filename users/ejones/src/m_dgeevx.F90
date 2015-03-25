@@ -1,10 +1,10 @@
 module m_dgeevx
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_dgeevx
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_dgeevx
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract: an alternative interface of LAPACK DGEEV()
 !
@@ -89,7 +89,7 @@ contains
     integer(i_kind)  :: naux
     real(r_kind)     :: aux,factor
 
-	! Use IBM ESSL routine dgeev()
+    ! Use IBM ESSL routine dgeev()
 
 ! Below is a copy of the original code in mod_vtrans.f90_1.2.
 !<<<<
@@ -163,7 +163,7 @@ contains
     info=0
   
 #else
-	! Use standard LAPACK routine dgeev()
+   ! Use standard LAPACK routine dgeev()
 
 !----------------------------------------
 ! Modification for using GSI dgeev  -RY

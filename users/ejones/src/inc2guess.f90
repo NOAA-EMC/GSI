@@ -20,6 +20,7 @@ subroutine inc2guess(sval)
 !   2010-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2013-10-19  todling - all guess variables in met-guess
 !
 !   input argument list:
 !     sval     - analysis increment in grid space
@@ -36,9 +37,7 @@ subroutine inc2guess(sval)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use gridmod, only: lat2,lon2,nsig
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
-       ges_oz,ges_u,ges_v,nfldsig,hrdifsig,&
-       nfldsfc,sfct
+  use guess_grids, only: nfldsig,hrdifsig,nfldsfc,sfct
   use state_vectors, only: svars3d,svars2d
   use gsi_4dvar, only: nobs_bins, hr_obsbin
   use xhat_vordivmod, only: xhat_vor,xhat_div
@@ -58,13 +57,14 @@ subroutine inc2guess(sval)
 ! Declare local variables
   character(len=10),allocatable,dimension(:) :: gases
   character(len=10),allocatable,dimension(:) :: guess
-  integer(i_kind) i,j,k,it,ii,ic,id,ngases,nguess,istatus
-  integer(i_kind) ipinc,ipges
+  integer(i_kind) i,j,k,it,ii,ic,id,ngases,nguess,ier,istatus
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dges=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_div_it=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_vor_it=>NULL()
 
 ! Inquire about guess fields
 call gsi_metguess_get('dim',nguess,istatus)
@@ -90,27 +90,21 @@ endif
      else
         ii = 1
      endif
-     call copyfld_ (ges_u,  'u' )
-     call copyfld_ (ges_v,  'v' )
-     call copyfld_ (ges_tv, 'tv')
-     call copyfld2_(ges_q,  'q' )
-     call copyfld_ (ges_oz, 'oz')
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              ges_div(i,j,k,it)  = xhat_div(i,j,k,ii)
-              ges_vor(i,j,k,it)  = xhat_vor(i,j,k,ii)
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     ier=ier+istatus
+     if (ier==0) then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 ges_div_it(i,j,k)  = xhat_div(i,j,k,ii)
+                 ges_vor_it(i,j,k)  = xhat_vor(i,j,k,ii)
+              end do
            end do
         end do
-     end do
-     call gsi_bundlegetpointer (sval(ii),'ps',ptr2dinc,istatus)
-     if(istatus==0)then
-        do j=1,lon2
-           do i=1,lat2
-              ges_ps(i,j,it) = ptr2dinc(i,j)
-           end do
-        end do
-     end if
+     endif
 
 !    Update met-guess
      do ic=1,nguess
@@ -118,7 +112,11 @@ endif
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
-           ptr3dges = ptr3dinc
+           if (trim(guess(ic))=='oz'.or.trim(guess(ic))=='q') then
+               call copy_positive_fldr3_(ptr3dges,ptr3dinc)
+           else
+              ptr3dges = ptr3dinc
+           endif
         endif
         id=getindex(svars2d,guess(ic))
         if (id>0) then
@@ -134,13 +132,15 @@ endif
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
-           ptr3dges = ptr3dinc
+           ptr3dges=ptr3dinc
+!          call copy_positive_fldr3_(ptr3dges,ptr3dinc)
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
-           ptr2dges = ptr2dinc
+           ptr2dges=ptr2dinc
+!          call copy_positive_fldr2_(ptr2dges,ptr2dinc)
         endif
      enddo
   end do
@@ -163,36 +163,28 @@ endif
 
   return
   contains
-  subroutine copyfld_(fld,var)
-  real(r_kind) :: fld(:,:,:,:)
-  character(len=*) :: var
-  integer(i_kind) istatus
-  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
-  call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
-  if(istatus/=0) return
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              fld(i,j,k,it) = ptr3d(i,j,k)
-           end do
+  subroutine copy_positive_fldr2_(ges,xinc)
+  real(r_kind),pointer :: ges(:,:)
+  real(r_kind),pointer :: xinc(:,:)
+  real(r_kind) ana
+  do j=1,lon2
+     do i=1,lat2
+        ana = max(ges(i,j)+ xinc(i,j),1.e-10_r_kind)
+        ges(i,j) = ana - ges(i,j)
+     end do
+  end do
+  end subroutine copy_positive_fldr2_
+  subroutine copy_positive_fldr3_(ges,xinc)
+  real(r_kind),pointer :: ges(:,:,:)
+  real(r_kind),pointer :: xinc(:,:,:)
+  real(r_kind) ana
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           ana = max(ges(i,j,k)+ xinc(i,j,k),1.e-10_r_kind)
+           ges(i,j,k) = ana - ges(i,j,k)
         end do
      end do
-  end subroutine copyfld_
-  subroutine copyfld2_(fld,var)
-  real(r_kind) :: fld(:,:,:,:)
-  real(r_kind) :: ana
-  character(len=*) :: var
-  integer(i_kind) istatus
-  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
-  call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
-  if(istatus/=0) return
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              ana = max(fld(i,j,k,it)+ ptr3d(i,j,k),1.e-10_r_kind)
-              fld(i,j,k,it) = ana - fld(i,j,k,it)
-           end do
-        end do
-     end do
-  end subroutine copyfld2_
+  end do
+  end subroutine copy_positive_fldr3_
 end subroutine inc2guess

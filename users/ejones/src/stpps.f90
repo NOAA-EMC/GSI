@@ -13,6 +13,7 @@ module stppsmod
 !   2008-12-02  Todling - remove stpps_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2013-10-28  todling - reame p3d to prse
 !
 ! subroutines included:
 !   sub stpps
@@ -95,8 +96,8 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
   real(r_kind) val,val2,w1,w2,w3,w4,time_ps
   real(r_kind) cg_ps,ps,wgross,wnotgross,ps_pg
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind),pointer,dimension(:) :: xhat_dt_p3d
-  real(r_kind),pointer,dimension(:) :: dhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
   type(ps_ob_type), pointer :: psptr
@@ -108,11 +109,11 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0
-  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
   if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
   endif
   if(ier/=0)return
 
@@ -132,10 +133,10 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
            val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-psptr%res
            if(l_foto) then
               time_ps = psptr%time*r3600
-              val =val +(w1*dhat_dt_p3d(j1)+w2*dhat_dt_p3d(j2)+ &
-                         w3*dhat_dt_p3d(j3)+w4*dhat_dt_p3d(j4))*time_ps
-              val2=val2+(w1*xhat_dt_p3d(j1)+w2*xhat_dt_p3d(j2)+ &
-                         w3*xhat_dt_p3d(j3)+w4*xhat_dt_p3d(j4))*time_ps
+              val =val +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
+                         w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_ps
+              val2=val2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                         w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_ps
            end if
            do kk=1,nstep
               ps=val2+sges(kk)*val

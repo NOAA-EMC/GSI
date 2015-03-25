@@ -67,7 +67,7 @@ module turblmod
 
   real(r_kind) a0my20,b0my20,c0my20,d0my20,f1my20,f2my20, &
                f3my20,f4my20,f5my20,f6my20,f7my20,f8my20,b1my20, &
-               karmy20,l0my20,alf0my20, &
+               karmy20,l0my20, &
                f85my20,f76my20
   real(r_kind) ricmy20,rfcmy20,shcmy20,smcmy20,eps_m
   real(r_kind) fsm_my20,fsh_my20
@@ -112,7 +112,6 @@ module turblmod
 
   parameter( karmy20=0.4_r_kind )
   parameter( l0my20=80._r_kind )    
-  parameter( alf0my20=0.0001_r_kind )
 !m  parameter( eps_m   = 0.00000002_r_kind )
   parameter( eps_m   = 0.02_r_kind )
 

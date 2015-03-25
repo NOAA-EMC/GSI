@@ -14,7 +14,12 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !   2009-04-15  wgu - added fpsproj option
 !   2009-04-21  wgu - bug fix in routine smooth2d
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2011-10-09  wgu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2012-06-25  parrish - reorganize subroutine smooth2d so use one call in place of 4 calls.
+!   2013-10-19  todling - metguess now holds background; count to fcount (count is intrisic function);
+!                         protect against calls from non-FGAT run
+!   2014-12-03  derber - restructure to do difference before sub2grid to
+!                        optimize code
 !
 !   input argument list:
 !     sfvar     - stream function variance
@@ -37,10 +42,13 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: one,zero,two,zero_quad,tiny_r_kind
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
-  use guess_grids, only: ges_div,ges_vor,ges_tv,ges_ps,nfldsig
+  use guess_grids, only: nfldsig
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_sum,mpi_rtype,mpi_max
-  use balmod, only: agvz,wgvz,bvz
-  use berror, only: bkgv_rewgtfct,bkgv_write,fpsproj
+  use balmod, only: agvz,wgvz,bvz,pput
+  use berror, only: bkgv_rewgtfct,bkgv_write,fpsproj,fut2ps
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -49,12 +57,13 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
+  character(len=*),parameter::myname='bkgvar_rewgt'
   real(r_kind),dimension(lat2,lon2,nsig):: bald,balt
   real(r_kind),dimension(lat2,lon2,nsig):: delpsi,delchi,deltv
   real(r_kind),dimension(lat2,lon2):: delps,psresc,balps
 
   real(r_quad),dimension(nsig):: mean_dz,mean_dd,mean_dt
-  real(r_quad) mean_dps,count
+  real(r_quad) mean_dps,fcount
 
   real(r_kind),dimension(nsig,2,npe):: mean_dz0,mean_dd0,mean_dz1,mean_dd1,&
        mean_dt0,mean_dt1
@@ -66,8 +75,16 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   real(r_kind),dimension(nsig):: max_dz,max_dd,max_dt,max_dz0,max_dd0,&
        max_dt0,rmax_dz0,rmax_dd0,rmax_dt0
   real(r_kind) max_dps,max_dps0,rmax_dps0
-  integer(i_kind) i,j,k,l,nsmth,mm1
+  integer(i_kind) i,j,k,l,nsmth,mm1,nf,ier,istatus
 
+  real(r_kind),dimension(:,:  ),pointer::ges_ps_01 =>NULL()
+  real(r_kind),dimension(:,:  ),pointer::ges_ps_nf =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_div_01=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_div_nf=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_vor_01=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_vor_nf=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_01 =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_nf =>NULL()
 
 ! Initialize local arrays
   psresc=zero
@@ -82,7 +99,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   balt   =zero ; bald    =zero ; balps =zero
 
 ! Set count to number of global grid points in quad precision
-  count = float(nlat)*float(nlon)
+  fcount = float(nlat)*float(nlon)
 
 ! Set parameter for communication
   mm1=mype+1
@@ -96,22 +113,44 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 ! currently set up for global only
 !
 ! No reweighting of ozone, cloud water, moisture yet
+  if(nfldsig==1) return  ! not FGAT, nothing to do
+
+! Get all pointers from met-guess
+  nf=nfldsig
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'ps'  ,ges_ps_01,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'ps'  ,ges_ps_nf,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'div' ,ges_div_01,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'div' ,ges_div_nf,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'vor' ,ges_vor_01,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'vor' ,ges_vor_nf,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'tv'  ,ges_tv_01,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'tv'  ,ges_tv_nf,    istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,'missing fields, ier= ', ier)
 
 ! Get stream function and velocity potential from guess vorticity and divergence
-  call getpsichi(ges_vor(1,1,1,1),ges_vor(1,1,1,nfldsig),delpsi)
-  call getpsichi(ges_div(1,1,1,1),ges_div(1,1,1,nfldsig),delchi)
+  call getpsichi(ges_vor_01,ges_vor_nf,delpsi)
+  call getpsichi(ges_div_01,ges_div_nf,delchi)
 
 ! Get delta variables
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           deltv(i,j,k) =ges_tv(i,j,k,nfldsig)-ges_tv(i,j,k,1)
+           deltv(i,j,k) =ges_tv_nf(i,j,k)-ges_tv_01(i,j,k)
         end do
      end do
   end do
   do j=1,lon2
      do i=1,lat2
-        delps(i,j) = ges_ps(i,j,nfldsig)-ges_ps(i,j,1)
+        delps(i,j) = ges_ps_nf(i,j)-ges_ps_01(i,j)
      end do
   end do
 
@@ -123,24 +162,6 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
         end do
      end do
   end do
-  if(fpsproj)then
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
-           end do
-        end do
-     end do
-  else
-     do j=1,lon2
-        do i=1,lat2
-           do k=1,nsig-1
-              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
-           end do
-           balps(i,j)=balps(i,j)+wgvz(i,nsig)*(delchi(i,j,1)-bald(i,j,1))
-        end do
-     end do
-  endif
 
 ! Balanced temperature from delta stream function
   do k=1,nsig
@@ -162,6 +183,35 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
         end do
      end do
   end do
+
+  if(fpsproj)then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
+        end do
+     end do
+     if(fut2ps)then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 balps(i,j)=balps(i,j)+pput(i,k)*deltv(i,j,k)
+              end do
+           end do
+        end do
+     endif
+  else
+     do j=1,lon2
+        do i=1,lat2
+           do k=1,nsig-1
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
+           balps(i,j)=balps(i,j)+wgvz(i,nsig)*delchi(i,j,1)
+        end do
+     end do
+  endif
+
   do j=1,lon2
      do i=1,lat2
         delps(i,j) = delps(i,j) - balps(i,j)
@@ -251,11 +301,11 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! Divide by number of grid points to get the mean
   do k=1,nsig
-     mean_dz(k)=mean_dz(k)/count
-     mean_dd(k)=mean_dd(k)/count
-     mean_dt(k)=mean_dt(k)/count
+     mean_dz(k)=mean_dz(k)/fcount
+     mean_dd(k)=mean_dd(k)/fcount
+     mean_dt(k)=mean_dt(k)/fcount
   end do
-  mean_dps = mean_dps/count
+  mean_dps = mean_dps/fcount
 
 ! Load quad precision array back into double precision array for use
   do k=1,nsig
@@ -279,6 +329,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   if (abs(max_dps0)>tiny_r_kind) rmax_dps0=one/max_dps0
 
 ! Get rescaling factor for each of the variables based on factor, mean, and max
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
@@ -355,7 +406,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   integer(i_kind) i,ii,j,k
 
   real(r_kind),dimension(lat2*lon2*nsig) :: vd1,vd2
-  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1,work2
+  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1
   real(r_kind),dimension(sp_a%nc):: spc1
 
   ii=0
@@ -363,16 +414,14 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
      do j=1,lon2
         do i=1,lat2
            ii=ii+1
-           vd1(ii)=vordiv1(i,j,k)
-           vd2(ii)=vordiv2(i,j,k)
+           vd1(ii)=vordiv2(i,j,k)-vordiv1(i,j,k)
         end do
      end do
   end do
   call general_sub2grid(g3,vd1,work1)
-  call general_sub2grid(g3,vd2,work2)
-  work1=work2-work1
 
 ! Perform scalar g2s on work array
+!$omp parallel do schedule(dynamic,1) private(k,spc1)
   do k=g3%kbegin_loc,g3%kend_loc
      spc1=zero 
      call general_g2s0(grd_a,sp_a,spc1,work1(1,:,:,k))

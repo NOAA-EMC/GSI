@@ -89,7 +89,7 @@ CONTAINS
 !-----------------------------------------------------------------------------
 
   character(len=*), parameter :: myname = 'setCloud'
-  integer(i_kind) :: na, nc, km, n, k, rc, iTable
+  integer(i_kind) :: na, nc, km, n, k
   real(r_kind)    :: tem1,tem2,tem3,tem4
 
   km = size(cloud_cont,1)

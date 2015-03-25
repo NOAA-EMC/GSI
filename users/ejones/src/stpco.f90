@@ -79,6 +79,10 @@ subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 
   out=zero_quad
 
+  if(associated(colvkhead))then
+    write(6,*) 'stpco: trouble, this routine not ready - try using lsqrt=.true. instead'
+    call stop2(999)
+  endif
 ! if(associated(cohead))call stpcolay_(  cohead,rval,sval,out,sges,nstep)
 ! if(associated(colvkhead))call stpcolev_(colvkhead,rval,sval,out,sges,nstep)
 
