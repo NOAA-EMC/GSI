@@ -277,8 +277,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
          kidsat = 784
        else if ( jsatid == 'gcom-w1' ) then
          kidsat = 122
-       else if ( jsatid == 'gpm' ) then
-         kidsat = 288
+! Temporary comment gpm out here; discrepancy between SAID in bufr file and
+! kidsat.
+!       else if ( jsatid == 'gpm' ) then
+!         kidsat = 288
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
        else
