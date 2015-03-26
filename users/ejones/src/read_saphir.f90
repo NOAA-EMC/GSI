@@ -303,8 +303,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
            dlat_earth = bfr1bhdr(9)
            dlon_earth = bfr1bhdr(10)
         else
-           c1=c1+1
-           !cycle read_loop
+           cycle read_loop
         end if
         if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
         if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
