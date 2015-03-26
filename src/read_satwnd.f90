@@ -106,7 +106,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Declare local parameters
 
   integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=15000 ! max message count
+  integer(i_kind),parameter:: nmsgmax=35000 ! max message count
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
