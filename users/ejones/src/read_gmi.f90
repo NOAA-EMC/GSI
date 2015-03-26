@@ -395,9 +395,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
               if(mirad(jc)>1000.0) then         
                  if(use_swath_edge) then
                    mirad(jc) = 500.0 !-replace missing tbs(ch10-13, swath edge)
-                   cycle_se=cycle_se+1
                  else
-                   cycle_se=cycle_se+1 
                    cycle read_loop   ! skip obs 
                  endif
               endif
