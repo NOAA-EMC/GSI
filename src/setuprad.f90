@@ -250,10 +250,10 @@
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
-  integer(i_kind) icol
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) node 
+  real(r_kind) icol
   real(r_kind) term,tlap,tb_obsbc1
   real(r_kind) tb_obsbc2,tb_obsbc15   
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
@@ -307,13 +307,14 @@
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
+  real(r_kind),dimension(nchanl):: cld_rbc_idx
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp,clwtmp1
 ! real(r_kind) :: predchan6_save   
   real(r_kind) :: cldeff_obs5,cldeff_sim5 
   real(r_kind) :: ework
 
-  integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag,cld_rbc_idx
+  integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
@@ -988,7 +989,7 @@
  
 !       Compute retrieved microwave cloud liquid water and 
 !       assign cld_rbc_idx for bias correction in allsky conditions
-        cld_rbc_idx=1
+        cld_rbc_idx=one
         if (lcw4crtm .and. sea)  then
            ierrret=0
            do i=1,nchanl
@@ -1002,10 +1003,10 @@
            end do
            call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            do i=1,nchanl
-!             if (clwp_amsua<=cclr(i) .and. clw_guess_retrieval> cclr(i)) cld_rbc_idx(i)=0  
-!             if (clwp_amsua> cclr(i) .and. clw_guess_retrieval<=cclr(i)) cld_rbc_idx(i)=0  
+!             if (clwp_amsua<=cclr(i) .and. clw_guess_retrieval> cclr(i)) cld_rbc_idx(i)=zero  
+!             if (clwp_amsua> cclr(i) .and. clw_guess_retrieval<=cclr(i)) cld_rbc_idx(i)=zero  
               if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero .and.  &
-                   abs(clwp_amsua-clw_guess_retrieval)>=0.005) cld_rbc_idx(i)=0
+                   abs(clwp_amsua-clw_guess_retrieval)>=0.005) cld_rbc_idx(i)=zero
            end do
 
            if (ierrret /= 0) then
@@ -1099,13 +1100,10 @@
 
            if (adp_anglebc) then
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
-!             tb_obsbc2=tb_obs(2)-cbias(nadir,ich(2))-predx(1,ich(2))            
-!             tb_obsbc15=tb_obs(15)-cbias(nadir,ich(15))-predx(1,ich(15))               
-              cldeff_obs5=cldeff_obs(5)   ! observed cloud effect for channel 5       
-!             cldeff_sim5=cldeff_sim(5)   ! simulated cloud effect for channel 5         
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
+           cldeff_obs5=cldeff_obs(5)   ! observed cloud effect for channel 5       
            call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
               zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
               pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                    
@@ -1121,8 +1119,8 @@
 !          observation error adjustments based on mis-matched cloud info, diff_clw,
 !          scattering and surface wind speed
            if (lcw4crtm .and. sea) then
-              icol=1
-              if (any(cld_rbc_idx==0)) icol=0
+              icol=one
+              if (any(cld_rbc_idx==zero)) icol=zero
               do i=1,nchanl
                  if(varinv(i)>tiny_r_kind .and. (i<=5 .or. i == 15))  then
                     ework = (1.0-icol)*abs(tbc(i))
