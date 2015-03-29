@@ -208,7 +208,7 @@ do jj=1,ntlevs_ens
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
-   call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk need to check this (emily)                    
+!  call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk                    
 !  Calculate sensible temperature
    call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)

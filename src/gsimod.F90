@@ -474,7 +474,7 @@
   namelist/setup/gencode,factqmin,factqmax,clip_supersaturation, &
        factv,factl,factp,factg,factw10m,facthowv,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
-       ndat,niter,niter_no_qc,miter,qoption,cwoption,nhr_assimilation,&
+       niter,niter_no_qc,miter,qoption,cwoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave,&
