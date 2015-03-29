@@ -629,11 +629,6 @@
      iextra=2
   end if
 
-! if (lcw4crtm .and. (.not. lwrite_peakwt)) then ! write extra info for AMSUA-A under allsky condition         
-!    jextra=nchanl_diag
-!    iextra=4
-! endif
-
   lextra = (iextra>0)
 
 ! Allocate array to hold channel information for diagnostic file and/or lobsdiagsave option
@@ -1766,8 +1761,7 @@
            endif
 
            if(lcw4crtm .and. sea) then  
-              diagbuf(23) = factch6                                 
-!             diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half   
+              diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half   
            else
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
            endif
@@ -1811,13 +1805,6 @@
               do i=1,nchanl_diag
                  diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
               end do
-!           else if (lcw4crtm .and. (.not.lwrite_peakwt)) then
-!              do i=1,nchanl_diag
-!                 diagbufex( 1,i) = tsim_clr(ich_diag(i))        ! clear-sky Tb
-!                 diagbufex( 2,i) = tsim(ich_diag(i))            ! all-sky Tb
-!                 diagbufex( 3,i) = dtobs_cld(ich_diag(i))       ! observed cloud effect      
-!                 diagbufex( 4,i) = dtsim_cld(ich_diag(i))       ! simulated cloud effect                
-!              end do
            end if
 
            do i=1,nchanl_diag
