@@ -36,7 +36,6 @@ subroutine add_gfs_stratosphere
   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
-  use ncepnems_io, only: read_nemsatm
   use constants,only: zero,one_tenth,half,one,ten,fv
   use mpimod, only: mype
   use mpimod, only: mpi_comm_world

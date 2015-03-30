@@ -1137,6 +1137,8 @@ end subroutine normal_new_factorization_rf_y
 !   2011-12-07  tong    - add the option to read wrf_nmm ensemble
 !   2012-01-30  parrish - remove wrf_nmm_regional,wrf_mass_regional,netcdf,nems_nmmb_regional
 !   2013-10-25  todling - nullify work pointer
+!   2015-01-22  Hu      - add namelist (i_en_perts_io) and functions to save and 
+!                         read ensemble perturbations in ensemble grid.
 !
 !   input argument list:
 !
@@ -1150,7 +1152,8 @@ end subroutine normal_new_factorization_rf_y
     use gridmod, only: regional
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
-                                          pseudo_hybens,regional_ensemble_option
+                                          pseudo_hybens,regional_ensemble_option,&
+                                          i_en_perts_io
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype,ierror
     implicit none
@@ -1299,7 +1302,11 @@ end subroutine normal_new_factorization_rf_y
 
 !     regional_ensemble_option = 1: use GEFS internally interpolated to ensemble grid.
 
-                call get_gefs_for_regional
+                if(i_en_perts_io==2) then ! get en_perts from save files
+                   call en_perts_get_from_save
+                else
+                   call get_gefs_for_regional
+                endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
 !                             GEFS ensemble perturbations in TC vortex area
@@ -2937,7 +2944,7 @@ subroutine init_sf_xy(jcap_in)
 !   if they are identical, then the interpolation is just an identity op.
   call g_create_egrid2agrid(grd_ens%nlat,rlats_ens_local,grd_ens%nlon,rlons_ens_local,&
                             nlat_sploc,sp_loc%rlats,nlon_sploc,sp_loc%rlons, &
-                            nord_sploc2ens,p_sploc2ens,eqspace=use_sp_eqspace)
+                            nord_sploc2ens,p_sploc2ens,.true.,eqspace=use_sp_eqspace)
 
 !    the following code is used to compute the desired spectrum to get a
 !     gaussian localization of desired length-scale.
@@ -3874,7 +3881,7 @@ subroutine hybens_grid_setup
   if(.not.regional) then
      call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon,eqspace=use_sp_eqspace)
      call g_create_egrid2agrid(nlat,rlats,nlon,rlons,grd_ens%nlat,sp_ens%rlats,grd_ens%nlon,sp_ens%rlons, &
-                               nord_e2a,p_e2a,eqspace=use_sp_eqspace)
+                               nord_e2a,p_e2a,.true.,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)

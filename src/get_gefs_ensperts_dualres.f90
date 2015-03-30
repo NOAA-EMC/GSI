@@ -58,7 +58,6 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
   use gsi_enscouplermod, only: gsi_enscoupler_get_user_ens
-  use ncepnems_io, only: read_nemsatm
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
   implicit none
 

@@ -191,13 +191,15 @@ contains
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
+    use mpimod, only: npe
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
-    integer(i_kind):: it, iret, ier
+    integer(i_kind):: it, iret, ier, inner_vars, num_fields
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -208,6 +210,16 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+
+    type(sub2grid_info) :: grd_t
+    logical regional
+
+    regional=.false.
+    inner_vars=1
+    num_fields=min(8*grd_a%nsig+2,npe)
+!  Create temporary communication information fore read routines
+    call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
+          grd_a%nsig,num_fields,regional)
 
 
     do it=1,nfldsig
@@ -238,7 +250,7 @@ contains
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
        
-       call general_read_gfsatm_nems(grd_a,sp_a,filename,mype,.true.,.true.,.true.,&
+       call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
             ges_z_it,ges_ps_it,&
             ges_vor_it,ges_div_it,&
             ges_u_it,ges_v_it,&
@@ -251,6 +263,7 @@ contains
 !           ges_tv_it,ges_q_it,&
 !           ges_cwmr_it,ges_oz_it)
     end do
+    call general_sub2grid_destroy_info(grd_t)
   end subroutine read_
 
   subroutine read_chem_ ( iyear, month,idd )
@@ -520,7 +533,7 @@ contains
       eqspace=.false.
       call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
                               latb+2,rlats,lonb,rlons,&
-                              nord_int,p_high,eqspace)
+                              nord_int,p_high,.true.,eqspace)
       deallocate(rlats,rlons)
     end if
 !
@@ -1308,7 +1321,6 @@ contains
     use gsi_4dvar, only: ibdate,nhr_obsbin
     use general_sub2grid_mod, only: sub2grid_info
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
-    use egrid2agrid_mod,only: g_agrid2egrid
     use constants, only: two,pi,half,deg2rad
   
     implicit none
@@ -1341,8 +1353,8 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
-    integer(i_kind) :: iret, lonb, latb, levs
+    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, iskip,iloc,n,ioffset
+    integer(i_kind) :: ii, iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
     integer(i_kind),dimension(5):: mydate
@@ -1364,7 +1376,7 @@ contains
     type(nemsio_gfile) :: gfile,gfileo
     logical diff_res,eqspace
     logical,dimension(1) :: vector
-    type(egrid2agrid_parm) :: p_high
+    type(egrid2agrid_parm) :: p_low,p_high
 
 !*************************************************************************
 !   Initialize local variables
@@ -1456,11 +1468,11 @@ contains
           do j=1,latb
             rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
           end do
+          rlats(1)=-half*pi
+          rlats(latb+2)=half*pi
           do j=1,lonb
             rlons(j)=deg2rad*r4lons(j)
           end do
-          rlats(1)=-half*pi
-          rlats(latb+2)=half*pi
           do j=1,lonb
              clons(j)=cos(rlons(j))
              slons(j)=sin(rlons(j))
@@ -1470,7 +1482,10 @@ contains
           eqspace=.false.
           call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
                                 latb+2,rlats,lonb,rlons,&
-                                nord_int,p_high,eqspace)
+                                nord_int,p_low,.false.,eqspace=eqspace)
+          call g_create_egrid2agrid(latb+2,rlats,lonb,rlons, &
+                                grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons,&
+                                nord_int,p_high,.false.,eqspace=eqspace)
 
           deallocate(rlats,rlons,r4lats,r4lons)
        end if
@@ -1519,19 +1534,19 @@ contains
           grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
           vector(1)=.false.
           call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-          call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-          do kk=1,itotsub
-            i=ltosi_s(kk)
-            j=ltosj_s(kk)
-            work1(kk)=work1(kk)-grid3(i,j,1)
+          call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+          do kk=1,grd%iglobal
+             i=grd%ltosi(kk)
+             j=grd%ltosj(kk)
+             grid3(i,j,1)=work1(kk)-grid3(i,j,1)
           end do
-          do kk=1,iglobal
-            i=grd%nlat-ltosi(kk)+1
-            j=ltosj(kk)
-            grid3(j,i,1)=work1(kk)
+
+          call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+          do j=1,latb
+             do i=1,lonb
+                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+             end do
           end do
-          call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-          grid_b=r1000*(grid_b+grid_c(:,:,1))
           rwork1d = reshape(grid_b,(/size(rwork1d)/))
        else
           call load_grid(work1,grid)
@@ -1555,19 +1570,18 @@ contains
              grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=work1(kk)-grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=r1000*(grid_b+grid_c(:,:,1))
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1592,19 +1606,18 @@ contains
              grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=work1(kk)-grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=r1000*(grid_b+grid_c(:,:,1))
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1631,32 +1644,30 @@ contains
              grid_b2=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             call g_egrid2agrid(p_high,grid_c2,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work2(kk)=grid3(i,j,1)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_low,grid_c2,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work2(kk)-grid3(i,j,1)
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c,1,1,vector)
-             grid_b=grid_b+grid_c(:,:,1)
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work2(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c,1,1,vector)
-             grid_b2=grid_b2+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
              rwork1d1 = reshape(grid_b2,(/size(rwork1d1)/))
 
@@ -1688,19 +1699,18 @@ contains
              grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=work1(kk)-grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1723,19 +1733,18 @@ contains
              grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=work1(kk)-grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1758,19 +1767,18 @@ contains
              grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
-               work1(kk)=work1(kk)-grid3(i,j,1)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
              end do
-             do kk=1,iglobal
-               i=grd%nlat-ltosi(kk)+1
-               j=ltosj(kk)
-               grid3(j,i,1)=work1(kk)
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
              end do
-             call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-             grid_b=grid_b+grid_c(:,:,1)
              rwork1d = reshape(grid_b,(/size(rwork1d)/))
           else
              call load_grid(work1,grid)
@@ -1794,19 +1802,18 @@ contains
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 vector(1)=.false.
                 call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-                call g_egrid2agrid(p_high,grid_c,grid3,1,1,vector)
-                do kk=1,itotsub
-                  i=ltosi_s(kk)
-                  j=ltosj_s(kk)
-                  work1(kk)=work1(kk)-grid3(i,j,1)
+                call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+                do kk=1,grd%iglobal
+                   i=grd%ltosi(kk)
+                   j=grd%ltosj(kk)
+                   grid3(i,j,1)=work1(kk)-grid3(i,j,1)
                 end do
-                do kk=1,iglobal
-                  i=grd%nlat-ltosi(kk)+1
-                  j=ltosj(kk)
-                  grid3(j,i,1)=work1(kk)
+                call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+                do j=1,latb
+                   do i=1,lonb
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   end do
                 end do
-                call g_agrid2egrid(p_high,grid3,grid_c2,1,1,vector)
-                grid_b=grid_b+grid_c(:,:,1)
                 rwork1d = reshape(grid_b,(/size(rwork1d)/))
              else
                 call load_grid(work1,grid)
@@ -1821,7 +1828,7 @@ contains
 ! Deallocate local array
 !
     if (mype==mype_out) then
-       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3)
+       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
        call nemsio_close(gfile,iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges),null,'close',istop,iret)
 

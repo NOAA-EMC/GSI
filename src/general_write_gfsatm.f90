@@ -1,4 +1,4 @@
-  subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype,mype_out,sub_z,sub_ps,&
+  subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype,mype_out,sub_ps,&
        sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,ibin,inithead,iret_write)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -51,7 +51,7 @@
     type(sub2grid_info)                    ,intent(in   ) :: grd
     type(spec_vars)                        ,intent(in   ) :: sp_a,sp_b
 
-    real(r_kind),dimension(grd%lat2,grd%lon2)      ,intent(in   ) :: sub_z, sub_ps  !2d
+    real(r_kind),dimension(grd%lat2,grd%lon2)      ,intent(in   ) :: sub_ps  !2d
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) ,intent(in   ) :: sub_vor,sub_div,sub_tv,sub_q,sub_oz, &
                                                              sub_cwmr
     logical,                                intent(in   ) :: inithead
@@ -261,9 +261,6 @@
                        specges_4(ks2+2)=specges_4(ks2+2)+spec_work_sm(ks1+2) 
                      end do 
                   end do 
-                  do i=1,sp_b%nc
-                     specges_4(i)=specges_4(i)+spec_work(i)
-                  end do
                   if (kvar/=4 .and. kvar/=5) then
                      do i=1,sp_b%nc
                         if(sp_b%factsml(i))specges_4(i)=zero_single

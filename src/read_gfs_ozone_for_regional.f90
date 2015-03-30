@@ -53,7 +53,6 @@ subroutine read_gfs_ozone_for_regional
   use obsmod, only: iadate
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-  use ncepnems_io, only: read_nemsatm
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst

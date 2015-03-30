@@ -524,6 +524,8 @@ subroutine read_obs(ndata,mype)
 !   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
 !   2013-08-08  s.liu     - add read NASA_LaRC_cloud product
 !   2013-10-25  todling - reposition ltosi and others to commvars
+!   2014-01-01  xli     - add option to read NSST marine BUFR data file nsstbufr (on the
+!                         top of prepbufr and modsbufr)
 !   2014-02-03  guo     - Hid processing (read) of non-EMC ozone obstypes
 !                         through module m_extOzone, separated from read_ozone.
 !                       - Added some -do- and -if- construct names, for easier
@@ -572,6 +574,7 @@ subroutine read_obs(ndata,mype)
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
     use gsi_nstcouplermod, only: gsi_nstcoupler_set
     use gsi_io, only: mype_io
+    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
     use m_extOzone, only: is_extOzone
     use m_extOzone, only: extOzone_read
@@ -936,7 +939,6 @@ subroutine read_obs(ndata,mype)
        npe_sub3(ilarge)=0
     end do loopx
 
-        
 !   Define sub-communicators for each data file
     mm1=mype+1
     belong=.false.
@@ -1121,6 +1123,7 @@ subroutine read_obs(ndata,mype)
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
                  obstype == 'lcbas'  ) then
+
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
@@ -1169,13 +1172,17 @@ subroutine read_obs(ndata,mype)
                   string='READ_PREPBUFR'
                 endif
 
-!            Process conventional SST (modsbufr, at this moment) data
+!            Process conventional SST (nsstbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
-                if ( platid == 'mods') then
+                if ( platid == 'nsst') then
+                   call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
+                        lunout,twind,sis)
+                   string='READ_NSSTBUFR'
+                elseif ( platid == 'mods') then
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_MODSBUFR'
-                else
+                elseif ( platid == 'prep') then
                    if(nst_gsi>0)then
                       write(6,*)'read_obs: should not handle SST via read_prepbufr when NSST on'
                       call stop2(999)
@@ -1188,7 +1195,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar reflectivity Mosaic
              else if (obstype == 'rad_ref' ) then
-                call read_RadarRef_mosaic(nread,npuse,infile,obstype,lunout,twind,sis, &
+                call read_radarref_mosaic(nread,npuse,infile,obstype,lunout,twind,sis, &
                       nobs_sub1(1,i))
                 string='READ_RADARREF_MOSAIC'
 
@@ -1199,10 +1206,11 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-!               write(6,*)'sliu :: NASA cld', infile, 'READ_NASA_LaRC'
-!               call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
-                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis, &
-                     nobs_sub1(1,i))
+                if( i_gsdcldanal_type==1) then
+                   call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                else
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                endif
                 string='READ_NASA_LaRC'
 
 !            Process radar winds

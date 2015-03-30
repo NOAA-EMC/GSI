@@ -33,7 +33,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens
+  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time    
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -51,7 +51,6 @@ subroutine get_gefs_for_regional
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
-  use ncepnems_io, only: read_nemsatm
   use guess_grids, only: ges_prsl,ntguessig,geop_hgti
   use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
@@ -205,7 +204,7 @@ subroutine get_gefs_for_regional
   if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
                                  iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
-     call stop2(85)
+     if(.not.l_ens_in_diff_time) call stop2(85)
   end if
      
 

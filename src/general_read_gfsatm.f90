@@ -568,7 +568,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 101
     integer(i_kind),dimension(npe)::ilev,iflag,mype_use
-    integer(i_kind),dimension(7):: idate, jdate
+    integer(i_kind),dimension(7):: idate
     integer(i_kind),dimension(4):: odate
     real(r_kind) :: fhour
 
@@ -614,7 +614,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
     work_v=zero
     if(procuse)then
 
-      call nemsio_init(iret=iret)
+      if(init_head)call nemsio_init(iret=iret)
       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
 
       call nemsio_open(gfile,filename,'READ',iret=iret)
@@ -689,7 +689,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       eqspace=.false.
       call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
                               latb+2,rlats,lonb,rlons,&
-                              nord_int,p_high,eqspace)
+                              nord_int,p_high,.true.,eqspace=eqspace)
       deallocate(rlats,rlons)
 
     end if
@@ -717,9 +717,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -750,9 +750,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
           grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
           call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
           call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-          do kk=1,itotsub
-            i=ltosi_s(kk)
-            j=ltosj_s(kk)
+          do kk=1,grd%itotsub
+            i=grd%ltosi_s(kk)
+            j=grd%ltosj_s(kk)
             work(kk)=grid2(i,j,1)
           end do
        else
@@ -787,9 +787,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -819,9 +819,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
              do j=1,grd%nlon
@@ -830,9 +830,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
                end do
              end do
              call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work_v(kk)=grid2(i,j,1)
              end do
              do j=1,grd%nlon
@@ -876,9 +876,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
              do j=1,grd%nlon
@@ -887,9 +887,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
                end do
              end do
              call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work_v(kk)=grid2(i,j,1)
              end do
              do j=1,grd%nlon
@@ -934,9 +934,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -967,9 +967,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
              call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -997,9 +997,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -1024,9 +1024,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-             do kk=1,itotsub
-               i=ltosi_s(kk)
-               j=ltosj_s(kk)
+             do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
                work(kk)=grid2(i,j,1)
              end do
           else
@@ -1052,9 +1052,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
                 vector(1)=.false.
                 call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
                 call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-                do kk=1,itotsub
-                  i=ltosi_s(kk)
-                  j=ltosj_s(kk)
+                do kk=1,grd%itotsub
+                  i=grd%ltosi_s(kk)
+                  j=grd%ltosj_s(kk)
                   work(kk)=grid2(i,j,1)
                 end do
              else
