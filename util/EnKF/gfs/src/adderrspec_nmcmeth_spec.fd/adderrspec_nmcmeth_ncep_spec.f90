@@ -36,7 +36,7 @@ program adderrspec_nmcmeth
   use sigio_module
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,&
-       nemsio_readrec,nemsio_writerec
+       nemsio_readrec,nemsio_writerec,nemsio_readrecv,nemsio_writerecv
   use mersenne_twister, only: random_setseed, random_number
   implicit none
 
@@ -56,7 +56,7 @@ program adderrspec_nmcmeth
   integer :: nlevs,ntrac,ntrunc,nc,i,j,k,iscalefact
   integer :: iunit,iunitsf,iunitmean,iunitp,iunitpr
   integer :: npert,window,iseed
-  integer:: nrec,latb,lonb,npts,n
+  integer:: nrec,latb,lonb,npts,n,nsize
   integer,dimension(4) :: iadate,idateout
   integer,dimension(:),allocatable:: new_group_members
   integer,allocatable,dimension(:) ::iwork,smoothparm
@@ -64,7 +64,8 @@ program adderrspec_nmcmeth
   real :: scalefact,rnanals
   real(8) :: rseed
   real,allocatable,dimension(:):: rwork
-  real,allocatable,dimension(:)   :: rwork1d
+  real,allocatable,dimension(:,:)   :: rwork1d,swork1d
+  real(4),allocatable,dimension(:):: twork1d
 
   type(sigio_head) :: sigheado,sigheadi,sigheadim,sigheadpin
   type(sigio_data) :: sigdata,sigdatai,sigdataim,sigdatap,sigdatapm,sigdatao,sigdatapin
@@ -206,10 +207,10 @@ program adderrspec_nmcmeth
   filenamein = "sfg_"//datestring//"_fhr06_ensmean"
   call nemsio_init(iret)
   call sigio_sropen(iunit,trim(filenamein),iret)
+  call sigio_srhead(iunit,sigheado,iret)
   if (iret == 0) then
      sigio=.true.
      write(6,*)'Read sigio ',trim(filenamein),' iret=',iret
-     call sigio_srhead(iunit,sigheado,iret)
      call sigio_sclose(iunit,iret)
      ntrunc = sigheado%jcap
      nlevs  = sigheado%levs
@@ -223,6 +224,7 @@ program adderrspec_nmcmeth
         call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
              dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, iret=iret)
         npts=lonb*latb
+        call nemsio_close(gfile,iret)
      else
         write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
      endif
@@ -318,7 +320,38 @@ program adderrspec_nmcmeth
         endif
 
      elseif (nemsio) then
-        write(6,*)'NEMSIO section not yet complete'
+        npts=lonb*latb
+        nsize=npts*nrec
+        allocate(rwork1d(npts,nrec))
+        allocate(swork1d(npts,nrec))
+        allocate(twork1d(npts))
+
+        call nemsio_open(gfilei,trim(filenamein),'READ',iret)
+
+        rwork1d=zero
+        do n=1,nrec
+           call nemsio_readrec(gfilei,n,rwork1d(:,n),iret=iret)
+        end do
+        swork1d=zero
+        call mpi_allreduce(rwork1d,swork1d,nsize,mpi_real,mpi_sum,new_comm,iret)
+        swork1d = swork1d * rnanals
+
+        if (mype==0) then
+           gfileo=gfilei
+           call nemsio_open(gfileo,trim(filenameoutmean),'WRITE',iret=iret )
+           do n=1,nrec
+              call nemsio_writerec(gfileo,n,swork1d(:,n),iret=iret)
+           end do
+           call nemsio_readrecv(gfilei,'hgt','sfc',1,twork1d,iret)
+           call nemsio_writerecv(gfileo,'hgt','sfc',1,twork1d,iret)
+           call nemsio_close(gfileo,iret)
+           write(6,*)'write mean data to filenameoutmean= ',trim(filenameoutmean)
+        endif
+
+        deallocate(rwork1d)
+        deallocate(swork1d)
+        deallocate(twork1d)
+           
      endif
 
 ! Jump here if more mpi processors than files to process
@@ -472,6 +505,8 @@ program adderrspec_nmcmeth
         call sigio_axdata(sigdatap,iret)
         call sigio_axdata(sigdatapm,iret)
 
+     elseif (nemsio) then
+        write(6,*)'NEMSIO additive perturbations not coded'
      endif
   endif
 
