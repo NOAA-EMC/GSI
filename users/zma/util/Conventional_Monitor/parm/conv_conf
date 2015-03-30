@@ -1,0 +1,55 @@
+#
+#  Conventional Monitor package configuration file
+#
+
+export MY_MACHINE=wcoss
+export MY_OS=linux
+
+export CONVDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/dup_ConvMon_277/util/Conventional_Monitor
+export MY_TANKDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/nbns
+
+export TANKDIR=${MY_TANKDIR}/stats/convweb/${SUFFIX}
+export IMGNDIR=${MY_TANKDIR}/imgn/convweb/${SUFFIX}
+
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+   module load GrADS/2.0.1
+   export UTILS_BIN=
+   export LLQ=
+   export SUB="bsub"
+   export NCP=/bin/cp
+   export NWPROD=/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
+   export FIXDIR=/nwprod/fix
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export TIMEX=
+   export GRADS=${GRADS_ROOT}/grads
+   export PROJECT=${PROJECT:-GDAS-T20}
+   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+fi
+ 
+export STMP=/stmpp1/Edward.Safford
+export PTMP=/ptmpp1/Edward.Safford
+
+
+export LOGDIR=${PTMP}/logs/conv${SUFFIX}
+export SCRIPTS=${CONVDIR}/scripts
+export GSCRIPTS=${CONVDIR}/gscripts
+export CTLDIR=${CONVDIR}/ctldir
+export EXEDIR=${CONVDIR}/exec
+export PARM=${CONVDIR}/parm
+
+export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt
+
+
+#
+#  Web server resources
+#
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+export WEBUSER=esafford
+export WEBSVR=emcrzdm
+
