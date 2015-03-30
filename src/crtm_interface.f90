@@ -1534,23 +1534,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         lai_type = itype
      end if
 
-!    Meteorological definition of wind direction                                    
-!     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
-!       surface(1)%wind_speed           = sfc_speed
-!       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
-!     else !RTodling: not sure the following option makes any sense
-!       surface(1)%wind_speed           = zero
-!       surface(1)%wind_direction       = zero
-!     endif
-
      if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*wind10_direction  
+       surface(1)%wind_direction       = rad2deg*wind10_direction
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
      endif
-
 
 ! CRTM will reject surface coverages if greater than one and it is possible for
 ! these values to be larger due to round off.
