@@ -1,0 +1,41 @@
+SHELL=/bin/sh
+
+#--------------------------
+#  makefile.grads_lev
+#--------------------------
+
+SRCS=         maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 dup.f90 convinfo.f90 
+
+OBJS=         maingrads_lev.o read_conv2grads.o grads_lev.o dup.o convinfo.o 
+
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+CMD=    grads_lev.x 
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp ${CMD} ../exec/.
+
+maingrads_lev.o : maingrads_lev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_conv2grads.o : read_conv2grads.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+grads_lev.o : grads_lev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+dup.o : dup.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
