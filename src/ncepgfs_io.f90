@@ -1024,8 +1024,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
           call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
             aux_ps,&
             aux_tv,aux_q,&
-            aux_oz,aux_cwmr,ges_prsl(:,:,:,it), &
-            aux_u,aux_v,ges_prsi(:,:,:,it),it)
+            aux_oz,aux_cwmr,ges_prsl(:,:,:,itoutsig), &
+            aux_u,aux_v,ges_prsi(:,:,:,itoutsig),itoutsig)
        else
           nlon_b=((2*jcap_b+1)/nlon+1)*nlon
           if (nlon_b /= sp_a%imax) then
@@ -1039,7 +1039,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                   aux_ps,&
                   aux_vor,aux_div,&
                   aux_tv,aux_q,&
-                  aux_oz,aux_cwmr,it,inithead,&
+                  aux_oz,aux_cwmr,itoutsig,inithead,&
                   iret_write)
 
              call general_destroy_spec_vars(sp_b)
@@ -1050,7 +1050,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                aux_ps,&
                aux_vor,aux_div,&
                aux_tv,aux_q,&
-               aux_oz,aux_cwmr,it,inithead,&
+               aux_oz,aux_cwmr,itoutsig,inithead,&
                iret_write)
           end if
        endif

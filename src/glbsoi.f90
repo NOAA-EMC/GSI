@@ -103,7 +103,7 @@ subroutine glbsoi(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_kind,i_kind
   use constants, only: rearth
   use mpimod, only: npe
   use adjtest_obs, only: adtest_obs
