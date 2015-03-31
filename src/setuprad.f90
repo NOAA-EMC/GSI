@@ -158,6 +158,8 @@
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-01-15 zhu      - change amsua quality control interface to apply emissivity sensitivity 
 !                         screen to all-sky AMSUA and ATMS radiance
+!   2015-03-31 zhu      - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
+!                         change quality control interface for AMSUA and ATMS. 
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -253,7 +255,6 @@
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) node 
-  real(r_kind) icol
   real(r_kind) term,tlap,tb_obsbc1
   real(r_kind) tb_obsbc2,tb_obsbc15   
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
@@ -309,10 +310,9 @@
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx
   real(r_kind) :: ptau5deriv, ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp,clwtmp1
+  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
 ! real(r_kind) :: predchan6_save   
   real(r_kind) :: cldeff_obs5,cldeff_sim5 
-  real(r_kind) :: ework
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -1029,9 +1029,6 @@
               endif
            endif
 
-!          Assign observation error if assimilating all-sky MW radiance data 
-!          if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clwp_amsua,clw_guess_retrieval) 
-
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
                   .or. (passive_bc .and. channel_passive))then
@@ -1101,7 +1098,8 @@
            cldeff_obs5=cldeff_obs(5)   ! observed cloud effect for channel 5       
            call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
               zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
-              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                    
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6, &
+              cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                    
 
 !  If cloud impacted channels not used turn off predictor
 
@@ -1110,26 +1108,6 @@
                  pred(3,i) = zero
               end if
            end do
-
-!          observation error adjustments based on mis-matched cloud info, diff_clw,
-!          scattering and surface wind speed
-           if (lcw4crtm .and. sea) then
-              icol=one
-              if (any(cld_rbc_idx==zero)) icol=zero
-              do i=1,nchanl
-                 if(varinv(i)>tiny_r_kind .and. (i<=5 .or. i == 15))  then
-                    ework = (1.0-icol)*abs(tbc(i))
-                    ework = ework+min(0.002_r_kind*sfc_speed**2*error0(i), 0.5_r_kind*error0(i))
-                    clwtmp1=min(abs(clwp_amsua-clw_guess_retrieval), one)
-                    ework = ework+min(13.0_r_kind*clwtmp1*error0(i), 3.5_r_kind*error0(i))
-                    if (scatp>9.0_r_kind) then
-                       ework = ework+min(1.5_r_kind*(scatp-9.0_r_kind)*error0(i), 2.5_r_kind*error0(i))
-                    end if
-                    ework=ework**2
-                    varinv(i)=varinv(i)/(one+varinv(i)*ework)
-                 endif
-              end do
-           endif
 
 
 !  ---------- AMSU-B -------------------
@@ -1157,7 +1135,8 @@
            end if
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
               zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
-              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                   
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6, &
+              cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                   
 
 !  ---------- GOES imager --------------
 !       GOES imager Q C
@@ -1761,7 +1740,7 @@
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
            endif
-              diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
+           diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
  
 !          Note:  The following quantities are not computed for all sensors
            if (.not.microwave) then
@@ -1770,7 +1749,7 @@
            else
               if(lcw4crtm .and. sea) then
                  diagbuf(25)  = clwp_amsua                    ! retrieved CLWP (kg/m**2) from observed BT
-                 diagbuf(26)  = clw_guess                     ! retrieved CLWP (kg/m**2) from simulated BT                               
+                 diagbuf(26)  = clw_guess_retrieval           ! retrieved CLWP (kg/m**2) from simulated BT                               
               else
                  diagbuf(25)  = clw                           ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = tpwc                          ! total column precip. water (km/m**2)

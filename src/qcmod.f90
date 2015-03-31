@@ -43,6 +43,9 @@ module qcmod
 !                         (originally of mccarty)
 !   2014-10-06  carley  - add logicals for buddy check
 !   2015-01-15  zhu     - apply emissivity sensitivity screening to all-sky AMSUA radiance
+!   2015-03-31  zhu     - observation error adjustments based on mis-matched
+!                         cloud info, diff_clw, scattering and surface wind
+!                         speed for AMSUA/ATMS cloudy radiance assimilation
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -1693,7 +1696,8 @@ end subroutine qc_avhrr
 
 subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
-     pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                     
+     pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6, &
+     cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1716,6 +1720,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2014-01-31  mkim    - revisit qc for all-sky MW radiance data assimilationo
 !     2014-04-27  eliu    - add two precipitation screenings for AMSU-A/ATMS 
 !     2015-01-15  zhu     - apply emissivity sensitivity screening to all-sky radiance
+!     2015-03-31  zhu     - observation error adjustments based on mis-matched
+!                           cloud info, diff_clw, scattering and surface wind
+!                           speed for AMSUA/ATMS cloudy radiance assimilation
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1777,13 +1784,16 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tsavg5
   real(r_kind),                        intent(in   ) :: tb_obsbc2,tb_obsbc15           
   real(r_kind),                        intent(in   ) :: cldeff_obs5,cldeff_sim5       
-  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua
+  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
+  real(r_kind),                        intent(in   ) :: sfc_speed,scatp
   real(r_kind),                        intent(inout) :: factch6  
   real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
   real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
+  real(r_kind),dimension(nchanl),      intent(in   ) :: error0
+  real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
 
 ! Declare local parameters
 
@@ -1799,6 +1809,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind)    :: thrd1,thrd2,thrd3,thrd15
   real(r_kind)    :: sval 
   real(r_kind)    :: factch4
+  real(r_kind)    :: ework,clwtmp
+  real(r_kind)    :: icol
   integer(i_kind) :: i,n,icw4crtm,ier
   logical lcw4crtm
   logical qc4emiss
@@ -1806,6 +1818,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
   logical         :: latms, latms_surfaceqc
+
 
   if (nchanl == 22) then
       latms  = .true.    ! If there are 22 channels passed along, it's atms
@@ -2000,6 +2013,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !          errf(ich890) = zero
 !          varinv(ich890) = zero
         else ! QC based on the sensitivity of Tb to the surface emissivity
+!          de1,de2,de3,de15 become smaller as the observation is more cloudy --
+!          i.e., less affected by the surface emissivity quality control check 
            thrd1=0.025_r_kind
            thrd2=0.015_r_kind
            thrd3=0.030_r_kind
@@ -2187,6 +2202,27 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      end if
   end do
 
+! Observation error adjustment for cloudy radiance based on mis-matched cloud, 
+! diff_clw, scattering index, surface wind speed. The coefficient 13.0 for 
+! clwtmp may be re-tuned with model physics changes. 
+  if (lcw4crtm .and. sea) then
+     icol=one
+     if (any(cld_rbc_idx==zero)) icol=zero
+     do i=1,nchanl
+        if(varinv(i)>tiny_r_kind .and. (i<=5 .or. i == 15))  then
+           ework = (1.0-icol)*abs(tbc(i))
+           ework = ework+min(0.002_r_kind*sfc_speed**2*error0(i), 0.5_r_kind*error0(i))
+           clwtmp=min(abs(clwp_amsua-clw_guess_retrieval), one)
+           ework = ework+min(13.0_r_kind*clwtmp*error0(i), 3.5_r_kind*error0(i))
+           if (scatp>9.0_r_kind) then
+              ework = ework+min(1.5_r_kind*(scatp-9.0_r_kind)*error0(i), 2.5_r_kind*error0(i))
+           end if
+           ework=ework**2
+           varinv(i)=varinv(i)/(one+varinv(i)*ework)
+        endif
+     end do
+  endif
+
   return
 
 end subroutine qc_amsua
@@ -2345,7 +2381,8 @@ subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
 end subroutine qc_mhs
 subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
-                 pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                     
+                 pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6, &
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2359,6 +2396,10 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2011-05-17  mccarty - added as QC algorithm for ATMS data
 !     2011-05-26  todling - update argumenent list and call within
 !     2014-04-27  eliu    - add two precipitation screenings; modify interface           
+!     2015-01-15  zhu     - apply emissivity sensitivity screening to all-sky radiance
+!     2015-03-31  zhu     - observation error adjustments based on mis-matched
+!                           cloud info, diff_clw, scattering and surface wind
+!                           speed for AMSUA/ATMS cloudy radiance assimilation
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2416,18 +2457,22 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tsavg5
   real(r_kind),                        intent(in   ) :: tb_obsbc2,tb_obsbc15             
   real(r_kind),                        intent(in   ) :: cldeff_obs5, cldeff_sim5       
-  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua
+  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
+  real(r_kind),                        intent(in   ) :: sfc_speed,scatp
   real(r_kind),                        intent(inout) :: factch6 
   real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
   real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
+  real(r_kind),dimension(nchanl),      intent(in   ) :: error0
+  real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
 
 ! For now, just pass all channels to qc_amsua
   call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,tb_obsbc2,tb_obsbc15,tsavg5,cosza,clw,tbc,ptau5,emissivity_k,ts, &   
-                 pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6)                    
+                 pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,cldeff_sim5,factch6, &
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                    
 
   return
 
