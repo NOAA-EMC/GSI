@@ -118,7 +118,7 @@ subroutine pcgsoi()
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_double,r_quad,r_single
+  use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune,luse_obsdiag,yobs
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&

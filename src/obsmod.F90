@@ -300,6 +300,14 @@ module obsmod
 !   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
 !   def dval_use       -   = .true. if any dval weighting is used for satellite
 !                           data
+!   def obs_sub        - number of observations of each type in each subdomain
+!                        (nobs_type,npe)
+!   def stpcnt         - number of non-zero obs types (including time domain) on
+!                        processor - used for threading of stpjo
+!   def ll_jo          - points at ob type for location in stpcnt - used for
+!                        threading of stpjo
+!   def ll_ib          - points at time bin for location in stpcnt - used for
+!                        threading of stpjo
 !
 ! attributes:
 !   langauge: f90
