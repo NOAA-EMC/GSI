@@ -43,8 +43,8 @@ program getsigensmeanp_smooth
   real(8),dimension(:,:,:), allocatable :: smoothfact
   real(4),dimension(:),allocatable :: sigdatapert_ps,sigdatapert_z,sigdatapert_d,&
        sigdatapert_t,sigdatapert_q,sigdatapert_oz,sigdatapert_cw
-  real(4),allocatable,dimension(:,:):: rwork1d,swork1d
-  real(4),allocatable,dimension(:):: twork1d
+  real(4),allocatable,dimension(:,:):: rwork_mem,rwork_avg
+  real(4),allocatable,dimension(:):: rwork_lev
 
   type(sigio_head) :: sigheadi,sigheadm
   type(sigio_data) :: sigdatai,sigdatam
@@ -134,7 +134,6 @@ program getsigensmeanp_smooth
            write(6,*)'Read nemsio ',trim(filenamein),' iret=',iret
            call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
                 dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
-           write(6,*) trim(filenamein),' ',dtype
         else
            write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
         endif
@@ -183,7 +182,6 @@ program getsigensmeanp_smooth
         if (mype==0) then
            sigheadm = sigheadi
            ngrd = sigheadi%nxgr
-           write(6,*)'ngrd=',ngrd
            if (ngrd>0) sigdatam%xgr = sigdatai%xgr
            
            sigheadm%iens(1) = 1 ! unperturbed control
@@ -192,38 +190,36 @@ program getsigensmeanp_smooth
            call sigio_swohdc(iunit,filenameout,sigheadm,sigdatam,iret)
            write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
         endif
+
         call sigio_axdata(sigdatai,iret)
+
      elseif (nemsio) then
         npts=lonb*latb
         nsize=npts*nrec
-        allocate(rwork1d(npts,nrec))
-        allocate(swork1d(npts,nrec))
-        allocate(twork1d(npts))
+        allocate(rwork_mem(npts,nrec))
+        allocate(rwork_avg(npts,nrec))
+        allocate(rwork_lev(npts))
 
-        rwork1d=zero
+        rwork_mem=zero
         do n=1,nrec
-           call nemsio_readrec(gfile,n,rwork1d(:,n),iret=iret)
+           call nemsio_readrec(gfile,n,rwork_mem(:,n),iret=iret)
         end do
-        swork1d=zero
-        call mpi_allreduce(rwork1d,swork1d,nsize,mpi_real,mpi_sum,new_comm,iret)
-        swork1d = swork1d * rnanals
+        rwork_avg=zero
+        call mpi_allreduce(rwork_mem,rwork_avg,nsize,mpi_real,mpi_sum,new_comm,iret)
+        rwork_avg = rwork_avg * rnanals
 
         if (mype==0) then
            gfileo=gfile
            call nemsio_open(gfileo,trim(filenameout),'WRITE',iret=iret )
            do n=1,nrec
-              call nemsio_writerec(gfileo,n,swork1d(:,n),iret=iret)
+              call nemsio_writerec(gfileo,n,rwork_avg(:,n),iret=iret)
            end do
-           call nemsio_readrecv(gfile,'hgt','sfc',1,twork1d,iret)
-           call nemsio_writerecv(gfileo,'hgt','sfc',1,twork1d,iret)
+           call nemsio_readrecv(gfile,'hgt','sfc',1,rwork_lev,iret)
+           call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork_lev,iret)
            call nemsio_close(gfileo,iret)
            write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
         endif
         call nemsio_close(gfile,iret)
-
-        deallocate(rwork1d)
-        deallocate(swork1d)
-        deallocate(twork1d)
 
      endif
 
@@ -306,60 +302,51 @@ program getsigensmeanp_smooth
 !          Write out
            call sigio_swohdc(iunit,trim(filenameouts),sigheadi,sigdatai,iret)
 
+           call sigio_axdata(sigdatai,iret)
+           call sigio_axdata(sigdatam,iret)
+
         elseif (nemsio) then
+!          Read ensemble member forecast
            call nemsio_open(gfilei,trim(filenamein),'READ',iret=iret)
-           call nemsio_getfilehead(gfilei, nrec=nrec, jcap=ntrunc, &
+             call nemsio_getfilehead(gfilei, nrec=nrec, jcap=ntrunc, &
                 dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, iret=iret)
-           npts=lonb*latb
            allocate(reclev(nrec))
            call nemsio_getfilehead(gfilei,reclev=reclev,iret=iret)
 
-           call nemsio_open(gfileo,trim(filenameout),'READ',iret=iret )
-
-           gfileos=gfilei
-           call nemsio_open(gfileos,trim(filenameouts),'WRITE',iret=iret )
-
-           if (.not.allocated(rwork1d)) allocate(rwork1d(npts,nrec))
-           if (.not.allocated(swork1d)) allocate(swork1d(npts,nrec))
-           if (.not.allocated(twork1d)) allocate(twork1d(npts))
-
-           rwork1d=zero
+           rwork_mem=zero
            do n=1,nrec
-              call nemsio_readrec(gfilei,n,rwork1d(:,n),iret)
-           end do
-           swork1d=zero
-           do n=1,nrec
-              call nemsio_readrec(gfileo,n,swork1d(:,n),iret)
+              call nemsio_readrec(gfilei,n,rwork_mem(:,n),iret)
            end do
 
+!          Smoothing loop over fields
            do n=1,nrec
               k=reclev(n)
               if (smoothparm(k)>0) then
-                 twork1d=rwork1d(:,n)-swork1d(:,n)
+                 rwork_lev=rwork_mem(:,n)-rwork_avg(:,n)
 
 !!               Need to decide if/how to smooth nemsio grids.  Two
 !!               options listed below
 !!                 1) transform to spectral, smooth, transform to grid
 !!                 2) add grid space smoother
-!!               call smooth(twork1d,ntrunc,smoothfact(:,:,k))
+!!               call smooth(rwork_lev,ntrunc,smoothfact(:,:,k))
 
-                 rwork1d(:,n)=swork1d(:,n)+twork1d
+                 rwork_mem(:,n)=rwork_avg(:,n)+rwork_lev
               end if
            end do
+
+!          Write smoothed member forecast
+           gfileos=gfilei
+           call nemsio_open(gfileos,trim(filenameouts),'WRITE',iret=iret )
            do n=1,nrec
-              call nemsio_writerec(gfileos,n,rwork1d(:,n),iret)
+              call nemsio_writerec(gfileos,n,rwork_mem(:,n),iret)
            end do
 
-           call nemsio_readrecv(gfilei,'hgt','sfc',1,twork1d,iret)
-           call nemsio_writerecv(gfileos,'hgt','sfc',1,twork1d,iret)
+!          Write unsmoothed member orography to smoothed output file
+           call nemsio_readrecv(gfilei,'hgt','sfc',1,rwork_lev,iret)
+           call nemsio_writerecv(gfileos,'hgt','sfc',1,rwork_lev,iret)
 
            call nemsio_close(gfilei,iret)
-           call nemsio_close(gfileo,iret)
            call nemsio_close(gfileos,iret)
-
-           deallocate(rwork1d)
-           deallocate(swork1d)
-           deallocate(twork1d)
 
         endif
         write(6,*)'Write smoothed ',trim(filenameouts),' iret=',iret
@@ -370,13 +357,9 @@ program getsigensmeanp_smooth
 !    End of smoothing block
      endif
 
-     if (sigio) then
-        call sigio_axdata(sigdatai,iret)
-        call sigio_axdata(sigdatam,iret)
-     endif
-
-!    Deallocate smoothing parameter array
-     if (lexist) deallocate(smoothparm)
+     if (allocated(rwork_mem)) deallocate(rwork_mem)
+     if (allocated(rwork_avg)) deallocate(rwork_avg)
+     if (allocated(rwork_lev)) deallocate(rwork_lev)
 
 
 ! Jump here if more mpi processors than files to process
