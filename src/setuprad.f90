@@ -354,7 +354,7 @@
 
 ! Parameters for the observation error model 
 ! cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
-! icrease in error take place
+! increase in error take place
   cclr(:)=zero
   ccld(:)=zero
   do i=1,nchanl
@@ -1755,22 +1755,13 @@
            endif
            if(lcw4crtm .and. sea) then  
            !  diagbuf(22) = tpwc_amsua   
-              diagbuf(22) = scat         
+              diagbuf(22) = scat                              ! scattering index from AMSU-A 
+              diagbuf(23) = clw_guess                         ! integrated CLWP (kg/m**2) from background                
            else
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
-           endif
-
-           if(lcw4crtm .and. sea) then  
-              diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half   
-           else
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
            endif
-
-           if(lcw4crtm .and. sea) then  
-              diagbuf(24) = clw_guess_retrieval
-           else
               diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
-           endif
  
 !          Note:  The following quantities are not computed for all sensors
            if (.not.microwave) then
@@ -1778,8 +1769,8 @@
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
            else
               if(lcw4crtm .and. sea) then
-                 diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
-                 diagbuf(26)  = clw_guess                     ! total column precip. water (km/m**2)
+                 diagbuf(25)  = clwp_amsua                    ! retrieved CLWP (kg/m**2) from observed BT
+                 diagbuf(26)  = clw_guess                     ! retrieved CLWP (kg/m**2) from simulated BT                               
               else
                  diagbuf(25)  = clw                           ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = tpwc                          ! total column precip. water (km/m**2)
