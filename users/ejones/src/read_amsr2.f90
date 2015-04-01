@@ -138,7 +138,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),parameter :: tbmax    = 340._r_kind         
 
   real(r_kind),dimension(N_AMSRCH) :: tbob_org
-  real(r_kind) :: clath, clonh, fovn, soel, solazi, saz !,iang, aang        
+  real(r_kind) :: clath, clonh, fovn, soel, solazi, saz         
 
 ! BUFR format for AMSRSPOT
   integer(i_kind),parameter :: N_AMSRSPOT_LIST = 12
@@ -157,7 +157,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   data  mlen/31,28,31,30,31,30, &
              31,31,30,31,30,31/ 
 
-  integer(i_kind) :: ireadsb, ireadmg !,orbit, old_orbit, iorbit
+  integer(i_kind) :: ireadsb, ireadmg 
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
 
@@ -180,9 +180,6 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   nreal = maxinfo+nstinfo
   ndata = 0
   nodata = 0
-!  orbit = -1
-!  old_orbit=-1
-!  iorbit = 0
   sstime = zero
   kchanl=14
   kchamsr2(1:14)=(/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
