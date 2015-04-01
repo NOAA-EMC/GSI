@@ -1353,8 +1353,8 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, iskip,iloc,n,ioffset
-    integer(i_kind) :: ii, iret, lonb, latb, levs
+    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
+    integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
     integer(i_kind),dimension(5):: mydate

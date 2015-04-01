@@ -969,7 +969,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
