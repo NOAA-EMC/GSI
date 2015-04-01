@@ -96,39 +96,38 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
                                                  ! distance from Earth's centre
 
 ! Declare local variables
-  logical outside,iuse,assim,valid
+  logical               :: outside,iuse,assim,valid
+  character(8)          :: subset
+  character(80)         :: hdr1b,hdr2b
 
-  character(8) subset
-  character(80) hdr1b,hdr2b
-
-  integer(i_kind) ireadsb,ireadmg,irec
-  integer(i_kind) i,j,k,ntest,iob
-  integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
-  integer(i_kind) kidsat
-  integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
-  integer(i_kind) iskip 
-  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich5,ich6
-  integer(i_kind) ilat,ilon, ifovmod, nadir
+  integer(i_kind)       :: ireadsb,ireadmg,irec
+  integer(i_kind)       :: i,j,k,ntest,iob
+  integer(i_kind)       :: iret,idate,nchanl,n,idomsfc(1)
+  integer(i_kind)       :: kidsat
+  integer(i_kind)       :: nmind,itx,nreal,nele,itt,num_obs
+  integer(i_kind)       :: iskip 
+  integer(i_kind)       :: lnbufr,ksatid,isflg  !,ichan3,ich3,ich4,ich5,ich6
+  integer(i_kind)       :: ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm,iql4crtm
-  integer(i_kind):: ier
-  integer(i_kind):: radedge_min, radedge_max
+  integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
+  integer(i_kind)       :: ier
+  integer(i_kind)       :: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
-  integer(i_kind), TARGET :: ifov_save(maxobs)
+  integer(i_kind), TARGET  :: ifov_save(maxobs)
 
-  real(r_kind) cosza,sfcr
-  real(r_kind) expansion
+  real(r_kind)          :: sfcr !cosza
+  real(r_kind)          :: expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
-  real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
-  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
+  real(r_kind)           :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind)           :: zob,tref,dtw,dtc,tz_tr
 
-  real(r_kind) pred
-  real(r_kind) dlat,dlon,tdiff,panglr
-  real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
-  real(r_kind) step,start,dist1
-  real(r_kind) tt    
-  real(r_kind),dimension(0:4):: rlndsea
+  real(r_kind)           :: pred
+  real(r_kind)           :: dlat,dlon,tdiff,panglr
+  real(r_kind)           :: dlon_earth_deg,dlat_earth_deg !,r01
+  real(r_kind)           :: step,start,dist1
+!  real(r_kind)           :: tt    
+  real(r_kind),dimension(0:4)            :: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
@@ -145,11 +144,11 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
 
   integer(i_kind),allocatable,dimension(:):: nrec
-  real(r_double),allocatable,dimension(:):: data1b8
+  real(r_double),allocatable,dimension(:) :: data1b8
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind)          :: disterr,disterrmax,dlon00,dlat00
 
 !**************************************************************************
 
@@ -165,6 +164,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   ilon=3
   ilat=4
 
+! get rid of this:
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
@@ -501,7 +501,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 ! Re-calculate look angle
      panglr=(start+float(ifov-1)*step)*deg2rad
-
 
 !     Load selected observation into data array
               
