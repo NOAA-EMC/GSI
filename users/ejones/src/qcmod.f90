@@ -1374,7 +1374,7 @@ subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
      end if
 
 !   Calculate emissivity and flag observations over thresholds
-
+!   Need to work on emissivity regression
 
 
 !    Use data not over over sea
