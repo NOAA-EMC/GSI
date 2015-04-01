@@ -106,7 +106,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: kidsat
   integer(i_kind)       :: nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind)       :: iskip 
-  integer(i_kind)       :: lnbufr,ksatid,isflg  !,ichan3,ich3,ich4,ich5,ich6
+  integer(i_kind)       :: lnbufr,ksatid,isflg  
   integer(i_kind)       :: ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
@@ -115,7 +115,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET  :: ifov_save(maxobs)
 
-  real(r_kind)          :: sfcr !cosza
+  real(r_kind)          :: sfcr 
   real(r_kind)          :: expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -124,9 +124,8 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind)           :: pred
   real(r_kind)           :: dlat,dlon,tdiff,panglr
-  real(r_kind)           :: dlon_earth_deg,dlat_earth_deg !,r01
+  real(r_kind)           :: dlon_earth_deg,dlat_earth_deg 
   real(r_kind)           :: step,start,dist1
-!  real(r_kind)           :: tt    
   real(r_kind),dimension(0:4)            :: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
@@ -164,7 +163,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   ilon=3
   ilat=4
 
-! get rid of this:
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
@@ -564,7 +562,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solzen_save) 
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
-!  DEALLOCATE(iscan)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit,nrec)
