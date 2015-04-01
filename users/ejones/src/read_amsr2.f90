@@ -101,7 +101,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 ! Other work variables
   logical           :: outside,iuse,assim
   integer(i_kind)   :: nreal, kidsat
-  integer(i_kind)   :: itx, k, nele, itt
+  integer(i_kind)   :: itx, nele, itt, k
   integer(i_kind)   :: ifov, ilat, ilon
   integer(i_kind)   :: i, l, n
   integer(i_kind),dimension(n_amsrch) :: kchamsr2
@@ -116,8 +116,6 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
-
-! needed? (nst_gsi: zob, tz_tr, etc)
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   character(len=7),parameter:: fov_flag="conical"
@@ -126,9 +124,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind) :: ichan, instr, idum
 
   logical :: valid
-
-! - needed? (sun glint)
-  real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc   !do we need this sun glint calc stuff?
+  real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc 
   real(r_kind) :: date5_4_sun_glint_calc
 
   real(r_kind) :: expansion, dlat_earth_deg, dlon_earth_deg
@@ -141,14 +137,8 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   real(r_kind),parameter :: tbmin    = 3._r_kind           
   real(r_kind),parameter :: tbmax    = 340._r_kind         
 
-! - needed? disterrmax
-!  real(r_kind) disterrmax
-
   real(r_kind),dimension(N_AMSRCH) :: tbob_org
-  real(r_kind) :: clath, clonh, fovn, iang, aang, soel, solazi         
-
-!  real(r_kind) :: flgch  !used for thinning priority  range:1-36
-
+  real(r_kind) :: clath, clonh, fovn, soel, solazi, saz !,iang, aang        
 
 ! BUFR format for AMSRSPOT
   integer(i_kind),parameter :: N_AMSRSPOT_LIST = 12
@@ -167,49 +157,16 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   data  mlen/31,28,31,30,31,30, &
              31,31,30,31,30,31/ 
 
-! Orbit
-  integer(i_kind) :: orbit, old_orbit, iorbit, ireadsb, ireadmg
-  real(r_kind) :: saz
-
-
+  integer(i_kind) :: ireadsb, ireadmg !,orbit, old_orbit, iorbit
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
 
-
-! ---- erin's debug shtuff ----
-integer(i_kind) :: land_ob, sea_ob, seaice_ob, snow_ob, mixed_ob
-integer(i_kind) :: iuse1_yes, iuse1_no, iuse2_yes, iuse2_no, iuse3_yes, iuse3_no
-integer(i_kind) :: weird_soel, weird_time, weird_tdiff, weird_latlon,kskipped, kskipped2
-
-
-! data selection
+! ----------------------------------------------------------------------
 ! Initialize variables
-! ---------- erin debug stuff -------
-sea_ob=0
-land_ob=0
-seaice_ob=0
-snow_ob=0
-mixed_ob=0
-
-iuse1_yes=0
-iuse1_no=0
-iuse2_yes=0
-iuse2_no=0
-iuse3_yes=0
-iuse3_no=0
-
-weird_soel=0
-weird_time=0
-weird_tdiff=0
-weird_latlon=0
-kskipped=0
-kskipped2=0
-!----------- / erin debug stuff ---------
 
   ilon = 3
   ilat = 4
 
-! - nst_gsi needed?
   if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
@@ -219,14 +176,13 @@ kskipped2=0
      mday(mon) = m 
      m = m + mlen(mon) 
   end do 
-!  disterrmax=zero
   ntest = 0
   nreal = maxinfo+nstinfo
   ndata = 0
   nodata = 0
-  orbit = -1
-  old_orbit=-1
-  iorbit = 0
+!  orbit = -1
+!  old_orbit=-1
+!  iorbit = 0
   sstime = zero
   kchanl=14
   kchamsr2(1:14)=(/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
@@ -255,10 +211,9 @@ kskipped2=0
   end do search
   if (.not.assim) val_amsr2=zero
 
-! note, fov-based surface code does not have equations for amsr-e/amsr2, but
-! the fov size/shape is similar to ssmi/s.  so call
-! fov code using f16 specs.
-
+! note, fov-based surface code does not have equations for amsr2. In the event
+! that isfcalc != 0 (it should be 0), then use ssmi/s for fov code until
+! something else can be devised.
   if(isfcalc==1)then
      instr=26
      fov_satid='f16'
@@ -279,7 +234,6 @@ kskipped2=0
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
-
 
 ! Open BUFR file
   open(lnbufr,file=infile,form='unformatted')
@@ -327,12 +281,8 @@ kskipped2=0
             idate5(5) < 0    .or. idate5(5) >   60 )then
             write(6,*)'READ_AMSR2:  ### ERROR IN READING BUFR DATA:', &
               ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
-! ---- erin debug stuff ----
-! weird_time = weird_time+1
-! ---- /erin debug stuff ----
-            cycle read_loop     ! remove filter for debugging
+            cycle read_loop   
         endif
-
 
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + amsrspot_d(7)*r60inv)*r60inv ! add in seconds
@@ -342,18 +292,12 @@ kskipped2=0
         else
            sstime = real(nmind,r_kind) + amsrspot_d(7)*r60inv ! add in seconds
            tdiff  = (sstime - gstime)*r60inv
-           if (abs(tdiff)>twind) then !cycle read_loop !then 
-! ---- erin debug stuff ----
-! weird_tdiff = weird_tdiff+1
-! ---- /erin debug stuff ----       
- cycle read_loop              ! remove filter for debugging
-endif
-         endif
+           if (abs(tdiff)>twind) cycle read_loop  
+        endif
         if (l4dvar) then
            timedif = zero
         else
-           timedif = two*abs(tdiff)        ! range:  0 to 6     - used in atms          
-                                           !6.0_r_kind*abs(tdiff) ! range:  0 to 18     -original
+           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18 
         endif
 
 
@@ -367,12 +311,6 @@ endif
               ' STRANGE OBS POINT (LAT,LON):', clath, clonh
               cycle read_loop
         endif
-
-! ---- erin debug stuff ----
-! weird_latlon = weird_latlon+1
-! ---- /erin debug stuff ----
-!              cycle read_loop        ! remove filter for debugging
-!            endif 
 
         fovn = amsrspot_d(12)
      
@@ -412,21 +350,8 @@ endif
     
         crit1 = 0.01_r_kind+timedif
 
-!----erin debug stuff----
-!write(6,*)'AMSR2_CRIT1 #1-',crit1
-!-----/erin debug stuff----
-
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-! ---- erin debug stuff ----
-!if(iuse)then
-!  iuse1_yes = iuse1_yes+1
-!else if (.not. iuse) then
-!  iuse1_no = iuse1_no+1
-!  cycle read_loop                   ! remove filtering for debugging
-!endif
-! ---- /erin debug stuff ----
         if (.not.iuse) cycle read_loop
-
 
 !    QC:  "Score" observation.  We use this information to identify "best" obs
 
@@ -451,44 +376,13 @@ endif
            call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
               ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
-! ---- erin debug stuff ----
-!if(isflg==0)then
-!  sea_ob = sea_ob+1
-!else if (isflg==1)then
-!  land_ob = land_ob+1
-!else if (isflg==2)then
-!  seaice_ob = seaice_ob+1
-!else if (isflg==3)then
-!  snow_ob = snow_ob+1
-!else if (isflg==4)then
-!  mixed_ob = mixed_ob+1
-!endif
-! ---- /erin debug stuff ----
-
            if(isflg/=0) cycle read_loop                            ! use data over water only
         endif
 
-
-!---- erin debug stuff ----
-!write(6,*)'AMSR2_CRIT1 #2-',crit1
-!-----/erin debug stuff----
         crit1 = crit1 +rlndsea(isflg)
-!----erin debub stuff----
-!write(6,*)'AMSR2_CRIT1 #3-',crit1
-!----/erin debug stuff----
-!write(6,*)'AMSR2_DIST1',dist1
 
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
-
-! ---- erin debug stuff ----
-!if(iuse)then
-!  iuse2_yes = iuse2_yes+1
-!else if (.not. iuse) then
-!  iuse2_no = iuse2_no+1
-!  cycle read_loop          ! remove filtering for debugging
-!endif
-! ---- /erin debug stuff ----
 
 !       Retrieve bufr 3/4 : get amsrchan (chnm,tbb)
         call ufbrep(lnbufr,amsrchan_d,3,14,iret,'SCCF ACQF TMBR')   
@@ -508,7 +402,6 @@ endif
         tbob_org(13)=amsrchan_d(3,13)
         tbob_org(14)=amsrchan_d(3,14)
 
-
 !       Set obs information
         iskip = 0
         do l=1,nchanl
@@ -521,28 +414,12 @@ endif
            kch=kchamsr2(l)
            if(tbob_org(kch)<tbmin .or. tbob_org(kch)>tbmax)then
               kskip = kskip + 1
-! ---- erin debug stuff ----
-! kskipped = kskipped +1
-! ----/erin debug stuff ----
            endif
         end do
-        if(kskip == kchanl .or. iskip == nchanl) then
-!---- erin debug stuff-----
-!kskipped2 = kskipped2+1
-!-----/erin debug stuff---- 
-           cycle read_loop                ! remove filtering for debugging
-endif
+        if(kskip == kchanl .or. iskip == nchanl) cycle read_loop
 
-! ** INVESIGATE THIS flgch=iskip*three
-!!!!!!!!!!!!! do we want this flgch=iskip*three stuff in here???
-!        flgch=iskip*three  !used for thin, range 0 to 36
-!        crit1 = crit1 + flgch
-
-
-! - needed?? (pred)
 !    Set data quality predictor 
         pred = zero
-
 
 !    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
@@ -551,17 +428,6 @@ endif
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-! ---- erin debug stuff ----
-!if(iuse)then
-!  iuse3_yes = iuse3_yes+1
-!else if (.not. iuse) then
-!  iuse3_no = iuse3_no+1
-!  cycle read_loop          ! remove filtering for debugging
-!endif
-! ---- /erin debug stuff ----
-
-
-     
         solazi = gcomspot_d(3)     !solar azimuth angle
         soel = gcomspot_d(4)       !solar elevation angle
 
@@ -570,14 +436,14 @@ endif
         if( soel < -180._r_kind .or. soel > 180._r_kind )then
            write(6,*)'READ_AMSR2:  ### ERROR IN READING BUFR DATA:', &
               ' STRANGE OBS INFO(FOV,SOLAZI,SOEL):', fovn, solazi, soel
-! ---- erin debug stuff ----
-!            weird_soel=weird_soel+1
-! ---- /erin debug stuff ----
-           cycle read_loop                  ! remove filtering for debugging
+           cycle read_loop       
         endif
 
+
+! Work on this:
+! Sun glint and solar zenith code from AMSR-E, use this while no sun glint angle
+! is present in the AMSR2 data stream.
 !  -------- Retreive Sun glint angle -----------
-!----- erin stuff - modify/get rid of this for QC?
         doy = mday( int(idate5(2)) ) + int(idate5(3))
         if ((mod( int(idate5(1)),4)==0).and.( int(idate5(2)) > 2))  then 
            doy = doy + 1
@@ -585,24 +451,17 @@ endif
 
         ifov = nint(fovn)
 
-
         clath_sun_glint_calc = clath
         clonh_sun_glint_calc = clonh
         if(clonh>180_r_kind) clonh_sun_glint_calc = clonh -360.0_r_kind
-!       date5_4_sun_glint_calc = idate5(4)  
         date5_4_sun_glint_calc =  &                                                                                                
         real(idate5(4),r_kind)+real(idate5(5),r_kind)*r60inv+real(amsrspot_d(7),r_kind)*r60inv*r60inv   
 
-
-!write(6,*)'amsr2 check6'
-!----- erin stuff - is call zensun needed??      
         call zensun(doy,date5_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth)
 
         saz = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
 
-! - needed? - nst_gsi
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-!
         if ( nst_gsi > 0 ) then
            tref  = ts(0)
            dtw   = zero
@@ -667,19 +526,6 @@ endif
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
-
-! ------------------- erin debug stuff ------------
-!write(6,*)'**SFC TYPE STUFF** land_ob, sea_ob, seaice_ob, snow_ob, mixed_ob='&
-!          ,land_ob, sea_ob, seaice_ob, snow_ob, mixed_ob
-! write(6,*)'**WEIRD STUFF** weird_tdiff', weird_tdiff
-!write(6,*)'**WEIRD STUFF** weird_latlon', weird_latlon
-!write(6,*)'**IUSE STUFF** iuse1_yes, iuse1_no, iuse2_yes, iuse2_no, iuse3_yes, iuse3_no=',iuse1_yes, iuse1_no, iuse2_yes, iuse2_no, iuse3_yes, iuse3_no
-
-!write(6,*)'**WEIRD STUFF** weird_soel, weird_time, weird_tdiff, weird_latlon, kskipped=',weird_soel,weird_time, weird_tdiff, weird_latlon, kskipped
-
-!write(6,*)'**PRE COMBINERADOBS** mype, nread, ndata=', mype, nread, ndata
-!----------------- /erin debug stuff -------------
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
@@ -691,9 +537,8 @@ endif
 !    Update superobs sum according to observation location
      do n=1,ndata
         do i=1,nchanl
-!           if(data_all(i+nreal,n) > tbmin .and. &         !remove gross check for debugging
-!              data_all(i+nreal,n) < tbmax)nodata=nodata+1
-            nodata=nodata+1                                ! each ob goes through     
+           if(data_all(i+nreal,n) > tbmin .and. &         
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_amsr2
@@ -709,7 +554,7 @@ endif
   call destroygrids    ! Deallocate satthin arrays
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
      write(6,*)'READ_AMSR2:  ',&
-        'mype,ntest,disterrmax=',mype,ntest !,disterrmax
+        'mype,ntest=',mype,ntest
 
   return
 
