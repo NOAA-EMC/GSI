@@ -969,6 +969,9 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   ! set maximum for clw at 6.0 kg/m2
   clw = min(clw,6.0_r_kind)
 
+! ---------- Apply regression to calculate gwp ------------
+! Still need to work on this
+
   return
 end subroutine retrieval_amsr2
 
