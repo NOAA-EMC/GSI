@@ -758,7 +758,7 @@ subroutine prnt_j(pj,ipen,kprt)
   end do
 
   zjt=zero_quad
-  do ii=1,nobs_bins
+  do ii=1,nobs_type
      zjt(:)=zjt(:)+pj(:,ii)
   end do
 
