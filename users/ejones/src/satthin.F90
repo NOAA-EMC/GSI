@@ -278,6 +278,7 @@ contains
 !   2004-12-09  treadon - allocate thinning grids consistent with analysis domain
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2015-03-23  zaizhong ma - changed itxmax=1e9 for Himawari-8 ahi read in
 !
 !   input argument list:
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
@@ -312,7 +313,7 @@ contains
     itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
-      itxmax=1e7
+      itxmax=1e9
       allocate(icount(itxmax))
       allocate(score_crit(itxmax))
       do j=1,itxmax

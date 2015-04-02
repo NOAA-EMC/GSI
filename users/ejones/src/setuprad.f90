@@ -148,6 +148,7 @@
 !   2015-02-12  ejones  - Write gwp to diag file for GMI
 !   2015-03-11  ejones  - Added call to qc_amsr2 for amsr2 observations
 !   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -257,7 +258,7 @@
   real(r_kind) dtsavg,r90,coscon,sincon
 ! real(r_kind) dlat,wlat 
 
-  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
+  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
@@ -349,6 +350,7 @@
   airs       = obstype == 'airs'
   hsb        = obstype == 'hsb'
   goes_img   = obstype == 'goes_img'
+  ahi        = obstype == 'ahi'
   avhrr      = obstype == 'avhrr'
   avhrr_navy = obstype == 'avhrr_navy'
   ssmi       = obstype == 'ssmi'
@@ -761,7 +763,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. seviri .or. ssmis) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)

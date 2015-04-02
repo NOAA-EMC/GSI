@@ -452,7 +452,7 @@ contains
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
               obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
-              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
+              obstype == 'goes_img' .or. obstype == 'ahi' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
               obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
