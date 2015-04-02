@@ -269,6 +269,7 @@ read_fl_hdob.o : read_fl_hdob.f90 deter_sfc_mod.o jfunc.o support_2dvar.o convth
 read_gfs_ozone_for_regional.o : read_gfs_ozone_for_regional.f90 gsi_metguess_mod.o gsi_bundlemod.o obsmod.o aniso_ens_util.o guess_grids.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o mpimod.o constants.o gridmod.o 
 read_gmi.o : read_gmi.f90 clw_mod.o gsi_nstcouplermod.o deter_sfc_mod.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_goesimg.o : read_goesimg.f90 gsi_nstcouplermod.o deter_sfc_mod.o gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
+read_ahi.o : read_ahi.f90 gsi_nstcouplermod.o deter_sfc_mod.o gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o
 read_goesimgr_skycover.o : read_goesimgr_skycover.f90 adjust_cloudobs_mod.o gsi_4dvar.o obsmod.o deter_sfc_mod.o gridmod.o convthin.o convinfo.o constants.o kinds.o 
 read_goesndr.o : read_goesndr.f90 gsi_nstcouplermod.o deter_sfc_mod.o gsi_4dvar.o constants.o gridmod.o radinfo.o obsmod.o satthin.o kinds.o 
 read_gps.o : read_gps.f90 gridmod.o convinfo.o gsi_4dvar.o obsmod.o constants.o kinds.o 

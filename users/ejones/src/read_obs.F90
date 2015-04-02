@@ -514,6 +514,7 @@ subroutine read_obs(ndata,mype)
 !   2014-12-03  derber - modify for no radiance cases and read processor for
 !                        surface fields
 !   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   
 !
 !   input argument list:
@@ -679,7 +680,7 @@ subroutine read_obs(ndata,mype)
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
                obstype == 'hsb'       .or. obstype == 'goes_img'  .or.  &
-               avhrr .or.                                               &
+               obstype == 'ahi'       .or. avhrr                  .or.  &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'amsr2'     .or.  &
@@ -777,6 +778,8 @@ subroutine read_obs(ndata,mype)
              else if(amsre)then
                 parallel_read(i)= .true.
              else if(obstype == 'goes_img' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'ahi' )then
                 parallel_read(i)= .true.
              else if(obstype == 'hsb' )then
                 parallel_read(i)= .true.
@@ -1335,6 +1338,13 @@ subroutine read_obs(ndata,mype)
                              infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                              mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                         string='READ_GOESMIMG'
+
+        !    Process Himawari-8 AHI RADIANCE  data
+             else if(obstype == 'ahi') then
+                call read_ahi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_AHI'
 
         !            Process Meteosat SEVIRI RADIANCE  data
                      else if(obstype == 'seviri') then
