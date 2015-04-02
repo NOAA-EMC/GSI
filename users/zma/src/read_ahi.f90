@@ -76,7 +76,6 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: r180=180.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: rmesh_ahi=20.0_r_kind
   character(80),parameter:: hdrh8  = &            ! Himawari-8 AHI header
               'SAID YEAR MNTH DAYS HOUR MINU SECW CLATH CLONH SAZA SOZA BEARAZ SOLAZI'
 
@@ -160,9 +159,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 
 ! Make thinning grids
-!  rmesh=20.0_r_kind
-!  call makegrids(rmesh,ithin)
-  call makegrids(rmesh_ahi,ithin)
+  call makegrids(rmesh,ithin)
 
 
 ! Open bufr file.
