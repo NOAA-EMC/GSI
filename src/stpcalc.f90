@@ -758,12 +758,12 @@ subroutine prnt_j(pj,ipen,kprt)
   end do
 
   zjt=zero_quad
-  do ii=1,nobs_type
+  do ii=1,nobs_bins
      zjt(:)=zjt(:)+pj(:,ii)
   end do
 
   zj=zero_quad
-  do ii=1,nobs_type
+  do ii=1,ipen
      zj=zj+zjt(ii)
   end do
 
@@ -780,7 +780,7 @@ subroutine prnt_j(pj,ipen,kprt)
    endif
    write(6,400)' J term         ',' ',' J  '
    do ii=1,ipen
-      if (zjt(ii)>0) then
+      if (zjt(ii)>zero_quad) then
          write(6,200)ctype(ii),real(zjt(ii),r_kind)
       endif
    enddo
