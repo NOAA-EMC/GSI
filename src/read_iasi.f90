@@ -62,6 +62,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-26  collard - fix satid issues for MetOp-B and MetOp-C
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -98,7 +99,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo, &
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nsta_name, &
       radedge1,radedge2,radstart,radstep
   use crtm_module, only: success, &
       crtm_kind => fp
@@ -219,7 +220,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   disterrmax=zero
   ntest=0
-  nreal  = maxinfo + nstinfo
+  nreal  = maxinfo + nsta_name(2)
   nele   = nreal   + nchanl
 
   ndata = 0
@@ -231,7 +232,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat=4
   bad_line=-1
 
-  if (nst_gsi > 0 ) then
+  if (nsta_name(1) > 0 ) then
     call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -629,7 +630,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -674,7 +675,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(32,itx)= val_iasi
         data_all(33,itx)= itt
 
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
            data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob

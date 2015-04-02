@@ -25,6 +25,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -62,7 +64,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
-               radedge1,radedge2,radstart,radstep,nstinfo, nst_gsi
+               radedge1,radedge2,radstart,radstep,nsta_name
   use crtm_module, only: success, &
       crtm_kind => fp,  max_sensor_zenith_angle
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
@@ -177,7 +179,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   disterrmax=zero
   ntest=0
-  nreal  = maxinfo + nstinfo
+  nreal  = maxinfo + nsta_name(2)
   ndata = 0
   nodata = 0
   cris= obstype == 'cris'
@@ -194,7 +196,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      return
   end if
 
-  if (nst_gsi > 0 ) then
+  if (nsta_name(1) > 0 ) then
     call gsi_nstcoupler_skindepth(trim(obstype),zob)
   endif
 
@@ -605,7 +607,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -650,7 +652,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(32,itx)= val_cris
         data_all(33,itx)= itt
 
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
            data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob

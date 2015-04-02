@@ -186,9 +186,7 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = \
-	getsfcnstensupdp.f90 \
-	nstio_module.f90
+  SRCSF90C = nstio_module.f90 getsfcnstensupdp.f90
 
   SRCSF77 =
 
@@ -205,7 +203,6 @@ clean:
   SRCSF90	= ${SRCSF90C:.F90=.f90}
 
   OBJS 		= ${SRCSF90:.f90=.o} ${SRCSF77:.f=.o} ${SRCSC:.c=.o}
-
 
 # -----------------------
 # Default compiling rules
@@ -237,12 +234,12 @@ clean:
 # ------------
 # Dependencies
 # ------------
-  MAKE_DEPEND = Makefile.dependency
+  MAKE_DEPEND = #Makefile.dependency
 include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) 
+$(EXE_FILE) :  $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 

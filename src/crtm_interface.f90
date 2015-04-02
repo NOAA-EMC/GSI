@@ -26,6 +26,7 @@ module crtm_interface
 !   2013-11-16  todling - merge in latest DTC AOD development;
 !                         revisit handling of green-house-gases
 !   2014-01-01  li     - change the protection of data_s(itz_tr)
+!   2015-03-13  li     - introduce nsta_name (array) to hold nsst related control parameters
 !
 ! subroutines included:
 !   sub init_crtm
@@ -853,7 +854,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use mpimod, only: mype
   use radinfo, only: ifactq
   use radinfo, only: radjacindxs,nsigradjac
-  use radinfo, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nsta_name
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
@@ -1550,7 +1551,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
 
      surface(1)%water_temperature     = max(data_s(its_sea)+dtskin(0),270._r_kind)
-     if(nst_gsi>1 .and. surface(1)%water_coverage>zero) then
+     if(nsta_name(1)>1 .and. surface(1)%water_coverage>zero) then
         surface(1)%water_temperature  = max(data_s(itref)+data_s(idtw)-data_s(idtc)+dtskin(0),271._r_kind)
      endif
      surface(1)%land_temperature      = data_s(its_lnd)+dtskin(1)
@@ -1805,7 +1806,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        emissivity_k(i) = rtsolution_k(i,1)%surface_emissivity
 
 !  Surface temperature sensitivity
-       if(nst_gsi>1 .and. (data_s(itz_tr) > zero .and. data_s(itz_tr) <= one) ) then
+       if(nsta_name(1)>1 .and. (data_s(itz_tr) > zero .and. data_s(itz_tr) <= one) ) then
           ts(i)   = surface_k(i,1)%water_temperature*data_s(itz_tr) + &
                     surface_k(i,1)%land_temperature + &
                     surface_k(i,1)%ice_temperature + &

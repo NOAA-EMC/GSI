@@ -29,6 +29,8 @@ module ncepnems_io
 !   2011-11-01 Huang    (1) add integer nst_gsi to control the mode of NSST
 !                       (2) add read_nemsnst to read ncep nst file
 !                       (3) add subroutine write_nemssfc_nst to save sfc and nst files
+!  03-13-2015 Li        introduce nsta_name (array) to hold nsst related control parameters
+! 
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -1089,7 +1091,7 @@ contains
     use guess_grids, only: ntguessig,ntguessfc
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use radinfo, only: nst_gsi
+    use radinfo, only: nsta_name
 
     implicit none
 
@@ -1156,7 +1158,7 @@ contains
     if (increment>0) then
        filename='sfcinc.gsi'
     else
-       if ( nst_gsi > 0 ) then
+       if ( nsta_name(1) > 0 ) then
           filename = 'sfcanl'
           file_nst = 'nstanl'
           call write_sfc_nst_(filename,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
@@ -1768,10 +1770,10 @@ contains
 !
 !   prgmmr: Huang            org: np23                date: 2011-11-01
 !
-! abstract:     This routine writes the sfc & nst analysis files and is nst_gsi dependent.
+! abstract:     This routine writes the sfc & nst analysis files and is nsta_name(1) dependent.
 !               Tr (foundation temperature), instead of skin temperature, is the analysis variable.
-!               nst_gsi >  2: Tr analysis is on
-!               nst_gsi <= 2: Tr analysis is off
+!               nsta_name(1) >  2: Tr analysis is on
+!               nsta_name(1) <= 2: Tr analysis is off
 !
 !               The routine gathers Tr field from subdomains,
 !               reformats the data records, and then writes each record
@@ -1822,7 +1824,7 @@ contains
     use constants, only: zero,two
     
     use guess_grids, only: isli2
-    use radinfo, only: nst_gsi
+    use radinfo, only: nsta_name
 
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close,nemsio_readrecv
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
@@ -2076,7 +2078,7 @@ contains
 !
        grid2     = zero
        grid2_nst = zero
-       if ( nst_gsi > 2 ) then
+       if ( nsta_name(1) > 2 ) then
           where ( nint(slmsk) == 0 )
              grid2     = max(tref+buffer2+two*xt/xz-dt_cool,271.0_r_kind)
              grid2_nst = max(tref+buffer2,271.0_r_kind)

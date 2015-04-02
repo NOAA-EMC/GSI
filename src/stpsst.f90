@@ -14,6 +14,8 @@ module stpsstmod
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
 !   2011-04-03  li      - modify for Tr analysis
+!   2015-03-13  Li      - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 ! subroutines included:
 !   sub stpsst
@@ -77,7 +79,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
-  use radinfo, only: nst_gsi
+  use radinfo, only: nsta_name
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -126,7 +128,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
            w3=sstptr%wij(3)
            w4=sstptr%wij(4)
 
-           if ( nst_gsi > 2 .and. (sstptr%tz_tr > zero .and. sstptr%tz_tr <= one) ) then
+           if ( nsta_name(1) > 2 .and. (sstptr%tz_tr > zero .and. sstptr%tz_tr <= one) ) then
              tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
              rdir = w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
              val  = sstptr%tz_tr*rdir

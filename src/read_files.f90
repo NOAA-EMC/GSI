@@ -34,6 +34,8 @@ subroutine read_files(mype)
 !                         twice. Use fcst_hr_sig and fcst_hr_sfc to store info of
 !                         files found in first loop of 0,99. Use nfldsig and nfldsfc
 !                         to access needed sigf and sfcf w/ fcst_hr_sig and *_sfc.
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -80,7 +82,7 @@ subroutine read_files(mype)
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
-  use radinfo, only: nst_gsi
+  use radinfo, only: nsta_name
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
   use nstio_module, only: nstio_head,nstio_sropen,&
@@ -180,7 +182,7 @@ subroutine read_files(mype)
 
      allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
-     if(nst_gsi > 0) then  ! nst application is an option
+     if(nsta_name(1) > 0) then  ! nst application is an option
 !    Check for nsf files with non-zero length
         irec=i_missing
         do i=0,max_file-1
@@ -346,7 +348,7 @@ subroutine read_files(mype)
      end do
 
 !    Check for consistency of times from nst guess files.
-     if ( nst_gsi > 0 ) then
+     if ( nsta_name(1) > 0 ) then
         allocate(nst_ges(2))
         iwan=0
         do i=1,nfldnst
@@ -397,20 +399,20 @@ subroutine read_files(mype)
            time_nst(iwan,2) = irec(i)+r0_001
         end do
         deallocate(nst_ges)
-     endif                          ! if ( nst_gsi > 0 ) then
+     endif                          ! if ( nsta_name(1) > 0 ) then
      deallocate( irec )
   end if
 
 ! Broadcast guess file information to all tasks
   call mpi_bcast(nfldsig,1,mpi_itype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(nfldsfc,1,mpi_itype,npem1,mpi_comm_world,ierror)
-  if (nst_gsi > 0) call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
+  if (nsta_name(1) > 0) call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
   if(.not.allocated(time_atm)) allocate(time_atm(nfldsig,2))
   if(.not.allocated(time_sfc)) allocate(time_sfc(nfldsfc,2))
   if(.not.allocated(time_nst)) allocate(time_nst(nfldnst,2))
   call mpi_bcast(time_atm,2*nfldsig,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(time_sfc,2*nfldsfc,mpi_rtype,npem1,mpi_comm_world,ierror)
-  if (nst_gsi > 0) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
+  if (nsta_name(1) > 0) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(i_ges,2,mpi_itype,npem1,mpi_comm_world,ierror)
   nlon_sfc=i_ges(1)
@@ -452,7 +454,7 @@ subroutine read_files(mype)
   
 ! Load time information for nst guess field info into output arrays
   ntguesnst = iamana(3)
-  if ( nst_gsi > 0 ) then
+  if ( nsta_name(1) > 0 ) then
     do i=1,nfldnst
        hrdifnst(i) = time_nst(i,1)
        ifilenst(i) = nint(time_nst(i,2))

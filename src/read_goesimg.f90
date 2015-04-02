@@ -42,6 +42,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2011-08-01  lueken  - added module use deter_sfc_mod, fix indentation
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -71,7 +72,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv,r60
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nsta_name
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -139,7 +140,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   ilon=3
   ilat=4
 
-  if (nst_gsi > 0 ) then
+  if (nsta_name(1) > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -191,7 +192,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   if(jsatid == 'g15') kidsat = 259
 
 ! Allocate arrays to hold all data for given satellite
-  nreal = maxinfo + nstinfo
+  nreal = maxinfo + nsta_name(2)
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
@@ -321,7 +322,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -367,7 +368,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(36,itx) = val_img
         data_all(37,itx) = itt
 
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
            data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob

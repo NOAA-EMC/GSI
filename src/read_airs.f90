@@ -69,6 +69,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2012-03-05  akella  nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -104,7 +105,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
-  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
+  use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad,nsta_name, &
       air_rad,predx,adp_anglebc,use_edges,radedge1,radedge2, &
       radstep,radstart,newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
@@ -224,7 +225,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   disterrmax=zero
   ntest=0
-  nreal  = maxinfo+nstinfo
+  nreal  = maxinfo+nsta_name(2)
   ndata = 0
   nodata = 0
   airs=      obstype == 'airs'
@@ -235,7 +236,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilon=3
   ilat=4
 
-  if (nst_gsi > 0 ) then
+  if (nsta_name(1) > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -724,7 +725,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -769,7 +770,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(32,itx)= val_airs
         data_all(33,itx)= itt
 
-        if ( nst_gsi > 0 ) then
+        if ( nsta_name(1) > 0 ) then
            data_all(maxinfo+1,itx) = tref            ! foundation temperature
            data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob

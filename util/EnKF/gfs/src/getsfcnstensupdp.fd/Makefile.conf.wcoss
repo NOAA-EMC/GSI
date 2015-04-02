@@ -2,15 +2,35 @@
 # of the GSI code on the NOAA HPCS.
 
 # ----------------------------------
-# Set library versions
+# Redefine variables for WCOSS
 # ----------------------------------
 
+# Set library versions
+BACIO_VERSION = 2.0.1
+BUFR_VERSION = 10.2.5
+CRTM_VERSION = 2.1.3
+NEMSIO_VERSION = 2.2.1
+NETCDF_VERSION = 3.6.3
 SFCIO_VERSION = 1.0.0
+SIGIO_VERSION = 1.0.1
+SP_VERSION = 2.0.1
+W3EMC_VERSION = 2.0.5
 W3NCO_VERSION = 2.0.6
 
 COREINC  = /nwprod/lib/incmod
 CORELIB  = /nwprod/lib
 INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
+INCsigio = $(COREINC)/sigio_v$(SIGIO_VERSION)_4
+INCnemsio= $(COREINC)/nemsio_v$(NEMSIO_VERSION)
+INCw3    = $(COREINC)/w3emc_v$(W3EMC_VERSION)_d
+
+CRTM_PATH    = /usrx/local/nceplibs
+INCcrtm      = $(CRTM_PATH)/incmod/crtm_v$(CRTM_VERSION)
+
+GSIDIR = ../../../../../src
+
+NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
+INCnetcdf  = $(NETCDFPATH)/include
 
 # ---------------------------
 # General targets/definitions
@@ -26,18 +46,39 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
   FC            = $(CF)
 
 #--- Normal mode options
-  PROF= 
-  OMP = 
+  PROF= #-pg
+  OMP = -openmp
 
-  FFLAGS_F90    = 
-  FFLAGS_COM_N  = -I ./ -I $(INCsfcio) -O3 -fp-model strict -convert big_endian -assume byterecl \
-  		-implicitnone
-  FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_F90    = -D_REAL8_
+
+  FFLAGS_INC = -I ./ -I $(GSIDIR) -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) -I $(INCw3) \
+  		       -I $(INCnetcdf)
+  FFLAGS_COM_N  =  $(FFLAGS_INC) \
+                -O3 -fp-model source -convert big_endian -assume byterecl \
+                -implicitnone $(OMP)
+
+  FFLAGS_COM_N_NOSWAP  =  $(FFLAGS_INC) \
+                       -O3 -fp-model source -convert big_endian -assume byterecl \
+                       -implicitnone $(OMP)
+
+  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF) 
+  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF) 
+  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF) 
+  FFLAGS    = $(FFLAGS_N) $(PROF) 
+
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I $(INCsfcio) -O0 -fp-model strict -convert big_endian -assume byterecl \
-  		-implicitnone -traceback -g -warn all -debug all -check all
+  FFLAGS_COM_D  =  $(FFLAGS_INC) \
+  		-O0 -fp-model strict -convert big_endian -assume byterecl \
+		-implicitnone -g -traceback -debug \
+                -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
+  FFLAGS_COM_NOSWAP_D  =  $(FFLAGS_INC) \
+  		       -O0 -fp-model strict -convert big_endian -assume byterecl \
+		       -implicitnone -g -traceback -debug \
+                       -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+  FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
+
 
 
 # ----------------------
@@ -48,7 +89,7 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
 
 #--- Debug mode options
 
@@ -59,12 +100,18 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3nco_v$(W3NCO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4
 
-  LDFLAGS_N     = -Wl,-Map,loadmap.txt
+  LIBS_N        = -L$(GSIDIR) -lgsi -L$(CORELIB) -lsp_v$(SP_VERSION)_d -lnemsio_v$(NEMSIO_VERSION) \
+  		-lbacio_v$(BACIO_VERSION)_4 -lsigio_v$(SIGIO_VERSION)_4 \
+		-lsfcio_v$(SFCIO_VERSION)_4 -lbufr_v$(BUFR_VERSION)_d_64 \
+		-lw3nco_v$(W3NCO_VERSION)_d -lw3emc_v$(W3EMC_VERSION)_d \
+		-L$(CRTM_PATH) -lcrtm_v$(CRTM_VERSION) \
+		-L$(NETCDFPATH)/lib -lnetcdf
+
+  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -72,7 +119,7 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = $(LDFLAGS_N)
+  LDFLAGS_D     = -mkl -Wl,-Map,loadmap.txt
 
 #--- Empty out mpi library definition: embedded in compiler
 

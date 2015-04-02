@@ -284,7 +284,7 @@ contains
    use constants, only: zero
 
 
-   use radinfo, only: nst_gsi
+   use radinfo, only: nsta_name
    use gsi_nstcouplermod, only: gsi_nstcoupler_init
    implicit none
 
@@ -376,7 +376,7 @@ contains
     end do
 
 !   Create full horizontal nst fields from local fields in guess_grids or read it from nst file
-    if (nst_gsi > 0) call gsi_nstcoupler_init()
+    if (nsta_name(1) > 0) call gsi_nstcoupler_init()
 
     return
   end subroutine create_sfc_grids
@@ -821,7 +821,7 @@ contains
 
 ! !USES:
 
-   use radinfo, only: nst_gsi
+   use radinfo, only: nsta_name
    use gsi_nstcouplermod, only: gsi_nstcoupler_final
    implicit none
    
@@ -850,7 +850,7 @@ contains
     integer(i_kind):: istatus
 
 ! Deallocate arrays containing full horizontal nst fields
-    if (nst_gsi > 0) call gsi_nstcoupler_final()
+    if (nsta_name(1) > 0) call gsi_nstcoupler_final()
 
     if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
     sfc_grids_allocated_=.false.

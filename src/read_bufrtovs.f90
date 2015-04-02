@@ -82,6 +82,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
+!   2015-03-      Li - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -120,7 +122,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
-  use radinfo, only: nst_gsi,nstinfo
+  use radinfo, only: nsta_name
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
@@ -224,7 +226,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ilon=3
   ilat=4
 
-  if(nst_gsi>0) then
+  if(nsta_name(1)>0) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -445,7 +447,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   endif
 
 ! Allocate arrays to hold all data for given satellite
-  nreal = maxinfo + nstinfo
+  nreal = maxinfo + nsta_name(2)
   nele  = nreal   + nchanl
   hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
   hdr2b ='SAZA SOZA BEARAZ SOLAZI'
@@ -815,7 +817,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if(.not. iuse)cycle read_loop
 
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-           if(nst_gsi>0) then
+           if(nsta_name(1)>0) then
               tref  = ts(0)
               dtw   = zero
               dtc   = zero
@@ -863,7 +865,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(32,itx)= val_tovs
            data_all(33,itx)= itt
 
-           if(nst_gsi>0) then
+           if(nsta_name(1)>0) then
               data_all(maxinfo+1,itx) = tref            ! foundation temperature
               data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
               data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob

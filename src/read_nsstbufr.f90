@@ -13,6 +13,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 ! program history log:
 !   2012-01-04  li      - modified based on read_nsstbufr.f90
+!   2015-03-13  Li      - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -40,7 +42,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype
   use obsmod, only: oberrflg
-  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nsta_name
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
@@ -125,7 +127,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   ilon=2
   ilat=3
 
-  nreal=maxinfo+nstinfo
+  nreal=maxinfo+nsta_name(2)
 
   allocate(data_all(nreal,maxobs))
 
@@ -493,14 +495,14 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-           if(nst_gsi > 0) then
+           if(nsta_name(1) > 0) then
               tref  = ts(0)
               dtw   = zero
               dtc   = zero
               tz_tr = one
               call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               tz = tref
-              if (nst_gsi > 2 ) then
+              if (nsta_name(1) > 2 ) then
                 tz = tref+dtw-dtc            ! Tz: Background temperature at depth of zob
               endif
            endif
@@ -525,7 +527,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(18,ndata) = hdr(6)                  ! station elevation
  
 
-           if(nst_gsi>0) then
+           if(nsta_name(1)>0) then
               data_all(maxinfo+1,ndata) = tref          ! foundation temperature
               data_all(maxinfo+2,ndata) = dtw           ! dt_warm at zob
               data_all(maxinfo+3,ndata) = dtc           ! dt_cool at zob

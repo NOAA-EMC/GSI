@@ -43,6 +43,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         Add call to checkob. Bug fix for scoring of obs, by including newchn,
 !                         also add another ob scoring approach based on observed Tb only.
 !                         add check: bufsat(jsatid) == satellite id
+!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -73,7 +74,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
   use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis, &
-                     nst_gsi,nstinfo,newpc4pred,newchn
+                     nsta_name,newpc4pred,newchn
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
@@ -178,7 +179,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   ilon=3
   ilat=4
 
-  if(nst_gsi>0) then
+  if(nsta_name(1)>0) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -227,7 +228,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Allocate arrays to hold all data for given satellite
-  nreal = maxinfo + nstinfo
+  nreal = maxinfo + nsta_name(2)
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
@@ -439,7 +440,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if(nst_gsi>0) then
+        if(nsta_name(1)>0) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -486,7 +487,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(34,itx) = val_avhrr              ! weighting factor applied to super obs
         data_all(35,itx) = itt                    !
 
-        if(nst_gsi>0) then
+        if(nsta_name(1)>0) then
            data_all(maxinfo+1,itx) = tref            ! foundation temperature
            data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob

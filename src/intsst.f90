@@ -77,7 +77,7 @@ subroutine intsst(ssthead,rval,sval)
   use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
-  use radinfo, only: nst_gsi
+  use radinfo, only: nsta_name
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -126,7 +126,7 @@ subroutine intsst(ssthead,rval,sval)
      val=w1*ssst(j1)+w2*ssst(j2)&
         +w3*ssst(j3)+w4*ssst(j4)
 
-     if ( nst_gsi > 2 ) then
+     if ( nsta_name(1) > 2 ) then
        tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)         ! Forward
        val  = tdir*sstptr%tz_tr                                       ! Include contributions from Tz jacobian
      else
@@ -165,7 +165,7 @@ subroutine intsst(ssthead,rval,sval)
         endif
 
 !      Adjoint
-       if ( nst_gsi > 2 ) then
+       if ( nsta_name(1) > 2 ) then
          tval = sstptr%tz_tr*grad                     ! Extract contributions from surface jacobian
          rsst(j1)=rsst(j1)+w1*tval                    ! Distribute adjoint contributions over surrounding grid points
          rsst(j2)=rsst(j2)+w2*tval

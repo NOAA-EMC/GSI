@@ -39,6 +39,7 @@ module radinfo
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
+!   2015-03-13   Li     - introduce nsta_name (array) to hold nsst related control parameters
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -89,7 +90,7 @@ module radinfo
   public :: newpc4pred
   public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
-  public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
+  public :: nsta_name
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
@@ -106,11 +107,23 @@ module radinfo
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
-  integer(i_kind) nst_gsi   ! indicator of Tr Analysis
-  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
-  integer(i_kind) nstinfo   ! number of nst variables
-  integer(i_kind) fac_dtl   ! indicator of DTL
-  integer(i_kind) fac_tsl   ! indicator of TSL
+  integer(i_kind), dimension(8) :: nsta_name   ! NSST related indicators 
+!     nsta_name(1:8): NSST related control parameters
+!     nsta_name(1)  - indicator to control the Tf Analysis mode:
+!                     0 = no nst info ingsi at all;
+!                     1 = input nst info, but used for monitoring only
+!                     2 = input nst info, and used in CRTM simulation, but no Tf
+!                     analysis
+!                     3 = input nst info, and used in CRTM simulation and Tf
+!                     analysis is on
+!     nsta_name(2)  - number of nst variables
+!     nsta_name(3)  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
+!                                                           1 = Do Tz retrieval and applied to QC
+!     nsta_name(4)  - zsea1 in mm
+!     nsta_name(5)  - zsea2 in mm
+!     nsta_name(6)  - indicator to apply diurnal thermocline layer or not: 0 = no; 1 = yes.
+!     nsta_name(7)  - indicator to apply thermal skin layer or not:        0 = no; 1 = yes.
+!     nsta_name(8)  - indicator to save the physical Tz retrieval or not:  0 = no; 1 = yes.
 
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
 
@@ -224,24 +237,15 @@ contains
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
     npred=7                 ! number of bias correction predictors
-    nst_gsi   = 0          ! 0 = no nst info at all in gsi
-                           ! 1 = read nst info but not applied
-                           ! 2 = read nst info, applied to Tb simulation but no Tr analysis
-                           ! 3 = read nst info, applied to Tb simulation and do Tr Analysis
-    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
-    nstinfo   = 0          ! number of nst fields used in Tr analysis
-    fac_dtl   = 0          ! indicator to apply DTL model
-    fac_tsl   = 0          ! indicator to apply TSL model
-    tzr_bufrsave = .false. ! .true.=generate bufr file for Tz retrieval
-
-    passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
-    adp_anglebc = .false. ! .true.=turn on angle bias correction
-    emiss_bc = .false.    ! .true.=turn on emissivity bias correction
-    angord = 0            ! order of polynomial for angle bias correction
-    use_edges = .true.    ! .true.=to use data on scan edges
-    upd_pred = one        ! 1.0=bias correction coefficients evolve
-    ssmis_method = 1      ! default ssmis smoothing method
-    ssmis_precond = r0_01 ! default preconditioner for ssmis bias terms
+    nsta_name(:)   = 0      ! 0 = no nst info at all in gsi
+    passive_bc = .false.    ! .true.=turn on bias correction for monitored channels
+    adp_anglebc = .false.   ! .true.=turn on angle bias correction
+    emiss_bc = .false.      ! .true.=turn on emissivity bias correction
+    angord = 0              ! order of polynomial for angle bias correction
+    use_edges = .true.      ! .true.=to use data on scan edges
+    upd_pred = one          ! 1.0=bias correction coefficients evolve
+    ssmis_method = 1        ! default ssmis smoothing method
+    ssmis_precond = r0_01   ! default preconditioner for ssmis bias terms
   end subroutine init_rad
 
 

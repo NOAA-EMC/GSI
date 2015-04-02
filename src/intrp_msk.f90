@@ -5,6 +5,9 @@
 ! int21_msk_sub     : sub-domain, interpolate from 2-d to one point
 ! int2_msk_glb_prep : global area, expand the area (grids) with a specified surface type
 ! int2_msk_sub_prep : global area, expand the area (grids) with a specified surface type
+! dtzm_point        : get the vertical mean of the departure from Tf for NSST T-Profile at a point
+! dtzm_2d           : get the vertical mean of the departure from Tf for NSST T-Profile 2d array
+!
 
  subroutine int22_msk_glb(a,isli_a,rlats_a,rlons_a,nlat_a,nlon_a, &
                           b,isli_b,rlats_b,rlons_b,nlat_b,nlon_b,istyp)
@@ -457,61 +460,186 @@
 
  end subroutine int2_msk_glb_prep
 
- subroutine reset_nst(nst_fld,dim1,dim2,ii,jj)
-
-! prgrmmr:     li -  initial version; org: np2. 04/01/2014
+!*******************************************************************************************
+subroutine dtzm_point(xt,xz,dt_cool,zc,z1,z2,dtzm)
+! ===================================================================== !
+!                                                                       !
+!  description:  get dtzm = mean of dT(z) (z1 - z2) with NSST dT(z)     !
+!                dT(z) = (1-z/xz)*dt_warm - (1-z/zc)*dt_cool            !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call dtzm_point                                                    !
+!                                                                       !
+!       inputs:                                                         !
+!          (xt,xz,dt_cool,zc,z1,z2,                                     !
+!       outputs:                                                        !
+!          dtzm)                                                        !
+!                                                                       !
+!  program history log:                                                 !
+!                                                                       !
+!         2015  -- xu li       createad original code                   !
+!  inputs:                                                              !
+!     xt      - real, heat content in dtl                            1  !
+!     xz      - real, dtl thickness                                  1  !
+!     dt_cool - real, sub-layer cooling amount                       1  !
+!     zc      - sub-layer cooling thickness                          1  !
+!     z1      - lower bound of depth of sea temperature              1  !
+!     z2      - upper bound of depth of sea temperature              1  !
+!  outputs:                                                             !
+!     dtzm   - mean of dT(z)  (z1 to z2)                             1  !
 !
-! abctract: reset the NSST model variables for a new open water grid (sea ice just melted)
+  use kinds, only: r_kind, i_kind
+  use constants, only: zero,one,half
 
-!  input argument list:
-!    dim1        - integer: 1st dimension of a 2-d array, e.g., nst_fld%xt(dim1,dim2)
-!    dim2        - integer: 2nd dimension of a 2-d array, e.g., nst_fld%xt(dim1,dim2)
-!    ii          - integer: location of the new water grid in dim1
-!    jj          - integer: location of the new water grid in dim2
-!   
-!  in & output argument list:
-!    nst_fld   - Nst_Var_Data: a type variable of NSST 
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
-
-  use kinds, only: r_kind,i_kind
-  use Nst_Var_ESMFMod, only: Nst_Var_Data,nstvar_aldata
-  use constants, only: zero,z_w_max,tfrozen
   implicit none
 
-  type(Nst_Var_Data), intent(inout) :: nst_fld
-  integer(i_kind),    intent(in   ) :: dim1,dim2,ii,jj
-
-  integer(i_kind) :: iret
-
-!
-! allocate nst_fld
-!
-  call nstvar_aldata(dim1,dim2,nst_fld,iret)
+  real (kind=r_kind), intent(in)  :: xt,xz,dt_cool,zc,z1,z2
+  real (kind=r_kind), intent(out) :: dtzm
+! Local variables
+  real (kind=r_kind) :: dt_warm,dtw,dtc
 
 !
-! reset nst_fld at grid (ii,jj)
+! get the mean warming in the range of z=z1 to z=z2
 !
-  nst_fld%xt(ii,jj)      = zero
-  nst_fld%xs(ii,jj)      = zero 
-  nst_fld%xu(ii,jj)      = zero 
-  nst_fld%xv(ii,jj)      = zero 
-  nst_fld%xz(ii,jj)      = z_w_max
-  nst_fld%zm(ii,jj)      = zero 
-  nst_fld%xtts(ii,jj)    = zero 
-  nst_fld%xzts(ii,jj)    = zero 
-  nst_fld%dt_cool(ii,jj) = zero 
-  nst_fld%z_c(ii,jj)     = zero 
-  nst_fld%c_0(ii,jj)     = zero 
-  nst_fld%c_d(ii,jj)     = zero 
-  nst_fld%w_0(ii,jj)     = zero 
-  nst_fld%w_d(ii,jj)     = zero 
-  nst_fld%d_conv(ii,jj)  = zero 
-  nst_fld%ifd(ii,jj)     = zero 
-  nst_fld%tref(ii,jj)    = tfrozen
-  nst_fld%qrain(ii,jj)   = zero 
+  dtw = zero
+  if ( xt > zero ) then
+    dt_warm = (xt+xt)/xz      ! Tw(0)
+    if ( z1 < z2) then
+      if ( z2 < xz ) then
+        dtw = dt_warm*(one-(z1+z2)/(xz+xz))
+      elseif ( z1 < xz .and. z2 >= xz ) then
+        dtw = half*(one-z1/xz)*dt_warm*(xz-z1)/(z2-z1)
+      endif
+    elseif ( z1 == z2 ) then
+      if ( z1 < xz ) then
+        dtw = dt_warm*(one-z1/xz)
+      endif
+    endif
+  endif
+!
+! get the mean cooling in the range of z=z1 to z=z2
+!
+  dtc = zero
+  if ( zc > zero ) then
+    if ( z1 < z2) then
+      if ( z2 < zc ) then
+        dtc = dt_cool*(one-(z1+z2)/(zc+zc))
+      elseif ( z1 < zc .and. z2 >= zc ) then
+        dtc = half*(one-z1/zc)*dt_cool*(zc-z1)/(z2-z1)
+      endif
+    elseif ( z1 == z2 ) then
+      if ( z1 < zc ) then
+        dtc = dt_cool*(one-z1/zc)
+      endif
+    endif
+  endif
 
-end subroutine reset_nst
+!
+! get the mean T departure from Tf in the range of z=z1 to z=z2
+!
+  dtzm = dtw - dtc
+
+end subroutine dtzm_point
+!*******************************************************************************************
+
+!*******************************************************************************************
+subroutine dtzm_2d(xt,xz,dt_cool,zc,slmsk,z1,z2,nx,ny,dtzm)
+! ===================================================================== !
+!                                                                       !
+!  description:  get dtzm = mean of dT(z) (z1 - z2) with NSST dT(z)     !
+!                dT(z) = (1-z/xz)*dt_warm - (1-z/zc)*dt_cool            !
+!                                                                       !
+!  usage:                                                               !
+!                                                                       !
+!    call dtzm_2d                                                       !
+!                                                                       !
+!       inputs:                                                         !
+!          (xt,xz,dt_cool,zc,z1,z2,                                     !
+!       outputs:                                                        !
+!          dtzm)                                                        !
+!                                                                       !
+!  program history log:                                                 !
+!                                                                       !
+!         2015  -- xu li       createad original code                   !
+!  inputs:                                                              !
+!     xt      - real, heat content in dtl                               !
+!     xz      - real, dtl thickness                                     !
+!     dt_cool - real, sub-layer cooling amount                          !
+!     zc      - sub-layer cooling thickness                             !
+!     nx      - integer, dimension in x-direction (zonal)               !
+!     ny      - integer, dimension in y-direction (meridional)          !
+!     z1      - lower bound of depth of sea temperature                 !
+!     z2      - upper bound of depth of sea temperature                 !
+!  outputs:                                                             !
+!     dtzm   - mean of dT(z)  (z1 to z2)                                !
+!
+  use kinds, only: r_kind, i_kind
+  use constants, only: zero,one,half
+
+  implicit none
+
+  real(kind=r_kind), dimension(nx,ny), intent(in)  :: xt,xz,dt_cool,zc,slmsk
+  real(kind=r_kind), intent(in) :: z1,z2
+  integer(kind=i_kind), intent(in) :: nx,ny
+  real(kind=r_kind), dimension(nx,ny), intent(out) :: dtzm                    
+! Local variables
+  integer(kind=i_kind) :: i,j
+  real(kind=r_kind), dimension(nx,ny) :: dtw,dtc
+  real(kind=r_kind) :: dt_warm
+
+!
+! initialize dtw & dtc as zeros
+!
+  dtw(:,:) = zero      
+  dtc(:,:) = zero      
+
+  do j = 1, ny
+    do i= 1, nx
+
+      if ( slmsk(i,j) == zero ) then
+!
+!       get the mean warming in the range of z=z1 to z=z2
+!
+        if ( xt(i,j) > zero ) then
+          dt_warm = (xt(i,j)+xt(i,j))/xz(i,j)      ! Tw(0)
+          if ( z1 < z2) then
+            if ( z2 < xz(i,j) ) then
+              dtw(i,j) = dt_warm*(one-(z1+z2)/(xz(i,j)+xz(i,j)))
+              elseif ( z1 < xz(i,j) .and. z2 >= xz(i,j) ) then
+            dtw(i,j) = half*(one-z1/xz(i,j))*dt_warm*(xz(i,j)-z1)/(z2-z1)
+            endif
+          elseif ( z1 == z2 ) then
+            if ( z1 < xz(i,j) ) then
+              dtw(i,j) = dt_warm*(one-z1/xz(i,j))
+            endif
+          endif
+        endif
+!
+!       get the mean cooling in the range of z=0 to z=zsea
+!
+        if ( zc(i,j) > zero ) then
+          if ( z1 < z2) then
+            if ( z2 < zc(i,j) ) then
+              dtc(i,j) = dt_cool(i,j)*(one-(z1+z2)/(zc(i,j)+zc(i,j)))
+            elseif ( z1 < zc(i,j) .and. z2 >= zc(i,j) ) then
+              dtc(i,j) = half*(one-z1/zc(i,j))*dt_cool(i,j)*(zc(i,j)-z1)/(z2-z1)
+            endif
+          elseif ( z1 == z2 ) then
+            if ( z1 < zc(i,j) ) then
+              dtc(i,j) = dt_cool(i,j)*(one-z1/zc(i,j))
+            endif
+          endif
+        endif
+      endif        ! if ( slmsk(i,j) == zero ) then
+    enddo
+  enddo 
+!
+! get the mean T departure from Tf in the range of z=z1 to z=z2
+!
+  where ( slmsk(:,:) == zero )
+    dtzm(:,:) = dtw(:,:) - dtc(:,:)
+  end where
+
+end subroutine dtzm_2d
 

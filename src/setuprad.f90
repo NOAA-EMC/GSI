@@ -143,6 +143,8 @@
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
 !   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-03-13      Li - introduce nsta_name (array) to hold nsst related control parameters
+!  
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -173,7 +175,7 @@
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,ssmis_precond,emiss_bc,upd_pred, &
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
-      nstinfo,nst_tzr
+      nsta_name
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
@@ -516,7 +518,7 @@
   if (retrieval.and.init_pass) call setup_sst_retrieval(obstype,dplat(is),mype)
 
 ! Special setup for Tz retrieval
-  if (nst_tzr>0) call setup_tzr_qc(obstype)
+  if (nsta_name(3)>0) call setup_tzr_qc(obstype)
 
 ! Get version of rad-diag file
   call get_radiag ('version',iversion_radiag,istatus)
@@ -695,9 +697,9 @@
 
 !       Set relative weight value
         val_obs=one
-        ixx=nint(data_s(nreal-nstinfo,n))
+        ixx=nint(data_s(nreal-nsta_name(2),n))
         if (ixx > 0 .and. super_val1(ixx) >= one) then
-           val_obs=data_s(nreal-nstinfo-1,n)/super_val1(ixx)
+           val_obs=data_s(nreal-nsta_name(2)-1,n)/super_val1(ixx)
         endif
 
 !       Load channel data into work array.
