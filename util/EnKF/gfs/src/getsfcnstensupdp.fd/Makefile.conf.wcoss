@@ -28,6 +28,7 @@ CRTM_PATH    = /usrx/local/nceplibs
 INCcrtm      = $(CRTM_PATH)/incmod/crtm_v$(CRTM_VERSION)
 
 GSIDIR = ../../../../../src
+GSILIB = -L$(GSIDIR) -lgsi
 
 NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
 INCnetcdf  = $(NETCDFPATH)/include

@@ -217,7 +217,6 @@ program getsfcnstensupdp
      write(6,*)'Command line input'
      write(6,*)' nanals= ',nanals
      write(6,*)' nst_gsi = ',nst_gsi,' nz1 = ',nz1,' nz2 = ',nz2
-     write(6,*)' pi = ',dble(pi),' half = ',half
   endif
 
   if (npe < nanals) then
@@ -259,32 +258,6 @@ program getsfcnstensupdp
     read(lun_dtfanl) isli_anl
 
 !
-!   get lats and lons for GSI analysis grids
-!
-    jmax=nlat_anl-2
-    allocate(slatx(jmax),wlatx(jmax))
-    allocate(rlats_anl(nlat_anl),rlons_anl(nlon_anl))
-    call splat(4,jmax,slatx,wlatx)
-    dlon=two*pi/float(nlon_anl)
-    do i=1,nlon_anl
-       rlons_anl(i)=float(i-1)*dlon
-    end do
-    do i=1,(nlat_anl-1)/2
-       rlats_anl(i+1)=-asin(slatx(i))
-       rlats_anl(nlat_anl-i)=asin(slatx(i))
-    end do
-    rlats_anl(1)=-half*pi
-    rlats_anl(nlat_anl)=half*pi
-    if (mype==0) then
-      do i=1,nlat_anl
-         write(*,'(a,2I4,F10.4)') 'mype,i,rlats_anl : ',mype,i,rlats_anl(i)
-      enddo
-      do i=1,nlon_anl
-         write(*,'(a,2I4,F8.2)')  'mype,i,rlons_anl : ',mype,i,rlons_anl(i)
-      enddo
-    endif
-    deallocate(slatx,wlatx)
-!
 !   read nsst guess fields
 !
     call nstio_srohdc(lun_nstges,fname_nstges,head_nst,data_nst,iret)
@@ -323,6 +296,24 @@ program getsfcnstensupdp
 
        write(6,*)'getsfcnstensupdp:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
        ', nlon,nlat-2=',nlon_anl,nlat_anl-2,' -vs- sfc file lonb,latb=',lonb,latb
+!
+!      get lats and lons for GSI analysis grids
+!
+       jmax=nlat_anl-2
+       allocate(slatx(jmax),wlatx(jmax))
+       allocate(rlats_anl(nlat_anl),rlons_anl(nlon_anl))
+       call splat(4,jmax,slatx,wlatx)
+       dlon=two*pi/float(nlon_anl)
+       do i=1,nlon_anl
+          rlons_anl(i)=float(i-1)*dlon
+       end do
+       do i=1,(nlat_anl-1)/2
+          rlats_anl(i+1)=-asin(slatx(i))
+          rlats_anl(nlat_anl-i)=asin(slatx(i))
+       end do
+       rlats_anl(1)=-half*pi
+       rlats_anl(nlat_anl)=half*pi
+       deallocate(slatx,wlatx)
 !
 !      get lats and lons for ensemble grids
 !
