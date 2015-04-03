@@ -55,10 +55,10 @@ INCnemsio= $(COREINC)/nemsio
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF) -mkl -lmpi
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lnemsio -lbacio_4 -lsigio_4 -lw3nco_4
+  LIBS_N        = -L$(CORELIB) -lnemsio -lbacio_4 -lsigio_4 -lw3nco_4 -lsp_4
 
   LDFLAGS_N     =
 
