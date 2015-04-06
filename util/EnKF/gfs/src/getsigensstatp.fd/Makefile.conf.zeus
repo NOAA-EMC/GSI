@@ -1,5 +1,5 @@
 # This config file contains the compile options for compilation
-# of the EnKF code on the NOAA HPCS.
+# of the GSI code on the NOAA HPCS.
 
 # ----------------------------------
 # Redefine variables for NOAA HPCS
@@ -7,6 +7,8 @@
 COREINC  = /contrib/nceplibs/nwprod/lib/incmod
 CORELIB  = /contrib/nceplibs/nwprod/lib
 INCsigio = $(COREINC)/sigio_4
+INCnemsio= $(COREINC)/nemsio
+
 
 # ---------------------------
 # General targets/definitions
@@ -23,39 +25,15 @@ INCsigio = $(COREINC)/sigio_4
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = -openmp
+  OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -D_REAL4_
-
-  FFLAGS_COM_N  = -I ./ \
-        -I $(INCsigio) \
-		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
-		-convert big_endian -assume byterecl
-
-  FFLAGS_COM_N_NOSWAP  = -I ./ \
-        -I $(INCsigio) \
-		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
-		-convert big_endian -assume byterecl
-
-  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
-  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
-  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF)
-  FFLAGS    = $(FFLAGS_N) $(PROF)
-
+  FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
+  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCnemsio)
+  FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./  \
-        -I $(INCsigio) \
-		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
-		-convert big_endian -assume byterecl
-  FFLAGS_COM_NOSWAP_D  =  -I ./ \
-        -I $(INCsigio) \
-		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
-		-convert big_endian -assume byterecl
-
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
-  FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
-
+  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
 
 
 # ----------------------
@@ -77,12 +55,12 @@ INCsigio = $(COREINC)/sigio_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -mkl=sequential -lmpi -Wl,-Map,loadmap.txt
+  LD            = $(CF) -mkl -lmpi
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lw3nco_v2.0.6_4 -lsigio_4 -lbacio_4
+  LIBS_N        = -L$(CORELIB) -lnemsio -lbacio_4 -lsigio_4 -lw3nco_4 -lsp_4
 
-  LDFLAGS_N     = $(OMP)
+  LDFLAGS_N     =
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -94,4 +72,4 @@ INCsigio = $(COREINC)/sigio_4
 
 #--- Empty out mpi library definition: embedded in compiler
 
-  LIBmpi	=
+  LIBmpi	= 
