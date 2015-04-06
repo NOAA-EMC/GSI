@@ -186,7 +186,7 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = nstio_module.f90 getsfcnstensupdp.f90
+  SRCSF90C = getsfcnstensupdp.f90
 
   SRCSF77 =
 

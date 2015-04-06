@@ -3,7 +3,7 @@ program getsfcnstensupdp
 !
 ! program:  getsfcnstenupdp              update sfc and nst files for ensemble
 !
-! prgmmr: Xi Li         org: EMC               date: 2014-05-01
+! prgmmr: Xu Li         org: EMC               date: 2014-05-01
 !
 ! abstract:  update sfc & nst file for ensemble 
 !
@@ -19,176 +19,43 @@ program getsfcnstensupdp
 !   language: f95
 !
 !$$$
-!   nstio_data        nst file data fields
-!     slmsk             Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       surface mask: 0 = water; 1 = land; 2 = ice
-!     xt                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       heat content in DTL
-!                       (M*K)
-!     xs                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       salinity content in DTL
-!                       (M*ppt)
-!     xu                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       u-current content in DTL
-!                       (M*M/S)
-!     xv                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       v-current content in DTL
-!                       (M*M/S)
-!     xz                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       DTL thickness                                        (M)
-!     zm                Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       MXL thickness                                        (M)
-!     xtts              Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       d(xt)/d(Ts)
-!                       (1/M)
-!     xzts              Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       d(xz)/d(Ts)
-!                       (M/K)
-!     dt_cool           Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       sea surface cooling amount by sub-layer cooling effect
-!     z_c               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       sea sub-layer depth in m
-!     c_0               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       coefficient to calculate d(Tz)/d(tr) in dimensionless
-!     c_d               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       coefficient to calculate d(Tz)/d(tr) in
-!                       (1/M)
-!     w_0               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       coefficient to calculate d(Tz)/d(tr) in dimensionless
-!     w_d               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       coefficient to calculate d(Tz)/d(tr)
-!                       (1/M)
-!     d_conv            Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       FCL thickness
-!                       (M)
-!     ifd               Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       index of time integral started mode: 0 = not yet; 1 =
-!                       started already
-!     Tref              Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       reference temperature
-!                       (K)
-!     Qrain             Real(nstio_realkind)(:,:) pointer to lonb*latb
-!                       sensible heat flux due to rainfall
-!                       (W*M^-2)
 
-!   sfcio_data        Surface file data fields
-!     tsea              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       surface temperature in K
-!     smc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       soil volumetric water content in fraction
-!     sheleg            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       snow depth in m
-!     stc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       soil temperature in K
-!     tg3               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       deep soil temperature in K
-!     zorl              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       roughness in cm
-!     cv                Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud cover in fraction
-!     cvb               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud bottom in kpa
-!     cvt               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud top in kpa
-!     alvsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for visible scattered in fraction
-!     alvwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for visible beam in fraction
-!     alnsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for near-IR scattered in fraction
-!     alnwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for near-IR beam in fraction
-!     slmsk             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       sea-land-ice mask (0-sea, 1-land, 2-ice)
-!     vfrac             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       vegetation fraction in fraction
-!     canopy            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       canopy water in m
-!     f10m              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       10-meter wind speed over lowest model wind speed
-!     t2m               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       2-meter temperature in K
-!     q2m               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       2-meter specific humidity in kg/kg
-!     vtype             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       vegetation type in integer 1-13
-!     stype             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       soil type in integer 1-9
-!     facsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in fraction
-!     facwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in fraction
-!     uustar            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     ffmm              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     ffhh              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     hice              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     fice              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     tisfc             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     tprcp             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     srflag            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     snwdph            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     slc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       xxx in xxx
-!     shdmin            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     shdmax            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     slope             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       slope type
-!     snoalb            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     orog              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       orography in m
-
-! create ensemble mean NCEP GFS surface file.
-
-  use kinds, only: r_kind,i_kind,r_single
-  use constants, only: two,half,zero,z_w_max,tfrozen, pi, init_constants_derived
+  use mpi
+  use kinds, only: r_kind,i_kind,r_double
+  use constants, only: two,half,zero,z_w_max,tfrozen,init_constants_derived,pi
+  use ncepgfs_io, only: tran_gfssfc
   use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_swohdc
   use nstio_module, only: nstio_srohdc,nstio_head,nstio_data,nstio_swohdc
-  use ncepgfs_io
-!  use ncepgfs_io, only: tran_gfssfc
 
   implicit none
  
-  real(r_kind), parameter :: houra = zero
-  integer(i_kind), parameter:: nprep=15
+  real(r_kind),    parameter :: houra=zero
+  integer(i_kind), parameter :: nprep=15
+  integer(i_kind), parameter :: lun_dtfanl=11,lun_nstges=21,lun_sfcges=22, &
+                                lun_sfcgcy=23,lun_nstanl=61,lun_sfcanl=62
+  integer(i_kind), parameter :: idrt=4
 
-  character(len=10) :: fname_dtfanl
-  character(len=13) :: fname_nstges,fname_sfcges,fname_sfcgcy,fname_nstanl,fname_sfcanl
-  character(len=8)  :: charzsea1,charzsea2
+  character(len=80) :: fname_dtfanl,fname_nstges,fname_sfcges,fname_sfcgcy,fname_nstanl,fname_sfcanl
   character(len=3)  :: charnanal
-  character(len=1)  :: charnst
+  character(len=8)  :: charbuf
 
-  integer(i_kind) :: lun_dtfanl,lun_nstges,lun_nstanl,lun_sfcges,lun_sfcgcy,lun_sfcanl,iret,ierr,nanals
+  integer(i_kind) :: iret,nanals
   integer(i_kind) :: mype,mype1,npe,nproc
   integer(i_kind) :: latb,lonb,n_new_water,n_new_seaice
   integer(i_kind) :: i,j,jmax,nst_gsi
   integer(i_kind) :: nlon_anl,nlat_anl    ! the number of lon/lat of GSI analysis grids, including two extra polar lats
   integer(i_kind) :: nlon_ens,nlat_ens    ! the number of lon/lat of ensemble grids, including two extra polar lats
-
-  real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
-  real(r_kind), allocatable, dimension(:,:)    :: dtf_anl,  dtf_epd, dtf_gsi, dtf_ens, work, dtzm
-  integer(i_kind), allocatable, dimension(:,:) :: isli_anl,isli_epd,isli_gsi
-  real(r_kind) :: dlon,zsea1,zsea2,dtw,dtc
   integer(i_kind) :: nz1,nz2
+  integer(i_kind), allocatable, dimension(:,:) :: isli_anl,isli_epd,isli_gsi
+
+  real(r_kind) :: dlon,zsea1,zsea2
+  real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
+  real(r_kind), allocatable, dimension(:,:) :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens,work,dtzm
 
   type(nstio_head):: head_nst
   type(nstio_data):: data_nst
   type(sfcio_head):: head_sfcanl,head_sfcges,head_sfcgcy
   type(sfcio_data):: data_sfcanl,data_sfcges,data_sfcgcy
-
-! mpi definitions.
-  include 'mpif.h'
 
 ! Initialize mpi
 !  mype is process number, npe is total number of processes.
@@ -198,57 +65,55 @@ program getsfcnstensupdp
 
   call init_constants_derived
 
-  if (mype==0) call w3tagb('GETSFCNSTENSUPD',2014,0921,0055,'NP25')
+  if ( mype == 0 ) call w3tagb('GETSFCNSTENSUPD',2014,0921,0055,'NP25')
 
-  call getarg(1,charnanal)
-  read(charnanal,'(i2)') nanals
+  call getarg(1,charbuf)
+  read(charbuf,'(i3)') nanals
 
-  call getarg(2,charnst)
-  read(charnst,'(i1)') nst_gsi
+  call getarg(2,charbuf)
+  read(charbuf,'(i1)') nst_gsi
 
-  call getarg(3,charzsea1)
-  read(charzsea1,'(i8)') nz1
+  call getarg(3,charbuf)
+  read(charbuf,'(i8)') nz1
 
-  call getarg(4,charzsea2)
-  read(charzsea2,'(i8)') nz2
+  call getarg(4,charbuf)
+  read(charbuf,'(i8)') nz2
 
-  if (mype==0) then
-     write(6,*)' '
-     write(6,*)'Command line input'
-     write(6,*)' nanals= ',nanals
-     write(6,*)' nst_gsi = ',nst_gsi,' nz1 = ',nz1,' nz2 = ',nz2
+  if ( mype == 0 ) then
+     write(6,'(a)')' '
+     write(6,'(a)')'Command line input'
+     write(6,'(a,i5)')' nanals  = ',nanals
+     write(6,'(a,i5)')' nst_gsi = ',nst_gsi
+     write(6,'(a,i5)')' nz1     = ',nz1
+     write(6,'(a,i5)')' nz2     = ',nz2
   endif
 
-  if (npe < nanals) then
-     write(6,*)'***ERROR***  npe too small.  npe=',npe,' < nanals=',nanals
+  if ( npe < nanals ) then
+     write(6,'(2(a,i5))')'***ERROR***  npe too small. npe = ',npe,' < nanals = ',nanals
      call MPI_Abort(MPI_COMM_WORLD,99,iret)
      stop
-  end if
-
-  lun_dtfanl=11
-  lun_nstges=21
-  lun_sfcges=22
-  lun_sfcgcy=23
-  lun_nstanl=61
-  lun_sfcanl=62
+  endif
 
   mype1 = mype + 1
-  if (mype1 > nanals) then
-    write (6,*) 'no files to process for mpi task = ',mype
+  if ( mype1 > nanals ) then
+
+    write (6,'(a,i5)') 'no files to process for mpi task = ',mype
+
   else
+
     write(charnanal,'(i3.3)') mype1
 
     fname_dtfanl = 'dtfanl'
-    fname_nstges = 'nstf06_mem'//charnanal
-    fname_nstanl = 'nstanl_mem'//charnanal
-    fname_sfcges = 'sfcf06_mem'//charnanal
-    fname_sfcgcy = 'sfcgcy_mem'//charnanal
-    fname_sfcanl = 'sfcanl_mem'//charnanal
+    fname_nstges = 'nstf06_mem' // charnanal
+    fname_nstanl = 'nstanl_mem' // charnanal
+    fname_sfcges = 'sfcf06_mem' // charnanal
+    fname_sfcgcy = 'sfcgcy_mem' // charnanal
+    fname_sfcanl = 'sfcanl_mem' // charnanal
          
 !
 !   read Tf analysis increment at GSI analysis grids and its grid info and surface mask
 !
-    open(lun_dtfanl,file=fname_dtfanl,form='unformatted')
+    open(lun_dtfanl,file=trim(fname_dtfanl),form='unformatted')
     read(lun_dtfanl) nlon_anl,nlat_anl
 
     allocate(dtf_anl(nlat_anl,nlon_anl),isli_anl(nlat_anl,nlon_anl))
@@ -260,22 +125,25 @@ program getsfcnstensupdp
 !
 !   read nsst guess fields
 !
-    call nstio_srohdc(lun_nstges,fname_nstges,head_nst,data_nst,iret)
-    write(6,*)'Read ',trim(fname_nstges),' iret=',iret
+    call nstio_srohdc(lun_nstges,trim(fname_nstges),head_nst,data_nst,iret)
+    write(6,'(3a,i5)')'Read ',trim(fname_nstges),' iret = ',iret
 !
 !   read sfc guess fields
 !
-    call sfcio_srohdc(lun_sfcges,fname_sfcges,head_sfcges,data_sfcges,iret)
-    write(6,*)'Read ',trim(fname_sfcges),' iret=',iret
+    call sfcio_srohdc(lun_sfcges,trim(fname_sfcges),head_sfcges,data_sfcges,iret)
+    write(6,'(3a,i5)')'Read ',trim(fname_sfcges),' iret = ',iret
 !
 !   read sfc global_cycle fields
 !
-    call sfcio_srohdc(lun_sfcgcy,fname_sfcgcy,head_sfcgcy,data_sfcgcy,iret)
-    write(6,*)'Read ',trim(fname_sfcgcy),' iret=',iret
+    call sfcio_srohdc(lun_sfcgcy,trim(fname_sfcgcy),head_sfcgcy,data_sfcgcy,iret)
+    write(6,'(3a,i5)')'Read ',trim(fname_sfcgcy),' iret = ',iret
 
     if ( head_nst%latb /= head_sfcgcy%latb .or. head_nst%lonb /= head_sfcgcy%lonb ) then
-       write(6,*) 'Inconsistent dimension for sfc & nst files. head_nst%latb,head_nst%lonb : ',head_nst%latb,head_nst%lonb, &
-                  'head_sfcgcy%latb,head_sfcgcy%lonb : ',head_sfcgcy%latb,head_sfcgcy%lonb
+       if ( mype == 0 ) then
+          write(6,'(a)') 'Inconsistent dimension for sfc and nst files'
+          write(6,'(2(a,i5))') 'head_nst%latb    = ',head_nst%latb,   ' head_nst%lonb    = ',head_nst%lonb
+          write(6,'(2(a,i5))') 'head_sfcgcy%latb = ',head_sfcgcy%latb,' head_sfcgcy%lonb = ',head_sfcgcy%lonb
+       endif
     endif
 !
 !  Assign sfcanl as sfcgcy
@@ -283,8 +151,8 @@ program getsfcnstensupdp
     head_sfcanl = head_sfcgcy
     data_sfcanl = data_sfcgcy
 
-    latb=head_sfcanl%latb
     lonb=head_sfcanl%lonb
+    latb=head_sfcanl%latb
 
     nlon_ens = lonb
     nlat_ens = latb + 2
@@ -292,25 +160,26 @@ program getsfcnstensupdp
     allocate(dtf_gsi(nlat_ens,nlon_ens),isli_gsi(lonb,latb),work(nlat_ens,nlon_ens))
     allocate(dtf_ens(lonb,latb),dtzm(lonb,latb))
 
-    if ( (latb /= nlat_anl-2) .or. (lonb /= nlon_anl) ) then
+    if ( (nlat_ens /= nlat_anl) .or. (nlon_ens /= nlon_anl) ) then
 
-       write(6,*)'getsfcnstensupdp:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
-       ', nlon,nlat-2=',nlon_anl,nlat_anl-2,' -vs- sfc file lonb,latb=',lonb,latb
+       if ( mype == 0 ) &
+          write(6,'(a,2(2a,2i5))')'getsfcnstensupdp: grid dimensions differ: ',&
+          'nlon_anl,nlat_anl = ',nlon_anl,nlat_anl,' nlon_ens,nlat_ens = ',nlon_ens,nlat_ens
 !
 !      get lats and lons for GSI analysis grids
 !
        jmax=nlat_anl-2
        allocate(slatx(jmax),wlatx(jmax))
        allocate(rlats_anl(nlat_anl),rlons_anl(nlon_anl))
-       call splat(4,jmax,slatx,wlatx)
-       dlon=two*pi/float(nlon_anl)
+       call splat(idrt,jmax,slatx,wlatx)
+       dlon=two*pi / real(nlon_anl,r_kind)
        do i=1,nlon_anl
-          rlons_anl(i)=float(i-1)*dlon
-       end do
+          rlons_anl(i)=real(i-1,r_kind)*dlon
+       enddo
        do i=1,(nlat_anl-1)/2
           rlats_anl(i+1)=-asin(slatx(i))
           rlats_anl(nlat_anl-i)=asin(slatx(i))
-       end do
+       enddo
        rlats_anl(1)=-half*pi
        rlats_anl(nlat_anl)=half*pi
        deallocate(slatx,wlatx)
@@ -320,15 +189,15 @@ program getsfcnstensupdp
        jmax=nlat_ens-2
        allocate(slatx(jmax),wlatx(jmax))
        allocate(rlats_ens(nlat_ens),rlons_ens(nlon_ens))
-       call splat(4,jmax,slatx,wlatx)
-       dlon=two*pi/float(nlon_ens)
+       call splat(idrt,jmax,slatx,wlatx)
+       dlon=two*pi / real(nlon_ens,r_kind)
        do i=1,nlon_ens
-          rlons_ens(i)=float(i-1)*dlon
-       end do
+          rlons_ens(i)=real(i-1,r_kind)*dlon
+       enddo
        do i=1,(nlat_ens-1)/2
           rlats_ens(i+1)=-asin(slatx(i))
           rlats_ens(nlat_ens-i)=asin(slatx(i))
-       end do
+       enddo
        rlats_ens(1)=-half*pi
        rlats_ens(nlat_ens)=half*pi
        deallocate(slatx,wlatx)
@@ -339,8 +208,8 @@ program getsfcnstensupdp
        do j=1,nlon_ens
           do i=1,nlat_ens
              isli_gsi(i,j) = nint(work(i,j))
-          end do
-       end do
+          enddo
+       enddo
 !
 !      Get the expanded values for a surface type (0 = water now) and the new mask
 !
@@ -354,11 +223,11 @@ program getsfcnstensupdp
 !      transform the dtf_gsi(nlat_ens,nlon_ens) to dtf_ens(lonb,latb) for sfc
 !      file format
 !
-       do j = 1, latb
-          do i = 1, lonb
+       do j=1,latb
+          do i=1,lonb
              dtf_ens(i,j) = dtf_gsi(latb+2-j,i)
-          end do
-       end do
+          enddo
+       enddo
 
     else       ! when the GSI analysis grid is identical to ensemble one and
                ! no surface mask change from ges to anl
@@ -367,15 +236,17 @@ program getsfcnstensupdp
 !      transform the dtf_anl(nlat_anl,nlon_anl) to dtf_ens(lonb,latb) for sfc file
 !      format when nlat == latb-2 & nlon = lonb
 !
-       write(6,*)'getsfcnstensupdp: the same grid dimensions static grids:', &
-            ', nlon,nlat_-2=',nlon_anl,nlat_anl-2,' -vs- ens lonb,latb=',lonb,latb
+       if ( mype == 0 ) &
+          write(6,'(a,2(2a,2i5))')'getsfcnstensupdp: grid dimensions same: ',&
+          'nlon_anl,nlat_anl = ',nlon_anl,nlat_anl,' lonb,latb = ',lonb,latb
 
        do j=1,latb
           do i=1,lonb
              dtf_ens(i,j)=dtf_anl(latb+1-j,i)
-          end do
-       end do
-    endif                 ! if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
+          enddo
+       enddo
+
+    endif ! if ( (nlat_ens /= nlat_anl) .or. (nlon_ens /= nlon_anl) ) then
 !
 !   For the new open water (sea ice just melted) grids, (1) set dtf_ens = zero (2) reset the NSSTM variables
 !
@@ -405,6 +276,7 @@ program getsfcnstensupdp
           data_nst%ifd(:,:)     = zero
           data_nst%tref(:,:)    = tfrozen
           data_nst%qrain(:,:)   = zero
+
     end where
 !
 !   update analysis variable: Tref (foundation temperature) for nstanl file
@@ -423,19 +295,19 @@ program getsfcnstensupdp
     head_nst%idate(4) = head_sfcanl%idate(4)        ! year
 
 !   Write updated information to nst analysis file
-    call nstio_swohdc(lun_nstanl,fname_nstanl,head_nst,data_nst,iret)
+    call nstio_swohdc(lun_nstanl,trim(fname_nstanl),head_nst,data_nst,iret)
 
-    write(6,101) fname_nstanl,lonb,latb,head_nst%fhour,(head_nst%idate(i),i=1,4),iret
-101     format(' getsfcnstupdp:  nst analysis written for ',&
-              a13,1x,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
+    write(6,101) trim(fname_nstanl),lonb,latb,head_nst%fhour,(head_nst%idate(i),i=1,4),iret
+101 format(' getsfcnstupdp: nst analysis written for ',&
+             a,1x,2i6,1x,f4.1,4(i4,1x),' with iret = ',i5)
 
 !
 !   update SST: tsea for sfcanl file
 !
     if ( nst_gsi == 3 ) then
 
-      zsea1 = 0.001_r_kind*real(nz1)
-      zsea2 = 0.001_r_kind*real(nz2)
+      zsea1 = 0.001_r_kind * real(nz1,r_kind)
+      zsea2 = 0.001_r_kind * real(nz2,r_kind)
       call dtzm_2d(dble(data_nst%xt),dble(data_nst%xz),dble(data_nst%dt_cool),dble(data_nst%z_c), &
                    dble(data_sfcanl%slmsk),zsea1,zsea2,lonb,latb,dtzm)
       where ( data_sfcanl%slmsk(:,:) == zero )
@@ -443,48 +315,39 @@ program getsfcnstensupdp
       end where
  
 !     Write updated information to surface analysis file
-      call sfcio_swohdc(lun_sfcanl,fname_sfcanl,head_sfcanl,data_sfcanl,iret)
+      call sfcio_swohdc(lun_sfcanl,trim(fname_sfcanl),head_sfcanl,data_sfcanl,iret)
 
-      write(6,102) fname_sfcanl,lonb,latb,head_sfcanl%fhour,(head_sfcanl%idate(i),i=1,4),iret
-102   format(' getsfcnstupdp:  sfc analysis written for ',&
-              a13,1x,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
+      write(6,102) trim(fname_sfcanl),lonb,latb,head_sfcanl%fhour,(head_sfcanl%idate(i),i=1,4),iret
+102   format(' getsfcnstupdp: sfc analysis written for ',&
+               a,1x,2i6,1x,f4.1,4(i4,1x),' with iret = ',i5)
 
-    endif
-
-    close (lun_nstges)
-    close (lun_sfcges)
-    close (lun_sfcgcy)
-    close (lun_nstanl)
-    close (lun_sfcanl)
+    endif ! if ( nst_gsi == 3 ) then
 
 !
 !   write out the info on the new open water and new sea ice grids
 !
     if ( mype == 0 ) then
-      n_new_water = 0
-      n_new_seaice = 0
-      do j = 1, latb
-        do i = 1, lonb
-          if ( data_sfcanl%slmsk(i,j) == 0.0 .and. data_sfcges%slmsk(i,j) == 2.0 ) then
-            n_new_water = n_new_water + 1
-          endif
-          if ( data_sfcanl%slmsk(i,j) == 2.0 .and. data_sfcges%slmsk(i,j) == 0.0 ) then
-            n_new_seaice = n_new_seaice + 1
-          endif
-        end do
-      end do
-      write(*,'(a,I3,1x,I8,1x,I8)') 'getsfcnstens,nst_gsi,n_new_water,n_new_seaice:',nst_gsi,n_new_water,n_new_seaice
-    endif          ! if ( mype == 0 ) then
-  end if  ! end if mype1
+       n_new_water = 0
+       n_new_seaice = 0
+       do j=1,latb
+          do i=1,lonb
+             if ( data_sfcanl%slmsk(i,j) == 0.0 .and. data_sfcges%slmsk(i,j) == 2.0 ) &
+                n_new_water = n_new_water + 1
+             if ( data_sfcanl%slmsk(i,j) == 2.0 .and. data_sfcges%slmsk(i,j) == 0.0 ) &
+                n_new_seaice = n_new_seaice + 1
+          enddo
+       enddo
+       write(6,'(a,I3,2(1x,I8))') 'getsfcnstens,nst_gsi,n_new_water,n_new_seaice:',nst_gsi,n_new_water,n_new_seaice
+    endif
 
-  call MPI_Barrier(MPI_COMM_WORLD,ierr)
+  endif ! if ( mype1 < nanals ) then
 
-  if (nproc==0) call w3tage('GETSFCNSTENSUPDP')
+  call MPI_Barrier(MPI_COMM_WORLD,iret)
 
-  call MPI_Finalize(ierr)
-  if (nproc .eq. 0 .and. ierr .ne. 0) then
-     print *, 'MPI_Finalize error status = ',ierr
-  end if
+  if ( nproc == 0 ) call w3tage('GETSFCNSTENSUPDP')
 
+  call MPI_Finalize(iret)
+  if ( nproc == 0 .and. iret /= 0 ) &
+     write(6,'(a,i5)'), 'MPI_Finalize error status, iret = ',iret
 
 END program getsfcnstensupdp
