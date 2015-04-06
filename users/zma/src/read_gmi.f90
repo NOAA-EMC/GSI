@@ -141,6 +141,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) :: crit1,dist1
   real(r_kind) :: timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) :: disterr,disterrmax,dlon00,dlat00
 
@@ -198,7 +199,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      mday(mon) = m
      m = m + mlen(mon)
   end do
-
 
 ! Set various variables depending on type of data to be read
 
@@ -262,7 +262,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 ! Allocate arrays to hold data
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 !       Extract satellite id from the 1st MG.  If it is not the one we want, exit reading.
         call readmg(lnbufr, subset, iret, idate)
@@ -277,7 +277,10 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         enddo rd_loop
 ! Big loop to read data file
   next=0
+  irec=0
+  nrec=999999
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -540,6 +543,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            do i=1,nchanl
               data_all(i+nreal,itx)=tbob(i)
            end do
+           nrec(itx)=irec
 
      end do read_loop
   end do read_subset
@@ -549,9 +553,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
   write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
 
 !=========================================================================================================
