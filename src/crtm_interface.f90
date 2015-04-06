@@ -957,7 +957,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
 ! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
-  real(r_kind):: wind10,wind10_direction,windratio,windangle
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind),dimension(0:3):: wgtavg
@@ -1521,21 +1520,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (lwind) then
         f10=data_s(iff10)
         sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
-        wind10    = sfc_speed
-        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
-        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
-        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
-        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
-        if (abs(vv5*f10) >= windlimit) then
-          windratio = (uu5*f10) / (vv5*f10)
-        else
-          windratio = 0.0_r_kind
-          if (abs(uu5*f10) > windlimit) then
-            windratio = windscale * uu5*f10
-          endif
-        endif
-        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
-        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2) 
      endif
 
 ! Load surface structure
@@ -1562,9 +1546,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         lai_type = itype
      end if
                                     
-     if (lwind) then
+     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*wind10_direction
+       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
