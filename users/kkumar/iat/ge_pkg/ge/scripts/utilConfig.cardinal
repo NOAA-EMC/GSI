@@ -1,0 +1,23 @@
+#!/bin/bash
+#======================================
+# Purpose:
+#    Specify utility location on cardinal
+#    and load modules needed to run
+#    grib extreme package.
+# Author: Deyong Xu / RTi@JCSDA
+# History:
+#    10/3/2014, D. Xu / RTi@JCSDA , initial code.
+#
+#======================================
+set -a
+
+ndate_dir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
+gribmap_dir=/opt/grads/2.0.2-precompiled/bin
+gxps_dir=/opt/grads/2.0.2-precompiled/bin
+grads_dir=/opt/grads/2.0.2-precompiled/bin
+
+module purge
+module load license_intel
+module load intel/14.0-2
+module load grads/2.0.2-precompiled
+module load subversion/1.7
