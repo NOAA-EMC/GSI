@@ -747,8 +747,7 @@ subroutine destroy_crtm
      deallocate(gesqsat)
   endif
   call crtm_atmosphere_destroy(atmosphere(1))
-  if (crtm_surface_associated(surface(1))) &
-     call crtm_surface_destroy(surface(1))
+  call crtm_surface_destroy(surface(1))
   call crtm_rtsolution_destroy(rtsolution)
   call crtm_rtsolution_destroy(rtsolution_k)
   call crtm_options_destroy(options)
