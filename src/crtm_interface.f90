@@ -51,8 +51,8 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated, &
     crtm_irlandcoeff_classification, &
-    crtm_kind => fp
-use SensorInfo_Parameters, only: MICROWAVE_SENSOR
+    crtm_kind => fp, &
+    crtm_microwave_sensor => microwave_sensor
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
@@ -600,14 +600,16 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
- if ( channelinfo(sensorindex)%Sensor_Type == MICROWAVE_SENSOR ) THEN
+ if ( channelinfo(sensorindex)%sensor_type == crtm_microwave_sensor ) then
    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
-   surface(1)%sensordata%sensor_id        = channelinfo(sensorindex)%sensor_id
-   surface(1)%sensordata%WMO_sensor_id    = channelinfo(sensorindex)%WMO_sensor_id
-   surface(1)%sensordata%WMO_Satellite_id = channelinfo(sensorindex)%WMO_Satellite_id
-   surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
-   if (.NOT.(crtm_surface_associated(surface(1)))) &
+   if (.NOT.(crtm_surface_associated(surface(1)))) then
       write(6,*)myname_,' ***ERROR** creating surface.'
+   else
+      surface(1)%sensordata%sensor_id        = channelinfo(sensorindex)%sensor_id
+      surface(1)%sensordata%wmo_sensor_id    = channelinfo(sensorindex)%wmo_sensor_id
+      surface(1)%sensordata%wmo_satellite_id = channelinfo(sensorindex)%wmo_satellite_id
+      surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
+   end if
  end if
 !_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
@@ -1669,7 +1671,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (trim(obstype) /= 'modis_aod')then
 
 !  Pass CRTM array of tb for surface emissiviy calculations
-       if ( ChannelInfo(1)%Sensor_Type == MICROWAVE_SENSOR ) &
+       if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. &
+            crtm_surface_associated(surface(1)) ) &
          surface(1)%sensordata%tb(i) = data_s(nreal+i)
 
 ! set up to return layer_optical_depth jacobians
