@@ -91,20 +91,24 @@ for type in ${SATYPE}; do
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 
-   list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
-   for var in $list; do
+   if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
+      list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
+      for var in $list; do
+
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
-      if [[ ${SUFFIX} = "wopr" || ${SUFFIX} = "pr4dev" ]]; then
-         ./nu_plot_bcoef.sh ${type}
-      fi
 
-   done 
+      done 
+   fi
+
+   if [[ ${RAD_AREA} = "glb" ]]; then
+      ./nu_plot_bcoef.sh ${type}
+   fi
 
 
 #   rm -f ${type}.ieee_d
@@ -121,8 +125,8 @@ done
 if [[ ! -d ${IMGNDIR}/bcoef ]]; then
    mkdir -p ${IMGNDIR}/bcoef
 fi
-cp -r *.png  ${IMGNDIR}/bcoef
-cp -r *.bcoef.txt ${IMGNDIR}/bcoef
+cp -f *.png  ${IMGNDIR}/bcoef
+cp -f *.bcoef.txt ${IMGNDIR}/bcoef
 
 for var in $list; do
    rm -f ${type}.${var}*.png

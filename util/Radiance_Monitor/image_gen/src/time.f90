@@ -18,7 +18,6 @@ program gatime
    use IFPORT
  
    implicit none
-   integer nregion
 
    character(5)  str_chan
    character(10) pdate,ndate
@@ -58,10 +57,10 @@ program gatime
    integer               :: nchanl               = 19
    integer               :: ncycle               = 1
    character(15)         :: satname              = 'ssmis_f18'  
-   namelist /input/ satname, nchanl, ncycle
+   integer               :: nregion              = 5
+   namelist /input/ satname, nchanl, ncycle, nregion
 
 
-   data nregion / 5 /
    data luname,ldname,lpname,lsatchan / 5, 50, 51, 52 /
    data rmiss /-999./
 
@@ -324,28 +323,30 @@ program gatime
 !*********************************************************************
    70 FORMAT(A15,',',A5,',',A5)
 
+   72 FORMAT(A5,',',A3,',',F9.3,',',F9.3,',',F9.2,',',F9.2)
+
    73 FORMAT(A5,',',A3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
                           ,F9.2,',',F9.2)
 
-   74 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' & 
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3) 
 
-   75 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' & 
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3) 
-
+   78 FORMAT(A5,',',A10,',',I5.1,',',I5.1)
+ 
    79 FORMAT(A5,',',A10,',',I5.1,',',I5.1,',',I5.1,',',I5.1,',',I5.1,',' & 
                            ,I5.1,',',I5.1,',',I5.1,',',I5.1,',',I5.1,',')
  
+   80 FORMAT(A5,',',A10,',',F9.3,',',F9.3) 
+
    81 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' & 
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',') 
+                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3) 
 
    82 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' & 
                            ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
                            ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' & 
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',')
+                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3)
+
+   83 FORMAT(A5,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3) 
+
 
    write(6,*) 'after formats declared'
    write(6,*)' '
@@ -375,10 +376,16 @@ program gatime
 !     write channel information to sat_chan_file
 !
    do j=1,nchanl
-      write(lsatchan,73) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
+      if( nregion == 1 ) then
+         write(lsatchan,72) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
+                       chi(1,j,1), chi(2,j,1), wave(j), freq(j)
+      else
+         write(lsatchan,73) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
                        chi(1,j,1), chi(1,j,2), chi(1,j,3), chi(1,j,4), chi(1,j,5), &
                        chi(2,j,1), chi(2,j,2), chi(2,j,3), chi(2,j,4), chi(2,j,5), &
                        wave(j), freq(j)
+      end if
+
    end do
    write(6,*) 'wrote all channel lines to lsatchan'
    close(lsatchan)
@@ -417,12 +424,17 @@ program gatime
      write(6,*)' cnt_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         write(lsatout,79) trim(chan_nums(chan)), trim(times(cyc)),       &
+         if( nregion == 1 ) then
+            write(lsatout,78) trim(chan_nums(chan)), trim(times(cyc)),    &
+                          int(cnt(1,cyc,chan,1)), int(cnt(2,cyc,chan,1))
+         else
+            write(lsatout,79) trim(chan_nums(chan)), trim(times(cyc)),       &
                           int(cnt(1,cyc,chan,1)), int(cnt(1,cyc,chan,2)), &
                           int(cnt(1,cyc,chan,3)), int(cnt(1,cyc,chan,4)), &
                           int(cnt(1,cyc,chan,5)), int(cnt(2,cyc,chan,1)), &
                           int(cnt(2,cyc,chan,2)), int(cnt(2,cyc,chan,3)), &
                           int(cnt(2,cyc,chan,4)), int(cnt(2,cyc,chan,5))
+        end if
      end do
      close(lsatout)
 
@@ -440,12 +452,17 @@ program gatime
      write(6,*)' pen_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         write(lsatout,81) trim(chan_nums(chan)), trim(times(cyc)),     &
+         if( nregion == 1 ) then
+            write(lsatout,80) trim(chan_nums(chan)), trim(times(cyc)),  &
+                          avg_pen(1,cyc,chan,1), avg_pen(2,cyc,chan,1)
+         else
+            write(lsatout,81) trim(chan_nums(chan)), trim(times(cyc)),     &
                           avg_pen(1,cyc,chan,1), avg_pen(1,cyc,chan,2), &
                           avg_pen(1,cyc,chan,3), avg_pen(1,cyc,chan,4), &
                           avg_pen(1,cyc,chan,5), avg_pen(2,cyc,chan,1), &
                           avg_pen(2,cyc,chan,2), avg_pen(2,cyc,chan,3), &
                           avg_pen(2,cyc,chan,4), avg_pen(2,cyc,chan,5)
+        end if
      end do
      close(lsatout)
 
@@ -466,7 +483,12 @@ program gatime
      write(6,*)' omgnbc_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),     &
+         if( nregion == 1 ) then 
+            write(lsatout,83) trim(chan_nums(chan)), trim(times(cyc)),        &
+                          avg_omgnbc(1,cyc,chan,1), avg_omgnbc(2,cyc,chan,1), &
+                          sdv_omgnbc(1,cyc,chan,1), sdv_omgnbc(2,cyc,chan,1)
+         else 
+            write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),        &
                           avg_omgnbc(1,cyc,chan,1), avg_omgnbc(1,cyc,chan,2), &
                           avg_omgnbc(1,cyc,chan,3), avg_omgnbc(1,cyc,chan,4), &
                           avg_omgnbc(1,cyc,chan,5), avg_omgnbc(2,cyc,chan,1), &
@@ -477,6 +499,7 @@ program gatime
                           sdv_omgnbc(1,cyc,chan,5), sdv_omgnbc(2,cyc,chan,1), &
                           sdv_omgnbc(2,cyc,chan,2), sdv_omgnbc(2,cyc,chan,3), &
                           sdv_omgnbc(2,cyc,chan,4), sdv_omgnbc(2,cyc,chan,5)
+        end if
      end do
      close(lsatout)
 

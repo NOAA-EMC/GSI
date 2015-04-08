@@ -103,6 +103,7 @@ for type in ${SATYPE2}; do
    done
    ${UNCOMPRESS} ./*.ieee_d.${Z}
 
+   if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
      for var in ${PTYPE}; do
      echo $var
       if [ "$var" =  'count' ]; then 
@@ -126,16 +127,17 @@ EOF
 fi
       echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+   fi
 
-      if [[ ${SUFFIX} = "wopr" || ${SUFFIX} = "pr4dev" ]]; then
-         if [[ ${var} = "count" ]]; then
-            $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
-            ./nu_plot_time.sh ${type}
-#            rm -f nu_plot_time.sh
-         fi
+   if [[ ${RAD_AREA} = "glb" || ${SUFFIX} = "nrx" ]]; then
+      if [[ ${var} = "count" ]]; then
+         $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
+         ./nu_plot_time.sh ${type}
+#         rm -f nu_plot_time.sh
       fi
+   fi
 
-   done
+done
 
 
 done
@@ -151,8 +153,9 @@ rm -f ${type}.${PDATE}.ieee_d
 if [[ ! -d ${IMGNDIR}/time ]]; then
    mkdir -p ${IMGNDIR}/time
 fi
-cp -f *.png  ${IMGNDIR}/time
-
+if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
+   cp -f *.png  ${IMGNDIR}/time
+fi
 
 #for var in ${PTYPE}; do
 #   rm -f ${type}.${var}*.png
@@ -164,21 +167,6 @@ cp -f *.png  ${IMGNDIR}/time
 #cd $tmpdir
 #cd ../
 #rm -rf $tmpdir
-
-#--------------------------------------------------------------------
-# If this is the last time/summary plot job to finish then rm PLOT_WORK_DIR.
-#
-
-#count=`ls ${LOADLQ}/*plot*_${SUFFIX}*time* | wc -l`
-#complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}*time* | wc -l`
-
-#running=`expr $count - $complete`
-
-#if [[ $running -eq 1 ]]; then
-#   cd ${PLOT_WORK_DIR}
-#   cd ../
-#   rm -rf ${PLOT_WORK_DIR}
-#fi
 
 echo "Exiting plot_time.sh"
 exit

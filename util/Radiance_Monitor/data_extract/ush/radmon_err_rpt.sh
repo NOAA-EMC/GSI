@@ -110,6 +110,7 @@ ENDSCRIPT=${ENDSCRIPT:-}
 # Other variables
 VERBOSE=${VERBOSE:-NO}
 err=0
+SUFFIX=${SUFFIX}
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo EXECUTING $0 $* >&2
@@ -220,13 +221,19 @@ fi
             #  channels, and we need to map the channel to the correct
             #  grouping number in order to produce an accurate hyperlink.
             #
-            ctlfile="time.${satname}.ctl"
-            if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
-               uncompress ${ctlfile}.*
+            if [[ $SUFFIX == 'pr4dev' ]]; then
+               changrp=${channel}
+               echo "for pr4dev using actual channel as changrp value"
+            else 
+               ctlfile="time.${satname}.ctl"
+               if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
+                  uncompress ${ctlfile}.*
+               fi
+               changrp=`${HOMEradmon}/ush/radmon_getchgrp.pl ${ctlfile} ${channel}`
             fi
-            changrp=`${HOMEradmon}/ush/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp
-            line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/opr/index.html?sat=${satname}&region=${region}&channel=${changrp}&stat=${type}"
+
+            line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${changrp}&stat=${type}"
             if [[ $changrp -gt 0 ]]; then
                echo "$line3" >> $outfile
                echo "" >> $outfile

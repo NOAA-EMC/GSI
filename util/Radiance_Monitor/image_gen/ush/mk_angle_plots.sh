@@ -144,7 +144,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         wall_tm="1:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
@@ -211,7 +211,7 @@ for sat in ${bigSATLIST}; do
 
         
          mem="600"
-         if [[ $SUFFIX = "pr4dev" && $batch -eq 1 ]]; then
+         if [[ $batch -eq 1 ]]; then
             mem="7000"
          fi
 

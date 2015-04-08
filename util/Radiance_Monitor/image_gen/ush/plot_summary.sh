@@ -87,8 +87,8 @@ for type in ${SATYPE2}; do
 
    
 #--------------------------------------------------------------------
-#  Plotting is moving away towards dynamic, interactive images drawn
-#  on the fly in the client browser.  These images require small text
+#  Plotting is moving towards dynamic, interactive images drawn
+#  on-the-fly in the client browser.  These images require small text
 #  files instead of static images produced by GrADS.  The flag
 #  PLOT_STATIC_IMGS controls the conditional plotting of the older
 #  static images.  

@@ -32,7 +32,8 @@
             var data4;
 
             var url    = window.location.href;
-            var src    = new Uri( url ).getQueryParamValue('src');
+            var src    = new Uri( url ).getQueryParamValue('sat');
+            var initialLoad = true;
 
             //log( src );
 
@@ -56,14 +57,21 @@
                  ***********************************************************************************************/
                 function loadCSV(file) {
                     var request;
+                    var request2;
+
+                    dataProvider = new Array(2);
+                    dataProvider[0] = [];
+                    dataProvider[1] = [];
 
                     if (window.XMLHttpRequest) {
                         // IE7+, Firefox, Chrome, Opera, Safari
-                        request = new XMLHttpRequest();
+                        request  = new XMLHttpRequest();
+                        request2 = new XMLHttpRequest();
                     }
                     else {
                         // code for IE6, IE5
-                        request = new ActiveXObject('Microsoft.XMLHTTP');
+                        request  = new ActiveXObject('Microsoft.XMLHTTP');
+                        request2 = new ActiveXObject('Microsoft.XMLHTTP');
                     }
 
 
@@ -86,28 +94,54 @@
                     //   The request.send() method actually initiates the processing of the request.
 
                     request.open('GET', file, true);
+                    log( 'loading ' + file );
+
+
+                    var idx = 0;
                     request.onload = function(e) {
                         if( request.status === 200 && request.readyState === 4 ) {
-                            parseCSV( request.responseText);
-                            fillData();
-                            fillCharts();
+                            idx = 0;
+                            parseCSV( request.responseText, idx );
+                            fillData( idx );
+                            fillCharts( );  // call this after the comp file is loaded (below)
+
+
                         }
                         else {
                             log (" Failed to load " + file + " ; request.status = " + request.status );
                         }
                     }
                     request.send();
+
+                    // next load comparison file:
+                    //var CkBxCmp  = document.getElementById( "ckboxCmp"  ).value;
+                    //log( 'value of CkBxCmp = ' + CkBxCmp );
+                    //var cmpFile = '../' + CkBxCmp + file.substring(1);
+                    //log( '2nd file to load is ' + cmpFile );
+
+                    //request2.open( 'GET', cmpFile, true );
+                    //request2.onload = function(e) {
+                    //    if( request2.status === 200 && request2.readyState === 4 ){
+                    //        idx = 1;
+                    //        parseCSV( request2.responseText, idx );
+                    //        fillData( idx );
+                    //        fillCharts();
+                    //    }
+                    //}
+                    //request2.send();
+
                 }
 
 
                 /************************************************************************************
-                 *  parseCSV()
+                 *  parseCSV( idx )
                  *
                  *    load the comma separated value (CSV) file data into the dataProvider[] array.
+                 *    idx should be 0 or 1 for the requested data set or the comparison data set.
                  ************************************************************************************/
-                function parseCSV(data) {
+                function parseCSV( data, idx ){
 
-                    //log("--> parseCSV ");
+                    log("--> parseCSV, idx = " + idx );
                     //replace UNIX new lines
                     data = data.replace(/\r\n/g, "\n");
                     //replace MAC new lines
@@ -117,6 +151,7 @@
                     //log( rows.length );
                     var nchanl = 0;
 
+
                     // load line 0, which includes the number of channels, and 4 10-digit cycle times
                     if (rows[0]) {
                         var column = rows[0].split(",");
@@ -125,13 +160,15 @@
                         var cycle2 = column[2];
                         var cycle3 = column[3];
                         var cycle4 = column[4];
-                        //log (cycle4);
 
                         // create object which contains all these items:
                         var dataObject = {nchanl: nchanl, cycle1: cycle1, cycle2: cycle2, cycle3: cycle3, cycle4: cycle4};
 
                         // add object to dataProvider array
-                        dataProvider.push(dataObject);
+                        dataProvider[idx].push(dataObject);
+                        log( 'idx, dataProvider[idx][0].nchanl = ' + idx + ', ' + dataProvider[idx][0].nchanl );
+                        log( 'idx, dataProvider[idx][0].cycle1 = ' + idx + ', ' + dataProvider[idx][0].cycle1 );
+                        log( 'idx, dataProvider[idx][0].cycle4 = ' + idx + ', ' + dataProvider[idx][0].cycle4 );
                     }
 
                     // loop through rows 1 - nchanl to load the count data (chart 1)
@@ -155,6 +192,8 @@
                                 assim = undefined;
                                 notassim = 1;
                             }
+
+                            log( "column.length = " + column.length);
 
                             var gcyc1 = Number(column[2]);
                             var gcyc2 = Number(column[3]);
@@ -183,7 +222,8 @@
                                 anl_pen_1cyc: undefined, anl_pen_1day: undefined, anl_pen_30day: undefined};
 
                             // add object to dataProvider array
-                            dataProvider.push(dataObject);
+                            dataProvider[idx].push(dataObject);
+                            //dataProvider[1].push(dataObject);
                         }
                     }
 
@@ -195,12 +235,12 @@
                             // data element order is channel, use flag, ges:tot_cor:1cycle, ges:tot_cor:4 cycles,
                             //   ges:tot_cor:120 cycles, anl:tot_cor:1 cycle, anl:tot_cor:4 anl:tot_cor:120 cycles
 
-                            dataProvider[i - nchanl].gtcor1cyc = Number(column[2]);
-                            dataProvider[i - nchanl].gtcor1day = Number(column[3]);
-                            dataProvider[i - nchanl].gtcor30day = Number(column[4]);
-                            dataProvider[i - nchanl].atcor1cyc = Number(column[5]);
-                            dataProvider[i - nchanl].atcor1day = Number(column[6]);
-                            dataProvider[i - nchanl].atcor30day = Number(column[7]);
+                            dataProvider[idx][i - nchanl].gtcor1cyc = Number(column[2]);
+                            dataProvider[idx][i - nchanl].gtcor1day = Number(column[3]);
+                            dataProvider[idx][i - nchanl].gtcor30day = Number(column[4]);
+                            dataProvider[idx][i - nchanl].atcor1cyc = Number(column[5]);
+                            dataProvider[idx][i - nchanl].atcor1day = Number(column[6]);
+                            dataProvider[idx][i - nchanl].atcor30day = Number(column[7]);
 
                         }
                     }
@@ -214,14 +254,14 @@
                             //   avg_omgbc:120 cycles, sdv_omgbc:120 cycles, avg_omabc:1 cycle, sdv_omabc: 1 cycle,
                             //   avg_omabc:120 cycles, sdv_omabc:120 cycles
 
-                            dataProvider[i - nchanl * 2].avg_omgbc_1cyc = Number(column[2]);
-                            dataProvider[i - nchanl * 2].sdv_omgbc_1cyc = Number(column[3]);
-                            dataProvider[i - nchanl * 2].avg_omgbc_30day = Number(column[4]);
-                            dataProvider[i - nchanl * 2].sdv_omgbc_30day = Number(column[5]);
-                            dataProvider[i - nchanl * 2].avg_omabc_1cyc = Number(column[6]);
-                            dataProvider[i - nchanl * 2].sdv_omabc_1cyc = Number(column[7]);
-                            dataProvider[i - nchanl * 2].avg_omabc_30day = Number(column[8]);
-                            dataProvider[i - nchanl * 2].sdv_omabc_30day = Number(column[9]);
+                            dataProvider[idx][i - nchanl * 2].avg_omgbc_1cyc = Number(column[2]);
+                            dataProvider[idx][i - nchanl * 2].sdv_omgbc_1cyc = Number(column[3]);
+                            dataProvider[idx][i - nchanl * 2].avg_omgbc_30day = Number(column[4]);
+                            dataProvider[idx][i - nchanl * 2].sdv_omgbc_30day = Number(column[5]);
+                            dataProvider[idx][i - nchanl * 2].avg_omabc_1cyc = Number(column[6]);
+                            dataProvider[idx][i - nchanl * 2].sdv_omabc_1cyc = Number(column[7]);
+                            dataProvider[idx][i - nchanl * 2].avg_omabc_30day = Number(column[8]);
+                            dataProvider[idx][i - nchanl * 2].sdv_omabc_30day = Number(column[9]);
                         }
                     }
 
@@ -232,47 +272,48 @@
                             var column = rows[i].split(",");
                             // data element order is channel, use flag, ges pen:1cycle, ges pen:1 day,
                             //   ges pen:120 cycles, anl pen:1 cycle, anl pen:1 day, anl pen:120 cycles
-                            dataProvider[i - nchanl * 3].ges_pen_1cyc = Number(column[2]);
-                            dataProvider[i - nchanl * 3].ges_pen_1day = Number(column[3]);
-                            dataProvider[i - nchanl * 3].ges_pen_30day = Number(column[4]);
-                            dataProvider[i - nchanl * 3].anl_pen_1cyc = Number(column[5]);
-                            dataProvider[i - nchanl * 3].anl_pen_1day = Number(column[6]);
-                            dataProvider[i - nchanl * 3].anl_pen_30day = Number(column[7]);
+                            dataProvider[idx][i - nchanl * 3].ges_pen_1cyc = Number(column[2]);
+                            dataProvider[idx][i - nchanl * 3].ges_pen_1day = Number(column[3]);
+                            dataProvider[idx][i - nchanl * 3].ges_pen_30day = Number(column[4]);
+                            dataProvider[idx][i - nchanl * 3].anl_pen_1cyc = Number(column[5]);
+                            dataProvider[idx][i - nchanl * 3].anl_pen_1day = Number(column[6]);
+                            dataProvider[idx][i - nchanl * 3].anl_pen_30day = Number(column[7]);
                         }
                     }
-                    //log("<-- parseCSV");
+                    log("<-- parseCSV");
                 }
 
                 //----------------------------------------------------------------------------------------
-                // fillData()
+                // fillData( idx )
                 //
                 //    fill the data, data2, data3, and data4 objects using the dataProvider object.
+                //    idx should be 0 or 1 for the requested data or the comparison data set.
                 //----------------------------------------------------------------------------------------
-                function fillData() {
-                    //log( "--> fillData" );
+                function fillData( idx ){
+                    log( "--> fillData, idx = " + idx );
 
                     // data is the container for the first chart's information.
                     data = new google.visualization.DataTable();
                     data.addColumn('number', 'chan');
-                    data.addColumn('number', 'ges ' + dataProvider[0].cycle1);
-                    data.addColumn('number', 'ges ' + dataProvider[0].cycle2);
-                    data.addColumn('number', 'ges ' + dataProvider[0].cycle3);
-                    data.addColumn('number', 'ges ' + dataProvider[0].cycle4);
-                    data.addColumn('number', 'anl ' + dataProvider[0].cycle1);
-                    data.addColumn('number', 'anl ' + dataProvider[0].cycle2);
-                    data.addColumn('number', 'anl ' + dataProvider[0].cycle3);
-                    data.addColumn('number', 'anl ' + dataProvider[0].cycle4);
+                    data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle1);
+                    data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle2);
+                    data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle3);
+                    data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle4);
+                    data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle1);
+                    data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle2);
+                    data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle3);
+                    data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle4);
                     data.addColumn('number', 'assim');
                     data.addColumn('number', 'not_assim');
 
-                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                    for (var ii = 1; ii < dataProvider[idx].length; ii++) {
                         data.addRows([
-                            [Number(dataProvider[ii].chan),
-                                Number(dataProvider[ii].gcyc1), Number(dataProvider[ii].gcyc2),
-                                Number(dataProvider[ii].gcyc3), Number(dataProvider[ii].gcyc4),
-                                Number(dataProvider[ii].acyc1), Number(dataProvider[ii].acyc2),
-                                Number(dataProvider[ii].acyc3), Number(dataProvider[ii].acyc4),
-                                Number(dataProvider[ii].assim), Number(dataProvider[ii].notassim)
+                            [Number(dataProvider[idx][ii].chan),
+                                Number(dataProvider[idx][ii].gcyc1), Number(dataProvider[idx][ii].gcyc2),
+                                Number(dataProvider[idx][ii].gcyc3), Number(dataProvider[idx][ii].gcyc4),
+                                Number(dataProvider[idx][ii].acyc1), Number(dataProvider[idx][ii].acyc2),
+                                Number(dataProvider[idx][ii].acyc3), Number(dataProvider[idx][ii].acyc4),
+                                Number(dataProvider[idx][ii].assim), Number(dataProvider[idx][ii].notassim)
                             ]
                         ]);
 
@@ -288,12 +329,12 @@
                     data2.addColumn('number', 'anl 1cyc');
                     data2.addColumn('number', 'anl 1day');
                     data2.addColumn('number', 'anl 30day');
-                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                    for (var ii = 1; ii < dataProvider[idx].length; ii++) {
                         data2.addRows([
-                            [Number(dataProvider[ii].chan),
-                                Number(dataProvider[ii].gtcor1cyc), Number(dataProvider[ii].gtcor1day),
-                                Number(dataProvider[ii].gtcor30day), Number(dataProvider[ii].atcor1cyc),
-                                Number(dataProvider[ii].atcor1day), Number(dataProvider[ii].atcor30day)]
+                            [Number(dataProvider[idx][ii].chan),
+                                Number(dataProvider[idx][ii].gtcor1cyc), Number(dataProvider[idx][ii].gtcor1day),
+                                Number(dataProvider[idx][ii].gtcor30day), Number(dataProvider[idx][ii].atcor1cyc),
+                                Number(dataProvider[idx][ii].atcor1day), Number(dataProvider[idx][ii].atcor30day)]
                         ]);
                     }
 
@@ -309,13 +350,13 @@
                     data3.addColumn('number', 'avg omabc 30day');
                     data3.addColumn('number', 'sdv omabc 30day');
 
-                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                    for (var ii = 1; ii < dataProvider[idx].length; ii++) {
                         data3.addRows([
-                            [Number(dataProvider[ii].chan),
-                                Number(dataProvider[ii].avg_omgbc_1cyc), Number(dataProvider[ii].sdv_omgbc_1cyc),
-                                Number(dataProvider[ii].avg_omgbc_30day), Number(dataProvider[ii].sdv_omgbc_30day),
-                                Number(dataProvider[ii].avg_omabc_1cyc), Number(dataProvider[ii].sdv_omabc_1cyc),
-                                Number(dataProvider[ii].avg_omabc_30day), Number(dataProvider[ii].sdv_omabc_30day)]
+                            [Number(dataProvider[idx][ii].chan),
+                                Number(dataProvider[idx][ii].avg_omgbc_1cyc), Number(dataProvider[idx][ii].sdv_omgbc_1cyc),
+                                Number(dataProvider[idx][ii].avg_omgbc_30day), Number(dataProvider[idx][ii].sdv_omgbc_30day),
+                                Number(dataProvider[idx][ii].avg_omabc_1cyc), Number(dataProvider[idx][ii].sdv_omabc_1cyc),
+                                Number(dataProvider[idx][ii].avg_omabc_30day), Number(dataProvider[idx][ii].sdv_omabc_30day)]
                         ]);
                     }
 
@@ -329,15 +370,15 @@
                     data4.addColumn('number', 'anl_1day');
                     data4.addColumn('number', 'anl_30day');
 
-                    for (var ii = 1; ii < dataProvider.length; ii++) {
+                    for (var ii = 1; ii < dataProvider[idx].length; ii++) {
                         data4.addRows([
-                            [Number(dataProvider[ii].chan),
-                                Number(dataProvider[ii].ges_pen_1cyc), Number(dataProvider[ii].ges_pen_1day),
-                                Number(dataProvider[ii].ges_pen_30day), Number(dataProvider[ii].anl_pen_1cyc),
-                                Number(dataProvider[ii].anl_pen_1day), Number(dataProvider[ii].anl_pen_30day)]
+                            [Number(dataProvider[idx][ii].chan),
+                                Number(dataProvider[idx][ii].ges_pen_1cyc), Number(dataProvider[idx][ii].ges_pen_1day),
+                                Number(dataProvider[idx][ii].ges_pen_30day), Number(dataProvider[idx][ii].anl_pen_1cyc),
+                                Number(dataProvider[idx][ii].anl_pen_1day), Number(dataProvider[idx][ii].anl_pen_30day)]
                         ]);
                     }
-                    //log( "<-- fillData" );
+                    log( "<-- fillData" );
                 }
 
 
@@ -412,10 +453,10 @@
                     chart1.draw(myView, options);
 
                     // rename the ckboxCyc1-4 labels using the input cycle times
-                    document.getElementById( "labCyc1" ).innerHTML = dataProvider[0].cycle1;
-                    document.getElementById( "labCyc2" ).innerHTML = dataProvider[0].cycle2;
-                    document.getElementById( "labCyc3" ).innerHTML = dataProvider[0].cycle3;
-                    document.getElementById( "labCyc4" ).innerHTML = dataProvider[0].cycle4;
+                    document.getElementById( "labCyc1" ).innerHTML = dataProvider[0][0].cycle1;
+                    document.getElementById( "labCyc2" ).innerHTML = dataProvider[0][0].cycle2;
+                    document.getElementById( "labCyc3" ).innerHTML = dataProvider[0][0].cycle3;
+                    document.getElementById( "labCyc4" ).innerHTML = dataProvider[0][0].cycle4;
 
 
                     /******************************************
@@ -555,7 +596,30 @@
                     chart4.draw(myView4, options4);
 
                     document.getElementById('title').innerHTML = 'Summary Plot   ' + src;
-                    document.getElementById('valid').innerHTML = 'Valid:  ' + dataProvider[0].cycle1 ;
+                    document.getElementById('valid').innerHTML = 'Valid:  ' + dataProvider[0][0].cycle1 ;
+
+
+                    //------------------------------------------------------------------------------------
+                    //  store current menu selections in parent.window.value so the current data
+                    //  selections can be continued after switching plot types (time/angle/summary/bcoef)
+                    //
+                    //  Note that an attempt is made to preserve any set channel and stat selections from
+                    //  other plot types.  This file (plot_summary.html) can only change the selected sat.
+                    //------------------------------------------------------------------------------------
+                    //var src    = new Uri( url ).getQueryParamValue('sat');
+
+                    var curSelStr = parent.window.value;
+                    var chan      = new Uri( curSelStr ).getQueryParamValue( 'channel' );
+                    var stat      = new Uri( curSelStr ).getQueryParamValue( 'stat' );
+
+                    var newSelStr = '?sat=' + src;
+                    if( chan ) {
+                        newSelStr = newSelStr + '&channel=' + chan;
+                    }
+                    if( stat ) {
+                        newSelStr = newSelStr + '&stat=' + stat;
+                    }
+                    parent.window.value = newSelStr;
 
                     //log( "<-- fillCharts");
                 }
@@ -565,19 +629,62 @@
                  *  drawCharts code begins here.
                  *---------------------------------
                  ************************************/
+
+                //set platSelect to src, attach callback to platSelect after initial load is complete
+                if( initialLoad ) {
+                    var platSel = document.getElementById('platformSelect');
+                    log( "src = " + src);
+                    if( src == undefined ){
+                        platSel.selectedIndex = 0;
+                        src = platSel.options[platSel.selectedIndex].value;
+                    }
+                    else {
+                        platSel.value = src;
+                    }
+                    log( "now src = " + src);
+
+                    initialLoad = false;
+                }
+
                 var cntFile = './pngs/summary/' + src + '.sum.txt';
 
                 // load data if this is the first time through this routine otherwise
                 // skip if we're redrawing things.
                 if (dataProvider.length <= 0) {
-                    loadCSV(cntFile);
+                    loadCSV( cntFile );
 
                 }
                 else{
-                    fillCharts();
+                    fillCharts( );
                 }
             }                   // end drawCharts
 
+
+            // platSelect :  callback for change in select sat/instrument
+            function platSelect( value ) {
+                log( "--> platSelect " + value);
+                //
+                // dump all data and reload
+                // attempt to reload curChan if that matches a value in the
+                // new channel array, otherwise, start at 0.
+                //
+
+                // remove all previous channel numbers
+                //var chanSel = document.getElementById("chanSelect");
+                //while (chanSel.firstChild)
+                //    chanSel.removeChild(chanSel.firstChild);
+
+                // reset channel and chart data structures, reset curChan
+                //chanData = [];
+                //chartData  = [[]];
+                //curChan  = 0;
+
+                dataProvider = [];
+                src = value;
+                drawCharts();
+
+                log( "<-- platSelect");
+            }
 
         /*********************************************************************************
          * log
@@ -600,7 +707,7 @@
          * redraws charts after a user change to any of the checkboxes.
          ***************************************************************/
         function boxCheck(value) {
-            drawCharts();
+            drawCharts( );
         }
 
 
@@ -627,14 +734,79 @@
         <h2 id=title > Summary Plot </h2>
         <h3 id=valid >Valid </h3>
 
+        <label id="source" style="position: absolute; left: 2px; top:12px"><b> Source:</b></label>
+
+        <label id="suffix" value="INSERT_SUFFIX" style="position: absolute; left: 72px; top:12px; color: blue"><b>INSERT_SUFFIX</b></label>
+
         <div id="sum_count" class="div_class"></div>
         <div id="total_bias_correction" class="div_class"></div>
         <div id="ges_anl_m_obs_w_bias_cor" class="div_class"></div>
         <div id="contribution_to_penalty" class="div_class"> </div>
 
+        <form id="satSelectForm" action="" style="position:absolute; left:2px;top:40px">
+            <b>Platform:</b>
+            <select id="platformSelect" onChange="platSelect(this.value)">
+                <!-- This menu will need to be customized by Install_html.sh on wcoss
+                     It could be loaded using a php file, but that risks a condition where
+                     a source might be missing for some reason, and we should know about that
+                     if it was to happen, so it's better that a data load would fail here.  -->
+                <!-- INSERT_TABLE -->
+                <OPTION VALUE="airs_aqua"> AQUA AIRS </OPTION>
+                <OPTION VALUE="amsua_aqua"> AQUA AMSU-A </OPTION>
+                <OPTION VALUE="ssmis_f16"> F16 SSMIS </OPTION>
+                <OPTION VALUE="ssmis_f17"> F17 SSMIS </OPTION>
+                <OPTION VALUE="ssmis_f18"> F18 SSMIS </OPTION>
+                <OPTION VALUE="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
+                <OPTION VALUE="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
+                <OPTION VALUE="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
+                <OPTION VALUE="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
+                <OPTION VALUE="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
+                <OPTION VALUE="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
+                <OPTION VALUE="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
+                <OPTION VALUE="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
+                <OPTION VALUE="seviri_m10"> M10 SEVIRI </OPTION>
+                <OPTION VALUE="amsua_metop-a"> METOP-A AMSU-A </OPTION>
+                <option value="avhrr_metop-a"> METOP-A AVHRR </option>
+                <OPTION VALUE="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
+                <OPTION VALUE="iasi_metop-a"> METOP-A IASI </OPTION>
+                <OPTION VALUE="mhs_metop-a"> METOP-A MHS </OPTION>
+                <OPTION VALUE="amsua_metop-b"> METOP-B AMSU-A </OPTION>
+                <OPTION VALUE="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
+                <OPTION VALUE="iasi_metop-b"> METOP-B IASI </OPTION>
+                <OPTION VALUE="mhs_metop-b"> METOP-B MHS </OPTION>
+                <OPTION VALUE="amsua_n15"> NOAA-15 AMSU-A </OPTION>
+                <OPTION VALUE="amsua_n18"> NOAA-18 AMSU-A </OPTION>
+                <option value="avhrr_n18"> NOAA-18 AVHRR </option>
+                <OPTION VALUE="mhs_n18"> NOAA-18 MHS </OPTION>
+                <OPTION VALUE="amsua_n19"> NOAA-19 AMSU-A </OPTION>
+                <OPTION VALUE="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
+                <!-- END_TABLE_INSERT -->
+            </select>
+        </form>
 
-        <table style="position:absolute;left:30px;top:45px;width:150px">
-           <caption align="left"><b>Data Sets:</b> </caption>
+        <!--
+           Notes on Compare With menu.
+             - The value is keyed to the source name so the ckboxCmp value can be used within
+               the javascript to locate the comparison source.  This limits the comparison to 1 but folks
+               generally only want to see the data compared to the operational data or a control source.
+             - The comp plots are problematic for comparisons because:
+                o  graphic 1 is 4 discrete cycles.  The data files will often not completely coincide.
+                o  graphics 2-4 use 1 cycle, 1 day ave, and 30 day avg values.  Again the time mismatch will
+                   be a complication.
+             - I'm going to comment out the comp box for now, and move on to the time plots, where the
+               mismatch problem is more directly solvable.
+        -->
+        <!--
+        <table style="position:absolute;left:1px;top:75px;width:150px">
+            <caption> <b>Compare With:</b> </caption>
+            <tr><td>
+                <input type="checkbox" id="ckboxCmp" name="ckboxCmp" value="wopr" onclick="boxCheck(this.value)"><label for="ckboxCmp">opr GDAS</label></input>
+            </td></tr>
+        </table>
+        -->
+
+        <table style="position:absolute;left:1px;top:135px;width:150px">
+           <caption> <b>Data Sets:</b> </caption>
             <tr><td>
                 <input type="checkbox" id="ckboxGes" name="checkbox" value="gesdata" checked onclick="boxCheck(this.value)"><label for="ckboxGes">ges data</label></input>
             </td></tr>
@@ -643,7 +815,7 @@
             </td></tr>
         </table>
 
-        <table style="position:absolute;left:1px;top:190px;width:150px">
+        <table style="position:absolute;left:1px;top:220px;width:150px">
             <caption><b>Last 4 Cycles</b> </caption>
             <tr><td>
                 <input type="checkbox" id="ckboxCyc1" name="checkbox" value="cycle1" checked onclick="boxCheck(this.value)"><label for="ckboxCyc1" id="labCyc1">cycle 1</label></input>
