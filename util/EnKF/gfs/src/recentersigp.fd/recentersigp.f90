@@ -189,8 +189,7 @@ program recentersigp
 100 continue
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-  if (.not.nemsio .and. .not.sigio) then
-     if (mype==0) write(6,*)'***ERROR***  invalid surface file format'
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio) then
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop
   endif
