@@ -114,14 +114,20 @@ for type in ${SATYPE2}; do
 
    for var in ${PTYPE}; do
       echo $var
+
       if [ "$var" =  'count' ]; then
 
-         if [[ ${RAD_AREA} = "glb" ]]; then
+         #------------------------------------------------------------------------ 
+         #  make the js *angle.txt files
+         #  I've stashed this inside of count processing as a temporary
+         #  measure to ensure that it's only executed once for each $type (source)
+         #  (the big sat jobs split the jobs into one per $var type)
+         #
+         if [ ${RAD_AREA} = "glb" ]; then
             $NCP ${IG_SCRIPTS}/nu_plot_angle.sh .
             ./nu_plot_angle.sh ${type}
          fi
-
-if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then 
+     
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${PLOT_SUB_AVGS} x1100 y850'
@@ -143,9 +149,18 @@ cat << EOF > ${type}_${var}.gs
 EOF
       fi
 
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      #--------------------------------------------------------------------
+      #  execute the grads plotting
+      #  This too is a temporary fix.  Eventually it will be executed only
+      #  when $PLOT_STATIC_IMGS is 1.  At the moment regional sources only
+      #  use some of the js plotting (summary and time).
+      #
+      if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then 
+         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      fi
+
+
    done 
-fi
 
 #   rm -f ${type}*.ieee_d
 #   rm -f ${type}.ctl

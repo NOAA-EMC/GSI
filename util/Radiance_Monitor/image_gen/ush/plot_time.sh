@@ -106,39 +106,37 @@ for type in ${SATYPE2}; do
    if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
      for var in ${PTYPE}; do
      echo $var
-      if [ "$var" =  'count' ]; then 
+        if [ "$var" =  'count' ]; then 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-elif [ "$var" =  'penalty' ]; then
+        elif [ "$var" =  'penalty' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-else
+        else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-fi
-      echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+        fi
+
+        echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
+        $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+
+     done 
    fi
 
    if [[ ${RAD_AREA} = "glb" || ${SUFFIX} = "nrx" ]]; then
-      if [[ ${var} = "count" ]]; then
-         $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
-         ./nu_plot_time.sh ${type}
-#         rm -f nu_plot_time.sh
-      fi
+      $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
+      ./nu_plot_time.sh ${type}
+#     rm -f nu_plot_time.sh
    fi
-
-done
-
 
 done
 
