@@ -538,7 +538,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   endif
-
+! write(6,*) 'READ_AVHRR:  mype, total number of obs info, nread,ndata : ',mype, nread,ndata
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)

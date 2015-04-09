@@ -1964,6 +1964,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     nlatm2  = nlat - 2
 !   get analysis date (yyyymmddhh) in character
     write(canldate,'(I10)') ianldate
+!   get file names
+    write(canldate,'(I10)') ianldate
 
 !
 !   Extract the analysis increment and surface mask in subdomain without the
@@ -2524,14 +2526,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        allocate(dsfct_gsi(nlat_ens_sfc,nlon_ens_sfc),work(nlat_ens_sfc,nlon_ens_sfc), &
                  isli_gsi(nlat_ens_sfc,nlon_ens_sfc),dsfct_anl(nlon_ens_sfc,nlat_ens_sfc-2))
 
-
        allocate(dsfct_tmp(nlat,nlon),isli_tmp(nlat,nlon))
 
        if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
 
           write(6,*)'WRITE_ENS_DSFCT:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
                ', nlon,nlat_-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
-
 !
 !         get lats and lons for ensemble grids
 !
