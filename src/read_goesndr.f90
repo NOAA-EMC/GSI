@@ -56,7 +56,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
 !                          causes integer overflow with current logic.  Made quick fix, but needs review.
 !   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
-!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -90,7 +89,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
       checkob,finalcheck,score_crit
   use obsmod, only: bmiss
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
-      newpc4pred,nsta_name
+      newpc4pred,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
@@ -176,7 +175,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   ilon=3
   ilat=4
 
-  if (nsta_name(1) > 0 ) then
+  if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -248,7 +247,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call time_4dvar(idate,toff)
 
 ! Allocate arrays to hold data
-  nreal  = maxinfo + nsta_name(2)
+  nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
@@ -432,7 +431,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nsta_name(1) > 0 ) then
+        if ( nst_gsi > 0 ) then
           tref  = ts(0)
           dtw   = zero
           dtc   = zero
@@ -480,7 +479,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         data_all(32,itx)= val_goes
         data_all(33,itx)= itt
 
-        if ( nsta_name(1) > 0 ) then
+        if ( nst_gsi > 0 ) then
           data_all(maxinfo+1,itx) = tref         ! foundation temperature
           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob

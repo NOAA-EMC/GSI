@@ -61,8 +61,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  eliu    - bug fix for solar zenith calculation 
 !   2012-03-05  akella  - nst now controlled via coupler
-!   2015-03-13      Li  - introduce nsta_name (array) to hold nsst related control parameters
-! 
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -96,7 +94,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,nusis,jpch_rad,nsta_name
+  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
@@ -230,7 +228,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   ilon = 3
   ilat = 4
 
-  if (nsta_name(1) > 0 ) then
+  if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -241,7 +239,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   end do 
   disterrmax=zero
   ntest = 0
-  nreal = maxinfo+nsta_name(2)
+  nreal = maxinfo+nstinfo
   ndata = 0
   nodata = 0
   amsre_low=     obstype == 'amsre_low'
@@ -564,7 +562,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nsta_name(1) > 0 ) then
+        if ( nst_gsi > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -610,7 +608,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(32,itx)= val_amsre
         data_all(33,itx)= itt
 
-        if ( nsta_name(1) > 0 ) then
+        if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref                ! foundation temperature
            data_all(maxinfo+2,itx) = dtw                 ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc                 ! dt_cool at zob

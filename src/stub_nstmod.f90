@@ -11,8 +11,6 @@
 !  07Oct2011 Akella/RT - Initial code
 !  05Mar2012 Akella    - Create_nst and getnst from satthin are now nst_int_ & nst_set_
 !                        Destroy_nst from satthin is nst_final_
-!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related
-!                         control parameters
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -128,7 +126,7 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      use constants,   only: zero,one,z_w_max
      use gridmod,     only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldnst,hrdifnst
-     use radinfo,     only: nsta_name
+     use radinfo,     only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                   c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
      implicit none
@@ -324,19 +322,9 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
         w_0     = w_0/wgtavg
         w_d     = w_d/wgtavg
 
-!
-!       get warming amount at the depth of zob
-!
-        if ( nsta_name(6) > 0 .and. zob < z_w ) then
-          dtw = dt_warm*(one-zob/z_w)
-        else
-          dtw = zero
-        endif
-!
-!       get cooling amount at the depth of zob
-!
-        if ( nsta_name(7) > 0 .and. z_c > zero .and. zob < z_c ) then
-          dtc = dt_cool*(one-zob/z_c)
+        dtw = fac_dtl*dt_warm*(one-min(zob,z_w)/z_w)
+        if ( z_c > zero ) then
+          dtc = fac_tsl*dt_cool*(one-min(zob,z_c)/z_c)
         else
           dtc = zero
         endif
@@ -367,33 +355,33 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
 
   use kinds, only: r_kind
   use constants, only: one,half,zero
-  use radinfo, only: nsta_name
+  use radinfo, only: fac_dtl,fac_tsl
   real(kind=r_kind), intent(in)  :: dt_warm,c_0,c_d,w_0,w_d,zc,zw,z
   real(kind=r_kind), intent(out) :: tztr
 ! local variables
   real(kind=r_kind) :: c1,c2
 
-  c1 = one-nsta_name(6)*w_0+nsta_name(7)*c_0
-  c2 = one+nsta_name(7)*c_0
+  c1 = one-fac_dtl*w_0+fac_tsl*c_0
+  c2 = one+fac_tsl*c_0
 
   tztr = one
 
   if ( dt_warm > zero .and.  c1 /= zero ) then
      if ( z <= zc  ) then
-       tztr = (one+z*(nsta_name(6)*w_d-nsta_name(7)*c_d))/c1
+       tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
      elseif ( z > zc .and. z < zw ) then
-       tztr = (one+nsta_name(7)*c_0+z*nsta_name(6)*w_d)/c1
+       tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
      endif
    elseif ( dt_warm == zero .and. c2 /= zero ) then
      if ( z <= zc ) then
-       tztr = (one-z*nsta_name(7)*c_d)/c2
+       tztr = (one-z*fac_tsl*c_d)/c2
      endif
    endif
 
    if ( tztr <= one .and. tztr > half ) then
      tztr = tztr
    else
-!    write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',nsta_name(6),nsta_name(7),c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+!    write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
    endif
 
 end subroutine cal_tztr_

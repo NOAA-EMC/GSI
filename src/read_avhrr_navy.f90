@@ -47,8 +47,6 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   2011-08-01  lueken  - added module use deter_sfc_mod  
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
-!  
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -78,7 +76,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
       finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg, r60inv
-  use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nsta_name
+  use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
@@ -166,7 +164,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   ilat=4
 
   zob = zero
-  if(nsta_name(1)>0) then
+  if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -214,7 +212,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Allocate arrays to hold all data for given satellite
-  nreal = maxinfo + nsta_name(2)
+  nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
@@ -373,7 +371,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if(nsta_name(1)>0) then
+        if(nst_gsi>0) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
@@ -423,7 +421,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(34,itx) = val_avhrr
         data_all(35,itx) = itt
 
-        if(nsta_name(1)>0) then
+        if(nst_gsi>0) then
            data_all(maxinfo+1,itx) = tref          ! foundation temperature
            data_all(maxinfo+2,itx) = dtw           ! dt_warm at zob
            data_all(maxinfo+3,itx) = dtc           ! dt_cool at zob

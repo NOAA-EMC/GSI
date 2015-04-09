@@ -503,7 +503,6 @@ subroutine read_obs(ndata,mype)
 !   2014-11-12  carley  - Add call to read goes imager sky cover data for tcamt
 !   2014-12-03  derber - modify for no radiance cases and read processor for
 !                        surface fields
-!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !   
 !
 !   input argument list:
@@ -533,7 +532,7 @@ subroutine read_obs(ndata,mype)
     use constants, only: one,zero
     use converr, only: converr_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
-    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nsta_name
+    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nst_gsi
     use insitu_info, only: mbuoy_info,read_ship_info
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
@@ -1027,7 +1026,7 @@ subroutine read_obs(ndata,mype)
     deallocate(work1,prslsm)
 
 !   Create full horizontal nst fields from local fields in guess_grids/read it from nst file
-    if (nsta_name(1) > 0) then
+    if (nst_gsi > 0) then
       call gsi_nstcoupler_set(mype)         ! Set NST fields (each proc needs full NST fields)
 
 !     Create moored buoy station ID
@@ -1135,7 +1134,7 @@ subroutine read_obs(ndata,mype)
                         lunout,twind,sis)
                    string='READ_MODSBUFR'
                 elseif ( platid == 'prep') then
-                   if(nsta_name(1)>0)then
+                   if(nst_gsi>0)then
                       write(6,*)'read_obs: should not handle SST via read_prepbufr when NSST on'
                       call stop2(999)
                    endif

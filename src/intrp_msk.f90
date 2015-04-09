@@ -489,15 +489,15 @@ subroutine dtzm_point(xt,xz,dt_cool,zc,z1,z2,dtzm)
 !  outputs:                                                             !
 !     dtzm   - mean of dT(z)  (z1 to z2)                             1  !
 !
-  use kinds, only: r_kind, i_kind
+  use kinds, only: r_single, i_kind
   use constants, only: zero,one,half
 
   implicit none
 
-  real (kind=r_kind), intent(in)  :: xt,xz,dt_cool,zc,z1,z2
-  real (kind=r_kind), intent(out) :: dtzm
+  real (kind=r_single), intent(in)  :: xt,xz,dt_cool,zc,z1,z2
+  real (kind=r_single), intent(out) :: dtzm
 ! Local variables
-  real (kind=r_kind) :: dt_warm,dtw,dtc
+  real (kind=r_single) :: dt_warm,dtw,dtc
 
 !
 ! get the mean warming in the range of z=z1 to z=z2
@@ -574,19 +574,19 @@ subroutine dtzm_2d(xt,xz,dt_cool,zc,slmsk,z1,z2,nx,ny,dtzm)
 !  outputs:                                                             !
 !     dtzm   - mean of dT(z)  (z1 to z2)                                !
 !
-  use kinds, only: r_kind, i_kind
+  use kinds, only: r_single, i_kind
   use constants, only: zero,one,half
 
   implicit none
 
-  real(kind=r_kind), dimension(nx,ny), intent(in)  :: xt,xz,dt_cool,zc,slmsk
-  real(kind=r_kind), intent(in) :: z1,z2
+  real(kind=r_single), dimension(nx,ny), intent(in)  :: xt,xz,dt_cool,zc,slmsk
+  real(kind=r_single), intent(in) :: z1,z2
   integer(kind=i_kind), intent(in) :: nx,ny
-  real(kind=r_kind), dimension(nx,ny), intent(out) :: dtzm                    
+  real(kind=r_single), dimension(nx,ny), intent(out) :: dtzm                    
 ! Local variables
   integer(kind=i_kind) :: i,j
-  real(kind=r_kind), dimension(nx,ny) :: dtw,dtc
-  real(kind=r_kind) :: dt_warm
+  real(kind=r_single), dimension(nx,ny) :: dtw,dtc
+  real(kind=r_single) :: dt_warm
 
 !
 ! initialize dtw & dtc as zeros

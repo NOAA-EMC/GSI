@@ -20,20 +20,9 @@ module ncepgfs_io
 !                        (2) add write_ens_sfc_nst, write_ens_dsfct
 !   2014-12-03 derber - modify for changes to general_read/write_gfsatm
 !   2014-12-03 derber - modify read_sfc routines to minimize communications/IO
-!   2015-03-13  li     - introduce integer array nsta_name(1:8) to hold nsst related control parameters
-!     nsta_name(1)  - indicator to control the Tf Analysis mode:
-!                     0 = no nst info ingsi at all;
-!                     1 = input nst info, but used for monitoring only
-!                     2 = input nst info, and used in CRTM simulation, but no Tf analysis
-!                     3 = input nst info, and used in CRTM simulation and Tf analysis is on
-!     nsta_name(2)  - number of nst variables
-!     nsta_name(3)  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
-!                                                           1 = Do Tz retrieval and applied to QC
-!     nsta_name(4)  - zsea1 in mm
-!     nsta_name(5)  - zsea2 in mm
-!     nsta_name(6)  - indicator to apply diurnal thermocline layer or not: 0 = no; 1 = yes.
-!     nsta_name(7)  - indicator to apply thermal skin layer or not:        0 = no; 1 = yes.
-!     nsta_name(8)  - indicator to save the physical Tz retrieval or not:  0 = no, 1 = yes
+!   2015-03-13  li     - introduce zsea1 & zsea2 enable to use vertical mean
+!                        temperature based on NSST T-Profile. And move Tf analysis increment
+!                        interpolation (analysis grid to ensemble grid) to re-center step
 
 !
 ! Subroutines Included:
@@ -944,7 +933,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use hybrid_ensemble_parameters, only: l_hyb_ens
     use mpeu_util, only: die
-    use radinfo, only: nsta_name
+    use radinfo, only: nst_gsi
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
@@ -1051,14 +1040,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        filename='sfcinc.gsi'
        call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
     else
-      if ( nsta_name(1) > 0 ) then
+      if ( nst_gsi > 0 ) then
         call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
-
-!       if ( l_hyb_ens .and. nsta_name(1) == 3 ) then
-!       if ( l_hyb_ens ) then
-!         call write_ens_dsfct(mype,mype_sfc,dsfct(1,1,ntguessfc))
-!       endif
-
       else
         filename='sfcanl.gsi'
         call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
@@ -1325,7 +1308,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
   subroutine write_gfs_sfc_nst(mype,mype_so,dsfct)
 !
-! abstract: write both sfc and nst analysis files (nsta_name(1) dependent) for static (full resolution) run
+! abstract: write both sfc and nst analysis files (nst_gsi dependent) for static (full resolution) run
 !
 !  REMARKS:
 !
@@ -1358,7 +1341,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !     variables
 !     the new files (nstf06, nstges and nstanl) needs to be processed
 !
-!  2. When nsta_name(1) > 0, This routine generates the sfc & nst analysis files (sfcanl and nstanl) by
+!  2. When nst_gsi > 0, This routine generates the sfc & nst analysis files (sfcanl and nstanl) by
 !     (1) reading sfcgcy (sfcf06 applied with global_cycle) and nstf06
 !     (2) writing/updating the SST (tsea) and Tr (tref) respectively to get sfcanl and nstanl
 !
@@ -1379,12 +1362,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
 !  4. Notes
 !     (1) Tr (foundation temperature), instead of skin temperature, is the analysis variable.
-!     (2) The generation of sfanl is nsta_name(1) dependent.
-!         nsta_name(1) = 0 (default): No NST info at all;
-!         nsta_name(1) = 1          : Input NST info but not used in GSI
-!         nsta_name(1) = 2          : Input NST info, used in CRTM simulation but no
+!     (2) The generation of sfanl is nst_gsi dependent.
+!         nst_gsi = 0 (default): No NST info at all;
+!         nst_gsi = 1          : Input NST info but not used in GSI
+!         nst_gsi = 2          : Input NST info, used in CRTM simulation but no
 !         Tr analysis
-!         nsta_name(1) = 3          : Input NST info, used in both CRTM simulation
+!         nst_gsi = 3          : Input NST info, used in both CRTM simulation
 !         and Tr analysis
 !     (3) The surface file (sfcgcy) read in has been updated with global_cycle
 !     (4) Generally, here, the interpolation of the discontinuous field is
@@ -1406,7 +1389,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use obsmod,  only: iadate,ianldate
     use constants, only: zero,zero_single,two,tfrozen,z_w_max,rad2deg
     use guess_grids, only: isli2
-    use radinfo, only: nsta_name
+    use radinfo, only: nst_gsi,zsea1,zsea2
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 
@@ -1461,8 +1444,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind), dimension(nlat_sfc,nlon_sfc)  :: isli_gsi
 
     real(r_kind),    dimension(nlon_sfc,nlat_sfc-2):: dsfct_anl
-    real(r_kind),  dimension(nlon_sfc,nlat_sfc-2):: dtzm
-    real(r_kind) :: zsea1,zsea2
+    real(r_single),  dimension(nlon_sfc,nlat_sfc-2):: dtzm
 
     type(sfcio_head):: head_sfcges,head_sfcgcy,head_sfcanl
     type(sfcio_data):: data_sfcges,data_sfcgcy,data_sfcanl
@@ -1627,7 +1609,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !      update tref (in nst file) & tsea (in the surface file) when Tr analysis is on
 !      reset NSSTM variables for new open water grids
 !
-       if ( nsta_name(1) > 2 ) then
+       if ( nst_gsi > 2 ) then
 !
 !         For the new open water (sea ice just melted) grids, (1) set dsfct_anl = zero; (2) reset the NSSTM variables
 !
@@ -1668,10 +1650,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
 !         update SST: tsea for sfc file
 !
-          zsea1 = 0.001_r_kind*real(nsta_name(4))
-          zsea2 = 0.001_r_kind*real(nsta_name(5))
-          call dtzm_2d(dble(data_nst%xt),dble(data_nst%xz),dble(data_nst%dt_cool),dble(data_nst%z_c), &
-                       dble(data_sfcanl%slmsk),zsea1,zsea2,lonb,latb,dtzm)
+          call dtzm_2d(data_nst%xt,data_nst%xz,data_nst%dt_cool,data_nst%z_c, &
+                       data_sfcanl%slmsk,0.001_r_single*real(zsea1),0.001_r_single*real(zsea2),lonb,latb,dtzm)
 
           where ( data_sfcanl%slmsk(:,:) == zero )
              data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:) + dtzm(:,:), tfrozen)
@@ -1683,7 +1663,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 100       format(' WRITE_NST_SFC:  sfc analysis written  for ',&
              a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
-       else          ! when (nsta_name(1) <= 2)
+       else          ! when (nst_gsi <= 2)
 
           do j=1,latb
              do i=1,lonb
@@ -1728,7 +1708,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 101       format(' WRITE_NST_SFC:  sfc analysis written  for ',&
              a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
-       endif                   ! if ( nsta_name(1) > 2 ) then
+       endif                   ! if ( nst_gsi > 2 ) then
 
 !
 !      write info on the new open water and new sea ice grids
@@ -1745,7 +1725,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
              endif
           end do
        end do
-       write(*,'(a,I3,1x,I8,1x,I8)') 'write_gfs_sfc_nst,nsta_name(1),n_new_water,n_new_seaice:',nsta_name(1),n_new_water,n_new_seaice
+       write(*,'(a,I3,1x,I8,1x,I8)') 'write_gfs_sfc_nst,nst_gsi,n_new_water,n_new_seaice:',nst_gsi,n_new_water,n_new_seaice
 
 !      Update guess date/time to analysis date/time for nst file
        head_nst%fhour = head_sfcanl%fhour            ! forecast hour
@@ -1774,7 +1754,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
   subroutine write_ens_sfc_nst(mype,mype_so,dsfct)
 !
-! abstract: write sfc and nst analysis files (nsta_name(1) dependent) for
+! abstract: write sfc and nst analysis files (nst_gsi dependent) for
 !           ensemble (lower resolution)
 !
 !
@@ -1840,13 +1820,13 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !  4. Notes
 !     (1) Tr (foundation temperature), instead of skin temperature, is the
 !     analysis variable.
-!     (2) The generation of sfcanl and sfcanl_yyyymmddhh_mm??? is nsta_name(1)
+!     (2) The generation of sfcanl and sfcanl_yyyymmddhh_mm??? is nst_gsi
 !     dependent.
-!         nsta_name(1) = 0 (default): No NST info at all;
-!         nsta_name(1) = 1          : Input NST info but not used in GSI
-!         nsta_name(1) = 2          : Input NST info, used in CRTM simulation but no
+!         nst_gsi = 0 (default): No NST info at all;
+!         nst_gsi = 1          : Input NST info but not used in GSI
+!         nst_gsi = 2          : Input NST info, used in CRTM simulation but no
 !         Tr analysis
-!         nsta_name(1) = 3          : Input NST info, used in both CRTM simulation
+!         nst_gsi = 3          : Input NST info, used in both CRTM simulation
 !         and Tr analysis
 !     (3) The mask info is regarded as available for different resolutions
 !
@@ -1866,7 +1846,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use obsmod,  only: iadate,ianldate
     use constants, only: zero_single,zero,half,two,pi,tfrozen,z_w_max,rad2deg
     use guess_grids, only: isli2
-    use radinfo, only: nsta_name
+    use radinfo, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 
@@ -2108,7 +2088,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
 !         update tref (in nst file) & tsea (in the surface file) when Tr analysis is on
 !
-          if ( nsta_name(1) > 2 ) then
+          if ( nst_gsi > 2 ) then
 !
 !            For the new open water (sea ice just melted) grids, reset the NSSTM variables
 !
@@ -2155,7 +2135,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 
 
-          else          ! when (nsta_name(1) <= 2)
+          else          ! when (nst_gsi <= 2)
 
              do j=1,latb
                 do i=1,lonb
@@ -2188,7 +2168,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                    data_sfcanl%tsea(i,j) = max(data_sfcanl%tsea(i,j) + dsfct_anl(i,j),271.0_r_kind)  ! update tsea
                 end do
              end do
-          endif                   ! if ( nsta_name(1) > 2 ) then
+          endif                   ! if ( nst_gsi > 2 ) then
 
           n_new_water = 0
           n_new_seaice = 0
@@ -2202,7 +2182,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
                 endif
              end do
           end do
-          write(*,'(a,I3,1x,I8,1x,I8)')'write_gfs_sfc_nst,nsta_name(1),n_new_water,n_new_seaice:',nsta_name(1),n_new_water,n_new_seaice
+          write(*,'(a,I3,1x,I8,1x,I8)')'write_gfs_sfc_nst,nst_gsi,n_new_water,n_new_seaice:',nst_gsi,n_new_water,n_new_seaice
 
 !         Update guess date/time to analysis date/time for nst file
           head_nst%fhour    = head_sfcanl%fhour                  ! forecast hour
@@ -2237,7 +2217,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
   subroutine write_ens_dsfct(mype,mype_so,dsfct)
 !
-! abstract: write out dsfct (nsta_name(1) dependent) for ensemble (lower resolution)
+! abstract: write out dsfct (nst_gsi dependent) for ensemble (lower resolution)
 !
 !  REMARKS:
 !
@@ -2318,7 +2298,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use obsmod,  only: iadate,ianldate
     use constants, only: zero_single,zero,half,two,pi,tfrozen
     use guess_grids, only: isli2
-    use radinfo, only: nsta_name
+    use radinfo, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 

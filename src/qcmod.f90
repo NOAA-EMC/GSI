@@ -41,7 +41,6 @@ module qcmod
 !   2014-05-29  thomas  - add lsingleradob functionality rejection flag
 !                         (originally of mccarty)
 !   2014-10-06  carley  - add logicals for buddy check
-!   2015-03-13       Li - introduce nsta_name (array) to hold nsst related control parameters
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -92,7 +91,7 @@ module qcmod
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
   use constants, only: deg2rad,rad2deg,t0c,one_tenth
   use obsmod, only: rmiss_single
-  use radinfo, only: iuse_rad,nsta_name,passive_bc
+  use radinfo, only: iuse_rad,nst_tzr,passive_bc
   implicit none
 
 ! set default to private
@@ -1010,13 +1009,13 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !    Apply Tz retrieval
 !
      dtz = rmiss_single
-     if ( nsta_name(3) > 0 .and. luse .and. sea ) then
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
         call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
-     if ( nsta_name(3) > 0 .and. dtz /= rmiss_single ) then
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
          if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
@@ -1355,13 +1354,13 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! Apply Tz retrieval
 !
   dtz = rmiss_single
-  if ( nsta_name(3) > 0 .and. luse .and. sea ) then
+  if ( nst_tzr > 0 .and. luse .and. sea ) then
      call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
   endif
 !
 ! Apply QC with Tz retrieval
 !
-  if ( nsta_name(3) > 0 .and. dtz /= rmiss_single ) then
+  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
     do i = 1, nchanl
       if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
         xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
@@ -1644,13 +1643,13 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 ! Apply Tz retrieval
 !
   dtz = rmiss_single
-  if ( nsta_name(3) > 0 .and. luse .and. sea ) then
+  if ( nst_tzr > 0 .and. luse .and. sea ) then
      call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
   endif
 !
 ! Apply QC with Tz retrieval
 !
-  if ( nsta_name(3) > 0 .and. dtz /= rmiss_single ) then
+  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
     do i = 1, nchanl
       if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk) then
         xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
@@ -2715,13 +2714,13 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !    Apply Tz retrieval
 !
      dtz = rmiss_single
-     if ( nsta_name(3) > 0 .and. luse .and. sea ) then
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
         call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
-     if ( nsta_name(3) > 0 .and. dtz /= rmiss_single ) then
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
          if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
@@ -2950,13 +2949,13 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !    Apply Tz retrieval
 !
      dtz = rmiss_single
-     if ( nsta_name(3) > 0 .and. luse .and. sea ) then
+     if ( nst_tzr > 0 .and. luse .and. sea ) then
         call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
-     if ( nsta_name(3) > 0 .and. dtz /= rmiss_single ) then
+     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
          if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3

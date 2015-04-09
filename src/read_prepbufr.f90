@@ -125,8 +125,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2014-06-26  carley - simplify call to apply_hilbertcurve 
 !   2014-11-20  zhu  - added code for aircraft temperature kx=130
 !   2014-10-01  Xue    - add gsd surface observation uselist
-!   2015-03-13     Li - introduce nsta_name (array) to hold nsst related control parameters
-!  
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -160,7 +158,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
-  use radinfo,only: nsta_name
+  use radinfo,only: nst_gsi,nstinfo
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -416,8 +414,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(pwob) then
      nreal=16
   else if(sstob) then
-     if (nsta_name(1) > 0) then
-        nreal=18 + nsta_name(2)
+     if (nst_gsi > 0) then
+        nreal=18 + nstinfo
      else
         nreal=18
      end if
@@ -1839,7 +1837,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(18,iout)=stnelev                ! station elevation (m)
 
-                 if( nsta_name(1) > 0) then
+                 if( nst_gsi > 0) then
                    zob   = sstdat(2,k)
                    if (zob > 10.0) then
                       tref  = tsavg

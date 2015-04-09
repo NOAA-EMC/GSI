@@ -45,8 +45,6 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  li      - add ntguessfc to use guess_grids to apply intrp2a11 correctly
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
-!   2015-03-13      Li - introduce nsta_name (array) to hold nsst related control parameters
-!  
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -81,7 +79,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use radinfo, only: nsta_name
+  use radinfo, only: nst_gsi,nstinfo
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
@@ -169,7 +167,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   itz_tr=22   ! index of tz_tr
   idatamax=22 ! set to largest value in list above
 
-  if(nsta_name(1)>0) then
+  if(nst_gsi>0) then
      if(nele<idatamax) then
         write(6,*)'setupsst: nele inconsistent with idatamax',nele,idatamax
         call stop2(295)
@@ -201,7 +199,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     ioff0=maxinfo+nsta_name(2)
+     ioff0=maxinfo+nstinfo
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -219,7 +217,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(.not.in_anybin) cycle
 
     zob   = data(izob,i)
-    if(nsta_name(1) > 0)then
+    if(nst_gsi > 0)then
       tref  = data(itref,i)
       dtw   = data(idtw,i)
       dtc   = data(idtc,i)
@@ -302,7 +300,7 @@ if(.not.in_curbin) cycle
        dsfct_obx = zero
      endif
 
-     if(nsta_name(1) > 1) then
+     if(nst_gsi > 1) then
        sstges = max(tref+dtw-dtc+dsfct_obx, 271.0_r_kind)
      else
        sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
@@ -419,7 +417,7 @@ if(.not.in_curbin) cycle
         ssttail(ibin)%head%raterr2 = ratio_errors**2    
         ssttail(ibin)%head%time    = dtime
         ssttail(ibin)%head%zob     = zob
-        if (nsta_name(1) > 0 ) then
+        if (nst_gsi > 0 ) then
            ssttail(ibin)%head%tz_tr   = tz_tr
         end if
         ssttail(ibin)%head%b       = cvar_b(ikx)
@@ -492,7 +490,7 @@ if(.not.in_curbin) cycle
  
         rdiagbuf(20,ii) = data(iotype,i)     ! type of measurement
 
-        if ( nsta_name(1) > 0 ) then
+        if ( nst_gsi > 0 ) then
           rdiagbuf(21,ii) = data(itref,i)    ! Tr
           rdiagbuf(22,ii) = data(idtw,i)     ! dt_warm at zob
           rdiagbuf(23,ii) = data(idtc,i)     ! dt_cool at zob

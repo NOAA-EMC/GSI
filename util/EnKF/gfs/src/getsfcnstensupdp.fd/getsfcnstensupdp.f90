@@ -21,7 +21,7 @@ program getsfcnstensupdp
 !$$$
 
   use mpi
-  use kinds, only: r_kind,i_kind,r_double
+  use kinds, only: r_kind,i_kind,r_single
   use constants, only: two,half,zero,z_w_max,tfrozen,init_constants_derived,pi
   use ncepgfs_io, only: tran_gfssfc
   use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_swohdc
@@ -45,12 +45,12 @@ program getsfcnstensupdp
   integer(i_kind) :: i,j,jmax,nst_gsi
   integer(i_kind) :: nlon_anl,nlat_anl    ! the number of lon/lat of GSI analysis grids, including two extra polar lats
   integer(i_kind) :: nlon_ens,nlat_ens    ! the number of lon/lat of ensemble grids, including two extra polar lats
-  integer(i_kind) :: nz1,nz2
   integer(i_kind), allocatable, dimension(:,:) :: isli_anl,isli_epd,isli_gsi
-
-  real(r_kind) :: dlon,zsea1,zsea2
-  real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
-  real(r_kind), allocatable, dimension(:,:) :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens,work,dtzm
+  real(r_kind), allocatable, dimension(:)      :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
+  real(r_kind), allocatable, dimension(:,:)    :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens,work
+  real(r_single), allocatable, dimension(:,:)  :: dtzm
+  real(r_kind) :: dlon,dtw,dtc
+  integer(i_kind) :: zsea1,zsea2
 
   type(nstio_head):: head_nst
   type(nstio_data):: data_nst
@@ -74,18 +74,16 @@ program getsfcnstensupdp
   read(charbuf,'(i1)') nst_gsi
 
   call getarg(3,charbuf)
-  read(charbuf,'(i8)') nz1
+  read(charbuf,'(i8)') zsea1
 
   call getarg(4,charbuf)
-  read(charbuf,'(i8)') nz2
+  read(charbuf,'(i8)') zsea2
 
-  if ( mype == 0 ) then
-     write(6,'(a)')' '
-     write(6,'(a)')'Command line input'
-     write(6,'(a,i5)')' nanals  = ',nanals
-     write(6,'(a,i5)')' nst_gsi = ',nst_gsi
-     write(6,'(a,i5)')' nz1     = ',nz1
-     write(6,'(a,i5)')' nz2     = ',nz2
+  if (mype==0) then
+     write(6,*)' '
+     write(6,*)'Command line input'
+     write(6,*)' nanals= ',nanals
+     write(6,*)' nst_gsi = ',nst_gsi,' zsea1 = ',zsea1,' zsea2 = ',zsea2
   endif
 
   if ( npe < nanals ) then
@@ -306,10 +304,8 @@ program getsfcnstensupdp
 !
     if ( nst_gsi == 3 ) then
 
-      zsea1 = 0.001_r_kind * real(nz1,r_kind)
-      zsea2 = 0.001_r_kind * real(nz2,r_kind)
-      call dtzm_2d(dble(data_nst%xt),dble(data_nst%xz),dble(data_nst%dt_cool),dble(data_nst%z_c), &
-                   dble(data_sfcanl%slmsk),zsea1,zsea2,lonb,latb,dtzm)
+      call dtzm_2d(data_nst%xt,data_nst%xz,data_nst%dt_cool,data_nst%z_c, &
+                   data_sfcanl%slmsk,0.001_r_single*real(zsea1),0.001_r_single*real(zsea2),lonb,latb,dtzm)
       where ( data_sfcanl%slmsk(:,:) == zero )
          data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:) + dtzm(:,:),tfrozen)
       end where

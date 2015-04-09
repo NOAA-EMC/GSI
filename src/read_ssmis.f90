@@ -59,8 +59,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !   2014-12-03  derber remove unused variables
-!   2015-03-13      Li - introduce nsta_name (array) to hold nsst related control parameters
-!  
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -93,9 +91,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nsta_name,ssmis_method
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,ssmis_method
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad,&   
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,adp_anglebc         
+  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl    
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
@@ -239,7 +238,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat       = 4
   lnbufr     = 15
   r07        = 0.7_r_kind * deg2rad
-  if (nsta_name(1) > 0 ) then
+  if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
@@ -579,7 +578,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Complete thinning and QC steps for SSMIS
 ! Write header record to scratch file.  Also allocate array
 ! to hold all data for given satellite
-  nreal  = maxinfo + nsta_name(2)
+  nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax)) 
 
@@ -705,7 +704,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !    interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-     if ( nsta_name(1) > 0 ) then
+     if ( nst_gsi > 0 ) then
         tref  = ts(0)
         dtw   = zero
         dtc   = zero
@@ -753,7 +752,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      data_all(maxinfo-1,itx)=val_ssmis
      data_all(maxinfo,itx)=itt
 
-     if ( nsta_name(1) > 0 ) then
+     if ( nst_gsi > 0 ) then
         data_all(maxinfo+1,itx) = tref         ! foundation temperature
         data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
         data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
