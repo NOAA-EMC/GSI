@@ -39,18 +39,18 @@ program getsfcnstensupdp
   character(len=3)  :: charnanal
   character(len=8)  :: charbuf
 
-  integer(i_kind) :: iret,nanals
-  integer(i_kind) :: mype,mype1,npe,nproc
+  integer(i_kind) :: mype,mype1,npe,nproc,iret
   integer(i_kind) :: latb,lonb,n_new_water,n_new_seaice
-  integer(i_kind) :: i,j,jmax,nst_gsi
+  integer(i_kind) :: i,j,jmax
+  integer(i_kind) :: nanals,nst_gsi,zsea1,zsea2
   integer(i_kind) :: nlon_anl,nlat_anl    ! the number of lon/lat of GSI analysis grids, including two extra polar lats
   integer(i_kind) :: nlon_ens,nlat_ens    ! the number of lon/lat of ensemble grids, including two extra polar lats
   integer(i_kind), allocatable, dimension(:,:) :: isli_anl,isli_epd,isli_gsi
   real(r_kind), allocatable, dimension(:)      :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
   real(r_kind), allocatable, dimension(:,:)    :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens,work
   real(r_single), allocatable, dimension(:,:)  :: dtzm
-  real(r_kind) :: dlon,dtw,dtc
-  integer(i_kind) :: zsea1,zsea2
+  real(r_kind) :: dlon
+  real(r_single) :: r_zsea1,r_zsea2
 
   type(nstio_head):: head_nst
   type(nstio_data):: data_nst
@@ -75,15 +75,19 @@ program getsfcnstensupdp
 
   call getarg(3,charbuf)
   read(charbuf,'(i8)') zsea1
+  r_zsea1 = 0.001_r_single * real(zsea1,r_single)
 
   call getarg(4,charbuf)
   read(charbuf,'(i8)') zsea2
+  r_zsea2 = 0.001_r_single * real(zsea2,r_single)
 
   if (mype==0) then
-     write(6,*)' '
-     write(6,*)'Command line input'
-     write(6,*)' nanals= ',nanals
-     write(6,*)' nst_gsi = ',nst_gsi,' zsea1 = ',zsea1,' zsea2 = ',zsea2
+     write(6,'(a)')' '
+     write(6,'(a)')'Command line input'
+     write(6,'(a,i5)')' nanals  = ',nanals
+     write(6,'(a,i5)')' nst_gsi = ',nst_gsi
+     write(6,'(a,i5)')' zsea1   = ',zsea1
+     write(6,'(a,i5)')' zsea2   = ',zsea2
   endif
 
   if ( npe < nanals ) then
@@ -305,7 +309,7 @@ program getsfcnstensupdp
     if ( nst_gsi == 3 ) then
 
       call dtzm_2d(data_nst%xt,data_nst%xz,data_nst%dt_cool,data_nst%z_c, &
-                   data_sfcanl%slmsk,0.001_r_single*real(zsea1),0.001_r_single*real(zsea2),lonb,latb,dtzm)
+                   data_sfcanl%slmsk,r_zsea1,r_zsea2,lonb,latb,dtzm)
       where ( data_sfcanl%slmsk(:,:) == zero )
          data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:) + dtzm(:,:),tfrozen)
       end where
