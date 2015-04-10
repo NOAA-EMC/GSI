@@ -90,7 +90,8 @@ module radinfo
   public :: newpc4pred
   public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
-  public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave,zsea1,zsea2
+  public :: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,tzr_bufrsave,nst_tzr
+
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
@@ -108,12 +109,12 @@ module radinfo
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
   integer(i_kind) nst_gsi   ! indicator of Tr Analysis
-  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
   integer(i_kind) nstinfo   ! number of nst variables
-  integer(i_kind) fac_dtl   ! indicator of DTL
-  integer(i_kind) fac_tsl   ! indicator of TSL
   integer(i_kind) zsea1     ! upper depth (in mm) to do the mean
   integer(i_kind) zsea2     ! lower depth (in mm) to do the mean
+  integer(i_kind) fac_dtl   ! indicator of DTL
+  integer(i_kind) fac_tsl   ! indicator of TSL
+  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
 
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
 
@@ -231,12 +232,12 @@ contains
                            ! 1 = read nst info but not applied
                            ! 2 = read nst info, applied to Tb simulation but no Tr analysis
                            ! 3 = read nst info, applied to Tb simulation and do Tr Analysis
-    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
     nstinfo   = 0          ! number of nst fields used in Tr analysis
-    fac_dtl   = 0          ! indicator to apply DTL model
-    fac_tsl   = 0          ! indicator to apply TSL model
     zsea1     = 0          ! upper depth to do the mean
     zsea2     = 0          ! lower depth to do the mean
+    fac_dtl   = 0          ! indicator to apply DTL model
+    fac_tsl   = 0          ! indicator to apply TSL model
+    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
     tzr_bufrsave = .false. ! .true.=generate bufr file for Tz retrieval
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels

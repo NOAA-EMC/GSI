@@ -239,7 +239,7 @@ program getsfcnstensupdp
 !      format when nlat == latb-2 & nlon = lonb
 !
        if ( mype == 0 ) &
-          write(6,'(a,2(2a,2i5))')'getsfcnstensupdp: grid dimensions same: ',&
+          write(6,'(a,2(a,2i5))')'getsfcnstensupdp: grid dimensions same: ',&
           'nlon_anl,nlat_anl = ',nlon_anl,nlat_anl,' lonb,latb = ',lonb,latb
 
        do j=1,latb

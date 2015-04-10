@@ -1430,6 +1430,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind):: latb,lonb,nlatm2
     integer(i_kind):: i,j,ip1,jp1,ilat,ilon,mm1
     real(r_kind) :: dtw,dtc
+    real(r_single) :: r_zsea1,r_zsea2
 
     real(r_kind),    dimension(lat1,lon1):: dsfct_sub
     integer(i_kind), dimension(lat1,lon1):: isli_sub
@@ -1650,8 +1651,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
 !         update SST: tsea for sfc file
 !
+          r_zsea1 = 0.001_r_single*real(zsea1)
+          r_zsea2 = 0.001_r_single*real(zsea2)
           call dtzm_2d(data_nst%xt,data_nst%xz,data_nst%dt_cool,data_nst%z_c, &
-                       data_sfcanl%slmsk,0.001_r_single*real(zsea1),0.001_r_single*real(zsea2),lonb,latb,dtzm)
+                       data_sfcanl%slmsk,r_zsea1,r_zsea2,lonb,latb,dtzm)
 
           where ( data_sfcanl%slmsk(:,:) == zero )
              data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:) + dtzm(:,:), tfrozen)
