@@ -221,9 +221,12 @@ fi
             #  channels, and we need to map the channel to the correct
             #  grouping number in order to produce an accurate hyperlink.
             #
-            if [[ $SUFFIX == 'pr4dev' ]]; then
+            #  Update: with the new js plotting the actual channel number
+            #  can be sent.  This applies to all glb sources now; it's not
+            #  yet implemented for regional sources.
+            if [[ $RAD_AREA == 'glb' ]]; then
                changrp=${channel}
-               echo "for pr4dev using actual channel as changrp value"
+               echo "for glb using actual channel as changrp value"
             else 
                ctlfile="time.${satname}.ctl"
                if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
