@@ -279,8 +279,8 @@
 #                   defaults to ${COMIN}/${PREINP}cris.tm00.bufr_d${SUFINP}
 #     ATMSBF        Input ATMS radiance file (bufr format)
 #                   defaults to ${COMIN}/${PREINP}atms.tm00.bufr_d${SUFINP}
-#     ATMSBF        Input ATMS radiance file (bufr format)
-#                   defaults to ${COMIN}/${PREINP}atms.tm00.bufr_d${SUFINP}
+#     SAPHIRBF      Input SAPHIR radiance file (bufr format)
+#                   defaults to ${COMIN}/${PREINP}saphir.tm00.bufr_d${SUFINP}
 #     AMSR2BF       Input AMSR2 L1B brightness temperature files
 #                   defaults to ${COMIN}/${PREINP}amsr2.tm00.bufr_d${SUFINP}
 #     GMIBF         Input GMI L1CR brightness temperature files
@@ -1132,7 +1132,7 @@ cat <<EOF > gsiparm.anl
    $OBSQC
  /
  &OBS_INPUT
-   dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=45.0,dmesh(4)=20.0,time_window_max=3.0,
+   dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,time_window_max=3.0,
    $OBSINPUT
  /
 OBS_INPUT::
@@ -1223,7 +1223,7 @@ OBS_INPUT::
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
    gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
-   ahibufr        ahi         himawari8   ahi_himawari8       0.0     4     0
+   ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
 ::
  &SUPEROB_RADAR
    $SUPERRAD
