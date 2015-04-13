@@ -210,7 +210,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use obsmod, only: yobs,nobs_type,n0
+  use obsmod, only: yobs,nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
        stplimhowv,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
@@ -240,6 +240,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
+  integer(i_kind),parameter:: n0 = 11
   integer(i_kind),parameter:: ipen = n0+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
