@@ -210,7 +210,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use obsmod, only: yobs,nobs_type
+  use obsmod, only: yobs,nobs_type,n0
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
        stplimhowv,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
@@ -240,7 +240,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: n0=11
   integer(i_kind),parameter:: ipen = n0+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
@@ -254,11 +253,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
   real(r_quad),dimension(4,nobs_bins):: pbcqmin,pbcqmax
+  real(r_quad) :: pen_est(n0+nobs_type)
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
   real(r_kind),dimension(istp_iter):: stprat
-  real(r_quad),dimension(ipen):: bsum,csum,psum
+  real(r_quad),dimension(ipen):: bsum,csum,bsum_save,csum_save,pen_save
   real(r_quad),dimension(ipen,nobs_bins):: pj
   real(r_kind) delpen
   real(r_kind) outpensave
@@ -544,6 +544,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
+        do i=1,ipen
+           pen_save(i)=pbc(1,i)
+           bsum_save(i)=bsum(i)
+           csum_save(i)=csum(i)
+        end do
         pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                   ! Jb
         pjcost(2) = zero_quad
         do i=1,nobs_type
@@ -630,21 +635,21 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
   do i=1,ipen
-      psum(i)=pbc(1,i)+(stp(iis-1)-stp(iis))*(2.0_r_quad*bsum(i)+ &
-                       (stp(iis-1)-stp(iis))*csum(i))
+      pen_est(i)=pen_save(i)-(stp(ii-1)-stp(0))*(2.0_r_quad*bsum_save(i)- &
+                       (stp(ii-1)-stp(0))*csum_save(i))
   end do
   if(mype == 0)then
-    write(iout_iter,101) (psum(i),i=1,ipen)
+     write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
   end if
-  pjcostnew(1) = psum(1)                                 ! Jb
-  pjcostnew(3) = psum(2)+psum(3)                         ! Jc
+  pjcostnew(1) = pbc(1,1)                                  ! Jb
+  pjcostnew(3) = pbc(1,2)+pbc(1,3)                         ! Jc
   pjcostnew(4)=zero
   do i=4,n0
-     pjcostnew(4) =  pjcostnew(4) + psum(i) ! Jl
+     pjcostnew(4) =  pjcostnew(4) + pbc(1,i) ! Jl
   end do
   pjcostnew(2) = zero 
   do i=1,nobs_type
-     pjcostnew(2) = pjcostnew(2)+psum(n0+i)               ! Jo
+     pjcostnew(2) = pjcostnew(2)+pbc(1,n0+i)               ! Jo
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
@@ -654,6 +659,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         write(iout_iter,130) ii,bx,cx,stp(ii)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
+        write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
      end if
      end_iter = .true.
   end if
@@ -663,6 +669,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
      write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
   end if
+  do i=1,ipen
+      pen_est(i)=pbc(1,i)
+  end do
 199 format(' stepsize stprat    = ',6(e25.18,1x))
 200 format(' stepsize estimates = ',6(e25.18,1x))
 201 format(' stepsize guesses   = ',(10(e13.6,1x)))
