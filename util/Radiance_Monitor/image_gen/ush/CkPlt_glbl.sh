@@ -262,7 +262,9 @@ ${IG_SCRIPTS}/mk_angle_plots.sh
 
 ${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-${IG_SCRIPTS}/mk_bcor_plots.sh
+if [[ ${PLOT_STATIC_IMGS} -eq 1 ]]; then
+   ${IG_SCRIPTS}/mk_bcor_plots.sh
+fi
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=${RADSTAT_LOCATION}
