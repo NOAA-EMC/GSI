@@ -41,6 +41,9 @@ module qcmod
 !   2014-05-29  thomas  - add lsingleradob functionality rejection flag
 !                         (originally of mccarty)
 !   2014-10-06  carley  - add logicals for buddy check
+!   2015-01-16  ejones  - added qc_gmi
+!   2015-03-11  ejones  - added qc_amsr2
+!   2015-03-23  ejones  - added qc_saphir
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -59,6 +62,9 @@ module qcmod
 !   sub qc_amsua        - qc amsua data
 !   sub qc_mhs          - qc msu, amsub and hsb data
 !   sub qc_atms         - qc atms data
+!   sub qc_gmi          - qc gmi data
+!   sub qc_amsr2        - qc amsr2 data
+!   sub qc_saphir       - qc saphir data
 !
 ! remarks: variable definitions below
 !   def dfact           - factor for duplicate obs at same location for conv. data
@@ -115,12 +121,15 @@ module qcmod
   public :: qc_noirjaco3
   public :: qc_noirjaco3_pole
   public :: qc_satwnds
+  public :: qc_gmi
+  public :: qc_amsr2
+  public :: qc_saphir
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
-            ifail_gross_qc,ifail_cloud_qc,ifail_outside_range
+            ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,ifail_scanedge_qc
 
   public :: buddycheck_t,buddydiag_save
 
@@ -190,6 +199,22 @@ module qcmod
   integer(i_kind),parameter:: ifail_ch2_qc=56
 !  Reject because scattering over land in subroutine qc_ssmi
   integer(i_kind),parameter:: ifail_scatt_qc=57
+
+!  QC_GMI failures
+!  Reject due to krain type not equal to 0 in subroutine qc_gmi
+  integer(i_kind),parameter:: ifail_krain_gmi_qc=50
+!  Reject scan edges
+  integer(i_kind),parameter:: ifail_scanedge_qc=51
+!  Reject S1 swath edges
+  integer(i_kind),parameter:: ifail_gmi_swathedge_qc=52
+
+! QC_AMSR2 failures
+!  Reject due to krain type not equal to 0 in subroutine qc_amsr2
+  integer(i_kind),parameter:: ifail_krain_amsr2_qc=50
+
+! QC_SAPHIR failures
+!  Reject due to krain type not equal to 0 in subroutine qc_saphir
+  integer(i_kind),parameter:: ifail_krain_saphir_qc=50
 
 ! QC_IRSND        
 !  Reject because wavenumber > 2400 in subroutine qc_irsnd
@@ -427,7 +452,7 @@ contains
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
               obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
-              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
+              obstype == 'goes_img' .or. obstype == 'ahi' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
               obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
@@ -1050,6 +1075,421 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 
   return
 end subroutine qc_ssmi
+
+subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
+     kraintype,clw,tbobs,gmi,varinv,aivals,id_qc)
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_gmi     QC for gmi TBs
+!
+!   prgmmr: ejones         org: jcsda            date: 2015-01-16
+!
+! abstract: set quality control criteria for GMI; check clw against
+!           thresholds, calculate and check emissivity, filter out
+!           bad obs.
+!
+! program history log:
+!     2015-01-16  ejones  - copied and modified qc_ssmi
+!     2015-02-13  ejones  - added swath edge check
+!     2015-02-17  ejones  - added emissivity regression and check
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich     - channel number
+!     sfchgt  - surface height (not use now)
+!     luse    - logical use flag
+!     sea     - logical, sea flag
+!     mixed   - logical, mixed zone flag
+!     kraintype - [0]no rain, [others]rain ; see retrieval_mi
+!     clw     - retrieve clw [kg/m2]
+!     tbobs   - brightness temperature observations
+!     gmi     - logical true if gmi is processed
+!
+! output argument list:
+!     varinv  - observation weight (modified obs var error inverse)
+!     aivals  - number of data not passing QC
+!     id_qc   - qc index - see qcmod definitions
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: nsig
+  integer(i_kind)                  ,intent(in   ) :: nchanl
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
+  integer(i_kind)                  ,intent(in   ) :: kraintype 
+  integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
+
+  logical                          ,intent(in   ) :: sea,mixed,luse
+  logical                          ,intent(in   ) :: gmi
+
+  real(r_kind)                     ,intent(in   ) :: sfchgt,clw
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs 
+
+  real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv
+  real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
+
+! Declare local variables
+  integer(i_kind) :: l,i,idx
+  integer(i_kind) :: nch_emrgr                      ! nchan in emissivity regression
+  integer(i_kind),dimension(9)  :: idxch_emrgr      ! chan used in emissivity regression
+  real(r_kind),dimension(9)     :: rgr_coeff_18v,rgr_coeff_18h,rgr_coeff_23v
+  real(r_kind)                  :: em18v,em18h,em23v    ! calculated emissivity
+! coefficients for regression
+  real(r_kind) :: c18v,c18h,c23v                    ! regression constants
+  real(r_kind) :: efact,vfact,fact 
+  real(r_kind),dimension(nchanl) :: clwcutofx   
+!------------------------------------------------------------------
+
+! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
+  if(gmi) then
+     clwcutofx(1:nchanl) =  &
+          (/0.35_r_kind, 0.35_r_kind, 0.35_r_kind, 0.35_r_kind, 0.27_r_kind, &
+            0.10_r_kind, 0.10_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, & 
+            0.05_r_kind, 0.05_r_kind, 0.05_r_kind/)
+  end if
+
+! Loop over observations.
+
+  efact     =one
+  vfact     =one
+
+!    Over sea
+  if(sea) then
+
+!    clw qc
+     if( kraintype /= 0 ) then
+        efact=zero; vfact=zero
+        if(luse) then
+           aivals(8) = aivals(8) + one
+
+           do i=1,nchanl
+              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_gmi_qc
+           end do
+        end if
+
+     else if(clw > zero)then
+
+!      If dtb is larger than demissivity and dwmin contribution,
+!      it is assmued to be affected by  rain and cloud, tossing it out
+        do l=1,nchanl
+
+!          clw QC using ch-dependent threshold (clwch)
+           if( clw > clwcutofx(l) ) then
+              varinv(l)=zero
+              if(luse) then
+                 aivals(10) = aivals(10) + one
+                 if(id_qc(l)== igood_qc) then
+                    id_qc(l)=ifail_cloud_qc
+                    aivals(9)=aivals(9) + one
+                 end if
+              end if
+           end if
+        end do  !l_loop
+     end if
+
+!   Calculate emissivity and flag observations over thresholds
+!   Calculations for ch 3,4,5
+    nch_emrgr = 9
+    idxch_emrgr = (/1,2,3,4,5,6,7,8,9/)
+
+    ! Set regression constants and coefficients
+    c18v = 0.42467_r_kind
+    c18h = 0.35282_r_kind
+    c23v = 0.41562_r_kind
+    rgr_coeff_18v = (/ -0.00306_r_kind, 0.00286_r_kind, 0.00340_r_kind, 0.00016_r_kind,&
+                       -0.00269_r_kind, 0.00495_r_kind, -0.00211_r_kind, -0.00266_r_kind,&
+                        0.00128_r_kind /)
+    rgr_coeff_18h = (/ -0.00072_r_kind, 0.00164_r_kind, 0.00015_r_kind, 0.00364_r_kind,&
+                       -0.00384_r_kind, 0.00290_r_kind, -0.00056_r_kind, -0.00155_r_kind,&
+                        0.00067_r_kind /)
+    rgr_coeff_23v = (/ -0.00293_r_kind, 0.00339_r_kind, 0.00054_r_kind, -0.00050_r_kind,&
+                       -0.00162_r_kind, 0.00666_r_kind, -0.00169_r_kind, -0.00289_r_kind,&
+                        0.00120_r_kind /)
+
+    ! perform regressions
+    em18v = c18v
+    em18h = c18h
+    em23v = c23v
+    do i=1,nch_emrgr
+      idx=idxch_emrgr(i)
+      em18v=em18v+(tbobs(idx)*rgr_coeff_18v(i))    ! 18v emiss
+      em18h=em18h+(tbobs(idx)*rgr_coeff_18h(i))    ! 18h emiss
+      em23v=em23v+(tbobs(idx)*rgr_coeff_23v(i))    ! 23v emiss
+    end do
+
+    ! check emissivity values against thresholds and assign flag if needed
+!    if ( (em18h .gt. 0.40) .or. (em18v .gt. 0.68) .or. (em23v .gt. 0.71) ) then
+    if ( (em18h .gt. 0.36) .or. (em18v .gt. 0.66) .or. (em23v .gt. 0.69) ) then
+       do i=1,13
+          varinv(1:13)=zero
+          if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
+       end do
+    end if
+
+
+!    Use data not over over sea
+  else  !land,sea ice,mixed
+
+!   Reduce q.c. bounds over higher topography
+     efact=zero
+     vfact=zero
+
+     if (sfchgt > r2000) then
+        fact = r2000/sfchgt
+        efact = fact*efact
+        vfact = fact*vfact
+     end if
+  end if
+
+! Check for the observations at the scan edge (where only ch 1-9 are recorded)
+! and flag them for QC. These obs will have a clw of 999.0, assigned in
+! retrieval_gmi. This is only the case if use_swath_edge is set to true in
+! read_gmi.
+
+  if(clw > zero)then
+     do l=1,nchanl
+        if(clw > 900.0_r_kind) id_qc(l)=ifail_gmi_swathedge_qc
+     end do
+  end if
+
+  return
+end subroutine qc_gmi
+
+subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
+     kraintype,clw,tbobs,amsr2,varinv,aivals,id_qc)
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_amsr2     QC for amsr2 TBs
+!
+!   prgmmr: ejones         org: jcsda            date: 2015-03-11
+!
+! abstract: set quality control criteria for AMSR2; check clw against
+!           thresholds, calculate and check emissivity, filter out
+!           bad obs.
+!
+! program history log:
+!     2015-01-16  ejones
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich     - channel number
+!     sfchgt  - surface height (not use now)
+!     luse    - logical use flag
+!     sea     - logical, sea flag
+!     mixed   - logical, mixed zone flag
+!     kraintype - [0]no rain, [others]rain ; see retrieval_mi
+!     clw     - retrieve clw [kg/m2]
+!     tbobs   - brightness temperature observations
+!     amsr2   - logical true if gmi is processed
+!
+! output argument list:
+!     varinv  - observation weight (modified obs var error inverse)
+!     aivals  - number of data not passing QC
+!     id_qc   - qc index - see qcmod definitions
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: nsig
+  integer(i_kind)                  ,intent(in   ) :: nchanl
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
+  integer(i_kind)                  ,intent(in   ) :: kraintype
+  integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
+
+  logical                          ,intent(in   ) :: sea,mixed,luse
+  logical                          ,intent(in   ) :: amsr2
+
+  real(r_kind)                     ,intent(in   ) :: sfchgt,clw
+  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs
+  real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv
+  real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
+
+! Declare local variables
+  integer(i_kind) :: l,i,idx
+  integer(i_kind) :: nch_emrgr                 ! nchan in emissivity regression
+  integer(i_kind),dimension(9)  :: idxch_emrgr ! chan used in emissivity regression
+  real(r_kind) :: efact,vfact,fact
+  real(r_kind),dimension(nchanl) :: clwcutofx
+
+!------------------------------------------------------------------
+! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
+  if (amsr2) then
+     clwcutofx(1:nchanl) =  &
+         (/ 0.350_r_kind, 0.350_r_kind, 0.350_r_kind, 0.350_r_kind, 0.350_r_kind, &
+            0.350_r_kind, 0.350_r_kind, 0.350_r_kind, 0.270_r_kind, 0.270_r_kind, &
+            0.100_r_kind, 0.100_r_kind, 0.050_r_kind, 0.050_r_kind /)
+  endif
+
+! Loop over observations.
+
+  efact     =one
+  vfact     =one
+
+!    Over sea
+  if(sea) then
+
+!    clw qc
+     if( kraintype /= 0 ) then
+        efact=zero; vfact=zero
+        if(luse) then
+           aivals(8) = aivals(8) + one
+
+           do i=1,nchanl
+              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_amsr2_qc
+           end do
+        end if
+
+     else if(clw > zero)then
+
+!      If dtb is larger than demissivity and dwmin contribution,
+!      it is assmued to be affected by  rain and cloud, tossing it out
+        do l=1,nchanl
+
+!          clw QC using ch-dependent threshold (clwch)
+           if( clw > clwcutofx(l) ) then
+              varinv(l)=zero
+              if(luse) then
+                 aivals(10) = aivals(10) + one
+                 if(id_qc(l)== igood_qc) then
+                    id_qc(l)=ifail_cloud_qc
+                    aivals(9)=aivals(9) + one
+                 end if
+              end if
+           end if
+        end do  !l_loop
+     end if
+
+!   Calculate emissivity and flag observations over thresholds
+!   Need to work on emissivity regression
+
+
+!    Use data not over over sea
+  else  !land,sea ice,mixed
+
+!   Reduce q.c. bounds over higher topography
+     efact=zero
+     vfact=zero
+
+     if (sfchgt > r2000) then
+        fact = r2000/sfchgt
+        efact = fact*efact
+        vfact = fact*vfact
+     end if
+  end if
+
+  return
+end subroutine qc_amsr2
+
+subroutine qc_saphir(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
+     kraintype,saphir,varinv,aivals,id_qc)
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  qc_saphir     QC for SAPHIR TBs
+!
+!   prgmmr: ejones         org: jcsda            date: 2015-03-23
+!
+! abstract: set quality control criteria for SAPHIR; check for rainy obs
+!
+! program history log:
+!     2015-03-23  ejones
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     ich     - channel number
+!     sfchgt  - surface height (not use now)
+!     luse    - logical use flag
+!     sea     - logical, sea flag
+!     mixed   - logical, mixed zone flag
+!     kraintype - [0]no rain, [others]rain ; see retrieval_mi
+!     saphir  - logical true if saphir is processed
+!
+! output argument list:
+!     varinv  - observation weight (modified obs var error inverse)
+!     aivals  - number of data not passing QC
+!     id_qc   - qc index - see qcmod definitions
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  implicit none
+
+! Declare passed variables
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in   ) :: nsig
+  integer(i_kind)                  ,intent(in   ) :: nchanl
+  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
+  integer(i_kind)                  ,intent(in   ) :: kraintype 
+  integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
+
+  logical                          ,intent(in   ) :: sea,mixed,luse
+  logical                          ,intent(in   ) :: saphir
+
+  real(r_kind)                     ,intent(in   ) :: sfchgt
+
+  real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv !,errf
+  real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
+
+! Declare local variables 
+  real(r_kind)    :: efact,vfact,fact
+  integer(i_kind) :: i
+!------------------------------------------------------------------
+
+! Loop over observations.
+
+  efact     =one
+  vfact     =one
+
+!    Over sea
+  if(sea) then
+
+!    rain qc
+     if( kraintype /= 0 ) then
+        efact=zero; vfact=zero
+        if(luse) then
+           aivals(8) = aivals(8) + one
+
+           do i=1,nchanl
+              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_saphir_qc
+           end do
+        end if
+     end if
+
+!    Use data not over over sea
+  else  !land,sea ice,mixed
+
+!   Reduce q.c. bounds over higher topography
+     efact=zero
+     vfact=zero
+
+     if (sfchgt > r2000) then
+        fact = r2000/sfchgt
+        efact = fact*efact
+        vfact = fact*vfact
+     end if
+  end if
+
+  return
+end subroutine qc_saphir
+
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &

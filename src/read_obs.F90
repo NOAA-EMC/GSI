@@ -124,6 +124,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !                         Set satid=1 at start of subroutine to allow debug compile.
 !   2013-02-13  eliu     - add ssmis 
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
+!   2014-10-01  ejones   - add gmi and amsr2
+!   2015-01-16  ejones   - add saphir
 !                           
 !
 !   input argument list:
@@ -273,6 +275,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
          kidsat = 783
        else if ( jsatid == 'aqua'  ) then
          kidsat = 784
+       else if ( jsatid == 'gcom-w1' ) then
+         kidsat = 122
+! Temporary comment gpm out here; discrepancy between SAID in bufr file and
+! kidsat.
+!       else if ( jsatid == 'gpm' ) then
+!         kidsat = 288
+       else if ( jsatid == 'meghat' ) then
+         kidsat = 440
        else
          kidsat = 0
        end if
@@ -503,6 +513,8 @@ subroutine read_obs(ndata,mype)
 !   2014-11-12  carley  - Add call to read goes imager sky cover data for tcamt
 !   2014-12-03  derber - modify for no radiance cases and read processor for
 !                        surface fields
+!   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   
 !
 !   input argument list:
@@ -668,10 +680,11 @@ subroutine read_obs(ndata,mype)
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
                obstype == 'hsb'       .or. obstype == 'goes_img'  .or.  &
-               avhrr .or.                                               &
+               obstype == 'ahi'       .or. avhrr                  .or.  &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
-               obstype == 'cris'                                    ) then
+               obstype == 'cris'      .or. obstype == 'amsr2'     .or.  &
+               obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
           ditype(i) = 'ozone'
@@ -766,12 +779,21 @@ subroutine read_obs(ndata,mype)
                 parallel_read(i)= .true.
              else if(obstype == 'goes_img' )then
                 parallel_read(i)= .true.
+             else if(obstype == 'ahi' )then
+                parallel_read(i)= .true.
              else if(obstype == 'hsb' )then
                 parallel_read(i)= .true.
              else if(obstype == 'ssmi' )then
                 parallel_read(i)= .true.
              else if(obstype == 'ssu' )then
                 parallel_read(i)= .true.
+             else if(obstype == 'amsr2')then
+                parallel_read(i)= .true.
+             else if(obstype == 'gmi')then
+!                parallel_read(i)= .true.
+             else if(obstype == 'saphir')then
+!                parallel_read(i)= .true.
+
              end if
            end if
           end if
@@ -1234,6 +1256,13 @@ subroutine read_obs(ndata,mype)
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_ATMS'
 
+!            Process saphir data
+             else if (obstype == 'saphir') then
+                call read_saphir(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_SAPHIR'
+
 !            Process airs data        
              else if(platid == 'aqua' .and. (obstype == 'airs' .or.   &
                   obstype == 'amsua'  .or.  obstype == 'hsb' ))then
@@ -1289,6 +1318,19 @@ subroutine read_obs(ndata,mype)
                              infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                              mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                         string='READ_SSMIS'
+!            Process AMSR2 data
+             else if(obstype == 'amsr2')then
+                call read_amsr2(mype,val_dat,ithin,isfcalc,rmesh,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_AMSR2'
+
+!            Process GMI data
+             else if (obstype == 'gmi') then
+                call read_gmi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_GMI'
 
         !            Process GOES IMAGER RADIANCE  data
                      else if(obstype == 'goes_img') then
@@ -1296,6 +1338,13 @@ subroutine read_obs(ndata,mype)
                              infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                              mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                         string='READ_GOESMIMG'
+
+        !    Process Himawari-8 AHI RADIANCE  data
+             else if(obstype == 'ahi') then
+                call read_ahi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                string='READ_AHI'
 
         !            Process Meteosat SEVIRI RADIANCE  data
                      else if(obstype == 'seviri') then
