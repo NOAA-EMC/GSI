@@ -812,6 +812,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
 !                       invoked by the global_anavinfo.ghg.l64.txt
 !   2014-01-31  mkim-- remove 60.0degree boundary for icmask for all-sky MW radiance DA 
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1578,7 +1579,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! also, geometryinfo is not needed in crtm aod calculation
   if ( trim(obstype) /= 'modis_aod' ) then
      panglr = data_s(iscan_ang)
-     if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
+     if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'ahi')panglr = zero
      geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
      geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
      geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle

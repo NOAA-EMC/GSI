@@ -20,10 +20,19 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !            domain
 !
 ! program history log:
-!   2014-03-29  j.jin   - read gmis1_gpm and gmis2_gpm obs.
+!   2014-03-29  j.jin   - read gmi.
 !   2014-05-08  j.jin   - copy/separate from read_tmi.f90. Needs clean up.
 !   2014-09-03  j.jin   - read GMI 1CR data, obstype=gmi. Increase the size 
 !                         of data_all for channel 10-13 geo-information.
+!   2014-12-15  ejones  - add rfi check
+!   2015-03-02  ejones  - add logical "use_swath_edge" to allow user to choose 
+!                         whether obs are used at swath edges where there are 
+!                         no TBs for ch10-13. If the logical is set to true, the missing
+!                         observations for ch10-13 are given a TB of 500K, and
+!                         these obs will be removed by the gross check elsewhere
+!                         in the GSI, allowing the observations from ch1-9
+!                         through. If the logical is set to false, the swath
+!                         edge obs are skipped in the read loop. 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -68,8 +77,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
-  use clw_mod,  only:  retrieval_mi
-
   implicit none
 
 ! Declare passed variables
@@ -86,14 +93,14 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),intent(inout)  :: ndata,nodata
 
 ! Declare local parameters
+  logical                   :: use_swath_edge
   integer(i_kind)           :: maxinfo
   integer(i_kind)           :: maxchanl,ngs
 
   real(r_kind),  allocatable, dimension(:) :: tbob
   integer(i_kind),allocatable,dimension(:) :: tbmin     ! different tbmin for the channels.
-  real(r_double), allocatable,dimension(:) :: mirad, gmichq   ! TBB from strtmbr
+  real(r_double), allocatable,dimension(:) :: mirad, gmichq, gmirfi   ! TBB from strtmbr
   real(r_double)            :: fovn      ! FOVN 
-  real(r_double)            :: gmichqcr                       !-erin debug stuff
   real(r_kind),parameter    :: r360=360.0_r_kind
   character(80),parameter   :: satinfo='SAID SIID OGCE GSES SACV'          !use for ufbint()
   character(80),parameter   :: hdr1b='YEAR MNTH DAYS HOUR MINU SECO ORBN'  !use for ufbint()
@@ -118,7 +125,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_double),allocatable:: val_angls(:,:),pixelsaza(:)
 
 ! Declare local variables
-  logical        :: assim,outside,iuse, no85GHz, gmi,gmi_low,gmi_hig
+  logical        :: assim,outside,iuse,gmi
 
   integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next,j
   integer(i_kind):: iret,idate,nchanl,nchanla
@@ -134,6 +141,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) :: crit1,dist1
   real(r_kind) :: timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) :: disterr,disterrmax,dlon00,dlat00
 
@@ -157,39 +165,17 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   data  mlen/31,28,31,30,31,30, &
              31,31,30,31,30,31/
 
-
   integer(i_kind) :: ang_nn, pos_max 
   integer(i_kind),allocatable :: pos_statis(:), npos_all(:,:)
 
-! ---- check clw ----
-  real(r_kind)    :: clw,tpwc
-  integer(i_kind) :: kraintype,ierrret,nchanl2
 ! ---- skip some obs at the beginning and end of a scan ----
   integer(i_kind):: radedge_min,radedge_max,iscan_pos,iedge_log,j2
 
 
-! ------------ erin debug stuff -----------
-  integer(i_kind):: cycle1,cycle2,cycle3,cycle4,cycle5,cycle6,cycle7,cycle8
-  integer(i_kind):: cycle_rmi
-
-
 !**************************************************************************
 
-
-! ------------- erin debug stuff ----------
-  cycle1=0
-  cycle2=0
-  cycle3=0
-  cycle4=0
-  cycle5=0
-  cycle6=0
-  cycle7=0
-  cycle8=0
-
-  cycle_rmi=0
-
-
 ! Initialize variables
+  use_swath_edge = .false.
   lnbufr = 15
   disterrmax=zero
   ntest=0
@@ -214,15 +200,9 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      m = m + mlen(mon)
   end do
 
-
 ! Set various variables depending on type of data to be read
 
-  gmi_low  = obstype  == 'gmi_low'
-  gmi_hig  = obstype  == 'gmi_hig'
   gmi      = obstype  == 'gmi'
-
-write(6,*)'****GMI obstype=', obstype      !- erin debug
-
 
      nscan  = 221                          ! number of pixels 
      npos_bin = 3                          ! max number of high resolution pixels at a position 
@@ -231,23 +211,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
      tbmax = 320.0_r_kind                  ! one value for all tmi channels (see data document).
      strscan='GMISQ SCLAT SCLON HMSL' 
 
-     if (gmi_low) then
-       maxinfo=34
-       maxchanl = 9                        ! number of channels
-       nchanl = 9                          ! 9 channls
-       nchanla = nchanl
-       ngs=1
-       allocate (tbmin(maxchanl))
-       tbmin = (/50,50,50,50,50,50,50,50,50/) ! copied from GPM_ATBD_1C_V1.2_201404
-     else if (gmi_hig) then
-       maxinfo=34
-       maxchanl = 4                        ! number of channels
-       nchanl = 4                          ! 4 channls
-       nchanla = nchanl
-       ngs=1
-       allocate (tbmin(maxchanl))
-       tbmin = (/70,70,70,70/)             !
-     else if (gmi) then
+     if (gmi) then
        maxinfo=39
        maxchanl = 13                       ! number of channels
        nchanl = 13                         ! 13 channls
@@ -257,7 +221,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
        tbmin = (/50,50,50,50,50,50,50,50,50,70,70,70,70/)             !
      endif
      ang_nn=nscan/npos_bin+1
-     allocate (tbob(maxchanl), mirad(maxchanl),gmichq(maxchanl))
+     allocate (tbob(maxchanl), mirad(maxchanl),gmichq(maxchanl),gmirfi(maxchanl))
      allocate (val_angls(n_angls,ngs), pixelsaza(ngs))
      rlndsea(0) = zero
      rlndsea(1) = 30._r_kind
@@ -287,9 +251,6 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
   end do search
   if (.not.assim) val_gmi=zero
 
-  nchanl2=7    ! cha 1&2 (10 GHz) for GMI are not available for SSMI (clw/tpwc retrievals).
-  no85GHz=.false.
-
 ! Make thinning grids
   call makegrids(rmesh,ithin)
 
@@ -301,13 +262,11 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 ! Allocate arrays to hold data
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 !       Extract satellite id from the 1st MG.  If it is not the one we want, exit reading.
         call readmg(lnbufr, subset, iret, idate)
         rd_loop: do while (ireadsb(lnbufr)==0)
-
-!write(6,*)'****GMI reading header'               !-erin debug
 
           call ufbint(lnbufr,satinfo_v,ninfo,1,iret,satinfo)
           if(nint(satinfo_v(1)) /= bufsat) then 
@@ -318,30 +277,25 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
         enddo rd_loop
 ! Big loop to read data file
   next=0
+  irec=0
+  nrec=999999
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)            ! GMI pixels
-!write(6,*)'****GMI reading data'               !-erin debug
-
         call ufbrep(lnbufr,fovn,1, 1,iret, strfovn)
-
-!write(6,*)'****GMI fovn=',fovn                 !-erin debug
-
         ! npos must .LE. 90 because nstep=90 in bias_angle correction code
         !   ../../../../Applications/NCEP_Etc/NCEP_bias/main.f90
         npos = fovn/npos_bin + 1  ! always group scan positions according channel-9's positions. 
         if (.not. use_edges .and. &
-             (npos < radedge_min .OR. npos > radedge_max )) then ! cycle read_loop
-             cycle1=cycle1+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-        endif                            ! -erin debug
+             (npos < radedge_min .OR. npos > radedge_max )) then 
+             cycle read_loop             
+        endif                            
 
 ! ----- extract time information  
         call ufbint(lnbufr,bfr1bhdr,ntime,1,iret,hdr1b)
-
-!write(6,*)'****GMI bfr1bhdr=',bfr1bhdr                 !-erin debug
 
 !       calc obs seqential time. If time is outside window, skip this obs
         iobsdate(1:5) = bfr1bhdr(1:5) !year,month,day,hour,min
@@ -352,42 +306,32 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
         else
            sstime=real(nmind,r_kind) + real(bfr1bhdr(6),r_kind)*r60inv
            tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind) then ! cycle read_loop
-             cycle2=cycle2+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                         ! -erin debug
+           if(abs(tdiff) > twind) then 
+             cycle read_loop             
+           endif                        
 
         endif
 
 ! ----- Read header record to extract obs location information  
-        if(gmi_low .or. gmi_hig) then
-          call ufbint(lnbufr,midat,nloc,1,iret,strscan)
-          gmichq(1:nchanl) = midat(1)
-          call ufbint(lnbufr,pixelsaza,1,ngs,iret,strsaza)
-          call ufbint(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
-        else if (gmi) then
+        if (gmi) then
           call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
-!write(6,*)'****GMI midat(2:4)',midat(2:4)             !-erin debug
           call ufbrep(lnbufr,gmichq,1,nchanl,iret,'GMICHQ')
-!          call ufbrep(lnbufr,gmichqcr,1,1,iret,'GMICHQ')     !-erin debug
-!write(6,*)'****GMI gmichq',gmichqcr             !-erin debug
+          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
           call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
           call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
         endif
-        if(val_angls(4,1) >=0_i_kind .and. val_angls(4,1) <=20_i_kind) cycle read_loop
+
         call ufbint(lnbufr,pixelloc,2, 1,iret,strloc)
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
         call ufbrep(lnbufr,mirad,1,nchanl,iret,strtmbr)
-!write(6,*)'****GMI mirad',mirad                      !-erin debug
 !          Regional case
            dlat_earth = pixelloc(1)  !deg
            dlon_earth = pixelloc(2)  !deg
-           if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) then ! cycle read_loop
-             cycle3=cycle3+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
+           if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) then 
+             cycle read_loop             
+           endif                        
 
            if(dlon_earth< zero) dlon_earth = dlon_earth+r360
            if(dlon_earth==r360) dlon_earth = dlon_earth-r360
@@ -420,52 +364,62 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
            else
               sat_zen_ang = sat_def_ang*deg2rad
            endif
-           sat_azimuth_ang = val_angls(1,1)*deg2rad
+           sat_azimuth_ang = val_angls(1,1)   !*deg2rad
            sun_zenith      = val_angls(2,1)
            sun_azimuth_ang = val_angls(3,1)
            sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+midat(4)) )
-           if(gmi) then
-             if (pixelsaza(ngs) < bmiss ) then
-               sat_zen_ang2 = pixelsaza(ngs)*deg2rad
-             else
-               sat_zen_ang2 = sat_def_ang2*deg2rad
-             endif
-             sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(4)) )
-             sat_azimuth_ang2 = val_angls(1,ngs)*deg2rad
+           if (pixelsaza(ngs) < bmiss ) then
+             sat_zen_ang2 = pixelsaza(ngs)*deg2rad
+           else
+             sat_zen_ang2 = sat_def_ang2*deg2rad
            endif
+           sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(4)) )
+           sat_azimuth_ang2 = val_angls(1,ngs)     !*deg2rad
+
+           !  -------- Retreive Sun glint angle -----------
+           clath_sun_glint_calc = pixelloc(1)
+           clonh_sun_glint_calc = pixelloc(2)
+           if(clonh_sun_glint_calc > 180._r_kind) clonh_sun_glint_calc = clonh_sun_glint_calc - 360.0_r_kind
+           doy = mday( int(bfr1bhdr(2)) ) + int(bfr1bhdr(3))
+           if ((mod( int(bfr1bhdr(1)),4)==0).and.( int(bfr1bhdr(2)) > 2))  then
+              doy = doy + 1
+           end if
+           time_4_sun_glint_calc = bfr1bhdr(4)+bfr1bhdr(5)*r60inv+bfr1bhdr(6)*r60inv*r60inv
+           call zensun(doy,time_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth_ang)
+           ! output solar zenith angles are between -90 and 90
+           ! make sure solar zenith angles are between 0 and 180
+           sun_zenith = 90.-sun_zenith
         
-!          Transfer observed brightness temperature to work array.  
-!          If any temperature exceeds limits, or data_quality /= 0
-!          reset observation to "bad" value.
+!          If use_swath_edge is true, set missing ch10-13 TBs to 500, so they
+!          can be tossed in gross check while ch1-9 TBs go through. If
+!          use_swath_edge is false, skip these obs 
+
+           do jc=10,nchanl
+              if(mirad(jc)>1000.0) then         
+                 if(use_swath_edge) then
+                   mirad(jc) = 500.0 !-replace missing tbs(ch10-13, swath edge)
+                 else
+                   cycle read_loop   ! skip obs 
+                 endif
+              endif
+           enddo
+
            iskip=0
            do jc=1, nchanla    ! only does such check the first 9 channels for GMI 1C-R data
-! -erin debug comment out check of data quality, since the GSI seems to be
-! reading bad values
-
-              if(mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax ) then ! &
-!                .or. gmichqcr > 0 ) then                !-erin debug stuff
-                !.or. gmichqcr(jc) > 0 ) then           !JJJ, skip data with data_quality > 0.
+              if( mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax .or. &
+                 gmichq(jc) < -0.5_r_kind .or. gmichq(jc) > 1.5_r_kind .or. & 
+                 gmirfi(jc)>0.0) then ! &
                  iskip = iskip + 1
               else
                  nread=nread+1
               end if
            enddo
 
-           do jc=10,nchanl
-              if(mirad(jc)>1000.0) then             !-erin stuff
-                 mirad(jc) = 500.0                   !-replace missing tbs(ch10-13, scan edge) and toss out in gross check
-              endif
-           enddo
-
-
-           if(iskip == nchanla) then !cycle read_loop
-             cycle4=cycle4+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
-
- 
+           if(iskip == nchanla) then 
+             cycle read_loop             
+           endif                        
            tbob = mirad 
-           if(gmi) nread=nread + (nchanl - nchanla)
+           nread=nread + (nchanl - nchanla)
 
            flgch = 0
            if (l4dvar) then
@@ -477,11 +431,9 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 
 !          Map obs to thinning grid
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-           if(.not. iuse) then  !cycle read_loop
-             cycle5=cycle5+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
-
+           if(.not. iuse) then  
+             cycle read_loop             
+           endif                       
 
 
            ! if the obs is far from the grid box center, do not use it.
@@ -491,10 +443,9 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 
            crit1 = crit1 + 10._r_kind * float(iskip)
            call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse) then  !cycle read_loop
-             cycle6=cycle6+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
+           if(.not. iuse) then 
+             cycle read_loop  
+           endif            
 
 
 !          Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -513,40 +464,18 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
 !          Only keep obs over ocean    - ej
            if(isflg .ne. 0) cycle read_loop
 
-!------------------ use for erin's work (temporarily)
-           if(.not. regional .and. isflg==0 .and. &
-              (gmi_low .or. gmi) ) then
-             ! retrieve tpwc and clw
-
-             call retrieval_mi(tbob(3:9),nchanl2,no85GHz, &
-               tpwc,clw,kraintype,ierrret )
-
-
-             ! don't use obsercation for cases that there are thick clouds or rain, or clw/twc cannot be retrieved.
-             ! Increse the clw threshold 3 => 5 in order to read more data, but these data don't pass QC.  8/28/2014
-             if(tpwc<0 .or. clw > 5 .or. kraintype /=0_i_kind .or. ierrret > 0) then !cycle read_loop
-                cycle_rmi=cycle_rmi+1                          ! erin debug
-!                cycle read_loop                                ! erin debug
-             endif                                             ! erin debug
-           endif
-!--------------------- used for erin's work
-
            crit1 = crit1 + rlndsea(isflg)
            call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse) then   !cycle read_loop
-             cycle7=cycle7+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
+           if(.not. iuse) then  
+             cycle read_loop           
+           endif                      
 
 
 
            call finalcheck(dist1,crit1,itx,iuse)
-           if(.not. iuse) then !cycle read_loop
-             cycle8=cycle8+1             ! -erin debug
-             cycle read_loop             ! -erin debug
-           endif                            ! -erin debug
-
-
+           if(.not. iuse) then 
+             cycle read_loop           
+           endif                      
 
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -566,7 +495,7 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
            data_all( 3,itx) = dlon                ! grid relative longitude
            data_all( 4,itx) = dlat                ! grid relative latitude
            data_all( 5,itx) = sat_zen_ang         ! local (satellite) zenith angle (radians)
-           data_all( 6,itx) = sat_azimuth_ang     ! local (satellite) azimuth_ang angle (radians)
+           data_all( 6,itx) = sat_azimuth_ang     ! local (satellite) azimuth_ang angle (degrees)
            data_all( 7,itx) = sat_scan_ang        ! scan(look) angle (rad)
            data_all( 8,itx) = npos                ! scan position,  .le. 90
            data_all( 9,itx) = sun_zenith          ! solar zenith angle (deg)
@@ -593,13 +522,13 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
            data_all(30,itx)= dlon_earth*rad2deg   ! earth relative longitude (degrees)
            data_all(31,itx)= dlat_earth*rad2deg   ! earth relative latitude (degrees)
            data_all(iedge_log,itx) = 0            ! =0, not to be obsoleted as at scan edges
-           if(gmi) then                           ! for channels 10-13
-             data_all(33,itx) = sat_zen_ang2      ! local (satellite) zenith angle (radians)
-             data_all(34,itx) = sat_azimuth_ang2  ! local (satellite) azimuth_ang angle (radians)
-             data_all(35,itx) = sat_scan_ang2     ! scan(look) angle (rad)
-             data_all(36,itx) = val_angls(2,ngs)  ! solar zenith angle (deg)
-             data_all(37,itx) = val_angls(3,ngs)  ! solar azimuth_ang angle (deg)
-           endif
+           data_all(33,itx) = sat_zen_ang2      ! local (satellite) zenith angle (radians)
+           data_all(34,itx) = sat_azimuth_ang2  ! local (satellite) azimuth_ang angle (degrees)
+           data_all(35,itx) = sat_scan_ang2     ! scan(look) angle (rad)
+!           data_all(36,itx) = val_angls(2,ngs)  ! solar zenith angle (deg)
+!           data_all(37,itx) = val_angls(3,ngs)  ! solar azimuth_ang angle (deg)
+           data_all(36,itx) = sun_zenith        ! solar zenith angle (deg)
+           data_all(37,itx) = sun_azimuth_ang   ! solar azimuth_ang angle (deg)
 
            data_all(maxinfo-1,itx)= val_gmi
            data_all(maxinfo,itx)= itt
@@ -614,30 +543,19 @@ write(6,*)'****GMI obstype=', obstype      !- erin debug
            do i=1,nchanl
               data_all(i+nreal,itx)=tbob(i)
            end do
+           nrec(itx)=irec
 
      end do read_loop
   end do read_subset
 690 continue
   call closbf(lnbufr)
 
-!------------------ erin debug stuff----------------
-write(6,*)'****GMI cycle1,2,3,4,5,6,7,8,rmi'&
-,cycle1,cycle2,cycle3,cycle4,cycle5,cycle6,cycle7,cycle8,cycle_rmi
-
-
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
-  if ( gmi_low ) then
-     write(6,*) 'READ_GMI_LOW: after combine_obs, nread,ndata is ',nread,ndata
-  elseif ( gmi_hig ) then
-     write(6,*) 'READ_GMI_HIG: after combine_obs, nread,ndata is ',nread,ndata
-  elseif ( gmi ) then
-     write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
-  endif
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+  write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
 
 !=========================================================================================================
   if( use_edges .and. (radedge_min > 1 .or. radedge_max < ang_nn).and. mype_sub==mype_root )then
@@ -743,7 +661,7 @@ write(6,*)'****GMI cycle1,2,3,4,5,6,7,8,rmi'&
      write(6,*)'READ_GMI:  mype,ntest,disterrmax=',&
         mype,ntest,disterrmax
 
-  deallocate(tbmin, tbob, mirad, gmichq)
+  deallocate(tbmin, tbob, mirad, gmichq, gmirfi)
   deallocate(val_angls, pixelsaza)
 ! End of routine
  return
