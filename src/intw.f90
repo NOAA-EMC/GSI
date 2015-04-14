@@ -65,6 +65,7 @@ subroutine intw_(whead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-03-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-04-12       su - add non linear qc from Purser's scheme
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -83,7 +84,7 @@ subroutine intw_(whead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
@@ -199,13 +200,24 @@ subroutine intw_(whead,rval,sval)
               valu = valu*term
               valv = valv*term
            endif
-
-           if( ladtest_obs) then
-              gradu = valu
-              gradv = valv
+           if ( wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+!              valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2*wptr%raterr2)*valu/sqrt(two*wptr%jb))
+!              valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2*wptr%raterr2)*valv/sqrt(two*wptr%jb))
+              valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
+              valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
+           endif
+           if ( wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
+              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
+!              gradu = valu*wptr%raterr2*wptr%err2
+!              gradv = valv*wptr%raterr2*wptr%err2
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2
+           endif
+           if( ladtest_obs) then
+              gradu = valu
+              gradv = valv
            end if
         endif
 

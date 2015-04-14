@@ -526,7 +526,16 @@ subroutine read_obs(ndata,mype)
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero
-    use converr, only: converr_read
+!   use converr, only: converr_read
+    use converr_ps, only: converr_ps_read
+    use converr_q, only: converr_q_read
+    use converr_t, only: converr_t_read
+    use converr_uv, only: converr_uv_read
+    use converr_pw, only: converr_pw_read
+    use convb_ps,only: convb_ps_read
+    use convb_q,only:convb_q_read
+    use convb_t,only:convb_t_read
+    use convb_uv,only:convb_uv_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nst_gsi
     use insitu_info, only: mbuoy_info,read_ship_info
@@ -600,9 +609,18 @@ subroutine read_obs(ndata,mype)
     nprof_gps1=0
 
 !    if(oberrflg .or. perturb_obs) then
-       call converr_read(mype)
+!        call converr_read(mype)
 !    endif
 
+       call converr_ps_read(mype)
+       call converr_q_read(mype)
+       call converr_t_read(mype)
+       call converr_uv_read(mype)
+       call converr_pw_read(mype)
+       call convb_ps_read(mype)
+       call convb_q_read(mype)
+       call convb_t_read(mype)
+       call convb_uv_read(mype)
 
 !   Optionally set random seed to perturb observations
     if (perturb_obs) then

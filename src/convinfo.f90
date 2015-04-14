@@ -51,6 +51,7 @@ module convinfo
 !                        count,max # of coefs
 !   def npred_conv_max - maximum number of conv ob bias correction coefs 
 !   def npred_conv     - conv ob bias coef count
+!   def index_sub      - index to count subtypes of a type and the position in the bufr error table 
 
 ! attributes:
 !   language: f90
@@ -80,6 +81,7 @@ module convinfo
   public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg
   public :: cermin,cgross
   public :: use_prepb_satwnd
+  public :: index_sub
 
   logical diag_conv
   logical :: ihave_pm2_5
@@ -88,7 +90,7 @@ module convinfo
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
 										rmesh_conv,pmesh_conv,stndev_conv
   integer(i_kind),allocatable,dimension(:):: ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,&
-                                             ithin_conv,npred_conv
+                                             ithin_conv,npred_conv,index_sub
   character(len=16),allocatable,dimension(:)::ioctype
 
   real(r_kind),allocatable,dimension(:,:) :: predx_conv
@@ -238,7 +240,7 @@ contains
     allocate(ctwind(nconvtype),cgross(nconvtype),cermax(nconvtype),cermin(nconvtype), &
              cvar_b(nconvtype),cvar_pg(nconvtype),ncmiter(nconvtype),ncgroup(nconvtype), &
              ncnumgrp(nconvtype),icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
-             ioctype(nconvtype), & 
+             ioctype(nconvtype), index_sub(nconvtype),& 
              ithin_conv(nconvtype),rmesh_conv(nconvtype),pmesh_conv(nconvtype),&
              npred_conv(nconvtype), &
              stndev_conv(nconvtype), &
@@ -253,6 +255,7 @@ contains
        rmesh_conv(i)=99999.0_r_kind
        pmesh_conv(i)=zero
        stndev_conv(i)=one
+       index_sub(i)=2
     enddo
     nc=zero
 
@@ -298,12 +301,15 @@ contains
            !                         ncnumgrp(nc),
 
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
-            ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
+          if(nc > 1 .and. trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
+             index_sub(nc)=index_sub(nc-1)+1
+          endif
        if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
-            ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5)
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),index_sub(nc)
+1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,i5)
        if (npred_conv_max > 0 ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
           if (ier /= 0 ) then
@@ -457,7 +463,7 @@ contains
     deallocate(ctwind,cgross,cermax,cermin, &
              cvar_b,cvar_pg,ncmiter,ncgroup, &
              ncnumgrp,icuse,ictype,icsubtype, &
-             ioctype, & 
+             ioctype,index_sub, & 
              ithin_conv,rmesh_conv,pmesh_conv, &
              npred_conv, &
              stndev_conv, &

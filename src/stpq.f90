@@ -13,6 +13,7 @@ module stpqmod
 !   2008-12-02  Todling - remove stpq_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2014-04-12       su - add non linear qc from Purser's scheme
 !
 ! subroutines included:
 !   sub stpq
@@ -173,12 +174,28 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            end do
         endif
      
-        out(1) = out(1)+pen(1)*qptr%raterr2
-        do kk=2,nstep
-           out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
-        end do
-     end if
+        if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+           do kk=1,max(1,nstep)
+!          pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)*qptr%raterr2/(two*qptr%jb))))
+              pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
+           enddo
+        endif
 
+        if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+            out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
+           do kk=2,nstep
+              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
+
+          do kk=2,nstep
+              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
+          end do
+       else
+          out(1) = out(1)+pen(1)*qptr%raterr2
+          do kk=2,nstep
+             out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
+          end do
+       endif
+     end if
      qptr => qptr%llpoint
 
   end do

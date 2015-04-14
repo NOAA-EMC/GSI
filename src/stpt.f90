@@ -13,6 +13,7 @@ module stptmod
 !   2008-12-02  Todling - remove stpt_tl
 !   2009-08-12  lueken - update documentation
 !   2013-10-28  todling - rename p3d to prse
+!   2014-04-12       su - add non linear qc from Purser's scheme
 !
 ! subroutines included:
 !   sub stpt
@@ -322,11 +323,25 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !       Note:  if wgross=0 (no gross error, then wnotgross=1 and this all 
 !              reduces to the linear case (no qc)
 
-        out(1) = out(1)+pen(1)*tptr%raterr2
-        do kk=2,nstep
-           out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
-        end do
-     end if
+!  Puser's non linear QC scheme
+
+       if( tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
+           do kk=1,max(1,nstep)
+!             pen(kk =two*two*tptr%jb*log(cosh(sqrt(pen(kk)*tptr%raterr2/(two*tptr%jb))))
+              pen(kk) = two*two*tptr%jb*log(cosh(sqrt(pen(kk)/(two*tptr%jb))))
+           enddo
+       endif
+       if( tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
+           out(1) = out(1)+pen(1)*sqrt(tptr%raterr2)
+           do kk=2,nstep
+              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(tptr%raterr2)
+           end do
+       else
+          out(1) = out(1)+pen(1)*tptr%raterr2
+          do kk=2,nstep
+             out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
+          end do
+       endif
 
      tptr => tptr%llpoint
 

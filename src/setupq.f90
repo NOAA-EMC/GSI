@@ -72,6 +72,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-03-24  Hu      - Use 2/3 of 2m Q and 1/3 of 1st level Q as background
 !                           to calculate O-B for the surface moisture observations
 !   2014-04-04  todling - revist q2m implementation (slightly)
+!   2014-04-12       su - add non linear qc from Purser's scheme
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -107,7 +108,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use jfunc, only: jiter,last,jiterstart,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use converr, only: ptabl 
+  use converr_q, only: ptabl_q 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr, &
@@ -151,7 +152,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) psges,sfcchk,ddiff,errorx
   real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind) grsmlt,ratio,val2,obserror
-  real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error
+  real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error,var_jb
   real(r_kind) val,valqc,rwgt,prest
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
@@ -163,7 +164,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) i,nchar,nreal,ii,l,jj,mm1,itemp
-  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat
+  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat,ijb
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iderivative
@@ -227,8 +228,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iprvd=20    ! index of observation provider
   isprvd=21   ! index of observation subprovider
   icat =22    ! index of data level category
-  iptrb=23    ! index of q perturbation
+  ijb  =23    ! index of non linear qc parameter
+  iptrb=24    ! index of q perturbation
 
+  var_jb=zero
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
@@ -296,8 +299,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          itype=ictype(ikx)
          rstation_id     = data(id,i)
         error=data(ier2,i)
-        
         prest=r10*exp(dpres)     ! in mb
+        var_jb=data(ijb,i)
      endif ! (in_curbin)
 
 !    Link observation to appropriate observation bin
@@ -516,12 +519,27 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term =log((arg+wgross)/(one+wgross))
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
+          valqc = -two*rat_err2*term
+        else if(var_jb >tiny_r_kind .and.  error >tiny_r_kind .and. var_jb <10.0_r_kind) then
+           if(exp_arg  == zero) then
+              wgt=one
+           else
+!             wgt=ddiff*error*ratio_errors/sqrt(two*var_jb)
+              wgt=ddiff*error/sqrt(two*var_jb)
+              wgt=tanh(wgt)/wgt
+           endif
+!          term=-two*var_jb*log(cosh((val*ratio_errors)/sqrt(two*var_jb)))
+!          term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
+           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           wgt  = wgtlim
+           rwgt = wgt/wgtlim
+           valqc = -two*term
         else
            term = exp_arg
            wgt  = wgtlim
            rwgt = wgt/wgtlim
+           valqc = -two*rat_err2*term
         endif
-        valqc = -two*rat_err2*term
         
 !       Accumulate statistics for obs belonging to this task
         if(muse(i))then
@@ -586,18 +604,19 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qtail(ibin)%head%time   = dtime
         qtail(ibin)%head%b      = cvar_b(ikx)
         qtail(ibin)%head%pg     = cvar_pg(ikx)
+        qtail(ibin)%head%jb     = var_jb
         qtail(ibin)%head%luse   = luse(i)
 
         if(oberror_tune) then
            qtail(ibin)%head%qpertb=data(iptrb,i)/error/ratio_errors
            qtail(ibin)%head%kx=ikx
-           if(presq > ptabl(2))then
+           if(presq > ptabl_q(2))then
               qtail(ibin)%head%k1=1
-           else if( presq <= ptabl(33)) then
+           else if( presq <= ptabl_q(33)) then
               qtail(ibin)%head%k1=33
            else
               k_loop: do k=2,32
-                 if(presq > ptabl(k+1) .and. presq <= ptabl(k)) then
+                 if(presq > ptabl_q(k+1) .and. presq <= ptabl_q(k)) then
                     qtail(ibin)%head%k1=k
                     exit k_loop
                  endif
@@ -637,7 +656,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark 
+        rdiagbuf(10,ii) = var_jb             ! non linear qc b parameter
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
@@ -752,6 +771,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            qtail(ibin)%head%time    = dtime
            qtail(ibin)%head%b       = cvar_b(ikx)
            qtail(ibin)%head%pg      = cvar_pg(ikx)
+           qtail(ibin)%head%jb      = var_jb
            qtail(ibin)%head%luse    = luse(i)
 
            qtail(ibin)%head%diags => obsdiags(i_q_ob_type,ibin)%tail

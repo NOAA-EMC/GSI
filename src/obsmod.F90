@@ -325,7 +325,7 @@ module obsmod
   public :: inquire_obsdiags
   public :: dfile_format
 ! set passed variables to public
-  public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
+  public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,colvk_ob_type,pcp_ob_type,dw_ob_type
   public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
   public :: gust_ob_type,vis_ob_type,pblh_ob_type,wspd10m_ob_type,td2m_ob_type
@@ -476,6 +476,7 @@ module obsmod
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      real(r_kind)    :: ppertb        !  random number adding to the obs
      integer(i_kind) :: ij(4)         !  horizontal locations
@@ -524,6 +525,7 @@ module obsmod
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: tlm_tsfc(6)   !  sensitivity vector for sfc temp 
                                       !  forward model
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
@@ -558,6 +560,7 @@ module obsmod
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: upertb        !  random number adding to the obs
      real(r_kind)    :: vpertb        !  random number adding to the obs
@@ -584,6 +587,7 @@ module obsmod
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: qpertb        !  random number adding to the obs
      integer(i_kind) :: ij(8)         !  horizontal locations
@@ -1473,7 +1477,7 @@ module obsmod
 
   logical, save :: obs_instr_initialized_=.false.
 
-  logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on
+  logical oberrflg,bflag,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
@@ -1550,6 +1554,7 @@ contains
     lsaveobsens=.false.
     l_do_adjoint=.true.     ! .true. = apply H^T when in int routines
     oberrflg  = .false.
+    bflag     = .false.     ! 
     sfcmodel  = .false.     ! .false. = do not use boundary layer model 
     dtbduv_on = .true.      ! .true. = use microwave dTb/duv in inner loop
     offtime_data = .false.  ! .false. = code fails if data files contain ref time
