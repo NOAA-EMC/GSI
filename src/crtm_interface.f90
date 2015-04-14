@@ -54,7 +54,8 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated, &
     crtm_irlandcoeff_classification, &
-    crtm_kind => fp
+    crtm_kind => fp, &
+    crtm_microwave_sensor => microwave_sensor
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
@@ -608,7 +609,17 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
-    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+ if ( channelinfo(sensorindex)%sensor_type == crtm_microwave_sensor ) then
+   call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+   if (.NOT.(crtm_surface_associated(surface(1)))) then
+      write(6,*)myname_,' ***ERROR** creating surface.'
+   else
+      surface(1)%sensordata%sensor_id        = channelinfo(sensorindex)%sensor_id
+      surface(1)%sensordata%wmo_sensor_id    = channelinfo(sensorindex)%wmo_sensor_id
+      surface(1)%sensordata%wmo_satellite_id = channelinfo(sensorindex)%wmo_satellite_id
+      surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
+   end if
+ end if
 !_RTod-NOTE endif
  if (lcw4crtm) &                                       
  call crtm_rtsolution_create(rtsolution0,msig) 
@@ -618,8 +629,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
  if (.NOT.(crtm_atmosphere_associated(atmosphere(1)))) &
     write(6,*)myname_,' ***ERROR** creating atmosphere.'
- if (.NOT.(crtm_surface_associated(surface(1)))) &
-    write(6,*)myname_,' ***ERROR** creating surface.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
  if (lcw4crtm) then                                            
@@ -648,19 +657,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !!  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(1)%wmo_sensor_id
 !! RB-1.1.rev1855 CRTM
 
- surface(1)%sensordata%sensor_id             =  channelinfo(sensorindex)%sensor_id
- surface(1)%sensordata%WMO_sensor_id         =  channelinfo(sensorindex)%WMO_sensor_id
- surface(1)%sensordata%WMO_Satellite_id      =  channelinfo(sensorindex)%WMO_Satellite_id
- surface(1)%sensordata%sensor_channel        =  channelinfo(sensorindex)%sensor_channel
-
-
  atmosphere(1)%n_layers = msig
  atmosphere(1)%absorber_id(1) = H2O_ID
  atmosphere(1)%absorber_id(2) = O3_ID
  atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
  atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
  atmosphere(1)%level_pressure(0) = TOA_PRESSURE
-
 
 ! Currently all considered trace gases affect CRTM. Load trace gases into CRTM atmosphere
  ico2=-1
@@ -839,6 +841,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2014-02-26  zhu - add non zero jacobian so jacobian will be produced for            
 !                     clear-sky background or background with small amount of cloud     
 !   2014-04-27  eliu - add option to calculate clear-sky Tb under all-sky condition                
+!   2015-02-27  eliu-- wind direction fix for using CRTM FASTEM model 
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -896,7 +899,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use regional_io, only: cold_start
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
-  use constants, only: max_varname_length,qmin,qcmin,pi 
+  use constants, only: max_varname_length,pi  
 
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
@@ -931,13 +934,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
-
-! Declare local variables  
   real(r_kind),parameter:: windscale = 999999.0_r_kind
   real(r_kind),parameter:: windlimit = 0.0001_r_kind
   real(r_kind),parameter:: quadcof  (4, 2  ) =      &
       reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
                -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
+
+! Declare local variables  
+  integer(i_kind):: iquadrant  
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
@@ -954,6 +958,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! ******************************
   integer(i_kind):: lai_type
 
+  real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
 ! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
@@ -1335,7 +1340,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsigp
            cloud(k,ii)=max(cloud(k,ii),zero)     
-!          cloud(k,ii)=max(cloud(k,ii),qcmin)    
          end do
 
          if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
@@ -1520,6 +1524,21 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (lwind) then
         f10=data_s(iff10)
         sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
+        wind10    = sfc_speed
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
+        if (abs(vv5*f10) >= windlimit) then
+          windratio = (uu5*f10) / (vv5*f10)
+        else
+          windratio = 0.0_r_kind
+          if (abs(uu5*f10) > windlimit) then
+             windratio = windscale * uu5*f10
+          endif
+        endif
+        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
+        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)                          
      endif
 
 ! Load surface structure
@@ -1545,10 +1564,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         surface(1)%Soil_Type = istype
         lai_type = itype
      end if
-                                    
-     if ((ABS(uu5)>zero .or. ABS(vv5)>zero) .and. lwind) then
+
+     if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*wind10_direction
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
@@ -1681,7 +1700,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (trim(obstype) /= 'modis_aod')then
 
 !  Pass CRTM array of tb for surface emissiviy calculations
-        surface(1)%sensordata%tb(i) = data_s(nreal+i)
+       if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. &
+            crtm_surface_associated(surface(1)) ) &
+         surface(1)%sensordata%tb(i) = data_s(nreal+i)
 
 ! set up to return layer_optical_depth jacobians
         rtsolution_k(i,1)%layer_optical_depth = one
