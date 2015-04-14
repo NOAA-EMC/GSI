@@ -2919,24 +2919,28 @@ subroutine init_sf_xy(jcap_in)
 
   call general_init_spec_vars(sp_loc,jcap,jcap,nlat_sploc,nlon_sploc,eqspace=use_sp_eqspace)
   if(mype==0) then
-     do j=1,grd_ens%nlon
-        if(j.le.nlon_sploc) then
-           write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
-               j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
-        else
-           write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
-               j,rad2deg*sp_ens%rlons(j)
-        end if
-     end do
-     do i=1,grd_ens%nlat
-        if(i.le.nlat_sploc) then
-           write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
-               i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
-        else
-           write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
-               i,rad2deg*sp_ens%rlats(i)
-        end if
-     end do
+     if( grd_ens%nlon == nlon_sploc .and. grd_ens%nlat == nlat_sploc)then
+        write(6,*)' ensemble and analysis nlat,nlon are the same '
+     else
+        do j=1,grd_ens%nlon
+           if(j.le.nlon_sploc) then
+              write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
+                  j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
+           else
+              write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
+                  j,rad2deg*sp_ens%rlons(j)
+           end if
+        end do
+        do i=1,grd_ens%nlat
+           if(i.le.nlat_sploc) then
+              write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
+                  i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
+           else
+              write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
+                  i,rad2deg*sp_ens%rlats(i)
+           end if
+        end do
+     end if
   end if
 
 !   regardless of whether or not nlat_sploc=grd_ens%nlat and nlon_sploc=grd_ens%nlon, compute
