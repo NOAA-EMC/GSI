@@ -925,7 +925,7 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   nvar_clw = 16        ! number of independent variables in clw regression
 
   ! regression coefficients
-  regr_coeff_clw = (/ -1.39909_r_kind, 0.07375_r_kind, 1.49488_r_kind, 0.07072_r_kind, &
+  regr_coeff_clw = (/ -1.39909_r_kind, -0.07375_r_kind, 1.49488_r_kind, 0.07072_r_kind, &
                       0.00611_r_kind, -0.06722_r_kind, -0.18259_r_kind, 0.07976_r_kind, &
                       0.03946_r_kind, -0.01740_r_kind, 0.05922_r_kind, -0.02742_r_kind, &
                       -0.00091_r_kind, 0.00009_r_kind, 0.00864_r_kind, -1.64131_r_kind /)
