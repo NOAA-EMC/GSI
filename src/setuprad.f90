@@ -1121,7 +1121,7 @@
         else if (amsr2) then
 
            call qc_amsr2(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-              kraintype,clw,tb_obs,amsr2,varinv,aivals(1,is),id_qc)
+              kraintype,clw_obs,tb_obs,amsr2,varinv,aivals(1,is),id_qc)
 
 
 !  ---------- GMI  -------------------
@@ -1131,16 +1131,16 @@
 ! remove some data near the scan edge
            if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
 
-              call qc_gmi(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-                kraintype,clw,tb_obs,gmi,varinv,aivals(1,is),id_qc)
+           call qc_gmi(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+              kraintype,clw_obs,tb_obs,gmi,varinv,aivals(1,is),id_qc)
 
 !  ---------- SAPHIR -----------------
 !       SAPHIR Q C
         
         else if (saphir) then
 
-           call qc_saphir(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-             kraintype,saphir,varinv,aivals(1,is),id_qc)
+        call qc_saphir(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+              kraintype,saphir,varinv,aivals(1,is),id_qc)
         
 !  ---------- SSU  -------------------
 !       SSU Q C
@@ -1640,7 +1640,11 @@
               diagbuf(17) = surface(1)%ice_temperature        ! surface temperature over ice (K)
               diagbuf(18) = surface(1)%snow_temperature       ! surface temperature over snow (K)
               diagbuf(19) = surface(1)%soil_temperature       ! soil temperature (K)
-              diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              if (gmi .or. saphir) then
+                diagbuf(20) = gwp                             ! graupel water path
+              else
+                diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              endif
               diagbuf(21) = surface(1)%land_type              ! surface land type
            else
               diagbuf(15) = tsavg5                            ! SST first guess used for SST retrieval
@@ -1648,11 +1652,7 @@
               diagbuf(17) = sstph                             ! Physical SST retrieval             
               diagbuf(18) = sstnv                             ! Navy SST retrieval               
               diagbuf(19) = dta                               ! d(ta) corresponding to sstph
-              if (gmi .or. saphir) then
-                diagbuf(20) = gwp                             ! graupel water path
-              else
-                diagbuf(20) = dqa                             ! d(qa) corresponding to sstph
-              endif
+              diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
