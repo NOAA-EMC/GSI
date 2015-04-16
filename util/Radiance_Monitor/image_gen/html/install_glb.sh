@@ -3,33 +3,32 @@ set -ax
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
-#  Install_html.sh
+#  install_glb.sh
 #
 #  Given a suffix and a global/regional flag as inputs, build the
 #  html necessary for a radiance monitor web site and tranfer it to
-#  the server.
+#  the server (glb only, regional is handled by Install_html.sh).
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  Install_html.sh suffix area"
+  echo "Usage:  install_glb.sh suffix"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
-  echo "            area is either 'glb' or 'rgn' (global or regional)"
 }
 
-echo "BEGIN Install_html.sh"
+echo "BEGIN install_glb.sh"
 echo ""
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -lt 0 ]]; then
    usage
    exit 2
 fi
 
 SUFFIX=$1
 echo SUFFIX = $SUFFIX
-export RAD_AREA=$2
+RAD_AREA="glb"
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -61,19 +60,10 @@ fi
 #  Get the area for this SUFFIX from the data_map file
 #
 
-if [[ $RAD_AREA == "glb" ]]; then 
-   ./install_glb.sh $SUFFIX
+new_webdir=${WEBDIR}/${SUFFIX}
+. ${RADMON_IMAGE_GEN}/parm/glbl_conf
 
-else 
-if [[ $RAD_AREA == "glb" ]]; then 
-   new_webdir=${WEBDIR}/${SUFFIX}
-   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
-else
-   new_webdir=${WEBDIR}/regional/${SUFFIX}
-   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
-fi
-
-echo RAD_AREA    = $RAD_AREA
+echo RAD_AREA = $RAD_AREA
 echo TANKverf = $TANKverf
 
 
@@ -233,7 +223,6 @@ done
 #  Sort the list by Satellite 
 #
 `sort -d $UNSORTED_LIST > $SORTED_LIST`
-#rm -f $UNSORTED_LIST
 
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
@@ -253,84 +242,49 @@ while read line; do
    ins=`echo $line | gawk '{print $2}'`
    satype=`echo $line | gawk '{print $3}'`
 
-   hline='<OPTION VALUE="'
+   hline='<OPTION value="'
    hline=${hline}${satype}
 
-   tline=${hline}${quote}${id}${satype}${extra}
-   hline=${hline}${extra}
-  
+   hline=${hline}${quote}${id}${satype}${extra}
    hline="${hline} ${sat} ${ins} ${end_option}"
-   tline="${tline} ${sat} ${ins} ${end_option}"
 
    echo $hline >> $PLATFORM_TBL
-   echo $tline >> $TIME_PLATFORM_TBL
 done < "$SORTED_LIST"
 
 
-echo '</SELECT><P>' >> $PLATFORM_TBL
-echo '</TD></TR>' >> $PLATFORM_TBL
-
+imgndir=`dirname ${IMGNDIR}`
 
 #--------------------------------------------------------------
 #  Edit the html files to add the platform table to each.
 #
-#  An example line entry in platform table is thus:
-#       <OPTION VALUE="sndrd1_g11" id="sndrd1_g11"> GOES-11 SNDRD1 </OPTION>
+mod_html_files="plot_summary.html plot_time.html plot_angle.html plot_bcoef.html"
 
-mod_html_files="bcoef bcor bcor_angle comp summary time"
-if [[ $PLOT_HORIZ -eq 1 ]]; then
-   mod_html_files="$mod_html_files horiz"
-fi
-
-for file in $mod_html_files; do
-   $NCP ${RADMON_IMAGE_GEN}/html/$file.html.$RAD_AREA .
+for html_file in $mod_html_files; do
+   echo "processing ${html_file}"
+   $NCP ${RADMON_IMAGE_GEN}/html/${html_file} .
    
-   html_file=$file.html.$RAD_AREA
-   tmp_html=./tmp_$file.html
-   rm -f $tmp_html 
+   tmp_html=./tmp_${html_file}
+   rm -f ${tmp_html}
 
-   found_platform_tbl=0
-   finished_platform_tbl=0
-   select_name_line=""
+   #  copy the $file from start to 'INSERT_TABLE' comment
+   sed -e '/INSERT_TABLE/,$d' ${html_file} > ${tmp_html}
 
-   while read line; do
-      if [[ $found_platform_tbl -eq 1 && $finished_platform_tbl -eq 1 ]]; then
-         echo $line >> $tmp_html
-      elif [[ $found_platform_tbl -eq 0 ]]; then
-         test_line=`echo $line | grep "Select Platform"`
-         if [[ ${#test_line} -eq 0 ]]; then
-            echo $line >> $tmp_html
-         else
-            found_platform_tbl=1
-         fi
-      else
-         if [[ ${#select_name_line} -eq 0 ]]; then
-            select_name_line=`echo $line | grep "SELECT NAME"`
-         fi
+   #  add the $PLATFORM_TBL (built above)
+   `cat $PLATFORM_TBL >> ${tmp_html}`
 
-         test_line=`echo $line | grep "</TR>"`
-         if [[ ${#test_line} -gt 0 ]]; then
-            echo '<TR><TD><B> Select Platform:</B><br>' >> $tmp_html
-            echo $select_name_line >> $tmp_html
-
-             if [[ $file == "time" ]]; then
-                `cat $TIME_PLATFORM_TBL >> $tmp_html`
-             else
-                `cat $PLATFORM_TBL >> $tmp_html`
-             fi
-            finished_platform_tbl=1
-         fi
-      fi
-
-   done < $html_file
+   #  copy the $file from 'END_TABLE_INSERT' comment to end
+   sed -n '/END_TABLE_INSERT/,$p' ${html_file} >> ${tmp_html}
 
    rm $html_file
-   mv $tmp_html $html_file
- 
+
+   #  switch all 'INSERT_SUFFIX' tags to the actual suffix
+   #  and route output to $html_file and we're done.
+   sed s/INSERT_SUFFIX/${SUFFIX}/g ${tmp_html} > ${html_file}
+
 done
 
 #--------------------------------------------------------------
-# Generate the intro.html.$RAD_AREA file.
+# Generate the intro.html file.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 $NCP ${RADMON_IMAGE_GEN}/html/intro.html  intro.html.stock 
@@ -352,9 +306,18 @@ if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
 fi
 
 
-$NCP ${RADMON_IMAGE_GEN}/html/index.html.$RAD_AREA .
-html_files="bcoef bcor_angle bcor comp horiz index intro menu summary time"
-plot_files="plot_summary.html"
+#--------------------------------------------------------------
+#  Copy the index.html file and change INSERT_SUFFIX to actual suffix.
+index_file="index.html.$RAD_AREA"
+tmp_index="tmp.index.html"
+new_index="index.html"
+
+$NCP ${RADMON_IMAGE_GEN}/html/${index_file} .
+sed s/INSERT_SUFFIX/${SUFFIX}/g $index_file > ${tmp_index}
+if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
+   sed s/Experimental/Operational/1 ${tmp_index} > ${new_index}
+fi
+
 js_files="jsuri-1.1.1.js stats.js"
 
 
@@ -371,14 +334,13 @@ fi
 imgndir=`dirname ${IMGNDIR}`
 
 #-----------------------
-#  html files
+#  move html files to imgndir
 #
-for file in $html_files; do
-   $NCP ${file}.html.${RAD_AREA} ${imgndir}/${file}.html
+all_html_files="${mod_html_files} index.html menu.html intro.html"
+for file in $all_html_files; do
+   $NCP ${file} ${imgndir}/${file}
 done
-$NCP intro.html ${imgndir}/.
-
- 
+   
 #-----------------------
 #  mk image dirs 
 #
@@ -387,25 +349,18 @@ for dir in $subdirs; do
 done
 
 #-----------------------
-#  plot files
-#
-for file in $plot_files; do
-
-   $NCP ${RADMON_IMAGE_GEN}/html/${file} .
-   
-   #  switch all 'INSERT_SUFFIX' tags to the actual suffix
-   sed s/INSERT_SUFFIX/${SUFFIX}/g ${file} > ${file}.tmp
-   mv -f ${file}.tmp ${file}
-
-   $NCP ${file} ${imgndir}/.
-
-done
-
-#-----------------------
 #  js files
 #
 for file in $js_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
+done
+
+#-----------------------
+#  arrow graphics
+#
+arrow_files="arrowleft.png arrowright.png"
+for file in $arrow_files; do
+   $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/pngs/.
 done
 
 #-----------------------
@@ -452,9 +407,7 @@ fi
 #cd ../
 #rm -rf $workdir
 
-fi
-
 echo ""
-echo "END Install_html.sh"
+echo "END install_glb.sh"
 
 exit
