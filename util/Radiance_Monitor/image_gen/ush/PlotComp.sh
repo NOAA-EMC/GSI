@@ -91,8 +91,12 @@ echo $SDATE $EDATE $SUFFIX1, $SUFFIX2
 
 if [[ -d ${MY_TANKDIR}/stats/${SUFFIX1} ]]; then
    export RAD_AREA="glb"
+   export TANKDIR=${MY_TANKDIR}/stats
+   export IMGNDIR=${MY_TANKDIR}/imgn
 elif [[ -d ${MY_TANKDIR}/stats/regional/${SUFFIX1} ]]; then
    export RAD_AREA="rgn"
+   export TANKDIR=${MY_TANKDIR}/stats/regional
+   export IMGNDIR=${MY_TANKDIR}/imgn/regional
 else
    echo unable to locate $SUFFIX1 in $MY_TANKDIR tree
    exit 4
@@ -110,9 +114,9 @@ mkdir $PLOT_WORK_DIR
 #--------------------------------------------------------------
 # Set up SUFFIX, TANKDIR and IMGNDIR for this plot.
 #--------------------------------------------------------------
-export TANKDIR=${MY_TANKDIR}/stats
+#export TANKDIR=${MY_TANKDIR}/stats
 echo ${TANKDIR}
-export IMGNDIR=${MY_TANKDIR}/imgn
+#export IMGNDIR=${MY_TANKDIR}/imgn
 echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}

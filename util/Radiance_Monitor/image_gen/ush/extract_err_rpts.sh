@@ -77,8 +77,11 @@ fi
 #-------------------------------------------------------------------
 #  change the links in $err_rpt to point to the correct suffix
 #  (opr) is hard-coded in the links in the error report at the moment
-
-sed "s/\/opr\//\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+if [[ $RAD_AREA = "rgn" ]]; then
+   sed "s/\/opr\//\/regional\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+else
+   sed "s/\/opr\//\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+fi
 rm -f $err_rpt
 mv -f tmp.txt $err_rpt
 

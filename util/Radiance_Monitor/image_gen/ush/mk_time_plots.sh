@@ -11,6 +11,9 @@
 set -ax
 date
 
+echo Start mk_time_plots.sh
+echo USE_ANL = $USE_ANL
+
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
 imgndir=${IMGNDIR}/time
@@ -104,23 +107,12 @@ fi
 #
 #-------------------------------------------------------------------
 
-   cmdfile=${PLOT_WORK_DIR}/cmdfile_psummary
    jobname=plot_${SUFFIX}_sum
    logfile=${LOGdir}/plot_summary.log
-
-   rm -f $cmdfile
    rm ${logfile}
 
->$cmdfile
-   for type in ${SATYPE}; do
-      echo "$IG_SCRIPTS/plot_summary.sh $type" >> $cmdfile
-   done
-
-   ntasks=`cat $cmdfile|wc -l `
-   ((nprocs=(ntasks+1)/2))
-
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 0:30 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
@@ -137,7 +129,7 @@ fi
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to time subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plot_time_${SUFFIX}"
+  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${SUFFIX}"
   if [ -d $PLOT_WORK_DIR ] ; then
      rm -f $PLOT_WORK_DIR
   fi
@@ -173,7 +165,7 @@ fi
          wall_tm="0:45"
       fi
 
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       
    else							# zeus/linux
       for sat in ${SATLIST}; do
@@ -214,13 +206,13 @@ fi
          rm -f ${logfile}
          rm -f ${cmdfile}
  
-         list="count penalty omgnbc total omgbc"
+         list="penalty count omgnbc total omgbc"
          for var in $list; do
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          done
          chmod 755 $cmdfile
 
-         ntasks=`cat $cmdfile|wc -l `
+#         ntasks=`cat $cmdfile|wc -l `
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
             wall_tm="2:00"
@@ -228,7 +220,7 @@ fi
             wall_tm="1:00"
          fi
 
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
 
       else						# zeus/linux
          for var in $list; do
@@ -251,4 +243,5 @@ fi
       fi
    done
 
+echo End mk_time_plots.sh
 exit
