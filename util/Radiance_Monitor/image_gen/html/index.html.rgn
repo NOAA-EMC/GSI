@@ -1,28 +1,116 @@
+<!doctype html>
+
+<!-- Per WebStorm, this document is now html5 compliant.
+
+     The FRAMESET was removed, since this was deprecated in html4 and removed
+     entirely in html5.  It was replaced with iframe elements inside of div
+     elements to assist with the layout. -->
+
 <HTML>
 <head>
-<title>Experimental NDAS Radiance Monitoring plots</title>
+    <title>Experimental NDAS Radiance Monitoring plots</title>
+
+
+    <script type="text/javascript">
+
+        //-----------------------------------------------------------------------------
+        // function setUpFrames
+        //
+        // Find the page elements in time.html that correspond to the input satellite,
+        // channel grouping, and stat values and set them those currently
+        // selected in the UI.  Finally, call plotTime to plot the correct image.
+        //
+        // See note on channel grouping in getQueryVariables below.
+        //
+        function setUpFrames( satellite, channel, stat ) {
+
+            var satEl = self.lower_menu.document.getElementById( satellite );
+            satEl.selected = true;
+
+            var statEl = self.lower_menu.document.getElementById( stat );
+            statEl.selected = true;
+
+            var chanEl = self.lower_menu.document.getElementById( channel );
+            chanEl.selected = true;
+
+            self.lower_menu.plotTime();
+        }
+
+        //------------------------------------------------------------------------------
+        //  function getQueryVariables
+        //
+        //  Parse the query string that requested the page load and determine if
+        //  satellite, channel grouping, and stat type can be matched.  If so
+        //  try to set the intial page load to present the corresponding image.
+        //
+        //  Note:  channel grouping is not the same as channel number -- there are four
+        //   per image, and not all instruments have consecutively numbered channels.
+        //
+        function getQueryVariables() {
+
+            //log( "--> getQueryVariables");
+            var query = window.location.search.substring(1);
+            var vars = query.split("&");
+
+            var sat = null;
+            var channel = null;
+            var stat = null;
+
+            for (var i=0;i<vars.length;i++) {
+                var pair = vars[i].split("=");
+                if (pair[0] == "sat") {
+                    sat = pair[1];
+                }
+                else if (pair[0] == "channel") {
+                    channel = pair[1];
+                }
+                else if (pair[0] == "stat") {
+                    stat = pair[1];
+                }
+            }
+
+            if( (sat != null) && (channel != null) && (stat != null) ) {
+                setUpFrames(sat, channel, stat);
+            }
+            //log("<-- getQueryVariables");
+        }
+
+        function log(msg) {
+            setTimeout(function() {
+                throw new Error(msg);
+            }, 0);
+        }
+
+    </script>
+
+    <style>
+        html, body {
+            margin:0; /* remove any margins of the IFrame and the body tag */
+            padding:0;
+            width: 100%;
+            height:100%;
+        }
+        iframe {
+            display:block; /* force the iframe to display as block */
+            height:100%;
+            width: 100%;
+            border: thin solid dodgerblue;
+        }
+    </style>
+
 </head>
-<FRAMESET COLS="280,*" border="0" framespacing=3>
-   <frameset rows="220,*" border="0" framespacing=3>
-      <frame src="./menu.html" name="menu" marginwidth="5" marginheight="3">
-      <FRAME SRC="./time.html" NAME="leftbot" MARGINWIDTH="5" MARGINHEIGHT="3">
-   </frameset>
-   <FRAME SRC="./intro.html" NAME="fmain" MARGINWIDTH="15" MARGINHEIGHT="3">
-</FRAMESET>
-<NOFRAMES>
-</NOFRAMES>
 
 <BODY>
-<H1>ATOVS monitoring</H1>
-<h2>Sorry! This site is best viewed using:</h2>
-<li>Netscape 2.0 or later</li>
+    <div style="display:block;width: 100%;height: 100%">
+        <div id="div1" style="width:23%;height: 100%">
+            <iframe id="upper_menu" src="menu.html" style="height:34%;width: 100%"></iframe><br>
+            <iframe id="lower_menu" name="lower_menu" src="time.html" style="height:63%;width: 100%" onload="getQueryVariables()"></iframe>
+        </div>
+        <div id="div2" style="position:absolute; top:0;right:0;width:77%;height:100%">
+            <iframe id="fmain" name="fmain" src="intro.html" style="width: 100%;height: 100%"></iframe>
+        </div>
+    </div>
 
-
-<br>
-<br>
-<br>
-<br>
-<br>
 
 </BODY>
 </HTML>

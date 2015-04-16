@@ -106,7 +106,7 @@ if (rc = 0)
 endif
 result=close(xsize.txt)
 
-xe=xs+xe1*nx
+xe=xs+xe1*(nx-1)
 say 'nx, xs, xe1= 'nx','xs','xe1
 'set lon 'xs' 'xe
 
