@@ -27,7 +27,8 @@ subroutine get_pseudo_ensperts
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: nhr_assimilation 
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens,pseudo_hybens,grid_ratio_ens
+  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens,pseudo_hybens, &
+                                        grid_ratio_ens,write_ens_sprd
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub, &
                                   general_sub2grid_create_info
   use gsi_io, only: lendian_in
