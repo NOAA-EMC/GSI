@@ -878,7 +878,7 @@ subroutine get_wrf_nmm_ensperts
 
 !!! test output perturbations and mean
 
-   test=.true.
+   test=.false.
    if(test)then
        call mpi_barrier(mpi_comm_world,ierror)
        call ens_member_mean_dualres_regional(en_bar,mype)
