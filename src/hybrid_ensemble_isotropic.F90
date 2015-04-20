@@ -1137,6 +1137,8 @@ end subroutine normal_new_factorization_rf_y
 !   2011-12-07  tong    - add the option to read wrf_nmm ensemble
 !   2012-01-30  parrish - remove wrf_nmm_regional,wrf_mass_regional,netcdf,nems_nmmb_regional
 !   2013-10-25  todling - nullify work pointer
+!   2015-01-22  Hu      - add namelist (i_en_perts_io) and functions to save and 
+!                         read ensemble perturbations in ensemble grid.
 !
 !   input argument list:
 !
@@ -1150,7 +1152,8 @@ end subroutine normal_new_factorization_rf_y
     use gridmod, only: regional
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
-                                          pseudo_hybens,regional_ensemble_option
+                                          pseudo_hybens,regional_ensemble_option,&
+                                          i_en_perts_io
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype,ierror
     implicit none
@@ -1299,7 +1302,11 @@ end subroutine normal_new_factorization_rf_y
 
 !     regional_ensemble_option = 1: use GEFS internally interpolated to ensemble grid.
 
-                call get_gefs_for_regional
+                if(i_en_perts_io==2) then ! get en_perts from save files
+                   call en_perts_get_from_save
+                else
+                   call get_gefs_for_regional
+                endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
 !                             GEFS ensemble perturbations in TC vortex area

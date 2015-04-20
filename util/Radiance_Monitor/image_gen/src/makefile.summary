@@ -1,0 +1,41 @@
+# *****************************************************************
+#  makefile
+#
+#  Make the summary.x executable.  The executable will extract
+#  time radiance data from a diagnostic file from a global run.  
+#
+# *****************************************************************
+SHELL=/bin/sh
+SRCS = summary.f90 avgsdv.f90
+
+OBJS = summary.o  avgsdv.o
+
+#
+# *****************************************************************
+#
+
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+
+CMD = summary.x
+
+all:  $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f summary.x
+
+$(CMD):         $(OBJS)
+	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../exec/.
+
+summary.o : summary.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+avgsdv.o : avgsdv.f90
+	$(CF) $(FFLAGS) -c $(*).f90

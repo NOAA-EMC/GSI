@@ -466,11 +466,12 @@ subroutine get_pseudo_ensperts
 ! Convert to mean
   bar_norm = one/float(n_ens)
   en_bar%values=en_bar%values*bar_norm
-  call mpi_barrier(mpi_comm_world,ierror)
-!
-! CALCULATE ENSEMBLE SPREAD
-!  call ens_spread_dualres_regional(en_bar,mype)
-!  call mpi_barrier(mpi_comm_world,ierror)
+
+  if(write_ens_sprd)then
+     call mpi_barrier(mpi_comm_world,ierror)
+     call ens_spread_dualres_regional(mype,en_bar)
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
 
   test=.false.
   if(test)then

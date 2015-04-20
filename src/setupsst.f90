@@ -42,6 +42,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-04-02  li      - set up Tr analysis and modify to save nst analysis related diagnostic variables
 !   2012-04-10  akella  - sstges calculated for nst analysis using NST fields
 !   2013-01-26  parrish - change intrp2a to intrp2a11 (so debug compile works on WCOSS)
+!   2014-01-28  li      - add ntguessfc to use guess_grids to apply intrp2a11 correctly
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
@@ -63,7 +64,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: dsfct
+  use guess_grids, only: dsfct,ntguessfc
   use obsmod, only: ssthead,ssttail,rmiss_single,i_sst_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: sst_ob_type
@@ -292,35 +293,24 @@ endif
 if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     call intrp2a11(dsfct,dsfct_obx,dlat,dlon,mype)
+     if ( isli == 0 ) then
+       call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
+!      call intrp2a11_msk(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
+     else
+       dsfct_obx = zero
+     endif
+
      if(nst_gsi > 1) then
        sstges = max(tref+dtw-dtc+dsfct_obx, 271.0_r_kind)
      else
        sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
      end if
+
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
 
-!    Check to ensure point surrounded by water
-     ix1=dlat; iy1=dlon
-     ix1=max(1,min(ix1,nlat))
-     ix=ix1-istart(mm1)+2; iy=iy1-jstart(mm1)+2
-     if(iy<1) then
-        iy1=iy1+nlon
-        iy=iy1-jstart(mm1)+2
-     end if
-     if(iy>lon1+1) then
-        iy1=iy1-nlon
-        iy=iy1-jstart(mm1)+2
-     end if
-     ixp=ix+1; iyp=iy+1
-     if(ix1==nlat) then
-        ixp=ix
-     end if
- 
      if(isli > 0 ) error = zero
-
 
      ddiff=data(isst,i)-sstges
 
@@ -449,7 +439,6 @@ if(.not.in_curbin) cycle
         endif
      endif
 
-
 !    Save stuff for diagnostic output
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
@@ -535,8 +524,7 @@ if(.not.in_curbin) cycle
      end if
 
 
-  end do
-
+  end do                    ! do i=1,nobs
 
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then

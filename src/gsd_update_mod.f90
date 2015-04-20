@@ -7,7 +7,10 @@ module gsd_update_mod
 ! abstract: module for updating surface, soil, moisture from GSD for RR
 !
 ! program history log:
-!   2012-01-12  parrish
+!   2012-01-12  Hu
+!   2015-01-12  Hu  fix the bug in coast proximity calculation in subdomain
+!   2015-01-14  Hu  do T soil nudging over snow
+!   2015-01-15  Hu  move the land/sea mask check to fine grid update step
 !
 ! subroutines included:
 !   sub gsd_update_soil_tq  - change surface and soil based on analysis increment
@@ -29,6 +32,7 @@ module gsd_update_mod
   public :: gsd_limit_ocean_q
   public :: gsd_update_th2
   public :: gsd_update_q2
+  public :: gsd_gen_coast_prox
 ! set passed variables to public
 
 contains
@@ -64,10 +68,10 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth,deg2rad, rad2deg, pi
   use gridmod, only: lat2,lon2,nsig,aeta1_ll,pt_ll,nsig_soil
   use gridmod, only: regional_time
-  use guess_grids, only: ges_tsen,isli,nfldsig,sno
+  use guess_grids, only: ges_tsen,isli,nfldsig,sno,coast_prox
   use wrf_mass_guess_mod, only: ges_xlon,ges_xlat
   use guess_grids, only: ges_prsl,nfldsig,ntguessig
-  use rapidrefresh_cldsurf_mod, only: l_gsd_soilTQ_nudge
+  use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
 
   implicit none
 
@@ -77,10 +81,9 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind),dimension(lat2,lon2), intent(in) :: qinc
 
 ! Declare local variables
-  real(r_kind),dimension(lat2,lon2) :: coast_prox
   real(r_kind),dimension(lat2,lon2) :: csza
-  INTEGER(i_kind)  :: gmt,nday,iyear,imonth,iday
-  REAL(r_kind)     :: declin
+  integer(i_kind)  :: gmt,nday,iyear,imonth,iday
+  real(r_kind)     :: declin
   real(r_kind)     :: hrang,xxlat
   real(r_kind)     :: sumqc
 
@@ -93,16 +96,15 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf
   real(r_kind) :: snowthreshold
 ! 
-  REAL(r_kind), pointer :: ges_qc(:,:,:)  ! cloud water
-  REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
+  real(r_kind), pointer :: ges_qc(:,:,:)  ! cloud water
+  real(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
   real(r_kind),dimension(:,:  ),pointer:: ges_tsk   =>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_soilt1=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_tslb  =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_smois =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q     =>NULL()
 
-  integer(i_kind) ico, ja,jb,ia,ib,nco,nip,jc,ic
-  INTEGER(i_kind) :: itsig
+  integer(i_kind) :: itsig
   
 !*******************************************************************************
 !
@@ -117,35 +119,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      return ! no guess, nothing to do
   endif
 
-!
-!  isli = 0 water, =1 land, =2 sea ice (on water)
-  if( l_gsd_soilTQ_nudge) then
-     ico = 5
-     do j=1,lon2
-        ja = max(1   ,j-ico)
-        jb = min(lon2,j+ico+1)
-        do i=1,lat2
-          coast_prox(i,j) = 0.
-
-          if (isli(i,j,1)==1) then
-             ia = max(1   ,i-ico)
-             ib = min(lat2,i+ico+1)
-             nco = 0
-             nip = 0
-             do jc=ja,jb
-             do ic=ia,ib
-                if (isli(ic,jc,1)==1) nco = nco+1
-                nip = nip+1
-             end do
-             end do
-             coast_prox(i,j) = float(nco)/float (nip)
-          end if
-        end do
-     end do
-
-!     write (6,*) 'Coast_prox values: ',mype,coast_prox(1,1)
-  endif
-                                                                              
+!                                                                              
 !   calculation solar declination
 ! 
   iyear=regional_time(1)   
@@ -165,7 +139,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      end do
    end do
 
-  if( l_gsd_soilTQ_nudge .and. is_t > 0) then
+  if( l_gsd_soiltq_nudge .and. is_t > 0) then
 !     --------------------------------------------
 ! --- Increment top level of soil temp and snow temp
 !       ONLY AT LAND POINTS according to
@@ -213,47 +187,43 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! -- Allow soil temp cooling to be up to 2.5 * 0.6 = 1.5 X 2 C ( = 3K)
               dts_min = dts_min*temp_fac*0.6_r_kind
 
-              IF (isli(i,j,it) == 1) THEN
-                 tincf = ainc*temp_fac*coast_fac
-                 if (sno(i,j,it) < snowthreshold) THEN
-                    if(nsig_soil == 9) then
+! mhu, Jan 15,2015: move the land/sea masck check to fine grid update step
+              tincf = ainc*temp_fac*coast_fac
+! mhu and Tanya: Jan 14, 2015: do T soil nudging over snow
+              if(nsig_soil == 9) then
 ! - top level soil temp
-                       ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
+                 ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
 ! - 0-1 cm level -  soil temp
-                       ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.55_r_kind))
+                 ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.55_r_kind))
 ! - 1-4 cm level -  soil temp
-                       ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
+                 ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 4-10 cm level -  soil temp
-                       ges_tslb(i,j,4) = ges_tslb(i,j,4) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.3_r_kind))
+                 ges_tslb(i,j,4) = ges_tslb(i,j,4) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.3_r_kind))
 ! - 10-30 cm level -  soil temp
-                       ges_tslb(i,j,5) = ges_tslb(i,j,5) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                    else
+                 ges_tslb(i,j,5) = ges_tslb(i,j,5) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
+              else
 ! - top level soil temp
-                       ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                 ges_tslb(i,j,1) = ges_tslb(i,j,1) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
 ! - 0-5 cm level -  soil temp
-                       ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
+                 ges_tslb(i,j,2) = ges_tslb(i,j,2) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 5-20 cm level -  soil temp
-                       ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
-                                       min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                    endif
-                    ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                    ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                 else  ! if snow cover, then only adjust TSK and SOILT1
-                    ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-                    ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-                    if (sno(i,j,it) > 32.0_r_kind) then
-                       ges_tsk(i,j) = min(ges_tsk(i,j), 273.15_r_kind)
-                       ges_soilt1(i,j) = min(ges_soilt1(i,j), 273.15_r_kind)
-                    endif
-                 endif ! sno(i,j,it) < snowthreshold
-              endif   ! isli(i,j,it) == 1
+                 ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
+                                 min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
+              endif
+              if (sno(i,j,it) < snowthreshold) THEN
+                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                 ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+              else  ! if snow cover, then only adjust TSK and SOILT1
+                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+                 ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+              endif ! sno(i,j,it) < snowthreshold
            end do
         end do
      end do
@@ -323,7 +293,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
               end if
 
               ainc = max(-0.15_r_kind,min(0.15_r_kind,ainc))
-!mhu test              ges_smois(i,j,4,it)=ges_smois(i,j,4,it)+ainc   ! test
 
 ! - Only do nudging over land, if daytime (defined as
 !          cos of sun zenith angle > 0.1), and if
@@ -334,8 +303,9 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !      which seems to have resulted in too much moistening
 !      overall.  Stan B. - 24 Oct 04 - 04z
 
-
-              if (isli(i,j,it) == 1 .and. csza(i,j) > 0.3_r_kind) then
+! mhu, Jan 15,2015: move the land/sea masck check to fine grid update step
+!              if (isli(i,j,it) == 1 .and. csza(i,j) > 0.3_r_kind) then
+              if (csza(i,j) > 0.3_r_kind) then
                  sumqc=0
                  do k=1,nsig
                     sumqc=max(sumqc,max(ges_qc(i,j,k),ges_qi(i,j,k)))
@@ -556,7 +526,6 @@ subroutine gsd_update_th2(tinc)
 ! NOTE: for some odd reason the orig. code before bundle change was getting q
 !       from slot it=1 - to preserve zero diff I left as such - RTodling
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),'q' ,ges_q ,ihaveq)
-!    call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q' ,ges_q ,ihaveq)
      do j=1,lon2
         do i=1,lat2
            if(tsensible) then
@@ -627,5 +596,114 @@ subroutine gsd_update_q2(qinc)
 
   return
 end subroutine gsd_update_q2
+
+
+subroutine gsd_gen_coast_prox
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gsd_gen_coast_prox calculate coast proximity based on isli
+!   prgmmr: Hu          org: GSD                date: 2015-01-14
+!
+! abstract:  This routine does the following things:
+!              1) calculate coast proximity based on isli 
+! 
+! 
+! program history log:
+!   2014-01-22  Hu - original code
+!
+!   input argument list:
+!
+!   output argument list:
+!
+!   comments:
+!
+! attributes:
+!$$$
+  use kinds, only: r_kind,i_kind
+  use mpimod, only: mype
+  use gridmod, only: lat2,lon2
+  use general_sub2grid_mod, only: general_gather2grid,general_scatter2sub
+  use general_commvars_mod, only: g1
+  use guess_grids, only: isli,coast_prox
+  use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
+
+  implicit none
+
+! Declare passed variables
+
+  real(r_kind),dimension(:),allocatable:: worksub
+  real(r_kind),allocatable,dimension(:,:,:):: hwork
+  real(r_kind),allocatable,dimension(:,:,:):: hcoast_prox
+
+  integer(i_kind) workpe,ii
+  integer(i_kind) i,j,ico
+  integer(i_kind) ia,ib,ja,jb,ic,jc,nco,nip
+
+!*******************************************************************************
+!
+  if( l_gsd_soiltq_nudge) then
+
+! water, land, seaice index
+     allocate(worksub(g1%inner_vars*g1%nlat*g1%nlon))
+     allocate(hwork(g1%inner_vars,g1%nlat,g1%nlon))
+     allocate(hcoast_prox(g1%inner_vars,g1%nlat,g1%nlon))
+     workpe=0
+
+     ii=0
+     do j=1,lon2
+        do i=1,lat2
+           ii=ii+1
+           worksub(ii)=isli(i,j,1)
+        end do
+     end do
+
+     call general_gather2grid(g1,worksub,hwork,workpe)
+
+     if(mype==workpe) then
+!
+!  isli = 0 water, =1 land, =2 sea ice (on water)
+        hcoast_prox=0.0_r_kind
+        ico = 3
+        do j=1,g1%nlon
+           ja = max(1   ,j-ico)
+           jb = min(g1%nlon,j+ico+1)
+           do i=1,g1%nlat
+             if (abs(hwork(1,i,j)-1.0_r_kind) <0.001_r_kind .or. &
+                 abs(hwork(1,i,j)-2.0_r_kind) <0.001_r_kind ) then
+                ia = max(1   ,i-ico)
+                ib = min(g1%nlat,i+ico+1)
+                nco = 0
+                nip = 0
+                do jc=ja,jb
+                do ic=ia,ib
+                   if (abs(hwork(1,i,j)-1.0_r_kind) <0.001_r_kind .or. &
+                       abs(hwork(1,i,j)-2.0_r_kind) <0.001_r_kind ) nco = nco+1
+                   nip = nip+1
+                end do
+                end do
+                hcoast_prox(1,i,j) = float(nco)/float (nip)
+             end if
+           end do
+        end do
+     endif    ! mype==workpe
+     deallocate(hwork)
+!
+     worksub=0.0
+     call general_scatter2sub(g1,hcoast_prox,worksub,workpe)
+     deallocate(hcoast_prox)
+
+     ii=0
+     do j=1,lon2
+        do i=1,lat2
+           ii=ii+1
+           coast_prox(i,j)=worksub(ii)
+        end do
+     end do
+  else
+    coast_prox=0.0_r_kind
+  endif
+
+  return
+end subroutine gsd_gen_coast_prox
 
 end module gsd_update_mod
