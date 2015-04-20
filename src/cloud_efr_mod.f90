@@ -307,7 +307,7 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,cwgues0)
   do k = 1, nsig
      do j = 1, lon2
         do i = 1, lat2
-           work        = -r0_05*(g_tv(i,j,k)/(one+fv*g_q(j,i,k))-t0c)
+           work        = -r0_05*(g_tv(i,j,k)/(one+fv*g_q(i,j,k))-t0c)
            work        = max(zero,work)
            work        = min(one,work)    ! 0<=work<=1 
            g_ql(i,j,k) = g_cwmr(i,j,k)*(one-work)
