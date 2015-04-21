@@ -51,6 +51,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-05-02  sienkiewicz- modify gross check screening to allow data to be used with bad ch6, if
 !                              ch6 data has been turned off - only toss if do85GHz is true
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -87,7 +88,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
@@ -268,11 +269,11 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
         iobsdate(1:5) = bfr1bhdr(2:6) !year,month,day,hour,min
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        sstime=real(nmind,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv
+        tdiff=(sstime-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
            if(abs(tdiff) > twind)  cycle read_loop
         endif
 
@@ -353,7 +354,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            if(iskip >= nchanl)  cycle scan_loop  !if all ch for any position is bad, skip 
            flgch = iskip*two   !used for thinning priority range 0-14
 
-           if (l4dvar) then
+           if (thin4d) then
               crit1 = 0.01_r_kind+ flgch
            else
               timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18
