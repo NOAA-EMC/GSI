@@ -17,6 +17,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 ! program history log:
 !   2013-02-05  eliu     - initial coding
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     infile    - unit from which to read BUFR data
@@ -51,7 +52,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
      use obsmod, only: blacklst,offtime_data,bmiss
      use converr,only: etabl
-     use gsi_4dvar, only: l4dvar,iwinbgn,time_4dvar,winlen
+     use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
      use qcmod, only: errormod
      use convthin, only: make3grids,map3grids,del3grids,use_all
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
@@ -419,11 +420,12 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
            call w3fs21(idate5,nmind)
            t4dv = real((nmind-iwinbgn),r_kind)*r60inv
-           if (l4dvar) then
+           sstime = real(nmind,r_kind)
+           tdiff  = (sstime-gstime)*r60inv
+
+           if (l4dvar.or.l4densvar) then
               if (t4dv < zero .OR. t4dv > winlen) cycle loop_readsb2
            else
-              sstime = real(nmind,r_kind)
-              tdiff  = (sstime-gstime)*r60inv
               if (abs(tdiff)>twind) cycle loop_readsb2
            endif
            nread = nread+1 
@@ -729,7 +731,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               ntmp = ndata          ! counting moved into map3grids
 
 !             Set data quality index for thinning
-              if (l4dvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif = abs(t4dv-toff)

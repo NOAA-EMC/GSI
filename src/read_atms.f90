@@ -26,6 +26,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2012-03-05  akella  - nst now controlled via coupler
 !  2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
+!  2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -68,7 +69,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
@@ -369,20 +370,19 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         idate5(5) = bfr1bhdr(7) !minute
         call w3fs21(idate5,nmind)
         t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-        if (l4dvar) then
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
+
+        if (l4dvar.or.l4densvar) then
            if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
                 cycle read_loop
         else
-           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
- 
-        if (l4dvar) then
+        if (thin4d) then
            crit1 = zero
         else
            crit1 = two*abs(tdiff)        ! range:  0 to 6
         endif
-
  
         call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
 
@@ -509,7 +509,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
 
 ! Check time window
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle ObsLoop
      else
         tdiff=t4dv+(iwinbgn-gstime)*r60inv

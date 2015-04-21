@@ -82,6 +82,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -129,7 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use antcorr_application, only: remove_antcorr
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
@@ -577,21 +578,22 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
            t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-           if (l4dvar) then
+           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+           tdiff=(sstime-gstime)*r60inv
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
-              sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-              tdiff=(sstime-gstime)*r60inv
               if(abs(tdiff) > twind) cycle read_loop
            endif
 
            nread=nread+nchanl
 
-           if (l4dvar) then
+           if (thin4d) then
               timedif = zero
            else
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
+
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind+terrain + (llll-1)*500.0_r_kind + timedif 
