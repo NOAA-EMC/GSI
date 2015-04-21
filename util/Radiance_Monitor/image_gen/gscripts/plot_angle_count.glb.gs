@@ -58,7 +58,7 @@ if (rc = 0)
 endif
 result=close(xsize.txt)
 
-xe=xs+xe1*nx
+xe=xs+xe1*(nx-1)
 
 
 say 'nchan='nchan
@@ -116,47 +116,48 @@ say 'rslt,mrslt,ndays = 'rslt' 'mrslt' 'ndays
 'set y 1 'nchan
 'set z 1 'nregion
 
-new_xs=xs
-new_xe=xe
-'set gxout stat'
+**new_xs=xs
+**new_xe=xe
+**'set gxout stat'
 
-it=new_xs
-*done=0
-*while (it<=new_xe & done=0)
-*   'set lon 'it' 'it
-*   'd ave(count, t='t30days', t='tlast')'
-*   rec11=sublin(result,11)
-*   avgvar=subwrd(rec11,2)
-*   say ' it, avgvar = 'it', 'avgvar
-*
-*   if (avgvar > 0.0)
-*      done = 1
-*   else
-*      it=it+1
-*   endif
-*endwhile
-new_xs=it
-say 'new_xs = 'new_xs
+**it=new_xs
+***done=0
+***while (it<=new_xe & done=0)
+***   'set lon 'it' 'it
+***   'd ave(count, t='t30days', t='tlast')'
+***   rec11=sublin(result,11)
+***   avgvar=subwrd(rec11,2)
+***   say ' it, avgvar = 'it', 'avgvar
+***
+***   if (avgvar > 0.0)
+***      done = 1
+***   else
+***      it=it+1
+***   endif
+***endwhile
+**new_xs=it
+**say 'new_xs = 'new_xs
 
-it=new_xe-1
-*done=0
-*say 'it = 'it
-*while (it>=new_xs & done=0)
-*   'set lon 'it' 'it
-*
-*   'd ave(count, t='t30days', t='tlast')'
-*   rec11=sublin(result,11)
-*   avgvar=subwrd(rec11,2)
-*   say ' it, avgvar = 'it', 'avgvar
-*   if (avgvar > 0.0)
-*      done=1
-*   else
-*      it=it-1
-*   endif
-*endwhile
-new_xe=it
+**it=new_xe-1
+***done=0
+***say 'it = 'it
+***while (it>=new_xs & done=0)
+***   'set lon 'it' 'it
+***
+***   'd ave(count, t='t30days', t='tlast')'
+***   rec11=sublin(result,11)
+***   avgvar=subwrd(rec11,2)
+***   say ' it, avgvar = 'it', 'avgvar
+***   if (avgvar > 0.0)
+***      done=1
+***   else
+***      it=it-1
+***   endif
+***endwhile
+**new_xe=it
 
-'set lon 'new_xs' 'new_xe
+**'set lon 'new_xs' 'new_xe
+'set lon 'xs' 'xe
 'set t 't30days' 'tlast
 'define rcount=count'
 
