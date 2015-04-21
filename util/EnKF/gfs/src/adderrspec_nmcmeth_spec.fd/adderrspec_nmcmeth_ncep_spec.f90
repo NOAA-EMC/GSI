@@ -70,7 +70,7 @@ program adderrspec_nmcmeth
   type(sigio_head) :: sigheado,sigheadi,sigheadim,sigheadpin
   type(sigio_data) :: sigdata,sigdatai,sigdataim,sigdatap,sigdatapm,sigdatao,sigdatapin
 
-  type(nemsio_gfile) :: gfile, gfileo, gfilei, gfileim, gfilepin
+  type(nemsio_gfile) :: gfile, gfileo, gfilei
 
 ! mpi definitions.
   include 'mpif.h'

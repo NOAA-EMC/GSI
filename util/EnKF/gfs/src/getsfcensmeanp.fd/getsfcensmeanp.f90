@@ -130,11 +130,11 @@ program getsfcensmeanp
      if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sfcio=',sfcio
         
 
-!    These fields are fixed.  Do not compute mean
      if (sfcio) then
         call sfcio_aldata(sfcheadi,sfcdatao,iret)
         sfcheado = sfcheadi
 
+!       These fields are fixed.  Do not compute mean
         sfcdatao%slmsk  = sfcdatai%slmsk
         sfcdatao%vtype = sfcdatai%vtype
         sfcdatao%stype = sfcdatai%stype

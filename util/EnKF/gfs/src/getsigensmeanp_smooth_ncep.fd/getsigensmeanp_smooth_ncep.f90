@@ -53,7 +53,6 @@ program getsigensmeanp_smooth
   real(4),allocatable,dimension(:,:) :: rwork_mem,rwork_avg
   real(4),allocatable,dimension(:) :: rwork_hgt
   real(4),allocatable,dimension(:) :: rwork_lev,rwork_lev2,rwork_spc,rwork_spc2
-  real(4),allocatable:: eps(:),epstop(:),enn1(:),elonn1(:),eon(:),eontop(:)
 
 
   type(sigio_head) :: sigheadi,sigheadm
@@ -329,15 +328,8 @@ program getsigensmeanp_smooth
 
         elseif ( nemsio ) then
 
-!          Set up for spectral transforms
-           allocate(eps((ntrunc+1)*(ntrunc+2)/2),epstop(ntrunc+1))
-           allocate(enn1((ntrunc+1)*(ntrunc+2)/2))
-           allocate(elonn1((ntrunc+1)*(ntrunc+2)/2))
-           allocate(eon((ntrunc+1)*(ntrunc+2)/2),eontop(ntrunc+1))
            allocate(rwork_lev(npts),rwork_lev2(npts))
            allocate(rwork_spc((ntrunc+1)*(ntrunc+2)),rwork_spc2((ntrunc+1)*(ntrunc+2)))
-
-           call spwget(0,ntrunc,eps,epstop,enn1,elonn1,eon,eontop)
            idrt = 4
 
 !          Smoothing loop over fields (first do scalar fields only)
@@ -365,7 +357,6 @@ program getsigensmeanp_smooth
               endif
            enddo
 
-           deallocate(eps,epstop,enn1,elonn1,eon,eontop)
            deallocate(rwork_lev,rwork_lev2)
            deallocate(rwork_spc,rwork_spc2)
 
@@ -390,6 +381,8 @@ program getsigensmeanp_smooth
 !    End of smoothing block
      endif
 
+!    Deallocate structures and arrays
+     if (allocated(smoothparm)) deallocate(smoothparm)
      if ( sigio ) then
         call sigio_axdata(sigdatai,iret)
         call sigio_axdata(sigdatam,iret)

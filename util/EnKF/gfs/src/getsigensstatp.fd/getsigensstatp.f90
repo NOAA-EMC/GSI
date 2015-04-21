@@ -49,7 +49,6 @@ program getsigensstatp
     integer :: mype,mype1,npe,orig_group,new_group,new_comm
     integer,dimension(:),allocatable :: new_group_members,reclev
     real(r_single),allocatable,dimension(:,:) :: rwork_mem,rwork_avg
-    real(r_single),allocatable,dimension(:) :: eps,epstop,enn1,elonn1,eon,eontop
     real(r_single),allocatable,dimension(:) :: glats,gwts
     logical :: sigio,nemsio
 
@@ -187,13 +186,6 @@ program getsigensstatp
 
         if ( sigio ) then
 
-            ! Set up for spectral transforms
-            allocate(eps((ntrunc+1)*(ntrunc+2)/2),epstop(ntrunc+1))
-            allocate(enn1((ntrunc+1)*(ntrunc+2)/2))
-            allocate(elonn1((ntrunc+1)*(ntrunc+2)/2))
-            allocate(eon((ntrunc+1)*(ntrunc+2)/2),eontop(ntrunc+1))
-            call spwget(0,ntrunc,eps,epstop,enn1,elonn1,eon,eontop)
-
             call sptez(0,ntrunc,idrt,lonb,latb,sigdatai%ps,rwork_mem(:,1),1)
             do k = 1,nlevs
                 krecu    = 1 + 0*nlevs + k
@@ -211,7 +203,6 @@ program getsigensstatp
                 call sptez(0,ntrunc,idrt,lonb,latb,sigdatai%q(:,k,3),rwork_mem(:,kreccwmr),1)
             enddo
 
-            deallocate(eps,epstop,enn1,elonn1,eon,eontop)
             call sigio_axdata(sigdatai,iret)
 
         elseif ( nemsio ) then
