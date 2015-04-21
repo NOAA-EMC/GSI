@@ -54,6 +54,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-05-07  tong   -  add reading tdr superobs data 
 !   2013-05-22  tong   -  Modified the criteria of seperating fore and aft sweeps for TDR NOAA/FRENCH antenna
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !
 !   input argument list:
@@ -81,7 +82,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
       semi_major_axis,flattening,two
   use qcmod, only: erradar_inflate,vadfile,newvad
   use obsmod, only: iadate,l_foreaft_thin
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
   use convinfo, only: nconvtype,ctwind, &
@@ -370,7 +371,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
 ! Time check
   t4dv=toff+hdr(4)
-  if (l4dvar) then
+  if (l4dvar.or.l4densvar) then
      if (t4dv<zero .OR. t4dv>winlen) go to 10 ! outside time window
   else
      timeb=hdr(4)
@@ -615,7 +616,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      timemin=min(timemin,t4dvo)
 
 !    Exclude data if it does not fall within time window
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dvo<zero .OR. t4dvo>winlen) cycle
      else
         timeo=thistime
@@ -977,7 +978,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      if(ikx==0) go to 50
      call w3fs21(idate5,minobs)
      t4dv=real(minobs-iwinbgn,r_kind)*r60inv
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) goto 50
      else
         timeb = real(minobs-mincy,r_kind)*r60inv
@@ -1011,7 +1012,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         end if
 
 !       Exclude data if it does not fall within time window
-        if (l4dvar) then
+        if (l4dvar.or.l4densvar) then
            if (t4dvo<zero .OR. t4dvo>winlen) cycle
            timeo=t4dv
         else
@@ -1514,7 +1515,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   call w3fs21(idate5,minobs)
 
   t4dv=real(minobs-iwinbgn,r_kind)*r60inv
-  if (l4dvar) then
+  if (l4dvar.or.l4densvar) then
      if (t4dv<zero .OR. t4dv>winlen) then
         ntimeout=ntimeout+1
         goto 70
@@ -1794,7 +1795,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               zobs = height
 
               ntmp=ndata  ! counting moved to map3gridS
-              if (l4dvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)
@@ -1933,7 +1934,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         call w3fs21(idate5,minobs)
    
         t4dv=real(minobs-iwinbgn,r_kind)*r60inv
-        if (l4dvar) then
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) goto 90
            timeo=t4dv
         else
@@ -2111,7 +2112,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               zobs = height
 
               ntmp=ndata  ! counting moved to map3gridS
-              if (l4dvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)

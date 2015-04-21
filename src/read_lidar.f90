@@ -38,6 +38,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !   2011-05-26  mccarty - remove dwlerror logic (moved to setupdw) 
 !   2011-08-01  lueken  - added module use deter_sfc_mod
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -62,7 +63,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype  !mccarty
   use constants, only: deg2rad,rad2deg,zero,r60inv ! check the usage   msq
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
   use deter_sfc_mod, only: deter_sfc2
   implicit none
 
@@ -214,7 +215,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   nread=nread+1
 
   t4dv = toff + hdr(4)
-  if (l4dvar) then
+  if (l4dvar.or.l4densvar) then
      if (t4dv<zero .OR. t4dv>winlen) go to 10
   else
      time=hdr(4) + time_correction
