@@ -346,7 +346,8 @@
   real(r_kind), allocatable,dimension(:) :: psg,pstend1,pstend2,pstendfg,vmass
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
-  integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs
+  integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7)
+  integer:: nfminute, nfsecondn, nfsecondd
   integer,dimension(8):: ida,jda
   real(r_double),dimension(5):: fha
   real(r_kind) fhour
@@ -402,8 +403,13 @@
         write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_open, iret=',iret
         call stop2(23)
      endif
-     call nemsio_getfilehead(gfilein,iret=iret,idate=idat,nfhour=nfhour,nrec=nrecs,&
+     call nemsio_getfilehead(gfilein,iret=iret,idate=idat,nfhour=nfhour,&
+                             nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd,&
+                             nrec=nrecs,&
                              vcoord=nems_vcoord,idvc=nems_idvc)
+     write(6,111) trim(filenamein),idat,nfhour,nfminute,nfsecondn,nfsecondd
+111  format(a32,1x,'idat=',7(i4,1x),' nfh=',i5,' nfm=',i5,' nfsn=',i5,' nfsd=',i5)
+
      if (iret/=0) then
         write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_getfilehead, iret=',iret
         call stop2(23)
@@ -564,16 +570,30 @@
 
   else
      gfileout = gfilein
-     !idat = yyyy/mm/dd/hh/min/secn/secd
+
+     nfhour    = 0        !  new forecast hour, zero at analysis time
+     nfminute  = 0
+     nfsecondn = 0
+     nfsecondd = 100      ! default for denominator
+
      !iadate = hh/mm/dd/yyyy
-     idat = 0
-     idat(3)=iadate(3)       !  forecast starting year
-     idat(2)=iadate(2)       !  forecast starting month
-     idat(1)=iadate(4)       !  forecast starting day
-     idat(4)=iadate(1)
+     !jdate = yyyy/mm/dd/hh/min/secn/secd
+
+     jdate(1) = iadate(4)  ! analysis year
+     jdate(2) = iadate(2)  ! analysis month
+     jdate(3) = iadate(3)  ! analysis day
+     jdate(4) = iadate(1)  ! analysis hour
+     jdate(5) = nfminute   ! analysis minute
+     jdate(6) = nfsecondn  ! analysis scaled seconds
+     jdate(7) = nfsecondd  ! analysis seconds multiplier
+
      call nemsio_open(gfileout,filenameout,'WRITE',iret=iret,&
-                      nfhour=0,nfminute=0,nfsecondn=0,nfsecondd=0,&
-                      idate=idat)
+          idate=jdate, nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, &
+          nfsecondd=nfsecondd)
+
+     write(6,112) trim(filenameout),jdate,nfhour,nfminute,nfsecondn,nfsecondd
+112 format(a32,1x,'jdate=',7(i4,1x),' nfh=',i5,' nfm=',i5,' nfsn=',i5,' nfsd=',i5)
+
      if (iret/=0) then
         write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_open for output, iret=',iret
         call stop2(23)
