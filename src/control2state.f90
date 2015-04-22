@@ -215,7 +215,7 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!$omp parallel sections private(istatus)
+!$omp parallel sections private(istatus,ii,ic,id)
 
 !$omp section
 
@@ -282,11 +282,9 @@ do jj=1,nsubwin
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
       if (.not. do_tv_to_tsen) then
-         allocate(sv_tsen(lat2,lon2,nsig))
          call tv_to_tsen(cv_t,sv_q,sv_tsen)
       end if
       call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
-      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
    else
 !     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
 !     e.g. cw-to-cw

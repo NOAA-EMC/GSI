@@ -163,7 +163,7 @@ do jj=1,ntlevs_ens
 
    call self_add(mval,eval(jj))
 
-!$omp parallel sections
+!$omp parallel sections private(ic,id,istatus)
 
 !$omp section
 
@@ -180,14 +180,20 @@ do jj=1,ntlevs_ens
    end if
 
 !$omp section
+
+   call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
+   call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
+   call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
+   call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
+
+!$omp section
+
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
-      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
       call cw2hydro_ad(eval(jj),wbundle_c,rv_tsen,clouds,nclouds)
       if(.not. do_tv_to_tsen_ad) then
          call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
-         deallocate(rv_tsen)
       end if
    else
 !  Since cloud-vars map one-to-one, take care of them together
@@ -199,12 +205,7 @@ do jj=1,ntlevs_ens
       endif
     enddo
    endif
-   call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
-   call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
-   call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
-   call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
 
-!$omp section
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )

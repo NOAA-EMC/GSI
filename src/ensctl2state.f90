@@ -140,7 +140,7 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
    end if
 
-!$omp parallel sections
+!$omp parallel sections private(ic,id,istatus)
 
 !$omp section
 
@@ -189,26 +189,14 @@ do jj=1,ntlevs_ens
      call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
 
-
-!$omp section
-
-!  Get pointers to required state variables
-   call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
-   call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
-!  Copy variables
-   call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
-   call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
-
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
       if (.not. do_tv_to_tsen) then
-         call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv ,istatus)
-         allocate(sv_tsen(lat2,lon2,nsig))
-         call tv_to_tsen(cv_tv,sv_q,sv_tsen)
+         call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
+         call tv_to_tsen(sv_tv,sv_q,sv_tsen)
       end if
       call cw2hydro_tl(eval(jj),wbundle_c,sv_tsen,clouds,nclouds)
-      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
    else
 !  Since cloud-vars map one-to-one, take care of them together
     do ic=1,nclouds
@@ -219,6 +207,17 @@ do jj=1,ntlevs_ens
       endif
     enddo
    endif
+
+
+!$omp section
+
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
+   call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
+!  Copy variables
+   call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
+   call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
+
 !$omp end parallel sections
 
 ! Add contribution from static B, if necessary
