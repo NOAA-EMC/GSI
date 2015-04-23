@@ -125,6 +125,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2014-06-26  carley - simplify call to apply_hilbertcurve 
 !   2014-11-20  zhu  - added code for aircraft temperature kx=130
 !   2014-10-01  Xue    - add gsd surface observation uselist
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -162,7 +163,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
-  use gsi_4dvar, only: l4dvar,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,noiqc,newvad
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
@@ -890,7 +891,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            driftl=kx==120.or.kx==220.or.kx==221
 
            if (.not. (aircraft_t_bc .and. acft_profl_file)) then
-              if (l4dvar) then
+              if (l4dvar.or.l4densvar) then
                  if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
               else
                  if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
@@ -1316,7 +1317,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
                  t4dv=t4dv + time_correction
                  time=timeobs + time_correction
-                 if (l4dvar) then
+                 if (l4dvar.or.l4densvar) then
                     if (t4dv<zero.OR.t4dv>winlen) cycle LOOP_K_LEVS
                  else
                     if (real(abs(time))>real(ctwind(nc)) .or.  real(abs(time))>real(twindin)) cycle LOOP_K_LEVS
@@ -1345,7 +1346,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (abs(time_drift-time)>four) time_drift = time
  
 !                Check to see if the time is outside range
-                 if (l4dvar) then
+                 if (l4dvar.or.l4densvar) then
                     t4dv=toff+time_drift
                     if (t4dv<zero .or. t4dv>winlen) then
                        t4dv=toff+timex
@@ -1405,7 +1406,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  ntmp=ndata  ! counting moved to map3gridS
            
 !                Set data quality index for thinning
-                 if (l4dvar) then
+                 if (thin4d) then
                     timedif = zero
                  else
                     timedif=abs(t4dv-toff)
