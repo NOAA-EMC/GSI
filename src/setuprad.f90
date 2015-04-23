@@ -631,13 +631,6 @@
      iextra=2
   end if
 
-!>>emily
-! if (lcw4crtm .and. (.not. lwrite_peakwt)) then ! write extra info for AMSUA-A under allsky condition         
-!    jextra=nchanl_diag
-!    iextra=4
-! endif
-!<<emily
-
   lextra = (iextra>0)
 
 ! Allocate array to hold channel information for diagnostic file and/or lobsdiagsave option
@@ -1784,15 +1777,6 @@
               do i=1,nchanl_diag
                  diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
               end do
-!>>emily
-!          else if (lcw4crtm .and. (.not.lwrite_peakwt)) then
-!             do i=1,nchanl_diag
-!                diagbufex( 1,i) = tsim_clr(ich_diag(i))        ! clear-sky Tb
-!                diagbufex( 2,i) = tsim(ich_diag(i))            ! all-sky Tb
-!                diagbufex( 3,i) = dtobs_cld(ich_diag(i))       ! observed cloud effect      
-!                diagbufex( 4,i) = dtsim_cld(ich_diag(i))       ! simulated cloud effect                
-!             end do
-!<<emily
           end if
 
            do i=1,nchanl_diag

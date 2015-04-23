@@ -192,11 +192,6 @@ contains
 
        if (l_cld_derived) then
           call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
-          if (it==1) then
-             call write_ghg_grid(ges_ql_it,'qlb',mype)
-             call write_ghg_grid(ges_qi_it,'qib',mype)
-          end if
-
        end if
 
     end do
