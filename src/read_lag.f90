@@ -14,6 +14,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !   2009-03-05  meunier
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data
@@ -40,7 +41,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
   use constants, only: deg2rad,zero,r60inv
   use convinfo, only: nconvtype,ctwind, &
       icuse,ictype,ioctype
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
 
   use lag_fields, only: ntotal_orig_lag,orig_lag_num
 
@@ -175,7 +176,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
            idate5(5) = imin    !minute
            call w3fs21(idate5,nmind)
            r4dtime=real(nmind-iwinbgn,r_kind)*r60inv
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (r4dtime<zero .OR. r4dtime>winlen) then
                  write(6,*)'READ_LAG: obs time idate5=',idate5,', t4dv=',&
                      r4dtime,' is outside time window'

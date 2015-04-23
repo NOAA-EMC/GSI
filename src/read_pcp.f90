@@ -43,6 +43,7 @@
 !   2011-04-01  li      - update argument list to deter_sfc
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -64,7 +65,7 @@
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc_type
   use obsmod, only: bmiss
 
@@ -183,7 +184,7 @@
   idate5(5) = imn
   call w3fs21(idate5,minobs)
   t4dv=real(minobs-iwinbgn,r_kind)*r60inv
-  if (l4dvar) then
+  if (l4dvar.or.l4densvar) then
      if (t4dv<zero .OR. t4dv>winlen) goto 10
   else
      sstime=real(minobs,r_kind)

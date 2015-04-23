@@ -59,6 +59,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !   2014-12-03  derber remove unused variables
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -98,7 +99,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -433,15 +434,14 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrinit(2),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
-
-!       Give score based on time in the window 
-        if (l4dvar) then
+        if (thin4d) then
+!          Give score based on time in the window 
 !          crit1 = 0.01_r_kind+ flgch  
            crit1 = zero              
         else
@@ -630,7 +630,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
 
 !    Check time window
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle obsloop 
      else
         tdiff=t4dv+(iwinbgn-gstime)*r60inv
