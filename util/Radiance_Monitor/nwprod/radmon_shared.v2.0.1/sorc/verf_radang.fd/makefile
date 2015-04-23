@@ -1,16 +1,18 @@
 # *****************************************************************
-#  makefile.angle
+#  makefile.angle_bias
 #
-#  Make the angle.x executable.  The executable will extract angle
-#  radiance data from an angle ieee_d file and write it to text
-#  files for use in the interactive angle plots.
+#  Make the radmon_angle.glb executable.  The executable will
+#  extract angle radiance data from a diagnostic file from a 
+#  global run.
 #
 # *****************************************************************
 
 SHELL=/bin/sh
-SRCS = angle.f90 avgsdv.f90
+SRCS = kinds.F90 read_diag.f90 angle_bias.f90 \
+	create_ctl_angle.f90 
 
-OBJS = angle.o avgsdv.o
+OBJS = kinds.o read_diag.o angle_bias.o \
+        create_ctl_angle.o 
 
 #
 # *****************************************************************
@@ -23,22 +25,27 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = angle.x
+CMD = radmon_angle
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f angle.x
+	rm -f radmon_angle
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../exec/.
 
-angle.o : angle.f90
+kinds.o : kinds.F90
+	$(CF) $(FFLAGS) -c $(*).F90
+
+read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-avgsdv.o : avgsdv.f90
+angle_bias.o : angle_bias.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+create_ctl_angle.o : create_ctl_angle.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
