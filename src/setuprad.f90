@@ -352,30 +352,6 @@
      end do
   end do
 
-! Parameters for the observation error model 
-! cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
-! increase in error take place
-  cclr(:)=zero
-  ccld(:)=zero
-  do i=1,nchanl
-     cclr( 1)=0.05_r_kind
-     cclr( 2)=0.03_r_kind
-     cclr( 3)=0.03_r_kind
-     cclr( 4)=0.02_r_kind
-     cclr( 5)=0.00_r_kind
-     cclr( 6)=0.10_r_kind
-     cclr(15)=0.03_r_kind
-  end do
-  do i=1,nchanl
-     ccld( 1)=0.60_r_kind
-     ccld( 2)=0.45_r_kind
-     ccld( 3)=0.40_r_kind
-     ccld( 4)=0.45_r_kind
-     ccld( 5)=1.00_r_kind
-     ccld( 6)=1.50_r_kind
-     ccld(15)=0.20_r_kind
-  end do
-
 ! Initialize logical flags for satellite platform
 
   hirs2      = obstype == 'hirs2'
@@ -427,6 +403,32 @@
 
 ! lcw4crtm=lcw4crtm .and. (amsua .or. atms)  
   lcw4crtm=lcw4crtm .and.  amsua            !leave ATMS as clear-sky for now          
+
+  if (lcw4crtm) then
+! Parameters for the observation error model 
+! cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
+! increase in error take place
+  cclr(:)=zero
+  ccld(:)=zero
+  do i=1,nchanl
+     cclr( 1)=0.05_r_kind
+     cclr( 2)=0.03_r_kind
+     cclr( 3)=0.03_r_kind
+     cclr( 4)=0.02_r_kind
+     cclr( 5)=0.00_r_kind
+     cclr( 6)=0.10_r_kind
+     cclr(15)=0.03_r_kind
+  end do
+  do i=1,nchanl
+     ccld( 1)=0.60_r_kind
+     ccld( 2)=0.45_r_kind
+     ccld( 3)=0.40_r_kind
+     ccld( 4)=0.45_r_kind
+     ccld( 5)=1.00_r_kind
+     ccld( 6)=1.50_r_kind
+     ccld(15)=0.20_r_kind
+  end do
+  endif
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -1014,10 +1016,10 @@
 
         do i=1,nchanl
            mm=ich(i)
-           error0(i)     = tnoise(i)
+           error0(i) = tnoise(i) 
            errf0(i) = error0(i)
 
-           if(lcw4crtm .and. sea)  then    
+           if(lcw4crtm .and. sea)  then   
               clwtmp=half*(clwp_amsua+clw_guess_retrieval)
               if(clwtmp <= cclr(i)) then
                  error0(i) = tnoise(i)
