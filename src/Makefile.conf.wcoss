@@ -20,7 +20,7 @@ W3NCO_VER = v2.0.6
 CORELIB  = /nwprod/lib
 
 #CRTM_INC=$(CORELIB)/crtm/$(CRTM_VER)/incmod/crtm_$(CRTM_VER)
-CRTM_INC=/da/save/Michael.Lueken/CRTM_REL-2.2.0/crtm_v2.2.0/include
+CRTM_INC=/da/save/Michael.Lueken/CRTM_REL-2.2.1/crtm_v2.2.1/include
 NEMSIO_INC=$(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_$(NEMSIO_VER)
 SFCIO_INC4=$(CORELIB)/sfcio/$(SFCIO_VER)/incmod/sfcio_$(SFCIO_VER)_4
 SIGIO_INC4=$(CORELIB)/sigio/$(SIGIO_VER)/incmod/sigio_$(SIGIO_VER)_4
@@ -29,7 +29,7 @@ W3EMC_INCd=$(CORELIB)/w3emc/$(W3EMC_VER)/incmod/w3emc_$(W3EMC_VER)_d
 BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
 BUFR_LIBd=$(CORELIB)/bufr/$(BUFR_VER)/libbufr_$(BUFR_VER)_d_64.a
 #CRTM_LIB=$(CORELIB)/crtm/$(CRTM_VER)/libcrtm_$(CRTM_VER).a
-CRTM_LIB=/da/save/Michael.Lueken/CRTM_REL-2.2.0/crtm_v2.2.0/lib/libcrtm.a
+CRTM_LIB=/da/save/Michael.Lueken/CRTM_REL-2.2.1/crtm_v2.2.1/lib/libcrtm.a
 NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
 SFCIO_LIB4=$(CORELIB)/sfcio/$(SFCIO_VER)/libsfcio_$(SFCIO_VER)_4.a
 SIGIO_LIB4=$(CORELIB)/sigio/$(SIGIO_VER)/libsigio_$(SIGIO_VER)_4.a
