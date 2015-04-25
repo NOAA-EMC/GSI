@@ -1112,7 +1112,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
-!$omp parallel do  schedule(dynamic,1) private(k,cf)
+!!!$omp parallel do  schedule(dynamic,1) private(k,cf)
   do k=1,nsig
      h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
              ges_tsen(ixp,iy ,k,itsig )*w10+ &
@@ -1391,9 +1391,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif ! <n_clouds>
 
 
-!$omp parallel sections private(k,i)
+!!!$omp parallel sections private(k,i)
 
-!$omp section 
+!!!$omp section 
 
 !    Set surface type flag.  (Same logic as in subroutine deter_sfc)
 
@@ -1622,7 +1622,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   endif ! end of loading surface structure
 
-!$omp section 
+!!!$omp section 
 
 ! Load geometry structure
 
@@ -1709,7 +1709,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   end do
 
-!$omp section 
+!!!$omp section 
 
 !  Zero atmosphere jacobian structures
 
@@ -1819,7 +1819,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                              atmosphere(1)%aerosol )
   endif
 
-!$omp end parallel sections
+!!!$omp end parallel sections
 
 ! Call CRTM K Matrix model
 
@@ -1869,8 +1869,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
     if (n_clouds > 0) allocate(cwj(nsig))
 
-!$omp parallel do  schedule(dynamic,1) private(i) &
-!$omp private(total_od,k,kk,m,term,ii)
+!!!$omp parallel do  schedule(dynamic,1) private(i) &
+!!!$omp private(total_od,k,kk,m,term,ii)
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
       do k=1,nsig

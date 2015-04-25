@@ -188,6 +188,7 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
+   call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
@@ -211,7 +212,6 @@ do jj=1,ntlevs_ens
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
 !  call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk                    
 !  Calculate sensible temperature
-   call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
