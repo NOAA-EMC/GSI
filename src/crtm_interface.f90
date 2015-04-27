@@ -977,8 +977,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
   real(r_kind) cf
-  real(r_kind),dimension(nsig) :: ugkg_kgm2
-  real(r_kind),allocatable,dimension(:):: cwj
+  real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:  )::psges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:  )::psges_itsigp=>NULL()
@@ -1112,7 +1111,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
-!!!$omp parallel do  schedule(dynamic,1) private(k,cf)
+!$omp parallel do  schedule(dynamic,1) private(k,cf)
   do k=1,nsig
      h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
              ges_tsen(ixp,iy ,k,itsig )*w10+ &
@@ -1391,9 +1390,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif ! <n_clouds>
 
 
-!!!$omp parallel sections private(k,i)
+!$omp parallel sections private(k,i)
 
-!!!$omp section 
+!$omp section 
 
 !    Set surface type flag.  (Same logic as in subroutine deter_sfc)
 
@@ -1614,15 +1613,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%soil_temperature      = data_s(istp)
      surface(1)%snow_depth            = data_s(isn)
 
-     sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-     icmask = sea 
-
 ! assign tzbgr for Tz retrieval when necessary
      tzbgr = surface(1)%water_temperature
 
   endif ! end of loading surface structure
 
-!!!$omp section 
+!$omp section 
 
 ! Load geometry structure
 
@@ -1709,7 +1705,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   end do
 
-!!!$omp section 
+!$omp section 
 
 !  Zero atmosphere jacobian structures
 
@@ -1726,6 +1722,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      enddo
   endif
 
+  sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind
+  icmask = sea
 
   do k = 1,msig
 
@@ -1760,6 +1758,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
 
 ! Include cloud guess profiles in mw radiance computation
+
      if (n_clouds>0) then
         if (lcw4crtm) then
           if (icmask) then 
@@ -1819,7 +1818,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                              atmosphere(1)%aerosol )
   endif
 
-!!!$omp end parallel sections
+!$omp end parallel sections
 
 ! Call CRTM K Matrix model
 
@@ -1867,10 +1866,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
     secant_term = one/cos(data_s(ilzen_ang))
 
-    if (n_clouds > 0) allocate(cwj(nsig))
+!$omp parallel do  schedule(dynamic,1) private(i) &
+!$omp private(total_od,k,kk,m,term,ii,cwj)
 
-!!!$omp parallel do  schedule(dynamic,1) private(i) &
-!!!$omp private(total_od,k,kk,m,term,ii)
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
       do k=1,nsig
@@ -2002,8 +2000,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            jacobian(isst+1,i)=ts(i)             ! surface skin temperature sensitivity
        endif
     end do
-
-    if (n_clouds > 0) deallocate(cwj)
 
   else                                    !       obstype == 'modis_aod'
      ! initialize intent(out) variables that are not available with modis_aod
