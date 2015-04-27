@@ -48,7 +48,7 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype)
+subroutine nst_set_(mype,mype_io_sfc)
 
      use kinds,       only: r_kind,i_kind
      use guess_grids, only: nfldnst, ntguesnst,ifilenst
@@ -57,21 +57,16 @@ subroutine nst_set_(mype)
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                       c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
      implicit none
-     integer(i_kind),intent(in   ) :: mype
+     integer(i_kind),intent(in   ) :: mype,mype_io_sfc
 
      integer(i_kind)               :: it
      character(24)                    filename
 
      nst_mask_full = isli_full
 
-     do it=1,nfldnst
-        write(filename,200)ifilenst(it)
-200  format('nstf',i2.2)
-        call read_gfsnst(filename,mype,tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
-                         dt_warm_full(1,1,it), z_w_full(1,1,it), &
-                         c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
-     end do
-
+     call read_gfsnst(mype_io_sfc,mype,tref_full,dt_cool_full,z_c_full, &
+                      dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+                         
 end subroutine nst_set_
 !*******************************************************************************************
 

@@ -64,11 +64,11 @@ end interface
 !-------------------
 
 interface gsi_nstcoupler_set
-  subroutine nst_set_(mype)
+  subroutine nst_set_(mype,mype_io_sfc)
      use kinds,         only: i_kind
      implicit none
 
-     integer(i_kind), intent(in   ) :: mype
+     integer(i_kind), intent(in   ) :: mype,mype_io_sfc
      
   end subroutine nst_set_
 end interface

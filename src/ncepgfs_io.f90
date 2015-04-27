@@ -690,6 +690,205 @@ end subroutine write_ghg_grid
     return
   end subroutine read_gfssfc
 
+  subroutine read_nst(tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_nst
+!
+!   prgrmmr: li
+!
+! abstract: read a ncep GFS nst file on a specified task,
+!           broadcast data to other tasks.
+!
+! program history log:
+!   2015-04-24  li - create routine based on read_sfc
+!
+!   input argument list:
+!     lunges             - unit number to use for IO
+!     filename           - nst surface file to read
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    ! read data from nst file on a single task, bcast data to other tasks.
+    use nstio_module, only: nstio_srohdc,nstio_head,nstio_data,nstio_intkind
+    use nstio_module, only: nstio_axdata,nstio_srclose
+    use kinds, only: i_kind,r_single,r_kind
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldnst,ifilenst
+    use constants, only: two
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+                    tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+    integer(i_kind) :: latb,lonb
+    integer(i_kind) :: iret,n,i,j
+    type(nstio_head) :: nst_head
+    type(nstio_data) :: nst_data
+    real(r_single),allocatable,dimension(:,:):: dwarm_tmp
+    integer(i_kind) :: nnst,it
+    character(24) :: filename
+!   Declare local parameters
+    integer(nstio_intkind):: lunges = 12
+    integer(i_kind),parameter:: nnst_all = 9
+
+    do it=1,nfldnst
+! read a nst file on the task
+       write(filename,200)ifilenst(it)
+200    format('nstf',i2.2)
+       call nstio_srohdc(lunges,filename,nst_head,nst_data,iret)
+!      Check for possible problems
+       if (iret /= 0) then
+          write(6,*)'READ_NST:  ***ERROR*** problem reading ',filename,&
+               ', iret=',iret
+          call nstio_axdata(nst_data,iret)
+          call stop2(80)
+       endif
+       lonb = nst_head%lonb
+       latb = nst_head%latb
+       if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
+            write(6,*)'READ_SFC:  ***ERROR*** inconsistent grid dimensions.  ',&
+                 ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- nst file lonb,latb=',&
+                    lonb,latb
+            call nstio_axdata(nst_data,iret)
+            call stop2(80)
+       endif
+
+       nnst=nnst_all
+
+!$omp parallel do private(n,i,j,dwarm_tmp)
+       do n=1,nnst
+ 
+        if(n == 1)then                            ! foundation temperature (Tf)
+
+          call tran_gfssfc(nst_data%tref,tref(1,1,it),lonb,latb)                                 
+
+        else if(n == 2) then                      ! cooling amount
+
+          call tran_gfssfc(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
+
+        else if(n == 3) then                      ! cooling layer thickness
+
+          call tran_gfssfc(nst_data%z_c,z_c(1,1,it),lonb,latb)        
+
+        else if(n == 4 ) then                     ! warming amount
+
+          allocate(dwarm_tmp(latb+2,lonb))
+          dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
+          call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
+          deallocate(dwarm_tmp)
+
+        else if(n == 5 ) then                     ! warm layer thickness
+
+          call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
+
+        else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
+
+          call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
+
+        else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
+
+          call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
+
+        else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
+
+          call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
+
+        else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
+
+          call tran_gfssfc(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
+
+        end if
+
+!         End of loop over data records
+       end do
+!   Print date/time stamp
+       write(6,700) latb,lonb,nst_head%fhour,nst_head%idate
+700    format('READ_NST:  ges read/scatter, nlat,nlon=',&
+            2i6,', hour=',f10.1,', idate=',4i5)
+       call nstio_axdata(nst_data,iret)
+       call nstio_srclose(lunges,iret)
+!   End of loop over time levels
+    end do
+
+  end subroutine read_nst
+
+
+  subroutine read_gfsnst(iope,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_gfsnst     read gfs nst file
+!   prgmmr: li          org: np23                date: 2009-08-26
+!
+! abstract: read gfs nst file
+!
+! program history log:
+!   2015-04-25  li : modify to minimize communications/IO
+!
+!   input argument list:
+!     iope     - mpi task handling i/o
+!     mype     - mpi task id
+!
+!   output argument list:
+!   tref     (:,:)                        ! oceanic foundation temperature
+!   dt_cool  (:,:)                        ! sub-layer cooling amount at sub-skin layer
+!   z_c      (:,:)                        ! depth of sub-layer cooling layer
+!   dt_warm  (:,:)                        ! diurnal warming amount at sea surface (skin layer)
+!   z_w      (:,:)                        ! depth of diurnal warming layer
+!   c_0      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in dimensionless
+!   c_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
+!   w_0      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in dimensionless
+!   w_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
+!   isli_nst (:,:)                        ! surface mask in nst file
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldnst
+    use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
+    use constants, only: zero
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind)                      ,intent(in   ) :: iope
+    integer(i_kind)                      ,intent(in   ) :: mype
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+                    tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+
+!   Declare local variables
+    integer(i_kind):: iret,npts,nptsall
+
+!-----------------------------------------------------------------------------
+!   Read nst file on processor iope
+    if(mype == iope)then
+      call read_nst(tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+    end if
+
+!   Load onto all processors
+
+    npts=nlat_sfc*nlon_sfc
+    nptsall=npts*nfldnst
+
+    call mpi_bcast(tref,    nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_cool, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_c,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_warm, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_w,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_0,     nptsall,mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_0,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+
+    return
+  end subroutine read_gfsnst
+
 subroutine tran_gfssfc(ain,aout,lonb,latb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -748,148 +947,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     return
     end subroutine tran_gfssfc
-
-
-  subroutine read_gfsnst(filename,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
-
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_gfsnst     read gfs nst guess file (quadratic Gaussin grids) without scattering to tasks
-!   prgmmr: li          org: np23                date: 2009-08-26
-!
-! abstract: read nst file
-!
-! program history log:
-!
-!   input argument list:
-!     filename - name of nst guess file
-!     mype     - mpi task id
-!
-!  output argument list:
-!  tref     (:,:)                        ! oceanic foundation temperature
-!  dt_cool  (:,:)                        ! sub-layer cooling amount at sub-skin layer
-!  z_c      (:,:)                        ! depth of sub-layer cooling layer
-!  dt_warm  (:,:)                        ! diurnal warming amount at sea surface (skin layer)
-!  z_w      (:,:)                        ! depth of diurnal warming layer
-!  c_0      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in dimensionless
-!  c_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
-!  w_0      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in dimensionless
-!  w_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
-
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: itotsub,nlat_sfc,nlon_sfc
-    use nstio_module, only: nstio_srohdc,nstio_head,nstio_data
-
-    use constants, only: zero,two
-    implicit none
-
-!   Declare passed variables
-    character(*),intent(in):: filename
-    integer(i_kind),intent(in):: mype
-    real(r_kind),dimension(nlat_sfc,nlon_sfc),intent(out):: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
-!   Declare local parameters
-    integer(i_kind):: lun_nst = 13
-    integer(i_kind),parameter:: n_nst=9
-!   Declare local variables
-    integer(i_kind) i,j,k,latb,lonb
-    integer(i_kind):: irets
-    real(r_kind) sumn,sums
-    real(r_kind),allocatable,dimension(:,:,:):: work,nstges
-
-    type(nstio_head):: nst_head
-    type(nstio_data):: nst_data
-!   Read nst file
-    call nstio_srohdc(lun_nst,trim(filename),nst_head,nst_data,irets)
-
-!   Check for possible problems
-    if (irets /= 0) then
-       write(6,*)'READ_GFSNST:  ***ERROR*** problem reading ',filename,&
-            ', irets=',irets
-       call stop2(80)
-    endif
-    latb=nst_head%latb                   ! e.g. 576     for T382
-    lonb=nst_head%lonb                   ! e.g. 1152    for T382
-    if ( (latb /= nlat_sfc-2) .or. &
-         (lonb /= nlon_sfc) ) then
-       write(6,*)'READ_GFSNST:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon_sfc,nlat_sfc-2=',nlon_sfc,nlat_sfc-2,' -vs- nst file lonb,latb=',&
-            lonb,latb
-       call stop2(80)
-    endif
-
-!   Load nst guess fields required in Tr analysis into local work array
-    allocate(work(lonb,latb,n_nst),nstges(latb+2,lonb,n_nst))
-
-    work = zero
-    work(:,:,1)  = nst_data%tref(:,:)
-    work(:,:,2)  = nst_data%dt_cool(:,:)
-    work(:,:,3)  = nst_data%z_c(:,:)
-    work(:,:,4)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
-    work(:,:,5)  = nst_data%xz(:,:)
-    work(:,:,6)  = nst_data%c_0(:,:)
-    work(:,:,7)  = nst_data%c_d(:,:)
-    work(:,:,8)  = nst_data%w_0(:,:)
-    work(:,:,9)  = nst_data%w_d(:,:)
-
-!     Fill nst guess array
-      do k=1,n_nst
-
-!        Compute mean for southern- and northern-most rows
-!        of surface guess array
-         sumn = zero
-         sums = zero
-         do i=1,lonb
-            sumn = work(i,1,k)    + sumn
-            sums = work(i,latb,k) + sums
-         end do
-         sumn = sumn/float(lonb)
-         sums = sums/float(lonb)
-
-!        Transfer from local work array to surface guess array
-         do j = 1,lonb
-            nstges(1,j,k)=sums
-            nstges(latb+2,j,k)=sumn
-            do i=2,latb+1
-              nstges(i,j,k) = work(j,latb+2-i,k)
-            end do
-          end do
-
-!     End of loop over data records
-      end do
-
-
-!     Deallocate local work arrays
-      deallocate(work)
-!   Load data into output arrays
-    do j=1,lonb
-     do i=1,latb+2
-       tref(i,j)    = nstges(i,j,1)
-       dt_cool(i,j) = nstges(i,j,2)
-       z_c(i,j)     = nstges(i,j,3)
-       dt_warm(i,j) = nstges(i,j,4)
-       z_w(i,j)     = nstges(i,j,5)
-       c_0(i,j)     = nstges(i,j,6)
-       c_d(i,j)     = nstges(i,j,7)
-       w_0(i,j)     = nstges(i,j,8)
-       w_d(i,j)     = nstges(i,j,9)
-     end do
-    end do
-    deallocate(nstges)
-
-!   Print date/time stamp
-    if(mype==0) then
-       write(6,700) latb,lonb,nst_head%fhour,nst_head%idate
-700    format('READ_GFSNST:  ges read, nlat,nlon=',&
-            2i6,', hour=',f10.1,', idate=',4i5)
-    end if
-
-    return
-  end subroutine read_gfsnst
 
   subroutine write_gfs(increment,mype,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
