@@ -1780,9 +1780,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               clw_guess = clw_guess +  cloud_cont(k,1)
               do ii=1,n_clouds
                  if (ii==1 .and. atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
-                    cloud_cont(k,1)=max(1.001_r_kind*1.0E-6, cloud_cont(k,1))
+                    cloud_cont(k,1)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,1))
                  if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
-                    cloud_cont(k,2)=max(1.001_r_kind*1.0E-6, cloud_cont(k,2))
+                    cloud_cont(k,2)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,2))
               end do
 
           endif   

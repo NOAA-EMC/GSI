@@ -729,139 +729,139 @@ subroutine add_gfs_stratosphere
 
         if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
 
-        if (ier_ql==0) then
+           if (ier_ql==0) then
 !    ql  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_ql_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_ql_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !    ql  -- global contribution
-           do k=1,nsigg
-              kt=k+2*grd_gfs%nsig
-              kq=k+3*grd_gfs%nsig
-              kcw=k+5*grd_gfs%nsig
-              worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c) 
-              worktmp = max(zero,worktmp)
-              worktmp = min(one,worktmp)
-              yspliu_g(k)=work_sub(1,i,j,kcw)*(one-worktmp)
-           end do
-           call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
+              do k=1,nsigg
+                 kt=k+2*grd_gfs%nsig
+                 kq=k+3*grd_gfs%nsig
+                 kcw=k+5*grd_gfs%nsig
+                 worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c) 
+                 worktmp = max(zero,worktmp)
+                 worktmp = min(one,worktmp)
+                 yspliu_g(k)=work_sub(1,i,j,kcw)*(one-worktmp)
+              end do
+              call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
-              if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
+                 if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qlt(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
-           end do 
-        end if
+              do k=1,nsig
+                 qlt(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
+              end do 
+           end if
 
-        if (ier_qi==0) then
+           if (ier_qi==0) then
 !    qi  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_qi_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qi_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !    qi  -- global contribution
-           do k=1,nsigg
-              kt=k+2*grd_gfs%nsig
-              kq=k+3*grd_gfs%nsig
-              kcw=k+5*grd_gfs%nsig
-              worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c)
-              worktmp = max(zero,worktmp)
-              worktmp = min(one,worktmp)
-              yspliu_g(k)=work_sub(1,i,j,kcw)*worktmp
-           end do
-           call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
+              do k=1,nsigg
+                 kt=k+2*grd_gfs%nsig
+                 kq=k+3*grd_gfs%nsig
+                 kcw=k+5*grd_gfs%nsig
+                 worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c)
+                 worktmp = max(zero,worktmp)
+                 worktmp = min(one,worktmp)
+                 yspliu_g(k)=work_sub(1,i,j,kcw)*worktmp
+              end do
+              call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
-              if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
+                 if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qit(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
-           end do
-        end if
+              do k=1,nsig
+                 qit(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
+              end do
+           end if
 
-        if (ier_qr==0) then
+           if (ier_qr==0) then
 !    qr  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_qr_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qr_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qrt(i,j,k)=ysplou_r(k)
-           end do
-        end if
+              do k=1,nsig
+                 qrt(i,j,k)=ysplou_r(k)
+              end do
+           end if
 
-        if (ier_qs==0) then
+           if (ier_qs==0) then
 !    qs  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_qs_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qs_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qst(i,j,k)=ysplou_r(k)
-           end do
-        end if
+              do k=1,nsig
+                 qst(i,j,k)=ysplou_r(k)
+              end do
+           end if
 
-        if (ier_qg==0) then
+           if (ier_qg==0) then
 !    qg  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_qg_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qg_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qgt(i,j,k)=ysplou_r(k)
-           end do
-        end if
+              do k=1,nsig
+                 qgt(i,j,k)=ysplou_r(k)
+              end do
+           end if
 
-        if (ier_qh==0) then
+           if (ier_qh==0) then
 !    qh  -- regional contribution
-           do k=1,nsig_save
-              yspliu_r(k)=ges_qh_r(i,j,k,it)
-           end do
-           call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qh_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig
-              if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
-              if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
-           end do
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
 !                   blend contributions from regional and global:
-           do k=1,nsig
-              qht(i,j,k)=ysplou_r(k)
-           end do
-        end if
+              do k=1,nsig
+                 qht(i,j,k)=ysplou_r(k)
+              end do
+           end if
 
         end if  ! end nguess>0 loop
 
@@ -1190,112 +1190,112 @@ subroutine revert_to_nmmb
 
         if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
 !  ql:
-        if (ier_ql==0) then
-           do k=1,nsig
-              yspli(k)=ges_ql(i,j,k)-ges_ql_r_g(i,j,k,ntguessig)
-              ges_ql_r_g(i,j,k,ntguessig)=ges_ql(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
-!                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_ql(i,j,k)=max(ysplo(k)+ges_ql_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+           if (ier_ql==0) then
+              do k=1,nsig
+                 yspli(k)=ges_ql(i,j,k)-ges_ql_r_g(i,j,k,ntguessig)
+                 ges_ql_r_g(i,j,k,ntguessig)=ges_ql(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                     following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_ql(i,j,k)=max(ysplo(k)+ges_ql_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
 !  qi:
-        if (ier_qi==0) then
-           do k=1,nsig
-              yspli(k)=ges_qi(i,j,k)-ges_qi_r_g(i,j,k,ntguessig)
-              ges_qi_r_g(i,j,k,ntguessig)=ges_qi(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+           if (ier_qi==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qi(i,j,k)-ges_qi_r_g(i,j,k,ntguessig)
+                 ges_qi_r_g(i,j,k,ntguessig)=ges_qi(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_qi(i,j,k)=max(ysplo(k)+ges_qi_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qi(i,j,k)=max(ysplo(k)+ges_qi_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
 !  qr:
-        if (ier_qr==0) then
-           do k=1,nsig
-              yspli(k)=ges_qr(i,j,k)-ges_qr_r_g(i,j,k,ntguessig)
-              ges_qr_r_g(i,j,k,ntguessig)=ges_qr(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+           if (ier_qr==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qr(i,j,k)-ges_qr_r_g(i,j,k,ntguessig)
+                 ges_qr_r_g(i,j,k,ntguessig)=ges_qr(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_qr(i,j,k)=max(ysplo(k)+ges_qr_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qr(i,j,k)=max(ysplo(k)+ges_qr_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
 !  qs:
-        if (ier_qs==0) then
-           do k=1,nsig
-              yspli(k)=ges_qs(i,j,k)-ges_qs_r_g(i,j,k,ntguessig)
-              ges_qs_r_g(i,j,k,ntguessig)=ges_qs(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+           if (ier_qs==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qs(i,j,k)-ges_qs_r_g(i,j,k,ntguessig)
+                 ges_qs_r_g(i,j,k,ntguessig)=ges_qs(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_qs(i,j,k)=max(ysplo(k)+ges_qs_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qs(i,j,k)=max(ysplo(k)+ges_qs_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
 !  qg:
-        if (ier_qg==0) then
-           do k=1,nsig
-              yspli(k)=ges_qg(i,j,k)-ges_qg_r_g(i,j,k,ntguessig)
-              ges_qg_r_g(i,j,k,ntguessig)=ges_qg(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+           if (ier_qg==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qg(i,j,k)-ges_qg_r_g(i,j,k,ntguessig)
+                 ges_qg_r_g(i,j,k,ntguessig)=ges_qg(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_qg(i,j,k)=max(ysplo(k)+ges_qg_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qg(i,j,k)=max(ysplo(k)+ges_qg_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
 !  qh:
-        if (ier_qh==0) then
-           do k=1,nsig
-              yspli(k)=ges_qh(i,j,k)-ges_qh_r_g(i,j,k,ntguessig)
-              ges_qh_r_g(i,j,k,ntguessig)=ges_qh(i,j,k) !  keep original for after write analysis
-           end do
-           call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+           if (ier_qh==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qh(i,j,k)-ges_qh_r_g(i,j,k,ntguessig)
+                 ges_qh_r_g(i,j,k,ntguessig)=ges_qh(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !                  following is to correct for bug in intp_spl
-           do k=1,nsig_save
-              if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
-              if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
-           end do
-           do k=1,nsig_save
-              ges_qh(i,j,k)=max(ysplo(k)+ges_qh_r(i,j,k,ntguessig), zero)
-           end do
-        end if
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qh(i,j,k)=max(ysplo(k)+ges_qh_r(i,j,k,ntguessig), zero)
+              end do
+           end if
 
-        if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) then 
-           do k=1,nsig_save
-              ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
-           end do
-        end if
+           if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) then 
+              do k=1,nsig_save
+                 ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+              end do
+           end if
         end if ! end of (nguess>0 .and. (icw4crtm .or. iqtotal))
 
      end do

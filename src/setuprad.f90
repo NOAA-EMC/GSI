@@ -405,29 +405,29 @@
   lcw4crtm=lcw4crtm .and.  amsua            !leave ATMS as clear-sky for now          
 
   if (lcw4crtm) then
-! Parameters for the observation error model 
-! cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
-! increase in error take place
-  cclr(:)=zero
-  ccld(:)=zero
-  do i=1,nchanl
-     cclr( 1)=0.05_r_kind
-     cclr( 2)=0.03_r_kind
-     cclr( 3)=0.03_r_kind
-     cclr( 4)=0.02_r_kind
-     cclr( 5)=0.00_r_kind
-     cclr( 6)=0.10_r_kind
-     cclr(15)=0.03_r_kind
-  end do
-  do i=1,nchanl
-     ccld( 1)=0.60_r_kind
-     ccld( 2)=0.45_r_kind
-     ccld( 3)=0.40_r_kind
-     ccld( 4)=0.45_r_kind
-     ccld( 5)=1.00_r_kind
-     ccld( 6)=1.50_r_kind
-     ccld(15)=0.20_r_kind
-  end do
+!    Parameters for the observation error model 
+!    cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
+!    increase in error take place
+     cclr(:)=zero
+     ccld(:)=zero
+     do i=1,nchanl
+        cclr( 1)=0.05_r_kind
+        cclr( 2)=0.03_r_kind
+        cclr( 3)=0.03_r_kind
+        cclr( 4)=0.02_r_kind
+        cclr( 5)=0.00_r_kind
+        cclr( 6)=0.10_r_kind
+        cclr(15)=0.03_r_kind
+     end do
+     do i=1,nchanl
+        ccld( 1)=0.60_r_kind
+        ccld( 2)=0.45_r_kind
+        ccld( 3)=0.40_r_kind
+        ccld( 4)=0.45_r_kind
+        ccld( 5)=1.00_r_kind
+        ccld( 6)=1.50_r_kind
+        ccld(15)=0.20_r_kind
+     end do
   endif
 
 ! Initialize channel related information
@@ -761,17 +761,17 @@
 !       Interpolate model fields to observation location, call crtm and create jacobians
 !       Output both tsim and tsim_clr for allsky
         if (lcw4crtm) then
-        call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,prsltmp,prsitmp, &
-             trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
-             temp,wmix,jacobian,error_status,tsim_clr)
+           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+                tvp,qvp,clw_guess,prsltmp,prsitmp, &
+                trop5,tzbgr,dtsavg,sfc_speed, &
+                tsim,emissivity,ptau5,ts,emissivity_k, &
+                temp,wmix,jacobian,error_status,tsim_clr)
         else
-        call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,prsltmp,prsitmp, &
-             trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
-             temp,wmix,jacobian,error_status)
+           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+                tvp,qvp,clw_guess,prsltmp,prsitmp, &
+                trop5,tzbgr,dtsavg,sfc_speed, &
+                tsim,emissivity,ptau5,ts,emissivity_k, &
+                temp,wmix,jacobian,error_status)
         endif 
 
 ! If the CRTM returns an error flag, do not assimilate any channels for this ob 
@@ -1003,7 +1003,7 @@
 !             if (clwp_amsua<=cclr(i) .and. clw_guess_retrieval> cclr(i)) cld_rbc_idx(i)=zero  
 !             if (clwp_amsua> cclr(i) .and. clw_guess_retrieval<=cclr(i)) cld_rbc_idx(i)=zero  
               if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero .and.  &
-                   abs(clwp_amsua-clw_guess_retrieval)>=0.005) cld_rbc_idx(i)=zero
+                   abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
            end do
 
            if (ierrret /= 0) then

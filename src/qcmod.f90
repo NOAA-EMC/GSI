@@ -2210,7 +2210,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      if (any(cld_rbc_idx==zero)) icol=zero
      do i=1,nchanl
         if(varinv(i)>tiny_r_kind .and. (i<=5 .or. i == 15))  then
-           ework = (1.0-icol)*abs(tbc(i))
+           ework = (1.0_r_kind-icol)*abs(tbc(i))
            ework = ework+min(0.002_r_kind*sfc_speed**2*error0(i), 0.5_r_kind*error0(i))
            clwtmp=min(abs(clwp_amsua-clw_guess_retrieval), one)
            ework = ework+min(13.0_r_kind*clwtmp*error0(i), 3.5_r_kind*error0(i))

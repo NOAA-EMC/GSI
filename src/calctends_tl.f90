@@ -210,13 +210,6 @@ subroutine calctends_tl(fields,fields_dt,mype)
   end if
 
 ! preliminaries:
-
-!  if(fields%n2d>0) allocate(fvars2d(fields%n2d))
-!  if(fields%n3d>0) allocate(fvars3d(fields%n3d))
-!  call gsi_bundleinquire (fields,'shortnames::2d',fvars2d,istatus)
-!  call gsi_bundleinquire (fields,'shortnames::3d',fvars3d,istatus)
-!  icw=getindex(fvars3d,'cw')  
-
   ihave_xtra_derivatives=.false. 
   ier=0
   call gsi_bundledup ( fields, xderivative, 'lon-derivatives', istatus )
