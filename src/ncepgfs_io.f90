@@ -1014,15 +1014,17 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
        call set_analysis_(itoutsig)
 
-!      Get final cloud increments and add to the original cloud guess fields
-       do k=1,nsig
-          do j=1,lon2
-              do i=1,lat2
-                 aux_cwmr(i,j,k) = cwgues0(i,j,k)  &
-                              +(ges_cwmr_it(i,j,k)-max(cwgues0(i,j,k),qcmin))
-               enddo
+!   Get final cloud increments and add to the original cloud guess fields
+       if (associated(ges_cwmr_it)) then
+          do k=1,nsig
+             do j=1,lon2
+                 do i=1,lat2
+                    aux_cwmr(i,j,k) = cwgues0(i,j,k)  &
+                                 +(ges_cwmr_it(i,j,k)-max(cwgues0(i,j,k),qcmin))
+                 enddo
+             enddo
           enddo
-       enddo
+       endif  
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
