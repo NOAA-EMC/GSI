@@ -49,11 +49,9 @@ public GSI_NSTCoupler_final
 
 public :: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
 public :: c_0_full,c_d_full,w_0_full,w_d_full
-public :: nst_mask_full
 
 real(r_kind),allocatable,dimension(:,:,:):: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
 real(r_kind),allocatable,dimension(:,:,:):: c_0_full,c_d_full,w_0_full,w_d_full
-real(i_kind),allocatable,dimension(:,:)  :: nst_mask_full
 
 !-------------------
 interface gsi_nstcoupler_init

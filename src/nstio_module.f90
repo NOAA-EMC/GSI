@@ -308,7 +308,7 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     open(lu,file=cfname,form='unformatted',&
          status='old',action='read',iostat=ios)
-    write(*,*) ' successfully opened : ',cfname, ios
+!   write(*,*) ' successfully opened : ',cfname, ios
     iret=ios
     if(iret.ne.0) iret=-1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

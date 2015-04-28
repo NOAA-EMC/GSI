@@ -21,7 +21,7 @@ subroutine nst_init_()
      use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon
      use guess_grids, only: nfldnst, ntguesnst,ifilenst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                      c_0_full,c_d_full,w_0_full,w_d_full
      use mpeu_util,   only: die, perr
 
      implicit none
@@ -35,7 +35,6 @@ subroutine nst_init_()
      if(.not.allocated(c_d_full))     allocate(c_d_full     (nlat_sfc,nlon_sfc,nfldnst))
      if(.not.allocated(w_0_full))     allocate(w_0_full     (nlat_sfc,nlon_sfc,nfldnst))
      if(.not.allocated(w_d_full))     allocate(w_d_full     (nlat_sfc,nlon_sfc,nfldnst))
-     if(.not.allocated(nst_mask_full))allocate(nst_mask_full(nlat_sfc,nlon_sfc))
 
      if( ntguesnst < 1 .or. ntguesnst > nfldnst ) then 
             call perr('nst_init','ntguesnst = ',ntguesnst)
@@ -53,16 +52,13 @@ subroutine nst_set_(mype,mype_io_sfc)
      use kinds,       only: r_kind,i_kind
      use guess_grids, only: nfldnst, ntguesnst,ifilenst
      use ncepgfs_io,  only: read_gfsnst
-     use satthin,     only: isli_full
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                      c_0_full,c_d_full,w_0_full,w_d_full
      implicit none
      integer(i_kind),intent(in   ) :: mype,mype_io_sfc
 
      integer(i_kind)               :: it
      character(24)                    filename
-
-     nst_mask_full = isli_full
 
      call read_gfsnst(mype_io_sfc,mype,tref_full,dt_cool_full,z_c_full, &
                       dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
@@ -73,7 +69,7 @@ end subroutine nst_set_
 subroutine nst_final_ ()
 
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                  c_0_full,c_d_full,w_0_full,w_d_full
 
      if(allocated(tref_full))    deallocate(tref_full)
      if(allocated(dt_cool_full)) deallocate(dt_cool_full)
@@ -84,7 +80,6 @@ subroutine nst_final_ ()
      if(allocated(c_d_full))     deallocate(c_d_full)
      if(allocated(w_0_full))     deallocate(w_0_full)
      if(allocated(w_d_full))     deallocate(w_d_full)
-     if(allocated(nst_mask_full))deallocate(nst_mask_full)
 
 end subroutine nst_final_
 !*******************************************************************************************
@@ -123,7 +118,8 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      use guess_grids, only: nfldnst,hrdifnst
      use radinfo,     only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                  c_0_full,c_d_full,w_0_full,w_d_full
+     use satthin, only: isli_full
      implicit none
 
      real(r_kind), intent(in ) :: dlat_earth,dlon_earth,obstime,zob
@@ -188,10 +184,10 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 
 !    Set surface type flag.
 
-     istyp00 = nst_mask_full(ix ,iy )
-     istyp10 = nst_mask_full(ixp,iy )
-     istyp01 = nst_mask_full(ix ,iyp)
-     istyp11 = nst_mask_full(ixp,iyp)
+     istyp00 = isli_full(ix ,iy )
+     istyp10 = isli_full(ixp,iy )
+     istyp01 = isli_full(ix ,iyp)
+     istyp11 = isli_full(ixp,iyp)
 !
 !    Use the time interpolation factors for nst files
 !

@@ -23,6 +23,7 @@ module ncepgfs_io
 !   2015-03-13  li     - introduce zsea1 & zsea2 enable to use vertical mean
 !                        temperature based on NSST T-Profile. And move Tf analysis increment
 !                        interpolation (analysis grid to ensemble grid) to re-center step
+!   2015-04-25  li     - modify read_nst, read_gfsnst routines to minimize communications/IO
 
 !
 ! Subroutines Included:
@@ -33,8 +34,8 @@ module ncepgfs_io
 !   sub write_gfs         - driver to write ncep gfs atmospheric and surface
 !                           analysis files
 !   sub write_gfssfc      - gather/write on grid ncep surface analysis file
-!   sub read_gfsnst       - read ncep nst file, scatter on grid to
-!                           analysis subdomains
+!   sub read_nst          - driver to read ncep nst file
+!   sub read_gfsnst       - read ncep nst filea from one task and then broadcast to others
 !   sub write_gfs_sfc_nst - gather/write on grid ncep surface & nst analysis file
 !   sub write_ens_sfc_nst - gather/write on ensemble grid ncep surface & nst analysis file
 !   sub write_ens_dsfct   - gather/write on ensemble grid ncep Ts analysis increment
@@ -55,6 +56,7 @@ module ncepgfs_io
   public read_gfs
   public read_gfs_chem
   public read_gfssfc
+  public read_nst
   public read_gfsnst
   public write_gfs
   public write_gfs_sfc_nst
@@ -466,8 +468,8 @@ end subroutine write_ghg_grid
 !   2012-01-24  whitaker - create routine
 !
 !   input argument list:
-!     lunges             - unit number to use for IO
-!     filename           - gfs surface file to read
+!    lunges             - unit number to use for IO
+!    filename           - gfs surface file to read
 !
 !   output argument list:
 !
@@ -586,7 +588,7 @@ end subroutine write_ghg_grid
        end do
 !   Print date/time stamp
        write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
-700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
+700    format('READ_SFC:  ges read/scatter, nlat,nlon=',&
             2i6,', hour=',f10.1,', idate=',4i5)
        call sfcio_axdata(sfc_data,iret)
        call sfcio_sclose(lunges,iret)
@@ -673,18 +675,18 @@ end subroutine write_ghg_grid
     npts=nlat_sfc*nlon_sfc
     nptsall=npts*nfldsfc
 
-    call mpi_bcast(sfct,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(fact10,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(sno,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfc_rough,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(terrain,npts,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(isli,npts,mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfct,      nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(fact10,    nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sno,       nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfc_rough, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(terrain,   npts,   mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli,      npts,   mpi_itype,iope,mpi_comm_world,iret)
     if(use_sfc_any)then
-       call mpi_bcast(veg_frac,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_frac, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
        call mpi_bcast(soil_temp,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(soil_moi,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(veg_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(soil_type,npts,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_moi, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_type, npts,   mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_type,npts,   mpi_rtype,iope,mpi_comm_world,iret)
     end if
 
     return
@@ -697,8 +699,7 @@ end subroutine write_ghg_grid
 !
 !   prgrmmr: li
 !
-! abstract: read a ncep GFS nst file on a specified task,
-!           broadcast data to other tasks.
+! abstract: driver to read nst fields
 !
 ! program history log:
 !   2015-04-24  li - create routine based on read_sfc
@@ -714,7 +715,6 @@ end subroutine write_ghg_grid
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-    ! read data from nst file on a single task, bcast data to other tasks.
     use nstio_module, only: nstio_srohdc,nstio_head,nstio_data,nstio_intkind
     use nstio_module, only: nstio_axdata,nstio_srclose
     use kinds, only: i_kind,r_single,r_kind
@@ -749,7 +749,7 @@ end subroutine write_ghg_grid
        lonb = nst_head%lonb
        latb = nst_head%latb
        if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
-            write(6,*)'READ_SFC:  ***ERROR*** inconsistent grid dimensions.  ',&
+            write(6,*)'READ_NST:  ***ERROR*** inconsistent grid dimensions.  ',&
                  ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- nst file lonb,latb=',&
                     lonb,latb
             call nstio_axdata(nst_data,iret)
@@ -775,7 +775,7 @@ end subroutine write_ghg_grid
 
         else if(n == 4 ) then                     ! warming amount
 
-          allocate(dwarm_tmp(latb+2,lonb))
+          allocate(dwarm_tmp(lonb,latb))
           dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
           call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
           deallocate(dwarm_tmp)
@@ -820,10 +820,11 @@ end subroutine write_ghg_grid
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_gfsnst     read gfs nst file
+! subprogram:    read_gfsnst   
 !   prgmmr: li          org: np23                date: 2009-08-26
 !
-! abstract: read gfs nst file
+! abstract: read gfs nst fields from a specific task and then broadcast to others
+! 
 !
 ! program history log:
 !   2015-04-25  li : modify to minimize communications/IO
@@ -842,7 +843,6 @@ end subroutine write_ghg_grid
 !   c_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
 !   w_0      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in dimensionless
 !   w_d      (:,:)                        ! coefficient to calculate d(Tz)/d(tr) in m^-1
-!   isli_nst (:,:)                        ! surface mask in nst file
 !
 ! attributes:
 !   language: f90
