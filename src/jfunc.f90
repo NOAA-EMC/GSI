@@ -303,14 +303,12 @@ contains
        end do
     endif
 
-    if (getindex(cvars3d,'cw')>0) then
-        allocate(varcw(1:mlat,1:nsig))
-        do k=1,nsig
-          do j=1,mlat
-           varcw(j,k)=zero
-          end do
+    allocate(varcw(1:mlat,1:nsig))
+    do k=1,nsig
+       do j=1,mlat
+          varcw(j,k)=zero
        end do
-    endif
+    end do
 
     return
   end subroutine create_jfunc
