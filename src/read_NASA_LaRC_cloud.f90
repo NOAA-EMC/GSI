@@ -8,6 +8,8 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 !
 ! PROGRAM HISTORY LOG:
 !    2014-12-03 derber - remove unused variables
+!    2015-04-08  Su      -fix array size with subset
+!                         number from fixed number to dynamic allocated array
 !
 !   variable list
 !
@@ -76,7 +78,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   integer i,k
 
   integer(i_kind) :: east_time, west_time
-  integer :: maxobs,numobs
+  integer :: maxobs,numobs,nmsgmax
 
   character*10  atime
 
@@ -93,10 +95,12 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 !
 !  read in the NASA LaRC cloud data
   write(6,*)'start to read NASA_LaRC_cloud::'
-
-  maxobs=(1800*700 + 1500*850)*1
-  allocate(cdata_all(maxdat,maxobs))
   satfile='lgycldbufr'
+
+!!  get bufr file data counts
+  call getcount_bufr(satfile,nmsgmax,maxobs)
+
+  allocate(cdata_all(maxdat,maxobs))
   allocate(lat_l(maxobs))
   allocate(lon_l(maxobs))
   allocate(ptop_l(maxobs))

@@ -73,8 +73,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
   character(8),parameter:: cspval= '88888888'
 
 ! Declare local variables
@@ -185,14 +183,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      ntb = ntb + nmsub(lunin) !nmsub is a bufrlib function which returns the number of subsets in 
                               !  a bufr message open for input via a previous call to a bufrlib
                               !  routine readmg or equivalent.  The subsets are not required to be read (saves time).
-     if (nmsg>nmsgmax) then
-        write(6,*)myname,': messages exceed maximum ',nmsgmax
-        call stop2(50)
-     endif
-     if (ntb>mxtb) then
-        write(6,*)myname,': reports exceed maximum ',mxtb   
-        call stop2(50)
-     endif
   end do
   maxobs=ntb
 

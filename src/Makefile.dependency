@@ -88,6 +88,7 @@ gengrid_vars.o : gengrid_vars.f90 constants.o gridmod.o kinds.o
 genqsat.o : genqsat.f90 guess_grids.o gridmod.o jfunc.o derivsmod.o constants.o kinds.o 
 genstats_gps.o : genstats_gps.f90 convinfo.o gsi_4dvar.o jfunc.o mpimod.o qcmod.o constants.o gridmod.o obsmod.o kinds.o 
 gesinfo.o : gesinfo.f90 constants.o gridmod.o mpimod.o gsi_4dvar.o obsmod.o kinds.o 
+getcount_bufr.o : getcount_bufr.f90 kinds.o 
 get_derivatives2.o : get_derivatives2.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_derivatives.o : get_derivatives.f90 mpeu_util.o general_commvars_mod.o general_sub2grid_mod.o gsi_bundlemod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_gefs_ensperts_dualres.o : get_gefs_ensperts_dualres.f90 general_sub2grid_mod.o gsi_enscouplermod.o gsi_bundlemod.o gsi_4dvar.o control_vectors.o kinds.o mpimod.o constants.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o gridmod.o 
