@@ -176,9 +176,7 @@ if (smoothparm .gt. zero) then
    do i=1,numptsperproc(nproc+1)
       covinfglobal2(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
    end do
-   do nn=1,ndim
-      call mpi_allreduce(covinfglobal2(:,nn),covinfglobal(:,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-   enddo
+   call mpi_allreduce(covinfglobal2,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    call smooth(covinfglobal,covinfglobal2)
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
    where (covinfglobal > covinflatemax) covinfglobal = covinflatemax
