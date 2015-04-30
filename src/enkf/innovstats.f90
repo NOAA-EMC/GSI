@@ -24,7 +24,7 @@ module innovstats
 
 use enkf_obsmod, only:  oberrvar,ob,ensmean_ob,obtype,nobs_conv,nobs_oz,&
                    nobs_sat,nobstot,obloclat,ensmean_obnobc,obpress,stattype,&
-                   indxsat
+                   oberrvar_orig,indxsat
 use params, only : latbound
 use kinds, only: i_kind, r_kind,r_single
 use radinfo, only: jpch_rad,nusis,nuchan
