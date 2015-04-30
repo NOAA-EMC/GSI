@@ -203,7 +203,7 @@
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
-   my $project = "export PROJECT=\${PROJECT:-GDAS-T20}";
+   my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
    if( $machine ne "wcoss" ) {
       $project="export PROJECT=";
    } 
