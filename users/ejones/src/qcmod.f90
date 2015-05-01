@@ -44,6 +44,7 @@ module qcmod
 !   2015-01-16  ejones  - added qc_gmi
 !   2015-03-11  ejones  - added qc_amsr2
 !   2015-03-23  ejones  - added qc_saphir
+!   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -1139,10 +1140,11 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   integer(i_kind) :: l,i,idx
   integer(i_kind) :: nch_emrgr                      ! nchan in emissivity regression
   integer(i_kind),dimension(9)  :: idxch_emrgr      ! chan used in emissivity regression
-  real(r_kind),dimension(9)     :: rgr_coeff_18v,rgr_coeff_18h,rgr_coeff_23v
-  real(r_kind)                  :: em18v,em18h,em23v    ! calculated emissivity
+  real(r_kind),dimension(13)     :: rgr_coeff_18v,rgr_coeff_18h,rgr_coeff_23v
+  real(r_kind),dimension(2)      :: rgr_coeff2_10h,rgr_coeff2_18h,rgr_coeff2_36h
+  real(r_kind)                  :: em18v,em18h,em23v,em2_10h,em2_18h,em2_36h    ! calculated emissivity
 ! coefficients for regression
-  real(r_kind) :: c18v,c18h,c23v                    ! regression constants
+  real(r_kind) :: c18v,c18h,c23v,d10h,d18h,d36h                    ! regression constants
   real(r_kind) :: efact,vfact,fact 
   real(r_kind),dimension(nchanl) :: clwcutofx   
 !------------------------------------------------------------------
@@ -1196,24 +1198,38 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 
 !   Calculate emissivity and flag observations over thresholds
 !   Calculations for ch 3,4,5
-    nch_emrgr = 9
-    idxch_emrgr = (/1,2,3,4,5,6,7,8,9/)
+    nch_emrgr = 13 
+    idxch_emrgr = (/1,2,3,4,5,6,7,8,9,10,11,12,13/)
 
     ! Set regression constants and coefficients
-    c18v = 0.42467_r_kind
-    c18h = 0.35282_r_kind
-    c23v = 0.41562_r_kind
-    rgr_coeff_18v = (/ -0.00306_r_kind, 0.00286_r_kind, 0.00340_r_kind, 0.00016_r_kind,&
-                       -0.00269_r_kind, 0.00495_r_kind, -0.00211_r_kind, -0.00266_r_kind,&
-                        0.00128_r_kind /)
-    rgr_coeff_18h = (/ -0.00072_r_kind, 0.00164_r_kind, 0.00015_r_kind, 0.00364_r_kind,&
-                       -0.00384_r_kind, 0.00290_r_kind, -0.00056_r_kind, -0.00155_r_kind,&
-                        0.00067_r_kind /)
-    rgr_coeff_23v = (/ -0.00293_r_kind, 0.00339_r_kind, 0.00054_r_kind, -0.00050_r_kind,&
-                       -0.00162_r_kind, 0.00666_r_kind, -0.00169_r_kind, -0.00289_r_kind,&
-                        0.00120_r_kind /)
+    ! first set of constants and coefficients (using all channels)
+    c18v = 0.31608_r_kind
+    c18h = 0.15627_r_kind
+    c23v = 0.37469_r_kind
+    rgr_coeff_18v = (/ -0.01325_r_kind, 0.01055_r_kind, 0.01724_r_kind, &
+                       -0.01092_r_kind, 0.00032_r_kind, 0.00026_r_kind, -0.00009_r_kind, &
+                       -0.00309_r_kind, 0.00136_r_kind, -0.00030_r_kind, 0.00011_r_kind, &
+                       -0.00009_r_kind, 0.00017_r_kind /) 
+    rgr_coeff_18h = (/ -0.01084_r_kind, 0.01194_r_kind, 0.01111_r_kind, &
+                       -0.00784_r_kind, 0.00060_r_kind, 0.00008_r_kind, -0.00003_r_kind, &
+                       -0.00248_r_kind, 0.00105_r_kind, -0.00008_r_kind, 0.00000_r_kind, &
+                       -0.00013_r_kind, 0.00016_r_kind /)
+    rgr_coeff_23v = (/ -0.01612_r_kind, 0.01218_r_kind, 0.02024_r_kind, &
+                       -0.01268_r_kind, 0.00031_r_kind, 0.00036_r_kind, -0.00011_r_kind, &
+                       -0.00352_r_kind, 0.00155_r_kind, -0.00039_r_kind, 0.00016_r_kind, &
+                       -0.00010_r_kind, 0.00019_r_kind /)
+
+    ! second set of constants and coefficients (single channel regression)
+    d10h = 0.42468_r_kind
+    d18h = 0.83807_r_kind
+    d36h = 1.24071_r_kind
+
+    rgr_coeff2_10h = (/ 0.00289_r_kind, -0.00142_r_kind /)
+    rgr_coeff2_18h = (/ 0.00048_r_kind, -0.00207_r_kind /)
+    rgr_coeff2_36h = (/ 0.00068_r_kind, -0.00342_r_kind /)
 
     ! perform regressions
+    ! first set
     em18v = c18v
     em18h = c18h
     em23v = c23v
@@ -1224,9 +1240,17 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
       em23v=em23v+(tbobs(idx)*rgr_coeff_23v(i))    ! 23v emiss
     end do
 
+    ! second set
+    em2_10h = ( d10h + tbobs(2)*rgr_coeff2_10h(1) ) + rgr_coeff2_10h(2) 
+    em2_18h = ( d18h + tbobs(4)*rgr_coeff2_18h(1) ) + rgr_coeff2_18h(2)
+    em2_36h = ( d36h + tbobs(7)*rgr_coeff2_36h(1) ) + rgr_coeff2_36h(2)
+    
     ! check emissivity values against thresholds and assign flag if needed
-!    if ( (em18h .gt. 0.40) .or. (em18v .gt. 0.68) .or. (em23v .gt. 0.71) ) then
-    if ( (em18h .gt. 0.36) .or. (em18v .gt. 0.66) .or. (em23v .gt. 0.69) ) then
+    ! eric's values in the COAT:
+    if ( (em18h .gt. 0.40) .or. (em18v .gt. 0.68) .or. (em23v .gt. 0.71) .or. (em2_10h .gt. 0.01) .or. ( em2_18h .gt. 0.035) .or. (em2_36h .gt. 0.05)) then
+    ! values I've tested:
+!    if ( (em18h .gt. 0.36) .or. (em18v .gt. 0.66) .or. (em23v .gt. 0.69) ) then
+!    if ( (em2_10h .gt. 0.01) .or. ( em2_18h .gt. 0.035) .or. (em2_36h .gt. 0.05) )
        do i=1,13
           varinv(1:13)=zero
           if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
