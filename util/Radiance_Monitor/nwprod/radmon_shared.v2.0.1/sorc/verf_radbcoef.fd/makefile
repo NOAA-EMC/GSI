@@ -1,16 +1,15 @@
 # *****************************************************************
-#  makefile.angle
+#  makefile.bcoef
 #
-#  Make the angle.x executable.  The executable will extract angle
-#  radiance data from an angle ieee_d file and write it to text
-#  files for use in the interactive angle plots.
+#  Make the radmon_bcoef.glb executable.  The executable will extract
+#  bcoef radiance data from a diagnostic file from a global run.
 #
 # *****************************************************************
 
 SHELL=/bin/sh
-SRCS = angle.f90 avgsdv.f90
+SRCS = kinds.F90 read_diag.f90 bcoef.f90 create_ctl_bcoef.f90
 
-OBJS = angle.o avgsdv.o
+OBJS = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
 
 #
 # *****************************************************************
@@ -23,22 +22,27 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = angle.x
+
+CMD = radmon_bcoef
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f angle.x
+	rm -f radmon_bcoef 
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../exec/.
 
-angle.o : angle.f90
+read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-avgsdv.o : avgsdv.f90
+bcoef.o : bcoef.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
+create_ctl_bcoef.o : create_ctl_bcoef.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+kinds.o : kinds.F90
+	$(CF) $(FFLAGS) -c $(*).F90

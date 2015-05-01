@@ -62,16 +62,15 @@ fi
 #
 
 if [[ $RAD_AREA == "glb" ]]; then 
-   ./install_glb.sh $SUFFIX
-
+   ${RADMON_IMAGE_GEN}/html/install_glb.sh $SUFFIX 
 else 
-if [[ $RAD_AREA == "glb" ]]; then 
-   new_webdir=${WEBDIR}/${SUFFIX}
-   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
-else
-   new_webdir=${WEBDIR}/regional/${SUFFIX}
-   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
-fi
+   if [[ $RAD_AREA == "glb" ]]; then 
+      new_webdir=${WEBDIR}/${SUFFIX}
+      . ${RADMON_IMAGE_GEN}/parm/glbl_conf
+   else
+      new_webdir=${WEBDIR}/regional/${SUFFIX}
+      . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+   fi
 
 echo RAD_AREA    = $RAD_AREA
 echo TANKverf = $TANKverf
