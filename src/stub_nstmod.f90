@@ -17,9 +17,9 @@
 
 subroutine nst_init_()
 
-     use mpimod,           only: mype
+     use mpimod,      only: mype
      use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon
-     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use guess_grids, only: nfldnst, ntguesnst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                       c_0_full,c_d_full,w_0_full,w_d_full
      use mpeu_util,   only: die, perr
@@ -47,20 +47,16 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype,mype_io_sfc)
+subroutine nst_set_(mype,mype_io)
 
-     use kinds,       only: r_kind,i_kind
-     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use kinds,       only: i_kind
      use ncepgfs_io,  only: read_gfsnst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                       c_0_full,c_d_full,w_0_full,w_d_full
      implicit none
-     integer(i_kind),intent(in   ) :: mype,mype_io_sfc
+     integer(i_kind),intent(in   ) :: mype,mype_io
 
-     integer(i_kind)               :: it
-     character(24)                    filename
-
-     call read_gfsnst(mype_io_sfc,mype,tref_full,dt_cool_full,z_c_full, &
+     call read_gfsnst(mype_io,mype,tref_full,dt_cool_full,z_c_full, &
                       dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
                          
 end subroutine nst_set_

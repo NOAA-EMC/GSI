@@ -727,11 +727,11 @@ end subroutine write_ghg_grid
     integer(i_kind) :: iret,n,i,j
     type(nstio_head) :: nst_head
     type(nstio_data) :: nst_data
-    real(r_single),allocatable,dimension(:,:):: dwarm_tmp
+    real(r_kind),allocatable,dimension(:,:):: dwarm_tmp
     integer(i_kind) :: nnst,it
     character(24) :: filename
 !   Declare local parameters
-    integer(nstio_intkind):: lunges = 12
+    integer(nstio_intkind):: lunges = 13
     integer(i_kind),parameter:: nnst_all = 9
 
     do it=1,nfldnst
@@ -763,42 +763,42 @@ end subroutine write_ghg_grid
  
         if(n == 1)then                            ! foundation temperature (Tf)
 
-          call tran_gfssfc(nst_data%tref,tref(1,1,it),lonb,latb)                                 
+          call tran_gfsnst(dble(nst_data%tref),tref(1,1,it),lonb,latb)                                 
 
         else if(n == 2) then                      ! cooling amount
 
-          call tran_gfssfc(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
+          call tran_gfsnst(dble(nst_data%dt_cool),dt_cool(1,1,it),lonb,latb)  
 
         else if(n == 3) then                      ! cooling layer thickness
 
-          call tran_gfssfc(nst_data%z_c,z_c(1,1,it),lonb,latb)        
+          call tran_gfsnst(dble(nst_data%z_c),z_c(1,1,it),lonb,latb)        
 
         else if(n == 4 ) then                     ! warming amount
 
           allocate(dwarm_tmp(lonb,latb))
           dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
-          call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
+          call tran_gfsnst(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
           deallocate(dwarm_tmp)
 
         else if(n == 5 ) then                     ! warm layer thickness
 
-          call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
+          call tran_gfsnst(dble(nst_data%xz),z_w(1,1,it),lonb,latb)                       
 
         else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
+          call tran_gfsnst(dble(nst_data%c_0),c_0(1,1,it),lonb,latb)                           
 
         else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
+          call tran_gfsnst(dble(nst_data%c_d),c_d(1,1,it),lonb,latb)            
 
         else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
+          call tran_gfsnst(dble(nst_data%w_0),w_0(1,1,it),lonb,latb)            
 
         else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
+          call tran_gfsnst(dble(nst_data%w_d),w_d(1,1,it),lonb,latb)                     
 
         end if
 
@@ -853,7 +853,6 @@ end subroutine write_ghg_grid
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst
     use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
-    use constants, only: zero
     implicit none
 
 !   Declare passed variables
@@ -881,13 +880,72 @@ end subroutine write_ghg_grid
     call mpi_bcast(z_c,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(dt_warm, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(z_w,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(c_0,     nptsall,mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_0,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(c_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(w_0,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
     call mpi_bcast(w_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
 
     return
   end subroutine read_gfsnst
+
+subroutine tran_gfsnst(ain,aout,lonb,latb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tran_gfsnst     transform gfs surface file to analysis grid
+!   prgmmr: derber          org: np2                date: 2003-04-10
+!
+! abstract: transform gfs surface file to analysis grid
+!
+! program history log:
+!   2012-31-38  derber  - initial routine
+!
+!   input argument list:
+!     ain      - input surface record on processor iope
+!     lonb     - input number of longitudes
+!     latb     - input number of latitudes
+!
+!   output argument list:
+!     aout     - output transposed surface record
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use sfcio_module, only: sfcio_realkind
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind)                  ,intent(in ) :: lonb,latb
+    real(r_kind),dimension(lonb,latb),intent(in ) :: ain
+    real(r_kind),dimension(latb+2,lonb),intent(out) :: aout
+
+!   Declare local variables
+    integer(i_kind) i,j
+    real(r_kind) sumn,sums
+!   of surface guess array
+    sumn = zero
+    sums = zero
+    do i=1,lonb
+       sumn = ain(i,1)    + sumn
+       sums = ain(i,latb) + sums
+    end do
+    sumn = sumn/float(lonb)
+    sums = sums/float(lonb)
+
+!    Transfer from local work array to surface guess array
+    do j = 1,lonb
+       aout(1,j)=sums
+       do i=2,latb+1
+          aout(i,j) = ain(j,latb+2-i)
+       end do
+       aout(latb+2,j)=sumn
+    end do
+
+    return
+    end subroutine tran_gfsnst
 
 subroutine tran_gfssfc(ain,aout,lonb,latb)
 !$$$  subprogram documentation block

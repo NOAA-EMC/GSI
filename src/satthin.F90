@@ -583,7 +583,7 @@ contains
           end if
        end if
 
-    else
+    else                   ! for regional 
 #endif /* HAVE_ESMF */
 
        it=ntguessfc
