@@ -721,13 +721,13 @@ end subroutine write_ghg_grid
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst,ifilenst
     use constants, only: two
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
     integer(i_kind) :: latb,lonb
     integer(i_kind) :: iret,n,i,j
     type(nstio_head) :: nst_head
     type(nstio_data) :: nst_data
-    real(r_kind),allocatable,dimension(:,:):: dwarm_tmp
+    real(r_single),allocatable,dimension(:,:):: dwarm_tmp
     integer(i_kind) :: nnst,it
     character(24) :: filename
 !   Declare local parameters
@@ -763,15 +763,15 @@ end subroutine write_ghg_grid
  
         if(n == 1)then                            ! foundation temperature (Tf)
 
-          call tran_gfsnst(dble(nst_data%tref),tref(1,1,it),lonb,latb)                                 
+          call tran_gfsnst(nst_data%tref,tref(1,1,it),lonb,latb)                                 
 
         else if(n == 2) then                      ! cooling amount
 
-          call tran_gfsnst(dble(nst_data%dt_cool),dt_cool(1,1,it),lonb,latb)  
+          call tran_gfsnst(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
 
         else if(n == 3) then                      ! cooling layer thickness
 
-          call tran_gfsnst(dble(nst_data%z_c),z_c(1,1,it),lonb,latb)        
+          call tran_gfsnst(nst_data%z_c,z_c(1,1,it),lonb,latb)        
 
         else if(n == 4 ) then                     ! warming amount
 
@@ -782,23 +782,23 @@ end subroutine write_ghg_grid
 
         else if(n == 5 ) then                     ! warm layer thickness
 
-          call tran_gfsnst(dble(nst_data%xz),z_w(1,1,it),lonb,latb)                       
+          call tran_gfsnst(nst_data%xz,z_w(1,1,it),lonb,latb)                       
 
         else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(dble(nst_data%c_0),c_0(1,1,it),lonb,latb)                           
+          call tran_gfsnst(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
 
         else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(dble(nst_data%c_d),c_d(1,1,it),lonb,latb)            
+          call tran_gfsnst(nst_data%c_d,c_d(1,1,it),lonb,latb)            
 
         else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(dble(nst_data%w_0),w_0(1,1,it),lonb,latb)            
+          call tran_gfsnst(nst_data%w_0,w_0(1,1,it),lonb,latb)            
 
         else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(dble(nst_data%w_d),w_d(1,1,it),lonb,latb)                     
+          call tran_gfsnst(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
 
         end if
 
@@ -852,13 +852,13 @@ end subroutine write_ghg_grid
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst
-    use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_rtype,mpi_rtype4,mpi_comm_world
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
     integer(i_kind)                      ,intent(in   ) :: mype
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local variables
@@ -875,15 +875,15 @@ end subroutine write_ghg_grid
     npts=nlat_sfc*nlon_sfc
     nptsall=npts*nfldnst
 
-    call mpi_bcast(tref,    nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(dt_cool, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(z_c,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(dt_warm, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(z_w,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(c_0,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(c_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(w_0,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(w_d,     nptsall,mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(tref,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_cool, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_c,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_warm, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_w,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_0,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_d,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_0,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_d,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
 
     return
   end subroutine read_gfsnst
@@ -912,15 +912,15 @@ subroutine tran_gfsnst(ain,aout,lonb,latb)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use constants, only: zero
     use sfcio_module, only: sfcio_realkind
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                  ,intent(in ) :: lonb,latb
-    real(r_kind),dimension(lonb,latb),intent(in ) :: ain
-    real(r_kind),dimension(latb+2,lonb),intent(out) :: aout
+    real(r_single),dimension(lonb,latb),intent(in ) :: ain
+    real(r_single),dimension(latb+2,lonb),intent(out) :: aout
 
 !   Declare local variables
     integer(i_kind) i,j
