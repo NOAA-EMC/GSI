@@ -675,7 +675,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -686,7 +686,7 @@ contains
     character(LEN=24)                           ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
          veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough,terrain
 
 !   Declare local parameters
@@ -887,7 +887,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero,two
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -897,7 +897,7 @@ contains
 !   Declare passed variables
     character(LEN=6)                            ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: mype
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: tref,dt_cool, &
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: tref,dt_cool, &
          z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local parameters
@@ -1565,7 +1565,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
@@ -1619,12 +1619,13 @@ contains
     integer(i_kind) :: istop = 105
     real(r_kind)    :: fhour
 
-    real(r_kind),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2, tsea
+    real(r_kind),allocatable,dimension(:,:) :: tsea
     real(r_kind),allocatable,dimension(:)   :: rwork1d
+    real(r_single),dimension(nlon,nlat):: buffer
+    real(r_single),allocatable,dimension(:,:) :: buffer2,grid2
 
     type(nemsio_gfile) :: gfile, gfileo
 !*****************************************************************************
@@ -1801,7 +1802,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
   
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
@@ -1860,11 +1861,11 @@ contains
     integer(i_kind) :: istop = 106
     real(r_kind)    :: fhour
 
-    real(r_kind),dimension(nlon,nlat):: buffer
+    real(r_single),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2, grid2_nst
+    real(r_single),allocatable,dimension(:,:) :: buffer2, grid2, grid2_nst
     real(r_kind),allocatable,dimension(:,:) :: tsea,tref,dt_cool,xt,xz,slmsk
     real(r_kind),allocatable,dimension(:)   :: rwork1d
 

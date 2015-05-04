@@ -35,6 +35,8 @@ module satthin
 !   2011-05-26  todling - add create_nst
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !   2012-03-05  akella  - remove create_nst,getnst and destroy_nst; nst fields now handled by gsi_nstcoupler
+!   2015-05-01  li      - modify to use single precision for the variables read from sfc files
+
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -85,7 +87,7 @@ module satthin
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind,r_quad,r_single
   use mpeu_util, only: die, perr
   implicit none
 
@@ -110,17 +112,24 @@ module satthin
   integer(i_kind),dimension(0:51):: istart_val
   
   integer(i_kind),allocatable,dimension(:):: mlon
-  integer(i_kind),allocatable,dimension(:,:):: isli_full
   logical,allocatable,dimension(:)::icount
 
   real(r_kind) rlat_min,rlat_max,rlon_min,rlon_max,dlat_grid,dlon_grid
-  real(r_kind),allocatable,dimension(:):: glat,score_crit
-  real(r_kind),allocatable,dimension(:):: super_val,super_val1
-  real(r_kind),allocatable,dimension(:,:):: glon,hll,zs_full,zs_full_gfs
-  real(r_kind),allocatable,dimension(:,:):: veg_type_full,soil_type_full
-  real(r_kind),allocatable,dimension(:,:,:):: veg_frac_full,soil_temp_full
-  real(r_kind),allocatable,dimension(:,:,:):: soil_moi_full,sfc_rough_full
-  real(r_kind),allocatable,dimension(:,:,:):: sst_full,sno_full,fact10_full
+
+  real(r_kind),   allocatable, dimension(:)     :: glat,score_crit
+  real(r_kind),   allocatable, dimension(:)     :: super_val,super_val1
+  real(r_kind),   allocatable, dimension(:,:)   :: glon,hll
+  real(r_kind),   allocatable, dimension(:,:)   :: zs_full
+
+! declare the dummy variables of routine read_gfssfc
+  real(r_single), allocatable, dimension(:,:,:) :: fact10_full,sst_full,sno_full
+  real(r_single), allocatable, dimension(:,:)   :: veg_type_full
+  real(r_single), allocatable, dimension(:,:,:) :: veg_frac_full
+  real(r_single), allocatable, dimension(:,:)   :: soil_type_full
+  real(r_single), allocatable, dimension(:,:,:) :: soil_temp_full,soil_moi_full
+  integer(i_kind),allocatable, dimension(:,:)   :: isli_full
+  real(r_single), allocatable, dimension(:,:,:) :: sfc_rough_full
+  real(r_single), allocatable, dimension(:,:)   :: zs_full_gfs
 
   logical use_all
 
@@ -401,6 +410,8 @@ contains
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-12-03  derber  - modify reading of surface fields
+!   2015-05-01  li      - modify to handle the single precision sfc fields read from sfc file
+!  
 !
 !   input argument list:
 !      mype        - current processor
@@ -415,7 +426,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use kinds, only: r_single
+    use kinds, only: r_kind,r_single
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
@@ -426,7 +437,7 @@ contains
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
     use jfunc, only: biascor
 
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use ncepnems_io, only: read_nemssfc
@@ -449,7 +460,7 @@ contains
     real(r_kind),dimension(nlon):: ajloc
     real(r_kind),allocatable,dimension(:)::wlatx,slatx
     real(r_kind) :: dlon, missing
-    real(r_kind),allocatable,dimension(:,:)::dum
+    real(r_single),allocatable,dimension(:,:)::dum,work
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt,istatus
     character(24) filename
 
@@ -714,7 +725,7 @@ contains
        end if
 
 #ifndef HAVE_ESMF
-    end if
+    end if                        ! if (.not. regional) then
 #endif /* HAVE_ESMF */
 
 ! Now stuff that isn't model dependent
@@ -742,12 +753,15 @@ contains
              zs_full_gfs = zs_full
           else
              allocate(dum(nlat_sfc,nlon_sfc))
-             call sfc_interpolate(zs_full,nlon,nlat,dum,nlon_sfc,nlat_sfc)
+             allocate(work(nlat,nlon))
+             work = zs_full
+             call sfc_interpolate(work,nlon,nlat,dum,nlon_sfc,nlat_sfc)
              zs_full_gfs = dum
              deallocate(dum)
+             deallocate(work)
           endif
        endif
-    endif
+    endif                 
 
 !   find subdomain for isli2
     if (nlon == nlon_sfc .and. nlat == nlat_sfc) then

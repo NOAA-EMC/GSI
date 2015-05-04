@@ -484,17 +484,17 @@ end subroutine write_ghg_grid
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,ifilesfc
-    integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
          veg_type,soil_type,terrain
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) ::  &
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) ::  &
          fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
     logical,                                    intent(in   ) :: use_sfc_any
     integer(i_kind) :: latb,lonb
     integer(i_kind) :: iret,n,i,j
     type(sfcio_head) :: sfc_head
     type(sfcio_data) :: sfc_data
-    real(r_kind),allocatable,dimension(:,:):: outtmp
+    real(r_single),allocatable,dimension(:,:):: outtmp
     integer(i_kind) :: nsfc,it
     character(24) :: filename
 !   Declare local parameters
@@ -645,17 +645,17 @@ end subroutine write_ghg_grid
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc
-    use mpimod, only: mpi_itype,mpi_rtype,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
     integer(i_kind)                      ,intent(in   ) :: mype
-    integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
          veg_type,soil_type,terrain
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) :: &
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) :: &
          fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
     logical                              ,intent(in   ) :: use_sfc_any
 
@@ -675,18 +675,18 @@ end subroutine write_ghg_grid
     npts=nlat_sfc*nlon_sfc
     nptsall=npts*nfldsfc
 
-    call mpi_bcast(sfct,      nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(fact10,    nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(sno,       nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(sfc_rough, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-    call mpi_bcast(terrain,   npts,   mpi_rtype,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfct,      nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(fact10,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sno,       nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(terrain,   npts,   mpi_rtype4,iope,mpi_comm_world,iret)
     call mpi_bcast(isli,      npts,   mpi_itype,iope,mpi_comm_world,iret)
     if(use_sfc_any)then
-       call mpi_bcast(veg_frac, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(soil_temp,nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(soil_moi, nptsall,mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(veg_type, npts,   mpi_rtype,iope,mpi_comm_world,iret)
-       call mpi_bcast(soil_type,npts,   mpi_rtype,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_frac, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_temp,nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_moi, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_type, npts,   mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_type,npts,   mpi_rtype4,iope,mpi_comm_world,iret)
     end if
 
     return
@@ -721,7 +721,7 @@ end subroutine write_ghg_grid
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst,ifilenst
     use constants, only: two
-    real(r_single)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+    real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
     integer(i_kind) :: latb,lonb
     integer(i_kind) :: iret,n,i,j
@@ -763,42 +763,42 @@ end subroutine write_ghg_grid
  
         if(n == 1)then                            ! foundation temperature (Tf)
 
-          call tran_gfsnst(nst_data%tref,tref(1,1,it),lonb,latb)                                 
+          call tran_gfssfc(nst_data%tref,tref(1,1,it),lonb,latb)                                 
 
         else if(n == 2) then                      ! cooling amount
 
-          call tran_gfsnst(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
+          call tran_gfssfc(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
 
         else if(n == 3) then                      ! cooling layer thickness
 
-          call tran_gfsnst(nst_data%z_c,z_c(1,1,it),lonb,latb)        
+          call tran_gfssfc(nst_data%z_c,z_c(1,1,it),lonb,latb)        
 
         else if(n == 4 ) then                     ! warming amount
 
           allocate(dwarm_tmp(lonb,latb))
           dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
-          call tran_gfsnst(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
+          call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
           deallocate(dwarm_tmp)
 
         else if(n == 5 ) then                     ! warm layer thickness
 
-          call tran_gfsnst(nst_data%xz,z_w(1,1,it),lonb,latb)                       
+          call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
 
         else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
+          call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
 
         else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(nst_data%c_d,c_d(1,1,it),lonb,latb)            
+          call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
 
         else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(nst_data%w_0,w_0(1,1,it),lonb,latb)            
+          call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
 
         else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
 
-          call tran_gfsnst(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
+          call tran_gfssfc(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
 
         end if
 
@@ -852,13 +852,14 @@ end subroutine write_ghg_grid
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst
-    use mpimod, only: mpi_itype,mpi_rtype,mpi_rtype4,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world
+    use constants, only: zero
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
     integer(i_kind)                      ,intent(in   ) :: mype
-    real(r_single)   ,dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
+    real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local variables
@@ -888,10 +889,10 @@ end subroutine write_ghg_grid
     return
   end subroutine read_gfsnst
 
-subroutine tran_gfsnst(ain,aout,lonb,latb)
+subroutine tran_gfssfc(ain,aout,lonb,latb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    tran_gfsnst     transform gfs surface file to analysis grid
+! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
 !   prgmmr: derber          org: np2                date: 2003-04-10
 !
 ! abstract: transform gfs surface file to analysis grid
@@ -919,67 +920,8 @@ subroutine tran_gfsnst(ain,aout,lonb,latb)
 
 !   Declare passed variables
     integer(i_kind)                  ,intent(in ) :: lonb,latb
-    real(r_single),dimension(lonb,latb),intent(in ) :: ain
-    real(r_single),dimension(latb+2,lonb),intent(out) :: aout
-
-!   Declare local variables
-    integer(i_kind) i,j
-    real(r_kind) sumn,sums
-!   of surface guess array
-    sumn = zero
-    sums = zero
-    do i=1,lonb
-       sumn = ain(i,1)    + sumn
-       sums = ain(i,latb) + sums
-    end do
-    sumn = sumn/float(lonb)
-    sums = sums/float(lonb)
-
-!    Transfer from local work array to surface guess array
-    do j = 1,lonb
-       aout(1,j)=sums
-       do i=2,latb+1
-          aout(i,j) = ain(j,latb+2-i)
-       end do
-       aout(latb+2,j)=sumn
-    end do
-
-    return
-    end subroutine tran_gfsnst
-
-subroutine tran_gfssfc(ain,aout,lonb,latb)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
-!   prgmmr: derber          org: np2                date: 2003-04-10
-!
-! abstract: transform gfs surface file to analysis grid
-!
-! program history log:
-!   2012-31-38  derber  - initial routine
-!
-!   input argument list:
-!     ain      - input surface record on processor iope
-!     lonb     - input number of longitudes
-!     latb     - input number of latitudes
-!
-!   output argument list:
-!     aout     - output transposed surface record
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero
-    use sfcio_module, only: sfcio_realkind
-    implicit none
-
-!   Declare passed variables
-    integer(i_kind)                  ,intent(in ) :: lonb,latb
     real(sfcio_realkind),dimension(lonb,latb),intent(in ) :: ain
-    real(r_kind),dimension(latb+2,lonb),intent(out) :: aout
+    real(r_single),dimension(latb+2,lonb),intent(out) :: aout
 
 !   Declare local variables
     integer(i_kind) i,j
@@ -1316,11 +1258,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind) latb,lonb,nlatm2
     integer(i_kind) i,j,ip1,jp1,ilat,ilon,jj,mm1
 
-    real(r_kind),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_kind),allocatable,dimension(:,:):: buffer2
+    real(r_single),dimension(nlon,nlat):: buffer
+    real(r_single),allocatable,dimension(:,:):: buffer2
 
     type(sfcio_head):: head
     type(sfcio_data):: data
@@ -1556,11 +1498,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(nlat,nlon):: dsfct_glb,dsfct_tmp
     integer(i_kind), dimension(nlat,nlon):: isli_glb,isli_tmp
 
-    real(r_kind),    dimension(nlat_sfc,nlon_sfc)  :: dsfct_gsi,work
+    real(r_kind),    dimension(nlat_sfc,nlon_sfc)  :: dsfct_gsi
     integer(i_kind), dimension(nlat_sfc,nlon_sfc)  :: isli_gsi
 
     real(r_kind),    dimension(nlon_sfc,nlat_sfc-2):: dsfct_anl
     real(r_single),  dimension(nlon_sfc,nlat_sfc-2):: dtzm
+    real(r_single),  dimension(nlat_sfc,nlon_sfc)  :: work
 
     type(sfcio_head):: head_sfcges,head_sfcgcy,head_sfcanl
     type(sfcio_data):: data_sfcges,data_sfcgcy,data_sfcanl
@@ -2016,9 +1959,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     integer(i_kind), allocatable, dimension(:,:):: isli_tmp,isli_gsi
 
-    real(r_kind), allocatable, dimension(:)     :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
-    real(r_kind), allocatable, dimension(:,:)   :: dsfct_gsi,work,dsfct_anl
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp
+    real(r_kind),   allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
+    real(r_kind),   allocatable, dimension(:,:) :: dsfct_gsi,dsfct_anl
+    real(r_kind),   allocatable, dimension(:,:) :: dsfct_tmp
+    real(r_single), allocatable, dimension(:,:) :: work
 
     real(r_kind) :: dlon,dtw,dtc
 
@@ -2464,9 +2408,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(nlat,nlon):: dsfct_glb
     integer(i_kind), dimension(nlat,nlon):: isli_glb
 
-    real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_gsi,work,dsfct_anl
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp
+    real(r_kind),   allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
+    real(r_kind),   allocatable, dimension(:,:) :: dsfct_gsi,dsfct_anl
+    real(r_kind),   allocatable, dimension(:,:) :: dsfct_tmp
+    real(r_single), allocatable, dimension(:,:) :: work
 
     integer(i_kind), allocatable, dimension(:,:):: isli_tmp,isli_gsi
 
@@ -2717,10 +2662,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
     integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
 
-    real(r_kind), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
+    real(r_single), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
 
 ! !OUTPUT PARAMETERS:
-    real(r_kind), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
+    real(r_single), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
 
 
 !   Declare local variables
