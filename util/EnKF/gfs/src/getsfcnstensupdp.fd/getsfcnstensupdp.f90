@@ -47,7 +47,8 @@ program getsfcnstensupdp
   integer(i_kind) :: nlon_ens,nlat_ens    ! the number of lon/lat of ensemble grids, including two extra polar lats
   integer(i_kind), allocatable, dimension(:,:) :: isli_anl,isli_epd,isli_gsi
   real(r_kind), allocatable, dimension(:)      :: wlatx,slatx,rlats_anl,rlons_anl,rlats_ens,rlons_ens
-  real(r_kind), allocatable, dimension(:,:)    :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens,work
+  real(r_kind), allocatable, dimension(:,:)    :: dtf_anl,dtf_epd,dtf_gsi,dtf_ens
+  real(r_single), allocatable, dimension(:,:)    :: work
   real(r_single), allocatable, dimension(:,:)  :: dtzm
   real(r_kind) :: dlon
   real(r_single) :: r_zsea1,r_zsea2
