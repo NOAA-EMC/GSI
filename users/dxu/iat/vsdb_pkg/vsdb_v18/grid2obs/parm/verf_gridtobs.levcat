@@ -1,0 +1,167 @@
+##MODEL  |NUMLEV| FITLEV|
+aircraft |20|.T.,.T.,.T.,.F.,.T.,.T.,.T.,.T.,.F.,.F.|
+ozone    |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+ozonemax |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+pm       |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+pmmax    |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+pmave    |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+cmaq     |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.F.|
+ngac     |1|.T.,.F.,.F.,.F.,.F.,.T.,.T.,.T.,.F.,.F.|
+dgexco   |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+dgexak   |8|.T.,.T.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.T.|
+gdas     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+gfs      |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+gfs40    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+gfsak    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+gfs40ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+gfseco   |8|.T.,.T.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.T.|
+gfseak   |8|.T.,.T.,.F.,.F.,.F.,.T.,.T.,.F.,.F.,.T.|
+nam      |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+nam40    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+namak    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+nam40ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+conusnest|20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+aknest  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+hawaiinest |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+priconest |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+ndas     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+fwis     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+rtma     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+rtmax    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+rap      |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+rap40    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+rapak    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+akarw    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+aknmm    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+prarw    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+prnmm    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+hiarw    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+hinmm    |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+eastarw  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+eastnmm  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+westarw  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+westnmm  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+ak       |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+pr       |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+hi       |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+east     |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+west     |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+rsmh     |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+namprhw  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+namhihw  |8|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+namakhw  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+nameasthw|20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+namwesthw|20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+srnmmc     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp1    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn1    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp2    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn2    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp3    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn3    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbc     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp1    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn1    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp2    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn2    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp3    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn3    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremc      |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp1     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn1     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp2     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn2     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp3     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn3     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srmean   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmcx    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp1x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn1x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp2x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn2x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp3x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn3x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbcx    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp1x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn1x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp2x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn2x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp3x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn3x   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremcx     | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp1x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn1x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp2x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn2x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp3x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn3x    | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srmeanx  | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmcak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp1ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn1ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp2ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn2ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp3ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn3ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremcak    |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp1ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn1ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp2ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn2ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp3ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn3ak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbcak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp1ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn1ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp2ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn2ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp3ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn3ak  |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srmeanak |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmcxak  | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp1xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn1xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp2xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn2xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmp3xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmmn3xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremcxak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp1xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn1xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp2xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn2xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremp3xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+sremn3xak   | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbcxak  | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp1xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn1xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp2xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn2xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbp3xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srnmbn3xak | 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+srmeanxak| 6|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.T.|
+smartconus|20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.T.,.F.|
+smartak   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.T.,.F.|
+smartpr   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.T.,.F.|
+smarthi   |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.T.,.F.|
+gec00     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep01     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep02     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep03     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep04     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep05     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep06     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep07     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep08     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep09     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep10     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep11     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep12     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep13     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep14     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep15     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep16     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep17     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep18     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep19     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|
+gep20     |20|.T.,.T.,.F.,.F.,.T.,.T.,.T.,.F.,.F.,.F.|

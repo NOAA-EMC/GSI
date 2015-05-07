@@ -1,0 +1,61 @@
+#!/bin/ksh
+set -x
+
+export list=$listvar
+del=1
+plots=1
+gif=1
+
+export grads=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/grads
+export gxgif=${GRADSBIN:-/usrx/local/grads/bin/1.8sl11}/gxgif
+export convert=${IMGCONVERT:-/usrx/local/imajik/bin/convert}
+logofile=$GSCRIPTS/nws_logo.gif
+
+if [ ! -d $pdir ] ; then
+  mkdir -p $pdir
+fi
+cd $pdir
+if [ $del -eq 1 ] ; then
+set +x
+/bin/rm $pdir/*
+set -x
+fi
+
+yy=`echo $psdate | cut -c1-4`
+mm=`echo $psdate | cut -c5-6`
+dd=`echo $psdate | cut -c7-8`
+hh=`echo $psdate | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+ts=${hh}z${dd}${mon}${yy}
+echo "ts plot start date $ts"
+
+yy=`echo $pedate | cut -c1-4`
+mm=`echo $pedate | cut -c5-6`
+dd=`echo $pedate | cut -c7-8`
+hh=`echo $pedate | cut -c9-10`
+mon=`$SCRIPTS/cmon.sh $mm`
+te=${hh}z${dd}${mon}${yy}
+echo "te plot end date $te"
+
+if [ $plots -eq 1 ] ; then
+
+cd $pdir
+$grads -lbc "run $GSCRIPTS/scalvb.cdas.gs $ts $te $pdir $GSCRIPTS $exp1 $exp2 $fcs1 $fcs2 $idir1 $idir2 $namstr $ctldir"
+$grads -lbc "run $GSCRIPTS/stratb.cdas.gs $ts $te $pdir $GSCRIPTS $exp1 $exp2 $fcs1 $fcs2 $idir1 $idir2 $namstr $ctldir"
+$grads -lbc "run $GSCRIPTS/scalvab.cdas.gs $ts $te $pdir $GSCRIPTS $exp1 $exp2 $fcs1 $fcs2 $idir1 $idir2 $namstr"
+$grads -lbc "run $GSCRIPTS/stratab.cdas.gs $ts $te $pdir $GSCRIPTS $exp1 $exp2 $fcs1 $fcs2 $idir1 $idir2 $namstr"
+
+set +x
+chmod 775 $pdir/*
+set -x
+
+fi
+
+cp *.gif ${localdir}/.
+
+if [ $web -eq 1 ] ; then
+echo "webdir is $webdir"
+scp *.gif ${webid}@${webmch}:${webdir}/.
+fi
+
+

@@ -1,0 +1,12 @@
+Aug 4,2013,  updated to /nwprod/verf_gridtobs.v3.0.1/parm on WCOSS
+
+--------
+verf_gridtobs.keeplist and  verf_gridtobs.levcat are copied from /nwprod/parm.
+They contains information for all models that are included in operational verification.
+
+gridtobs.keeplist.global and gridtobs.levcat.global are tailored for verifying  
+global models (e.g. GFS).
+
+--------
+verf_gridtobs.global is used by operational grid2obs.  
+in this application ../scripts/grd2obs.ctl.sh creates the control file.

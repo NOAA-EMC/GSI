@@ -1,0 +1,11 @@
+INCS	= $(INCMOD)
+FFLAGS	= $(FFLAGSM)
+LIBS	= $(LIBSM)
+ss2gg:	machine.o physcons.o ss2gg.o
+	$(FC) -I$(INCS) $(FFLAGS) $(LDFLAGSM) ss2gg.o physcons.o machine.o $(LIBS) -o ss2gg
+machine.o:	machine.f
+	$(FC) $(FFLAGS) -c machine.f
+physcons_v.o:	physcons_v.f
+	$(FC) $(FFLAGS) -c physcons.f
+ss2gg.o:	ss2gg.f
+	$(FC) -I$(INCS) $(FFLAGS) -c ss2gg.f
