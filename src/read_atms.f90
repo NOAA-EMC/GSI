@@ -25,6 +25,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
 !  2012-03-05  akella  - nst now controlled via coupler
 !  2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!  2013-12-20  eliu - change icw4crtm>0 to icw4crtm>10 (bug fix))
 !  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
 !  2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
@@ -124,7 +125,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm,iql4crtm
+  integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind):: ier
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
@@ -185,8 +186,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   endif
 
 ! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
-  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
+  call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
+  icw4crtm=0  !emily: do clear ATMS assimilation for now
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -601,7 +602,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
         cosza = cos(lza)
         d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-        if (icw4crtm>10 .or. iql4crtm>10) then
+        if (icw4crtm>10) then
            qval  = zero 
         else 
            qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))

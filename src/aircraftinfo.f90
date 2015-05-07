@@ -232,7 +232,7 @@ contains
     end do
     close(lunin)
 100 format(a1,a150)
-110 format(a10,1x,i5,10(1x,f12.6))
+110 format(a10,1x,i5,9(1x,f12.6),1x,i8)
 
 !   Do not update aircraft temperature bias at 6Z and 18Z
     if (.not. upd_aircraft) then 
