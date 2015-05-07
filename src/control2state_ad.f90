@@ -188,7 +188,7 @@ do jj=1,nsubwin
       call stop2(999)
    endif
 
-!$omp parallel sections private(istatus)
+!$omp parallel sections private(istatus,ii,ic,id,istatus_oz)
 
 !$omp section
 
@@ -255,11 +255,9 @@ do jj=1,nsubwin
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
-      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
-      call cw2hydro_ad(rval(jj),wbundle,rv_tsen,clouds,nclouds)
+      call cw2hydro_ad(rval(jj),wbundle,clouds,nclouds)
       if(.not. do_tv_to_tsen_ad) then
          call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-         deallocate(rv_tsen)
       end if
    else
 !     Case when cloud-vars map one-to-one, take care of them together
