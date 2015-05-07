@@ -1,0 +1,8 @@
+INCS	= $(INCMOD)
+FFLAGS	= $(FFLAGSM)
+LOPTS	=
+LIBS	= $(LIBSM)
+ss2lv:	ss2lv.o
+	$(FC) -I$(INCS) $(FFLAGS) $(LFLAGSM) ss2lv.o physcons.o machine.o $(LIBS) -o ss2lv
+ss2lv.o: ss2lv.f
+	$(FC) -I$(INCS) $(FFLAGS) -c ss2lv.f

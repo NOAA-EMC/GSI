@@ -1,0 +1,18 @@
+#!/bin/ksh
+if [[ $# != 3 ]];then
+echo "Extracts fields with specific time range indicator value from grib file"
+echo "Usage: grbtr TR filein fileout"
+echo "TR is specific time range indicator (e.g. 10) or 'ALL'"
+echo "If 'ALL', then fileout should be a template with '\$TR' embedded"
+exit 99;fi
+
+NWPROD=${NWPROD:-/nwprod}
+wgrib=${wgrib:-$NWPROD/util/wgrib}
+if [[ $1 != ALL ]];then
+echo $(wgrib $2|grep :TR=$1:|wgrib $2 -i -grib -o $3|wc -l) fields written to $3
+else
+for TR in $(wgrib $2|awk -F: '{print $8}'|sort -u|cut -c4-);do
+eval fileout=$3
+echo $(wgrib $2|grep :TR=$TR:|wgrib $2 -i -grib -o $fileout|wc -l) fields written to $fileout
+done
+fi

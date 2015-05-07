@@ -1,0 +1,16 @@
+SHELL=  /bin/sh
+LIBS=  -L../../../lib -lw3lib-2.0_d -lbacio_4
+FC=             xlf_r
+FFLAGS=         -qcheck -qextchk -qfixed -q64
+LDFLAGS=       -bnoquiet
+
+SRCS=        machine.f bin2grib1_grapes.f  gribit.f
+OBJS=       machine.o bin2grib1_grapes.o  gribit.o 
+CMD=        ../../exec/bin2grib1_grapes.x
+
+all:	$(CMD)
+
+$(CMD):	$(OBJS)
+	$(FC) $(FFLAGIO) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+clean:
+	-rm -rf *.o *.lst
