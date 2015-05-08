@@ -23,7 +23,6 @@ program getsfcnstensupdp
   use mpi
   use kinds, only: r_kind,i_kind,r_single
   use constants, only: two,half,zero,z_w_max,tfrozen,init_constants_derived,pi
-  use ncepgfs_io, only: tran_gfssfc
   use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_swohdc
   use nstio_module, only: nstio_srohdc,nstio_head,nstio_data,nstio_swohdc
 
@@ -52,6 +51,7 @@ program getsfcnstensupdp
   real(r_single), allocatable, dimension(:,:)  :: dtzm
   real(r_kind) :: dlon
   real(r_single) :: r_zsea1,r_zsea2
+  real(r_kind) sumn,sums
 
   type(nstio_head):: head_nst
   type(nstio_data):: data_nst
@@ -207,9 +207,26 @@ program getsfcnstensupdp
 !
 !      Get updated/analysis surface mask info from sfcgcy_ensmean  file
 !
-       call tran_gfssfc(data_sfcgcy%slmsk,work,lonb,latb)
-       do j=1,nlon_ens
-          do i=1,nlat_ens
+       sumn = zero
+       sums = zero
+       do i=1, lonb
+          sumn = data_sfcgcy%slmsk(i,1)    + sumn
+          sums = data_sfcgcy%slmsk(i,latb) + sums
+       end do
+       sumn = sumn/float(lonb)
+       sums = sums/float(lonb)
+
+!    Transfer from local work array to surface guess array
+       do j = 1, lonb
+          work(1,j)=sums
+          do i=2, latb+1
+             work(i,j) = data_sfcgcy%slmsk(j,latb+2-i)
+          end do
+          work(latb+2,j)=sumn
+       end do
+
+       do j=1, nlon_ens
+          do i=1, nlat_ens
              isli_gsi(i,j) = nint(work(i,j))
           enddo
        enddo

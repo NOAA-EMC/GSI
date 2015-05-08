@@ -320,7 +320,7 @@ contains
     return
   end subroutine prebal
   
-  subroutine prebal_reg
+  subroutine prebal_reg(cwcoveqqcov)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal_reg  setup balance vars
@@ -344,6 +344,7 @@ contains
 !   2008-11-13  zhu - add changes for generalized control variables
 !                   - change the structure of covariance error file
 !                   - move horizontal interpolation into this subroutine
+!   2014-10-08  zhu - add cwcoveqqco in the interface 
 !
 !   input argument list:
 !
@@ -360,11 +361,12 @@ contains
     use gridmod, only: lat2,lon2,nsig,twodvar_regional
     use guess_grids, only: ges_prslavg,ges_psfcavg
     use mpimod, only: mype
-    use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_bal_reg
+    use m_berror_stats_reg, only: berror_set_reg,berror_get_dims_reg,berror_read_bal_reg
     use constants, only: zero,half,one
     implicit none
 
 !   Declare passed variables
+    logical,intent(in   ) :: cwcoveqqcov
 
 !   Declare local parameters
     real(r_kind),parameter:: r08 = 0.8_r_kind
@@ -380,6 +382,8 @@ contains
     real(r_kind),allocatable,dimension(:,:):: wgvi ,bvi
     real(r_kind),allocatable,dimension(:,:,:):: agvi
 
+!   Set internal parameters to m_berror_stats
+    call berror_set_reg('cwcoveqqcov',cwcoveqqcov)
 
 !   Read dimension of stats file
     inerr=22

@@ -414,7 +414,7 @@ subroutine stplimw10m(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) wspd10m,gx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 
@@ -489,7 +489,7 @@ subroutine stplimhowv(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) howv,gx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 
@@ -565,7 +565,7 @@ subroutine stpliml(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) lcbas,vx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
   

@@ -186,7 +186,14 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = getsfcnstensupdp.f90
+  SRCSF90C = \
+	kinds.F90            \
+	constants.f90        \
+	intrp_msk.f90 	     \
+	nstio_module.f90     \
+	grdcrd.f90           \
+	getsfcnstensupdp.f90 \
+	
 
   SRCSF77 =
 
@@ -234,7 +241,7 @@ clean:
 # ------------
 # Dependencies
 # ------------
-  MAKE_DEPEND = #Makefile.dependency
+  MAKE_DEPEND = Makefile.dependency
 include $(MAKE_DEPEND)
 
 # ----
