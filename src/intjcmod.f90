@@ -343,7 +343,7 @@ subroutine intlimw10m(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) wspd10m
   real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
@@ -409,7 +409,7 @@ subroutine intlimhowv(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) howv
   real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
@@ -471,7 +471,7 @@ subroutine intliml(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) lcbas
   real(r_kind),pointer,dimension(:,:) :: sv=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rv=>NULL()

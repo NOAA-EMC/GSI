@@ -207,9 +207,13 @@ do it=1,ntlevs_ens
   iadate_gfs(1)=jda(1) ! year
   iadate_gfs(2)=jda(2) ! mon
   iadate_gfs(3)=jda(3) ! day
-  iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
+  if(ntlevs_ens > 1) then
+     iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
+  else
+     iadate_gfs(4)=jda(5) ! hour
+  endif
   iadate_gfs(5)=0      ! minute
-  if(mype == 46) then
+  if(mype == 46 ) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if

@@ -65,10 +65,13 @@ subroutine prewgt(mype)
 !                         or GSI won'd work when running in single precision; go figure!
 !   2012-05-14  wargan - add adjustozvar
 !   2012-11-26  parrish - move subroutine blend to module blendmod.f90, and add "use blendmod, only: blend"
+!   2012-12-15  zhu     - add two cwoption options
 !   2013-10-19  todling - all guess variables in met-guess
 !   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-02-01  todling - update interface to berror_read_wgt
 !   2014-02-05  mkim/todling - move cw overwrite w/ q to m_berror_stats
+!   2014-08-02  zhu     - set up new background error variance and correlation lengths of cw 
+!                         for all-sky radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -86,10 +89,11 @@ subroutine prewgt(mype)
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
        pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf,&
-       adjustozvar
+       adjustozvar,cwcoveqqcov
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+  use jfunc, only: varcw,cwoption
   use jfunc, only: varq,qoption
   use control_vectors, only: cvars2d,cvars3d
   use control_vectors, only: cvars => nrf_var
@@ -121,7 +125,7 @@ subroutine prewgt(mype)
   integer(i_kind) ix,jx,mlat
   integer(i_kind) nf2p,istatus
   integer(i_kind),dimension(0:40):: iblend
-  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst
+  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst,nrf3_cw
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) wlipi,wlipih,df
@@ -197,6 +201,7 @@ subroutine prewgt(mype)
   nrf3_sf   = getindex(cvars3d,'sf')
   nrf3_vp   = getindex(cvars3d,'vp')
   nrf3_q    = getindex(cvars3d,'q')
+  nrf3_cw   = getindex(cvars3d,'cw')
   nrf2_ps   = getindex(cvars2d,'ps')
   nrf2_sst  = getindex(cvars2d,'sst')
 ! nrf2_stl  = getindex(cvarsmd,'stl')
@@ -299,7 +304,7 @@ subroutine prewgt(mype)
   end if
 
 ! Get background error statistics from a file ("berror_stats").
-  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,varq,qoption,mype)
+  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,varq,qoption,varcw,cwoption,mype)
   mlat=nlat
 
 ! load the horizontal length scales
@@ -481,7 +486,7 @@ subroutine prewgt(mype)
     enddo
   end do
 
-! Special case of dssv for qoption=2
+! Special case of dssv for qoption=2 and cw
   if (qoption==2) call compute_qvar3d
 
 !!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
