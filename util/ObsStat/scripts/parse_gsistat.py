@@ -19,8 +19,8 @@ from argparse import ArgumentParser,ArgumentDefaultsHelpFormatter
 def main():
     parser = ArgumentParser(description = 'Parse gsistat.gdas.YYYYMMDDHH file for O-F statistics',formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('-x','--expid',help='experiment ID',type=str,required=True)
-    parser.add_argument('-s','--start_date',help='starting date',type=str,required=True)
-    parser.add_argument('-e','--end_date',help='ending date',type=str,required=True)
+    parser.add_argument('-s','--start_date',help='starting date',type=str,metavar='YYYYMMDDHH',required=True)
+    parser.add_argument('-e','--end_date',help='ending date',type=str,metavar='YYYYMMDDHH',required=True)
     parser.add_argument('-a','--archive_dir',help='archive directory',type=str,required=False,default='/da/noscrub/%s/archive'%os.environ['USER'])
     args = parser.parse_args()
 
