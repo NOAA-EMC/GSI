@@ -36,8 +36,8 @@ def main():
         sdate = adate
 
     datadir = './data/%s' % expid
-
-    if ( not os.path.isdir(datadir) ): os.mkdir(datadir)
+    cmd = 'mkdir -p %s' % datadir
+    subprocess.check_call(cmd,shell=True)
 
     vars = ['ps', 'uv', 't', 'q', 'oz']
     for var in vars:
