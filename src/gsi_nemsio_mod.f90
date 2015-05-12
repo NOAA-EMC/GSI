@@ -93,7 +93,6 @@ contains
        call nemsio_open(gfile,file_name,trim(iostatus),iret=iret)
        if(iret/=0) then
           write(6,*)trim(message),'  problem opening file',trim(file_name),', Status = ',iret
-!          call stop2(74)
         ierr=1
         return
        end if

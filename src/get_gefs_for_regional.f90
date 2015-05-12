@@ -146,7 +146,6 @@ do it=1,ntlevs_ens
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
 !  filename='sigf06_ens_mem001'
-!  open(10,file='filelist',form='formatted',err=30)
   open(10,file=trim(filelists(it)),form='formatted',err=30)
   rewind (10) 
   do n=1,200
@@ -213,7 +212,7 @@ do it=1,ntlevs_ens
      iadate_gfs(4)=jda(5) ! hour
   endif
   iadate_gfs(5)=0      ! minute
-  if(mype == 46 ) then
+  if(mype == 0 ) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if

@@ -46,6 +46,7 @@ module hybrid_ensemble_isotropic
 !   2014-05-22  wu      - increase dimension of variables used in the recursive filter 
 !                         for vertically varying ability
 !   2014-12-02  derber  - many optimization changes
+!   2015-04-07  carley  - bug fix to allow grd_loc%nlat=grd_loc%nlon
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
