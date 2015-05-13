@@ -298,7 +298,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
 !     from a bufr file                      
 !
 ! PROGRAM HISTORY LOG:
-!   2014-12-09  s. liu  - increase max_obstime from 10 to 20 
+!   2015-05-12  s. liu  - increase max_obstime from 10 to 20 
 !
 !   variable list
 !

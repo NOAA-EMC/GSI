@@ -16,7 +16,7 @@ subroutine get_gefs_for_regional
 !   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
 !   2013-10-19  todling - all guess variables in met-guess
 !   2014-12-03  derber - changes to call for general_read_gfsatm
-!   2014-12-05  wu      - changes to read in multiple ensemble for 4DEnVar
+!   2015-05-12  wu      - changes to read in multiple ensemble for 4DEnVar
 !
 !   input argument list:
 !
@@ -123,15 +123,15 @@ subroutine get_gefs_for_regional
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
-if(ntlevs_ens > 1) then
-   do i=1,ntlevs_ens
-      write(filelists(i),'("filelist",i2.2)')ifilesig(i)
-   enddo
-else
-   write(filelists(1),'("filelist",i2.2)')nhr_assimilation
-endif
+  if(ntlevs_ens > 1) then
+     do i=1,ntlevs_ens
+        write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+     enddo
+  else
+     write(filelists(1),'("filelist",i2.2)')nhr_assimilation
+  endif
 
-do it=1,ntlevs_ens
+  do it=1,ntlevs_ens
 ! get pointers for typical meteorological fields
   ier=0
   call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps',ges_ps,istatus );ier=ier+istatus
@@ -212,7 +212,7 @@ do it=1,ntlevs_ens
      iadate_gfs(4)=jda(5) ! hour
   endif
   iadate_gfs(5)=0      ! minute
-  if(mype == 0 ) then
+  if(mype == 0) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if
@@ -1090,7 +1090,7 @@ do it=1,ntlevs_ens
   deallocate(prsl)
   deallocate(ut,vt,tt,rht,ozt,cwt)
 
-enddo ! it=1,ntlevs_ens
+  enddo ! it=1,ntlevs_ens
   return
 
 30 write(6,*) 'GET_GEFS+FOR_REGIONAL open filelist failed '

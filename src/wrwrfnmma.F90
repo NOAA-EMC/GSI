@@ -1078,7 +1078,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
 !   2014-04-11  zhu     - add cold_start option for the case when the restart file is from the GFS
 !   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
-!   2014-11-14  wu      - write analysis to file "wrf_inout(nhr_assimilation)"
+!   2015-05-12  wu      - write analysis to file "wrf_inout(nhr_assimilation)"
 !
 !   input argument list:
 !     mype     - pe number

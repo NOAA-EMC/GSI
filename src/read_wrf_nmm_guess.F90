@@ -61,7 +61,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
 !   2013-10-30  todling - ltosj/i now live in commvars
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
-!   2014-12-05  wu      - bug fixes for FGAT
+!   2015_05_12  wu      - bug fixes for FGAT
 !
 !   input argument list:
 !     mype     - pe number
@@ -2039,6 +2039,7 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)
 !       write(6,*)'reading obsref.nemsio'
      end do
+
      call gsi_nemsio_close(wrfges,'READ_radar_reflectivity_mosaic',mype,mype_input)
      end if
 !    end read in radar reflectivity

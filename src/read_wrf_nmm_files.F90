@@ -261,7 +261,7 @@ subroutine read_wrf_nmm_files(mype)
 !   2008-04-16  safford - remove unsused vars
 !   2009-10-09  wu - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
-!   2014-12-05  wu - remove check to allow FGAT/4DEnVar guess files beyond
+!   2015-05-12  wu - remove check to allow FGAT/4DEnVar guess files beyond
 !                    nhr_half
 !
 !   input argument list:

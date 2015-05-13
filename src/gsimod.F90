@@ -299,11 +299,11 @@
 !                       regional analysis
 !  10-07-2014 carley    added buddy check options under obsqc
 !  11-12-2014 pondeca   must read in from gridopts before calling obsmod_init_instr_table. swap order
-!  12-09-2014 wu        remove check to turn off regional 4densvar
 !  01-30-2015 Hu        added option i_en_perts_io,l_ens_in_diff_time under hybrid_ensemble
 !  01-15-2015 Hu        added options i_use_2mq4b,i_use_2mt4b, i_gsdcldanal_type
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
+!  05-13-2015 wu        remove check to turn off regional 4densvar
 !
 !EOP
 !-------------------------------------------------------------------------
