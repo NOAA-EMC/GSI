@@ -29,6 +29,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                       - (3) use tsavg that is computed at observation depth
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-1-28   xli     - modify NSST related tz
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -58,7 +59,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use obsmod, only: oberrflg,bmiss
   use radinfo, only: nst_gsi,nstinfo
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   implicit none
@@ -446,7 +447,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            call w3fs21(idate5,nmind)
            t4dv=real((nmind-iwinbgn),r_kind)*r60inv  ! no information in obs bufr file about seconds.
 !
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
               sstime=real(nmind,r_kind)

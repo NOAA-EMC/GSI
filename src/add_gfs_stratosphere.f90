@@ -16,6 +16,7 @@ subroutine add_gfs_stratosphere
 ! program history log:
 !   2012-02-18  parrish, initial documentation
 !   2012-10-11  eliu - add FGAT capability for wrf_nmm_regional (HWRF) 
+!   2013-02-08  zhu  - add blending capability for hydrometeros 
 !   2013-10-19  todling - metguess now holds background
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
@@ -36,7 +37,7 @@ subroutine add_gfs_stratosphere
   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
-  use constants,only: zero,one_tenth,half,one,ten,fv
+  use constants,only: zero,one_tenth,half,one,ten,fv,t0c,r0_05
   use mpimod, only: mype
   use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
@@ -55,8 +56,14 @@ subroutine add_gfs_stratosphere
   use gfs_stratosphere, only: nsigg,nsig_save,ak5,bk5,aeta1_save,aeta2_save,eta1_save,eta2_save
   use gfs_stratosphere, only: blend_rm,blend_gm
   use gfs_stratosphere, only: ges_tv_r,ges_q_r,ges_u_r,ges_v_r,ges_tsen_r,ges_oz_r
+  use gfs_stratosphere, only: ges_cw_r,ges_ql_r,ges_qi_r,ges_qr_r,ges_qs_r,ges_qg_r,ges_qh_r
   use gfs_stratosphere, only: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
+  use gfs_stratosphere, only: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
   use gfs_stratosphere, only: good_o3mr
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: getindex
+  use control_vectors, only: cvars3d
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -64,7 +71,7 @@ subroutine add_gfs_stratosphere
   real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
-  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
+  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen,cwt,qlt,qit,qrt,qst,qgt,qht
 
   character(len=*),parameter::myname='add_gfs_stratosphere'
   integer(i_kind) it_beg,it_end 
@@ -99,6 +106,18 @@ subroutine add_gfs_stratosphere
   real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_oz =>NULL()
 
+! variables for cloud info
+  integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh
+  integer(i_kind) iqtotal,icw4crtm
+  real(r_kind) worktmp
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh
+
 !    allocate space for saving original regional model guess and original blended regional-global guess:
 
       allocate(ges_tv_r_g(lat2,lon2,nsig,nfldsig))
@@ -113,6 +132,33 @@ subroutine add_gfs_stratosphere
       allocate(ges_v_r   (lat2,lon2,nsig_save,nfldsig))
       allocate(ges_tsen_r   (lat2,lon2,nsig_save,nfldsig))
       allocate(ges_oz_r  (lat2,lon2,nsig_save,nfldsig))
+
+!    Inquire about cloud guess fields
+     call gsi_metguess_get('dim',nguess,istatus)
+
+!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+     icw4crtm=getindex(cvars3d,'cw')
+
+!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+     iqtotal=getindex(cvars3d,'qt')
+
+!    Get pointer to cloud water mixing ratio
+     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        allocate(ges_cw_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_ql_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_qi_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_qr_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_qs_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_qg_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_qh_r_g(lat2,lon2,nsig,nfldsig))
+        allocate(ges_cw_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_ql_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_qi_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_qr_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_qs_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_qg_r  (lat2,lon2,nsig_save,nfldsig))
+        allocate(ges_qh_r  (lat2,lon2,nsig_save,nfldsig))
+     end if
 
 !  first, save current contents of ges_tv, etc  (later, consider how to save only from bottom of blend zone
 !                                                  to regional model top, for computational savings)
@@ -141,6 +187,40 @@ subroutine add_gfs_stratosphere
            end do
         end do
      end do
+
+     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier_qs=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_qg=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_qh=iret
+
+        do k=1,nsig_save
+           do j=1,lon2
+              do i=1,lat2
+                 if (ier_ql==0) ges_ql_r(i,j,k,it)=ges_ql(i,j,k)
+                 if (ier_qi==0) ges_qi_r(i,j,k,it)=ges_qi(i,j,k)
+                 if (ier_qr==0) ges_qr_r(i,j,k,it)=ges_qr(i,j,k)
+                 if (ier_qs==0) ges_qs_r(i,j,k,it)=ges_qs(i,j,k)
+                 if (ier_qg==0) ges_qg_r(i,j,k,it)=ges_qg(i,j,k)
+                 if (ier_qh==0) ges_qh_r(i,j,k,it)=ges_qh(i,j,k)
+              end do
+           end do
+        end do
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret); ier_cw=iret
+        if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) then
+           do k=1,nsig_save
+              do j=1,lon2
+                 do i=1,lat2
+                    ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    ges_cw_r(i,j,k,it)=ges_cwmr(i,j,k)
+                 end do
+              end do
+           end do
+        end if
+     end if
   end do
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
@@ -478,6 +558,15 @@ subroutine add_gfs_stratosphere
   allocate(ttsen(lat2,lon2,nsig))
   allocate(qt(lat2,lon2,nsig))
   allocate(ozt(lat2,lon2,nsig))
+  allocate(cwt(lat2,lon2,nsig))
+  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     allocate(qlt(lat2,lon2,nsig))
+     allocate(qit(lat2,lon2,nsig))
+     allocate(qrt(lat2,lon2,nsig))
+     allocate(qst(lat2,lon2,nsig))
+     allocate(qgt(lat2,lon2,nsig))
+     allocate(qht(lat2,lon2,nsig))
+  end if
   mm1=mype+1
   allocate(blend_rm_oz(nsig))
   allocate(blend_gm_oz(nsig))
@@ -636,6 +725,145 @@ subroutine add_gfs_stratosphere
         do k=1,nsig
            ozt(i,j,k)=blend_rm_oz(k)*ysplou_r(k)+blend_gm_oz(k)*ysplou_g(k)
         end do
+     
+
+        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+
+           if (ier_ql==0) then
+!    ql  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_ql_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!    ql  -- global contribution
+              do k=1,nsigg
+                 kt=k+2*grd_gfs%nsig
+                 kq=k+3*grd_gfs%nsig
+                 kcw=k+5*grd_gfs%nsig
+                 worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c) 
+                 worktmp = max(zero,worktmp)
+                 worktmp = min(one,worktmp)
+                 yspliu_g(k)=work_sub(1,i,j,kcw)*(one-worktmp)
+              end do
+              call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
+                 if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qlt(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
+              end do 
+           end if
+
+           if (ier_qi==0) then
+!    qi  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qi_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!    qi  -- global contribution
+              do k=1,nsigg
+                 kt=k+2*grd_gfs%nsig
+                 kq=k+3*grd_gfs%nsig
+                 kcw=k+5*grd_gfs%nsig
+                 worktmp = -r0_05*(work_sub(1,i,j,kt)/(one+fv*work_sub(1,i,j,kq))-t0c)
+                 worktmp = max(zero,worktmp)
+                 worktmp = min(one,worktmp)
+                 yspliu_g(k)=work_sub(1,i,j,kcw)*worktmp
+              end do
+              call intp_spl(xspli_g,yspliu_g,xsplo,ysplou_g,nsigg,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_g(nsigg)) ysplou_g(k)=yspliu_g(nsigg)
+                 if(xsplo(k) > xspli_g(1)) ysplou_g(k)=yspliu_g(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qit(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
+              end do
+           end if
+
+           if (ier_qr==0) then
+!    qr  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qr_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qrt(i,j,k)=ysplou_r(k)
+              end do
+           end if
+
+           if (ier_qs==0) then
+!    qs  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qs_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qst(i,j,k)=ysplou_r(k)
+              end do
+           end if
+
+           if (ier_qg==0) then
+!    qg  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qg_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qgt(i,j,k)=ysplou_r(k)
+              end do
+           end if
+
+           if (ier_qh==0) then
+!    qh  -- regional contribution
+              do k=1,nsig_save
+                 yspliu_r(k)=ges_qh_r(i,j,k,it)
+              end do
+              call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig
+                 if(xsplo(k) < xspli_r(nsig_save)) ysplou_r(k)=yspliu_r(nsig_save)
+                 if(xsplo(k) > xspli_r(1)) ysplou_r(k)=yspliu_r(1)
+              end do
+!                   blend contributions from regional and global:
+              do k=1,nsig
+                 qht(i,j,k)=ysplou_r(k)
+              end do
+           end if
+
+        end if  ! end nguess>0 loop
 
      end do
   end do
@@ -646,6 +874,8 @@ subroutine add_gfs_stratosphere
                                                    !  call grads1a(ttsen,nsig,mype,'tsen')
                                                    !  call grads1a(qt,nsig,mype,'q')
                                                    !  call grads1a(ozt,nsig,mype,'oz')
+
+
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
@@ -672,13 +902,67 @@ subroutine add_gfs_stratosphere
      end do
   end do
 
-  deallocate(ut,vt,tt,ttsen,qt,ozt)
+  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier_qs=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_qg=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_qh=iret
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              if (ier_ql==0) then 
+                 ges_ql(i,j,k)=qlt(i,j,k)
+                 ges_ql_r_g(i,j,k,it)=ges_ql(i,j,k)
+              end if
+              if (ier_ql==0) then
+                 ges_qi(i,j,k)=qit(i,j,k)
+                 ges_qi_r_g(i,j,k,it)=ges_qi(i,j,k)
+              end if
+              if (ier_ql==0) then 
+                 ges_qr(i,j,k)=qrt(i,j,k)
+                 ges_qr_r_g(i,j,k,it)=ges_qr(i,j,k)
+              end if
+              if (ier_ql==0) then 
+                 ges_qs(i,j,k)=qst(i,j,k)
+                 ges_qs_r_g(i,j,k,it)=ges_qs(i,j,k)
+              end if
+              if (ier_ql==0) then 
+                 ges_qg(i,j,k)=qgt(i,j,k)
+                 ges_qg_r_g(i,j,k,it)=ges_qg(i,j,k)
+              end if
+              if (ier_ql==0) then 
+                 ges_qh(i,j,k)=qht(i,j,k)
+                 ges_qh_r_g(i,j,k,it)=ges_qh(i,j,k)
+              end if
+           
+           end do
+        end do
+     end do
+
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret); ier_cw=iret
+     if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+                 ges_cw_r_g(i,j,k,it)=ges_cwmr(i,j,k)
+              end do
+           end do
+        end do
+     end if
+  end if
+
+  deallocate(ut,vt,tt,ttsen,qt,ozt,cwt)
   deallocate(xspli_r,yspliu_r,yspliv_r,xsplo)
   deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
   deallocate(xspli_g,yspliu_g,yspliv_g)
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
 ! deallocate(pri_m)  
   deallocate(vector) 
+  if (nguess>0 .and. (icw4crtm .or. iqtotal)) deallocate(qlt,qit,qrt,qst,qgt,qht)
+
 
   enddo it_loop       
   deallocate(infiles) 
@@ -698,6 +982,7 @@ subroutine revert_to_nmmb
 !
 ! program history log:
 !   2012-09-06  parrish, initial documentation
+!   2013-02-08  zhu  - add cloud hydrometeros
 !   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
@@ -723,10 +1008,14 @@ subroutine revert_to_nmmb
   use gfs_stratosphere, only: nsigg,nsig_save,ak5,bk5,aeta1_save,aeta2_save,eta1_save,eta2_save
   use gfs_stratosphere, only: blend_rm,blend_gm
   use gfs_stratosphere, only: ges_tv_r,ges_q_r,ges_u_r,ges_v_r,ges_tsen_r,ges_oz_r
+  use gfs_stratosphere, only: ges_cw_r,ges_ql_r,ges_qi_r,ges_qr_r,ges_qs_r,ges_qg_r,ges_qh_r
   use gfs_stratosphere, only: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
-  use gsi_bundlemod, only : gsi_bundlegetpointer
-  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gfs_stratosphere, only: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: getindex
   use mpeu_util, only: die
+  use control_vectors, only: cvars3d
   implicit none
 
   character(len=*),parameter::myname='revert_to_nmmb'
@@ -734,6 +1023,17 @@ subroutine revert_to_nmmb
   real(r_kind) xspli(nsig),xsplo(nsig_save)
   real(r_kind) yspli(nsig),ysplo(nsig_save)
   real(r_kind) prsl_r(lat2,lon2,nsig_save),prsl_m(lat2,lon2,nsig)
+
+! variables for cloud info
+  integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh,iret
+  integer(i_kind) iqtotal,icw4crtm
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh =>NULL()
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_u  =>NULL()
@@ -788,6 +1088,25 @@ subroutine revert_to_nmmb
 !    will be updated to nmmb analysis.
 
 !   note:  only need to interpolate from k0m+1 to nsig_save
+
+!  Inquire about cloud guess fields
+   call gsi_metguess_get('dim',nguess,istatus)
+
+!  Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+   icw4crtm=getindex(cvars3d,'cw')
+
+!  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+   iqtotal=getindex(cvars3d,'qt')
+
+   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qs',ges_qs,iret); ier_qs=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qg',ges_qg,iret); ier_qg=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qh',ges_qh,iret); ier_qh=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'cw',ges_cwmr,iret); ier_cw=iret
+  end if
 
   do j=1,lon2
      do i=1,lat2
@@ -868,6 +1187,117 @@ subroutine revert_to_nmmb
            ges_oz(i,j,k)=ysplo(k)+ges_oz_r(i,j,k,ntguessig)
         end do
 
+
+        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+!  ql:
+           if (ier_ql==0) then
+              do k=1,nsig
+                 yspli(k)=ges_ql(i,j,k)-ges_ql_r_g(i,j,k,ntguessig)
+                 ges_ql_r_g(i,j,k,ntguessig)=ges_ql(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                     following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_ql(i,j,k)=max(ysplo(k)+ges_ql_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+!  qi:
+           if (ier_qi==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qi(i,j,k)-ges_qi_r_g(i,j,k,ntguessig)
+                 ges_qi_r_g(i,j,k,ntguessig)=ges_qi(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qi(i,j,k)=max(ysplo(k)+ges_qi_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+!  qr:
+           if (ier_qr==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qr(i,j,k)-ges_qr_r_g(i,j,k,ntguessig)
+                 ges_qr_r_g(i,j,k,ntguessig)=ges_qr(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qr(i,j,k)=max(ysplo(k)+ges_qr_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+!  qs:
+           if (ier_qs==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qs(i,j,k)-ges_qs_r_g(i,j,k,ntguessig)
+                 ges_qs_r_g(i,j,k,ntguessig)=ges_qs(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qs(i,j,k)=max(ysplo(k)+ges_qs_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+!  qg:
+           if (ier_qg==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qg(i,j,k)-ges_qg_r_g(i,j,k,ntguessig)
+                 ges_qg_r_g(i,j,k,ntguessig)=ges_qg(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qg(i,j,k)=max(ysplo(k)+ges_qg_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+!  qh:
+           if (ier_qh==0) then
+              do k=1,nsig
+                 yspli(k)=ges_qh(i,j,k)-ges_qh_r_g(i,j,k,ntguessig)
+                 ges_qh_r_g(i,j,k,ntguessig)=ges_qh(i,j,k) !  keep original for after write analysis
+              end do
+              call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
+!                  following is to correct for bug in intp_spl
+              do k=1,nsig_save
+                 if(xsplo(k) < xspli(nsig)) ysplo(k)=yspli(nsig)
+                 if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
+              end do
+              do k=1,nsig_save
+                 ges_qh(i,j,k)=max(ysplo(k)+ges_qh_r(i,j,k,ntguessig), zero)
+              end do
+           end if
+
+           if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) then 
+              do k=1,nsig_save
+                 ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+              end do
+           end if
+        end if ! end of (nguess>0 .and. (icw4crtm .or. iqtotal))
+
      end do
   end do
 
@@ -883,6 +1313,7 @@ subroutine restore_nmmb_gfs
 !
 ! program history log:
 !   2012-09-06  parrish, initial documentation
+!   2013-02-09  zhu - add cloud hydrometeros
 !   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
@@ -902,9 +1333,12 @@ subroutine restore_nmmb_gfs
   use guess_grids, only: ntguessig
   use guess_grids, only: ges_tsen
   use gfs_stratosphere, only: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
-  use gsi_bundlemod, only : gsi_bundlegetpointer
-  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gfs_stratosphere, only: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: getindex
   use mpeu_util, only: die
+  use control_vectors, only: cvars3d
   implicit none
 
   character(len=*),parameter::myname='restore_nmmb_gfs'
@@ -913,6 +1347,17 @@ subroutine restore_nmmb_gfs
   real(r_kind),dimension(:,:,:),pointer:: ges_v  =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_oz =>NULL()
+
+! variables for cloud info
+  integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh,iret
+  integer(i_kind) iqtotal,icw4crtm
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh =>NULL()
 
   ier=0
   call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'u'  ,ges_u ,istatus) 
@@ -937,5 +1382,37 @@ subroutine restore_nmmb_gfs
         end do
      end do
   end do
+
+!  Inquire about cloud guess fields
+   call gsi_metguess_get('dim',nguess,istatus)
+
+!  Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+   icw4crtm=getindex(cvars3d,'cw')
+
+!  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+   iqtotal=getindex(cvars3d,'qt')
+
+   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qs',ges_qs,iret); ier_qs=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qg',ges_qg,iret); ier_qg=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qh',ges_qh,iret); ier_qh=iret
+      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'cw',ges_cwmr,iret); ier_cw=iret
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               if (ier_ql==0) ges_ql(i,j,k)=ges_ql_r_g(i,j,k,ntguessig)
+               if (ier_qi==0) ges_qi(i,j,k)=ges_qi_r_g(i,j,k,ntguessig)
+               if (ier_qr==0) ges_qr(i,j,k)=ges_qr_r_g(i,j,k,ntguessig)
+               if (ier_qs==0) ges_qs(i,j,k)=ges_qs_r_g(i,j,k,ntguessig)
+               if (ier_qg==0) ges_qg(i,j,k)=ges_qg_r_g(i,j,k,ntguessig)
+               if (ier_qh==0) ges_qh(i,j,k)=ges_qh_r_g(i,j,k,ntguessig)
+               if (ier_cw==0 .and. ier_ql==0 .and. ier_qi==0) ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+            end do
+         end do
+      end do
+   end if
 
 end subroutine restore_nmmb_gfs

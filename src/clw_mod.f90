@@ -1307,7 +1307,7 @@ subroutine epspp (t1,s,f,ep)
 
 end subroutine epspp
 
-subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
+subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  ret_amsua 
@@ -1323,6 +1323,9 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
 !      2010-10-23  kim : Cloud liquid water path retrieval to compare with first guess
 !                        in all sky condition  (using observed tbs instead of o-g tbs)  
 !      2011-05-03  todling - add r_kind to constants
+!      2013-12-10  eliu    - bug fix for applying the retrieval to sub-freezing
+!                            surface temperature
+!      2014-01-17  zhu     - add scattering index scat 
 !      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
 !
 !  input argument list:
@@ -1334,6 +1337,8 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
 !
 !   output argument list:
 !     clwp_amsua       - amsu-a retrieved cloud liquid water path
+!     ierrret          - return flag     
+!     scat             - amsu-a scattering index
 !
 ! attributes:
 !   language: f90
@@ -1350,11 +1355,13 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs
   real(r_kind)                      ,intent(in   ) :: tsavg5,zasat
   real(r_kind)                      ,intent(  out) :: clwp_amsua
+  integer(i_kind)                   ,intent(  out) :: ierrret 
+  real(r_kind),optional             ,intent(  out) :: scat
+
   real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
-  integer(i_kind)                   ,intent(  out) :: ierrret
 
 ! Declare local variables 
   real(r_kind) :: d0, d1, d2, c0, c1, c2
@@ -1366,27 +1373,24 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
   d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*cos(zasat))*cos(zasat) 
   d1 = 0.754_r_kind
   d2 = -2.265_r_kind
-   
-
-  if (tsavg5 <=  t0c-one .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then 
-     ! We want to reject sea ice points that may be frozen.  The sea freezes 
-     ! around -1.9C but we set the threshold at 1C to be safe. 
-     clwp_amsua = r1000 
-     tpwc_amsua = r1000 
-     ierrret=1
-  else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
-     ! The expectation is that observations with these values will be rejected
-     clwp_amsua = r1000
-     tpwc_amsua = r1000
-     ierrret=1
-  else
-     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
+  
+  if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
+      tb_obs(1)>zero .and. tb_obs(2)>zero) then
+     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
      tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
-     if(clwp_amsua < zero) clwp_amsua = zero
-     if(tpwc_amsua < zero) tpwc_amsua = zero
-     ierrret=0
-  end if
-   
+     ierrret = 0
+  else
+     clwp_amsua = r1000  
+     tpwc_amsua = r1000  
+     ierrret = 1
+  endif
+
+   if (present(scat)) then
+      scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
+           +0.454_r_kind*tb_obs(2)-tb_obs(15)
+      scat=max(zero,scat)
+   end if
+
 end subroutine ret_amsua
 
 end module clw_mod

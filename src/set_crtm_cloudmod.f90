@@ -60,6 +60,7 @@ CONTAINS
   subroutine setCloud (cloud_name, icmask, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud)
 
   use gridmod, only: regional,wrf_mass_regional
+  use regional_io, only: cold_start
 
   implicit none
 
@@ -83,7 +84,8 @@ CONTAINS
 !
 ! 03May2011  Min-Jeong  Initial version.
 ! 14May2011  Todling    Encapsulate Min-Jeong's code in present module.
-! 01July2011 Zhu        Add jcloud and cloud_efr; add codes for regional 
+! 01July2011 Zhu        Add jcloud and cloud_efr; add codes for the regional 
+! 19Feb2013  Zhu        Add cold_start for the regional
 !
 !EOP
 !-----------------------------------------------------------------------------
@@ -98,10 +100,16 @@ CONTAINS
 
 ! Handle hand-split case as particular case
 ! -----------------------------------------
-  if (na /= nc .and. (.not. regional)) then
+  if (cold_start .or. (na /= nc .and. (.not. regional))) then
 
-     cloud(1)%Type = 1
-     cloud(2)%Type = 2
+!    Initialize Loop over clouds ...
+     do n = 1, nc
+        Cloud(n)%Type = CloudType_(cloud_name(jcloud(n)))
+        Cloud(n)%water_content(:) = zero
+        cloud(n)%Effective_Radius(:) = zero
+        cloud(n)%effective_variance(:) = two
+     enddo
+
      if(icmask) then
         Cloud(1)%water_content(:) = cloud_cont(:,1)
         Cloud(2)%water_content(:) = cloud_cont(:,2)

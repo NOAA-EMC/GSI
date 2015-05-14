@@ -274,6 +274,7 @@ clean:
 	genqsat.f90 \
 	genstats_gps.f90 \
 	gesinfo.f90 \
+        getcount_bufr.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_for_regional.f90 \

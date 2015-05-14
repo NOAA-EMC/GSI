@@ -56,6 +56,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
 !                          causes integer overflow with current logic.  Made quick fix, but needs review.
 !   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -92,7 +93,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
       newpc4pred,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
-  use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
@@ -318,7 +319,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         end if
 
 !       If not within analysis window, skip obs
-        if (l4dvar) then
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
            if (abs(tdiff)>twind) cycle read_loop
@@ -356,7 +357,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !       Set common predictor parameters
 
-        if (l4dvar) then
+        if (thin4d) then
            timedif = zero
         else
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18

@@ -80,6 +80,8 @@ subroutine update_guess(sval,sbias)
 !   2014-05-07  pondeca - constrain significant wave height (howv) to be >=0
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
+!   2014-11-28  zhu     - move update of cw to compute_derived when cw is not 
+!                         state variable for all-sky radiance assimilation
 !
 !   input argument list:
 !    sval
@@ -144,8 +146,6 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
@@ -255,20 +255,7 @@ subroutine update_guess(sval,sbias)
            endif
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              if(cloud(icloud)=='cw') then
-                 call gsi_bundlegetpointer (sval(ii), 'ql',ptr3dinc1,istatus)
-                 call gsi_bundlegetpointer (sval(ii), 'qi',ptr3dinc2,istatus)
-                 if(istatus == 0)  then     !for metges:cw, state vec:ql/qi/cw 
-                    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3dges, istatus)
-                    ptr3dges = ptr3dges+ptr3dinc1+ptr3dinc2
-                 else      ! for metges: cw=10,ql/qi=-1, state vec:cw only (such as original clr sky rad DA)
-                   ptr3dges = ptr3dges+ptr3dinc
-                   !let's split to ql/qi guess in GSI_Gridcomp because order of q, tv updates are tricky.
-                 endif    
-              else   !metges: ql (or qi)  , state vec:ql,qi,cw
-                   ptr3dges = ptr3dges+ptr3dinc
-              endif
-              ptr3dges = max(ptr3dges,qcmin)
+              ptr3dges = max(ptr3dges+ptr3dinc,qcmin)
               cycle
            else  
               ptr3dges = ptr3dges + ptr3dinc

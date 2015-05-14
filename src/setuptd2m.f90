@@ -72,7 +72,7 @@ subroutine setuptd2m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   real(r_double) rstation_id
 
-  real(r_kind) td2mges,dlat,dlon,ddiff,dtime,dpres,error
+  real(r_kind) td2mges,dlat,dlon,ddiff,dtime,error
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,rwgt
@@ -529,7 +529,6 @@ subroutine setuptd2m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
-  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
 

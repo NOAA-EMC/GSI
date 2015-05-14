@@ -56,7 +56,7 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb, ladtest_obs
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional            
 use jfunc, only: nsclen,npclen,ntclen,nrclen
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -215,7 +215,7 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!$omp parallel sections private(istatus)
+!$omp parallel sections private(istatus,ii,ic,id)
 
 !$omp section
 
@@ -273,20 +273,18 @@ do jj=1,nsubwin
    if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
 
 !  Calculate sensible temperature
-   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
+   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen) 
 
 !  Copy other variables
-   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
+   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )  
 
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
       if (.not. do_tv_to_tsen) then
-         allocate(sv_tsen(lat2,lon2,nsig))
          call tv_to_tsen(cv_t,sv_q,sv_tsen)
       end if
       call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
-      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
    else
 !     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
 !     e.g. cw-to-cw
