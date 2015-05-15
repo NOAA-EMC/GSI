@@ -251,6 +251,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=286                  
        else if(jsatid == 'f19')then  
          kidsat=287                  
+       else if(jsatid == 'f20')then  
+         kidsat=288             
        else if(jsatid == 'g08' .or. jsatid == 'g08_prep')then
          kidsat=252
        else if(jsatid == 'g09' .or. jsatid == 'g09_prep')then

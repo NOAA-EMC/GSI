@@ -425,6 +425,8 @@ CONTAINS
        if (bufrsat == 249) infile= 'ssmis_f16_beamwidth.txt'
        if (bufrsat == 285) infile= 'ssmis_f17_beamwidth.txt'
        if (bufrsat == 286) infile= 'ssmis_f18_beamwidth.txt'
+       if (bufrsat == 287) infile= 'ssmis_f19_beamwidth.txt'
+       if (bufrsat == 288) infile= 'ssmis_f20_beamwidth.txt'
 
        ! Read the beamwidth requirements
        OPEN(lninfile,file=infile,form='formatted',status='old', &
