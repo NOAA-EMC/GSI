@@ -108,7 +108,7 @@ module anisofilter_glb
 
   use raflib,only: init_raf4_wrap,raf_sm4_wrap,raf_sm4_ad_wrap
 
-  use jfunc, only: varq,qoption
+  use jfunc, only: varq,qoption,varcw,cwoption
 
   use control_vectors, only: an_amp0
   use control_vectors, only: cvars2d,cvars3d,cvarsmd
@@ -849,7 +849,7 @@ subroutine read_bckgstats_glb(mype)
   allocate ( vz(nsig,mlat,nrf3) )
 
 ! Read amplitudes
-  call berror_read_wgt(corzin,corpin,hwllin,hwllpin,vscalesin,corsstin,hsst,varq,qoption,mype,inerr)
+  call berror_read_wgt(corzin,corpin,hwllin,hwllpin,vscalesin,corsstin,hsst,varq,qoption,varcw,cwoption,mype,inerr)
 
   if(mype==0) then
      write(6,*) '--- start read_bckgstats_glb ---'

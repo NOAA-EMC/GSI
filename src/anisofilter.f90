@@ -124,7 +124,7 @@ module anisofilter
 
   use raflib,only: init_raf4_wrap,raf_sm4_wrap,raf_sm4_ad_wrap
 
-  use jfunc, only: varq,qoption,R_option
+  use jfunc, only: varq,qoption,R_option,varcw,cwoption
 
   use control_vectors, only: cvars2d,cvars3d,cvarsmd
   use control_vectors, only: nvars,nrf,nrf3_loc,nrf2_loc,nrf_3d,nrf_var
@@ -1727,7 +1727,7 @@ subroutine read_bckgstats(mype)
 
 ! Read in background error stats and interpolate in vertical
 ! to that specified in namelist
-  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,mype,inerr)
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
 
   if(mype==0) write(6,*)'in read_bckgstats,mlat=',mlat
 

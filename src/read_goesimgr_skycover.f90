@@ -15,6 +15,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !
 ! program history log:
 !   2014-11-07 J. Carley - Initial code     
+!   2015-03-06 C. Thomas - Add thin4d logical for removal of time thinning
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -51,7 +52,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       rlats,rlons,twodvar_regional
   use deter_sfc_mod, only: deter_sfc2
   use obsmod, only: iadate,bmiss,oberrflg,perturb_obs,perturb_fact,ran01dom
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use adjust_cloudobs_mod, only: adjust_goescldobs
   use mpimod, only: npe
 
@@ -75,8 +76,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
   character(8),parameter:: cspval= '88888888'
 
 ! Declare local variables
@@ -187,14 +186,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      ntb = ntb + nmsub(lunin) !nmsub is a bufrlib function which returns the number of subsets in 
                               !  a bufr message open for input via a previous call to a bufrlib
                               !  routine readmg or equivalent.  The subsets are not required to be read (saves time).
-     if (nmsg>nmsgmax) then
-        write(6,*)myname,': messages exceed maximum ',nmsgmax
-        call stop2(50)
-     endif
-     if (ntb>mxtb) then
-        write(6,*)myname,': reports exceed maximum ',mxtb   
-        call stop2(50)
-     endif
   end do
   maxobs=ntb
 
@@ -229,10 +220,11 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
             call w3fs21(idate5,nmind)
             rminobs=real(nmind,8)+(real(hdr(7),8)*r60inv)!convert the seconds of the ob to minutes and store to rminobs
             t4dv = (rminobs-real(iwinbgn,r_kind))*r60inv
-            if (l4dvar) then
+            tdiff=(rminobs-gstime)*r60inv  !GS time is the analysis time in minutes from w3fs21
+
+            if (l4dvar.or.l4densvar) then
                if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
             else
-               tdiff=(rminobs-gstime)*r60inv  !GS time is the analysis time in minutes from w3fs21
                ! - Check to make sure ob is within convinfo time window (ctwind) and 
                ! -  is within overwall time window twind (usually +-3)
                if( (abs(tdiff) > ctwind(nc)) .or. (abs(tdiff) > twind) )cycle loop_readsb
@@ -299,7 +291,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
             if (ithin > 0 .and. iuse >=0) then
                ntmp=ndata  ! counting moved to map3gridS
             ! - Set data quality index for thinning
-               if (l4dvar) then
+               if (thin4d) then
                   timedif = zero
                else
                   timedif=abs(t4dv-toff)

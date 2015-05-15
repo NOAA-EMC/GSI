@@ -34,6 +34,7 @@ subroutine read_files(mype)
 !                         twice. Use fcst_hr_sig and fcst_hr_sfc to store info of
 !                         files found in first loop of 0,99. Use nfldsig and nfldsfc
 !                         to access needed sigf and sfcf w/ fcst_hr_sig and *_sfc.
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -76,7 +77,7 @@ subroutine read_files(mype)
   use guess_grids, only: nfldsig,nfldsfc,nfldnst,ntguessig,ntguessfc,ntguesnst,&
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
@@ -247,7 +248,7 @@ subroutine read_files(mype)
         nming2=nmings+60*hourg
         write(6,*)'READ_FILES:  atm guess file, nming2 ',hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
-        if (l4dvar) then
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
         else
            ndiff=nming2-nminanl
@@ -333,7 +334,7 @@ subroutine read_files(mype)
         nming2=nmings+60*hourg
         write(6,*)'READ_FILES:  sfc guess file, nming2 ',hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
-        if (l4dvar) then
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
         else
            ndiff=nming2-nminanl
@@ -385,7 +386,7 @@ subroutine read_files(mype)
            nming2=nmings+60*hourg
            write(6,*)'READ_FILES:  nst guess file, nming2 ',hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle
            else
               ndiff=nming2-nminanl
