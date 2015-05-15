@@ -318,6 +318,14 @@ if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
    sed s/Experimental/Operational/1 ${tmp_index} > ${new_index}
 fi
 
+if [[ ! -s ${new_index} ]]; then
+   if [[ -s ${tmp_index} ]]; then
+      $NCP ${tmp_index} ${new_index}
+   else
+      $NCP ${index_file} ${new_index}
+   fi
+fi
+
 js_files="jsuri-1.1.1.js stats.js"
 
 
