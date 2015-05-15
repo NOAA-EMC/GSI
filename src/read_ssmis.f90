@@ -280,7 +280,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   if (trim(sis) == 'ssmis_f17') bufsat=285  
   if (trim(sis) == 'ssmis_f18') bufsat=286 
   if (trim(sis) == 'ssmis_f19') bufsat=287 
-  if (trim(sis) == 'ssmis_f20') bufsat=288 
 
   write(6,*) 'READ_SSMIS: reading bufsat = ', bufsat, trim(sis)
 
@@ -317,7 +316,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      if (trim(jsatid) == 'f17') instr=27
      if (trim(jsatid) == 'f18') instr=28
      if (trim(jsatid) == 'f19') instr=29
-     if (trim(jsatid) == 'f20') instr=30
 !    right now, all ssmis data is mapped to a common fov -
 !    that of the las channels.
      ichan = 1
