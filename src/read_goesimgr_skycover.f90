@@ -327,7 +327,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
          call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
          ! - Obtain the ob and tune the QC marks for ob error tuning a bit later
-         call adjust_goescldobs(goescld(3),tdiff,idomsfc,dlat_earth,dlon_earth, &
+         call adjust_goescldobs(goescld(3),tdiff,dlat_earth,dlon_earth, &
                                 low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                 hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
 
