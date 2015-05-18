@@ -452,14 +452,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !  Set qc limits based on noiqc flag
   if (noiqc) then
      lim_qm=8
-     if (psob) lim_zqm=7
-     if (qob)  lim_tqm=7
-     if (tob)  lim_qqm=8
+     if (psob)         lim_zqm=7
+     if (qob.or.tdob)  lim_tqm=7
+     if (tob)          lim_qqm=8
   else
      lim_qm=4
-     if (psob) lim_zqm=4
-     if (qob)  lim_tqm=4
-     if (tob)  lim_qqm=4
+     if (psob)         lim_zqm=4
+     if (qob.or.tdob)  lim_tqm=4
+     if (tob)          lim_qqm=4
   endif
 
   if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
