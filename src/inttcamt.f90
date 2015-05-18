@@ -37,6 +37,8 @@ subroutine inttcamt(tcamthead,rval,sval)
 !
 ! program history log:
 !
+!   2015-03-11 -  pondeca  - modify so that use of obsdiags can be turned off
+!
 !   input argument list:
 !     tcamthead
 !     stcamt    - increment in grid space
@@ -52,7 +54,7 @@ subroutine inttcamt(tcamthead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: tcamt_ob_type, lsaveobsens, l_do_adjoint
+  use obsmod, only: tcamt_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -101,17 +103,17 @@ subroutine inttcamt(tcamthead,rval,sval)
      val=w1*stcamt(j1)+w2*stcamt(j2)&
         +w3*stcamt(j3)+w4*stcamt(j4)
 
-     if (lsaveobsens) then
-        tcamtptr%diags%obssen(jiter) = val*tcamtptr%raterr2*tcamtptr%err2
-     else
-        if (tcamtptr%luse) tcamtptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*tcamtptr%raterr2*tcamtptr%err2
+           tcamtptr%diags%obssen(jiter) = grad
+        else
+           if (tcamtptr%luse) tcamtptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = tcamtptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            val=val-tcamtptr%res
 
 !          gradient of nonlinear operator

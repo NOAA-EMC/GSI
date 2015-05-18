@@ -448,14 +448,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !  Set qc limits based on noiqc flag
   if (noiqc) then
      lim_qm=8
-     if (psob) lim_zqm=7
-     if (qob)  lim_tqm=7
-     if (tob)  lim_qqm=8
+     if (psob)         lim_zqm=7
+     if (qob.or.tdob)  lim_tqm=7
+     if (tob)          lim_qqm=8
   else
      lim_qm=4
-     if (psob) lim_zqm=4
-     if (qob)  lim_tqm=4
-     if (tob)  lim_qqm=4
+     if (psob)         lim_zqm=4
+     if (qob.or.tdob)  lim_tqm=4
+     if (tob)          lim_qqm=4
   endif
 
   if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
@@ -2169,7 +2169,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (k==1) then
 !                   adjust quality mark/usage parameter
                     if (trim(subset) == 'GOESND') then
-                       call adjust_goescldobs(goescld(2,1),timeobs,idomsfc,dlat_earth,dlon_earth, &
+                       call adjust_goescldobs(goescld(2,1),timeobs,dlat_earth,dlon_earth, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                   hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
                     else
