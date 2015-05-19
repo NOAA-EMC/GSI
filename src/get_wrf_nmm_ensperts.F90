@@ -54,7 +54,6 @@ subroutine get_wrf_nmm_ensperts
 
     real(r_kind),allocatable,dimension(:,:,:):: u,v,tv,cwmr,oz,rh
     real(r_kind),allocatable,dimension(:,:):: ps
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d)
 
     real(r_single),pointer,dimension(:,:,:):: w3
     real(r_single),pointer,dimension(:,:):: w2
@@ -136,7 +135,7 @@ subroutine get_wrf_nmm_ensperts
     if(use_gfs_stratosphere) then
        nsig_e=nsig_save
        do k=1,grd_ens%nsig
-          if(blend_rm(k) < 1.0)then
+          if(blend_rm(k) < one)then
              nsig_r=k
              exit
           end if
@@ -2635,7 +2634,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   real(r_single) undef
   real(r_single) startp,pinc
 
-  if(mype.eq.0) then
+  if(mype==0) then
     startp=1._r_single
     pinc=1._r_single
     ioutdes=98750
@@ -2681,7 +2680,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   endif
   do k=1,nvert
     call sub2grid_3a(grd,u(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -2691,7 +2690,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,v(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -2701,7 +2700,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -2711,7 +2710,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,q(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -2720,14 +2719,14 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   end do
 
   call sub2grid_3a(grd,pd(1,1),work,0,mype)
-  if(mype.eq.0) then
+  if(mype==0) then
     do j=1,grd%nlon ; do i=1,grd%nlat
         outfield(j,i)=work(i,j)
     end do ; end do
     write(ioutdat)outfield
   end if
 
-  if(mype.eq.0) then
+  if(mype==0) then
     close(ioutdes)
     close(ioutdat)
   end if
@@ -2761,7 +2760,7 @@ subroutine grads3d(grd,field,nvert,mype,fname)
   real(r_single) undef
   real(r_single) startp,pinc
 
-  if(mype.eq.0) then
+  if(mype==0) then
     startp=1._r_single
     pinc=1._r_single
     ioutdes=98752
@@ -2801,7 +2800,7 @@ subroutine grads3d(grd,field,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,field(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -2809,7 +2808,7 @@ subroutine grads3d(grd,field,nvert,mype,fname)
     end if
   end do
 
-  if(mype.eq.0) then
+  if(mype==0) then
     close(ioutdes)
     close(ioutdat)
   end if
@@ -2846,7 +2845,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
   call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
                  work1,grd%ijn,grd%displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
-  if(mype.eq.gridpe) then
+  if(mype==gridpe) then
     do k=1,grd%iglobal
       i=grd%ltosi(k) ; j=grd%ltosj(k)
       grid(i,j)=work1(k)
