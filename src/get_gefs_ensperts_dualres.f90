@@ -29,6 +29,7 @@ subroutine get_gefs_ensperts_dualres
 !                         call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
 !   2014-12-03  derber - Simplify code and optimize routine - turn off reading
 !                        of vort/div and surface height since not needed
+!   2014-12-05 zhu      - set lower bound for cwmr
 !
 !   input argument list:
 !
@@ -44,7 +45,7 @@ subroutine get_gefs_ensperts_dualres
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
   use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
-  use constants,only: zero,half,fv,rd_over_cp,one,zero_single
+  use constants,only: zero,half,fv,rd_over_cp,one,zero_single,qcmin
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
@@ -297,8 +298,8 @@ subroutine get_gefs_ensperts_dualres
                 do k=1,km
                    do j=1,jm
                       do i=1,im
-                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = cwmr(i,j,k)
-                         en_bar(m)%r3(ipic)%q(i,j,k)=en_bar(m)%r3(ipic)%q(i,j,k)+cwmr(i,j,k)
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(cwmr(i,j,k),qcmin)
+                         en_bar(m)%r3(ipic)%q(i,j,k)=en_bar(m)%r3(ipic)%q(i,j,k)+max(cwmr(i,j,k),qcmin)
                       end do
                    end do
                 end do

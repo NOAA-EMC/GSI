@@ -238,7 +238,7 @@ type(gsi_bundle), intent(inout) :: rval
 real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! Declare local variables
-integer(i_kind) :: i,ier
+integer(i_kind) :: ier
 real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 

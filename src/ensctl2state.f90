@@ -41,6 +41,8 @@ use gsi_bundlemod, only: assignment(=)
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
+use gridmod, only: regional,lat2,lon2,nsig
+use cwhydromod, only: cw2hydro_tl
 use timermod, only: timer_ini,timer_fnl
 implicit none
 
@@ -54,25 +56,26 @@ character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds
 
-integer(i_kind), parameter :: ncvars = 5
+integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
+                               'q  ', 'cw '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 5
+integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'prse', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen
+             'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ' /)
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
+logical :: do_cw_to_hydro
 ! ****************************************************************************
 
 ! Initialize timer
@@ -89,13 +92,13 @@ endif
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
-lc_t  =icps(4)>0; lc_rh =icps(5)>0
+lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
-ls_q  =isps(4)>0; ls_tsen=isps(5)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
@@ -109,6 +112,13 @@ call gsi_bundlecreate ( wbundle_c, xhat%step(1), 'ensctl2state work', istatus )
 if(istatus/=0) then
    write(6,*) trim(myname), ': trouble creating work bundle'
    call stop2(999)
+endif
+
+do_cw_to_hydro=.false.
+if (regional) then
+   do_cw_to_hydro=lc_cw.and.ls_ql.and.ls_qi
+else
+   do_cw_to_hydro=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
 endif
 
 ! Initialize ensemble contribution to zero
@@ -130,7 +140,7 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
    end if
 
-!$omp parallel sections
+!$omp parallel sections private(ic,id,istatus)
 
 !$omp section
 
@@ -160,8 +170,8 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
 !  Get 3d pressure
    if(do_getprs_tl) then
-     call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
-     call getprs_tl(sv_ps,sv_tv,sv_prse)
+      call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
+      call getprs_tl(sv_ps,sv_tv,sv_prse)
    end if
 
 !  Convert RH to Q
@@ -175,9 +185,28 @@ do jj=1,ntlevs_ens
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) then
-     call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-     call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+      call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
+      call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
+
+   if (do_cw_to_hydro) then
+!     Case when cloud-vars do not map one-to-one (cv-to-sv)
+!     e.g. cw-to-ql&qi
+      if (.not. do_tv_to_tsen) then
+         call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
+         call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+      end if
+      call cw2hydro_tl(eval(jj),wbundle_c,sv_tsen,clouds,nclouds)
+   else
+!  Since cloud-vars map one-to-one, take care of them together
+      do ic=1,nclouds
+         id=getindex(cvars3d,clouds(ic))
+         if (id>0) then
+            call gsi_bundlegetpointer (eval(jj),clouds(ic),sv_rank3,istatus)
+            call gsi_bundlegetvar     (wbundle_c, clouds(ic),sv_rank3,istatus)
+         endif
+      enddo
+   endif
 
 
 !$omp section
@@ -189,14 +218,6 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
 
-!  Since cloud-vars map one-to-one, take care of them together
-   do ic=1,nclouds
-      id=getindex(cvars3d,clouds(ic))
-      if (id>0) then
-          call gsi_bundlegetpointer (eval(jj),clouds(ic),sv_rank3,istatus)
-          call gsi_bundlegetvar     (wbundle_c, clouds(ic),sv_rank3,istatus)
-      endif
-   enddo
 !$omp end parallel sections
 
 ! Add contribution from static B, if necessary

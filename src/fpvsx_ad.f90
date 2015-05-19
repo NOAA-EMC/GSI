@@ -60,7 +60,6 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 !----------------------------------------------
   tr_ad = zero
   w_ad = zero
-
 !----------------------------------------------
 ! ROUTINE BODY
 !----------------------------------------------
@@ -79,7 +78,6 @@ call init_constants(.false.)
      es = w*psatk*tr**xa*exp(xb*(one-tr))+(one-w)*psatk*tr**xai* &
           exp(xbi*(one-tr))
   endif
-  
   if (.not.adjoint) return
 
 !----------------------------------------------
@@ -87,61 +85,98 @@ call init_constants(.false.)
 !----------------------------------------------
   if (t >= ttp) then
      tr_ad = tr_ad+es_ad*((-(psatk*tr**xa*xb*exp(xb*(one-tr))))+psatk*xa* &
-             tr**(xa-one)*exp(xb*(one-tr)))
+          tr**(xa-one)*exp(xb*(one-tr)))
      es_ad = zero
   else if (t < tmix) then
      tr_ad = tr_ad+es_ad*((-(psatk*tr**xai*xbi*exp(xbi*(one-tr))))+psatk* &
-             xai*tr**(xai-one)*exp(xbi*(one-tr)))
+          xai*tr**(xai-one)*exp(xbi*(one-tr)))
      es_ad = zero
   else
      tr_ad = tr_ad+es_ad*((-(w*psatk*tr**xa*xb*exp(xb*(one-tr))))+w* &
-             psatk*xa*tr**(xa-one)*exp(xb*(one-tr))-(one-w)*psatk*tr**xai*xbi* &
-             exp(xbi*(one-tr))+(one-w)*psatk*xai*tr**(xai-one)*exp(xbi*(one-tr)))
-     w_ad  = w_ad+es_ad*(psatk*tr**xa*exp(xb*(one-tr))-psatk*tr**xai* &
-             exp(xbi*(one-tr)))
+          psatk*xa*tr**(xa-one)*exp(xb*(one-tr))-(one-w)*psatk*tr**xai*xbi* &
+          exp(xbi*(one-tr))+(one-w)*psatk*xai*tr**(xai-one)*exp(xbi*(one-tr)))
+     w_ad = w_ad+es_ad*(psatk*tr**xa*exp(xb*(one-tr))-psatk*tr**xai* &
+          exp(xbi*(one-tr)))
      es_ad = zero
-     t_ad  = t_ad+w_ad/(ttp-tmix)
-     w_ad  = zero
+     t_ad = t_ad+w_ad/(ttp-tmix)
+     w_ad = zero
   endif
-  t_ad  = t_ad-tr_ad*(ttp/(t*t))
+  t_ad = t_ad-tr_ad*(ttp/(t*t))
   tr_ad = zero
   
   return
 end subroutine fpvsx_ad
 
+subroutine fpvsx_tl( t, es, t_d, es_d )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fpvsx_tl     forward and tangent linear model for saturation vapor pressure
+!     prgmmr:    kim     org: np23                date: 2012-02-16
+!
+! abstract:  This subroutine contains the forward and tangent linear models for the
+!            calculation of saturation vapor pressure.  
+!
+! program history log:
+!   2012-02-16  kim - initial routine based on Russ Treadon's fpvsx_ad subroutine
+!
+!$$$
+!==============================================
+! all entries are defined explicitly
+!==============================================
+  use kinds, only: r_kind
+  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
+  implicit none
 
+!==============================================
+! define arguments
+!==============================================
+  real(r_kind),intent(out) :: es_d
+  real(r_kind),intent(in) :: t_d
+  real(r_kind),intent(  out) :: es
+  real(r_kind),intent(in   ) :: t
 
+!==============================================
+! define local variables
+!==============================================
+  real(r_kind) tr_d
+  real(r_kind) w_d
+  real(r_kind) tr
+  real(r_kind) w
 
-subroutine fpvsx_TL(T,dES_dT)
-
-use kinds, only: r_single, r_kind, i_kind
-use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
-
-IMPLICIT NONE
-
-REAL(r_kind) :: T
-REAL(r_kind) :: TR,W, DTR_DT, dES_DT, DW_DT
-
+!----------------------------------------------
+! RESET LOCAL ADJOINT VARIABLES
+!----------------------------------------------
+  tr_d = zero
+  w_d = zero
+!----------------------------------------------
+! ROUTINE BODY
+!----------------------------------------------
+!----------------------------------------------
+! FUNCTION AND TAPE COMPUTATIONS
+!----------------------------------------------
 call init_constants(.false.)
-TR = TTP/T
-DTR_DT = -TTP /(T*T)
 
-
-IF(T >= TTP) THEN
-   dES_dT = (PSATK*XA*TR**(XA-ONE)*EXP(XB*(ONE-TR))+PSATK*TR**XA*(-XB)*EXP(XB*(ONE-TR)))*dTR_dT
-ELSE IF (T < TMIX) THEN
-   dES_dT = (PSATK*XAI*TR**(XAI-ONE)*EXP(XBI*(ONE-TR))+PSATK*TR**XAI*(-XBI)*EXP(XBI*(ONE-TR)))*dTR_dT
-ELSE
-   W      = (T - TMIX)/(TTP - TMIX)
-   dW_DT  = ONE/(TTP - TMIX)
-   dES_DT = PSATK*TR**XA *EXP(XB*(ONE-TR))*dW_DT + W*PSATK*XA*TR**(XA-ONE)*EXP(XB*(ONE-TR))*dTR_dT &
-          + W*PSATK*TR**XA * EXP(XB*(ONE-TR))*(-XB)*dTR_dT  &
-          + (ONE-W)*PSATK*XAI*TR**(XAI-ONE)*EXP(XBI*(ONE-TR))*dTR_dT &
-          + (ONE-W)*PSATK*TR**XAI *(-XBI)*EXP(XBI*(ONE-TR))*dTR_dT &
-          - PSATK*TR**XAI*EXP(XBI*(ONE-TR))*dW_dT
-END IF
-
-
+  tr = ttp/t
+  tr_d = -ttp*t_d/t**2
+ 
+  if (t >= ttp) then
+     es = psatk*tr**xa*exp(xb*(one-tr))
+     es_d = xa*psatk*tr_d*tr**(xa-1)*exp(xb*(one-tr)) &
+           -xb*tr_d*psatk*tr**xa*exp(xb*(one-tr))
+  else if (t < tmix) then
+     es = psatk*tr**xai*exp(xbi*(one-tr))
+     es_d = psatk*xai*tr_d*tr**(xai-1)*exp(xbi*(one-tr)) &
+           -xbi*tr_d*psatk*tr**xai*exp(xbi*(one-tr))
+  else
+     w = (t-tmix)/(ttp-tmix)
+     w_d = t_d/(ttp-tmix)
+     es = w*psatk*tr**xa*exp(xb*(one-tr))+(one-w)*psatk*tr**xai* &
+          exp(xbi*(one-tr))
+     es_d = w_d*psatk*tr**xa*exp(xb*(one-tr)) + w*psatk*xa*tr_d*tr**(xa-1)*exp(xb*(one-tr)) &
+           -xb*tr_d*w*psatk*tr**xa*exp(xb*(one-tr)) &
+           -w_d*psatk*tr**xai*exp(xbi*(one-tr)) &
+           +(one-w)*psatk*xai*tr_d*tr**(xai-1)*exp(xbi*(one-tr)) &
+           -xbi*tr_d*(one-w)*psatk*tr**xai*exp(xbi*(one-tr))
+  endif
 RETURN
 END subroutine fpvsx_TL
-

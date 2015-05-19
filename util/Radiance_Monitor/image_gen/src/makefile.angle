@@ -34,7 +34,7 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-
+	cp ${CMD} ../exec/.
 
 angle.o : angle.f90
 	$(CF) $(FFLAGS) -c $(*).f90
