@@ -69,6 +69,7 @@ subroutine intpw_(pwhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     pwhead   - obs type pointer to obs structure
@@ -86,7 +87,7 @@ subroutine intpw_(pwhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
@@ -162,17 +163,17 @@ subroutine intpw_(pwhead,rval,sval)
         end do
      endif
 
-     if (lsaveobsens) then
-        pwptr%diags%obssen(jiter) = val*pwptr%raterr2*pwptr%err2
-     else
-        if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
-     endif
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*pwptr%raterr2*pwptr%err2
+           pwptr%diags%obssen(jiter) = grad
+        else
+           if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
+        endif
+     end if
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = pwptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
 !          Difference from observation
            if( .not. ladtest_obs)   val=val-pwptr%res
 !          needed for gradient of nonlinear qc operator

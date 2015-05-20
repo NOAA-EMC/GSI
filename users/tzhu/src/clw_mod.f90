@@ -54,6 +54,8 @@ contains
 !   2010-08-19  derber
 !   2011-05-20  mccarty - added placeholder for ATMS
 !   2013-01-22  zhu - add adp_anglebc option
+!   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
+!   2013-11-25  kim - revisit logic of frozen points
 !
 !  input argument list:
 !     nadir     - scan position
@@ -84,7 +86,7 @@ contains
 !$$$
   use kinds, only: r_kind,i_kind
   use radinfo, only: ang_rad,cbias,air_rad,predx,adp_anglebc
-  use constants, only: zero,amsua_clw_d1,amsua_clw_d2,t0c
+  use constants, only: zero,one,amsua_clw_d1,amsua_clw_d2,t0c,r1000
 
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
@@ -104,8 +106,10 @@ contains
 
 
   if (amsua .or. atms) then
- 
-     if(tsavg5>t0c)then
+
+    ! We want to reject sea ice points that may be frozen.  The sea freezes
+    ! around -1.9C but we set the threshold at 1C to be safe.
+     if(tsavg5>t0c-one .and. tb_obs(1) > zero .and. tb_obs(2) > zero) then 
         if (adp_anglebc) then
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
@@ -114,27 +118,38 @@ contains
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
         end if
         if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
-            .and. tb_obs(2) > zero) &
-           clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-               amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+            .and. tb_obs(2) > zero) then 
+             clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+                 amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+             ierrret = 0
+        else
+             ierrret = 1
+        endif
+     else
+        clw = r1000
+        ierrret = 1
      end if
      
+     if (.not. adp_anglebc) clw = max(zero,clw)
+
   else if(ssmi) then
 
      call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
           tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   else if (ssmis) then
 
      call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
+     clw = max(zero,clw)
 
   else if (amsre) then
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   endif
-  clw = max(zero,clw)
 
   return
  end subroutine calc_clw
@@ -218,8 +233,6 @@ contains
 !     si85    - scattering index over ocean
   real(r_kind):: si85
  
-  real(r_kind),parameter:: r20=20.0_r_kind
-  real(r_kind),parameter:: r80=80.0_r_kind
   real(r_kind),parameter:: r290=290.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
  
@@ -594,7 +607,6 @@ subroutine retrieval_amsre(tb,degre,  &
 
 ! Internal variable
   integer(i_kind) :: nchanl1
-  real(r_kind) :: wind
   real(r_kind) :: rwp,cwp,vr,vc
 !     si85    - scattering index over ocean
   real(r_kind) :: si85
@@ -734,8 +746,9 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
-  real(r_kind)  ev(nch),eh(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind)  ev(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),tvmin(nch)
+! real(r_kind)  thmin(nch),eh(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
   real(r_kind),save :: ko2_coe(nch,3),kl_coe(nch,3)
@@ -770,7 +783,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   call TBE_FROM_TBO(tbo,tbe)
 
 ! Adjust TBE to TBA required in the algorithms
-  call TBA_FROM_TBE(tbe,tv,th)
+  call TBA_FROM_TBE(tbe,tv)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
@@ -977,7 +990,7 @@ subroutine TBE_FROM_TBO(tbo,tb)
 
 end subroutine TBE_FROM_TBO
 
-subroutine TBA_FROM_TBE(tbo,tvs,ths)
+subroutine TBA_FROM_TBE(tbo,tvs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  TBA_FROM_TBO
@@ -996,7 +1009,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
 !
 !   output argument list:
 !     tvs(*)  : algorithm-based brightness temperatures at a vertical polarization
-!     ths(*)  : algorithm-based brightness temperatures at a horizontal polarization
+!     ths(*)  : algorithm-based brightness temperatures at a horizontal polarization (removed)
 !
 !   comments:
 !
@@ -1015,7 +1028,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   real(r_kind),intent(  out) :: tvs(nch)
 ! real(r_kind),intent(  out) :: tvs(nch),ths(nch)
 ! Remove intent(out) for ths since currently not used
-  real(r_kind)               :: ths(nch)
+! real(r_kind)               :: ths(nch)
 
   real(r_kind) tb(nch*2)
 
@@ -1294,7 +1307,7 @@ subroutine epspp (t1,s,f,ep)
 
 end subroutine epspp
 
-subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
+subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  ret_amsua 
@@ -1310,6 +1323,10 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
 !      2010-10-23  kim : Cloud liquid water path retrieval to compare with first guess
 !                        in all sky condition  (using observed tbs instead of o-g tbs)  
 !      2011-05-03  todling - add r_kind to constants
+!      2013-12-10  eliu    - bug fix for applying the retrieval to sub-freezing
+!                            surface temperature
+!      2014-01-17  zhu     - add scattering index scat 
+!      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
 !
 !  input argument list:
 !     tb_obs    - observed brightness temperatures
@@ -1320,6 +1337,8 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
 !
 !   output argument list:
 !     clwp_amsua       - amsu-a retrieved cloud liquid water path
+!     ierrret          - return flag     
+!     scat             - amsu-a scattering index
 !
 ! attributes:
 !   language: f90
@@ -1336,6 +1355,9 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs
   real(r_kind)                      ,intent(in   ) :: tsavg5,zasat
   real(r_kind)                      ,intent(  out) :: clwp_amsua
+  integer(i_kind)                   ,intent(  out) :: ierrret 
+  real(r_kind),optional             ,intent(  out) :: scat
+
   real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
@@ -1351,22 +1373,24 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*cos(zasat))*cos(zasat) 
   d1 = 0.754_r_kind
   d2 = -2.265_r_kind
-   
-
-  if (tsavg5 <= t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
-     clwp_amsua = zero
-     tpwc_amsua = zero
-  else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
-     ! The expectation is that observations with these values will be rejected
-     clwp_amsua = r1000
-     tpwc_amsua = r1000
-  else
-     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
+  
+  if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
+      tb_obs(1)>zero .and. tb_obs(2)>zero) then
+     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
      tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
-     if(clwp_amsua < zero) clwp_amsua = zero
-     if(tpwc_amsua < zero) tpwc_amsua = zero
-  end if
-   
+     ierrret = 0
+  else
+     clwp_amsua = r1000  
+     tpwc_amsua = r1000  
+     ierrret = 1
+  endif
+
+   if (present(scat)) then
+      scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
+           +0.454_r_kind*tb_obs(2)-tb_obs(15)
+      scat=max(zero,scat)
+   end if
+
 end subroutine ret_amsua
 
 end module clw_mod

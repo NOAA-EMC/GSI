@@ -1,6 +1,5 @@
 subroutine read_obsdiags(cdfile)
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
@@ -68,7 +67,7 @@ character(len=5) :: clmype
 integer(i_kind) :: iunit,ii,jj,ki,kj,kobs,kiter,kindx,kk,mchanl,ierr
 logical :: lluse, lmuse(1:miter), gogetit, root
 real(r_kind) :: znldepart(1:miter), ztldepart(1:miter), zwgtjo, zobssen(1:miter)
-type(obs_diag),pointer:: my_diag
+type(obs_diag),pointer:: my_diag => NULL()
 ! ----------------------------------------------------------
 _ENTRY_(myname)
 call timer_ini(myname)
@@ -283,10 +282,9 @@ subroutine read_pshead_ ()
     integer(i_kind) :: zkx            !  observation type
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(ps_ob_type),pointer :: my_node
+    type(ps_ob_type),pointer :: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_pshead_"
 _ENTRY_(myname_)
 
@@ -382,6 +380,7 @@ subroutine read_thead_ ()
     use obsmod, only: t_ob_type
     use m_obdiag, only: obdiag_locate
     use m_obdiag, only: ob_verify
+    use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
     implicit none
 
     real(r_kind)    :: zres           !  residual
@@ -397,15 +396,16 @@ subroutine read_thead_ ()
     real(r_kind)    :: ztpertb        !  random number added to the obs
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: ztv_ob         !  logical flag for virtual temperature or
+    integer(i_kind) :: zidx
+    real(r_kind),dimension(:),allocatable :: zpred
     integer(i_kind) :: zk1            !  level of errtable 1-33
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
     logical         :: zuse_sfc_model !  logical flag for using boundary model
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: j,mobs,jread,iostat
     logical         :: passed
-    type(t_ob_type),pointer:: my_node
+    type(t_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_thead_"
 _ENTRY_(myname_)
 
@@ -430,17 +430,27 @@ _EXIT_(myname_)
           if(ierr /= 0)write(6,*)' fail to alloc ttail%llpoint '
           ttail(ii)%head => ttail(ii)%head%llpoint
        end if
+       allocate(zpred(npredt))
+       allocate(ttail(ii)%head%pred(npredt))
 
        my_node => ttail(ii)%head
        read(iunit,iostat=iostat) my_node%idv,my_node%iob
 		if(iostat/=0) then
 		  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs) =',(/iostat,jj,ii,mobs,kk/))
 		endif
-       read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
-                                 ztime, zb,       zpg, &
-                                 zuse_sfc_model,  ztlm_tsfc, &
-                                 zluse, ztpertb,  ztv_ob, &
-                                 zk1,   zkx,      zwij, zij
+       if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+          read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
+                                    ztime, zb,       zpg, &
+                                    zuse_sfc_model,  ztlm_tsfc, &
+                                    zluse, ztpertb,  ztv_ob,  &
+                                    zk1,   zkx,      zwij, zij
+       else
+          read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
+                                    ztime, zb,       zpg, &
+                                    zuse_sfc_model,  ztlm_tsfc, &
+                                    zluse, ztpertb,  ztv_ob, zidx, zpred, &
+                                    zk1,   zkx,      zwij, zij
+       end if
        if (iostat/=0) then
           write(6,*)'read_thead_: error reading record',iostat
           call stop2(185)
@@ -454,6 +464,11 @@ _EXIT_(myname_)
        ttail(ii)%head%tlm_tsfc = ztlm_tsfc
        ttail(ii)%head%tpertb   = ztpertb
        ttail(ii)%head%tv_ob    = ztv_ob
+       if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+          do j=1,npredt
+             ttail(ii)%head%pred(j)=zpred(j)
+          end do
+       end if
        ttail(ii)%head%k1       = zk1
        ttail(ii)%head%kx       = zkx
        ttail(ii)%head%luse     = zluse
@@ -468,6 +483,7 @@ _EXIT_(myname_)
                        (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
 		end if
        endif
+       deallocate(zpred)
     enddo
     if(.not. lobserver) then
        passed = ob_verify(thead(ii),count=mobs,perr=.true.)
@@ -523,11 +539,10 @@ subroutine read_whead_ ()
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
-    logical         :: mymuse
+    integer(i_kind) :: mobs,jread,iostat
     integer(i_kind) :: ich_u,ich_v
     logical         :: passed
-    type(w_ob_type),pointer:: my_node
+    type(w_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_whead_"
 _ENTRY_(myname_)
    
@@ -644,10 +659,9 @@ subroutine read_qhead_ ()
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(q_ob_type),pointer:: my_node
+    type(q_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_qhead_"
 _ENTRY_(myname_)
    
@@ -758,10 +772,9 @@ subroutine read_spdhead_ ()
     real(r_kind)    :: zvges          !  meridional guess
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(spd_ob_type),pointer:: my_node
+    type(spd_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_spdhead_"
 _ENTRY_(myname_)
    
@@ -825,7 +838,6 @@ _EXIT_(myname_)
       passed = ob_verify(spdhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_spdhead_: error counting ob',icount,mobs
        call stop2(195)
     end if
     endif
@@ -874,15 +886,13 @@ subroutine read_srwhead_ ()
     real(r_kind)    :: zges2          !  second component guess
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     integer(i_kind) :: ich_u,ich_v
     logical         :: passed
-    type(srw_ob_type),pointer:: my_node
+    type(srw_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_srwhead_"
 _ENTRY_(myname_)
    
-    icount=0
     read(iunit,iostat=iostat) mobs,jread
     if(iostat/=0) call die(myname_,'read(mobs,jread), iostat =',iostat)
     if(jj/=jread) then
@@ -948,7 +958,6 @@ _EXIT_(myname_)
       passed = ob_verify(srwhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_srwhead_: error counting ob',icount,mobs
        call stop2(198)
     end if
     endif
@@ -995,10 +1004,9 @@ subroutine read_rwhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(rw_ob_type),pointer:: my_node
+    type(rw_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_rwhead_"
 _ENTRY_(myname_)
    
@@ -1060,7 +1068,6 @@ _EXIT_(myname_)
       passed = ob_verify(rwhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_rwhead_: error counting ob',icount,mobs
        call stop2(201)
     end if
     endif
@@ -1107,10 +1114,9 @@ subroutine read_dwhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(dw_ob_type),pointer:: my_node
+    type(dw_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_dwhead_"
 _ENTRY_(myname_)
    
@@ -1172,7 +1178,6 @@ _EXIT_(myname_)
       passed = ob_verify(dwhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_dwhead_: error counting ob',icount,mobs
        call stop2(204)
     end if
     endif
@@ -1220,10 +1225,9 @@ subroutine read_ssthead_ ()
     real(r_kind)    :: ztz_tr          !  sensitivity of tob to tref : d(Tz)/d(Tr)
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(sst_ob_type),pointer:: my_node
+    type(sst_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_ssthead_"
 _ENTRY_(myname_)
    
@@ -1284,7 +1288,6 @@ _EXIT_(myname_)
       passed = ob_verify(ssthead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_ssthead_: error counting ob',icount,mobs
        call stop2(207)
     end if
     endif
@@ -1331,10 +1334,9 @@ subroutine read_pwhead_ ()
     integer(i_kind) :: zij(4)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,znsig,iostat,icount,istatus
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,znsig,iostat,istatus
     logical         :: passed
-    type(pw_ob_type),pointer:: my_node
+    type(pw_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_pwhead_"
 _ENTRY_(myname_)
    
@@ -1426,6 +1428,7 @@ subroutine read_ozhead_ ()
 !   2007-10-03  todling
 !   2008-11-25  todling - merged with NCEP-May-2008
 !   2009-01-28  todling - accommodate single level-type data
+!   2013-11-15  todling - add OMI-related changes (needs revision)
 !
 !   input argument list:
 !
@@ -1440,6 +1443,7 @@ subroutine read_ozhead_ ()
     use gridmod, only: nsig
     use obsmod, only: ozhead,oztail
     use obsmod, only: oz_ob_type
+    use obsmod, only: nloz_omi
     use m_obdiag, only: obdiag_locate
     use m_obdiag, only: ob_verify
     implicit none
@@ -1451,14 +1455,15 @@ subroutine read_ozhead_ ()
     real(r_kind)    :: ztime                           ! observation time
     real(r_kind)    :: zwij(4,nsig)                    ! horizontal interpolation weights
     real(r_kind),dimension(:),allocatable :: zprs      ! delta pressure at mid layers at obs locations 
+    real(r_kind),dimension(:),allocatable :: zapriori   ! OMI-related 
+    real(r_kind),dimension(:),allocatable :: zefficiency! OMI efficiency factor
     integer(i_kind),dimension(:),allocatable :: zipos  !
     integer(i_kind) :: zij(4)                          ! horizontal locations
     logical         :: zluse                           ! flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,k,mobs,jread,nloz,nlevp,iostat,icount,istatus
-    logical         :: first,mymuse   
+    integer(i_kind) :: k,mobs,jread,nloz,nlevp,iostat,istatus
     logical         :: passed
-    type(oz_ob_type),pointer:: my_node
+    type(oz_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_ozhead_"
 _ENTRY_(myname_)
    
@@ -1478,7 +1483,10 @@ _EXIT_(myname_)
        read(iunit,iostat=iostat) nloz
        nlevp=max(nloz,1)
        allocate(zres(nloz+1),zerr2(nloz+1),zraterr2(nloz+1), &
-                zprs(nlevp),zipos(nloz+1),stat=istatus)
+                zprs(nlevp),zipos(nloz+1), &
+                zapriori(nloz_omi), &
+                zefficiency(nloz_omi), &
+                stat=istatus)
        if (istatus/=0) write(6,*)'read_ozhead:  allocate error for zoz_point, istatus=',istatus
 
        if(.not. associated(ozhead(ii)%head))then
@@ -1493,7 +1501,10 @@ _EXIT_(myname_)
        allocate(oztail(ii)%head%res(nloz+1),oztail(ii)%head%diags(nloz+1), &
                 oztail(ii)%head%err2(nloz+1),oztail(ii)%head%raterr2(nloz+1), &
                 oztail(ii)%head%prs(nlevp),oztail(ii)%head%ipos(nloz+1), &
-                oztail(ii)%head%wij(4,nsig),stat=istatus)
+                oztail(ii)%head%wij(4,nsig),&
+                oztail(ii)%head%apriori(nloz_omi), &
+                oztail(ii)%head%efficiency(nloz_omi), &
+                stat=istatus)
        if (istatus/=0) write(6,*)'read_ozhead:  allocate error for oz_point, istatus=',istatus
 
        my_node => oztail(ii)%head
@@ -1502,7 +1513,8 @@ _EXIT_(myname_)
        		  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs,nloz) =',(/iostat,jj,ii,mobs,kk,nloz/))
 		endif
        read(iunit,iostat=iostat) zres,  zerr2, zraterr2, ztime, &
-                                 zluse, zwij, zij, zprs, zipos
+                                 zluse, zwij, zij, zprs, zipos, &
+                                 zapriori, zefficiency
        if (iostat/=0) then
           write(6,*)'read_ozhead_: error reading record',iostat
           call stop2(213)
@@ -1522,8 +1534,12 @@ _EXIT_(myname_)
        do k=1,nlevp
           oztail(ii)%head%prs(k)       = zprs(k)
        enddo
+       do k=1,nloz_omi
+          oztail(ii)%head%apriori(k)    = zapriori(k)
+          oztail(ii)%head%efficiency(k) = zefficiency(k)
+       enddo
 
-       deallocate(zres,zerr2,zraterr2,zprs,zipos,stat=istatus)
+       deallocate(zres,zerr2,zraterr2,zprs,zipos,zapriori,zefficiency,stat=istatus)
        if (istatus/=0) write(6,*)'read_ozhead:  deallocate error for zoz_point, istatus=',istatus
 
        if(.not. lobserver) then
@@ -1586,10 +1602,9 @@ subroutine read_o3lhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(o3l_ob_type),pointer:: my_node
+    type(o3l_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_o3lhead_"
 _ENTRY_(myname_)
    
@@ -1654,7 +1669,6 @@ _EXIT_(myname_)
       passed = ob_verify(o3lhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_o3lhead_: error counting ob',icount,mobs
        call stop2(217)
     end if
     endif
@@ -1703,10 +1717,9 @@ subroutine read_pcphead_ ()
     integer(i_kind) :: zicxp          !  type of precipitation rate observation
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,mpredp,msig5,iostat,icount,istatus
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,mpredp,msig5,iostat,istatus
     logical         :: passed
-    type(pcp_ob_type),pointer:: my_node
+    type(pcp_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_pcphead_"
 _ENTRY_(myname_)
    
@@ -1790,7 +1803,6 @@ _EXIT_(myname_)
       passed = ob_verify(pcphead(ii),count=mobs,perr=.true.)
       if(.not. passed) then
         call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-        !! write(6,*)'read_pcphead_: error counting ob',icount,mobs
        call stop2(222)
     end if
     endif
@@ -1838,10 +1850,9 @@ subroutine read_gpshead_ ()
     integer(i_kind),allocatable:: zij(:,:) !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,msig,kk,jread,iostat,icount,istatus
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,msig,kk,jread,iostat,istatus
     logical         :: passed
-    type(gps_ob_type),pointer:: my_node
+    type(gps_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_gpshead_"
 _ENTRY_(myname_)
    
@@ -1921,7 +1932,6 @@ _EXIT_(myname_)
       passed = ob_verify(gpshead(ii),count=mobs,perr=.true.)
       if(.not. passed) then
         call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-        !! write(6,*)'read_gpshead_: error counting ob',icount,mobs
        call stop2(226)
     end if
     endif
@@ -1970,15 +1980,13 @@ subroutine read_radhead_ ()
     real(r_kind),dimension(:,:),allocatable :: dtb_dvar
                                      !  error variances squared (nsigradjac,nchan)
     integer(i_kind) :: nchan         !  number of channels for this profile
-    integer(i_kind) :: nchnperobs    !  number of channels per observation
     integer(i_kind) :: ij(4)         !  horizontal locations
     integer(i_kind),dimension(:),allocatable :: icx
     logical         :: luse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: i,j,iii,kkk,mm,mobs,jread,k,mpred,msigradjac,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: i,iii,kkk,mobs,jread,k,mpred,msigradjac,iostat
     logical         :: passed
-    type(rad_ob_type),pointer:: my_node
+    type(rad_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_radhead_"
 _ENTRY_(myname_)
 
@@ -2190,10 +2198,9 @@ subroutine read_tcphead_ ()
     integer(i_kind) :: zkx            !  observation type 
     logical         :: zluse          !  flag indicating if ob is used in pen. 
  
-    integer(i_kind) :: j,mobs,jread,icount,iostat 
-    logical         :: mymuse    
+    integer(i_kind) :: mobs,jread,iostat 
     logical         :: passed 
-    type(tcp_ob_type),pointer :: my_node 
+    type(tcp_ob_type),pointer :: my_node  => NULL()
     character(len=*),parameter:: myname_=myname//".read_tcphead_" 
 _ENTRY_(myname_) 
  
@@ -2308,11 +2315,10 @@ subroutine read_laghead_ ()
     real(r_kind)    :: pg            ! variational quality control parameter
     logical         :: luse          ! flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mm,mobs,jread,icount,iostat
-    logical         :: mymuse
+    integer(i_kind) :: mobs,jread,iostat
     integer(i_kind) :: ich_lon,ich_lat
     logical         :: passed
-    type(lag_ob_type),pointer:: my_node
+    type(lag_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_laghead_"
 _ENTRY_(myname_)
 
@@ -2393,7 +2399,6 @@ _EXIT_(myname_)
       passed = ob_verify(laghead(ii),count=mobs,perr=.true.)
       if(.not.passed) then
         call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-        !! write(6,*) 'read_laghead_: error counting ob, icount,mobs=',icount,mobs
        call stop2(252)
     endif
     endif
@@ -2445,10 +2450,9 @@ subroutine read_colvkhead_ ()
     integer(i_kind) :: zij(4)                          ! horizontal locations
     logical         :: zluse                           ! flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,k,mobs,jread,nlco,nlevp,iostat,icount,istatus
-    logical         :: first,mymuse
+    integer(i_kind) :: j,k,mobs,jread,nlco,nlevp,iostat,istatus
     logical         :: passed
-    type(colvk_ob_type),pointer:: my_node
+    type(colvk_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_colvkhead_"
 _ENTRY_(myname_)
 
@@ -2583,10 +2587,9 @@ subroutine read_aerohead_ ()
     integer(i_kind) :: zij(4)                          ! horizontal locations
     logical         :: zluse                           ! flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,k,mobs,jread,nlaero,nlevp,iostat,icount,istatus
-    logical         :: first,mymuse   
+    integer(i_kind) :: k,mobs,jread,nlaero,nlevp,iostat,istatus
     logical         :: passed
-    type(aero_ob_type),pointer:: my_node
+    type(aero_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_aerohead_"
 _ENTRY_(myname_)
    
@@ -2713,10 +2716,9 @@ subroutine read_aerolhead_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(aerol_ob_type),pointer:: my_node
+    type(aerol_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_aerolhead_"
 _ENTRY_(myname_)
    
@@ -2781,7 +2783,6 @@ _EXIT_(myname_)
       passed = ob_verify(aerolhead(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_aerolhead_: error counting ob',icount,mobs
        call stop2(217)
     end if
     endif
@@ -2826,10 +2827,9 @@ subroutine read_pm2_5head_ ()
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: zluse          !  flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,icount,iostat
-    logical         :: mymuse   
+    integer(i_kind) :: mobs,jread,iostat
     logical         :: passed
-    type(pm2_5_ob_type),pointer:: my_node
+    type(pm2_5_ob_type),pointer:: my_node => NULL()
     character(len=*),parameter:: myname_=myname//".read_pm2_5head_"
 _ENTRY_(myname_)
    
@@ -2894,7 +2894,6 @@ _EXIT_(myname_)
       passed = ob_verify(pm2_5head(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-          !! write(6,*)'read_pm2_5head_: error counting ob',icount,mobs
        call stop2(217)
     end if
     endif

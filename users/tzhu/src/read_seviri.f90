@@ -22,7 +22,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -53,14 +55,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: offtime_data,bmiss
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
-  use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
+  use gsi_4dvar, only: l4dvar,l4densvar,iadatebgn,iadateend,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
+  character(len=20),intent(in):: sis
   integer(i_kind),intent(in):: mype,lunout,ithin
   integer(i_kind),intent(inout):: ndata,nodata
   integer(i_kind),intent(inout):: nread
@@ -85,7 +88,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   character(8) subset,subcsr,subasr
   character(80):: hdrsevi             ! seviri header
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon,nhdr,nchn,ncld,nbrst,jj
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -107,7 +110,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind) rclrsky
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
   logical :: allchnmiss
@@ -123,7 +126,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 ! HLIU: NEED TO confirm
@@ -164,7 +167,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Open bufr file.
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
@@ -259,8 +262,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
 
@@ -285,13 +290,16 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         idate5(5) = hdr(6)     ! minutes
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + real(hdr(7),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
+        tdiff=(sstime-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+        else
+           if (abs(tdiff)>twind) cycle read_loop
+        endif
+        if (thin4d) then
            crit1=0.01_r_kind
         else
-           sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
-           if (abs(tdiff)>twind) cycle read_loop
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1=0.01_r_kind+timedif
         endif
@@ -352,6 +360,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         if(.not. iuse)cycle read_loop
 
         iscan = nint(hdr(ilzah))+1.001_r_kind ! integer scan position HLIU check this
+ 
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -361,7 +370,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 
@@ -447,6 +456,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
+  deallocate(hdr,datasev2,datasev1)
 
 ! Deallocate satthin arrays
 900 continue

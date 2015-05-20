@@ -35,6 +35,12 @@ subroutine wrwrfmassa_binary(mype)
 !   2012-11-26  hu     - add code to write updated soil fields to "wrf_inout"
 !   2013-01-26  parrish - WCOSS debug compile type mismatch error -- 
 !                            change to_native_endianness_i4 to to_native_endianness_r4
+!   2013-10-19  todling - metguess now holds background
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
+!   2015-01-15  hu     - add i_snowT_check to control temperature adjustment
+!                               over snow  
 !
 !   input argument list:
 !     mype     - pe number
@@ -50,21 +56,21 @@ subroutine wrwrfmassa_binary(mype)
   use kinds, only: r_kind,r_single,i_long,i_llong,i_kind
   use mpimod, only: mpi_byte,mpi_integer4,mpi_real4,mpi_comm_world,npe,ierror, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdwr,mpi_status_size
-  use guess_grids, only: ges_ps,ges_q, ges_u,ges_v,&
-       dsfct,&
+  use guess_grids, only: dsfct,&
        ntguessfc,ntguessig,ifilesig,ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
-  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,nsig_soil,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
+       i_use_2mq4b
   use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use native_endianness, only: byte_swap
+  use mpeu_util, only: die
 
   implicit none
 
@@ -72,6 +78,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
+  character(len=*),parameter::myname='wrwrfmassa_binary'
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
@@ -90,10 +97,10 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_mu,i_t,i_q,i_u,i_v
-  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_tt,ktt
-  integer(i_kind) i_th2,i_soilt1,i_tslb,i_smois,ktslb,ksmois,ksize
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
+  integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt
+  integer(i_kind) i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois,ksize
   integer(i_kind) i_sst,i_tsk
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind):: work_prsl,work_prslk
@@ -101,13 +108,13 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
-  integer(i_kind) request
+  integer(i_kind) request,request_ldmk,request_ldmk_snow,request_ldmk_seaice
   integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
-  real(r_single),allocatable::mub(:,:)
-  integer(i_kind) kdim_mub
+  real(r_single),allocatable::mub(:,:), landmask(:,:),snow(:,:),seaice(:,:)
+  integer(i_kind) kdim_mub,i_snowT_check
   integer(i_kind) kt,kq,ku,kv
   integer(i_kind) mfcst
   integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
@@ -115,20 +122,33 @@ subroutine wrwrfmassa_binary(mype)
   real(r_kind) deltasigma
   integer(i_kind) ip1,jp1
   character(1) chdrbuf(2048)
-  integer(i_kind) iadd,ier,istatus,nguess
+  integer(i_kind) iadd,ier,istatus,n_actual_clouds
   character(132) memoryorder
 
-  real(r_kind), pointer :: ges_qc(:,:,:)
-  real(r_kind), pointer :: ges_qi(:,:,:)
-  real(r_kind), pointer :: ges_qr(:,:,:)
-  real(r_kind), pointer :: ges_qs(:,:,:)
-  real(r_kind), pointer :: ges_qg(:,:,:)
+  real(r_kind), pointer :: ges_ps(:,:)=>NULL()
+  real(r_kind), pointer :: ges_tsk(:,:)=>NULL()
+  real(r_kind), pointer :: ges_th2(:,:)=>NULL()
+  real(r_kind), pointer :: ges_q2(:,:)=>NULL()
+  real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
+  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_u (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qi(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qr(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
 
   it=ntguessig
 
+  ksize=0
+
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
-  if (nguess>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+  if (n_actual_clouds>0) then
 !    get pointer to relevant instance of cloud-related backgroud
      ier=0
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -136,7 +156,8 @@ subroutine wrwrfmassa_binary(mype)
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
-     if (ier/=0) nguess=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+     if (ier/=0) n_actual_clouds=0
   end if
 
 !   1.  get offsets etc only for records to be updated
@@ -147,10 +168,10 @@ subroutine wrwrfmassa_binary(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_mass_fields=4*lm+3
-  if(l_cloud_analysis .or. nguess>0) num_mass_fields=4*lm+3+6*lm
-  if(l_gsd_soilTQ_nudge) num_mass_fields=4*lm+3+2*nsig_soil+2
-  if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=4*lm+3+6*lm+2*nsig_soil+2
+  num_mass_fields=4*lm+4
+  if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=4*lm+4+7*lm
+  if(l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+2*nsig_soil+2
+  if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+7*lm+2*nsig_soil+2
   allocate(offset(num_mass_fields))
   allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
   allocate(length(num_mass_fields))
@@ -273,8 +294,13 @@ subroutine wrwrfmassa_binary(mype)
                                                             i,igtype(i),offset(i),kdim(i),kord(i)
   end do
 
-  read(lendian_in)                                                    ! landmask
-  read(lendian_in)                                                    ! xice
+  read(lendian_in) n_position                                         ! landmask
+  allocate(landmask(im,jm))
+  call mpi_file_iread_at(mfcst,n_position,landmask,im*jm,mpi_real4,request_ldmk,ierror)
+
+  read(lendian_in) n_position                                         ! xice
+  allocate(seaice(im,jm))
+  call mpi_file_iread_at(mfcst,n_position,seaice,im*jm,mpi_real4,request_ldmk_seaice,ierror)
 
   i=i+1 ; i_sst=i                                                ! sst
   read(lendian_in) n_position
@@ -284,7 +310,11 @@ subroutine wrwrfmassa_binary(mype)
   read(lendian_in)                                                    ! ivgtyp
   read(lendian_in)                                                    ! isltyp
   read(lendian_in)                                                    ! vegfrac
-  read(lendian_in)                                                    ! sno
+
+  read(lendian_in) n_position                                         ! sno
+  allocate(snow(im,jm))
+  call mpi_file_iread_at(mfcst,n_position,snow,im*jm,mpi_real4,request_ldmk_snow,ierror)
+
   read(lendian_in)                                                    ! u10
   read(lendian_in)                                                    ! v10
   if(l_gsd_soilTQ_nudge) then
@@ -318,6 +348,8 @@ subroutine wrwrfmassa_binary(mype)
         if(mype == 0.and.k==1) write(6,*)' tslb i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
   else
+     i_tslb=0
+     i_smois=0
      read(lendian_in)                                                 ! smois
      read(lendian_in)                                                 ! tslb
   endif
@@ -326,6 +358,12 @@ subroutine wrwrfmassa_binary(mype)
   read(lendian_in) n_position
   offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
   if(mype == 0) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+
+
+  i=i+1 ; i_q2=i                                                ! q2
+  read(lendian_in) n_position
+  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+  if(mype == 0) write(6,*)' q2 i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
 
   if(l_gsd_soilTQ_nudge) then
      i=i+1 ; i_soilt1=i                                            ! soilt1
@@ -337,10 +375,13 @@ subroutine wrwrfmassa_binary(mype)
      read(lendian_in) n_position
      offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
      if(mype == 0) write(6,*)' th2, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+  else
+     i_soilt1=0
+     i_th2=0
   endif
 
 ! for cloud/hydrometeor analysis fields
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
 
      i_qc=i+1
      read(lendian_in) n_position,memoryorder
@@ -417,6 +458,21 @@ subroutine wrwrfmassa_binary(mype)
         if(mype == 0.and.k==1) write(6,*)' qg i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
+     i_qnr=i+1
+     read(lendian_in) n_position,memoryorder
+     do k=1,lm
+        i=i+1                                                       !  qnr(k)
+        if(trim(memoryorder)=='XZY') then
+           iadd=0
+           kord(i)=lm
+        else
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
+        end if
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qnr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+     end do
+
      i_tt=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
@@ -488,7 +544,7 @@ subroutine wrwrfmassa_binary(mype)
   kv=i_v-1
   q_integral=one
 ! for hydrometeors
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
 !    get pointer to relevant instance of cloud-related backgroud
      ier=0
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -496,6 +552,7 @@ subroutine wrwrfmassa_binary(mype)
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
      if (ier/=0) then
          write(6,*)'wrwrfmassa_binary: getpointer failed, cannot do cloud analysis'
          call stop2(999)
@@ -505,7 +562,17 @@ subroutine wrwrfmassa_binary(mype)
      kqr=i_qr-1
      kqs=i_qs-1
      kqg=i_qg-1
+     kqnr=i_qnr-1
      ktt=i_tt-1
+  endif
+  ier=0
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps', ges_ps, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u , istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v , istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' , ges_q , istatus );ier=ier+istatus
+  if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+      write(6,*)'wrwrfmassa_binary: getpointer failed, cannot retrieve ps,u,v,q'
+      call stop2(999)
   endif
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+1)
@@ -514,24 +581,25 @@ subroutine wrwrfmassa_binary(mype)
      ku=ku+1
      kv=kv+1
 ! for hydrometeors
-     if(l_cloud_analysis .or. nguess>0) then
+     if(l_cloud_analysis .or. n_actual_clouds>0) then
         kqc=kqc+1
         kqi=kqi+1
         kqr=kqr+1
         kqs=kqs+1
         kqg=kqg+1
+        kqnr=kqnr+1
         ktt=ktt+1
      endif
      do i=1,lon1
         ip1=i+1
         do j=1,lat1
            jp1=j+1
-           all_loc(j,i,ku)=ges_u(jp1,ip1,k,it)
-           all_loc(j,i,kv)=ges_v(jp1,ip1,k,it)
+           all_loc(j,i,ku)=ges_u(jp1,ip1,k)
+           all_loc(j,i,kv)=ges_v(jp1,ip1,k)
 
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1,it)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1)-pt_ll)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(jp1,ip1,k,it)/work_prslk
 
@@ -541,19 +609,20 @@ subroutine wrwrfmassa_binary(mype)
 
 
 !          Convert specific humidity to mixing ratio
-           all_loc(j,i,kq)= ges_q(jp1,ip1,k,it)/(one-ges_q(jp1,ip1,k,it))
+           all_loc(j,i,kq)= ges_q(jp1,ip1,k)/(one-ges_q(jp1,ip1,k))
 
 ! for hydrometeors
-           if(l_cloud_analysis .or. nguess>0) then
+           if(l_cloud_analysis .or. n_actual_clouds>0) then
               all_loc(j,i,kqc)=ges_qc(jp1,ip1,k)
               all_loc(j,i,kqi)=ges_qi(jp1,ip1,k)
               all_loc(j,i,kqr)=ges_qr(jp1,ip1,k)
               all_loc(j,i,kqs)=ges_qs(jp1,ip1,k)
               all_loc(j,i,kqg)=ges_qg(jp1,ip1,k)
+              all_loc(j,i,kqnr)=ges_qnr(jp1,ip1,k)
               all_loc(j,i,ktt)=ges_tten(jp1,ip1,k,it)
            endif
 
-           q_integral(jp1,ip1)=q_integral(jp1,ip1)+deltasigma*ges_q(jp1,ip1,k,it)/(one-ges_q(jp1,ip1,k,it))
+           q_integral(jp1,ip1)=q_integral(jp1,ip1)+deltasigma*ges_q(jp1,ip1,k)/(one-ges_q(jp1,ip1,k))
 
         end do
      end do
@@ -563,7 +632,7 @@ subroutine wrwrfmassa_binary(mype)
      ip1=i+1
      do j=1,lat1
         jp1=j+1
-        psfc_this=r10*ges_ps(jp1,ip1,it)   ! convert from cb to mb
+        psfc_this=r10*ges_ps(jp1,ip1)   ! convert from cb to mb
         psfc_this_dry=pt_ll+(psfc_this-pt_ll)/q_integral(jp1,ip1)
         all_loc(j,i,i_mu)=r100*psfc_this_dry
      end do
@@ -583,6 +652,12 @@ subroutine wrwrfmassa_binary(mype)
 
 ! for soil nudging
   if(l_gsd_soilTQ_nudge) then
+     ier=0
+     call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'smoist',ges_smois_it,istatus)
+     ier=ier+istatus
+     call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'tslb' ,ges_tslb_it ,istatus)
+     ier=ier+istatus
+     if (ier/=0) call die(trim(myname),'cannot get pointers for tslb/smois, ier =',ier)
      ktslb=i_tslb-1
      ksmois=i_smois-1
      do k=1,nsig_soil
@@ -592,21 +667,40 @@ subroutine wrwrfmassa_binary(mype)
            ip1=i+1
            do j=1,lat1
               jp1=j+1
-              all_loc(j,i,ktslb)=ges_tslb(jp1,ip1,k,it)
-              all_loc(j,i,ksmois)=ges_smois(jp1,ip1,k,it)
+              all_loc(j,i,ktslb)=ges_tslb_it(jp1,ip1,k)
+              all_loc(j,i,ksmois)=ges_smois_it(jp1,ip1,k)
            end do
         end do
      end do
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',  ges_th2, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m' ,  ges_q2,  istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil', ges_soilt1, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn' , ges_tsk , istatus );ier=ier+istatus
+     if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+         write(6,*)'wrwrfmassa_binary: getpointer failed, cannot retrieve soil stuff'
+         call stop2(999)
+     endif
      do i=1,lon1
         ip1=i+1
         do j=1,lat1
            jp1=j+1
-           all_loc(j,i,i_tsk)=ges_tsk(jp1,ip1,it)
-           all_loc(j,i,i_th2)=ges_th2(jp1,ip1,it)
-           all_loc(j,i,i_soilt1)=ges_soilt1(jp1,ip1,it)
+           all_loc(j,i,i_tsk)=ges_tsk(jp1,ip1)
+           all_loc(j,i,i_th2)=ges_th2(jp1,ip1)
+           all_loc(j,i,i_soilt1)=ges_soilt1(jp1,ip1)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
+  if (i_use_2mq4b > 0) then
+     do i=1,lon1
+        ip1=i+1
+        do j=1,lat1
+!  Convert 2m specific humidity to mixing ratio
+           jp1=j+1
+           all_loc(j,i,i_q2)=ges_q2(jp1,ip1)/(one-ges_q2(jp1,ip1))
+        end do
+     end do
+  endif
 
   allocate(tempa(itotsub,kbegin(mype):kend(mype)))
   call generic_sub2grid(all_loc,tempa,kbegin(mype),kend(mype),kbegin,kend,mype,num_mass_fields)
@@ -618,6 +712,27 @@ subroutine wrwrfmassa_binary(mype)
   if(byte_swap) then
      num_swap=length_mub
      call to_native_endianness_r4(mub(1,1),num_swap)
+  end if
+  call mpi_wait(request_ldmk,status,ierror)
+  if(byte_swap) then
+     num_swap=im*jm
+     call to_native_endianness_r4(landmask(1,1),num_swap) !got landmask for
+                                                          ! soil nudging in 2X
+                                                          ! grid
+  end if
+  call mpi_wait(request_ldmk_snow,status,ierror)
+  if(byte_swap) then
+     num_swap=im*jm
+     call to_native_endianness_r4(snow(1,1),num_swap)     !got snow for
+                                                          ! soil nudging in 2X
+                                                          ! grid
+  end if
+  call mpi_wait(request_ldmk_seaice,status,ierror)
+  if(byte_swap) then
+     num_swap=im*jm
+     call to_native_endianness_r4(seaice(1,1),num_swap)   !got seaice for
+                                                          ! soil nudging in 2X
+                                                          ! grid
   end if
 
 
@@ -721,7 +836,7 @@ subroutine wrwrfmassa_binary(mype)
   endif
 
 ! read hydrometeors
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
 !                                    read qc
      if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -797,6 +912,21 @@ subroutine wrwrfmassa_binary(mype)
         deallocate(jbuf)
      end if
  
+!                                    read qnr
+     if(kord(i_qnr)/=1) then
+        allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+        this_offset=offset(i_qnr)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+        call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+        if(byte_swap) then
+           num_swap=this_length
+           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+        end if
+        call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnr,i_qnr+lm-1)
+        deallocate(jbuf)
+     end if
+
 !                                    read tt
      if(kord(i_tt)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -855,7 +985,19 @@ subroutine wrwrfmassa_binary(mype)
               tempa(i,ifld)=tempa(i,ifld)-tempb(i,ifld)
            end do
         end if
-        call unfill_mass_grid2t(tempa(1,ifld),im,jm,temp1)
+        if( ifld==i_tsk .or. ifld==i_soilt1 .or. & 
+           (ifld >=i_smois .and. ifld <=i_smois+ksize-1) .or. &
+           (ifld >=i_tslb .and. ifld <=i_tslb+ksize-1) ) then 
+! for 2X soil nudging
+           i_snowT_check=0
+           if(ifld==i_tsk .or. ifld==i_soilt1 .or. ifld ==i_tslb) &
+                i_snowT_check=1 
+           if(ifld >=i_smois .and. ifld <=i_smois+ksize-1) i_snowT_check=2
+           call unfill_mass_grid2t_ldmk(tempa(1,ifld),im,jm,temp1,landmask, &
+                                        snow,seaice,i_snowT_check)
+        else
+           call unfill_mass_grid2t(tempa(1,ifld),im,jm,temp1)
+        endif
         if(ifld==i_mu) then
            temp1=temp1-mub-pt_regional_single
         end if
@@ -975,7 +1117,7 @@ subroutine wrwrfmassa_binary(mype)
   endif
 
 !  write hydrometeors
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
 !                                    write qc
      if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -1051,6 +1193,21 @@ subroutine wrwrfmassa_binary(mype)
         deallocate(jbuf)
      end if
 
+!                                    write qnr
+     if(kord(i_qnr)/=1) then
+        allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+        call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnr,i_qnr+lm-1)
+        this_offset=offset(i_qnr)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+        if(byte_swap) then
+           num_swap=this_length
+           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+        end if
+        call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+        deallocate(jbuf)
+     end if
+
 !                                    write tt
      if(kord(i_tt)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -1088,6 +1245,9 @@ subroutine wrwrfmassa_binary(mype)
   deallocate(kord)
   deallocate(length)
   deallocate(mub)
+  deallocate(landmask)
+  deallocate(snow)
+  deallocate(seaice)
   deallocate(tempa)
   deallocate(tempb)
   deallocate(temp1)
@@ -1098,39 +1258,6 @@ subroutine wrwrfmassa_binary(mype)
   call mpi_file_close(mfcst,ierror)
 
 end subroutine wrwrfmassa_binary
-#else /* Start no WRF-library block */
-subroutine wrwrfmassa_binary(mype)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    wrwrfmassa              write out wrf MASS restart file
-!   prgmmr: parrish          org: np22                date: 2004-06-23
-!
-! abstract:  dummy call to read wrf MASS guess restart interface file, 
-!            add analysis increment, and write out wrf MASS analysis 
-!            restart interface file.
-!
-! program history log
-!   2005-02-25 todling - add dummy subroutine to skip over wrf code
-!   2005-03-14 treadon - add write statement to note entry into dummy routine
-!   input argument list:
-!     mype     - pe number
-!
-!   output argument list:
-!     no output arguments
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: i_kind
-  implicit none
-
-  integer(i_kind),intent(in   ) :: mype
-
-  if (mype==0) write(6,*)'WRWRFMASSA_BINARY:  enter dummy call, do nothing'
-end subroutine wrwrfmassa_binary
-#endif /* End no WRF-library block */
 
 subroutine generic_sub2grid(all_loc,tempa,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
 !$$$  subprogram documentation block
@@ -1526,7 +1653,13 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
-!   2012-04-13  whitaker - don't call GSI_BundleGetPointer if nguess = 0
+!   2011-09-20  hclin   - added 15 wrfchem/gocart fields for aod
+!   2012-04-13  whitaker - don't call GSI_BundleGetPointer if n_actual_clouds = 0
+!   2013-10-19  todling - metguess now holds background
+!   2013-10-24  todling - general interface to strip
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number
@@ -1540,25 +1673,29 @@ subroutine wrwrfmassa_netcdf(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
-       ges_q,ges_u,ges_v,ges_tsen
+  use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,&
+       ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
-  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,nsig_soil,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
-       aeta1_ll,strip_single
+       aeta1_ll,strip
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
+       i_use_2mq4b
+  use chemmod, only: laeroana_gocart
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
+  use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local parameters
+  character(len=*),parameter::myname='wrwrfmassa_netcdf'
   real(r_kind),parameter:: r225=225.0_r_kind
 
 ! Declare local variables
@@ -1566,13 +1703,17 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_single),allocatable::temp1(:),temp1u(:),temp1v(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
+  real(r_single),allocatable::landmask(:),snow(:),seaice(:)
   character(6) filename
   integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_tt,ktt
-  integer(i_kind) i_sst,i_skt,i_th2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
+  integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt
+  integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
+  integer(i_kind) :: iv, n_gocart_var,i_snowT_check
+  integer(i_kind),allocatable :: i_chem(:), kchem(:)
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
-  integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
-  integer(i_kind) nguess,ier,istatus
+  integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0,nsoil
+  integer(i_kind) n_actual_clouds,ier,istatus
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind),dimension(lat2,lon2):: q_integral
   real(r_kind) deltasigma
@@ -1582,17 +1723,44 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
 
-  real(r_kind), pointer :: ges_qc(:,:,:)
-  real(r_kind), pointer :: ges_qi(:,:,:)
-  real(r_kind), pointer :: ges_qr(:,:,:)
-  real(r_kind), pointer :: ges_qs(:,:,:)
-  real(r_kind), pointer :: ges_qg(:,:,:)
+  real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
+  real(r_kind), pointer :: ges_tsk(:,:)=>NULL()
+  real(r_kind), pointer :: ges_th2(:,:)=>NULL()
+  real(r_kind), pointer :: ges_q2(:,:)=>NULL()
+  real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
+  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_u (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qi(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qr(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
+
+  real(r_kind), pointer :: ges_sulf (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_bc1  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_bc2  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_oc1  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_oc2  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust3(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust4(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust5(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas3(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_p25  (:,:,:)=>NULL()
 
   it=ntguessig
 
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
-  if (nguess>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+  if (n_actual_clouds>0) then
 !    get pointer to relevant instance of cloud-related backgroud
      ier=0
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -1600,17 +1768,28 @@ subroutine wrwrfmassa_netcdf(mype)
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
-     if (ier/=0) nguess=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+     if (ier/=0) n_actual_clouds=0
   end if
 
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
 
-  num_mass_fields=3+4*lm
-  if(l_cloud_analysis .or. nguess>0) num_mass_fields=3+4*lm + 6*lm
-  if(l_gsd_soilTQ_nudge) num_mass_fields=3+4*lm+2*nsig_soil+2
-  if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) num_mass_fields=3+4*lm+2*nsig_soil+2+6*lm
+  num_mass_fields=4+4*lm
+  if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=4+4*lm + 7*lm
+  if(l_gsd_soilTQ_nudge) num_mass_fields=4+4*lm+2*nsig_soil+2
+  if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) num_mass_fields=4+4*lm+2*nsig_soil+2+7*lm
+  if ( laeroana_gocart ) then
+     call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
+     if ( n_gocart_var > 0 ) then
+        num_mass_fields = num_mass_fields + n_gocart_var*lm
+        allocate(i_chem(n_gocart_var))
+        allocate(kchem(n_gocart_var))
+     else
+        laeroana_gocart = .false.
+     endif
+  endif
   num_all_fields=num_mass_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat2,lon2,num_all_pad))
@@ -1630,18 +1809,37 @@ subroutine wrwrfmassa_netcdf(mype)
      i_skt=i_soilt1+1
   else
      i_skt=i_sst+1
+     i_th2=0
+     i_tslb=0
+     i_smois=0
+     i_soilt1=0
   endif
+  i_q2=i_skt+1
+
 ! for hydrometeors
-  if(l_cloud_analysis .or. nguess>0) then
-     i_qc=i_skt+1
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
+     i_qc=i_q2+1
      i_qr=i_qc+lm
      i_qs=i_qr+lm
      i_qi=i_qs+lm
      i_qg=i_qi+lm
-     i_tt=i_qg+lm
+     i_qnr=i_qg+lm
+     i_tt=i_qnr+lm
+     if ( laeroana_gocart ) then
+        do iv = 1, n_gocart_var
+           i_chem(iv)=i_tt+(iv-1)*lm+1
+        end do
+     endif
+  else
+     if ( laeroana_gocart) then
+        do iv = 1, n_gocart_var
+           i_chem(iv)=i_skt+(iv-1)*lm+1
+        end do
+     endif
   endif
   
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
+  allocate(landmask(im*jm),snow(im*jm),seaice(im*jm))
 
   if(mype == 0) write(6,*)' at 2 in wrwrfmassa'
 
@@ -1655,19 +1853,29 @@ subroutine wrwrfmassa_netcdf(mype)
 
 ! Convert analysis variables to MASS variables
 ! get pointer to relevant instance of cloud-related backgroud
-  if (nguess>0) then
+  if (n_actual_clouds>0) then
      ier=0
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
      if (ier/=0) then
          write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
-         if (l_cloud_analysis .or. nguess>0) call stop2(999)
+         if (l_cloud_analysis .or. n_actual_clouds>0) call stop2(999)
      endif
   endif
 
+  ier=0
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps', ges_ps, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u , istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v , istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' , ges_q , istatus );ier=ier+istatus
+  if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+      write(6,*)'wrwrfmassa_binary: getpointer failed, cannot retrieve ps,u,v,q'
+      call stop2(999)
+  endif
   
 ! Create all_loc from ges_*
   if(mype == 0) write(6,*)' at 3 in wrwrfmassa'
@@ -1677,14 +1885,40 @@ subroutine wrwrfmassa_netcdf(mype)
   ku=i_u-1
   kv=i_v-1
 ! for hydrometeors
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
      kqc=i_qc-1
      kqi=i_qi-1
      kqr=i_qr-1
      kqs=i_qs-1
      kqg=i_qg-1
+     kqnr=i_qnr-1
      ktt=i_tt-1
   endif
+  if ( laeroana_gocart ) then
+     ier = 0
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'sulf',  ges_sulf,  istatus );ier=ier+istatus 
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'bc1',   ges_bc1,   istatus );ier=ier+istatus   
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'bc2',   ges_bc2,   istatus );ier=ier+istatus 
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'oc1',   ges_oc1,   istatus );ier=ier+istatus      
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'oc2',   ges_oc2,   istatus );ier=ier+istatus    
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust1', ges_dust1, istatus );ier=ier+istatus  
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust2', ges_dust2, istatus );ier=ier+istatus 
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust3', ges_dust3, istatus );ier=ier+istatus  
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust4', ges_dust4, istatus );ier=ier+istatus  
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust5', ges_dust5, istatus );ier=ier+istatus     
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas1', ges_seas1, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas2', ges_seas2, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas3', ges_seas3, istatus );ier=ier+istatus 
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas4', ges_seas4, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'p25',   ges_p25,   istatus );ier=ier+istatus
+     if (ier/=0 .and. mype == 0) then
+         write(6,*)'WRWRFMASSA_NETCDF: getpointer failed for gocart species'
+     endif
+     do iv = 1, n_gocart_var
+        kchem(iv) = i_chem(iv)-1
+     end do
+  endif
+
   q_integral=one
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+1)
@@ -1693,53 +1927,78 @@ subroutine wrwrfmassa_netcdf(mype)
      ku=ku+1
      kv=kv+1
 ! for hydrometeors
-     if(l_cloud_analysis .or. nguess>0) then
+     if(l_cloud_analysis .or. n_actual_clouds>0) then
         kqc=kqc+1
         kqi=kqi+1
         kqr=kqr+1
         kqs=kqs+1
         kqg=kqg+1
+        kqnr=kqnr+1
         ktt=ktt+1
+     endif
+     if ( laeroana_gocart ) then
+        do iv = 1, n_gocart_var
+           kchem(iv) = kchem(iv)+1
+        end do
      endif
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,ku)=ges_u(j,i,k,it)
-           all_loc(j,i,kv)=ges_v(j,i,k,it)
+           all_loc(j,i,ku)=ges_u(j,i,k)
+           all_loc(j,i,kv)=ges_v(j,i,k)
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i,it)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i)-pt_ll)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(j,i,k,it)/work_prslk
 
 !          Convert specific humidity to mixing ratio
-           all_loc(j,i,kq)= ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
+           all_loc(j,i,kq)= ges_q(j,i,k)/(one-ges_q(j,i,k))
            	
 ! for hydrometeors      
-           if(l_cloud_analysis .or. nguess>0) then
+           if(l_cloud_analysis .or. n_actual_clouds>0) then
               all_loc(j,i,kqc)=ges_qc(j,i,k)
               all_loc(j,i,kqi)=ges_qi(j,i,k)
               all_loc(j,i,kqr)=ges_qr(j,i,k)
               all_loc(j,i,kqs)=ges_qs(j,i,k)
               all_loc(j,i,kqg)=ges_qg(j,i,k)
+              all_loc(j,i,kqnr)=ges_qnr(j,i,k)
               all_loc(j,i,ktt)=ges_tten(j,i,k,it)
            endif
 
+           if ( laeroana_gocart ) then
+              all_loc(j,i,kchem(1))=ges_sulf(j,i,k)
+              all_loc(j,i,kchem(2))=ges_bc1(j,i,k)
+              all_loc(j,i,kchem(3))=ges_bc2(j,i,k)
+              all_loc(j,i,kchem(4))=ges_oc1(j,i,k)
+              all_loc(j,i,kchem(5))=ges_oc2(j,i,k)
+              all_loc(j,i,kchem(6))=ges_dust1(j,i,k)
+              all_loc(j,i,kchem(7))=ges_dust2(j,i,k)
+              all_loc(j,i,kchem(8))=ges_dust3(j,i,k)
+              all_loc(j,i,kchem(9))=ges_dust4(j,i,k)
+              all_loc(j,i,kchem(10))=ges_dust5(j,i,k)
+              all_loc(j,i,kchem(11))=ges_seas1(j,i,k)
+              all_loc(j,i,kchem(12))=ges_seas2(j,i,k)
+              all_loc(j,i,kchem(13))=ges_seas3(j,i,k)
+              all_loc(j,i,kchem(14))=ges_seas4(j,i,k)
+              if ( n_gocart_var>=15 ) all_loc(j,i,kchem(15))=ges_p25(j,i,k)
+           endif
+
            q_integral(j,i)=q_integral(j,i)+deltasigma* &
-                ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
+                ges_q(j,i,k)/(one-ges_q(j,i,k))
         end do
      end do
   end do
   do i=1,lon2
      do j=1,lat2
-        psfc_this=r10*ges_ps(j,i,it)   ! convert from cb to mb
+        psfc_this=r10*ges_ps(j,i)   ! convert from cb to mb
         psfc_this_dry=pt_ll+(psfc_this-pt_ll)/q_integral(j,i)
         all_loc(j,i,i_psfc)=r100*psfc_this_dry
      end do
   end do
   
   if(mype == 0) then
-     read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0
-     write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0
+     read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0,nsoil
+     write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0,nsoil
      read(lendian_in) aeta10
      write(lendian_out) aeta10
      read(lendian_in) eta10
@@ -1755,7 +2014,7 @@ subroutine wrwrfmassa_netcdf(mype)
 
   allocate(tempa(itotsub),tempb(itotsub))
   if(mype == 0) read(lendian_in)temp1
-  call strip_single(all_loc(1,1,i_psfc),strp,1)
+  call strip(all_loc(:,:,i_psfc),strp)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
@@ -1778,7 +2037,7 @@ subroutine wrwrfmassa_netcdf(mype)
   do k=1,nsig
      kt=kt+1
      if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kt),strp,1)
+     call strip(all_loc(:,:,kt),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1796,7 +2055,7 @@ subroutine wrwrfmassa_netcdf(mype)
   do k=1,nsig
      kq=kq+1
      if(mype == 0) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kq),strp,1)
+     call strip(all_loc(:,:,kq),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1814,7 +2073,7 @@ subroutine wrwrfmassa_netcdf(mype)
   do k=1,nsig
      ku=ku+1
      if(mype == 0) read(lendian_in)temp1u
-     call strip_single(all_loc(1,1,ku),strp,1)
+     call strip(all_loc(:,:,ku),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1832,7 +2091,7 @@ subroutine wrwrfmassa_netcdf(mype)
   do k=1,nsig
      kv=kv+1
      if(mype == 0) read(lendian_in)temp1v
-     call strip_single(all_loc(1,1,kv),strp,1)
+     call strip(all_loc(:,:,kv),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1857,6 +2116,12 @@ subroutine wrwrfmassa_netcdf(mype)
 
 ! for soil nudging
   if(l_gsd_soilTQ_nudge) then
+     ier=0
+     call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'smoist',ges_smois_it,istatus)
+     ier=ier+istatus
+     call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'tslb' ,ges_tslb_it ,istatus)
+     ier=ier+istatus
+     if (ier/=0) call die(trim(myname),'cannot get pointers for tslb/smois, ier =',ier)
      ktslb=i_tslb-1
      ksmois=i_smois-1
      do k=1,nsig_soil
@@ -1864,26 +2129,44 @@ subroutine wrwrfmassa_netcdf(mype)
         ksmois=ksmois+1
         do i=1,lon2
            do j=1,lat2
-              all_loc(j,i,ktslb)=ges_tslb(j,i,k,it)
-              all_loc(j,i,ksmois)=ges_smois(j,i,k,it)
+              all_loc(j,i,ktslb)=ges_tslb_it(j,i,k)
+              all_loc(j,i,ksmois)=ges_smois_it(j,i,k)
            end do
         end do
      end do
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m',   ges_q2,  istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',  ges_th2, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil', ges_soilt1, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn' , ges_tsk , istatus );ier=ier+istatus
+     if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+         write(6,*)'wrwrfmassa_netcdf: getpointer failed, cannot retrieve soil stuff'
+         call stop2(999)
+     endif
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,i_skt)=ges_tsk(j,i,it)
-           all_loc(j,i,i_th2)=ges_th2(j,i,it)
-           all_loc(j,i,i_soilt1)=ges_soilt1(j,i,it)
+           all_loc(j,i,i_skt)=ges_tsk(j,i)
+           all_loc(j,i,i_th2)=ges_th2(j,i)
+           all_loc(j,i,i_soilt1)=ges_soilt1(j,i)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
+  if (i_use_2mq4b >0) then
+     do i=1,lon2
+        do j=1,lat2
+! Convert 2m specific humidity to mixing ratio
+           all_loc(j,i,i_q2)=ges_q2(j,i)/(one-ges_q2(j,i))
+        end do
+     end do
+  endif
 
   if(mype == 0) then
-! SM
+! SM   This is landmask
      read(lendian_in)temp1
+     landmask=temp1
      write(lendian_out)temp1
 ! SICE
      read(lendian_in)temp1
+     seaice=temp1
      write(lendian_out)temp1
   end if
 
@@ -1891,7 +2174,7 @@ subroutine wrwrfmassa_netcdf(mype)
   if(update_regsfc) then
      if(mype == 0) read(lendian_in)temp1
      if (mype==0)write(6,*)' at 9.1 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_sst),strp,1)
+     call strip(all_loc(:,:,i_sst),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1919,7 +2202,15 @@ subroutine wrwrfmassa_netcdf(mype)
 ! REST OF FIELDS
   if(l_gsd_soilTQ_nudge) then
      if (mype == 0) then
-        do k=4,9
+        do k=4,6
+           read(lendian_in)temp1
+           write(lendian_out)temp1
+        end do
+! SM   This is snow
+        read(lendian_in)temp1
+        write(lendian_out)temp1
+        snow=temp1
+        do k=8,9
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
@@ -1929,7 +2220,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig_soil
         ksmois=ksmois+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,ksmois),strp,1)
+        call strip(all_loc(:,:,ksmois),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -1937,7 +2228,9 @@ subroutine wrwrfmassa_netcdf(mype)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
-           call unfill_mass_grid2t(tempa,im,jm,temp1)
+           i_snowT_check=2
+           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask,&
+                                        snow,seaice,i_snowT_check)
            write(lendian_out)temp1
         end if
      end do
@@ -1946,7 +2239,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig_soil
         ktslb=ktslb+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,ktslb),strp,1)
+        call strip(all_loc(:,:,ktslb),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -1954,7 +2247,10 @@ subroutine wrwrfmassa_netcdf(mype)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
-           call unfill_mass_grid2t(tempa,im,jm,temp1)
+           i_snowT_check=0
+           if(k==1) i_snowT_check=1
+           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                        snow,seaice,i_snowT_check)
            write(lendian_out)temp1
         end if
      end do
@@ -1964,6 +2260,7 @@ subroutine wrwrfmassa_netcdf(mype)
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
+        snow=0
      end if
   endif !  l_gsd_soilTQ_nudge
   
@@ -1971,7 +2268,7 @@ subroutine wrwrfmassa_netcdf(mype)
   if(update_regsfc .or. l_gsd_soilTQ_nudge) then
      if(mype == 0) read(lendian_in)temp1
      if (mype==0)write(6,*)' at 10.0 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_skt),strp,1)
+     call strip(all_loc(:,:,i_skt),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1983,7 +2280,9 @@ subroutine wrwrfmassa_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        i_snowT_check=1
+        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                     snow,seaice,i_snowT_check)
         write(lendian_out)temp1
      end if
   else
@@ -1993,11 +2292,34 @@ subroutine wrwrfmassa_netcdf(mype)
      end if
   end if
 
+! Update Q2
+  if(mype == 0) read(lendian_in)temp1
+  if (mype==0)write(6,*)' at 10.11 in wrwrfmassa,max,min(temp1)=', &
+                                         maxval(temp1),minval(temp1)
+  call strip(all_loc(:,:,i_q2),strp)
+  tempa=zero_single
+  call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+  if(mype == 0) then
+     write(6,*)' at 10.12 in wrwrfmassa,max,min(tempa)=', &
+                          maxval(tempa),minval(tempa)
+     call fill_mass_grid2t(temp1,im,jm,tempb,2)
+     do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+     end do
+     write(6,*)' at 10.13 in wrwrfmassa,max,min(tempa)=', &
+                           maxval(tempa),minval(tempa)
+     call unfill_mass_grid2t(tempa,im,jm,temp1)
+     write(6,*)' at 10.14 in wrwrfmassa,max,min(temp1)=', &
+                           maxval(temp1),minval(temp1)
+     write(lendian_out)temp1
+  end if     !endif mype==0
+
   if(l_gsd_soilTQ_nudge) then
 ! update soilt1
      if(mype == 0) read(lendian_in)temp1
      if (mype==0)write(6,*)' at 10.1 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_soilt1),strp,1)
+     call strip(all_loc(:,:,i_soilt1),strp)
      tempa=zero_single
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
@@ -2008,14 +2330,16 @@ subroutine wrwrfmassa_netcdf(mype)
            tempa(i)=tempa(i)-tempb(i)
         end do
         write(6,*)' at 10.3 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        i_snowT_check=1
+        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                    snow,seaice,i_snowT_check)
         write(6,*)' at 10.4 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
 ! update TH2
      if(mype == 0) read(lendian_in)temp1
      if (mype==0)write(6,*)' at 10.5 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_th2),strp,1)
+     call strip(all_loc(:,:,i_th2),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -2036,13 +2360,13 @@ subroutine wrwrfmassa_netcdf(mype)
   endif  !  l_gsd_soilTQ_nudge
 !
 ! for saving cloud analysis results
-  if(l_cloud_analysis .or. nguess>0) then
+  if(l_cloud_analysis .or. n_actual_clouds>0) then
 ! Update qc
      kqc=i_qc-1
      do k=1,nsig
         kqc=kqc+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqc),strp,1)
+        call strip(all_loc(:,:,kqc),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2060,7 +2384,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig
         kqr=kqr+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqr),strp,1)
+        call strip(all_loc(:,:,kqr),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2078,7 +2402,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig
         kqs=kqs+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqs),strp,1)
+        call strip(all_loc(:,:,kqs),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2096,7 +2420,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig
         kqi=kqi+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqi),strp,1)
+        call strip(all_loc(:,:,kqi),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2114,7 +2438,25 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig
         kqg=kqg+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqg),strp,1)
+        call strip(all_loc(:,:,kqg),strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
+           do i=1,iglobal
+              tempa(i)=tempa(i)-tempb(i)
+           end do
+           call unfill_mass_grid2t(tempa,im,jm,temp1)
+           write(lendian_out)temp1
+        end if
+     end do
+
+! Update qnr     
+     kqnr=i_qnr-1
+     do k=1,nsig
+        kqnr=kqnr+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip(all_loc(:,:,kqnr),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2132,7 +2474,7 @@ subroutine wrwrfmassa_netcdf(mype)
      do k=1,nsig
         ktt=ktt+1
         if(mype == 0) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,ktt),strp,1)
+        call strip(all_loc(:,:,ktt),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2147,6 +2489,30 @@ subroutine wrwrfmassa_netcdf(mype)
 
   endif    ! l_cloud_analysis
 
+  if ( laeroana_gocart ) then
+     do iv = 1, n_gocart_var
+        kchem(iv)=i_chem(iv)-1
+        do k=1,nsig
+           tempa=0.0
+           kchem(iv)=kchem(iv)+1
+           if(mype == 0) read(lendian_in)temp1
+           call strip(all_loc(:,:,kchem(iv)),strp)
+           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+           if(mype == 0) then
+              call fill_mass_grid2t(temp1,im,jm,tempb,2)
+              do i=1,iglobal
+                 tempa(i)=tempa(i)-tempb(i)
+              end do
+              call unfill_mass_grid2t(tempa,im,jm,temp1)
+              write(lendian_out)temp1
+           end if
+        end do
+     end do
+     deallocate(i_chem)
+     deallocate(kchem)
+  endif
+
   if (mype==0) then
      close(lendian_in)
      close(lendian_out)
@@ -2159,6 +2525,9 @@ subroutine wrwrfmassa_netcdf(mype)
   deallocate(temp1v)
   deallocate(tempa)
   deallocate(tempb)
+  deallocate(landmask)
+  deallocate(snow)
+  deallocate(seaice)
   
 end subroutine wrwrfmassa_netcdf
 
@@ -2288,3 +2657,86 @@ subroutine update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
   write(6,*) 'UPDATE_START_DATE:  old second, new second =',d2,' , ',c2
 
 end subroutine update_start_date
+#else /* Start no WRF-library block */
+subroutine wrwrfmassa_binary(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    wrwrfmassa              write out wrf MASS restart file
+!   prgmmr: parrish          org: np22                date: 2004-06-23
+!
+! abstract:  dummy call to read wrf MASS guess restart interface file, 
+!            add analysis increment, and write out wrf MASS analysis 
+!            restart interface file.
+!
+! program history log
+!   2005-02-25 todling - add dummy subroutine to skip over wrf code
+!   2005-03-14 treadon - add write statement to note entry into dummy routine
+!   input argument list:
+!     mype     - pe number
+!
+!   output argument list:
+!     no output arguments
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: i_kind
+  implicit none
+
+  integer(i_kind),intent(in   ) :: mype
+
+  if (mype==0) write(6,*)'WRWRFMASSA_BINARY:  enter dummy call, do nothing'
+end subroutine wrwrfmassa_binary
+subroutine wrwrfmassa_netcdf(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    wrwrfmassa              write out wrf MASS restart file
+!   prgmmr: parrish          org: np22                date: 2004-06-23
+!
+! abstract:  dummy call to read wrf MASS guess restart interface file, add analysis
+!            increment, and write out wrf MASS analysis restart 
+!            interface file.
+!
+! program history log:
+!   2004-06-23  parrish, document
+!   2004-08-03  treadon - add only to module use, add intent in/out
+!   2006-02-15  treadon - convert specific humidity to moisture mixing ratio
+!   2006-03-07  treadon - convert virtual temperature to potential temperature
+!   2006-04-06  middlecoff - changed iog  from 11 to lendian_in
+!                            changed ioan from 51 to lendian_out
+!   2006-07-28  derber  - include sensible temperature
+!   2006-07-31  kleist - change to use ges_ps instead of lnps
+!   2008-03-27  safford - rm unused vars and uses
+!   2008-12-05  todling - adjustment for dsfct time dimension addition
+!   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
+!   2010-04-01  treadon - move strip_single to gridmod
+!   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
+!   2011-09-20  hclin   - added 15 wrfchem/gocart fields for aod
+!   2012-04-13  whitaker - don't call GSI_BundleGetPointer if n_actual_clouds = 0
+!   2013-10-19  todling - metguess now holds background !   2013-10-24  todling - general interface to strip !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
+!
+!   input argument list:
+!     mype     - pe number
+!
+!   output argument list:
+!     no output arguments
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,r_single,i_kind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in   ) :: mype
+
+  if (mype==0) write(6,*)'WRWRFMASSA_NETCDF:  enter dummy call, do nothing'
+  
+end subroutine wrwrfmassa_netcdf
+#endif /* End no WRF-library block */

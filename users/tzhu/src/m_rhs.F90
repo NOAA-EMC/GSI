@@ -1,10 +1,10 @@
 module m_rhs
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_rhs
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-22
+! subprogram:    module m_rhs
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-22
 !
 ! abstract: defines persistant workspace for multiple-pass setuprhsall()
 !
@@ -24,7 +24,6 @@ module m_rhs
 !$$$  end subprogram documentation block
 
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 ! module interface:
@@ -33,11 +32,11 @@ module m_rhs
   use mpeu_util, only: die,perr,tell
   implicit none
   private
-  public:: rhs_alloc		! interface for allocation
-  public:: rhs_dealloc		! interface for deallocation
-  public:: rhs_allocated	! state of all moduel variables
+  public:: rhs_alloc            ! interface for allocation
+  public:: rhs_dealloc          ! interface for deallocation
+  public:: rhs_allocated        ! state of all moduel variables
 
-  public:: rhs_awork		! variables ...
+  public:: rhs_awork            ! variables ...
   public:: rhs_bwork
   public:: rhs_aivals
   public:: rhs_stats
@@ -47,20 +46,20 @@ module m_rhs
 
 ! Revision history:
 !   2009-08-19  guo     - created to support multi-pass setuprhsall().
-!			  This module contains all statistics variables
-!			  defined for any single pass but all passes.
+!                         This module contains all statistics variables
+!                         defined for any single pass but all passes.
 
   !! usage:
-  !!	use xyz_mod, only: npres_print,nconvtype,nsig
-  !!	use m_rhs, only: rhs_alloc
-  !!	use m_rhs, only: rhs_dealloc
-  !!	use m_rhs, only: rhs_allocated
-  !!	use m_rhs, only: awork => rhs_awork
-  !!	use m_rhs, only: bwork => rhs_bwork
+  !!    use xyz_mod, only: npres_print,nconvtype,nsig
+  !!    use m_rhs, only: rhs_alloc
+  !!    use m_rhs, only: rhs_dealloc
+  !!    use m_rhs, only: rhs_allocated
+  !!    use m_rhs, only: awork => rhs_awork
+  !!    use m_rhs, only: bwork => rhs_bwork
   !!
-  !!	if(.not.rhs_allocated) &
-  !!		call rhs_alloc()
-  !!	call xxxx(awork,bwork,...)
+  !!    if(.not.rhs_allocated) &
+  !!    call rhs_alloc()
+  !!    call xxxx(awork,bwork,...)
   !!    call rhs_dealloc()
 
   logical,save:: rhs_allocated=.false.
@@ -76,11 +75,11 @@ module m_rhs
 
 contains
 subroutine rhs_alloc(aworkdim2)
-  	! supporting information
+  ! supporting information
   use kinds, only: i_kind
   use constants, only: zero
 
-  	! run-time dimensional information
+  ! run-time dimensional information
   use obsmod  , only: ndat
   use obsmod  , only: nprof_gps
   use radinfo , only: jpch_rad
@@ -90,12 +89,12 @@ subroutine rhs_alloc(aworkdim2)
   use gridmod , only: nsig
   use convinfo, only: nconvtype
 
-  	! indirectly used counter
+  ! indirectly used counter
   use obsmod  , only: nchan_total
   implicit none
   integer(i_kind),optional,intent(in):: aworkdim2
   character(len=*),parameter:: myname_=myname//'.alloc'
-  integer:: aworkdim2_
+  integer(i_kind):: aworkdim2_
 _ENTRY_(myname_)
   if(rhs_allocated) call die(myname_,'already allocated')
   aworkdim2_=13
@@ -139,7 +138,6 @@ subroutine rhs_dealloc()
   use kinds, only: i_kind
   implicit none
   character(len=*),parameter:: myname_=myname//'.dealloc'
-  integer(i_kind):: is
 _ENTRY_(myname_)
   if(.not.rhs_allocated) call die(myname_,'can not be deallocted')
 

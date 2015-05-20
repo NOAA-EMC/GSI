@@ -60,6 +60,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !                         (isfcalc=1)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  eliu    - bug fix for solar zenith calculation 
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -93,13 +95,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
@@ -113,7 +116,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     ,intent(inout) :: val_amsre
   real(r_kind)     ,intent(in   ) :: gstime,twind
   real(r_kind)     ,intent(in   ) :: rmesh
-  character(len=*) ,intent(in   ) :: sis
+  character(len=20),intent(in   ) :: sis
   integer(i_kind)  ,intent(in   ) :: mype_root
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
@@ -156,7 +159,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind):: irec,isub,next
+  integer(i_kind):: irec,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -227,7 +230,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   ilat = 4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   m = 0
@@ -369,14 +372,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         endif
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + amsrspot_d(7)*r60inv)*r60inv ! add in seconds
-        if (l4dvar) then
+        sstime = real(nmind,r_kind) + amsrspot_d(7)*r60inv ! add in seconds
+        tdiff  = (sstime - gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime = real(nmind,r_kind) + amsrspot_d(7)*r60inv ! add in seconds
-           tdiff  = (sstime - gstime)*r60inv
            if (abs(tdiff)>twind) cycle read_loop
         endif
-        if (l4dvar) then
+        if (thin4d) then
            timedif = zero
         else
            timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
@@ -566,7 +569,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 

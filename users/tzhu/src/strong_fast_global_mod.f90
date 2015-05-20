@@ -164,6 +164,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2013-10-26  todling - prevent division by zero when rms's are zero
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -193,7 +194,8 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !
 !$$$
 
-  use mod_strong, only: dinmi,gproj
+  use mod_strong, only: dinmi,gproj,gproj_diag,gproj_diag_update
+  use constants, only: tiny_r_kind
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -208,7 +210,6 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
-  real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),dimension(2,0:sp_a%jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_uf,rmstend_g_loc_uf
   real(r_kind),allocatable,dimension(:,:)::rmstend_loc_f,rmstend_g_loc_f
@@ -216,11 +217,11 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
   real(r_kind) del2inv,rn,gspeed
+  real(r_kind) diff1,diffi
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,mmax,m
-  logical filtered
+  integer(i_kind) i,ipair,kk,mode,n,mmax,m
 
-  filtered=.true.
+  if(.not. (update .or. bal_diagnostic))return
 
   mmax=sp_a%jcap
 
@@ -236,91 +237,127 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   call inmi_ew_trans(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
   call inmi_nsuvm2zdm(uvm_ns,zdm_hat)
-  allocate(rmstend_loc_f(2,m_0:m_1))
-  allocate(rmstend_g_loc_f(2,m_0:m_1))
-  rmstend_loc_f=zero
-  rmstend_g_loc_f=zero
   if(bal_diagnostic)then
+    allocate(rmstend_loc_f(2,m_0:m_1))
+    allocate(rmstend_g_loc_f(2,m_0:m_1))
+    rmstend_loc_f=zero
+    rmstend_g_loc_f=zero
     allocate(rmstend_loc_uf(2,m_0:m_1))
     allocate(rmstend_g_loc_uf(2,m_0:m_1))
     rmstend_g_loc_uf=zero
     rmstend_loc_uf=zero
   end if
+  if(update)then
 !$omp parallel do  schedule(dynamic,1) private(kk,ipair,m,mode,gspeed,i,n) &
 !$omp private(vorthat,divhat,delvorthat,deldivhat,delmhat,mhat,rn,del2inv)
-  do kk=m_0,m_1
-     do ipair=1,2
-        m=mmode_list(ipair,kk)
-        mode=mmode_list(ipair+2,kk)
-        gspeed=speeds(abs(mode))
-        i=0
-        do n=m,sp_a%jcap
-           i=i+1
-           vorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
-           vorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
-           divhat( 1,n)=zdm_hat(2,1,i,ipair,kk)
-           divhat( 2,n)=zdm_hat(2,2,i,ipair,kk)
-           mhat(   1,n)=zdm_hat(3,1,i,ipair,kk)
-           mhat(   2,n)=zdm_hat(3,2,i,ipair,kk)
-        end do
+    do kk=m_0,m_1
+       do ipair=1,2
+          m=mmode_list(ipair,kk)
+          mode=mmode_list(ipair+2,kk)
+          gspeed=speeds(abs(mode))
+          i=0
+          do n=m,sp_a%jcap
+             i=i+1
+             vorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
+             vorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
+             divhat( 1,n)=zdm_hat(2,1,i,ipair,kk)
+             divhat( 2,n)=zdm_hat(2,2,i,ipair,kk)
+             mhat(   1,n)=zdm_hat(3,1,i,ipair,kk)
+             mhat(   2,n)=zdm_hat(3,2,i,ipair,kk)
+          end do
 
 !   4.  divhat,vorthat,mhat --> deldivhat,delvorthat,delmhat   (inmi correction)
 !          (slabs)                        (slabs)
 
-        if(mode >  0) then
+          if(mode >  0) then
 !               here, delvorthat, etc contain field corrections necessary to zero out gravity component
 !                                         of tendencies
-           call dinmi(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m),&
+             call dinmi(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m),&
                       m,mmax,gspeed)
-        else
+          else
 !               here, delvorthat, etc contain gravity component of tendencies
-           if(bal_diagnostic) &
-              call gproj(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m), &
-                        rmstend_loc_uf(ipair,kk),rmstend_g_loc_uf(ipair,kk),.not.filtered,bal_diagnostic, &
-                        m,mmax,gspeed)
-              call gproj(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m), &
-                        rmstend_loc_f(ipair,kk),rmstend_g_loc_f(ipair,kk),filtered,bal_diagnostic, &
-                        m,mmax,gspeed)
-        end if
+             if(bal_diagnostic) then   ! bal_diagnostic and update
+                call gproj_diag_update(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m), &
+                          rmstend_loc_uf(ipair,kk),rmstend_g_loc_uf(ipair,kk),rmstend_loc_f(ipair,kk), &
+                          rmstend_g_loc_f(ipair,kk),m,mmax,gspeed)
+             else              !  update only
+                call gproj(vorthat(1,m),divhat(1,m),mhat(1,m),delvorthat(1,m),deldivhat(1,m),delmhat(1,m), &
+                          m,mmax,gspeed)
+             end if
+          end if
 
-        if(.not. uvflag)then
-           do n=m,sp_a%jcap
-              if(n >  0) then
-                 rn=real(n,r_kind)
-                 del2inv=-rearth**2/(rn*(rn+one))
-              else
-                 del2inv=zero
-              end if
-              delvorthat(1,n)=delvorthat(1,n)*del2inv
-              delvorthat(2,n)=delvorthat(2,n)*del2inv
-              deldivhat(1,n)=deldivhat(1,n)*del2inv
-              deldivhat(2,n)=deldivhat(2,n)*del2inv
-           end do
-        end if
-          
-        i=0
-        do n=m,sp_a%jcap
-           i=i+1
-           zdm_hat(1,1,i,ipair,kk)=delvorthat(1,n)
-           zdm_hat(1,2,i,ipair,kk)=delvorthat(2,n)
-           zdm_hat(2,1,i,ipair,kk)=deldivhat(1,n)
-           zdm_hat(2,2,i,ipair,kk)=deldivhat(2,n)
-           zdm_hat(3,1,i,ipair,kk)=delmhat(1,n)
-           zdm_hat(3,2,i,ipair,kk)=delmhat(2,n)
+          if(.not. uvflag)then
+             do n=m,sp_a%jcap
+                if(n >  0) then
+                   rn=real(n,r_kind)
+                   del2inv=-rearth**2/(rn*(rn+one))
+                else
+                   del2inv=zero
+                end if
+                delvorthat(1,n)=delvorthat(1,n)*del2inv
+                delvorthat(2,n)=delvorthat(2,n)*del2inv
+                deldivhat(1,n)=deldivhat(1,n)*del2inv
+                deldivhat(2,n)=deldivhat(2,n)*del2inv
+             end do
+          end if
+             
+          i=0
+          do n=m,sp_a%jcap
+             i=i+1
+             zdm_hat(1,1,i,ipair,kk)=delvorthat(1,n)
+             zdm_hat(1,2,i,ipair,kk)=delvorthat(2,n)
+             zdm_hat(2,1,i,ipair,kk)=deldivhat(1,n)
+             zdm_hat(2,2,i,ipair,kk)=deldivhat(2,n)
+             zdm_hat(3,1,i,ipair,kk)=delmhat(1,n)
+             zdm_hat(3,2,i,ipair,kk)=delmhat(2,n)
+          end do
         end do
-
      end do
-  end do
+!   7.  delutilde,delvtilde,delmtilde  -->  psi,chi,t,ps   (vertical mode inverse transform)
+!       (subdomains)                      (subdomains)
 
-  if(uvflag) then
-     call inmi_nszdm2uvm(uvm_ns,zdm_hat)
-  else
-     call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
+!  update u,v,t,ps
+
+     if(uvflag) then
+        call inmi_nszdm2uvm(uvm_ns,zdm_hat)
+     else
+        call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
+     end if
+     call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
+     call inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
+     call inmi_coupler_ew2sd(delutilde,delvtilde,delmtilde,utilde_t,vtilde_t,mtilde_t,uvm_ew,mype)
+     call vtrans_inv(delutilde,delvtilde,delmtilde,psi,chi,t,ps)
+!    u_t_g=zero;v_t_g=zero;t_t_g=zero;ps_t_g=zero
+!    call vtrans_inv(utilde_t,vtilde_t,mtilde_t,u_t_g,v_t_g,t_t_g,ps_t_g)
+  else            ! bal_diagnostic only no update
+!$omp parallel do  schedule(dynamic,1) private(kk,ipair,m,mode,gspeed,i,n) &
+!$omp private(vorthat,divhat,mhat)
+     do kk=m_0,m_1
+        do ipair=1,2
+           mode=mmode_list(ipair+2,kk)
+           if(mode > 0)cycle
+           m=mmode_list(ipair,kk)
+           gspeed=speeds(abs(mode))
+           i=0
+           do n=m,sp_a%jcap
+              i=i+1
+              vorthat(1,n)=zdm_hat(1,1,i,ipair,kk)
+              vorthat(2,n)=zdm_hat(1,2,i,ipair,kk)
+              divhat( 1,n)=zdm_hat(2,1,i,ipair,kk)
+              divhat( 2,n)=zdm_hat(2,2,i,ipair,kk)
+              mhat(   1,n)=zdm_hat(3,1,i,ipair,kk)
+              mhat(   2,n)=zdm_hat(3,2,i,ipair,kk)
+           end do
+
+           call gproj_diag(vorthat(1,m),divhat(1,m),mhat(1,m), &
+                     rmstend_loc_uf(ipair,kk),rmstend_g_loc_uf(ipair,kk),rmstend_loc_f(ipair,kk), &
+                     rmstend_g_loc_f(ipair,kk),m,mmax,gspeed)
+        end do
+     end do
   end if
-  call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
-  call inmi_ew_invtrans(uvm_ew,uvm_ewtrans)
-  call inmi_coupler_ew2sd(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
+
   deallocate(uvm_ew,uvm_ewtrans,uvm_ns,zdm_hat)
+
 
   if(bal_diagnostic) then
      call gather_rmstends(rmstend_loc_uf,  rmstend_uf)
@@ -340,40 +377,51 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_uf=rmstend_all_uf+rmstend_uf(i)
            rmstend_all_g_uf=rmstend_all_g_uf+rmstend_g_uf(i)
-           write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18,2f24.18)') &
+           diffi = rmstend_uf(i)-rmstend_g_uf(i) 
+           diff1 = rmstend_uf(1)-rmstend_g_uf(1)
+           if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+             write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18)') &
+                              i,rmstend_uf(i),rmstend_g_uf(i)
+           else
+             write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_uf(i),rmstend_g_uf(i),&
-                              rmstend_g_uf(i)/(rmstend_uf(i)-rmstend_g_uf(i)), &
-                              rmstend_g_uf(i)/(rmstend_uf(1)-rmstend_g_uf(1))
+                              rmstend_g_uf(i)/diffi, &
+                              rmstend_g_uf(i)/diff1
+           endif
         end do
         rmstend_all_f=zero
         rmstend_all_g_f=zero
         do i=1,nvmodes_keep
            rmstend_all_f=rmstend_all_f+rmstend_f(i)
            rmstend_all_g_f=rmstend_all_g_f+rmstend_g_f(i)
-           write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e28.18,2f24.18)') &
+           diffi = rmstend_f(i)-rmstend_g_f(i)
+           diff1 = rmstend_f(1)-rmstend_g_f(1)
+           if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+             write(6,'(" mode,rmstend_f,rmstend_g_f = ",i5,2e28.18)') &
+                              i,rmstend_f(i),rmstend_g_f(i)
+           else
+             write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_f(i),rmstend_g_f(i),&
-                              rmstend_g_f(i)/(rmstend_f(i)-rmstend_g_f(i)), &
-                              rmstend_g_f(i)/(rmstend_f(1)-rmstend_g_f(1))
+                              rmstend_g_f(i)/diffi, &
+                              rmstend_g_f(i)/diff1
+           endif
         end do
-        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18,f24.18)') rmstend_all_uf,rmstend_all_g_uf, &
-                                                 rmstend_all_g_uf/(rmstend_all_uf-rmstend_all_g_uf) 
-        write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18,f24.18)') rmstend_all_f,rmstend_all_g_f, &
-                                                 rmstend_all_g_f/(rmstend_all_f-rmstend_all_g_f) 
+        diffi = rmstend_all_uf-rmstend_all_g_uf
+        diff1 = rmstend_all_f-rmstend_all_g_f
+        if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+          write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18)') rmstend_all_uf,rmstend_all_g_uf
+          write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18)') rmstend_all_f,rmstend_all_g_f
+        else
+          write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18,f24.18)') rmstend_all_uf,rmstend_all_g_uf, &
+                                                   diffi
+          write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18,f24.18)') rmstend_all_f,rmstend_all_g_f, &
+                                                   diff1
+        endif
      end if
      deallocate(rmstend_loc_uf,rmstend_g_loc_uf)
+     deallocate(rmstend_loc_f,rmstend_g_loc_f)
   end if
-  deallocate(rmstend_loc_f,rmstend_g_loc_f)
-
-!   7.  delutilde,delvtilde,delmtilde  -->  psi,chi,t,ps   (vertical mode inverse transform)
-!       (subdomains)                      (subdomains)
-
-!  update u,v,t,ps
-
-  if(update) then
-     call vtrans_inv(delutilde,delvtilde,delmtilde,psi,chi,t,ps)
-!    u_t_g=zero;v_t_g=zero;t_t_g=zero;ps_t_g=zero
-!    call vtrans_inv(utilde_t_g,vtilde_t_g,mtilde_t_g,u_t_g,v_t_g,t_t_g,ps_t_g)
-  end if
+  return
 
 end subroutine strong_bal_correction_fast_global
 
@@ -428,15 +476,13 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   logical, intent(in)                                  :: uvflag
 
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
-  real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t2,vtilde_t2,mtilde_t2
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
-  real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
   real(r_kind),dimension(2,0:sp_a%jcap)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind),allocatable,dimension(:,:,:,:)::uvm_ew
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) del2inv,rn,gspeed
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,m,mmax
+  integer(i_kind) i,ipair,kk,mode,n,m,mmax
 
   mmax=sp_a%jcap
 
@@ -450,8 +496,8 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 
   allocate(uvm_ew(nlon,2,3,nlatm_0:nlatm_1),uvm_ewtrans(2,0:sp_a%jcap,2,3,nlatm_0:nlatm_1))
   allocate(uvm_ns(3,2,nlat,2,m_0:m_1),zdm_hat(3,2,nlat,2,m_0:m_1))
-  utilde_t_g=zero ; vtilde_t_g=zero ; mtilde_t_g=zero
-  call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
+  utilde_t=zero ; vtilde_t=zero ; mtilde_t=zero
+  call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t,vtilde_t,mtilde_t,uvm_ew,mype)
   call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
   if(uvflag) then
@@ -523,11 +569,11 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   call inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
   call inmi_coupler_ns2ew(uvm_ewtrans,uvm_ns)
   call inmi_ew_trans_ad(uvm_ew,uvm_ewtrans)
-  call inmi_coupler_ew2sd(utilde_t,vtilde_t,mtilde_t,utilde_t2,vtilde_t2,mtilde_t2,uvm_ew,mype)
+  call inmi_coupler_ew2sd(utilde_t,vtilde_t,mtilde_t,delutilde,delvtilde,delmtilde,uvm_ew,mype)
 
-  utilde_t=utilde_t+utilde_t2
-  vtilde_t=vtilde_t+vtilde_t2
-  mtilde_t=mtilde_t+mtilde_t2
+  utilde_t=utilde_t+delutilde
+  vtilde_t=vtilde_t+delvtilde
+  mtilde_t=mtilde_t+delmtilde
 !
 !    1.  adjoint of u,v,t,ps   -->    utilde,vtilde,mtilde  (vertical mode transform)
 !                      (subdomains)         (subdomains)
@@ -1320,7 +1366,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
   integer(i_kind),intent(in   ) :: mype
 
-  integer(i_kind) i,j,k,kk,m,n,num_per_pe,total_groups,nn,kchk
+  integer(i_kind) k,kk,m,n,num_per_pe,total_groups,nn,kchk
 
 !   in laying out by zonal wave number/vertical mode, have two types of groupings:
 
@@ -1811,6 +1857,7 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
            fp(2,2)=uvm_ns(3,2,jsouth,ipair,mm)*c1
 !           create plnloc
 
+   
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
@@ -1970,6 +2017,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 
 !           create plnloc
 
+   
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do

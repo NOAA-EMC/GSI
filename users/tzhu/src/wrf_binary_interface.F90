@@ -1,3 +1,4 @@
+#ifdef WRF
 subroutine convert_binary_mass
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -124,7 +125,7 @@ subroutine convert_binary_mass
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional
   integer(i_kind) k,n
-  integer(i_kind) nguess,istatus
+  integer(i_kind) n_actual_clouds,istatus
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
   real(r_single) rad2deg_single
   real(r_single)rdx,rdy
@@ -132,7 +133,7 @@ subroutine convert_binary_mass
   integer(i_kind) index
 
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
   n_loop: do n=1,9  ! loop over forecast hours in assim interval
 
@@ -172,9 +173,7 @@ subroutine convert_binary_mass
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
                     write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
    
@@ -379,7 +378,7 @@ subroutine convert_binary_mass
      call retrieve_index(index,'PHB',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
+     write(6,*)'  byte offset, memoryorder for PHB(',k+1,') = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
                                                          !     (zsfc*g is 1st level of this 3d field)
                                !  but more efficient to read in whole 3-d field because of ikj order
@@ -531,6 +530,14 @@ subroutine convert_binary_mass
 
      write(lendian_out)n_position     !  TSK
 
+!                   Q2                
+     call retrieve_index(index,'Q2',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset for Q2 = ',n_position
+     write(lendian_out)n_position     !  Q2
+
+
      if(l_gsd_soilTQ_nudge) then
 !                      SOIL1              
         call retrieve_index(index,'SOILT1',varname_all,nrecs)
@@ -546,7 +553,7 @@ subroutine convert_binary_mass
         write(lendian_out)n_position     !  TH2
      endif
 
-     if(l_cloud_analysis .or. nguess>0) then
+     if(l_cloud_analysis .or. n_actual_clouds>0) then
 !      QCLOUD
         call retrieve_index(index,'QCLOUD',varname_all,nrecs)
         if(index<0) stop
@@ -581,6 +588,13 @@ subroutine convert_binary_mass
         n_position=file_offset(index+1)
         write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
         write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
+
+!      QNRAIN
+        call retrieve_index(index,'QNRAIN',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)
 
 !      RAD_TTEN_DFI
         call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
@@ -645,7 +659,6 @@ subroutine convert_binary_mass
   enddo n_loop
   
 end subroutine convert_binary_mass
-
 subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -728,7 +741,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   integer(i_kind) nsig_regional_new,nsig_read               
-  integer(i_kind) nguess,istatus
+  integer(i_kind) n_actual_clouds,istatus
   integer(i_kind) nstart_hour
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
@@ -742,7 +755,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) index
   
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
   n_loop: do n=1,9
 
@@ -782,9 +795,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
 
@@ -1235,7 +1246,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)'  byte offset for TSK = ',n_position
      write(lendian_out)n_position    ! offset for TSK   !
 
-     if (nguess>0) then
+     if (n_actual_clouds>0) then
 !                   CWM
         call retrieve_index(index,'CWM',varname_all,nrecs)
         if(index<0) stop
@@ -1263,7 +1274,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
         n_position=file_offset(index+1)
         write(6,*)'  byte offset, memoryorder for F_RIMEF = ',n_position,memoryorder_all(index)
         write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RIMEF    !
-     end if  ! end of nguess>0
+     end if  ! end of n_actual_clouds>0
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
      call retrieve_index(index,'Z0',varname_all,nrecs)
@@ -1318,7 +1329,6 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   enddo n_loop
 
 end subroutine convert_binary_nmm
-
 subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1389,9 +1399,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_regional_new
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  real(r_single) dy_nmm
   integer(i_kind) i,j,ii,k,n
-  real(r_single),allocatable::field1(:),field1p(:),field2(:),field2b(:),field2c(:)
+  real(r_single),allocatable::field2(:),field2b(:),field2c(:)
   real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)
   real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)
   real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:)
@@ -1785,7 +1794,6 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   enddo n_loop
 
 end subroutine convert_nems_nmmb
-
 subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1862,8 +1870,6 @@ subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
   end if
 
 end subroutine latlon2radians
-
-#ifdef WRF
 subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1930,7 +1936,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_kind) ierr
 
@@ -2081,7 +2087,7 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
   integer(i_byte) lenrec4_swap(4)
-  integer(i_long) lenrec(1),lensave
+  integer(i_long) lenrec(1)
   integer(i_long) lenrec_swap
   equivalence (lenrec4(1),lenrec(1))
   equivalence (lenrec4_swap(1),lenrec_swap)
@@ -2199,7 +2205,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_byte) hdrbuf4(2048)
   integer(i_long) hdrbuf(512)
@@ -2400,52 +2406,6 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   call closefile(in_unit,ierr)
 
 end subroutine inventory_wrf_binary_file
-#else /* Start no WRF-library block */
-subroutine count_recs_wrf_binary_file()
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    count_recs_binary_file  count # recs on wrf binary file
-!   prgmmr: parrish          org: np22                date: 2004-11-29
-!
-! absract:  dummy call, does nothing
-!
-! program history log:
-!   2005-02-17  todling, ifdef'ed wrf code out
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    implicit none
-
-    write(6,*)'COUNT_RECS_WRF_BINARY_FILE:  dummy routine, does nothing'
-    return
-end subroutine count_recs_wrf_binary_file
-
-subroutine inventory_wrf_binary_file()
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    inventory_wrf_binary_file  get contents of wrf binary file
-!   prgmmr: parrish          org: np22                date: 2004-11-29
-!
-! abstract: dummy routine, does nonthing
-!
-! program history log:
-!   2005-02-17  todling, ifdef'ed wrf code out
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    implicit none
-
-    write(6,*)'INVENTORY_WRF_BINARY_FILE:  dummy routine, does nothing'
-    return
-end subroutine inventory_wrf_binary_file
-#endif /* End no WRF-library block */
-
 subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2519,15 +2479,10 @@ subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
 ! read(in_unit,rec=thisblock,iostat=ierr)buf
 ! lastbuf = ierr /= 0
 
-#ifdef WRF
   call getbytes(in_unit, buf, thisblock, lrecl, ierr)
-#else
-  buf(:)=-1
-#endif /* WRF */
   lastbuf = ierr == 1
 
 end subroutine next_buf
-
 subroutine retrieve_index(index,string,varname_all,nrecs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2629,7 +2584,7 @@ subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2711,7 +2666,7 @@ subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2795,7 +2750,7 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4*n1)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
+  integer(i_kind) i,ii,k,ibegin,iend,ierr,nretrieved
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2976,13 +2931,8 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
   CHARACTER * 132  dummyData
 !  logical, external :: debug_foo
 !
-#ifdef WRF
   CALL int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
                            DataHandle, dummyData, DummyCount, code )
-#else
-  DataHandle=-1
-  code=-1
-#endif /* WRF */
   i = n/itypesize+1 ;
   CALL int_unpack_string ( Element, hdrbuf( i ), n ) ; i = i + n
   CALL int_unpack_string ( Data   , hdrbuf( i ), n ) ; i = i + n
@@ -3514,3 +3464,235 @@ SUBROUTINE wrf_check_error( expected, actual, str, file_str, line )
      CALL wrf_error_fatal3 ( file_str, line, str_with_rc )
   ENDIF
 END SUBROUTINE wrf_check_error
+
+#else /* Start no WRF-library block */
+subroutine convert_binary_mass
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_binary_mass   read wrf mass binary restart 
+!   prgmmr: parrish          org: np22                date: 2003-09-05
+!
+! abstract: dummy routine for using wrf library routines, read a wrf mass core binary
+!             format restart file.  write the result to temporary binary
+!             file expected by read_wrf_mass_guess.
+!
+! program history log:
+!   2004-09-10  parrish
+!   2004-10-26  wu - date info from the field (T) instead of START_DATE, 
+!                    current time is necessary for cycling.
+!   2004-11-05  wu - add check on input wrf guess file, stop code if problem
+!   2004-11-07  parrish - change so byte offset information is written, instead 
+!                            of a whole new binary file--this done so mpi-io
+!                            can be used later to read/write directly from
+!                            the wrf mass core binary file.  also, do inventory
+!                            of whole file, so offsets are general--not dependent
+!                            on type of file.
+!   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
+!   2005-07-06  parrish - add read of pint byte address
+!   2005-11-29  parrish - add changes to allow earlier reading of surface fields needed
+!                         for intelligent thinning of satellite data.
+!   2006-04-06  middlecoff - changed out_unit from 55 to lendian_out
+!   2006-09-15  treadon - use nhr_assimilation to build local guess filename
+!   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
+!                          grid ordering for input 3D fields
+!   2010-06-24  Hu  - bug fix: replace XICE with SEAICE
+!   2010-06-24  Hu  - add code to read 5 cloud/hydrometeor variables for cloud analysis
+!   2010-11-16  tong - - add loop to read upto 7 wrf mass binary restart file and
+!                        write to temporary binary files (extend FGAT capability for
+!                        wrf mass binary format)
+!   2012-10-11  parrish - move line "write(filename,'("sigf",i2.2)')n+nhr_assimilation-1" so input names
+!                           sigfxx are properly defined for all values of n, not just n=1.
+!   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
+!                           subroutine to this file.
+!   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-04-23  parrish - add internal check for types of GLAT/GLON
+!   2013-05-14  guo     - added #ifdef WRF arround "call initialize_byte_swap_wrf_binary_file()".
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  implicit none
+
+    write(6,*)'CONVERT_BINARY_MASS:  dummy routine, does nothing'
+  return
+  
+end subroutine convert_binary_mass
+subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_binary_nmm    read wrf nmm binary restart 
+!   prgmmr: parrish          org: np22                date: 2003-09-05
+!
+! abstract: dummy routine for using wrf library routines, read a wrf nmm binary
+!             format restart file.  write the result to temporary binary
+!             file expected by read_wrf_nmm_guess.
+!
+! program history log:
+!   2004-09-10  parrish
+!   2004-11-05  wu - add check on input wrf guess file, stop code if problem
+!   2004-11-11  parrish - change so byte offset information is written, instead
+!                            of a whole new binary file--this done so mpi-io
+!                            can be used later to read/write directly from
+!                            the wrf mass core binary file.  also, do inventory
+!                            of whole file, so offsets are general--not dependent
+!                            on type of file.
+!   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
+!   2005-07-06  parrish - add read of pint byte address
+!   2005-10-17  parrish - add ctph0,stph0,tlm0
+!   2006-04-06  middlecoff - changed out_unit from 55 to lendian_out
+!   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
+!   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
+!                          grid ordering for input 3D fields
+!   2011-11-16  tong - increase number of multiple first guess upto 7
+!   2012-01-12  zhu     - add cloud hydrometoers
+!   2012-10-11  parrish - move line "write(filename,'("sigf",i2.2)')n+nhr_assimilation-1" so input names
+!                           sigfxx are properly defined for all values of n, not just n=1.
+!   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
+!                           subroutine to this file.
+!   2012-12-10  eliu    - modify to add the use of use_gfs_stratosphere
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
+!
+!   input argument list:
+!     update_pint:   false on input
+!
+!   output argument list:
+!     update_pint:   true on output if field pint (non-hydrostatic pressure in nmm model)
+!                     is available, in which case pint gets updated by analysis increment of pd,
+!                      the nmm hydrostatic pressure thickness variable.
+!     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid 
+!                    (0 deg lat in rotated nmm coordinate)
+!                      (used by calctends routines)
+!     tlm0
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,i_llong,r_kind,i_kind
+  implicit none
+
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
+
+    write(6,*)'CONVERT_BINARY_NMM:  dummy routine, does nothing'
+  return
+
+end subroutine convert_binary_nmm
+subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_nems_nmmb     read nems nmmb restart 
+!   prgmmr: parrish          org: np22                date: 2009-03-17
+!
+! abstract: dummy routine for using nemsio library routines, read nems nmmb restart file
+!             write the result to temporary binary
+!             file expected by read_wrf_nmm_guess.
+!
+! program history log:
+!   2004-09-10  parrish
+!   2004-11-05  wu - add check on input wrf guess file, stop code if problem
+!   2004-11-11  parrish - change so byte offset information is written, instead
+!                            of a whole new binary file--this done so mpi-io
+!                            can be used later to read/write directly from
+!                            the wrf mass core binary file.  also, do inventory
+!                            of whole file, so offsets are general--not dependent
+!                            on type of file.
+!   2004-12-15  treadon - remove get_lun, read guess from file "wrf_inout"
+!   2005-07-06  parrish - add read of pint byte address
+!   2005-10-17  parrish - add ctph0,stph0,tlm0
+!   2006-04-06  middlecoff - changed out_unit from 55 to lendian_out
+!   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
+!   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
+!                          grid ordering for input 3D fields
+!   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
+!                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
+!   2013-04-17  parrish - option to accept input lat/lon in both degrees and radians
+!
+!   input argument list:
+!     update_pint:   false on input
+!
+!   output argument list:
+!     update_pint:   true on output if field pint (non-hydrostatic pressure in nmm model)
+!                     is available, in which case pint gets updated by analysis increment of pd,
+!                      the nmm hydrostatic pressure thickness variable.
+!     ctph0,stph0:   cos and sin thp0, earth lat of center of nmm grid 
+!                    (0 deg lat in rotated nmm coordinate)
+!                      (used by calctends routines)
+!     tlm0
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,r_kind,i_kind
+  implicit none
+
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
+
+    write(6,*)'CONVERT_NEMS_NMMB:  dummy routine, does nothing'
+
+  return
+
+end subroutine convert_nems_nmmb
+subroutine count_recs_wrf_binary_file()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    count_recs_binary_file  count # recs on wrf binary file
+!   prgmmr: parrish          org: np22                date: 2004-11-29
+!
+! absract:  dummy call, does nothing
+!
+! program history log:
+!   2005-02-17  todling, ifdef'ed wrf code out
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    implicit none
+
+    write(6,*)'COUNT_RECS_WRF_BINARY_FILE:  dummy routine, does nothing'
+    return
+end subroutine count_recs_wrf_binary_file
+
+subroutine inventory_wrf_binary_file()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inventory_wrf_binary_file  get contents of wrf binary file
+!   prgmmr: parrish          org: np22                date: 2004-11-29
+!
+! abstract: dummy routine, does nonthing
+!
+! program history log:
+!   2005-02-17  todling, ifdef'ed wrf code out
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    implicit none
+
+    write(6,*)'INVENTORY_WRF_BINARY_FILE:  dummy routine, does nothing'
+    return
+end subroutine inventory_wrf_binary_file
+#endif /* End no WRF-library block */
+
