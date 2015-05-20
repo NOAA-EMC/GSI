@@ -5,7 +5,7 @@
 *    field  = field to plot  (valid strings are:  count total fixang lapse lapse2 const scangl clw
 
 
-function plottime (args)
+function plotangle (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
@@ -18,7 +18,7 @@ platform=plotfile
 say 'plot_all_Regions = 'plot_all_regions
 
 say 'process 'field' from 'plotfile
-*'open amsua.016.ctl'
+*say 'using fixed1'
 
 debug=0
 
@@ -55,6 +55,27 @@ endif
 if (field = clw)
  type="cloud liquid water correction (K)"
 endif
+if (field = cos)
+ type="Cos for SSMIS"
+endif
+if (field = sin)
+ type="Sin for SSMIS"
+endif
+if (field = emiss)
+ type="Emissivity sensitivity term"
+endif
+if (field = ordang4)
+ type="4th order angle term"
+endif
+if (field = ordang3)
+ type="3rd order angle term"
+endif
+if (field = ordang2)
+ type="2nd order angle term"
+endif
+if (field = ordang1)
+ type="1st order angle term"
+endif
 
 
 *
@@ -85,7 +106,7 @@ if (rc = 0)
 endif
 result=close(xsize.txt)
 
-xe=xs+xe1*nx
+xe=xs+xe1*(nx-1)
 say 'nx, xs, xe1= 'nx','xs','xe1
 'set lon 'xs' 'xe
 
@@ -188,45 +209,13 @@ if (field = "omgnbc")
    'set y 1 'nchan
    'set z 1'
    'set lon 'new_xs' 'new_xe
-   'define fixed=-1*satang(t='tlast')'
+   'define satang1=fixang(t='tlast')/count(t='tlast')'
+   'define fixed1=-1*satang1(t='tlast')'
 endif
 say ' new_xs, new_xe ='new_xs','new_xe
 
 
 'set lon 'xs' 'xe
-
-
-region=1
-while (region<=nregion)
-
-say 'top of region loop with region='region
-
-'!rm -f area.txt'
-'!cat 'plotfile'.ctl |grep "region= 'region' " > area.txt'
-result=read(area.txt)
-rc=sublin(result,1)
-area="uknown"
-if (rc = 0)
-   info=sublin(result,2)
-   area=substr(info,14,60)
-endif
-result=close(area.txt)
-*say 'area = 'area
-say 'xs = 'xs
-say 'xe = 'xe
-
-
-'clear'
-'set grads off'
-'set missconn on'
-'set lon 'xs' 'xe
-'set z 'region
-'set mproj off'
-
-'set string 1 l 5'
-'set strsiz 0.11 0.11'
-'set xlopts 1 4 0.11'
-'set ylopts 1 2 0.09'
 
 if (sub_avg = 1)
    'define cnt1=ave(count, t='t1day', t='tlast')' 
@@ -267,6 +256,80 @@ endif
 'undefine rterm1'
 'undefine rterm2'
 'undefine svar'
+
+
+
+region=1
+while (region<=nregion)
+
+say 'top of region loop with region='region
+
+'!rm -f area.txt'
+'!cat 'plotfile'.ctl |grep "region= 'region' " > area.txt'
+result=read(area.txt)
+rc=sublin(result,1)
+area="uknown"
+if (rc = 0)
+   info=sublin(result,2)
+   area=substr(info,14,60)
+endif
+result=close(area.txt)
+*say 'area = 'area
+say 'xs = 'xs
+say 'xe = 'xe
+
+
+'clear'
+'set grads off'
+'set missconn on'
+'set lon 'xs' 'xe
+'set z 'region
+'set mproj off'
+
+'set string 1 l 5'
+'set strsiz 0.11 0.11'
+'set xlopts 1 4 0.11'
+'set ylopts 1 2 0.09'
+
+*if (sub_avg = 1)
+*   'define cnt1=ave(count, t='t1day', t='tlast')' 
+*   'define avg=ave('field', t='t1day', t='tlast')'
+*   'define avgs=ave('field'_2, t='t1day', t='tlast')'
+*   'define rterm1=1/cnt1'
+*   'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
+*   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*   'define avg1=ave('field'/count, t='t1day', t='tlast')'
+*   'define avg1=maskout(avg1,avg1-0)'
+*   'define sdv1=sqrt(svar)'
+*
+*   'define cnt1=ave(count, t='t7days', t='tlast')' 
+*   'define avg=ave('field', t='t7days', t='tlast')'
+*   'define avgs=ave('field'_2, t='t7days', t='tlast')'
+*   'define rterm1=1/cnt1'
+*   'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
+*   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*   'define avg2=ave('field'/count, t='t7days', t='tlast')'
+*   'define sdv2=sqrt(svar)'
+*endif
+*
+*'define cnt1=ave(count, t='t30days', t='tlast')' 
+*'define avg=ave('field', t='t30days', t='tlast')'
+*'define avgs=ave('field'_2, t='t30days', t='tlast')'
+*'define rterm1=1/cnt1'
+*'define rterm2=1/ave(count-1, t='t30days', t='tlast')'
+*'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*'define avg3=ave('field'/count, t='t30days', t='tlast')'
+*'define sdv3=sqrt(svar)'
+*
+*'undefine cnt1'
+*'undefine avg'
+*'undefine avgs'
+*'undefine rterm1'
+*'undefine rterm2'
+*'undefine svar'
 
 fr=0
 i=1
@@ -321,7 +384,7 @@ while (chn<=nchan)
          say 'sdv'it' min,max,avg='minsdv','maxsdv','avgsdv
 
       if (field = "omgnbc")
-         'd fixed'
+         'd fixed1'
          rec7=sublin(result,7)
          rec8=sublin(result,8)
          valsat=subwrd(rec7,8)
@@ -442,7 +505,7 @@ while (chn<=nchan)
       'set cmark 0'
       'set cstyle 3'
       'set ccolor 1'
-      'd fixed'
+      'd fixed1'
       'set z 'region
    endif
 
@@ -484,6 +547,8 @@ while (chn<=nchan)
    'set ccolor 2'
    'd sdv3'
 
+*  Add page lables
+*
    if (i=4 | chn=nchan)
       'set string 1 l 6'
       'set strsiz 0.15 0.15'
@@ -516,8 +581,9 @@ while (chn<=nchan)
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
          'draw string 8.3 10.20 dash=sdv'
-      endif
-      if (field = "fixang" | field = "lapse" | field = "lapse2" | field = "const" | field = "scangl" | field = "clw")
+*      endif
+*      if (field = "fixang" | field = "lapse" | field = "lapse2" | field = "const" | field = "scangl" | field = "clw" | field = "cos" | field = "sin" | field = "emiss" | field = ""ordang4" | field = "ordang3" | field = "ordang2" | field = "ordang1")
+      else
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'

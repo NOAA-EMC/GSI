@@ -120,7 +120,7 @@ program main
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
   mype_out=npe-1
 
-  npred=5               ! number of bias correction predictors
+  npred=7               ! number of bias correction predictors
   retrieval=.false.     ! .true. if bisst present
 
   outask=.false.

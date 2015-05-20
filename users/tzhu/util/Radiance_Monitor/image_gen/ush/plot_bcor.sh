@@ -37,7 +37,7 @@ plot_bcor_sep=plot_bcor_sep.${RAD_AREA}.gs
 #------------------------------------------------------------------
 #   Set dates
 
-bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -94,26 +94,26 @@ for type in ${SATYPE2}; do
       if [ "$var" =  'count' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_bcor_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_bcor_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
       else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_bcor_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_bcor_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
       fi
 
       echo ${tmpdir}/${type}_${var}.gs
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 #--------------------------------------------------------------------
 # Delete data files
 
-   rm -f ${type}.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -131,9 +131,9 @@ cp -r *.png  ${IMGNDIR}/bcor
 #--------------------------------------------------------------------
 # Clean $tmpdir  
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

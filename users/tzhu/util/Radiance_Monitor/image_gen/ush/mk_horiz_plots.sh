@@ -8,10 +8,6 @@
 echo start mk_horiz_plots.sh
 
 set -ax
-export list=$listvar
-
-#SUFFIX=$1
-#PDATE=$2
 
 
 #------------------------------------------------------------------
@@ -38,7 +34,7 @@ cd $DATADIR
 #--------------------------------------------------------------------
 #   Copy extraction program to working directory
 
-$NCP $EXEDIR/horiz.${RAD_AREA}.x  ./horiz.x
+$NCP ${IG_EXEC}/horiz.x  ./horiz.x
 
 
 #--------------------------------------------------------------------
@@ -109,7 +105,7 @@ cat << EOF > input.$sat.$ihh
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      $TIMEX ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
+      ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
 
       rm -f $TANKDIR/horiz/stdout.$sat.$ihh
       $NCP stdout.$sat.$ihh        $TANKDIR/horiz/stdout.$sat.$ihh
@@ -123,7 +119,7 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi
@@ -156,39 +152,35 @@ done
 #---------------------------------------------------------------------------
 #  submit the plot jobs
 #
-export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
-if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	#ccs, wcoss
+if [[ $MY_MACHINE = "wcoss" ]]; then
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
-   logfile=${LOGDIR}/horiz_${PID}.log
+   logfile=${LOGdir}/horiz_${PID}.log
    rm -f $cmdfile
 
 >$cmdfile
    for sat in ${SATLIST}; do
-     echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+     echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    done
 
    chmod 755 $cmdfile
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
-   else
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   fi
+   $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+
 else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
       cmdfile="./cmdfile_horiz_${SUFFIX}_${sat}"
-      logfile=${LOGDIR}/horiz_${sat}.log
+      logfile=${LOGdir}/horiz_${sat}.log
 
       rm -f ${cmdfile}
       rm -f ${logfile}
 
-      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+      echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} -V -j oe -o ${logfile} $cmdfile
    done
 fi
 
@@ -199,47 +191,41 @@ for sat in ${bigSATLIST}; do
 
 #  --------
    export PTYPE="obs cor"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    PID="${sat}_1"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
 
    rm -f $cmdfile
 >$cmdfile
-   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
    fi
 
 #  --------
    PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    rm -f $cmdfile
 >$cmdfile
-   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
    fi
 
 done 

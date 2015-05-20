@@ -59,13 +59,13 @@ if [[ ! $start = "" ]]; then
    echo " " >> $err_rpt
 fi
 
-start=`grep -n 'cat report.txt' $file`
+start=`grep -n 'Begin Cycle Data Integrity Report' $file | tail -1`
 if [[ ! $start = "" ]]; then
    data_start=`echo $start | sed 's/:/ /' | gawk '{print $1}'`
    data_start=`expr $data_start + 1`
 
-   end=`grep -n 'End Cycle Data Integrity Report' $file`
-   data_end=`echo $end | sed 's/:/ /2' | gawk '{print $9}'`
+   end=`grep -n 'End Cycle Data Integrity Report' $file | tail -1`
+   data_end=`echo $end | sed 's/:/ /' | gawk '{print $1}'`
    data_end=`expr $data_end - 1`
 
    if [[ ! data_start = "" && ! data_end = "" ]]; then
@@ -77,8 +77,11 @@ fi
 #-------------------------------------------------------------------
 #  change the links in $err_rpt to point to the correct suffix
 #  (opr) is hard-coded in the links in the error report at the moment
-
-sed "s/\/opr\//\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+if [[ $RAD_AREA = "rgn" ]]; then
+   sed "s/\/opr\//\/regional\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+else
+   sed "s/\/opr\//\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+fi
 rm -f $err_rpt
 mv -f tmp.txt $err_rpt
 
