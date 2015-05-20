@@ -3,15 +3,7 @@ set -x
 
 # Set experiment name and analysis date
 
-if [[ "$arch" = "Linux" ]]; then
-
-   exp=$jobname
-
-elif [[ "$arch" = "AIX" ]]; then
-
-   exp=$LOADL_JOB_NAME
-
-fi
+exp=$jobname
 
 # Set path/file for gsi executable
 #basedir=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken
@@ -48,6 +40,7 @@ savdir=$savdir/out${JCAP}/${exp}
 #   ndate is a date manipulation utility
 #   ncp is cp replacement, currently keep as /bin/cp
 
+UNCOMPRESS=gunzip
 CLEAN=NO
 #ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 ncp=/bin/cp
@@ -196,7 +189,11 @@ OBSINPUT="$OBSINPUT_update"
 SUPERRAD="$SUPERRAD_update"
 SINGLEOB="$SINGLEOB_update"
 
-. $scripts/regression_namelists.sh
+if [ "$debug" = ".false." ]; then
+   . $scripts/regression_namelists.sh
+else
+   . $scripts/regression_namelists_db.sh
+fi
 
 ##!   l4dvar=.false.,nhr_assimilation=6,nhr_obsbin=6,
 ##!   lsqrtb=.true.,lcongrad=.false.,ltlint=.true.,
@@ -226,21 +223,21 @@ EOF
 
 berror=$fixgsi/$endianness/global_berror.l${LEVS}y${NLAT}.f77
 
-emiscoef_IRwater=$crtm_coef/Nalli.IRwater.EmisCoeff.bin
-emiscoef_IRice=$crtm_coef/NPOESS.IRice.EmisCoeff.bin
-emiscoef_IRland=$crtm_coef/NPOESS.IRland.EmisCoeff.bin
-emiscoef_IRsnow=$crtm_coef/NPOESS.IRsnow.EmisCoeff.bin
-emiscoef_VISice=$crtm_coef/NPOESS.VISice.EmisCoeff.bin
-emiscoef_VISland=$crtm_coef/NPOESS.VISland.EmisCoeff.bin
-emiscoef_VISsnow=$crtm_coef/NPOESS.VISsnow.EmisCoeff.bin
-emiscoef_VISwater=$crtm_coef/NPOESS.VISwater.EmisCoeff.bin
-emiscoef_MWwater=$crtm_coef/FASTEM5.MWwater.EmisCoeff.bin
-aercoef=$crtm_coef/AerosolCoeff.bin
-cldcoef=$crtm_coef/CloudCoeff.bin
+emiscoef_IRwater=$fixcrtm/Nalli.IRwater.EmisCoeff.bin
+emiscoef_IRice=$fixcrtm/NPOESS.IRice.EmisCoeff.bin
+emiscoef_IRland=$fixcrtm/NPOESS.IRland.EmisCoeff.bin
+emiscoef_IRsnow=$fixcrtm/NPOESS.IRsnow.EmisCoeff.bin
+emiscoef_VISice=$fixcrtm/NPOESS.VISice.EmisCoeff.bin
+emiscoef_VISland=$fixcrtm/NPOESS.VISland.EmisCoeff.bin
+emiscoef_VISsnow=$fixcrtm/NPOESS.VISsnow.EmisCoeff.bin
+emiscoef_VISwater=$fixcrtm/NPOESS.VISwater.EmisCoeff.bin
+emiscoef_MWwater=$fixcrtm/FASTEM6.MWwater.EmisCoeff.bin
+aercoef=$fixcrtm/AerosolCoeff.bin
+cldcoef=$fixcrtm/CloudCoeff.bin
 satangl=$fixgsi/global_satangbias.txt
-
+scaninfo=$fixgsi/global_scaninfo.txt
 satinfo=$fixgsi/global_satinfo.txt
-convinfo=$fixgsi/global_convinfo.txt
+convinfo=$fixgsi/global_convinfo_reg_test.txt
 anavinfo=$fixgsi/global_anavinfo.l64.txt
 ozinfo=$fixgsi/global_ozinfo.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
@@ -274,10 +271,11 @@ $ncp $emiscoef_VISice ./NPOESS.VISice.EmisCoeff.bin
 $ncp $emiscoef_VISland ./NPOESS.VISland.EmisCoeff.bin
 $ncp $emiscoef_VISsnow ./NPOESS.VISsnow.EmisCoeff.bin
 $ncp $emiscoef_VISwater ./NPOESS.VISwater.EmisCoeff.bin
-$ncp $emiscoef_MWwater ./FASTEM5.MWwater.EmisCoeff.bin
+$ncp $emiscoef_MWwater ./FASTEM6.MWwater.EmisCoeff.bin
 $ncp $aercoef  ./AerosolCoeff.bin
 $ncp $cldcoef  ./CloudCoeff.bin
 $ncp $satangl  ./satbias_angle
+$ncp $scaninfo ./scaninfo
 $ncp $satinfo  ./satinfo
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
@@ -292,8 +290,8 @@ $ncp $bftab_sst ./bftab_sstphr
 
 # Copy CRTM coefficient files based on entries in satinfo file
 for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-    $ncp $crtm_coef/${file}.SpcCoeff.bin ./
-    $ncp $crtm_coef/${file}.TauCoeff.bin ./
+    $ncp $fixcrtm/${file}.SpcCoeff.bin ./
+    $ncp $fixcrtm/${file}.TauCoeff.bin ./
 done
 
 
@@ -324,12 +322,26 @@ ln -s -f $global_T62_obs/${prefix_obs}eshrs3.${suffix}   ./hirs3bufrears
 ln -s -f $global_T62_obs/${prefix_obs}ssmit.${suffix}    ./ssmitbufr
 ln -s -f $global_T62_obs/${prefix_obs}amsre.${suffix}    ./amsrebufr
 ln -s -f $global_T62_obs/${prefix_obs}ssmis.${suffix}    ./ssmisbufr
+ln -s -f $global_T62_obs/${prefix_obs}atms.${suffix}     ./atmsbufr
+ln -s -f $global_T62_obs/${prefix_obs}cris.${suffix}     ./crisbufr
 ln -s -f $global_T62_obs/${prefix_obs}syndata.tcvitals.tm00 ./tcvitl
 
 
 # Copy bias correction, atmospheric and surface files
 ln -s -f $global_T62_ges/${prefix_tbc}.abias              ./satbias_in
+ln -s -f $global_T62_ges/${prefix_tbc}.abias_pc           ./satbias_pc
 ln -s -f $global_T62_ges/${prefix_tbc}.satang             ./satbias_angle
+ln -s -f $global_T62_ges/${prefix_tbc}.radstat            ./radstat.gdas
+
+listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
+for type in $listdiag; do
+   diag_file=`echo $type | cut -d',' -f1`
+   fname=`echo $diag_file | cut -d'.' -f1`
+   date=`echo $diag_file | cut -d'.' -f2`
+   $UNCOMPRESS $diag_file
+   fnameanl=$(echo $fname|sed 's/_ges//g')
+   mv $fname.$date $fnameanl
+done
 
 if [[ "$endianness" = "Big_Endian" ]]; then
    ln -s -f $global_T62_ges/${prefix_sfc}.bf03            ./sfcf03
@@ -352,7 +364,7 @@ elif [[ "$endianness" = "Little_Endian" ]]; then
 fi
 
 # Run gsi under Parallel Operating Environment (poe) on NCEP IBM
-if [[ "$arch" = "Linux" ]]; then
+if [ "$machine" = "Zeus" -o "$machine" = "Theia" ]; then
 
    cd $tmpdir/
    echo "run gsi now"
@@ -362,15 +374,15 @@ if [[ "$arch" = "Linux" ]]; then
    export MPI_GROUP_MAX=256
    #export OMP_NUM_THREADS=1
 
-   module load intel
-   module load mpt
+#  module load intel
+#  module load mpt
 
    echo "JOB ID : $PBS_JOBID"
-   eval "mpiexec_mpt -v -np $PBS_NP $tmpdir/gsi.x > stdout"
+   eval "$launcher -v -np $PBS_NP $tmpdir/gsi.x > stdout"
 
-elif [[ "$arch" = "AIX" ]]; then
+elif [[ "$machine" = "WCOSS" ]]; then
 
-   poe $tmpdir/gsi.x < gsiparm.anl > stdout
+   mpirun.lsf $tmpdir/gsi.x < gsiparm.anl > stdout
 
 fi
 

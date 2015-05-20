@@ -2,15 +2,8 @@
 set -x
 
 # Set experiment name and analysis date
-if [[ "$arch" = "Linux" ]]; then
 
-   exp=$jobname
-
-elif [[ "$arch" = "AIX" ]]; then
-
-   exp=$LOADL_JOB_NAME
-
-fi
+exp=$jobname
 
 # Set path/file for gsi executable
 #gsiexec=$updat
@@ -33,6 +26,7 @@ savdir=$savdir/4dvar_out${JCAP}/sigmap/${exp}
 #   ndate is a date manipulation utility
 #   ncp is cp replacement, currently keep as /bin/cp
 
+UNCOMPRESS=gunzip
 CLEAN=NO
 #ndate=/nwprod/util/exec/ndate
 ncp=/bin/cp
@@ -174,21 +168,30 @@ JCOPTS="ljcpdry=.false.,"
 OBSQC="noiqc=.false.,"
 SETUPmin="miter=1,niter(1)=50,niter_no_qc(1)=500,"
 SETUPlan=""
-export minimization=${minimization:-"pcgsoi"}
-if [ "$minimization" = "lanczos" ]; then
-   SETUPlan="lsqrtb=.true.,lcongrad=.true.,ltlint=.true.,ladtest=.true.,lgrtest=.false.,"
-   HYBENS_GLOBAL=".false."
-fi
+#export minimization=${minimization:-"pcgsoi"}
+#if [ "$minimization" = "lanczos" ]; then
+#   SETUPlan="lsqrtb=.true.,lcongrad=.true.,ltlint=.true.,ladtest=.true.,lgrtest=.false.,"
+#   HYBENS_GLOBAL=".false."
+#fi
 
 # Create namelist for observer run
 export nhr_obsbin=${nhr_obsbin:-1}
 SETUPobs="l4dvar=.true.,jiterstart=1,lobserver=.true.,iwrtinc=1,nhr_assimilation=6,nhr_obsbin=$nhr_obsbin,"
-SETUP="$SETUPmin $SETUPlan $SETUPobs $SETUP_update"
-. $scripts/regression_namelists.sh
+#SETUP="$SETUPmin $SETUPlan $SETUPobs $SETUP_update"
+SETUP="$SETUPmin $SETUPobs $SETUP_update"
+if [ "$debug" = ".false." ]; then
+   . $scripts/regression_namelists.sh
+else
+   . $scripts/regression_namelists_db.sh
+fi
 rm gsiparm.anl
 cat << EOF > gsiparm.anl
 
-$global_T62_namelist
+if [ "$minimization" = "lanczos" ]; then
+   $global_lanczos_T62_namelist
+else
+   $global_T62_namelist
+fi
 
 EOF
 
@@ -220,7 +223,7 @@ emiscoef_VISice=$fixcrtm/NPOESS.VISice.EmisCoeff.bin
 emiscoef_VISland=$fixcrtm/NPOESS.VISland.EmisCoeff.bin
 emiscoef_VISsnow=$fixcrtm/NPOESS.VISsnow.EmisCoeff.bin
 emiscoef_VISwater=$fixcrtm/NPOESS.VISwater.EmisCoeff.bin
-emiscoef_MWwater=$fixcrtm/FASTEM5.MWwater.EmisCoeff.bin
+emiscoef_MWwater=$fixcrtm/FASTEM6.MWwater.EmisCoeff.bin
 aercoef=$fixcrtm/AerosolCoeff.bin
 cldcoef=$fixcrtm/CloudCoeff.bin
 satinfo=$fixgsi/global_satinfo_reg_test.txt
@@ -259,7 +262,7 @@ $ncp $emiscoef_VISice ./NPOESS.VISice.EmisCoeff.bin
 $ncp $emiscoef_VISland ./NPOESS.VISland.EmisCoeff.bin
 $ncp $emiscoef_VISsnow ./NPOESS.VISsnow.EmisCoeff.bin
 $ncp $emiscoef_VISwater ./NPOESS.VISwater.EmisCoeff.bin
-$ncp $emiscoef_MWwater ./FASTEM5.MWwater.EmisCoeff.bin
+$ncp $emiscoef_MWwater ./FASTEM6.MWwater.EmisCoeff.bin
 $ncp $aercoef  ./AerosolCoeff.bin
 $ncp $cldcoef  ./CloudCoeff.bin
 $ncp $satangl  ./satbias_angle
@@ -287,13 +290,13 @@ mv new convinfo
 
 # Copy CRTM coefficient files based on entries in satinfo file
 for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-   $ncp $crtm_coef/${file}.SpcCoeff.bin ./
-   $ncp $crtm_coef/${file}.TauCoeff.bin ./
+   $ncp $fixcrtm/${file}.SpcCoeff.bin ./
+   $ncp $fixcrtm/${file}.TauCoeff.bin ./
 done
 
 # Copy observational data to $tmpdir
 $ncp $global_4dvar_T62_obs/${prefix_obs}.prepbufr                ./prepbufr
-$ncp $global_4dvar_T62_obs/${prefix_obs}.satwnd.${suffix}        ./satwnd
+$ncp $global_4dvar_T62_obs/${prefix_obs}.satwnd.${suffix}        ./satwndbufr
 $ncp $global_4dvar_T62_obs/${prefix_obs}.gpsro.${suffix}         ./gpsrobufr
 $ncp $global_4dvar_T62_obs/${prefix_obs}.spssmi.${suffix}        ./ssmirrbufr
 $ncp $global_4dvar_T62_obs/${prefix_obs}.sptrmm.${suffix}        ./tmirrbufr
@@ -321,8 +324,25 @@ $ncp $global_4dvar_T62_obs/${prefix_obs}.esamub.${suffix}        ./amsubbufrears
 $ncp $global_4dvar_T62_obs/${prefix_obs}.syndata.tcvitals.tm00   ./tcvitl
 
 # Copy bias correction, atmospheric and surface files
-$ncp $global_4dvar_T62_ges/${prefix_tbc}.abias                   ./satbias_in
-$ncp $global_4dvar_T62_ges/${prefix_tbc}.satang                  ./satbias_angle
+if [ "$minimization" = "lanczos" ]; then
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.abias.orig        ./satbias_in
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.satang.orig       ./satbias_angle
+else
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.abias             ./satbias_in
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.abias_pc          ./satbias_pc
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.satang            ./satbias_angle
+   $ncp $global_4dvar_T62_ges/${prefix_tbc}.radstat           ./radstat.gdas
+
+   listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
+   for type in $listdiag; do
+      diag_file=`echo $type | cut -d',' -f1`
+      fname=`echo $diag_file | cut -d'.' -f1`
+      date=`echo $diag_file | cut -d'.' -f2`
+      $UNCOMPRESS $diag_file
+      fnameanl=$(echo $fname|sed 's/_ges//g')
+      mv $fname.$date $fnameanl
+   done
+fi
 
 if [[ "$endianness" = "Big_Endian" ]]; then
    ##$ncp $global_4dvar_T62_ges/${prefix_sfc}.bf03               ./sfcf03
@@ -345,7 +365,7 @@ elif [[ "$endianness" = "Little_Endian" ]]; then
 fi
 
 # Run gsi observer under Parallel Operating Environment (poe) on NCEP IBM
-if [[ "$arch" = "Linux" ]]; then
+if [ "$machine" = "Zeus" -o "$machine" = "Theia" ]; then
 
    cd $tmpdir/
    echo "run gsi now"
@@ -359,11 +379,11 @@ if [[ "$arch" = "Linux" ]]; then
    module load mpt
 
    echo "JOB ID : $PBS_JOBID"
-   eval "mpiexec_mpt -v -np $PBS_NP $tmpdir/gsi.x > stdout.obsvr"
+   eval "$launcher -v -np $PBS_NP $tmpdir/gsi.x > stdout.obsvr"
 
-elif [[ "$arch" = "AIX" ]]; then
+elif [[ "$machine" = "WCOSS" ]]; then
 
-   poe $tmpdir/gsi.x < gsiparm.anl > stdout.obsvr
+   mpirun.lsf $tmpdir/gsi.x < gsiparm.anl > stdout.obsvr
 
 fi
 
@@ -373,16 +393,24 @@ rm -rf dir.0*
 
 # Create namelist for identity model 4dvar run
 SETUP4dv="l4dvar=.true.,jiterstart=1,nhr_assimilation=6,nhr_obsbin=$nhr_obsbin,idmodel=.true.,iwrtinc=1,lanczosave=.true.,"
-SETUP="$SETUPmin $SETUPlan $SETUP4dv $SETUP_update"
-. $scripts/regression_namelists.sh
+#SETUP="$SETUPmin $SETUPlan $SETUP4dv $SETUP_update"
+SETUP="$SETUPmin $SETUP4dv $SETUP_update"
+if [ "$debug" = ".false." ]; then
+   . $scripts/regression_namelists.sh
+else
+   . $scripts/regression_namelists_db.sh
+fi
 rm gsiparm.anl
 cat << EOF > gsiparm.anl
-
-$global_T62_namelist
+if [ "$minimization" = "lanczos" ]; then
+   $global_lanczos_T62_namelist
+else
+   $global_T62_namelist
+fi
 
 EOF
 
-if [[ "$arch" = "Linux" ]]; then
+if [ "$machine" = "Zeus" -o "$machine" = "Theia" ]; then
 
    cd $tmpdir/
    echo "run gsi now"
@@ -392,15 +420,15 @@ if [[ "$arch" = "Linux" ]]; then
    export MPI_GROUP_MAX=256
    #export OMP_NUM_THREADS=1
 
-   module load intel
-   module load mpt
+#  module load intel
+#  module load mpt
 
    echo "JOB ID : $PBS_JOBID"
-   eval "mpiexec_mpt -v -np $PBS_NP $tmpdir/gsi.x > stdout"
+   eval "$launcher -v -np $PBS_NP $tmpdir/gsi.x > stdout"
 
-elif [[ "$arch" = "AIX" ]]; then
+elif [[ "$machine" = "WCOSS" ]]; then
 
-   poe $tmpdir/gsi.x < gsiparm.anl > stdout
+   mpirun.lsf $tmpdir/gsi.x < gsiparm.anl > stdout
 
 fi
 
