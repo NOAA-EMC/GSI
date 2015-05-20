@@ -173,7 +173,7 @@ subroutine pcgsoi()
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
-  type(control_vector) :: xhat,gradx,grady,dirx,diry,dirw,xdiff
+  type(control_vector) :: xhat,gradx,grady,dirx,diry,dirw,ydiff,xdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: eval(ntlevs_ens)
   type(gsi_bundle) :: mval(nsubwin)
@@ -264,7 +264,6 @@ subroutine pcgsoi()
 
 !    Convert from control space directly to physical
 !    space for comparison with obs.
-
      call control2state(xhat,mval,sbias)
      if (l4dvar) then
         if (l_hyb_ens) then
@@ -347,8 +346,6 @@ subroutine pcgsoi()
         gradx%values(i)=gradx%values(i)+yhatsave%values(i)
      end do
 
-     dprod(3) = qdot_prod_sub(grady,gradx)
-
 !    Multiply by background error
      if(anisotropic) then
         call anbkerror(gradx,grady)
@@ -415,6 +412,12 @@ subroutine pcgsoi()
      if (lanlerr) then
         do i=1,nclen
            xdiff%values(i)=gradx%values(i)
+           ydiff%values(i)=grady%values(i)
+        end do
+     else
+        do i=1,nclen
+           xdiff%values(i)=gradx%values(i)-xdiff%values(i)
+           ydiff%values(i)=grady%values(i)-ydiff%values(i)
         end do
      end if
 
@@ -426,12 +429,13 @@ subroutine pcgsoi()
      if (iter>0) gsave=gnorm(1)
      dprod(1) = qdot_prod_sub(gradx,grady)
      dprod(2) = qdot_prod_sub(xdiff,grady)
+     dprod(3) = qdot_prod_sub(ydiff,gradx)
      call mpl_allreduce(3,dprod)
 
      gnorm(1)=dprod(1)
 !    Two dot products in gnorm(2) should be same, but are slightly different due to round off
 !    so use average.
-     gnorm(2)=dprod(1)-0.5_r_quad*(dprod(2)+dprod(3))
+     gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
 
@@ -447,31 +451,27 @@ subroutine pcgsoi()
 
 !    Calculate new search direction
      if (.not. restart) then
-!$omp parallel sections private(i)
-!$omp section
-        do i=1,nclen
-           xdiff%values(i)=gradx%values(i)
-        end do
-!$omp section
-        do i=1,nclen
-           dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-        end do
-!$omp section
         if(diag_precon)then
           do i=1,nclen
-             diry%values(i)=-gradx%values(i)+b*dirw%values(i)
+             diry%values(i)=dirw%values(i)
+          end do
+        end if
+        do i=1,nclen
+           xdiff%values(i)=gradx%values(i)
+           ydiff%values(i)=grady%values(i)
+           dirx%values(i)=-grady%values(i)+b*dirx%values(i)
+           diry%values(i)=-gradx%values(i)+b*diry%values(i)
+        end do
+        if(diag_precon)then
+          do i=1,nclen
              dirw%values(i)=diry%values(i)
           end do
           call precond(diry)
-        else
-           do i=1,nclen
-              diry%values(i)=-gradx%values(i)+b*diry%values(i)
-           end do
         end if
-!$omp end parallel sections
      else
 !    If previous solution available, transfer into local arrays.
         xdiff=zero
+        ydiff=zero
         call read_guess_solution(dirx,diry,mype)
         stp=one
      endif
@@ -479,7 +479,6 @@ subroutine pcgsoi()
 !    Convert search direction form control space to physical space
      call control2state(dirx,mval,rbias)
      if (l4dvar) then
-!       Convert from control space to model space
         if (l_hyb_ens) then
            call ensctl2state(dirx,mval(1),eval)
            mval(1)=eval(1)
@@ -857,6 +856,7 @@ subroutine init_
   call allocate_cv(dirx)
   call allocate_cv(diry)
   if(diag_precon)call allocate_cv(dirw)
+  call allocate_cv(ydiff)
   call allocate_cv(xdiff)
   do ii=1,nobs_bins
      call allocate_state(sval(ii))
@@ -877,6 +877,7 @@ subroutine init_
   dirx=zero
   diry=zero
   if(diag_precon)dirw=zero
+  ydiff=zero
   xdiff=zero
   xhat=zero
 
@@ -921,6 +922,7 @@ subroutine clean_
   call deallocate_cv(dirx)
   call deallocate_cv(diry)
   if(diag_precon)call deallocate_cv(dirw)
+  call deallocate_cv(ydiff)
   call deallocate_cv(xdiff)
  
 ! Release bias-predictor memory

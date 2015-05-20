@@ -822,7 +822,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  integer(i_kind) :: iii,nn,m3d,m2d,i,j,itot,im,jm,km,ime,jme,kme,ii,jj,kk
+  integer(i_kind) :: ii,nn,m3d,m2d,i,j,itot
   real(r_quad),allocatable,dimension(:) :: partsum
 
   qdot_prod_sub=zero_quad
@@ -840,49 +840,26 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
         end do
      endif
   else
-     do iii=1,nsubwin
-        m3d=xcv%step(iii)%n3d
-        m2d=xcv%step(iii)%n2d
-        itot=max(m3d,m2d,0)
-        im=size(xcv%step(iii)%r3(1)%q,1)
-        jm=size(xcv%step(iii)%r3(1)%q,2)
-        km=size(xcv%step(iii)%r3(1)%q,3)
-        if(l_hyb_ens)then
-          itot=max(itot,n_ens)
-          ime=size(xcv%aens(iii,1)%r3(1)%q,1)
-          jme=size(xcv%aens(iii,1)%r3(1)%q,2)
-          kme=size(xcv%aens(iii,1)%r3(1)%q,3)
-        end if
+     do ii=1,nsubwin
+        m3d=xcv%step(ii)%n3d
+        m2d=xcv%step(ii)%n2d
+        itot=max(m3d,0)+max(m2d,0)
+        if(l_hyb_ens)itot=itot+n_ens
         allocate(partsum(itot))
-!$omp parallel do  schedule(dynamic,1) private(i,jj,ii,kk)
-        do i = 1,itot
-           partsum(i) = zero_quad
-           if(i <= m2d)then
-             do jj=2,jm-1
-               do ii=2,im-1
-                  partsum(i) =partsum(i)+xcv%step(iii)%r2(i)%q(ii,jj)*ycv%step(iii)%r2(i)%q(ii,jj)
-               end do
-             end do
-           end if
-           if(i <= m3d)then
-             do kk=1,km
-                do jj=2,jm-1
-                  do ii=2,im-1
-                    partsum(i) = partsum(i)+xcv%step(iii)%r3(i)%q(ii,jj,kk)*ycv%step(iii)%r3(i)%q(ii,jj,kk)
-                  end do
-                end do
-              end do
-           endif
-           if(l_hyb_ens .and. i <=n_ens) then
-             do kk=1,kme
-                do jj=2,jme-1
-                  do ii=2,ime-1
-                    partsum(i) = partsum(i)+xcv%aens(iii,i)%r3(1)%q(ii,jj,kk)*ycv%aens(iii,i)%r3(1)%q(ii,jj,kk)
-                  end do
-                end do
-              end do
-           end if
+!$omp parallel do  schedule(dynamic,1) private(i)
+        do i = 1,m3d
+           partsum(i) = dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
         enddo
+!$omp parallel do  schedule(dynamic,1) private(i)
+        do i = 1,m2d
+           partsum(m3d+i) = dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+        enddo
+        if(l_hyb_ens) then
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,n_ens
+              partsum(m3d+m2d+i) = dplevs(xcv%aens(ii,i)%r3(1)%q,ycv%aens(ii,i)%r3(1)%q,ihalo=1)
+           end do
+        end if
         do i=1,itot
           qdot_prod_sub = qdot_prod_sub + partsum(i)
         end do

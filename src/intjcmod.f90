@@ -547,7 +547,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
   real(r_quad)    ,intent(  out),optional :: pjc
 
 ! Declare local variables
-  real(r_quad),dimension(nbins) :: mass ! 1=dry;2=wv
+  real(r_quad),dimension(2*nbins) :: mass ! 1=dry;2=wv
   real(r_quad),dimension(nsig) :: mass2
   real(r_quad) rcon,con,dmass
   integer(i_kind) i,j,k,it,ii,mm1,ier,icw,iql,iqi,istatus
@@ -610,12 +610,12 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
         end do
      end do
      do k=1,nsig
-        mass(n)=mass(n)+mass2(k)
+        mass(nbins+n)=mass(nbins+n)+mass2(k)
      end do
   end do
 
 ! First, use MPI to get global mean increment
-  call mpl_allreduce(nbins,qpvals=mass)
+  call mpl_allreduce(2*nbins,qpvals=mass)
 
   do n=1,nbins
      ier=0; icw=0; iql=0; iqi=0
@@ -631,9 +631,10 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
 !    Remove water-vapor contribution to get incremental dry ps
 !    if (mype==0) write(6,*)'intjcpdry: total mass =', mass(n)
 !    if (mype==0) write(6,*)'intjcpdry: wv    mass =', mass(nbins+n)
-     dmass=bamp_jcpdry*mass(n)*rcon*rcon
+     dmass=mass(n)-mass(nbins+n)
+     dmass=bamp_jcpdry*dmass*rcon*rcon
      if(present(pjc)) then
-        pjc = pjc+dmass*dmass
+        pjc = dmass*dmass
      endif
 
 !    Calculate mean surface pressure contribution in subdomain
@@ -706,7 +707,7 @@ subroutine intjcpdry1(sval,nbins,mass)
 ! Declare passed variables
   type(gsi_bundle),intent(in   ),dimension(nbins) :: sval
   integer(i_kind),intent(in) :: nbins
-  real(r_quad),dimension(nbins),intent(out) :: mass ! 1=dry;2=wv
+  real(r_quad),dimension(2*nbins),intent(out) :: mass ! 1=dry;2=wv
 
 ! Declare local variables
   real(r_quad),dimension(nsig) :: mass2
@@ -766,7 +767,7 @@ subroutine intjcpdry1(sval,nbins,mass)
         end do
      end do
      do k=1,nsig
-        mass(n)=mass(n)-mass2(k)
+        mass(nbins+n)=mass(nbins+n)+mass2(k)
      end do
   end do
 
@@ -816,7 +817,7 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
 ! Declare passed variables
   type(gsi_bundle),intent(inout),dimension(nbins) :: rval
   integer(i_kind),intent(in) :: nbins
-  real(r_quad),dimension(nbins),intent(in) :: mass ! 1=dry;2=wv
+  real(r_quad),dimension(2*nbins),intent(in) :: mass ! 1=dry;2=wv
   real(r_quad)    ,intent(  out),optional :: pjc
 
 ! Declare local variables
@@ -848,9 +849,10 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
 !    Remove water-vapor contribution to get incremental dry ps
 !    if (mype==0) write(6,*)'intjcpdry: total mass =', mass(n)
 !    if (mype==0) write(6,*)'intjcpdry: wv    mass =', mass(nbins+n)
-     dmass=bamp_jcpdry*mass(n)*rcon*rcon
+     dmass=mass(n)-mass(nbins+n)
+     dmass=bamp_jcpdry*dmass*rcon*rcon
      if(present(pjc)) then
-        pjc = pjc+dmass*dmass
+        pjc = dmass*dmass
      endif
 
 !    Calculate mean surface pressure contribution in subdomain

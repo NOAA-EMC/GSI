@@ -198,7 +198,7 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(inout) :: rbias
   real(r_quad),dimension(max(1,nrclen),nobs_bins) :: qpred_bin
   real(r_quad),dimension(max(1,nrclen)) :: qpred
-  real(r_quad),dimension(nobs_bins) :: mass
+  real(r_quad),dimension(2*nobs_bins) :: mass
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii,it,i
@@ -279,7 +279,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Put reduces together to minimize wait time
 ! First, use MPI to get global mean increment
-  call mpl_allreduce(nobs_bins,qpvals=mass)
+  call mpl_allreduce(2*nobs_bins,qpvals=mass)
 
 ! Take care of background error for bias correction terms
 
