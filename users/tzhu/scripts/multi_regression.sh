@@ -2,13 +2,23 @@
 
 set -x
 
-if [[ "`uname -s | awk '{print $1}'`" = 'Linux' ]]; then
-   echo "/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/EXP-port/scripts/regression_var.sh" > regression_var.out
-elif [[ "`uname -s | awk '{print $1}'`" = 'AIX' ]]; then
-   echo "/global/save/wx20ml/EXP-port/scripts/regression_var.sh" > regression_var.out
+machine=$REMOTEHOST
+
+if [ -d /da ]; then
+#For WCOSS
+   echo "/da/save/$LOGNAME/trunk/scripts/regression_var.sh" > regression_var.out
+elif [ -d /scratch1/portfolios/NCEPDEV/da ]; then
+#For Zeus/Theia
+   if [ `expr substr $machine 1 4` = "zeus" ]; then
+      echo "/scratch1/portfolios/NCEPDEV/da/save/$LOGNAME/EXP-testCRTM_R2.2/scripts/regression_var.sh" > regression_var.out
+   elif [ `expr substr $machine 1 5` = "theia" ]; then
+      echo "/scratch4/NCEPDEV/da/save/$LOGNAME/EXP-testCRTM_R2.2/scripts/regression_var.sh" > regression_var.out
+   fi
 fi
 
 /bin/sh global_T62_regression.sh > global_T62.out &
+
+/bin/sh global_T62_ozonly_regression.sh > global_T62_ozonly.out &
 
 /bin/sh global_4dvar_T62_regression.sh > global_4dvar_T62.out &
 
@@ -29,5 +39,11 @@ fi
 /bin/sh nmmb_nems_regression.sh > nmmb_nems.out &
 
 /bin/sh rtma_regression.sh > rtma.out &
+
+/bin/sh hwrf_nmm_d2_regression.sh > hwrf_nmm_d2.out &
+
+/bin/sh hwrf_nmm_d3_regression.sh > hwrf_nmm_d3.out &
+
+/bin/sh global_enkf_T62_regression.sh > global_enkf_T62.out &
 
 exit

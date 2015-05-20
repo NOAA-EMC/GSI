@@ -1,5 +1,18 @@
 #!/bin/ksh
-
+#=======================================================
+## Below are LSF (WCOSS queueing system) commands
+#BSUB -a poe
+#BSUB -e gsi_global.o%J
+#BSUB -o gsi_global.o%J
+#BSUB -J gsi_global
+#BSUB -network type=sn_all:mode=US
+#BSUB -q dev
+#BSUB -n 32
+#BSUB -R span[ptile=8]
+#BSUB -R affinity[core(2):distribute=balance]
+#BSUB -x
+#BSUB -W 01:00
+#BSUB -P GFS-T2O
 #=======================================================
 ## Below are PBS (Linux queueing system) commands
 #PBS -o gsi_global.e${jobid} 
@@ -10,25 +23,6 @@
 #PBS -j eo                
 #PBS -A ada
 #PBS -V
-#-------------------------------------------------------                        
-## Below are LoadLeveler (IBM queueing system) commands
-#@ job_name=gsi_global
-#@ error=gsi_global.e$(jobid)
-#@ job_type=parallel
-#@ network.MPI=sn_all,shared,us
-#@ node_usage = not_shared
-#@ tasks_per_node = 32
-#@ node = 1
-#@ task_affinity = core(1)
-#@ parallel_threads = 1
-#@ node_resources = ConsumableMemory (110 GB)
-#@ class= dev
-#@ group= dev
-#@ account_no = GDAS-T2O
-#@ wall_clock_limit = 0:40:00
-#@ startdate = 07/06/09 10:15
-#@ notification=error
-#@ queue
 #=======================================================
 
 set -x
@@ -36,9 +30,9 @@ set -x
 arch="`uname -s | awk '{print $1}'`"        
 echo "Time starting the job is `date` "
 # Set default top-level directory
-if [ -d /global ]; then
-  TOPDIR=/global   # This would be the CCS
-  MACHINE=CCS
+if [ -d /da ]; then
+  TOPDIR=/da   # This would be the WCOSS
+  MACHINE=WCOSS
 elif [ -d /scratch1/portfolios/NCEPDEV/da ]; then
   TOPDIR=/scratch1/portfolios/NCEPDEV/da     #This is zeus 
   MACHINE=ZEUS
@@ -52,16 +46,16 @@ fi
 #=================================================================================================
 
 # Set experiment name and analysis date
-adate=2013052500
+adate=2013090100
 expnm=globalprod    
 exp=globalprod.$adate
-expid=${expnm}.$adate.zeus
+expid=${expnm}.$adate.wcoss
 
 # Set path/file for gsi executable
-gsiexec=/u/wx20gd/Work_Dir/gsi/branches/EXP-testCRTM/src/global_gsi
+gsiexec=/da/save/$USER/trunk/src/global_gsi
 
 # Specify GSI fixed field
-fixgsi=/u/wx20gd/Work_Dir/gsi/branches/EXP-testCRTM/fix
+fixgsi=/da/save/$USER/trunk/fix
 
 # Set the JCAP resolution which you want.
 # All resolutions use LEVS=64
@@ -72,13 +66,17 @@ export lrun_subdirs=.true.
 
 
 # Set data, runtime and save directories
-if [ $MACHINE = CCS ]; then
+if [ $MACHINE = WCOSS ]; then
    datdir=/ptmp/$USER/data_sigmap/${exp}
    tmpdir=/ptmp/$USER/tmp${JCAP}_sigmap/${expid}  
    savdir=/ptmp/$USER/out${JCAP}/sigmap/${expid}  
-   fixcrtm=/global/save/wx20ml/CRTM_REL-2.1.3/Big_Endian
+   fixcrtm=/usrx/local/nceplibs/fix/crtm_v2.1.3
    endianness=Big_Endian
-   COMPRESS=compress
+   COMPRESS=gzip 
+   UNCOMPRESS=gunzip
+   DIAG_COMPRESS=YES 
+   DIAG_SUFFIX="" 
+   DIAG_TARBALL=YES 
 elif [ $MACHINE = ZEUS ]; then
    datdir=/scratch2/portfolios/NCEPDEV/ptmp/$USER/data_sigmap/${exp}
    tmpdir=/scratch2/portfolios/NCEPDEV/ptmp/$USER/tmp${JCAP}_sigmap/${expid}  
@@ -87,17 +85,22 @@ elif [ $MACHINE = ZEUS ]; then
    endianness=Big_Endian
 #  endianness=Little_Endian - once all background fields are available in little endian format, uncomment this option and remove Big_Endian
    COMPRESS=gzip
+   UNCOMPRESS=gunzip
+   DIAG_COMPRESS=YES 
+   DIAG_SUFFIX="" 
+   DIAG_TARBALL=YES
 else
   echo "Unsupported machine $MACHINE (not sure how you got to here)"
   exit 1
 fi
 
 # Other Executables and scripts
-if [ $MACHINE = CCS ]; then
+if [ $MACHINE = WCOSS ]; then
    export SIGHDR=/nwprod/exec/global_sighdr
    export CHGRESSH=/nwprod/ush/global_chgres.sh
    export ndate=/nwprod/util/exec/ndate
    export ncp=/bin/cp
+   export wc=/usr/bin/wc
 elif [ $MACHINE = ZEUS ]; then
    export SIGHDR=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/exec/global_sighdr
    export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am 
@@ -105,6 +108,7 @@ elif [ $MACHINE = ZEUS ]; then
    export CHGRESSH=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/ush/global_chgres_uf_gaea.sh 
    export ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
    export ncp=/bin/cp
+   export wc=/usr/bin/wc
 else
   echo "Unsupported machine $MACHINE (not sure how you got to here)"
   exit 1
@@ -116,35 +120,16 @@ fi
 export gps_dtype="gps_ref"
 
 
-if [[  $MACHINE = CCS  ]]; then
-
-   # Set environment variables for NCEP IBM
-   export MEMORY_AFFINITY=MCM
-   export MP_SHARED_MEMORY=yes
-
-   # Set environment variables for threading and stacksize
-   export AIXTHREAD_SCOPE=S
-   export XLSMPOPTS="parthds=1:stack=128000000"
- 
-   # Recommended MPI environment variable setttings from IBM
-   # (Appendix E, HPC Clusters Using InfiniBand on IBM Power Systems Servers)
-   export LAPI_DEBUG_ENABLE_AFFINITY=YES
-   export MP_FIFO_MTU=4K
-   export MP_SYNC_QP=YES
-   export MP_SHM_ATTACH_THRESH=500000 # default is better sometimes
-   export MP_EUIDEVELOP=min
-   export MP_USE_BULK_XFER=yes
-   export MP_BULK_MIN_MSG_SIZE=64k
-   export MP_RC_MAX_QP=8192
-   export LAPI_DEBUG_RC_DREG_THRESHOLD=1000000
-   export LAPI_DEBUG_QP_NOTIFICATION=no
-   export LAPI_DEBUG_RC_INIT_SETUP=yes
-
-   # Set environment variables for user preferences
-   export XLFRTEOPTS="nlwidth=80"
-   export MP_LABELIO=yes
-   export MP_INFOLEVEL=1
-
+if [[  $MACHINE = WCOSS  ]]; then
+  export MP_EAGER_LIMIT=65536 
+  export MP_COREFILE_FORMAT=lite
+  export MP_MPILIB=mpich2
+  export MP_LABELIO=yes
+  export MP_USE_BULK_XFER=yes
+  export MP_SHARED_MEMORY=yes
+  export MPICH_ALLTOALL_THROTTLE=0
+  export MP_COLLECTIVE_OFFLOAD=yes
+  export KMP_STACKSIZE=2048m
 fi
 
 # Variables for debugging (don't always need)
@@ -227,7 +212,7 @@ datges=/com/gfs/prod/gdas.$gdate0
 # if ${datdir}/gdas1.t${hha}z.sgm3prep is present assume we have 
 # everything we need, else look elsewhere.
 
-if [ $MACHINE = CCS ]; then
+if [ $MACHINE = WCOSS ]; then
   if [ -s ${datdir}/gdas1.t${hha}z.sgm3prep ]; then 
     datobs=${datdir}
     datges=${datdir}
@@ -380,10 +365,13 @@ cat << EOF > gsiparm.anl
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    qoption=2,
    gencode=$IGEN,factqmin=5.0,factqmax=5.0,deltim=$DELTIM,
-   ndat=64,iguess=-1,
+   iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
    use_gfs_nemsio=.false.,lrun_subdirs=${lrun_subdirs},
+   newpc4pred=.true.,adp_anglebc=.true.,angord=4,
+   passive_bc=.true.,use_edges=.false.,diag_precon=.true.,
+   step_start=1.e-3,emiss_bc=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -419,72 +407,75 @@ cat << EOF > gsiparm.anl
  /
  &OBS_INPUT
    dmesh(1)=145.0,dmesh(2)=150.0,time_window_max=3.0,
-   dfile(01)='prepbufr',  dtype(01)='ps',        dplat(01)=' ',       dsis(01)='ps',                 dval(01)=0.0, dthin(01)=0, dsfcalc(01)=0,
-   dfile(02)='prepbufr'   dtype(02)='t',         dplat(02)=' ',       dsis(02)='t',                  dval(02)=0.0, dthin(02)=0, dsfcalc(02)=0,
-   dfile(03)='prepbufr',  dtype(03)='q',         dplat(03)=' ',       dsis(03)='q',                  dval(03)=0.0, dthin(03)=0, dsfcalc(03)=0,
-   dfile(04)='prepbufr',  dtype(04)='pw',        dplat(04)=' ',       dsis(04)='pw',                 dval(04)=0.0, dthin(04)=0, dsfcalc(04)=0,
-   dfile(05)='satwndbufr',dtype(05)='uv',        dplat(05)=' ',       dsis(05)='uv',                 dval(05)=0.0, dthin(05)=0, dsfcalc(05)=0,
-   dfile(06)='prepbufr',  dtype(06)='uv',        dplat(06)=' ',       dsis(06)='uv',                 dval(06)=0.0, dthin(06)=0, dsfcalc(06)=0,
-   dfile(07)='prepbufr',  dtype(07)='spd',       dplat(07)=' ',       dsis(07)='spd',                dval(07)=0.0, dthin(07)=0, dsfcalc(07)=0,
-   dfile(08)='prepbufr',  dtype(08)='dw',        dplat(08)=' ',       dsis(08)='dw',                 dval(08)=0.0, dthin(08)=0, dsfcalc(08)=0,
-   dfile(09)='radarbufr', dtype(09)='rw',        dplat(09)=' ',       dsis(09)='rw',                 dval(09)=0.0, dthin(09)=0, dsfcalc(09)=0,
-   dfile(10)='prepbufr',  dtype(10)='sst',       dplat(10)=' ',       dsis(10)='sst',                dval(10)=0.0, dthin(10)=0, dsfcalc(10)=0,
-   dfile(11)='gpsrobufr', dtype(11)='$gps_dtype',   dplat(11)=' ',       dsis(11)='gps',             dval(11)=0.0, dthin(11)=0, dsfcalc(11)=0,
-   dfile(12)='ssmirrbufr',dtype(12)='pcp_ssmi',  dplat(12)='dmsp',    dsis(12)='pcp_ssmi',           dval(12)=0.0, dthin(12)=-1,dsfcalc(12)=0,
-   dfile(13)='tmirrbufr', dtype(13)='pcp_tmi',   dplat(13)='trmm',    dsis(13)='pcp_tmi',            dval(13)=0.0, dthin(13)=-1,dsfcalc(13)=0,
-   dfile(14)='sbuvbufr',  dtype(14)='sbuv2',     dplat(14)='n16',     dsis(14)='sbuv8_n16',          dval(14)=0.0, dthin(14)=0, dsfcalc(14)=0,
-   dfile(15)='sbuvbufr',  dtype(15)='sbuv2',     dplat(15)='n17',     dsis(15)='sbuv8_n17',          dval(15)=0.0, dthin(15)=0, dsfcalc(15)=0,
-   dfile(16)='sbuvbufr',  dtype(16)='sbuv2',     dplat(16)='n18',     dsis(16)='sbuv8_n18',          dval(16)=0.0, dthin(16)=0, dsfcalc(16)=0,
-   dfile(17)='hirs3bufr', dtype(17)='hirs3',     dplat(17)='n17',     dsis(17)='hirs3_n17',          dval(17)=0.0, dthin(17)=1, dsfcalc(17)=1,
-   dfile(18)='hirs4bufr', dtype(18)='hirs4',     dplat(18)='metop-a', dsis(18)='hirs4_metop-a',      dval(18)=0.0, dthin(18)=1, dsfcalc(18)=1,
-   dfile(19)='gimgrbufr', dtype(19)='goes_img',  dplat(19)='g11',     dsis(19)='imgr_g11',           dval(19)=0.0, dthin(19)=1, dsfcalc(19)=0,
-   dfile(20)='gimgrbufr', dtype(20)='goes_img',  dplat(20)='g12',     dsis(20)='imgr_g12',           dval(20)=0.0, dthin(20)=1, dsfcalc(20)=0,
-   dfile(21)='airsbufr',  dtype(21)='airs',      dplat(21)='aqua',    dsis(21)='airs281SUBSET_aqua', dval(21)=0.0, dthin(21)=1, dsfcalc(21)=1,
-   dfile(22)='amsuabufr', dtype(22)='amsua',     dplat(22)='n15',     dsis(22)='amsua_n15',          dval(22)=0.0, dthin(22)=1, dsfcalc(22)=1,
-   dfile(23)='amsuabufr', dtype(23)='amsua',     dplat(23)='n18',     dsis(23)='amsua_n18',          dval(23)=0.0, dthin(23)=1, dsfcalc(23)=1,
-   dfile(24)='amsuabufr', dtype(24)='amsua',     dplat(24)='metop-a', dsis(24)='amsua_metop-a',      dval(24)=0.0, dthin(24)=1, dsfcalc(24)=1,
-   dfile(25)='airsbufr',  dtype(25)='amsua',     dplat(25)='aqua',    dsis(25)='amsua_aqua',         dval(25)=0.0, dthin(25)=1, dsfcalc(25)=1,
-   dfile(26)='amsubbufr', dtype(26)='amsub',     dplat(26)='n17',     dsis(26)='amsub_n17',          dval(26)=0.0, dthin(26)=1, dsfcalc(26)=1,
-   dfile(27)='mhsbufr',   dtype(27)='mhs',       dplat(27)='n18',     dsis(27)='mhs_n18',            dval(27)=0.0, dthin(27)=1, dsfcalc(27)=1,
-   dfile(28)='mhsbufr',   dtype(28)='mhs',       dplat(28)='metop-a', dsis(28)='mhs_metop-a',        dval(28)=0.0, dthin(28)=1, dsfcalc(28)=1,
-   dfile(29)='ssmitbufr', dtype(29)='ssmi',      dplat(29)='f14',     dsis(29)='ssmi_f14',           dval(29)=0.0, dthin(29)=1, dsfcalc(29)=0,
-   dfile(30)='ssmitbufr', dtype(30)='ssmi',      dplat(30)='f15',     dsis(30)='ssmi_f15',           dval(30)=0.0, dthin(30)=1, dsfcalc(30)=0,
-   dfile(31)='amsrebufr', dtype(31)='amsre_low', dplat(31)='aqua',    dsis(31)='amsre_aqua',         dval(31)=0.0, dthin(31)=1, dsfcalc(31)=0,
-   dfile(32)='amsrebufr', dtype(32)='amsre_mid', dplat(32)='aqua',    dsis(32)='amsre_aqua',         dval(32)=0.0, dthin(32)=1, dsfcalc(32)=0,
-   dfile(33)='amsrebufr', dtype(33)='amsre_hig', dplat(33)='aqua',    dsis(33)='amsre_aqua',         dval(33)=0.0, dthin(33)=1, dsfcalc(33)=0,
-   dfile(34)='ssmisbufr', dtype(34)='ssmis',     dplat(34)='f16',     dsis(34)='ssmis_f16',          dval(34)=0.0, dthin(34)=1, dsfcalc(34)=0,
-   dfile(35)='gsnd1bufr', dtype(35)='sndrd1',    dplat(35)='g12',     dsis(35)='sndrD1_g12',         dval(35)=0.0, dthin(35)=1, dsfcalc(35)=0,
-   dfile(36)='gsnd1bufr', dtype(36)='sndrd2',    dplat(36)='g12',     dsis(36)='sndrD2_g12',         dval(36)=0.0, dthin(36)=1, dsfcalc(36)=0,
-   dfile(37)='gsnd1bufr', dtype(37)='sndrd3',    dplat(37)='g12',     dsis(37)='sndrD3_g12',         dval(37)=0.0, dthin(37)=1, dsfcalc(37)=0,
-   dfile(38)='gsnd1bufr', dtype(38)='sndrd4',    dplat(38)='g12',     dsis(38)='sndrD4_g12',         dval(38)=0.0, dthin(38)=1, dsfcalc(38)=0,
-   dfile(39)='gsnd1bufr', dtype(39)='sndrd1',    dplat(39)='g11',     dsis(39)='sndrD1_g11',         dval(39)=0.0, dthin(39)=1, dsfcalc(39)=0,
-   dfile(40)='gsnd1bufr', dtype(40)='sndrd2',    dplat(40)='g11',     dsis(40)='sndrD2_g11',         dval(40)=0.0, dthin(40)=1, dsfcalc(40)=0,
-   dfile(41)='gsnd1bufr', dtype(41)='sndrd3',    dplat(41)='g11',     dsis(41)='sndrD3_g11',         dval(41)=0.0, dthin(41)=1, dsfcalc(41)=0,
-   dfile(42)='gsnd1bufr', dtype(42)='sndrd4',    dplat(42)='g11',     dsis(42)='sndrD4_g11',         dval(42)=0.0, dthin(42)=1, dsfcalc(42)=0,
-   dfile(43)='gsnd1bufr', dtype(43)='sndrd1',    dplat(43)='g13',     dsis(43)='sndrD1_g13',         dval(43)=0.0, dthin(43)=1, dsfcalc(43)=0,
-   dfile(44)='gsnd1bufr', dtype(44)='sndrd2',    dplat(44)='g13',     dsis(44)='sndrD2_g13',         dval(44)=0.0, dthin(44)=1, dsfcalc(44)=0,
-   dfile(45)='gsnd1bufr', dtype(45)='sndrd3',    dplat(45)='g13',     dsis(45)='sndrD3_g13',         dval(45)=0.0, dthin(45)=1, dsfcalc(45)=0,
-   dfile(46)='gsnd1bufr', dtype(46)='sndrd4',    dplat(46)='g13',     dsis(46)='sndrD4_g13',         dval(46)=0.0, dthin(46)=1, dsfcalc(46)=0,
-   dfile(47)='iasibufr',  dtype(47)='iasi',      dplat(47)='metop-a', dsis(47)='iasi616_metop-a',    dval(47)=0.0, dthin(47)=1, dsfcalc(47)=1,
-   dfile(48)='gomebufr',  dtype(48)='gome',      dplat(48)='metop-a', dsis(48)='gome_metop-a',       dval(48)=0.0, dthin(48)=2, dsfcalc(48)=0,
-   dfile(49)='omibufr',   dtype(49)='omi',       dplat(49)='aura',    dsis(49)='omi_aura',           dval(49)=0.0, dthin(49)=2, dsfcalc(49)=0,
-   dfile(50)='sbuvbufr',  dtype(50)='sbuv2',     dplat(50)='n19',     dsis(50)='sbuv8_n19',          dval(50)=0.0, dthin(50)=0, dsfcalc(50)=0,
-   dfile(51)='hirs4bufr', dtype(51)='hirs4',     dplat(51)='n19',     dsis(51)='hirs4_n19',          dval(51)=0.0, dthin(51)=1, dsfcalc(51)=1,
-   dfile(52)='amsuabufr', dtype(52)='amsua',     dplat(52)='n19',     dsis(52)='amsua_n19',          dval(52)=0.0, dthin(52)=1, dsfcalc(52)=1,
-   dfile(53)='mhsbufr',   dtype(53)='mhs',       dplat(53)='n19',     dsis(53)='mhs_n19',            dval(53)=0.0, dthin(53)=1, dsfcalc(53)=1,
-   dfile(54)='tcvitl'     dtype(54)='tcp',       dplat(54)=' ',       dsis(54)='tcp',                dval(54)=0.0, dthin(54)=0, dsfcalc(54)=0,
-   dfile(55)='seviribufr',dtype(55)='seviri',    dplat(55)='m08',     dsis(55)='seviri_m08',         dval(55)=0.0, dthin(55)=1, dsfcalc(55)=0,
-   dfile(56)='seviribufr',dtype(56)='seviri',    dplat(56)='m09',     dsis(56)='seviri_m09',         dval(56)=0.0, dthin(56)=1, dsfcalc(56)=0,
-   dfile(57)='seviribufr',dtype(57)='seviri',    dplat(57)='m10',     dsis(57)='seviri_m10',         dval(57)=0.0, dthin(57)=1, dsfcalc(57)=0,
-   dfile(58)='hirs4bufr', dtype(58)='hirs4',     dplat(58)='metop-b', dsis(58)='hirs4_metop-b',      dval(58)=0.0, dthin(58)=1, dsfcalc(58)=0,
-   dfile(59)='amsuabufr', dtype(59)='amsua',     dplat(59)='metop-b', dsis(59)='amsua_metop-b',      dval(59)=0.0, dthin(59)=1, dsfcalc(59)=0,
-   dfile(60)='mhsbufr',   dtype(60)='mhs',       dplat(60)='metop-b', dsis(60)='mhs_metop-b',        dval(60)=0.0, dthin(60)=1, dsfcalc(60)=0,
-   dfile(61)='iasibufr',  dtype(61)='iasi',      dplat(61)='metop-b', dsis(61)='iasi616_metop-b',    dval(61)=0.0, dthin(61)=1, dsfcalc(61)=0,
-   dfile(62)='gomebufr',  dtype(62)='gome',      dplat(62)='metop-b', dsis(62)='gome_metop-b',       dval(62)=0.0, dthin(62)=2, dsfcalc(62)=0,
-   dfile(63)='atmsbufr',  dtype(63)='atms',      dplat(63)='npp',     dsis(63)='atms_npp',           dval(63)=0.0, dthin(63)=1, dsfcalc(63)=0,
-   dfile(64)='crisbufr',  dtype(64)='cris',      dplat(64)='npp',     dsis(64)='cris_npp',           dval(64)=0.0, dthin(64)=1, dsfcalc(64)=0,
    $OBSINPUT
  /
+OBS_INPUT::
+!  dfile          dtype       dplat       dsis                 dval    dthin  dsfcalc
+   prepbufr       ps          null        ps                   0.0     0      0
+   prepbufr       t           null        t                    0.0     0      0
+   prepbufr       q           null        q                    0.0     0      0
+   prepbufr       pw          null        pw                   0.0     0      0
+   satwndbufr     uv          null        uv                   0.0     0      0
+   prepbufr       uv          null        uv                   0.0     0      0
+   prepbufr       spd         null        spd                  0.0     0      0
+   prepbufr       dw          null        dw                   0.0     0      0
+   radarbufr      rw          null        rw                   0.0     0      0
+   prepbufr       sst         null        sst                  0.0     0      0
+   gpsrobufr      $gps_dtype  null        gps                  0.0     0      0
+   ssmirrbufr     pcp_ssmi    dmsp        pcp_ssmi             0.0    -1      0
+   tmirrbufr      pcp_tmi     trmm        pcp_tmi              0.0    -1      0
+   sbuvbufr       sbuv2       n16         sbuv8_n16            0.0     0      0
+   sbuvbufr       sbuv2       n17         sbuv8_n17            0.0     0      0
+   sbuvbufr       sbuv2       n18         sbuv8_n18            0.0     0      0
+   hirs3bufr      hirs3       n17         hirs3_n17            0.0     1      1
+   hirs4bufr      hirs4       metop-a     hirs4_metop-a        0.0     1      1
+   gimgrbufr      goes_img    g11         imgr_g11             0.0     1      0
+   gimgrbufr      goes_img    g12         imgr_g12             0.0     1      0
+   airsbufr       airs        aqua        airs281SUBSET_aqua   0.0     1      1
+   amsuabufr      amsua       n15         amsua_n15            0.0     1      1
+   amsuabufr      amsua       n18         amsua_n18            0.0     1      1
+   amsuabufr      amsua       metop-a     amsua_metop-a        0.0     1      1
+   airsbufr       amsua       aqua        amsua_aqua           0.0     1      1
+   amsubbufr      amsub       n17         amsub_n17            0.0     1      1
+   mhsbufr        mhs         n18         mhs_n18              0.0     1      1
+   mhsbufr        mhs         metop-a     mhs_metop-a          0.0     1      1
+   ssmitbufr      ssmi        f14         ssmi_f14             0.0     1      0
+   ssmitbufr      ssmi        f15         ssmi_f15             0.0     1      0
+   amsrebufr      amsre_low   aqua        amsre_aqua           0.0     1      0
+   amsrebufr      amsre_mid   aqua        amsre_aqua           0.0     1      0
+   amsrebufr      amsre_hig   aqua        amsre_aqua           0.0     1      0
+   ssmisbufr      ssmis       f16         ssmis_f16            0.0     1      0
+   gsnd1bufr      sndrd1      g12         sndrD1_g12           0.0     1      0
+   gsnd1bufr      sndrd2      g12         sndrD2_g12           0.0     1      0
+   gsnd1bufr      sndrd3      g12         sndrD3_g12           0.0     1      0
+   gsnd1bufr      sndrd4      g12         sndrD4_g12           0.0     1      0
+   gsnd1bufr      sndrd1      g11         sndrD1_g11           0.0     1      0
+   gsnd1bufr      sndrd2      g11         sndrD2_g11           0.0     1      0
+   gsnd1bufr      sndrd3      g11         sndrD3_g11           0.0     1      0
+   gsnd1bufr      sndrd4      g11         sndrD4_g11           0.0     1      0
+   gsnd1bufr      sndrd1      g13         sndrD1_g13           0.0     1      0
+   gsnd1bufr      sndrd2      g13         sndrD2_g13           0.0     1      0
+   gsnd1bufr      sndrd3      g13         sndrD3_g13           0.0     1      0
+   gsnd1bufr      sndrd4      g13         sndrD4_g13           0.0     1      0
+   iasibufr       iasi        metop-a     iasi616_metop-a      0.0     1      1
+   gomebufr       gome        metop-a     gome_metop-a         0.0     2      0
+   omibufr        omi         aura        omi_aura             0.0     2      0
+   sbuvbufr       sbuv2       n19         sbuv8_n19            0.0     0      0
+   hirs4bufr      hirs4       n19         hirs4_n19            0.0     1      1
+   amsuabufr      amsua       n19         amsua_n19            0.0     1      1
+   mhsbufr        mhs         n19         mhs_n19              0.0     1      1
+   tcvitl         tcp         null        tcp                  0.0     0      0
+   seviribufr     seviri      m08         seviri_m08           0.0     1      0
+   seviribufr     seviri      m09         seviri_m09           0.0     1      0
+   seviribufr     seviri      m10         seviri_m10           0.0     1      0
+   hirs4bufr      hirs4       metop-b     hirs4_metop-b        0.0     1      0
+   amsuabufr      amsua       metop-b     amsua_metop-b        0.0     1      0
+   mhsbufr        mhs         metop-b     mhs_metop-b          0.0     1      0
+   iasibufr       iasi        metop-b     iasi616_metop-b      0.0     1      0
+   gomebufr       gome        metop-b     gome_metop-b         0.0     2      0
+   atmsbufr       atms        npp         atms_npp             0.0     1      0
+   crisbufr       cris        npp         cris_npp             0.0     1      0
+::
  &SUPEROB_RADAR
    $SUPERRAD
  /
@@ -535,12 +526,12 @@ emiscoef_VISice=$fixcrtm/NPOESS.VISice.EmisCoeff.bin
 emiscoef_VISland=$fixcrtm/NPOESS.VISland.EmisCoeff.bin                   
 emiscoef_VISsnow=$fixcrtm/NPOESS.VISsnow.EmisCoeff.bin                   
 emiscoef_VISwater=$fixcrtm/NPOESS.VISwater.EmisCoeff.bin                 
-emiscoef_MWwater=$fixcrtm/FASTEM5.MWwater.EmisCoeff.bin
-aercoef=$fixcrtm/AerosolCoeff/Big_Endian/AerosolCoeff.bin
-cldcoef=$fixcrtm/CloudCoeff/Big_Endian/CloudCoeff.bin
+emiscoef_MWwater=$fixcrtm/FASTEM6.MWwater.EmisCoeff.bin
+aercoef=$fixcrtm/AerosolCoeff.bin
+cldcoef=$fixcrtm/CloudCoeff.bin
 satinfo=$fixgsi/global_satinfo.txt
 scaninfo=$fixgsi/global_scaninfo.txt
-satangl=$fixgsi/global_satangbias.txt
+#satangl=$fixgsi/global_satangbias.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
 ozinfo=$fixgsi/global_ozinfo.txt
 convinfo=$fixgsi/global_convinfo.txt
@@ -569,10 +560,10 @@ $ncp $emiscoef_VISice ./NPOESS.VISice.EmisCoeff.bin
 $ncp $emiscoef_VISland ./NPOESS.VISland.EmisCoeff.bin           
 $ncp $emiscoef_VISsnow ./NPOESS.VISsnow.EmisCoeff.bin           
 $ncp $emiscoef_VISwater ./NPOESS.VISwater.EmisCoeff.bin                 
-$ncp $emiscoef_MWwater ./FASTEM5.MWwater.EmisCoeff.bin
+$ncp $emiscoef_MWwater ./FASTEM6.MWwater.EmisCoeff.bin
 $ncp $aercoef  ./AerosolCoeff.bin
 $ncp $cldcoef  ./CloudCoeff.bin
-$ncp $satangl  ./satbias_angle
+#$ncp $satangl  ./satbias_angle
 $ncp $satinfo  ./satinfo
 $ncp $scaninfo ./scaninfo
 $ncp $pcpinfo  ./pcpinfo
@@ -631,21 +622,27 @@ $ncp $datobs/${prefix_obs}cris.${suffix}     ./crisbufr
 $ncp $datobs/${prefix_obs}syndata.tcvitals.tm00 ./tcvitl
 
 
-# If not CCS, check bufr files.  Bit-swap as necessary
-if [  $MACHINE = ZEUS  ]; then
-   for file in `ls *bufr* `; do
-      c=`/home/Jack.Woollen/bin/binv $file`
-      d=`echo $?`
-      if [ $d != "0" ]; then
-         sh /home/Jack.Woollen/bin/gbqx $file
-      fi
-   done
-fi
-
-
 # Copy bias correction, atmospheric and surface files
-ln -s -f $datges/${prefix_tbc}.abias              ./satbias_in
-ln -s -f $datges/${prefix_tbc}.satang             ./satbias_angle
+$ncp $datges/${prefix_tbc}.abias              ./satbias_in
+#ln -s -f $datges/${prefix_tbc}.abias_pc           ./satbias_pc
+$ncp $datges/${prefix_tbc}.satang             ./satbias_angle
+$ncp $datges/${prefix_tbc}.radstat            ./radstat.gdas
+
+/da/save/$USER/trunk/util/Radiance_bias_correction_Utilities/write_biascr_option.x -newpc4pred -adp_anglebc 4
+
+cp satbias_in satbias_in.orig
+cp satbias_in.new satbias_in
+
+listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
+for type in $listdiag; do
+   diag_file=`echo $type | cut -d',' -f1`
+   fname=`echo $diag_file | cut -d'.' -f1`
+   date=`echo $diag_file | cut -d'.' -f2`
+   $UNCOMPRESS $diag_file
+   fnameanl=$(echo $fname|sed 's/_ges//g')
+   mv $fname.$date $fnameanl
+done
+
 
 # Determine resolution of the guess files
 JCAP_GUESS=`$SIGHDR $datprep/${prefix_atm}.sgesprep JCAP`
@@ -672,7 +669,7 @@ else
    ln -s -f $datprep/gdas1.t${hha}z.sgp3prep           ./gdas1.t${hha}z.sgp3prep
 
    #emily
-   if [  $MACHINE = CCS  ]; then
+   if [  $MACHINE = WCOSS  ]; then
       export SIGLEVEL=/NCEPDEV/rstprod/nwprod/fix/global_hyblev.l64.txt
    elif [  $MACHINE = ZEUS  ]; then
       export SIGLEVEL=/NCEPPROD/nwprod/fix/global_hyblev.l64.txt
@@ -747,22 +744,22 @@ if [  $MACHINE = ZEUS  ]; then
    eval "mpiexec_mpt -v -np $PBS_NP $tmpdir/gsi.x > stdout"
    rc=$?
 
-elif [  $MACHINE = CCS  ]; then
+elif [  $MACHINE = WCOSS  ]; then
 
    # Run gsi under Parallel Operating Environment (poe) on NCEP IBM
-   poe $tmpdir/gsi.x < gsiparm.anl > stdout
+   mpirun.lsf $tmpdir/gsi.x < gsiparm.anl > stdout
    rc=$?
 fi
 
 # Save output
 mkdir -p $savdir
 
-##cat stdout fort.2* > $savdir/stdout.anl.${adate}
-##$ncp siganl          $savdir/siganl.${adate}
-##$ncp sfcanl.gsi      $savdir/sfcanl.${adate}
-##$ncp satbias_out     $savdir/biascr.${adate}
-##$ncp sfcf06          $savdir/sfcf06.${gdate}
-##$ncp sigf06          $savdir/sigf06.${gdate}
+cat stdout fort.2* > $savdir/gsistat.$dumpobs.$adate
+$ncp siganl          $savdir/siganl.$dumpobs.$adate
+$ncp sfcanl.gsi      $savdir/sfcanl_gsi.$dumpobs.$adate
+$ncp satbias_out     $savdir/biascr.$dumpobs.$adate
+$ncp sfcf06          $savdir/sfcf06.$dumpges.$gdate
+$ncp sigf06          $savdir/sigf06.$dumpges.$gdate
 
 ##ss2gg=${TOPDIR}/save/wx20mi/bin/ss2gg
 ##$ss2gg siganl siganl.bin siganl.ctl 4 $NLON_A $NLAT_A
@@ -779,6 +776,11 @@ mkdir -p $savdir
 ##$ncp s*ges.bin $savdir/
 ##$ncp s*ges.ctl $savdir/
 
+CNVSTAT=$savdir/cnvstat.$dumpobs.$adate
+PCPSTAT=$savdir/pcpstat.$dumpobs.$adate
+OZNSTAT=$savdir/oznstat.$dumpobs.$adate
+RADSTAT=$savdir/radstat.$dumpobs.$adate
+
 # Loop over first and last outer loops to generate innovation
 # diagnostic files for indicated observation types (groups)
 #
@@ -790,49 +792,86 @@ mkdir -p $savdir
 #        innovation files.
 #
 
+cd $tmpdir    # we should already be in $DATA, but extra cd to be sure. 
 
-echo "Time before diagnostic loop is `date` "
-cd $tmpdir
+# Set up lists and variables for various types of diagnostic files. 
+ntype=3 
+
+diagtype[0]="conv" 
+diagtype[1]="pcp_ssmi_dmsp pcp_tmi_trmm" 
+diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a omi_aura mls_aura" 
+diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_las_f16 ssmis_uas_f16 ssmis_img_f16 ssmis_env_f16 ssmis_las_f17 ssmis_uas_f17 ssmis_img_f17 ssmis_env_f17 ssmis_las_f18 ssmis_uas_f18 ssmis_img_f18 ssmis_env_f18 ssmis_las_f19 ssmis_uas_f19 ssmis_img_f19 ssmis_env_f19 ssmis_las_f20 ssmis_uas_f20 ssmis_img_f20 ssmis_env_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 cris_npp atms_npp hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b gome_metop-b" 
+
+diaglist[0]=listcnv 
+diaglist[1]=listpcp 
+diaglist[2]=listozn 
+diaglist[3]=listrad 
+
+diagfile[0]=$CNVSTAT 
+diagfile[1]=$PCPSTAT 
+diagfile[2]=$OZNSTAT 
+diagfile[3]=$RADSTAT 
+
+numfile[0]=0 
+numfile[1]=0 
+numfile[2]=0 
+numfile[3]=0 
+
+
+# Set diagnostic file prefix based on lrun_subdirs variable 
+if [ $lrun_subdirs = ".true." ]; then 
+   prefix=" dir.*/" 
+else 
+   prefix="pe*" 
+fi 
+
+# Collect diagnostic files as a function of loop and type. 
 loops="01 03"
 for loop in $loops; do
+   case $loop in 
+      01) string=ges;; 
+      03) string=anl;; 
+       *) string=$loop;; 
+   esac 
+   n=-1 
+   while [ $((n+=1)) -le $ntype ] ;do 
+      for type in `echo ${diagtype[n]}`; do 
+         count=`ls ${prefix}${type}_${loop}* | $wc -l` 
+         if [ $count -gt 0 ]; then 
+            cat ${prefix}${type}_${loop}* > diag_${type}_${string}.${adate}${DIAG_SUFFIX} 
+            echo "diag_${type}_${string}.${adate}*" >> ${diaglist[n]} 
+            numfile[n]=`expr ${numfile[n]} + 1` 
+         fi 
+      done 
+   done 
+done 
 
-case $loop in
-  01) string=ges;;
-  03) string=anl;;
-   *) string=$loop;;
-esac
+cd $tmpdir    # we should already be in $DATA, but extra cd to be sure. 
 
-#  Collect diagnostic files for obs types (groups) below
-   listall="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 pcp_ssmi_dmsp pcp_tmi_trmm conv sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a omi_aura ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10  atms_npp cris_npp"
+# If requested, compress diagnostic files 
+if [[ $DIAG_COMPRESS = YES ]]; then 
+   for file in `ls diag_*${adate}${DIAG_SUFFIX}`; do 
+      $COMPRESS $file 
+   done 
+fi 
 
-
-   for type in $listall; do
-     if [ $lrun_subdirs = ".true." ]; then
-      count=`ls dir.*/${type}_${loop}* | wc -l`
-      if [[ $count -gt 0 ]]; then
-         cat dir.*/${type}_${loop}* > diag_${type}_${string}.${adate}
+# If requested, create diagnostic file tarballs 
+if [[ $DIAG_TARBALL = YES ]]; then 
+   n=-1 
+   while [ $((n+=1)) -le $ntype ] ;do 
+      TAROPTS="-uvf" 
+      if [ ! -s ${diagfile[n]} ]; then 
+         TAROPTS="-cvf"
       fi
-     else
-      count=`ls pe*${type}_${loop}* | wc -l`
-      if [[ $count -gt 0 ]]; then
-         cat pe*${type}_${loop}* > diag_${type}_${string}.${adate}
+      if [ ${numfile[n]} -gt 0 ]; then 
+         tar $TAROPTS ${diagfile[n]} `cat ${diaglist[n]}`
       fi
-     fi
    done
 
-   for file in `ls diag_*${adate}`; do
-      $COMPRESS $file
-
-      if [ $COMPRESS = "gzip" ]; then
-         $ncp diag_${type}_${string}.${adate}.gz $savdir/
-      else
-         $ncp diag_${type}_${string}.${adate}.Z $savdir/
-      fi
-   done
-
-done
-echo "Time after diagnostic loop is `date` "
-
+#  Restrict CNVSTAT 
+   chmod 750 $CNVSTAT 
+   chgrp rstprod $CNVSTAT 
+fi
 
 # If requested, clean up $tmpdir
 if [[ "$CLEAN" = "YES" ]];then

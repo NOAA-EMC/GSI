@@ -4,7 +4,7 @@
 #@ job_type=parallel
 #@ class=dev
 #@ group=dev
-#@ account_no = RDAS-MTN
+#@ account_no = RDAS-T2O
 
 #@ job_name=nmm_binary_gsi
 #@ network.MPI=sn_all,shared,us
@@ -228,7 +228,7 @@ done
 
 # Copy observational data to $tmpdir
 $ncp $datobs/${prefixo}.prepbufr.tm12   ./prepbufr
-$ncp $datobs/${prefixo}.satwnd.$suffix   ./satwnd
+$ncp $datobs/${prefixo}.satwnd.$suffix   ./satwndbufr
 $ncp $datobs/${prefixo}.gpsro.$suffix   ./gpsrobufr
 $ncp $datobs/${prefixo}.1bhrs3.$suffix  ./hirs3bufr
 $ncp $datobs/${prefixo}.1bhrs4.$suffix  ./hirs4bufr
