@@ -1,0 +1,13 @@
+=== rahul.mahajan@noaa.gov 20150508 ===
+parse O-F from gsistat.gdas.YYYYMMDDHH 
+parse_gsistat.py -x expid1 -s starting_date -e ending_date -a /full/path/to/directory/containing/gsistat.gdas.??????????
+For help: parse_gsistat.py -h
+
+compare O-F statistics from 2 experiments
+cmp_gsistat.py -x expid1 expid2
+For help: cmp_gsistat.py -h
+
+plot RMSE O-F profiles
+plot_gsistat.py -x expid1 expid2 -l label1 label2 -s
+For help: plot_gsistat.py -h
+=======================================

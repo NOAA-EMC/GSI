@@ -20,8 +20,8 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  Plot_glbl.sh suffix start_date end_date"
-  echo "            File name for CkPlt_glbl.sh may be full or relative path"
+  echo "Usage:  Plot.sh suffix start_date end_date"
+  echo "            File name for Plot.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
   echo "            start_date and end_date are in the format YYYYMMDDHH."
@@ -71,35 +71,57 @@ fi
 
 top_parm=${this_dir}/../../parm
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
 else
-   echo "Unable to source ${top_parm}/RadMon_config"
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
+
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
+else
+   echo "Unable to source ${RADMON_CONFIG}"
    exit 4
 fi
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
+
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   echo "Unable to source ${RADMON_USER_SETTINGS}"
    exit 6
 fi
 
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+. ${IG_PARM}/plot_rad_conf
 
 if [[ $RAD_AREA = "glb" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
+   . ${IG_PARM}/glbl_conf
 elif [[ $RAD_AREA = "rgn" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+   . ${IG_PARM}/rgnl_conf
 else
    echo "ERROR:  unable to determine RAD_AREA for $SUFFIX"
    exit 7
 fi
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
 
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
 #--------------------------------------------------------------------
-export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
+export NUM_CYCLES=`${IG_SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
 echo NUM_CYCLES = $NUM_CYCLES
 
 if [[ $NUM_CYCLES -le 0 ]]; then
@@ -115,9 +137,9 @@ fi
 #  have a cycle delta of 1 from $start_dt.  (Two cycles are necessary
 #  for grads to plot.)
 #--------------------------------------------------------------------
-proc_dt=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+proc_dt=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 echo proc_date = $proc_dt
-delta_proc_start=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
+delta_proc_start=`${IG_SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
 if [[ $delta_proc_start -le 0 ]]; then
    echo "ERROR:  no data available -- last processed date is ${proc_dt}"
    echo "        requested plot start date is ${start_dt}"
@@ -126,7 +148,6 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
 #--------------------------------------------------------------------
 # Check status of plot jobs. If any are still running then exit
 # this script. If none are running then remove any old job records 
@@ -136,9 +157,7 @@ export PLOT_HORIZ=0
 # all verf jobs have been completed.
 #--------------------------------------------------------------------
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
-elif [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
@@ -151,7 +170,7 @@ fi
 
 
 #--------------------------------------------------------------------
-#  Create tmpdir and LOGDIR
+#  Create tmpdir and LOGdir
 #--------------------------------------------------------------------
 
 tmpdir=${STMP_USER}/plot_rad${SUFFIX}
@@ -159,7 +178,7 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-mkdir -p $LOGDIR
+mkdir -p $LOGdir
 
 
 #--------------------------------------------------------------------
@@ -175,11 +194,10 @@ export PDY=`echo $PDATE|cut -c1-8`
 # Make horizontal plots only on 00z cycle.  All other plotting
 # is done with each cycle. 
 #--------------------------------------------------------------------
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+#if [[ "$CYA" = "00" ]];then
+#   export PLOT_HORIZ=1
+#fi
 
-#echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
 
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -rf $PLOT_WORK_DIR
@@ -210,9 +228,12 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       if [[ ${#test_list} -gt 0 ]]; then
          for test in ${test_list}; do
             this_file=`basename $test`
-            tmp=`echo "$this_file" | cut -d. -f2`
-            echo $tmp
-            SATYPE_LIST="$SATYPE_LIST $tmp"
+            test_anl=`echo $this_file | grep "_anl"`
+            if [[ $test_anl = "" ]]; then
+               tmp=`echo "$this_file" | cut -d. -f2`
+               echo $tmp
+               SATYPE_LIST="$SATYPE_LIST $tmp"
+            fi
          done
 
          break
@@ -252,34 +273,31 @@ fi
 # Export variables
 #------------------------------------------------------------------
 export START_DATE=${start_dt}
-export listvar=RAD_AREA,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
 
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
-${SCRIPTS}/mk_angle_plots.sh
+${IG_SCRIPTS}/mk_angle_plots.sh
 
-${SCRIPTS}/mk_bcoef_plots.sh
+${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-${SCRIPTS}/mk_bcor_plots.sh
+${IG_SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=$RADSTAT_LOCATION
 
-   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
-   logfile="${LOGDIR}/horiz.log"
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+   logfile="${LOGdir}/horiz.log"
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -J ${jobname}  -R affinity[core] ${IG_SCRIPTS}/mk_horiz_plots.sh
    else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
    fi
 fi
 
-${SCRIPTS}/mk_time_plots.sh
+${IG_SCRIPTS}/mk_time_plots.sh
 
 
 #--------------------------------------------------------------------
@@ -290,14 +308,14 @@ do_data_rpt=$DO_DATA_RPT
 
 if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
 
-   logfile_dir=${LOGSverf_rad}/rad${SUFFIX}
+   logfile_dir=${LOGdir}/rad${SUFFIX}
    logfile=`ls ${logfile_dir}/${PDY}/gdas_verfrad_${CYA}.*`
    if [[ ! -s $logfile ]]; then
-      logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log
+      logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
    fi
   
    if [[ -s $logfile ]]; then
-      ${SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
    fi
 fi
 

@@ -10,7 +10,6 @@
 
 set -ax
 date
-export list=$listvar
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
@@ -37,10 +36,8 @@ for type in ${SATYPE}; do
    done=0
    test_day=$PDATE
    ctr=$ndays
-#   echo "before while loop, found, done = $found, $done"
 
    while [[ $found -eq 0 && $done -ne 1 ]]; do
-#      echo "top of while loop"
 
       pdy=`echo $test_day|cut -c1-8`   
 
@@ -66,22 +63,6 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
-
-#   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${Z} ]]; then
-#      $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-#      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
-#         $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
-#      fi
-#      allmissing=0
-#      found=1
-#
-#   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
-#      $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
-#      allmissing=0
-#      found=1
-#
-#   else
-#      echo WARNING:  unable to locate ${type}.ctl
    fi
 done
 
@@ -92,27 +73,17 @@ if [[ $allmissing = 1 ]]; then
 fi
 
 
-# TESTING
-#export SATYPE="sndrd1_g15"
-
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the bcoef control
-#   files.  Conditionally rm "cray_32bit_ieee" from the options line.
-#
-#   Note that the logic for the tdef in time series is backwards
-#   from bcoef series.  Time tdefs start at -720 from PDATE.  For
-#   bcoef series the tdef = $PDATE and the script works backwards.
-#   Some consistency on this point would be great.
-
-#start_date=`$NDATE -720 $PDATE`
+#   files.  Conditionally remove any cray_32bit_ieee flags.
 
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
@@ -127,15 +98,13 @@ done
 #
 
 jobname="plot_${SUFFIX}_bcoef"
-logfile="$LOGDIR/plot_bcoef.log"
+logfile="$LOGdir/plot_bcoef.log"
 rm ${logfile}
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o ${logfile} $SCRIPTS/plot_bcoef.sh
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q dev -o ${logfile} -W 0:45 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $IG_SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
+   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
 fi
 
 exit

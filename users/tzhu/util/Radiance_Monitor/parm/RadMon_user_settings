@@ -7,15 +7,22 @@
 #------------------------------------------------------------------------------
 
 #
-#  ACCOUNT is set by the RadMon_instal.sh script, to GDAS-MTN, dev, or ada
-#    according to platform (ccs, wcoss, zeus respectively)
+#  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
+#  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-ada}
+export ACCOUNT=${ACCOUNT:-}
 
 #
-#  USER_CLASS is set to "dev" on the CCS, empty on all other platforms
+#  PROJECT is used on wcoss only with the bjob -P flag.  It is 
+#  empty on other platforms.
 #
+export PROJECT=${PROJECT:-GDAS-T2O}
 
+#
+#  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
+#  empty on other platforms.
+#
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -29,14 +36,13 @@ export RAD_AREA=${RAD_AREA:-glb}
 #    need to be set to the directory of the radstat files (we only extract 
 #    horizontal data when it's needed rather than storing huge files all the time).
 #
-#export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
-export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/scratch1/portfolios/NCEPDEV/da/noscrub/George.Gayno/prcntl}
+export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
 
 #
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
 #    0 = off, 1 = on
 #
-export USE_ANL=${USE_ANL:-0}
+export USE_ANL=${USE_ANL:-1}
 
 #
 #  PLOT_ALL_REGIONS switches on/off plotting of all 5 regions (global, land, 
@@ -50,15 +56,39 @@ export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 
 #
+#  PLOT_HORIZ switches on/off plotting of horizontal data.  0=off, 1 = on.
+#
+export PLOT_HORIZ=${PLOT_HORIZ:-0}
+
+#
+#  PLOT_STATIC_IMGS switches on/off generation of static summary image plots.
+#     Image plotting is moving towards client browser drawn images and plotting
+#     scripts will eventually not "plot" images, but rather generate very small
+#     text files used to draw these client browser images.  The reason for this
+#     change is that the browswer drawn images can be modified dynamically by the
+#     user, and the text files require less server space than static images.
+#
+#     At present only summary plots have been converted.  
+#     0 = no static summary plot images created, 1 = static summary plots are generated
+#
+export PLOT_STATIC_IMGS=${PLOT_STATIC_IMGS:-0}
+
+#
+#  USE_TM is only used for regional data sources and by default uses the tm12
+#  files.  
+export USE_TM=${USE_TM:-tm12}
+
+#
 #  DO_ARCHIVE switches on archiving of extracted data files.  This is generally
 #    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
 #    for parallels.  0 = off, 1 = on
 export DO_ARCHIVE=${DO_ARCHIVE:-0}
+export ARCHIVE_DIR=${ARCHIVE_DIR:-' '}
 
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
 #    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/Edward.Safford/nbns/stats}
+export HPSS_DIR=${HPSS_DIR:-' '}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily
@@ -79,7 +109,12 @@ export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
 #    reporting of drifting channel(s) on specific sat/instrument sources is 
 #    desirable.  It is not normally necesary to apply this to parallels.  0 = off, 1 = on
 export DO_DATA_RPT=${DO_DATA_RPT:-0}
-export MAIL_TO=${MAIL_TO:-}
-export MAIL_CC=${MAIL_CC:-}
+export MAIL_TO=${MAIL_TO:-' '}
+export MAIL_CC=${MAIL_CC:-' '}
 
+#
+#  RUN_ONLY_ON_DEV switches on/off the constraint to run only on the development machine.
+#  0 = prod or dev, 1 = dev only.
+#  
+export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 
