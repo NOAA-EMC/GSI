@@ -26,7 +26,7 @@ subroutine get_nmmb_ensperts
    use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen 
    use constants,only: zero,one,one_tenth,ten
    use mpimod, only: mpi_comm_world,ierror,mype
-   use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,uv_hyb_ens
+   use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,uv_hyb_ens,q_hyb_ens
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundleset,gsi_grid,gsi_bundle, &
                             gsi_bundlegetpointer,gsi_bundledestroy,gsi_gridcreate
@@ -42,7 +42,7 @@ subroutine get_nmmb_ensperts
    type(gsi_grid)  :: grid_ens
    real(r_kind) bar_norm,sig_norm
 
-   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative,ii
+   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative
    character(70) filename
    logical ice
 
@@ -86,16 +86,18 @@ subroutine get_nmmb_ensperts
          end do
       end do
 
-       ice=.true.
-       iderivative=0
-       call genqsat(qs,tsen(1,1,1),prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
-       do k=1,grd_ens%nsig
-          do j=1,grd_ens%lon2
-             do i=1,grd_ens%lat2
-                rh(i,j,k) = q(i,j,k)/qs(i,j,k)
-             end do
-          end do
-       end do
+      if (.not.q_hyb_ens) then
+         ice=.true.
+         iderivative=0
+         call genqsat(qs,tsen(1,1,1),prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+         do k=1,grd_ens%nsig
+            do j=1,grd_ens%lon2
+               do i=1,grd_ens%lat2
+                  rh(i,j,k) = q(i,j,k)/qs(i,j,k)
+               end do
+            end do
+         end do
+      end if
 
       do ic3=1,nc3d
 
@@ -146,15 +148,25 @@ subroutine get_nmmb_ensperts
                end do
 
             case('q','Q')
-                do k=1,grd_ens%nsig
-                   do j=1,grd_ens%lon2
-                      do i=1,grd_ens%lat2
-                         w3(i,j,k) = rh(i,j,k)
-                         x3(i,j,k)=x3(i,j,k)+rh(i,j,k)                   
-                      end do
-                   end do
-                end do
-
+              if (.not.q_hyb_ens) then   ! use RH
+                  do k=1,grd_ens%nsig
+                     do j=1,grd_ens%lon2
+                        do i=1,grd_ens%lat2
+                           w3(i,j,k) = rh(i,j,k)
+                           x3(i,j,k)=x3(i,j,k)+rh(i,j,k)
+                        end do
+                     end do
+                  end do
+               else                       ! use Q
+                  do k=1,grd_ens%nsig
+                     do j=1,grd_ens%lon2
+                        do i=1,grd_ens%lat2
+                           w3(i,j,k) = q(i,j,k)
+                           x3(i,j,k)=x3(i,j,k)+q(i,j,k)
+                        end do
+                     end do
+                  end do
+               end if
 
             case('oz','OZ')
                       

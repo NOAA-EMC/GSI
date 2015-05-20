@@ -17,6 +17,8 @@
 !   2011-04-08 li      - add tref, dtw, dtc to diag_data_fix_list, add tb_tz to diag_data_chan_list
 !                      - correspondingly, change ireal_radiag (26 -> 30) and ipchan_radiag (7 -> 8)
 !   2011-07-24 safford - make structure size for reading data_fix data version dependent 
+!   2013-11-21 todling - revisit how versions are set (add set/get_radiag)
+!   2014-01-27 todling - add ob sensitivity index
 !
 ! contains
 !   read_radiag_header - read radiance diagnostic file header
@@ -44,12 +46,22 @@ module read_diag
   public :: diag_data_extra_list
   public :: read_radiag_header
   public :: read_radiag_data
-  public :: iversion_radiag
-  public :: iversion_radiag_1
-  public :: iversion_radiag_2
-  public :: iversion_radiag_3
+! public :: iversion_radiag
+! public :: iversion_radiag_1
+! public :: iversion_radiag_2
+! public :: iversion_radiag_3
+! public :: iversion_radiag_4
   public :: ireal_radiag
   public :: ipchan_radiag
+  public :: set_radiag
+  public :: get_radiag
+
+  interface set_radiag
+         module procedure set_radiag_int_ ! internal procedure for integers
+  end interface
+  interface get_radiag
+         module procedure get_radiag_int_ ! internal procedure for integers
+  end interface
 
   integer(i_kind),parameter :: ireal_radiag  = 30   ! number of real entries per spot in radiance diagnostic file
   integer(i_kind),parameter :: ireal_old_radiag  = 26   ! number of real entries per spot in versions older than iversion_radiag_2
@@ -72,6 +84,7 @@ module read_diag
      integer(i_kind) :: angord           ! order of polynomial for adp_anglebc option
      integer(i_kind) :: iversion         ! radiance diagnostic file version number
      integer(i_kind) :: inewpc           ! indicator of newpc4pred (1 on, 0 off)
+     integer(i_kind) :: isens            ! sensitivity index
   end type diag_header_fix_list
 
   type diag_data_name_list
@@ -139,6 +152,7 @@ module read_diag
      real(r_single) :: bilap              ! lapse rate bias correction term
      real(r_single) :: bicos              ! node*cos(lat) bias correction term
      real(r_single) :: bisin              ! sin(lat) bias correction term
+     real(r_single) :: biemis             ! emissivity sensitivity bias correction term
      real(r_single),dimension(:),allocatable :: bifix          ! angle dependent bias
      real(r_single) :: bisst              ! SST bias correction term
   end type diag_data_chan_list
@@ -147,14 +161,37 @@ module read_diag
      real(r_single) :: extra              ! extra information
   end type diag_data_extra_list
 
-  integer(i_kind),parameter:: iversion_radiag   = 19180   ! Current version
+  integer(i_kind),save     :: iversion_radiag             ! Current version (see set routine)
   integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
   integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
   integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
+  integer(i_kind),parameter:: iversion_radiag_4 = 30303   ! Version when emissivity predictor added
 
   real(r_single),parameter::  rmiss_radiag    = -9.9e11_r_single
 
 contains
+
+subroutine set_radiag_int_ (what,iv,ier)
+character(len=*),intent(in) :: what
+integer(i_kind),intent(in) :: iv
+integer(i_kind),intent(out):: ier
+ier=-1
+if(trim(what)=='version') then
+  iversion_radiag = iv
+  ier=0
+endif
+end subroutine set_radiag_int_
+
+subroutine get_radiag_int_ (what,iv,ier)
+character(len=*),intent(in) :: what
+integer(i_kind),intent(out):: iv
+integer(i_kind),intent(out):: ier
+ier=-1
+if(trim(what)=='version') then
+  iv = iversion_radiag
+  ier=0
+endif
+end subroutine get_radiag_int_
 
 subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan,data_name,iflag,lverbose)
 !                .      .    .                                       .
@@ -202,7 +239,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   character(len=20):: sensat
   integer(i_kind) :: i,ich
   integer(i_kind):: jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
-  integer(i_kind):: idiag,angord,iversion,inewpc
+  integer(i_kind):: idiag,angord,iversion,inewpc,isens
   integer(i_kind):: iuse_tmp,nuchan_tmp,iochan_tmp
   real(r_single) :: freq_tmp,polar_tmp,wave_tmp,varch_tmp,tlapmean_tmp
   logical loutall
@@ -212,7 +249,28 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 
 ! Read header (fixed_part).
   read(ftin,IOSTAT=iflag)  sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc,isens
+  if (iflag/=0) then
+     rewind(ftin)
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
           ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc
+     isens=0
+  end if
+
+  if (iflag/=0) then
+     rewind(ftin)
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra
+     idiag=ipchan+npred+1
+     angord=0
+     iversion=0
+     inewpc=0
+     isens=0
+     if (iflag/=0) then
+        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
+        return
+     endif
+  endif
 
   header_fix%isis    = sensat
   header_fix%id      = satid
@@ -229,31 +287,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   header_fix%angord  = angord
   header_fix%iversion= iversion
   header_fix%inewpc  = inewpc
-
-  if (iflag/=0) then
-     rewind(ftin)
-     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
-          ireal,ipchan,iextra,jextra
-     if (iflag/=0) then
-        write(6,*)'READ_RADIAG_HEADER:  ***ERROR*** Unknown file format.  Cannot read'
-        return
-     endif
-     header_fix%isis    = sensat
-     header_fix%id      = satid
-     header_fix%obstype = sentype
-     header_fix%jiter   = jiter
-     header_fix%nchan   = nchanl
-     header_fix%npred   = npred
-     header_fix%idate   = ianldate
-     header_fix%ireal   = ireal
-     header_fix%ipchan  = ipchan
-     header_fix%iextra  = iextra
-     header_fix%jextra  = jextra
-     header_fix%idiag   = ipchan+npred+1
-     header_fix%angord  = 0
-     header_fix%iversion= 0
-     header_fix%inewpc  = 0
-  endif
+  header_fix%isens   = isens
 
   if (loutall) then
      write(6,*)'READ_RADIAG_HEADER:  isis=',header_fix%isis,&
@@ -262,7 +296,8 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
           ' angord=',header_fix%angord,&
           ' idiag=',header_fix%idiag,&
           ' iversion=',header_fix%iversion,&
-          ' inewpc=',header_fix%inewpc
+          ' inewpc=',header_fix%inewpc,&
+          ' isens=',header_fix%isens
      
      if ( header_fix%iextra /= 0) &
           write(6,*)'READ_RADIAG_HEADER:  extra diagnostic information available, ',&
@@ -352,7 +387,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(13+header_fix%angord+1)= 'bifix     '
         data_name%chn(13+header_fix%angord+2)= 'bisst     '
-     else
+     elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
         data_name%chn( 9)= 'bicons    '
         data_name%chn(10)= 'biang     '
         data_name%chn(11)= 'biclw     '
@@ -366,6 +401,21 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(15+header_fix%angord+1)= 'bifix     '
         data_name%chn(15+header_fix%angord+2)= 'bisst     '
+     else
+        data_name%chn( 9)= 'bicons    '
+        data_name%chn(10)= 'biang     '
+        data_name%chn(11)= 'biclw     '
+        data_name%chn(12)= 'bilap2    '
+        data_name%chn(13)= 'bilap     '
+        data_name%chn(14)= 'bicos     '
+        data_name%chn(15)= 'bisin     '
+        data_name%chn(16)= 'biemis    '
+        do i=1,header_fix%angord
+           write(string,'(i2.2)') header_fix%angord-i+1
+           data_name%chn(16+i)= 'bifix' // string
+        end do
+        data_name%chn(16+header_fix%angord+1)= 'bifix     '
+        data_name%chn(16+header_fix%angord+2)= 'bisst     '
      endif
 
 ! Read header (channel part)
@@ -557,7 +607,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         end do
         data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)
      end do
-  else
+  elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bicons=data_tmp(9,ich)
         data_chan(ich)%biang =data_tmp(10,ich)
@@ -571,7 +621,24 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         do iang=1,header_fix%angord+1
            data_chan(ich)%bifix(iang)=data_tmp(15+iang,ich)
         end do
-        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)  
+        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)
+     end do
+  else
+     do ich=1,header_fix%nchan
+        data_chan(ich)%bicons=data_tmp(9,ich)
+        data_chan(ich)%biang =data_tmp(10,ich)
+        data_chan(ich)%biclw =data_tmp(11,ich)
+        data_chan(ich)%bilap2=data_tmp(12,ich)
+        data_chan(ich)%bilap =data_tmp(13,ich)
+        data_chan(ich)%bicos =data_tmp(14,ich) 
+        data_chan(ich)%bisin =data_tmp(15,ich)
+        data_chan(ich)%biemis=data_tmp(16,ich)
+     end do
+     do ich=1,header_fix%nchan
+        do iang=1,header_fix%angord+1
+           data_chan(ich)%bifix(iang)=data_tmp(16+iang,ich)
+        end do
+        data_chan(ich)%bisst = data_tmp(16+header_fix%angord+2,ich)  
      end do
   endif
 

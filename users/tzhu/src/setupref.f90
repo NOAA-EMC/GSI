@@ -95,6 +95,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2013-01-16 cucurull - remove GRAS data below 8 km
 !  2013-01-26 parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                   tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!  2013-10-19 todling - metguess now holds background
+!  2014-04-10 todling - 4dvar fix: obs must be in current time bin
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -116,10 +119,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
        i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset
   use obsmod, only: gps_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
-       ges_z,ges_tv,ges_q,gpstop
+       gpstop
   use gridmod, only: nsig
   use gridmod, only: latlon11,get_ij,regional
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
@@ -143,6 +146,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use m_gpsrhs, only: gpsrhs_dealloc
   use m_gpsrhs, only: gpsrhs_aliases
   use m_gpsrhs, only: gpsrhs_unaliases
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
   implicit none
 
 ! Declare local parameters
@@ -197,12 +204,17 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   integer(i_kind):: satellite_id,transmitter_id
 
   logical,dimension(nobs):: luse
+  logical proceed
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gps_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -251,6 +263,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 ! Initialize variables
   rsig=float(nsig)
   mm1=mype+1
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
 ! Allocate arrays for output to diagnostic file
   mreal=21
@@ -755,55 +774,57 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupref: failure to allocate obsdiags',istat
-              call stop2(282)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupref: failure to allocate obsdiags',istat
+                 call stop2(282)
+              end if
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupref: failure to allocate obsdiags',istat
+                 call stop2(283)
+              end if
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupref: failure to allocate obsdiags',istat
-              call stop2(283)
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
+
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_gps_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
+
+        else 
+           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
+           else
+              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_gps_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_gps_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
-
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_gps_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-
-     else 
-        if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
-        else
-           obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupref: index error'
-           call stop2(284)
-        end if
+           if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupref: index error'
+              call stop2(284)
+           end if
+        endif
+        if(last_pass .and. nobskeep>0)muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
      endif
 
      if(last_pass) then
-        if (nobskeep>0) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
 
 !       Save values needed for generation of statistics for all observations
         if(.not. associated(gps_allhead(ibin)%head))then
@@ -834,14 +855,16 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
 
 !       Fill obs diagnostics structure
-        obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
-        obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
-        obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+        if(luse_obsdiag)then
+           obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
+           obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
+           obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
+           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+        end if
 
 !       Load additional obs diagnostic structure
+        ioff=mreal
         if (lobsdiagsave) then
-           ioff=mreal
            do jj=1,miter
               ioff=ioff+1
               if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
@@ -871,7 +894,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !       If obs is "acceptable", load array with obs info for use
 !       in inner loop minimization (int* and stp* routines)
 
-        if ( muse(i) ) then
+        if ( in_curbin .and. muse(i) ) then
  
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)
@@ -944,22 +967,27 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            gpstail(ibin)%head%pg        = cvar_pg(ikx)
            gpstail(ibin)%head%luse      = luse(i)
 
-           gpstail(ibin)%head%diags     => obsdiags(i_gps_ob_type,ibin)%tail
+           if(luse_obsdiag)then
+              gpstail(ibin)%head%diags     => obsdiags(i_gps_ob_type,ibin)%tail
 
-           my_head => gpstail(ibin)%head
-           my_diag => gpstail(ibin)%head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                    (/is,i,ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
+              my_head => gpstail(ibin)%head
+              my_diag => gpstail(ibin)%head%diags
+              if(my_head%idv /= my_diag%idv .or. &
+                 my_head%iob /= my_diag%iob ) then
+                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                       (/is,i,ibin/))
+                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+                 call die(myname)
+              endif
            endif
-        endif
 
+        endif ! (in_curbin .and. muse=1)
      endif ! (last_pass)
   end do
+
+  ! Release memory of local guess arrays
+  call final_vars_
 
   ! Save these arrays for later passes
   data_ier (:)=data(ier ,:)
@@ -971,4 +999,96 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   if(last_pass) call gpsrhs_dealloc(is)
 
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::q', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_z )) deallocate(ges_z )
+  end subroutine final_vars_
+
 end subroutine setupref

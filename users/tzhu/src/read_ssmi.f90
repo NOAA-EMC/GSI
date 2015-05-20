@@ -47,8 +47,12 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-
+!   2014-05-02  sienkiewicz- modify gross check screening to allow data to be used with bad ch6, if
+!                              ch6 data has been turned off - only toss if do85GHz is true
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!
 !   input argument list:
 !     mype     - mpi task id
 !     val_ssmi - weighting factor applied to super obs
@@ -79,19 +83,20 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use obsmod, only: bmiss
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
-  use obsmod, only: bmiss
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
 ! Declare passed variables
-  character(10)  ,intent(in   ) :: infile,obstype,jsatid
-  character(20)  ,intent(in   ) :: sis
+  character(len=*),intent(in   ) :: infile,obstype,jsatid
+  character(len=20),intent(in  ) :: sis
   integer(i_kind),intent(in   ) :: mype,lunout,ithin
   integer(i_kind),intent(in   ) :: mype_root
   integer(i_kind),intent(in   ) :: mype_sub
@@ -126,7 +131,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset
 
-  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,next
   integer(i_kind):: iret,idate,nchanl
   integer(i_kind):: isflg,nreal,idomsfc
   integer(i_kind):: nmind,itx,nele,itt
@@ -143,7 +148,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
 
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
+  real(r_kind) disterr,disterrmax,dlon00,dlat00,cdist
 
 !  ---- bufr argument -----
   real(r_double),dimension(n1bhdr):: bfr1bhdr
@@ -182,7 +187,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   ilat=4
 
   if(nst_gsi>0) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 ! Set various variables depending on type of data to be read
@@ -232,7 +237,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open unit to satellite bufr file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
@@ -264,11 +269,11 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
         iobsdate(1:5) = bfr1bhdr(2:6) !year,month,day,hour,min
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        sstime=real(nmind,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv
+        tdiff=(sstime-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + real(bfr1bhdr(7),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
            if(abs(tdiff) > twind)  cycle read_loop
         endif
 
@@ -302,8 +307,10 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               if(diagnostic_reg) then
                  call txy2ll(dlon,dlat,dlon00,dlat00)
                  ntest=ntest+1
-                 disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                      (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+                 cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                      (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
                  disterrmax=max(disterrmax,disterr)
               end if
 
@@ -336,7 +343,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               ij = ij+1
               if(mirad(ij)<tbmin .or. mirad(ij)>tbmax ) then
                  iskip = iskip + 1
-                 if(jc == 1 .or. jc == 3 .or. jc == 6)iskip=iskip+nchanl
+                 if(jc == 1 .or. jc == 3)iskip=iskip+nchanl
+                 if(jc == 6 .and. do85GHz)iskip=iskip+nchanl    ! skip on bad ch6 only if using 85GHz data
               else
                  nread=nread+1
               end if
@@ -346,7 +354,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            if(iskip >= nchanl)  cycle scan_loop  !if all ch for any position is bad, skip 
            flgch = iskip*two   !used for thinning priority range 0-14
 
-           if (l4dvar) then
+           if (thin4d) then
               crit1 = 0.01_r_kind+ flgch
            else
               timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18
@@ -395,13 +403,15 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            else              ! otherwise do alternate check for rain
 
               if (isflg/=0) then     ! just try to scren out land pts.
-                 pred = 30_r_kind
+                 pred = 50_r_kind
               else
                  tb19v=tbob(1);  tb22v=tbob(3);
                  if (tb19v < 288.0_r_kind .and. tb22v < 288.0_r_kind) then
                     q19 = -6.723_r_kind * ( log(290.0_r_kind - tb19v)  &
                          - 2.850_r_kind - 0.405_r_kind* log(290.0_r_kind - tb22v))
-                    pred = 75._r_kind * q19  ! scale 0.4mm -> pred ~ 30
+                    pred = min(75._r_kind * q19,50.)  ! scale 0.4mm -> pred ~ 30
+                 else
+                    pred = 50_r_kind      ! default if Tb 19/22 > 288
                  endif
               endif
            endif
@@ -423,7 +433,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               dtc   = zero
               tz_tr = one
               if(sfcpct(0)>zero) then
-                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               endif
            endif
 

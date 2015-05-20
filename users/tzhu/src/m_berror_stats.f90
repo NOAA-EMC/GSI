@@ -1,10 +1,10 @@
 module m_berror_stats
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_berror_stats
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 900.3
-!     date:	 2010-03-24
+! subprogram:    module m_berror_stats
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 900.3
+!     date:      2010-03-24
 !
 ! abstract:  a module of berror_stats input
 !
@@ -35,32 +35,34 @@ module m_berror_stats
 ! !INTERFACE:
 
       use kinds,only : i_kind
-      use constants, only: one
+      use constants, only: one,zero
       use control_vectors,only: cvars2d,cvars3d
       use mpeu_util,only: getindex
       use mpeu_util,only: perr,die
 
       implicit none
 
-      private	! except
+      private    ! except
 
         ! reconfigurable parameters, via NAMELIST/setup/
-      public :: berror_stats	! reconfigurable filename
+      public :: berror_stats    ! reconfigurable filename
 
         ! interfaces to file berror_stats.
-      public :: berror_get_dims	! get dimensions, jfunc::createj_func()
-      public :: berror_read_bal	! get cross-cov.stats., balmod::prebal()
-      public :: berror_read_wgt	! get auto-cov.stats., prewgt()
+      public :: berror_get_dims ! get dimensions, jfunc::createj_func()
+      public :: berror_read_bal ! get cross-cov.stats., balmod::prebal()
+      public :: berror_read_wgt ! get auto-cov.stats., prewgt()
+      public :: berror_set      ! set internal parameters
 
-      	! external interfaces relating to internal procedures.
+        ! external interfaces relating to internal procedures.
       interface berror_get_dims; module procedure get_dims; end interface
       interface berror_read_bal; module procedure read_bal; end interface
       interface berror_read_wgt; module procedure read_wgt; end interface
+      interface berror_set;      module procedure lset;     end interface
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code to wrap up all file
-!		  "berror_stats" related operations.
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code to wrap up all file
+!                 "berror_stats" related operations.
 !       25Feb10 - Zhu
 !               - made changes for generalizing control variables
 !               - remove berror_nvars
@@ -70,11 +72,12 @@ module m_berror_stats
 
   character(len=*),parameter :: myname='m_berror_stats'
 
-  	! Reconfigurable parameters, vai NAMELISt/setup/
-  character(len=256),save :: berror_stats = "berror_stats"	! filename
+      ! Reconfigurable parameters, vai NAMELISt/setup/
+  character(len=256),save :: berror_stats = "berror_stats"      ! filename
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2
+  logical,save:: cwcoveqqcov_
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -96,8 +99,8 @@ contains
       integer(i_kind),optional,intent(in   ) :: unit  ! logical unit [22]
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of the code is extracted from jfunc.f90
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of the code is extracted from jfunc.f90
 !       18Jun10 - todling - turn mlon into optional
 !EOP ___________________________________________________________________
 
@@ -120,30 +123,69 @@ end subroutine get_dims
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
 !BOP -------------------------------------------------------------------
 !
+! !IROUTINE: lset - set (logical) parameter options internal to B
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine lset(opt,value)
+
+      implicit none
+
+      character(len=*),intent(in) :: opt
+      logical(i_kind), intent(in) :: value
+
+! !REVISION HISTORY:
+!       04Feb14 - todling - set logical parameters internal to this package
+!EOP ___________________________________________________________________
+
+  character(len=*),parameter :: myname_=myname//'::lset'
+  logical found
+
+  found=.false.
+  if(trim(opt)=='cwcoveqqcov') then
+     cwcoveqqcov_=value
+     found=.true.
+  endif
+  if(.not.found) then
+     write(6,*) myname_,'(PREBAL):  ***ERROR*** cannot find:', trim(opt)
+     call stop2(999)
+  endif 
+
+end subroutine lset
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
+!BOP -------------------------------------------------------------------
+!
 ! !IROUTINE: read_bal - get cross-corr. coefficients
 !
 ! !DESCRIPTION:
 !
 ! !INTERFACE:
 
-    subroutine read_bal(agvin,bvin,wgvin,mype,unit)
+    subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,unit)
       use kinds,only : r_single
       use gridmod,only : nlat,nlon,nsig
+      use constants, only: zero
 
       implicit none
 
+      logical,intent(in) :: fut2ps
       real(r_single),dimension(nlat,nsig,nsig),intent(  out) :: agvin
       real(r_single),dimension(nlat,nsig)     ,intent(  out) :: bvin,wgvin
+      real(r_single),dimension(nlat,nsig)     ,intent(  out) :: pputin
       integer(i_kind)                         ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional                ,intent(in   ) :: unit ! an alternative unit
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of code for input is extracted from
-!		  prebal() in balmod.f90.
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of code for input is extracted from
+!                 prebal() in balmod.f90.
 !       25Feb10 - Zhu 
 !               - change the structure of background error file
 !               - read in agvin,wgvin,bvin only
+!      09Oct12 - Gu  add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_bal'
@@ -188,7 +230,12 @@ end subroutine get_dims
     end if
 
 !   Read background error file to get balance variables
-    read(inerr,iostat=ier) agvin,bvin,wgvin
+    if(fut2ps)then
+      read(inerr,iostat=ier) agvin,bvin,wgvin,pputin
+    else
+      read(inerr,iostat=ier) agvin,bvin,wgvin
+      pputin=zero
+    endif
     if(ier/=0) call die(myname_, &
        'read("'//trim(berror_stats)//'") for (agvin,bvin,wgvin) error, iostat =',ier)
     close(inerr,iostat=ier)
@@ -207,11 +254,10 @@ end subroutine read_bal
 !
 ! !INTERFACE:
 
-    subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,mype,unit)
+    subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwoption,mype,unit)
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use jfunc,only: varq,qoption
 
       implicit none
 
@@ -225,19 +271,29 @@ end subroutine read_bal
       real(r_single),dimension(nlat,nlon),intent(out) :: corsst
       real(r_single),dimension(nlat,nlon),intent(out) :: hsst
 
+      real(r_kind),  dimension(:,:)      ,intent(out) :: varq
+      real(r_kind),  dimension(:,:)      ,intent(out) :: varcw
+
+      integer(i_kind)                    ,intent(in   ) :: qoption
+      integer(i_kind)                    ,intent(in   ) :: cwoption
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
 
 ! !REVISION HISTORY:
-! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- the main body of the code for input is extracted from
-!		  prewgt() in prewgt.f90.
-!       25Feb10  - Zhu - change the structure of background error file
-!                      - make changes for generalizing control variables
-!                      - move varq here from prewgt
+!       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - the main body of the code for input is extracted from
+!                 prewgt() in prewgt.f90.
+!       25Feb10 - Zhu - change the structure of background error file
+!                     - make changes for generalizing control variables
+!                     - move varq here from prewgt
 !       28May10 - Todling - Obtain variable id's on the fly (add getindex) 
 !                         - simpler logics to associate cv w/ berrors
 !       14Jun10 - Todling - Allow any 3d berror not in file to be templated 
+!       15Dec12 - Zhu - Add varcw and cwoption
+!       03Feb14 - Todling - varq & qoption in arg list (remove dep on jfunc)
+!       05Feb14 - Todling - Allow for overwrite of cw with q cov
+!       07Jun14 - Zhu - set up new error variance and corr. lengths 
+!                       of cw for allsky radiance
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -246,10 +302,10 @@ end subroutine read_bal
   real(r_single),dimension(nlat,nsig,nsig):: agvin
   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
  
-  integer(i_kind) :: i,n,k
+  integer(i_kind) :: i,n,k,iq,icw
   integer(i_kind) :: inerr,istat,ier
   integer(i_kind) :: nsigstat,nlatstat
-  integer(i_kind) :: loc,nn,isig
+  integer(i_kind) :: isig
   real(r_kind) :: corq2x
   character*5 var
   logical,allocatable,dimension(:) :: found3d
@@ -301,12 +357,12 @@ end subroutine read_bal
      if (istat/=0) exit
 
      allocate ( corzin(nlat,isig) )
-     if (var=='q') allocate ( corq2(nlat,isig) )
+     if (var=='q' .or. var=='cw') allocate ( corq2(nlat,isig) )
      allocate ( hwllin(nlat,isig) )
      if (isig>1) allocate ( vscalesin(nlat,isig) )
 
      if (var/='sst') then
-        if (var=='q' .or. var=='Q') then
+        if (var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2)) then
            read(inerr,iostat=ier) corzin,corq2
            if(ier/=0) call die(myname_, &
               'read("'//trim(berror_stats)//'") for (corzin,corq2) error, iostat =',ier)
@@ -355,6 +411,19 @@ end subroutine read_bal
                  end do
               end do
            end if
+           if (var=='cw' .and. cwoption==2)then
+              do k=1,isig
+                 do i=1,nlat
+                    corq2x=corq2(i,k)
+                    varcw(i,k)=max(corq2x,zero)
+                 enddo
+              enddo
+              do k=1,isig
+                 do i=1,nlat
+                    corz(i,k,n)=one
+                 end do
+              end do
+           end if
            do k=1,isig
               do i=1,nlat
                  hwll(i,k,n)=hwllin(i,k)
@@ -376,7 +445,7 @@ end subroutine read_bal
 
      deallocate(corzin,hwllin)
      if (isig>1) deallocate(vscalesin)
-     if (var=='q') deallocate(corq2)
+     if (var=='q' .or. var=='cw') deallocate(corq2)
   enddo read 
   close(inerr)
 
@@ -396,6 +465,30 @@ end subroutine read_bal
         if(mype==0) write(6,*) myname_, ': WARNING, using general Berror template for ', cvars3d(n)
      endif
   enddo
+
+! if so, overwrite cw-cov with q-cov
+  iq=-1;icw=-1
+  do n=1,size(cvars3d)
+     if(trim(cvars3d(n))=='q' ) iq =n
+     if(trim(cvars3d(n))=='cw') icw=n
+  enddo
+  if (cwcoveqqcov_) then
+     if(iq>0.and.icw>0) then
+       hwll(:,:,icw)=hwll(:,:,iq)
+       vz  (:,:,icw)=vz  (:,:,iq)
+     end if
+  end if
+  if (cwoption==1 .or. cwoption==3) then
+     do k=1,nsig
+        do i=1,nlat
+           corz(i,k,icw)=one
+        end do
+     end do
+     if (iq>0.and.icw>0) then
+        hwll(:,:,icw)=0.5_r_kind*hwll(:,:,iq)
+        vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
+     end if 
+  endif
 
 ! need simliar general template for undefined 2d variables ...
 
@@ -423,21 +516,24 @@ end subroutine read_wgt
       use gridmod,  only: lon1,lat1
 
       use guess_grids,only: ntguessig
-      use guess_grids,only: ges_oz   ! ozone fields
       use guess_grids,only: ges_prsi ! interface pressures (kPa)
 
+      use gsi_bundlemod, only: gsi_bundlegetpointer
+      use gsi_metguess_mod, only: gsi_metguess_bundle
       implicit none
 
       real(r_single),dimension(nlat,nsig),intent(  out) :: coroz ! of ozone
-      integer(i_kind)              ,intent(in   ) :: mype     ! ID of this processor
+      integer(i_kind)                    ,intent(in   ) :: mype  ! ID of this processor
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- adopted from PREWGT of previous version
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - adopted from PREWGT of previous version
+!       2013-10-19 oz guess field in metguess now 
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::setcoroz_'
   real(r_kind),parameter:: r25 = one/25.0_r_kind
+  real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
 
 !! -- workspace and working variables
 
@@ -448,6 +544,9 @@ end subroutine read_wgt
     integer(i_kind) :: mlat,msig
     integer(i_kind) :: i,j,k,n,mm1
     integer(i_kind) :: ierror
+
+    call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'oz',ges_oz,ierror)
+    if(ierror/=0) return ! nothing to do
 
 !! -- synity check
     if(mype==0) then
@@ -473,7 +572,7 @@ end subroutine read_wgt
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
-           work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
+           work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k)* &
               rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
         end do
      end do
@@ -533,8 +632,8 @@ end subroutine setcoroz_
       integer(i_kind)              ,intent(in   ) :: mype ! ID of this processor
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::sethwlloz_'
@@ -592,14 +691,14 @@ end subroutine sethwlloz_
       real(r_single),dimension(nsig,nlat),intent(  out) :: vscalesoz
 
 ! !REVISION HISTORY:
-! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
-!		- initial prototype/prolog/code
+!       31Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
+!               - initial prototype/prolog/code
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::setvscalesoz_'
   real(r_kind),parameter:: eight_tenths = 0.8_r_kind
 
-  	! a fixed value is used.
+      ! a fixed value is used.
   vscalesoz(:,:)=eight_tenths
 
 end subroutine setvscalesoz_

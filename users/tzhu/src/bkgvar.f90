@@ -27,6 +27,7 @@ subroutine bkgvar(cvec,iflg)
 !   2012-06-25  parrish - remove sst,slndt,sict as input/output arrays.  They are now contained
 !                         in the input bundle cvec, using motley variables.
 !   2012-06-25  parrish - remove integer constants izero,ione.
+!   2013-10-28  todling - rename p3d to prse
 !
 !   input argument list:
 !     t        - t grid values
@@ -79,7 +80,6 @@ subroutine bkgvar(cvec,iflg)
 
 ! Declare local variables
   integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus
-  real(r_kind) dl1,dl2
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()
@@ -224,10 +224,10 @@ subroutine bkg_stddev(cvec,svec)
   type(gsi_bundle), intent(inout) :: svec
 
 ! Declare local variables  	
-  integer(i_kind) :: ii,jj,istatus
+  integer(i_kind) :: istatus
   real(r_kind),pointer,dimension(:,:)   :: cv_ps
   real(r_kind),pointer,dimension(:,:,:) :: cv_t,cv_sf,cv_vp,cv_rh
-  real(r_kind),pointer,dimension(:,:,:) :: sv_tsen,sv_u,sv_v,sv_q,sv_p3d
+  real(r_kind),pointer,dimension(:,:,:) :: sv_tsen,sv_u,sv_v,sv_q,sv_prse
   logical do_flow_dep,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv
 
 ! Declare required local control variables
@@ -241,8 +241,8 @@ subroutine bkg_stddev(cvec,svec)
   integer(i_kind), parameter :: nsvars = 5
   integer(i_kind)            :: isps(nsvars)
   character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-  logical ls_u,ls_v,ls_tsen,ls_p3d,ls_q
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen' /)
+  logical ls_u,ls_v,ls_tsen,ls_prse,ls_q
 
 ! Check presence of fields in control bundle
   call gsi_bundlegetpointer (cvec,mycvars,icps,istatus)
@@ -251,13 +251,13 @@ subroutine bkg_stddev(cvec,svec)
 
 ! Check presence of fields in state bundle
   call gsi_bundlegetpointer (svec,mysvars,isps,istatus)
-  ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+  ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
   ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 
 ! Determine what to do given what's available
   do_flow_dep      =lc_sf.and.lc_vp.and.lc_t.and.lc_ps
-  do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
-  do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+  do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
+  do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
   do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
   do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
@@ -280,7 +280,7 @@ subroutine bkg_stddev(cvec,svec)
   call gsi_bundlegetpointer (svec,'u'   ,sv_u    ,istatus)
   call gsi_bundlegetpointer (svec,'v'   ,sv_v    ,istatus)
   call gsi_bundlegetpointer (svec,'tsen',sv_tsen ,istatus)
-  call gsi_bundlegetpointer (svec,'p3d' ,sv_p3d  ,istatus)
+  call gsi_bundlegetpointer (svec,'prse',sv_prse ,istatus)
   call gsi_bundlegetpointer (svec,'q'   ,sv_q    ,istatus)
 
 ! Add flow dependent part to standard deviations
@@ -289,10 +289,10 @@ subroutine bkg_stddev(cvec,svec)
   endif
 
 !  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_p3d)
+   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
 !  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_p3d,sv_q)
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
    
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)

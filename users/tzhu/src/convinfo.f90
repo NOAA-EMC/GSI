@@ -14,6 +14,9 @@ module convinfo
 !   2007-11-03       su  - add pmesh_conv 
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
+!   2013-08-20  s.liu - add reflectivity
+!   2013-11-20        su - add ptime_conv as time dimension,and pmot_conv as
+!                           parameter tfor the option to keep thinned data as monitored
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -44,6 +47,8 @@ module convinfo
 !   def ithin_conv     - 0, no thinning, 1 - thinning
 !   def rmesh_conv     - size of thinning mesh (km)
 !   def pmesh_conv     - size of vertical thinning mesh 
+!   def pmot_conv      - option to keep thinned data out
+!   def ptime_conv     - option to add time dimension
 !
 !
 !   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw,pm2_5
@@ -60,6 +65,7 @@ module convinfo
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   use obsmod, only: use_limit
+  use gridmod, only: use_reflectivity
   implicit none
 
 ! set default as private
@@ -75,7 +81,7 @@ module convinfo
   public :: stndev_conv_spd,stndev_conv_t,id_bias_ps,npred_conv_max,id_bias_t,conv_bias_ps,id_bias_spd
   public :: stndev_conv_pm2_5,conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
 
-  public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg
+  public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg,pmot_conv,ptime_conv
   public :: cermin,cgross
   public :: use_prepb_satwnd
 
@@ -84,7 +90,7 @@ module convinfo
   logical :: use_prepb_satwnd
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-										rmesh_conv,pmesh_conv,stndev_conv
+		                          rmesh_conv,pmesh_conv,stndev_conv,pmot_conv,ptime_conv
   integer(i_kind),allocatable,dimension(:):: ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,&
                                              ithin_conv,npred_conv
   character(len=16),allocatable,dimension(:)::ioctype
@@ -154,6 +160,7 @@ contains
     conv_bias_pm2_5= zero
 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
+    use_reflectivity=.false.  ! option of using reflectivity
 
     call init_pm2_5
 		  
@@ -174,6 +181,7 @@ contains
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2009-01-22  todling - protect against non-initialized destroy call
 !   2010-05-29  todling - interface consistent w/ similar routines
+!   2014-07-10  carley  - add check to bypass blank lines in convinfo file
 !
 !   input argument list:
 !     mype - mpi task id
@@ -203,11 +211,17 @@ contains
     nconvtype=0
     nlines=0
     read1: do
+       cflg=' '
+       iotype='       '
        read(lunin,1030,iostat=istat,end=1130)cflg,iotype,crecord
 1030   format(a1,a7,2x,a120)
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
+       if (cflg==' '.and.iotype=='       ') then
+         write(6,*) 'Encountered a blank line in convinfo file at line number: ',nlines,' skipping!'
+         cycle
+       end if
        read(crecord,*)ictypet,icsubtypet,icuset
        if (icuset < use_limit) cycle
        nconvtype=nconvtype+1
@@ -230,7 +244,7 @@ contains
              ncnumgrp(nconvtype),icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
              ioctype(nconvtype), & 
              ithin_conv(nconvtype),rmesh_conv(nconvtype),pmesh_conv(nconvtype),&
-             npred_conv(nconvtype), &
+             npred_conv(nconvtype),pmot_conv(nconvtype),ptime_conv(nconvtype),  &
              stndev_conv(nconvtype), &
              stat=ier )
     if ( ier /= 0 )  then
@@ -243,6 +257,8 @@ contains
        rmesh_conv(i)=99999.0_r_kind
        pmesh_conv(i)=zero
        stndev_conv(i)=one
+       pmot_conv(i)=zero
+       ptime_conv(i)=zero
     enddo
     nc=zero
 
@@ -264,7 +280,13 @@ contains
     endif
 
     do i=1,nlines
+       cflg=' '
+       iotype='       '
        read(lunin,1030)cflg,iotype,crecord
+       if (cflg==' '.and.iotype=='       ') then
+         write(6,*) 'Encountered a blank line in convinfo file at line number: ',i,' skipping!'
+         cycle
+       end if
        if(cflg == '!')cycle
        read(crecord,*)ictypet,icsubtypet,icuset
        if (mype==0 .and. icuset < use_limit) write(6, *) &
@@ -272,7 +294,7 @@ contains
        if(icuset < use_limit)cycle
        nc=nc+1
        ioctype(nc)=iotype
-           !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred
+           !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred pmot ptime
            !ps       120    0    1     3.0      0      0      0   5.0   3.0   1.0  10.0  0.000 0 99999.    5
            !ioctype(nc),
            !  ictype(nc),
@@ -283,11 +305,11 @@ contains
 
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
             ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
+            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
        if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
             ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5)
+            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
+1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6)
        if (npred_conv_max > 0 ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
           if (ier /= 0 ) then
@@ -443,7 +465,7 @@ contains
              ncnumgrp,icuse,ictype,icsubtype, &
              ioctype, & 
              ithin_conv,rmesh_conv,pmesh_conv, &
-             npred_conv, &
+             npred_conv,pmot_conv,ptime_conv, &
              stndev_conv, &
              stat=ier )
     if ( ier /= 0 )  then

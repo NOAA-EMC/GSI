@@ -42,12 +42,16 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2012-12-15  zhu     - add treatment of dssv for cw for all-sky radiance
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !                          (fixes WCOSS debug compile error)
 !
 !   2013-04-17  wu      - use nnnn1o to deside whether to define B related veriables
 !                         avoid undefined input when number of tasks is larger than
 !                         that of the total levels of control vectors
+!   2013-10-19  todling - all guess variables in met-guess
+!   2014-02-03  todling - update interface to berror_read_wgt_reg
+!
 !   input argument list:
 !     mype     - pe number
 !
@@ -70,9 +74,9 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw,nhscrf
+       init_rftable,hzscl,slw,nhscrf,cwcoveqqcov
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
-  use jfunc, only: qoption
+  use jfunc, only: varq,qoption,varcw,cwoption
   use control_vectors, only: cvars2d,cvars3d
   use control_vectors, only: as2d,as3d,atsfc_sdv
   use control_vectors, only: nrf,nc3d,nc2d,nvars,mvars !_RT ,nrf3_loc,nrf2_loc,nrf_var
@@ -80,10 +84,13 @@ subroutine prewgt_reg(mype)
   use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
        region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
   use constants, only: zero,half,one,two,four,rad2deg,zero_quad
-  use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
+  use guess_grids, only: ges_prslavg,ges_psfcavg
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
   use mpeu_util, only: getindex
   use mpl_allreducemod, only: mpl_allreduce
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use mpeu_util, only: die
 
   implicit none
 
@@ -105,7 +112,7 @@ subroutine prewgt_reg(mype)
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
-  integer(i_kind) nrf3_oz,nrf2_sst
+  integer(i_kind) nrf3_oz,nrf2_sst,nrf3_cw,istatus
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) samp2,dl1,dl2,d
@@ -125,6 +132,8 @@ subroutine prewgt_reg(mype)
   real(r_quad),dimension(180*nsig):: ozmz0,cnt0
   real(r_kind),dimension(180,nsig):: ozmzt,cntt
 
+  real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
+
 ! Initialize local variables
 !  do j=1,nx
 !     do i=1,ny
@@ -143,6 +152,7 @@ subroutine prewgt_reg(mype)
 
 ! Get required indexes from CV var names
   nrf3_oz  = getindex(cvars3d,'oz')
+  nrf3_cw  = getindex(cvars3d,'cw')
   nrf2_sst = getindex(cvars2d,'sst')
 
 ! Read dimension of stats file
@@ -156,11 +166,14 @@ subroutine prewgt_reg(mype)
   allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
-  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
 
 ! find ozmz for background error variance
   kb=0
   if(regional_ozone) then
+
+     call gsi_bundlegetpointer (gsi_metguess_bundle(1),'oz',ges_oz,istatus)
+     if(istatus/=0) call die('prewgt_reg',': missing oz in metguess, aborting ',istatus)
 
      kb_loop: do k=1,nsig
         if(rlsig(k) <  log(0.35_r_kind))then
@@ -180,7 +193,7 @@ subroutine prewgt_reg(mype)
               il=i+istart(mm1)-2
               il=min0(max0(1,il),nlat)
               ix=region_lat(il,jl)*rad2deg+half+90._r_kind
-              ozmz(ix,k)=ozmz(ix,k)+ges_oz(i,j,k,1)*ges_oz(i,j,k,1)
+              ozmz(ix,k)=ozmz(ix,k)+ges_oz(i,j,k)*ges_oz(i,j,k)
               cnt(ix,k)=cnt(ix,k)+one
            end do
         end do
@@ -302,7 +315,7 @@ subroutine prewgt_reg(mype)
   end do
 
 ! Special case of dssv for qoption=2 and cw
-  if (qoption==2 .or. getindex(cvars3d,'cw')>0) call compute_qvar3d
+  if (qoption==2) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d

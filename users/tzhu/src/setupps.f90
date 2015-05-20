@@ -58,6 +58,9 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
 !                                  tintrp2a to tintrp2a1, tintrp2a11,
 !                                  tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-10-19  todling - metguess now holds background 
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -80,7 +83,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     i_ps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
                     time_offset
   use obsmod, only: ps_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig,get_ij,twodvar_regional
@@ -89,10 +92,13 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              r1000,wgtlim,tiny_single,r10,three
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print
-  use guess_grids, only: hrdifsig,ges_lnprsl,ges_tv,ges_ps,nfldsig,ges_z,ntguessig
+  use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
 
   implicit none
 
@@ -100,7 +106,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
+  integer(i_kind)                                  ,intent(in   ) :: is     ! ndat index
   logical                                          ,intent(in   ) :: conv_diagsave
 
 ! Declare local parameters
@@ -131,11 +137,12 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb
-  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,isfcr,iff10,idomsfc,izz,iprvd,isprvd
-  integer(i_kind) ikxx,nn,istat,iskint,ibin,ioff
+  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
+  integer(i_kind) ikxx,nn,istat,ibin,ioff,ioff0
   integer(i_kind) i,nchar,nreal,ii,jj,k,l,mm1
 
   logical,dimension(nobs):: luse,muse
+  logical proceed
  
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -153,6 +160,10 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
   
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+
   n_alloc(:)=0
   m_alloc(:)=0
 !*******************************************************************************
@@ -174,16 +185,13 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ier2=11     ! index of original-original obs error ratio
   iuse=12     ! index of use parameter
   idomsfc=13  ! index of dominant surface type
-  iskint=14   ! index of surface skin temperature
-  iff10=15    ! index of 10 meter wind factor
-  isfcr=16    ! index of surface roughness
-  ilone=17    ! index of longitude (degrees)
-  ilate=18    ! index of latitude (degrees)
-  istnelv=19  ! index of station elevation (m)
-  izz=20      ! index of surface height
-  iprvd=21    ! index of observation provider
-  isprvd=22   ! index of observation subprovider
-  iptrb=23    ! index of ps perturbation
+  ilone=14    ! index of longitude (degrees)
+  ilate=15    ! index of latitude (degrees)
+  istnelv=16  ! index of station elevation (m)
+  izz=17      ! index of surface height
+  iprvd=18    ! index of observation provider
+  isprvd=19   ! index of observation subprovider
+  iptrb=20    ! index of ps perturbation
 
 ! Declare local constants
   halfpi = half*pi
@@ -194,6 +202,13 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   tmax=350.0_r_kind
   half_tlapse=0.00325_r_kind  ! half of 6.5K/1km
   mm1=mype+1
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
 !  Check to see if observation should be used or monitored
 !  muse = true  then used
@@ -223,7 +238,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   if(conv_diagsave)then
      nchar=1
-     nreal=19
+     ioff0=19
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -256,50 +272,52 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then 
-        if (.not.associated(obsdiags(i_ps_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_ps_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupps: failure to allocate obsdiags',istat
-              call stop2(266)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then 
+           if (.not.associated(obsdiags(i_ps_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_ps_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupps: failure to allocate obsdiags',istat
+                 call stop2(266)
+              end if
+              obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_ps_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setupps: failure to allocate obsdiags',istat
+                 call stop2(267)
+              end if
+              obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_ps_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setupps: failure to allocate obsdiags',istat
-              call stop2(267)
-           end if
-           obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_ps_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_ps_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_ps_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_ps_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_ps_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_ps_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_ps_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_ps_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_ps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_ps_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_ps_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_ps_ob_type,ibin)%tail%obssen(:)=zero
+           allocate(obsdiags(i_ps_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_ps_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_ps_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_ps_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_ps_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_ps_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_ps_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_ps_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_ps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_ps_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_ps_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_ps_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_ps_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-     else
-        if (.not.associated(obsdiags(i_ps_ob_type,ibin)%tail)) then
-           obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%head
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_ps_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
         else
-           obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_ps_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setupps: index error'
-           call stop2(268)
-        end if
+           if (.not.associated(obsdiags(i_ps_ob_type,ibin)%tail)) then
+              obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%head
+           else
+              obsdiags(i_ps_ob_type,ibin)%tail => obsdiags(i_ps_ob_type,ibin)%tail%next
+           end if
+           if (obsdiags(i_ps_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setupps: index error'
+              call stop2(268)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -345,7 +363,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
 
 !  No observed temperature 
-        psges2=data(ipres,i)
+        psges2=log(data(ipres,i))
         call grdcrd1(psges2,prsltmp,nsig,-1)
         call tintrp31(ges_tv,tges2,dlat,dlon,psges2,dtime, &
              hrdifsig,mype,nfldsig)
@@ -432,7 +450,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         muse(i) = .true.
      endif
 
-     if (nobskeep>0) muse(i)=obsdiags(i_ps_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_ps_ob_type,ibin)%tail%muse(nobskeep)
 
 ! Compute penalty terms, and accumulate statistics.
 
@@ -487,10 +505,12 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
      end if
 
-     obsdiags(i_ps_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_ps_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_ps_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-     obsdiags(i_ps_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     if(luse_obsdiag)then
+        obsdiags(i_ps_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_ps_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_ps_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+        obsdiags(i_ps_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
 
      if (.not. last .and. muse(i)) then
@@ -529,17 +549,19 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            pstail(ibin)%head%ppertb= data(iptrb,i)/error/ratio_errors ! obs perturbation
         endif
 
-        pstail(ibin)%head%diags => obsdiags(i_ps_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           pstail(ibin)%head%diags => obsdiags(i_ps_ob_type,ibin)%tail
 
-        my_head => pstail(ibin)%head
-        my_diag => pstail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-           my_head%iob /= my_diag%iob ) then
-           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                 (/is,i,ibin/))
-           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-           call die(myname)
+           my_head => pstail(ibin)%head
+           my_diag => pstail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                    (/is,i,ibin/))
+              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+              call die(myname)
+           endif
         endif
 
      endif
@@ -597,7 +619,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(18,ii) = pob-pges           ! obs-ges used in analysis (coverted to hPa)
         rdiagbuf(19,ii) = pob-pgesorig       ! obs-ges w/o adjustment to guess surface pressure (hPa)
 
-        ioff=19
+        ioff=ioff0
         if (lobsdiagsave) then
            do jj=1,miter
               ioff=ioff+1
@@ -635,11 +657,14 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! End of loop over observations
   end do
 
+! Release memory of local guess arrays
+  call final_vars_
+
 ! Write information to diagnostic file
 
   if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:ps',i_ps_ob_type)
-     write(7)' ps',nchar,nreal,ii,mype
+     write(7)' ps',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
 
@@ -650,4 +675,96 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end if
   
 ! End of routine
+  return 
+
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2
+  real(r_kind),dimension(:,:,:),pointer:: rank3
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_z )) deallocate(ges_z )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setupps

@@ -23,7 +23,6 @@ module zrnmi_mod
 !   sub zrnmi_sd2x0            --- setup to convert from subdomains to x direction
 !   sub zrnmi_sd2x1            --- additional setup
 !   sub zrnmi_x2sd1            --- additional setup
-!   sub zrnmi_sd2x             --- subdomains to x
 !   sub zrnmi_sd2x2            --- subdomains to x
 !   sub zrnmi_sd2x3            --- subdomains to x
 !   sub zrnmi_x2sd             --- x to subdomains
@@ -34,12 +33,8 @@ module zrnmi_mod
 !   sub zrnmi_sd2y0            --- setup to convert from subdomains to y direction
 !   sub zrnmi_sd2y1            --- additional setup
 !   sub zrnmi_y2sd1            --- additional setup
-!   sub zrnmi_sd2y             --- subdomains to y
 !   sub zrnmi_sd2y2            --- subdomains to y
-!   sub zrnmi_sd2y3            --- subdomains to y
-!   sub zrnmi_y2sd             --- y to subdomains
 !   sub zrnmi_y2sd2            --- y to subdomains
-!   sub zrnmi_y2sd3            --- y to subdomains
 !
 !   sub zrnmi_x_strans0         - initialize constants for x transforms
 !   sub zrnmi_x_strans          - sin trans in x direction from grid to spectral
@@ -53,11 +48,7 @@ module zrnmi_mod
 !
 !   sub zrnmi_x2y0             - setup to convert from x to y
 !   sub zrnmi_x2y1             - additional setup for x to y
-!   sub zrnmi_x2y              - x to y
-!   sub zrnmi_x2y2             - x to y
 !   sub zrnmi_x2y3             - x to y
-!   sub zrnmi_y2x              - y to x
-!   sub zrnmi_y2x2             - y to x
 !   sub zrnmi_y2x3             - y to x
 !
 !   sub zrnmi_y_strans0         - initialize constants for y transforms
@@ -73,7 +64,6 @@ module zrnmi_mod
 !
 !   sub zrnmi_uv2dz
 !   sub zrnmi_uv2dz_ad
-!   sub zrnmi_pc2uv
 !   sub zrnmi_pc2uv_orig
 !   sub zrnmi_pc2uv_ad_orig
 !   sub zrnmi_constants
@@ -107,7 +97,6 @@ module zrnmi_mod
   public :: zrnmi_sd2x0
   public :: zrnmi_sd2x1
   public :: zrnmi_x2sd1
-  public :: zrnmi_sd2x
   public :: zrnmi_sd2x2
   public :: zrnmi_sd2x3
   public :: zrnmi_x2sd
@@ -116,12 +105,8 @@ module zrnmi_mod
   public :: zrnmi_sd2y0
   public :: zrnmi_sd2y1
   public :: zrnmi_y2sd1
-  public :: zrnmi_sd2y
   public :: zrnmi_sd2y2
-  public :: zrnmi_sd2y3
-  public :: zrnmi_y2sd
   public :: zrnmi_y2sd2
-  public :: zrnmi_y2sd3
   public :: zrnmi_x_strans0
   public :: zrnmi_x_strans
   public :: zrnmi_uvm2dzmhat
@@ -132,11 +117,7 @@ module zrnmi_mod
   public :: zrnmi_pcmhat2uvm_ad
   public :: zrnmi_x2y0
   public :: zrnmi_x2y1
-  public :: zrnmi_x2y
-  public :: zrnmi_x2y2
   public :: zrnmi_x2y3
-  public :: zrnmi_y2x
-  public :: zrnmi_y2x2
   public :: zrnmi_y2x3
   public :: zrnmi_y_strans0
   public :: zrnmi_y_strans
@@ -148,7 +129,6 @@ module zrnmi_mod
   public :: zrnmi_dely_ad
   public :: zrnmi_uv2dz
   public :: zrnmi_uv2dz_ad
-  public :: zrnmi_pc2uv
   public :: zrnmi_pc2uv_orig
   public :: zrnmi_pc2uv_ad_orig
   public :: zrnmi_constants
@@ -555,68 +535,6 @@ contains
     call mpi_type_free(mpi_string1,ierror)
 
   end subroutine zrnmi_x2sd1
-
-  subroutine zrnmi_sd2x(u_sd,u_x,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_sd2x
-!
-!   prgrmmr: 
-!
-! abstract:
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!
-!   output argument list:
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-!  use mpi_alltoallv to move u_sd (subdomains) to u_x (y strips)
-
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: lon2,lat2,jstart,istart
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                        ,intent(in   ) :: mype
-
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u_sd
-    real(r_kind),dimension(nx,ny_0:ny_1)   ,intent(  out) :: u_x
-
-    integer(i_kind) iy,iym,ix,ivert,j,mm1
-    real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-
-    mm1=mype+1
-
-    allocate(sendbuf(nallsend_sd2x))
-    do j=1,nallsend_sd2x
-       ix=info_send_sd2x(1,j)
-       iym=info_send_sd2x(2,j)
-       iy=list_sd2x(1,iym)
-       ivert=list_sd2x(2,iym)
-       sendbuf(j)=u_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-    end do
-    allocate(recvbuf(nallrecv_sd2x))
-    call mpi_alltoallv(sendbuf,nsend_sd2x,ndsend_sd2x,mpi_rtype, &
-                       recvbuf,nrecv_sd2x,ndrecv_sd2x,mpi_rtype,mpi_comm_world,ierror)
-    deallocate(sendbuf)
-
-    do j=1,nallrecv_sd2x
-       ix=info_recv_sd2x(1,j)
-       iym=info_recv_sd2x(2,j)
-       u_x(ix,iym)=recvbuf(j)
-    end do
-    deallocate(recvbuf)
-
-  end subroutine zrnmi_sd2x
 
   subroutine zrnmi_sd2x2(u1_sd,u2_sd,u1_x,u2_x,mype)
 !$$$  subprogram documentation block
@@ -1275,70 +1193,6 @@ contains
 
   end subroutine zrnmi_y2sd1
 
-  subroutine zrnmi_sd2y(u_sd,u_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_sd2y
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u_sd     -
-!
-!   output argument list:
-!     u_y      -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-!  use mpi_alltoallv to move u_sd (subdomains) to u_y (x strips)
-
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: lon2,lat2,jstart,istart
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                        ,intent(in   ) :: mype
-
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u_sd
-    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(  out) :: u_y
-
-    integer(i_kind) ix,ixm,iy,ivert,j,mm1
-    real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-
-    mm1=mype+1
-
-    allocate(sendbuf(nallsend_sd2y))
-    do j=1,nallsend_sd2y
-       iy=info_send_sd2y(1,j)
-       ixm=info_send_sd2y(2,j)
-       ix=list_sd2y(1,ixm)
-       ivert=list_sd2y(2,ixm)
-       sendbuf(j)=u_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-    end do
-    allocate(recvbuf(nallrecv_sd2y))
-    call mpi_alltoallv(sendbuf,nsend_sd2y,ndsend_sd2y,mpi_rtype, &
-                       recvbuf,nrecv_sd2y,ndrecv_sd2y,mpi_rtype,mpi_comm_world,ierror)
-    deallocate(sendbuf)
-
-    do j=1,nallrecv_sd2y
-       iy=info_recv_sd2y(1,j)
-       ixm=info_recv_sd2y(2,j)
-       u_y(iy,ixm)=recvbuf(j)
-    end do
-    deallocate(recvbuf)
-
-  end subroutine zrnmi_sd2y
-
   subroutine zrnmi_sd2y2(u1_sd,u2_sd,u1_y,u2_y,mype)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1409,146 +1263,6 @@ contains
     deallocate(recvbuf)
 
   end subroutine zrnmi_sd2y2
-
-  subroutine zrnmi_sd2y3(u1_sd,u2_sd,u3_sd,u1_y,u2_y,u3_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_sd2y3
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u1_sd    -
-!     u2_sd    -
-!     u3_sd    -
-!
-!   output argument list:
-!     u1_y     -
-!     u2_y     -
-!     u3_y     -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-!  use mpi_alltoallv to move u_sd (subdomains) to u_y (x strips)
-
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: lon2,lat2,jstart,istart
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                        ,intent(in   ) :: mype
-
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(  out) :: u1_y,u2_y,u3_y
-
-    integer(i_kind) ix,ixm,iy,ivert,j,mm1,mpi_string1
-    real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-
-    mm1=mype+1
-
-    allocate(sendbuf(3,nallsend_sd2y))
-    do j=1,nallsend_sd2y
-       iy=info_send_sd2y(1,j)
-       ixm=info_send_sd2y(2,j)
-       ix=list_sd2y(1,ixm)
-       ivert=list_sd2y(2,ixm)
-       sendbuf(1,j)=u1_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-       sendbuf(2,j)=u2_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-       sendbuf(3,j)=u3_sd(iy-istart(mm1)+2,ix-jstart(mm1)+2,ivert)
-    end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
-    call mpi_type_commit(mpi_string1,ierror)
-    allocate(recvbuf(3,nallrecv_sd2y))
-    call mpi_alltoallv(sendbuf,nsend_sd2y,ndsend_sd2y,mpi_string1, &
-                       recvbuf,nrecv_sd2y,ndrecv_sd2y,mpi_string1,mpi_comm_world,ierror)
-    call mpi_type_free(mpi_string1,ierror)
-    deallocate(sendbuf)
-
-    do j=1,nallrecv_sd2y
-       iy=info_recv_sd2y(1,j)
-       ixm=info_recv_sd2y(2,j)
-       u1_y(iy,ixm)=recvbuf(1,j)
-       u2_y(iy,ixm)=recvbuf(2,j)
-       u3_y(iy,ixm)=recvbuf(3,j)
-    end do
-    deallocate(recvbuf)
-
-  end subroutine zrnmi_sd2y3
-
-  subroutine zrnmi_y2sd(u_sd,u_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_y2sd
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u_sd     -
-!
-!   output argument list:
-!     u_y      -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-!  use mpi_alltoallv to move u_y (x strips) to u_sd (subdomains)
-
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: lon2,lat2,jstart
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    use constants, only: zero
-    implicit none
-
-
-    integer(i_kind)                        ,intent(in   ) :: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u_sd
-    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(in   ) :: u_y
-
-    real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-    integer(i_kind) ix,ivert,j,mm1,ixm,iy,iyloc
-
-    mm1=mype+1
-
-    u_sd=zero
-    allocate(sendbuf(nallsend_y2sd))
-    do j=1,nallsend_y2sd
-       iy=info_send_y2sd(1,j)
-       ixm=info_send_y2sd(3,j)
-       sendbuf(j)=u_y(iy,ixm)
-    end do
-    allocate(recvbuf(nallrecv_y2sd))
-    call mpi_alltoallv(sendbuf,nsend_y2sd,ndsend_y2sd,mpi_rtype, &
-                       recvbuf,nrecv_y2sd,ndrecv_y2sd,mpi_rtype,mpi_comm_world,ierror)
-    deallocate(sendbuf)
-    do j=1,nallrecv_y2sd
-       iyloc=info_recv_y2sd(2,j)
-       ixm=info_recv_y2sd(3,j)
-       ix=list_sd2y(1,ixm)
-       ivert=list_sd2y(2,ixm)
-       u_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(j)
-    end do
-    deallocate(recvbuf)
-
-  end subroutine zrnmi_y2sd
 
   subroutine zrnmi_y2sd2(u1_sd,u2_sd,u1_y,u2_y,mype)
 !$$$  subprogram documentation block
@@ -1622,83 +1336,6 @@ contains
     deallocate(recvbuf)
 
   end subroutine zrnmi_y2sd2
-
-  subroutine zrnmi_y2sd3(u1_sd,u2_sd,u3_sd,u1_y,u2_y,u3_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_y2sd3
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u1_y     -
-!     u2_y     -
-!     u3_y     -
-!
-!   output argument list:
-!     u1_sd    -
-!     u2_sd    -
-!     u3_sd    -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-!  use mpi_alltoallv to move u_y (x strips) to u_sd (subdomains)
-
-    use kinds, only: r_kind,i_kind
-    use gridmod, only: lon2,lat2,jstart
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    use constants, only: zero
-    implicit none
-
-
-    integer(i_kind)                        ,intent(in   ) :: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u1_sd,u2_sd,u3_sd
-    real(r_kind),dimension(ny,nx_0:nx_1)   ,intent(in   ) :: u1_y,u2_y,u3_y
-
-    real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-    integer(i_kind) ix,ivert,j,mm1,ixm,iy,iyloc,mpi_string1
-
-    mm1=mype+1
-
-    u1_sd=zero
-    u2_sd=zero
-    allocate(sendbuf(3,nallsend_y2sd))
-    do j=1,nallsend_y2sd
-       iy=info_send_y2sd(1,j)
-       ixm=info_send_y2sd(3,j)
-       sendbuf(1,j)=u1_y(iy,ixm)
-       sendbuf(2,j)=u2_y(iy,ixm)
-       sendbuf(3,j)=u3_y(iy,ixm)
-    end do
-    call mpi_type_contiguous(3,mpi_rtype,mpi_string1,ierror)
-    call mpi_type_commit(mpi_string1,ierror)
-    allocate(recvbuf(3,nallrecv_y2sd))
-    call mpi_alltoallv(sendbuf,nsend_y2sd,ndsend_y2sd,mpi_string1, &
-                       recvbuf,nrecv_y2sd,ndrecv_y2sd,mpi_string1,mpi_comm_world,ierror)
-    call mpi_type_free(mpi_string1,ierror)
-    deallocate(sendbuf)
-    do j=1,nallrecv_y2sd
-       iyloc=info_recv_y2sd(2,j)
-       ixm=info_recv_y2sd(3,j)
-       ix=list_sd2y(1,ixm)
-       ivert=list_sd2y(2,ixm)
-       u1_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(1,j)
-       u2_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(2,j)
-       u3_sd(iyloc,ix-jstart(mm1)+2,ivert)=recvbuf(3,j)
-    end do
-    deallocate(recvbuf)
-
-  end subroutine zrnmi_y2sd3
 
   subroutine zrnmi_x_strans0
 !$$$  subprogram documentation block
@@ -2322,128 +1959,6 @@ contains
 
   end subroutine zrnmi_x2y1
 
-  subroutine zrnmi_x2y(u_x,u_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_x2y
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u_x      -
-!
-!   output argument list:
-!     u_y      -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                     ,intent(in   ) :: mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in   ) :: u_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(  out) :: u_y
-
-    integer(i_kind) ixm,ix,iy,iym,j,mm1
-    real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-
-    mm1=mype+1
-
-    allocate(sendbuf(nallsend_x2y))
-    do j=1,nallsend_x2y
-       ix=info_send_x2y(1,j)
-       iym=info_send_x2y(2,j)
-       sendbuf(j)=u_x(ix,iym)
-    end do
-    allocate(recvbuf(nallrecv_x2y))
-    call mpi_alltoallv(sendbuf,nsend_x2y,ndsend_x2y,mpi_rtype, &
-                       recvbuf,nrecv_x2y,ndrecv_x2y,mpi_rtype,mpi_comm_world,ierror)
-    deallocate(sendbuf)
-
-    do j=1,nallrecv_x2y
-       iy=info_recv_x2y(3,j)
-       ixm=info_recv_x2y(4,j)
-       u_y(iy,ixm)=recvbuf(j)
-    end do
-    deallocate(recvbuf)
-    
-
-  end subroutine zrnmi_x2y
-
-  subroutine zrnmi_x2y2(u1_x,u2_x,u1_y,u2_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_x2y2
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u1_x     -
-!     u2_x     -
-!
-!   output argument list:
-!     u1_y     -
-!     u2_y     -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                     ,intent(in   ) :: mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(in   ) :: u1_x,u2_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(  out) :: u1_y,u2_y
-
-    integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
-    real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-
-    mm1=mype+1
-
-    allocate(sendbuf(2,nallsend_x2y))
-    do j=1,nallsend_x2y
-       ix=info_send_x2y(1,j)
-       iym=info_send_x2y(2,j)
-       sendbuf(1,j)=u1_x(ix,iym)
-       sendbuf(2,j)=u2_x(ix,iym)
-    end do
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
-    call mpi_type_commit(mpi_string1,ierror)
-    allocate(recvbuf(2,nallrecv_x2y))
-    call mpi_alltoallv(sendbuf,nsend_x2y,ndsend_x2y,mpi_string1, &
-                       recvbuf,nrecv_x2y,ndrecv_x2y,mpi_string1,mpi_comm_world,ierror)
-    call mpi_type_free(mpi_string1,ierror)
-    deallocate(sendbuf)
-
-    do j=1,nallrecv_x2y
-       iy=info_recv_x2y(3,j)
-       ixm=info_recv_x2y(4,j)
-       u1_y(iy,ixm)=recvbuf(1,j)
-       u2_y(iy,ixm)=recvbuf(2,j)
-    end do
-    deallocate(recvbuf)
-    
-  end subroutine zrnmi_x2y2
-
   subroutine zrnmi_x2y3(u1_x,u2_x,u3_x,u1_y,u2_y,u3_y,mype)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -2511,125 +2026,6 @@ contains
     deallocate(recvbuf)
     
   end subroutine zrnmi_x2y3
-
-  subroutine zrnmi_y2x(u_x,u_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_y2x
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u_y      -
-!
-!   output argument list:
-!     u_x      -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                     ,intent(in   ) :: mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(  out) :: u_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(in   ) :: u_y
-
-    integer(i_kind) ixm,ix,iy,iym,j,mm1
-    real(r_kind),allocatable::sendbuf(:),recvbuf(:)
-
-    mm1=mype+1
-
-    allocate(recvbuf(nallrecv_x2y))
-    do j=1,nallrecv_x2y
-       iy=info_recv_x2y(3,j)
-       ixm=info_recv_x2y(4,j)
-       recvbuf(j)=u_y(iy,ixm)
-    end do
-    allocate(sendbuf(nallsend_x2y))
-    call mpi_alltoallv(recvbuf,nrecv_x2y,ndrecv_x2y,mpi_rtype, &
-                       sendbuf,nsend_x2y,ndsend_x2y,mpi_rtype,mpi_comm_world,ierror)
-    deallocate(recvbuf)
-    do j=1,nallsend_x2y
-       ix=info_send_x2y(1,j)
-       iym=info_send_x2y(2,j)
-       u_x(ix,iym)=sendbuf(j)
-    end do
-    deallocate(sendbuf)
-
-  end subroutine zrnmi_y2x
-
-  subroutine zrnmi_y2x2(u1_x,u2_x,u1_y,u2_y,mype)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    zrnmi_y2x2
-!
-!   prgrmmr: 
-!
-! abstract:      
-!
-! program history log:
-!   2008-03-25  safford -- add subprogram doc block, rm unused uses
-!
-!   input argument list:
-!     mype     - mpi task id
-!     u1_y     -
-!     u2_y     -
-!
-!   output argument list:
-!     u1_x     -
-!     u2_x     -
-!
-! attributes:
-!   language:  f90
-!   machine:   
-!
-!$$$
-
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    implicit none
-
-    integer(i_kind)                     ,intent(in   ) :: mype
-    real(r_kind),dimension(nx,ny_0:ny_1),intent(  out) :: u1_x,u2_x
-    real(r_kind),dimension(ny,mx_0:mx_1),intent(in   ) :: u1_y,u2_y
-
-    integer(i_kind) ixm,ix,iy,iym,j,mm1,mpi_string1
-    real(r_kind),allocatable::sendbuf(:,:),recvbuf(:,:)
-
-    mm1=mype+1
-
-    allocate(recvbuf(2,nallrecv_x2y))
-    do j=1,nallrecv_x2y
-       iy=info_recv_x2y(3,j)
-       ixm=info_recv_x2y(4,j)
-       recvbuf(1,j)=u1_y(iy,ixm)
-       recvbuf(2,j)=u2_y(iy,ixm)
-    end do
-    allocate(sendbuf(2,nallsend_x2y))
-    call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
-    call mpi_type_commit(mpi_string1,ierror)
-    call mpi_alltoallv(recvbuf,nrecv_x2y,ndrecv_x2y,mpi_string1, &
-                       sendbuf,nsend_x2y,ndsend_x2y,mpi_string1,mpi_comm_world,ierror)
-    call mpi_type_free(mpi_string1,ierror)
-    deallocate(recvbuf)
-    do j=1,nallsend_x2y
-       ix=info_send_x2y(1,j)
-       iym=info_send_x2y(2,j)
-       u1_x(ix,iym)=sendbuf(1,j)
-       u2_x(ix,iym)=sendbuf(2,j)
-    end do
-    deallocate(sendbuf)
-
-  end subroutine zrnmi_y2x2
 
   subroutine zrnmi_y2x3(u1_x,u2_x,u3_x,u1_y,u2_y,u3_y,mype)
 !$$$  subprogram documentation block
@@ -3253,65 +2649,6 @@ contains
     u=u+ux ; v=v+vx
 
   end subroutine zrnmi_uv2dz_ad
-
-  subroutine zrnmi_pc2uv(psi,chi,u,v,mype)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    zrnmi_pc2uv
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2010-01-07  lueken - added subprogram doc block
-!
-!   input argument list:
-!    mype
-!    psi,chi
-!
-!   output argument list:
-!    u,v
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero
-    use gridmod, only: lat2,lon2
-    implicit none
-
-! Declare passed variables
-    integer(i_kind)                        ,intent(in   ) :: mype
-    real(r_kind),dimension(lat2,lon2,nvert),intent(in   ) :: psi,chi
-    real(r_kind),dimension(lat2,lon2,nvert),intent(  out) :: u,v
-
-! Declare local variables
-    real(r_kind),dimension(nx,ny_0:ny_1)::p_x,c_x,px_x,cx_x
-    real(r_kind),dimension(ny,nx_0:nx_1)::p_y,c_y,py_y,cy_y
-    real(r_kind),dimension(lat2,lon2,nvert)::px,cx,py,cy
-
-    p_x=zero ; c_x=zero
-    call zrnmi_sd2x2(psi,chi,p_x,c_x,mype)
-    p_y=zero ; c_y=zero
-    call zrnmi_sd2y2(psi,chi,p_y,c_y,mype)
-    px_x=zero
-    call zrnmi_delx_general(p_x,px_x,.false.,2)
-    cx_x=zero
-    call zrnmi_delx_general(c_x,cx_x,.false.,2)
-    py_y=zero
-    call zrnmi_dely_general(p_y,py_y,.false.,2)
-    cy_y=zero
-    call zrnmi_dely_general(c_y,cy_y,.false.,2)
-    px=zero ; cx=zero
-    call zrnmi_x2sd2(px,cx,px_x,cx_x,mype)
-    py=zero ; cy=zero
-    call zrnmi_y2sd2(py,cy,py_y,cy_y,mype)
-    u=cx-py
-    v=px+cy
-
-  end subroutine zrnmi_pc2uv
 
   subroutine zrnmi_pc2uv_orig(psi,chi,u,v,mype)
 !$$$  subprogram documentation block

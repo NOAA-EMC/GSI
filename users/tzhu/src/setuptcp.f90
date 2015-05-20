@@ -13,6 +13,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2010-11-24  todling - add component to write obs sensitiviy to diag file
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
 !                          tintrp2a to tintrp2a1, tintrp2a11 (so debug compile works on WCOSS)
+!   2013-10-19  todling - metguess now holds background
+!   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
 !
 !   input argument list:
 !
@@ -29,10 +32,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs, &
              time_offset,rmiss_single,lobsdiagsave
   use obsmod, only: tcp_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
-  use guess_grids, only: ges_z,ges_ps,ges_lnprsl,nfldsig,hrdifsig,ges_tv, &
+  use guess_grids, only: ges_lnprsl,nfldsig,hrdifsig, &
           ntguessig
   use gridmod, only: get_ij,nsig
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
@@ -41,6 +44,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           icsubtype
   use jfunc, only: jiter,last,jiterstart,miter
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
 
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
@@ -63,6 +68,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(rstation_id,station_id)
 
   logical,dimension(nobs):: luse,muse
+  logical proceed
 
   real(r_kind) err_input,err_adjst,err_final,errinv_input,errinv_adjst,errinv_final
   real(r_kind) scale,ratio,obserror,obserrlm
@@ -73,13 +79,12 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) error,dtime,dlon,dlat,r0_001,r2_5,r0_2,rsig
   real(r_kind) ratio_errors,psges,zsges,rdp,drdp
   real(r_kind) pob,pges,pgesorig,half_tlapse,ddiff,halfpi,r0_005,rdelz,psges2
-  real(r_kind) alpha,resfct,error_orig
 
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig)::prsltmp
 
   integer(i_kind) i,jj
-  integer(i_kind) mm1,idia
+  integer(i_kind) mm1,idia,idia0
   integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb,id
   integer(i_kind) ier,ilon,ilat,ipres,itime,ikx,ilate,ilone
 
@@ -94,8 +99,20 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
   integer(i_kind) nchar,nreal,ii
 
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+
   n_alloc(:)=0
   m_alloc(:)=0
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
+
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
@@ -128,7 +145,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   if(conv_diagsave)then
      nchar=1
-     nreal=19
+     idia0=19
+     nreal=idia0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      ii=0
@@ -158,50 +176,52 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 !    Link obs to diagnostics structure
-     if (.not.lobsdiag_allocated) then
-        if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
-           allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setuptcp: failure to allocate obsdiags',istat
-              call stop2(301)
+     if(luse_obsdiag)then
+        if (.not.lobsdiag_allocated) then
+           if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
+              allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setuptcp: failure to allocate obsdiags',istat
+                 call stop2(301)
+              end if
+              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
+           else
+              allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
+              if (istat/=0) then
+                 write(6,*)'setuptcp: failure to allocate obsdiags',istat
+                 call stop2(302)
+              end if
+              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
-        else
-           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
-           if (istat/=0) then
-              write(6,*)'setuptcp: failure to allocate obsdiags',istat
-              call stop2(302)
-           end if
-           obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-        end if
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
-        allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
-        obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=i
-        obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
-        obsdiags(i_tcp_ob_type,ibin)%tail%luse=.false.
-        obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
-        obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-        obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
-        obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
-        obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
+           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
+           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
+           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
+           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
+           obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
+           obsdiags(i_tcp_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
+           obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+           obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
+           obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
+           obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
 
-        n_alloc(ibin) = n_alloc(ibin) +1
-        my_diag => obsdiags(i_tcp_ob_type,ibin)%tail
-        my_diag%idv = is
-        my_diag%iob = i
-        my_diag%ich = 1
-     else
-        if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
-           obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
+           n_alloc(ibin) = n_alloc(ibin) +1
+           my_diag => obsdiags(i_tcp_ob_type,ibin)%tail
+           my_diag%idv = is
+           my_diag%iob = i
+           my_diag%ich = 1
         else
-           obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-        end if
-        if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) then
-           write(6,*)'setuptcp: index error'
-           call stop2(303)
-        end if
+           if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
+              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
+           else
+              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
+           end if
+           if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=i) then
+              write(6,*)'setuptcp: index error'
+              call stop2(303)
+           end if
+        endif
      endif
 
      if(.not.in_curbin) cycle
@@ -288,7 +308,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false.
 
-     if (nobskeep>0) muse(i)=obsdiags(i_tcp_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_tcp_ob_type,ibin)%tail%muse(nobskeep)
 
      val      = error*ddiff
      if(luse(i))then
@@ -341,10 +361,12 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      end if
 
-     obsdiags(i_tcp_ob_type,ibin)%tail%luse=luse(i)
-     obsdiags(i_tcp_ob_type,ibin)%tail%muse(jiter)=muse(i)
-     obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-     obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     if(luse_obsdiag)then
+        obsdiags(i_tcp_ob_type,ibin)%tail%luse=luse(i)
+        obsdiags(i_tcp_ob_type,ibin)%tail%muse(jiter)=muse(i)
+        obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jiter)=ddiff
+        obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+     end if
 
      if (.not. last .and. muse(i)) then
 
@@ -377,17 +399,19 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            tcptail(ibin)%head%ppertb= data(iptrb,i)/error/ratio_errors ! obs perturbation
         endif
 
-        tcptail(ibin)%head%diags => obsdiags(i_tcp_ob_type,ibin)%tail
+        if(luse_obsdiag)then
+           tcptail(ibin)%head%diags => obsdiags(i_tcp_ob_type,ibin)%tail
 
-        my_head => tcptail(ibin)%head
-        my_diag => tcptail(ibin)%head%diags
-        if(my_head%idv /= my_diag%idv .or. &
-           my_head%iob /= my_diag%iob ) then
-           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                 (/is,i,ibin/))
-           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-           call die(myname)
+           my_head => tcptail(ibin)%head
+           my_diag => tcptail(ibin)%head%diags
+           if(my_head%idv /= my_diag%idv .or. &
+              my_head%iob /= my_diag%iob ) then
+              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                    (/is,i,ibin/))
+              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+              call die(myname)
+           endif
         endif
      endif
 
@@ -442,8 +466,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(18,ii) = pob-pges           ! obs-ges used in analysis (coverted to hPa)
         rdiagbuf(19,ii) = pob-pgesorig       ! obs-ges w/o adjustment to guess surface pressure (hPa)
 
+        idia=idia0
         if (lobsdiagsave) then
-           idia=19
            do jj=1,miter
               idia=idia+1
               if (obsdiags(i_tcp_ob_type,ibin)%tail%muse(jj)) then
@@ -471,10 +495,13 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! End of loop over observations
   end do
 
+! Release memory of local guess arrays
+  call final_vars_
+
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:tcp',i_tcp_ob_type)
-     write(7)'tcp',nchar,nreal,ii,mype
+     write(7)'tcp',nchar,nreal,ii,mype,idia0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if
@@ -482,4 +509,94 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! End of routine
   return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_z )) deallocate(ges_z )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setuptcp

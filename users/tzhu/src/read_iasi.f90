@@ -50,7 +50,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
-!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars 
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, and add NSST vars 
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
@@ -59,8 +59,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
 !   2011-12-13  collard - Replace find_edges code to speed up execution.
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-26  collard - fix satid issues for MetOp-B and MetOp-C
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -97,17 +99,19 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo, &
       radedge1,radedge2,radstart,radstep
-  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
+  use crtm_module, only: success, &
       crtm_kind => fp
   use crtm_planck_functions, only: crtm_planck_temperature
+  use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
@@ -128,9 +132,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  character(len=10),intent(in   ) :: infile
+  character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
-  character(len=10),intent(in   ) :: obstype
+  character(len=*), intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_iasi
@@ -158,7 +162,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr,jstart
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
   integer(i_kind),allocatable,dimension(:) :: nrec
 
 
@@ -185,7 +189,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(10) :: sscale
   real(crtm_kind),dimension(n_totchan) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
-  real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi
@@ -201,8 +205,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: radedge_min, radedge_max
   character(len=20),dimension(1):: sensorlist
 
-
-  type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -231,7 +233,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+    call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
   endif
 
   if(jsatid == 'metop-a')kidsat=4
@@ -262,27 +264,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
-     if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-     error_status = crtm_init(sensorlist,channelinfo,&
-        Process_ID=mype_sub,Output_Process_ID=mype_root, &
-        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
+     if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+     error_status = crtm_spccoeff_load(sensorlist,&
         File_Path = crtm_coeffs_path )
   else
-     error_status = crtm_init(sensorlist,channelinfo,&
-        Process_ID=mype_sub,Output_Process_ID=mype_root, &
-        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
+     error_status = crtm_spccoeff_load(sensorlist)
   endif
   if (error_status /= success) then
-     write(6,*)'READ_IASI:  ***ERROR*** crtm_init error_status=',error_status,&
+     write(6,*)'READ_IASI:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&
         '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   endif
 
 !  find IASI sensorindex
   sensorindex = 0
-  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' .or. &
-       channelinfo(1)%sensor_id == 'iasi616_metop-b' .or. &
-       channelinfo(1)%sensor_id == 'iasi616_metop-c' ) then
+  if ( sc(1)%sensor_id == 'iasi616_metop-a' .or. &
+       sc(1)%sensor_id == 'iasi616_metop-b' .or. &
+       sc(1)%sensor_id == 'iasi616_metop-c' ) then
      sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
@@ -339,7 +337,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open BUFR file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
 
 ! Open BUFR table
   call openbf(lnbufr,'IN',lnbufr)
@@ -353,7 +351,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec=999999
-  do while(ireadmg(lnbufr,subset,idate)>=0)
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
      next=next+1
      irec=irec+1
      if(next == npe_sub)next=0
@@ -394,9 +392,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
-!  Extract satellite id.  If not the one we want, read next record
+!  Extract satellite id.  If not the one we want, read next subset
         ksatid=nint(allspot(1))
-        if(ksatid /= kidsat) cycle read_loop
+        if(ksatid /= kidsat) cycle read_subset
         rsat=allspot(1) 
 
 !    Check observing position
@@ -428,10 +426,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    so always positive for limited area
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
            if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,rlon00,rlat00)
+              call txy2ll(dlon,dlat,dlon00,dlat00)
               ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                   (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00)))*rad2deg
+              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+              cdist=max(-one,min(cdist,one))
+              disterr=acos(cdist)*rad2deg
               disterrmax=max(disterrmax,disterr)
            end if
 
@@ -469,23 +469,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Retrieve obs time
         call w3fs21(idate5,nmind)
         t4dv = (real(nmind-iwinbgn,r_kind) + real(allspot(7),r_kind)*r60inv)*r60inv ! add in seconds
-        if (l4dvar) then
+        sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
+        tdiff = (sstime - gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
-           tdiff = (sstime - gstime)*r60inv
            if (abs(tdiff)>twind) cycle read_loop
         endif
-     
+
 !   Increment nread counter by n_totchan
         nread = nread + n_totchan
 
-        if (l4dvar) then
+        if (thin4d) then
            crit1 = 0.01_r_kind
         else
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif
-        endif
+        endif 
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 
@@ -636,7 +636,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 
@@ -689,11 +689,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         nrec(itx)=irec
 
      enddo read_loop
-  enddo
+  enddo read_subset
   call closbf(lnbufr)
 
 ! deallocate crtm info
-  error_status = crtm_destroy(channelinfo)
+  error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 

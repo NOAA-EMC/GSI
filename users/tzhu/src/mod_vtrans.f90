@@ -85,6 +85,7 @@ module mod_vtrans
   real(r_kind),dimension(:,:),allocatable:: t2phihat
   real(r_kind),dimension(:),allocatable:: p2phihat,phihat2p
 
+  character(len=*),parameter::myname='mod_vtrans'
 
 contains
 
@@ -187,6 +188,7 @@ contains
 !                          to get agreement with eigenvalues/eigenvectors from library routine dgeev,
 !                          which has been replaced in this version.  It appears that reproducibility
 !                          has been restored.  (See more extensive comment at top of this module.)
+!   2013-10-19  todling - metguess now holds background 
 !
 !
 ! usage:
@@ -204,18 +206,22 @@ contains
     use constants,only: zero,one,one_tenth,ten
     use gridmod,only: lat2,lon2,nsig,nlat,nlon
     use mpimod,only: mpi_rtype,mpi_comm_world,ierror,mpi_integer
-    use guess_grids, only: ges_tv,ges_ps,ntguessig
+    use guess_grids, only: ntguessig
     use general_sub2grid_mod, only: general_sub2grid
     use general_commvars_mod, only: g1
+    use gsi_metguess_mod, only: gsi_metguess_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use mpeu_util, only: die
     implicit none
 
 !   Declare passed variables
     integer(i_kind),intent(in   ) :: mype
 
 !   Declare local variables
-    integer(i_kind) i,j,k,n,kk,info
-    real(r_kind) count,factor,psbar
-    real(r_kind) factord,sum,errormax
+    character(len=*),parameter::myname_=myname//'*create_vtrans'
+    integer(i_kind) i,j,k,n
+    real(r_kind) count,psbar
+    real(r_kind) sum
     real(r_kind),dimension(1,lat2,lon2,1):: worksub
     real(r_kind),allocatable,dimension(:,:,:,:):: hwork
     real(r_kind),dimension(nsig+1)::pbar
@@ -226,10 +232,11 @@ contains
     real(r_kind),allocatable,dimension(:):: swww,swwwd
     real(r_kind),allocatable,dimension(:,:):: szzz,szzzd
     integer(i_kind),allocatable:: numlevs(:)
-    integer(i_kind) workpe
+    real(r_kind),dimension(:,:  ),pointer:: ges_ps_nt=>NULL()
+    real(r_kind),dimension(:,:,:),pointer:: ges_tv_nt=>NULL()
+    integer(i_kind) workpe,ier,istatus
     integer(i_kind) lpivot(nsig),mpivot(nsig)
     real(r_quad) qmatinv_quad(nsig,nsig),detqmat_quad
-    real(r_kind) t1,t2
 
 !   get work pe:
 
@@ -257,11 +264,18 @@ contains
 !  Not clear if area weighting would be better.
     count=one/float(nlat*nlon)
 
+    ier=0
+    call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ps',ges_ps_nt, istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'tv',ges_tv_nt, istatus)
+    ier=ier+istatus
+    if(ier/=0) call die(myname_,'missing require variables, ier=', ier)
+
 !   psbar:
 
     do j=1,lon2
        do i=1,lat2
-          worksub(1,i,j,1)=ges_ps(i,j,ntguessig)
+          worksub(1,i,j,1)=ges_ps_nt(i,j)
        end do
     end do
     call general_sub2grid(g1,worksub,hwork)
@@ -283,7 +297,7 @@ contains
     do k=1,nsig
        do j=1,lon2
           do i=1,lat2
-             worksub(1,i,j,1)=ges_tv(i,j,k,ntguessig)
+             worksub(1,i,j,1)=ges_tv_nt(i,j,k)
           end do
        end do
        call general_sub2grid(g1,worksub,hwork)
@@ -797,8 +811,8 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   real(r_quad) rmat(nmat),qtildemat(nmat,nmat),atemp(nmat*nmat),btemp(nmat,nmat)
   real(r_quad) eigvals(nmat)
   integer(i_kind) i,j,k,ia,mv,iret,istop
-  real(r_quad) orthoerror,sum
-  real(r_quad) rnorm,sumd,rnormd,term,term2
+  real(r_quad) sum
+! real(r_quad) orthoerror
   real(r_quad) aminv(nmat,nmat),aminvt(nmat,nmat)
   real(r_quad) eigval_this,eigval_next
   real(r_quad) zero_quad,half_quad,one_quad
@@ -880,10 +894,10 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
                                     abs(eigvals(i)-eigvals(min(i+1,nvmodes_keep))) )
      end if
 
-     write(6,*)' i,eigvals(i),dist_to_closest_eigval=',i,eigvals(i),dist_to_closest_eigval
+     !write(6,*)' i,eigvals(i),dist_to_closest_eigval=',i,eigvals(i),dist_to_closest_eigval
      perturb_eigval=0.000001_r_quad*dist_to_closest_eigval
-     write(6,*)' i,perturb_eigval/eigvals(i)=',i,perturb_eigval/eigvals(i)
-     write(6,*)' precomputation of aminv with check on err_aminv'
+     !write(6,*)' i,perturb_eigval/eigvals(i)=',i,perturb_eigval/eigvals(i)
+     !write(6,*)' precomputation of aminv with check on err_aminv'
      call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret,err_aminv)
      noskip=.false.
      if(err_aminv>10._r_quad**(-20).or.iret==1) then
@@ -911,7 +925,7 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
      end do
      swww(i)=eigval_next
      swwwd(i)=eigval_next
-     write(6,*)' i,j,swww(i)=',i,j,swww(i)
+     !write(6,*)' i,j,swww(i)=',i,j,swww(i)
   end do
 
 !  compute unscaled left and right eigenvectors of "corrected" matrix qmat_c
@@ -1002,12 +1016,12 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   swwwd0=swwwd
   szzz0 =szzz
   szzzd0=szzzd
-  do i=1,nvmodes_keep
-     write(6,*)' i,swww0(i),swwwd0(i)=',i,swww0(i),swwwd0(i)
-     do j=1,nmat,nmat-1
-        write(6,*)' i,j,szzz0(j,i),szzzd0(j,i)=',i,j,szzz0(j,i),szzzd0(j,i)
-     end do
-  end do
+  !do i=1,nvmodes_keep
+  !   write(6,*)' i,swww0(i),swwwd0(i)=',i,swww0(i),swwwd0(i)
+  !   do j=1,nmat,nmat-1
+  !      write(6,*)' i,j,szzz0(j,i),szzzd0(j,i)=',i,j,szzz0(j,i),szzzd0(j,i)
+  !   end do
+  !end do
 
 end subroutine special_eigvv
 
@@ -1048,7 +1062,7 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
   real(r_quad),intent(out):: errormax
   integer(i_kind),intent(out)::iret
 
-  real(r_quad) am(na,na),amwork(na,na)
+  real(r_quad) am(na,na)
   real(r_quad) sum,detam,errlimit
   integer(i_kind) i,j,k,lpivot(na),mpivot(na)
   real(r_quad) zero_quad,one_quad

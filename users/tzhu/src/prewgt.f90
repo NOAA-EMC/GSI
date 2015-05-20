@@ -63,7 +63,15 @@ subroutine prewgt(mype)
 !   2010-07-07  kokron/todling - fix definition of hwllp to do sfc-only
 !   2011-07-03  todling - calculation of bl and bl2 must be done in double-prec
 !                         or GSI won'd work when running in single precision; go figure!
+!   2012-05-14  wargan - add adjustozvar
 !   2012-11-26  parrish - move subroutine blend to module blendmod.f90, and add "use blendmod, only: blend"
+!   2012-12-15  zhu     - add two cwoption options
+!   2013-10-19  todling - all guess variables in met-guess
+!   2013-10-25  todling - reposition ltosi and others to commvars
+!   2014-02-01  todling - update interface to berror_read_wgt
+!   2014-02-05  mkim/todling - move cw overwrite w/ q to m_berror_stats
+!   2014-08-02  zhu     - set up new background error variance and correlation lengths of cw 
+!                         for all-sky radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -76,28 +84,34 @@ subroutine prewgt(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single,r_double
+  use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
   use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
-       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf
+       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf,&
+       adjustozvar,cwcoveqqcov
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-  use jfunc, only: qoption
+  use jfunc, only: varcw,cwoption
+  use jfunc, only: varq,qoption
   use control_vectors, only: cvars2d,cvars3d
   use control_vectors, only: cvars => nrf_var
   use control_vectors, only: as2d,as3d,atsfc_sdv
   use control_vectors, only: nrf,nc2d,nc3d,mvars
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
-       nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g,&
+       nnnn1o,lat1,lon1,itotsub,iglobal,ijn,displs_g,&
        strip
+  use general_commvars_mod, only: ltosi,ltosj
   use constants, only: zero,quarter,half,one,two,three,&
        rearth_equator,pi,r1000,r400
   use guess_grids, only: isli2
+  use guess_grids, only: ntguessig
   use smooth_polcarf, only: norsp,setup_smooth_polcas
   use mpeu_util, only: getindex
   use blendmod, only: blend
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
 
   implicit none
 
@@ -109,14 +123,14 @@ subroutine prewgt(mype)
   integer(i_kind) i,j,k,ii,nn,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
-  integer(i_kind) kd,kt,kq,kc,koz,nf2p
+  integer(i_kind) nf2p,istatus
   integer(i_kind),dimension(0:40):: iblend
-  integer(i_kind) nrf3_sf,nrf3_cw,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst
+  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst,nrf3_cw
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) wlipi,wlipih,df
   real(r_kind) samp,s2u,df2,pi2
-  real(r_double) y,x,dxx
+  real(r_quad) y,x,dxx
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
   real(r_kind),dimension(lat2,lon2)::temp
@@ -131,6 +145,7 @@ subroutine prewgt(mype)
   real(r_kind),dimension(lon2,nsig):: dsv
   real(r_single) hsstmin
   real(r_kind) minhsst
+  real(r_kind) my_corz
   real(r_kind),allocatable:: randfct(:)
   real(r_kind),allocatable,dimension(:,:,:,:):: sli,sli1,sli2
 
@@ -147,7 +162,7 @@ subroutine prewgt(mype)
 
   real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar
   real(r_kind),dimension(lat2,lon2):: psvar
-
+  real(r_kind),dimension(:,:,:),pointer :: ges_oz=>NULL()
 ! real(r_kind),parameter:: eight_tenths = 0.8_r_kind
 ! real(r_kind),parameter:: six          = 6.0_r_kind
 ! real(r_kind),parameter:: r800         = 800.0_r_kind
@@ -167,6 +182,7 @@ subroutine prewgt(mype)
      allocate(hwllp(0:nlat+1,nc2d))
      allocate(corp(nlat,nc2d))
      allocate(hwllinp(nlat,nc2d))
+     hwllp=zero
   endif
 
   if(nc3d>0)then
@@ -199,19 +215,19 @@ subroutine prewgt(mype)
 !  nbuf=nolp/4
   nbuf=0
   nmix=nolp-nbuf*2
-  dxx=1._r_double/(nmix+1)
-  bl2=0._r_double
+  dxx=1._r_quad/real((nmix+1),r_quad)
+  bl2=0._r_kind
   k=0
   do i=1,nmix
      k=k+1
      x=i*dxx
-     y=0._r_double
-     y=real(iblend(mm),r_double)
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_double)
+        y=x*y+real(iblend(j),r_quad)
      enddo
      y=y*x**(mm+1)
-     bl2(k)=1._r_double-y
+     bl2(k)=1._r_quad-y
   enddo
   if(minval(bl2)<zero) then
      write(6,*) 'prewgt: trouble bl2 coeffs negative ', bl2
@@ -221,22 +237,26 @@ subroutine prewgt(mype)
     bl2(k)=sqrt(bl2(k))
   end do
   
+! Modify precision to be consistent with bl2 for higher res grids
+! ** NOTE ** bl and bl2 are actually defined to be r_kind
+! 
   nmix=(nx-nlon)
-  dxx=one/(nmix+1)
+  dxx=1._r_quad/real((nmix+1),r_quad)
   ndx=(nx-nlon)
-  bl=zero
+  bl=0._r_kind
   k=ndx-nmix
   do i=1,nmix
      k=k+1
-     x=i*dxx
-     y=zero
-     y=real(iblend(mm),r_kind)
+     x=real(i,r_quad)*dxx
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_kind)
+        y=x*y+real(iblend(j),r_quad)
      enddo
-     y=y*x**(mm+1)
-     bl(k)=one-y
+     y=y*x**real((mm+1),r_quad)
+     bl(k)=1._r_quad-y
   enddo
+
   if(minval(bl)<zero) then
      write(6,*) 'prewgt: trouble bl coeffs negative ', bl
      call stop2(99)
@@ -257,7 +277,7 @@ subroutine prewgt(mype)
         end do
      end do
 
-     call strip(temp,zsm,1)
+     call strip(temp,zsm)
 
      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
         work1,ijn,displs_g,mpi_rtype,&
@@ -284,7 +304,7 @@ subroutine prewgt(mype)
   end if
 
 ! Get background error statistics from a file ("berror_stats").
-  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,mype)
+  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,varq,qoption,varcw,cwoption,mype)
   mlat=nlat
 
 ! load the horizontal length scales
@@ -296,11 +316,9 @@ subroutine prewgt(mype)
         end do
      end do
   end do
-  if(nrf3_oz>0)              hwll(:,:,nrf3_oz)=hwll(:,:,nrf3_oz)*three   !inflate scale
-  if(nrf3_cw>0.and.nrf3_q>0) hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)          !use hwll of q for cw for now
+  if(nrf3_oz>0) hwll(:,:,nrf3_oz)=hwll(:,:,nrf3_oz)*three   !inflate scale
 
 ! surface pressure
-  hwllp=zero
   if(nrf2_ps>0) then
      do i=1,nlat
         hwllp(i,nrf2_ps)=hwllinp(i,nrf2_ps)
@@ -369,15 +387,6 @@ subroutine prewgt(mype)
         end do
      end do
   end do
-
-! for now use q error for cwm
-  if(nrf3_q>0.and.nrf3_cw>0) then
-     do k=1,nsig
-        do i=1,nlat
-           vz(k,i,nrf3_cw)=vz(k,i,nrf3_q)
-        end do
-     end do
-  endif
 
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
@@ -455,6 +464,18 @@ subroutine prewgt(mype)
                  dssv(j,i,k,n)=dsv(i,k)*tvar(j,i,k)*as3d(n)    ! temperature
               end do
            end do
+        else if (n==nrf3_oz.and.adjustozvar) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'oz',ges_oz,istatus)
+           if (istatus==0) then
+              do k=1,nsig
+                 do i=1,lon2
+                    my_corz = max(ges_oz(j,i,k),0.000000002_r_kind)
+                    ! Reduce weight in the stratosphere
+                    if (my_corz .gt. 0.0000001_r_kind) my_corz = my_corz/4.0 
+                    dssv(j,i,k,n)=dsv(i,k)*my_corz*as3d(n)   ! ozone
+                 end do
+              end do
+           endif
         else
            do k=1,nsig
               do i=1,lon2
@@ -465,7 +486,7 @@ subroutine prewgt(mype)
     enddo
   end do
 
-! Special case of dssv for qoption=2
+! Special case of dssv for qoption=2 and cw
   if (qoption==2) call compute_qvar3d
 
 !!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)

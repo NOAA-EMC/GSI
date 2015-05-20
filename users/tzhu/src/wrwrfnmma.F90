@@ -28,6 +28,7 @@ subroutine wrwrfnmma_binary(mype)
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at and
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     mype     - pe number
@@ -42,7 +43,7 @@ subroutine wrwrfnmma_binary(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_long,i_llong,i_kind
   use regional_io, only: update_pint
-  use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
+  use guess_grids, only: &
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_byte,mpi_integer4,mpi_real4,mpi_sum,npe, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdwr,mpi_status_size
@@ -59,6 +60,7 @@ subroutine wrwrfnmma_binary(mype)
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
+  use mpeu_util, only: die
 
   implicit none
 
@@ -83,13 +85,12 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
-  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
+  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain
+  integer(i_kind) kcwm,kf_ice,kf_rain
   integer(i_kind) num_nmm_fields,num_j_groups,num_loc_groups
   real(r_kind) pd,psfc_this
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -102,16 +103,22 @@ subroutine wrwrfnmma_binary(mype)
   character(132) memoryorder
 
 ! variables for cloud info
-  integer(i_kind) iret,ier,nguess
-  integer(i_kind) icw4crtm,iqtotal
+  integer(i_kind) iret,ier,n_actual_clouds
+  integer(i_kind) icw4crtm,iqtotal,istatus
   real(r_kind) total_ice
   real(r_kind),dimension(lat2,lon2):: work_clwmr,work_fice,work_frain
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh  =>NULL()
   real(r_single),allocatable:: pdbg(:),tbg(:,:),qbg(:,:),cwmbg(:,:),ubg(:,:),vbg(:,:)
   real(r_single),allocatable:: pdba(:),tba(:,:),qba(:,:),cwmba(:,:),uba(:,:),vba(:,:)
   real(r_single),allocatable:: pdbg0(:),tbg0(:,:),qbg0(:,:),cwmbg0(:,:),ubg0(:,:),vbg0(:,:)
@@ -159,8 +166,8 @@ subroutine wrwrfnmma_binary(mype)
   it=ntguessig
 
 ! inquiry cloud guess
-  call gsi_metguess_get('dim',nguess,iret)
-  if (nguess>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,iret)
+  if (n_actual_clouds>0) then
 !    Determine whether or not cloud-condensate is the control variable
      icw4crtm=getindex(cvars3d,'cw')
 
@@ -176,13 +183,13 @@ subroutine wrwrfnmma_binary(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier/=0) nguess=0
+     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier/=0) n_actual_clouds=0
   end if
 
 
   num_nmm_fields=3+4*lm
   if(update_pint) num_nmm_fields=num_nmm_fields+lm+1  ! contribution from PINT
-  if (nguess>0) num_nmm_fields=num_nmm_fields+3*lm
+  if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+3*lm
   allocate(offset(num_nmm_fields))
   allocate(igtype(num_nmm_fields),kdim(num_nmm_fields),kord(num_nmm_fields))
   allocate(length(num_nmm_fields))
@@ -346,7 +353,7 @@ subroutine wrwrfnmma_binary(mype)
   offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
   if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-  if (nguess>0) then
+  if (n_actual_clouds>0) then
      i_cwm=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
@@ -391,7 +398,7 @@ subroutine wrwrfnmma_binary(mype)
         offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
         if(mype == 0.and.k==1) write(6,*)' f_rain i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
      end do
-  end if  ! end of nguess>0
+  end if  ! end of n_actual_clouds>0
 
   close(lendian_in)
 
@@ -435,6 +442,14 @@ subroutine wrwrfnmma_binary(mype)
      write(6,*)' jend= ',jend
   end if
 
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u ,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v ,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q ,iret); ier=iret
+  if (ier/=0) then ! doesn't need to die (but needs careful revision)
+     call die('wrwrfnmma_binary',': missing guess fields',ier)
+  endif
   
 ! Create all_loc from ges_*
   allocate(all_loc(lat1,lon1,num_nmm_fields))
@@ -450,9 +465,9 @@ subroutine wrwrfnmma_binary(mype)
      kv=kv+1
      do i=1,lon1
         do j=1,lat1
-           all_loc(j,i,ku)=ges_u(j+1,i+1,k,it)
-           all_loc(j,i,kv)=ges_v(j+1,i+1,k,it)
-           all_loc(j,i,kq)=ges_q(j+1,i+1,k,it)
+           all_loc(j,i,ku)=ges_u(j+1,i+1,k)
+           all_loc(j,i,kv)=ges_v(j+1,i+1,k)
+           all_loc(j,i,kq)=ges_q(j+1,i+1,k)
            all_loc(j,i,kt)=ges_tsen(j+1,i+1,k,it)   ! sensible temperature
         end do
      end do
@@ -466,7 +481,7 @@ subroutine wrwrfnmma_binary(mype)
   end do
   do i=1,lon1
      do j=1,lat1
-        psfc_this=r10*ges_ps(j+1,i+1,it)   ! convert from mb to cb
+        psfc_this=r10*ges_ps(j+1,i+1)   ! convert from mb to cb
         pd=psfc_this-pdtop_ll-pt_ll
         all_loc(j,i,i_pd)=r100*pd
      end do
@@ -476,13 +491,21 @@ subroutine wrwrfnmma_binary(mype)
 
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
+     ier=0
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+     ier=ier+istatus
+     if (ier/=0) then ! doesn't need to die (but needs careful revision)
+        call die('wrwrfnmma_binary',': missing pint/pd fields',ier)
+     endif
      kpint=i_pint-1
      do k=1,nsig_write+1
         kpint=kpint+1
         do i=1,lon1
            do j=1,lat1
-              all_loc(j,i,kpint)=ges_pint(j+1,i+1,k,it) &
-                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+1,i+1,it))   ! pint
+              all_loc(j,i,kpint)=ges_pint(j+1,i+1,k) &
+                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+1,i+1))   ! pint
            end do
         end do
         if (mype==0) &
@@ -498,7 +521,7 @@ subroutine wrwrfnmma_binary(mype)
      end do
   end if
 ! cloud info: currently no new f_rimef is written out
-  if (nguess>0) then  
+  if (n_actual_clouds>0) then  
      kcwm=i_cwm-1
      kf_ice=i_f_ice-1
      kf_rain=i_f_rain-1
@@ -538,7 +561,7 @@ subroutine wrwrfnmma_binary(mype)
            end do
         end do
      end do
-  end if  ! end of nguess>0
+  end if  ! end of n_actual_clouds>0
 
   
   allocate(tempa(itotsub,kbegin(mype):kend(mype)))
@@ -624,7 +647,7 @@ subroutine wrwrfnmma_binary(mype)
      deallocate(jbuf)
   end if
 
-  if (nguess>0) then 
+  if (n_actual_clouds>0) then 
 !                                    read cwm (no read-in for cloud info, so whole field is write out later)
      if(kord(i_cwm)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -671,7 +694,7 @@ subroutine wrwrfnmma_binary(mype)
      if((ifld==i_sst.or.ifld==i_tsk).and..not.update_regsfc) cycle
      call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
      call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtype(ifld))
+                        n_actual_clouds,im,jm,lm,bdim,igtype(ifld))
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(ifld==i_sst.or.ifld==i_tsk) then
@@ -690,7 +713,7 @@ subroutine wrwrfnmma_binary(mype)
      if(filled_grid) call unfill_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
      if(half_grid)   call unhalf_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
      call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtype(ifld))
+                        n_actual_clouds,im,jm,lm,bdim,igtype(ifld))
      call move_hg_ibuf(temp1,ibuf(1,ifld),im,jm,im,jm)
   end do
 
@@ -819,7 +842,7 @@ subroutine wrwrfnmma_binary(mype)
      deallocate(jbuf)
   end if
 
-  if (nguess>0) then
+  if (n_actual_clouds>0) then
 !                                    write cwm
      if(kord(i_cwm)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -891,7 +914,7 @@ subroutine wrwrfnmma_binary(mype)
 end subroutine wrwrfnmma_binary
 
 subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         nguess,im,jm,lm,bdim,igtype)
+                         n_actual_clouds,im,jm,lm,bdim,igtype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_bndy_file          collect boundary variables on nmm grid
@@ -901,7 +924,8 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 !
 ! program history log:
 !   2004-06-23  parrish, document
-!   2012-11-19  tong, added nguess > 0 condition for cloud variable cwm.
+!   2012-11-19  tong, added n_actual_clouds > 0 condition for cloud variable cwm.
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     temp1    - input 2d field
@@ -912,7 +936,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 !     i_cwm    - same as for i_t but for cloud variable
 !     i_u      - same as for i_t but for u
 !     i_v      - same as for i_t but for v
-!     nguess   - number of cloud guess variables
+!     n_actual_clouds   - number of cloud guess variables
 !     im,jm,lm - wrf nmm grid dimensions
 !     bdim     - number of points around boundary
 !     igtype   - =1, then h grid, =2, then v grid
@@ -935,7 +959,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
   implicit none
 
   integer(i_kind),intent(in   ) :: ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v,im,jm,lm,bdim,igtype
-  integer(i_kind),intent(in   ) :: nguess
+  integer(i_kind),intent(in   ) :: n_actual_clouds
   real(r_single), intent(in   ) :: temp1(im,jm)
   real(r_single), intent(  out) :: pdb(bdim),tb(bdim,lm),qb(bdim,lm),cwmb(bdim,lm),ub(bdim,lm),vb(bdim,lm)
 
@@ -1004,7 +1028,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 
      qb(:,ifld-i_q+1)=bndy(:)
 
-  elseif(ifld >= i_cwm .and. ifld-i_cwm+1 <= lm .and. nguess > 0) then
+  elseif(ifld >= i_cwm .and. ifld-i_cwm+1 <= lm .and. n_actual_clouds > 0) then
 
      cwmb(:,ifld-i_cwm+1)=bndy(:)
 
@@ -1020,7 +1044,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 
 end subroutine get_bndy_file
 
-subroutine wrnemsnmma_binary(mype)
+subroutine wrnemsnmma_binary(mype,cold_start)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    wrwrfnmma              write out wrf NMM restart file
@@ -1048,6 +1072,12 @@ subroutine wrnemsnmma_binary(mype)
 !   2010-03-12  parrish - add write of ozone to 3d field labeled "o3mr"  (might be changed to "o3")
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !   2011-07-18  zhu     - add write-out for updated cloud info
+!   2012-12-04  s.liu   - add gsd cloud analsyis variables
+!   2013-10-18  s.liu   - add use_reflectivity option for cloud analysis variables
+!   2013-10-19  todling - upper-air guess now in metguess
+!   2014-04-11  zhu     - add cold_start option for the case when the restart file is from the GFS
+!   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !
 !   input argument list:
 !     mype     - pe number
@@ -1062,10 +1092,10 @@ subroutine wrnemsnmma_binary(mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use regional_io, only: update_pint
-  use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
-        ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl,ges_oz
+  use guess_grids, only: &
+        ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype,&
-        use_gfs_ozone,regional_ozone
+        use_gfs_ozone,regional_ozone,use_reflectivity
   use constants, only: zero,half,one,two,rd_over_cp,r10,r100,qcmin
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
@@ -1079,6 +1109,7 @@ subroutine wrnemsnmma_binary(mype)
   implicit none
 
 ! Declare passed variables
+  logical cold_start
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
@@ -1098,16 +1129,25 @@ subroutine wrnemsnmma_binary(mype)
   logical good_u10,good_v10,good_tshltr,good_qshltr,good_o3mr
 
 ! variables for cloud info
-  integer(i_kind) iret,ier_cloud,nguess
+  integer(i_kind) iret,ier_cloud,n_actual_clouds,istatus
   real(r_kind) total_ice
   real(r_kind),dimension(lat2,lon2):: work_clwmr,work_fice,work_frain
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
-
+  real(r_kind),pointer,dimension(:,:,:):: ges_cw  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_oz  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: dfi_tten=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ref =>NULL()
+  
 !   if use_gfs_stratosphere is true, then convert ges fields from nmmb-gfs 
 !        extended vertical coordinate to nmmb vertical coordinate.
 
@@ -1154,9 +1194,10 @@ subroutine wrnemsnmma_binary(mype)
   mype_input=0
   add_saved=.true.
 
-  call gsi_metguess_get('dim',nguess,iret)
-  if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, nguess,iret=',nguess,iret
-  if (nguess>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,iret)
+  if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, nclouds,iret=',&
+                n_actual_clouds,iret
+  if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
 
 !    Determine whether or not cloud-condensate is the control variable
      icw4crtm=getindex(cvars3d,'cw')
@@ -1165,15 +1206,32 @@ subroutine wrnemsnmma_binary(mype)
      iqtotal=getindex(cvars3d,'qt')
 
 !    Get pointer to cloud water mixing ratio
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_cloud=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cw,iret); ier_cloud=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_cloud=ier_cloud+iret
 
-     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier_cloud/=0) nguess=0
-  end if
+     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier_cloud/=0) n_actual_clouds=0
+
+  else if (use_reflectivity)then
+    
+!    Get pointer to hydrometeor mixing ratios, reflectivity, and temperature tendency
+!       for the cloud analysis
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_cloud=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_cloud=ier_cloud+iret 
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ref',ges_ref,istatus);ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tten',dfi_tten,istatus);ier_cloud=ier_cloud+iret
+     if(ier_cloud/=0) then
+        write(6,*)'wrwrfnmma.F90 :: missng hydrometeor/tten/ref fields for cloud analysis nothing to do'
+	n_actual_clouds=0
+     end if	
+  end if 
 
   if(mype==mype_input) wrfanl = 'wrf_inout'
 
@@ -1188,54 +1246,116 @@ subroutine wrnemsnmma_binary(mype)
      k=nsig_write+1-kr
                                    !   u
 
-     call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
-     do i=1,lon2
-        do j=1,lat2
-           work_sub(j,i)=ges_u(j,i,k,it)-work_sub(j,i)
-        end do
-     end do
-     if(k <= near_sfc) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u,iret)
+     if (iret==0)then
+        call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
         do i=1,lon2
            do j=1,lat2
-              delu(j,i,k)=work_sub(j,i)
+              work_sub(j,i)=ges_u(j,i,k)-work_sub(j,i)
            end do
         end do
-     end if
-     call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+        if(k <= near_sfc) then
+           do i=1,lon2
+              do j=1,lat2
+                 delu(j,i,k)=work_sub(j,i)
+              end do
+           end do
+        end if
+        call gsi_nemsio_write('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+     endif
 
                                    !   v
 
-     call gsi_nemsio_read('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
-     do i=1,lon2
-        do j=1,lat2
-           work_sub(j,i)=ges_v(j,i,k,it)-work_sub(j,i)
-        end do
-     end do
-     if(k <= near_sfc) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v,iret)
+     if (iret==0) then
+        call gsi_nemsio_read('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
         do i=1,lon2
            do j=1,lat2
-              delv(j,i,k)=work_sub(j,i)
+              work_sub(j,i)=ges_v(j,i,k)-work_sub(j,i)
            end do
         end do
-     end if
-     call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+        if(k <= near_sfc) then
+           do i=1,lon2
+              do j=1,lat2
+                 delv(j,i,k)=work_sub(j,i)
+              end do
+           end do
+        end if
+        call gsi_nemsio_write('vgrd','mid layer','V',kr,work_sub(:,:),mype,mype_input,add_saved)
+     endif
 
                                    !   q
 
-     call gsi_nemsio_read('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input)
-     do i=1,lon2
-        do j=1,lat2
-           work_sub(j,i)=ges_q(j,i,k,it)-work_sub(j,i)
-        end do
-     end do
-     if(k <= near_sfc) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q,iret)
+     if (iret==0) then
+        call gsi_nemsio_read('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input)
         do i=1,lon2
            do j=1,lat2
-              delq(j,i,k)=work_sub(j,i)
+              work_sub(j,i)=ges_q(j,i,k)-work_sub(j,i)
            end do
         end do
+        if(k <= near_sfc) then
+           do i=1,lon2
+              do j=1,lat2
+                 delq(j,i,k)=work_sub(j,i)
+              end do
+           end do
+        end if
+        call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     endif
+
+!* use GSD cloud analysis for NMMB
+     if(use_reflectivity) then
+!    write(6,*)'sliu in wrwrfnmma.F90:: enter dump dfi_tten'
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qr(j,i,k)
+        end do
+     end do
+     add_saved=.false.
+     call gsi_nemsio_write('f_rain','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qi(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('f_ice','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+!    do i=1,lon2
+!       do j=1,lat2
+!          work_sub(j,i)=ges_ql(j,i,k)
+!       end do
+!    end do
+!    call gsi_nemsio_write('f_rimef','mid
+!    layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qg(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+!    do i=1,lon2
+!       do j=1,lat2
+!          if(ges_ref(j,i,k)>60)ges_ref(j,i,k)=60
+!          if(ges_ref(j,i,k)<-10)ges_ref(j,i,k)=-10
+!          work_sub(j,i)=ges_ref(j,i,k)
+!       end do
+!    end do
+!    call gsi_nemsio_write('obs_ref','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tten',dfi_tten,iret)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=dfi_tten(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('dfi_tten','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     add_saved=.true.
      end if
-     call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+!* use GSD cloud analysis for NMMB
 
                                    !   tsen
 
@@ -1257,7 +1377,8 @@ subroutine wrnemsnmma_binary(mype)
 
                                    !   ozone
 
-     if(regional_ozone) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz,iret)
+     if(iret==0.and.regional_ozone) then
         good_o3mr=.false.
         call gsi_nemsio_read('o3mr','mid layer','H',kr,work_sub(:,:),mype,mype_input,good_o3mr)
         if(good_o3mr) then
@@ -1268,7 +1389,7 @@ subroutine wrnemsnmma_binary(mype)
            end if
            do i=1,lon2
               do j=1,lat2
-                 work_sub(j,i)=ges_oz(j,i,k,it)-work_sub(j,i)
+                 work_sub(j,i)=ges_oz(j,i,k)-work_sub(j,i)
               end do
            end do
            call gsi_nemsio_write('o3mr','mid layer','H',kr,work_sub(:,:),mype,mype_input, &
@@ -1279,67 +1400,88 @@ subroutine wrnemsnmma_binary(mype)
      end if
 
                              ! cloud
-     if (nguess>0) then
-        do i=1,lon2
-           do j=1,lat2
-              if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=zero
-              if (ges_qi(j,i,k)<=qcmin) ges_qi(j,i,k)=zero
-              if (ges_qs(j,i,k)<=qcmin) ges_qs(j,i,k)=zero
-              if (ges_qg(j,i,k)<=qcmin) ges_qg(j,i,k)=zero
-              if (ges_qh(j,i,k)<=qcmin) ges_qh(j,i,k)=zero
-              if (ges_qr(j,i,k)<=qcmin) ges_qr(j,i,k)=zero
-              total_ice=ges_qi(j,i,k)+ges_qs(j,i,k)+ges_qg(j,i,k)+ges_qh(j,i,k)
-              work_clwmr(j,i)=total_ice+ges_ql(j,i,k)+ges_qr(j,i,k)
-              if (work_clwmr(j,i)>zero) then
-                 work_fice(j,i)=total_ice/work_clwmr(j,i)
-                 if (work_fice(j,i)<one) then
-                    work_frain(j,i)=ges_qr(j,i,k)/(work_clwmr(j,i)*(one-work_fice(j,i)))
+     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+        call gsi_nemsio_read('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+        if (cold_start) then
+           do i=1,lon2
+              do j=1,lat2
+                 if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=qcmin
+                 if (ges_qi(j,i,k)<=qcmin) ges_qi(j,i,k)=qcmin
+                 work_clwmr(j,i)=ges_ql(j,i,k)+ges_qr(j,i,k)
+                 work_sub(j,i)=work_clwmr(j,i)-max(work_sub(j,i),qcmin)
+              end do
+           end do
+           call gsi_nemsio_write('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+        else
+           do i=1,lon2
+              do j=1,lat2
+                 if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=qcmin
+                 if (ges_qi(j,i,k)<=qcmin) ges_qi(j,i,k)=qcmin
+                 if (ges_qs(j,i,k)<=qcmin) ges_qs(j,i,k)=qcmin
+                 if (ges_qg(j,i,k)<=qcmin) ges_qg(j,i,k)=qcmin
+                 if (ges_qh(j,i,k)<=qcmin) ges_qh(j,i,k)=qcmin
+                 if (ges_qr(j,i,k)<=qcmin) ges_qr(j,i,k)=qcmin
+                 total_ice=ges_qi(j,i,k)+ges_qs(j,i,k)+ges_qg(j,i,k)+ges_qh(j,i,k)
+                 work_clwmr(j,i)=total_ice+ges_ql(j,i,k)+ges_qr(j,i,k)
+                 work_sub(j,i)=work_clwmr(j,i)-max(work_sub(j,i),qcmin)
+
+                 if (work_clwmr(j,i)>zero) then
+                    work_fice(j,i)=total_ice/work_clwmr(j,i)
+                    if (work_fice(j,i)<one) then
+                       work_frain(j,i)=ges_qr(j,i,k)/(work_clwmr(j,i)*(one-work_fice(j,i)))
+                    else
+                       work_frain(j,i)=zero
+                    end if
                  else
+                    work_fice(j,i)=zero
                     work_frain(j,i)=zero
                  end if
-              else
-                 work_fice(j,i)=zero
-                 work_frain(j,i)=zero
-              end if
+              end do
            end do
-        end do
-        call gsi_nemsio_write('clwmr','mid layer','H',kr,work_clwmr(:,:),mype,mype_input,.false.)
-        call gsi_nemsio_write('f_ice','mid layer','H',kr,work_fice(:,:),mype,mype_input,.false.)
-        call gsi_nemsio_write('f_rain','mid layer','H',kr,work_frain(:,:),mype,mype_input,.false.)
-
-        call gsi_nemsio_read('f_rimef','mid layer','H',kr,work_sub(:,:),mype,mype_input)
-        call gsi_nemsio_write('f_rimef','mid layer','H',kr,work_sub(:,:),mype,mype_input,.false.)
-     end if
+           call gsi_nemsio_write('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+           call gsi_nemsio_write('f_ice','mid layer','H',kr,work_fice(:,:),mype,mype_input,.false.)
+           call gsi_nemsio_write('f_rain','mid layer','H',kr,work_frain(:,:),mype,mype_input,.false.)
+           call gsi_nemsio_read('f_rimef','mid layer','H',kr,work_sub(:,:),mype,mype_input)
+           call gsi_nemsio_write('f_rimef','mid layer','H',kr,work_sub(:,:),mype,mype_input,.false.)
+        end if ! end of non-coldstart
+     end if  ! end of nguess
 
   end do
 
                              ! pd
-  do i=1,lon2
-     do j=1,lat2
-        psfc_this=r10*ges_ps(j,i,it)   ! convert from mb to cb
-        pd=psfc_this-pd_to_ps
-        pd_new(j,i)=r100*pd
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps,iret)
+  if (iret==0) then
+     do i=1,lon2
+        do j=1,lat2
+           psfc_this=r10*ges_ps(j,i)   ! convert from mb to cb
+           pd=psfc_this-pd_to_ps
+           pd_new(j,i)=r100*pd
+        end do
      end do
-  end do
 
-  call gsi_nemsio_read('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input)
-  do i=1,lon2
-     do j=1,lat2
-        work_sub(j,i)=pd_new(j,i)-work_sub(j,i)
+     call gsi_nemsio_read('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input)
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=pd_new(j,i)-work_sub(j,i)
+        end do
      end do
-  end do
-  call gsi_nemsio_write('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_write('dpres','hybrid sig lev','H',1,work_sub(:,:),mype,mype_input,add_saved)
+  endif
 
 
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pd',ges_pd,iret)
+     if (iret/=0) then ! doesn't need to die (but needs careful revision)
+        call die('wrnemsnmma_binary',': missing pd field',iret)
+     endif
      do kr=1,nsig_write+1
         k=nsig_write+2-kr
         call gsi_nemsio_read('pres','layer','H',kr,work_sub(:,:),mype,mype_input)
 
         do i=1,lon2
            do j=1,lat2
-              work_sub(j,i)=eta2_ll(k)*(pd_new(j,i)-ges_pd(j,i,it))   ! pint analysis increment
+              work_sub(j,i)=eta2_ll(k)*(pd_new(j,i)-ges_pd(j,i))   ! pint analysis increment
            end do
         end do
         call gsi_nemsio_write('pres','layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
@@ -1383,13 +1525,15 @@ subroutine wrnemsnmma_binary(mype)
   good_v10=.false.
   call gsi_nemsio_read ('u10' ,'10 m above gnd','H',1,u10this(:,:),mype,mype_input,good_u10)
   call gsi_nemsio_read ('v10' ,'10 m above gnd','H',1,v10this(:,:),mype,mype_input,good_v10)
-  if(good_u10.and.good_v10) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u,istatus);iret=istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v,istatus);iret=iret+istatus
+  if(iret==0.and.good_u10.and.good_v10) then
      if(use_fact10) then
 !          recompute fact10 (store as fact10_local)  (this code lifted from read_wrf_nmm_guess.F90)
         do i=1,lon2
            do j=1,lat2
               fact10_local(j,i)=one    !  later fix this by using correct w10/w(1)
-              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
               if(wmag > zero)fact10_local(j,i)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
               fact10_local(j,i)=min(max(fact10_local(j,i),half),0.95_r_kind)
               delu10(j,i)=fact10_local(j,i)*delu(j,i,1)
@@ -1452,7 +1596,7 @@ subroutine wrnemsnmma_binary(mype)
         do i=1,lon2
            do j=1,lat2
               fact2t_local(j,i)=max(half,min(t2this(j,i)/pott(j,i,1),two))
-              fact2q_local(j,i)=max(half,min(q2this(j,i)/ges_q(j,i,1,it),two))
+              fact2q_local(j,i)=max(half,min(q2this(j,i)/ges_q(j,i,1),two))
               delt2(j,i)=fact2t_local(j,i)*delt(j,i,1)
               delq2(j,i)=fact2q_local(j,i)*delq(j,i,1)
            end do
@@ -1527,6 +1671,8 @@ subroutine wrwrfnmma_netcdf(mype)
 !   2012-07-19  tong    - added the output of boundary variables
 !   2012-10-11  eliu    - add capability of using global-regional blended 
 !                         vertical coordinate for wrf_nmm_regional (HWRF)      
+!   2013-10-19  todling - metguess now holds background
+!   2013-10-24  todling - general interface to strip
 !
 !   input argument list:
 !     mype     - pe number
@@ -1541,12 +1687,12 @@ subroutine wrwrfnmma_netcdf(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use regional_io, only: update_pint
-  use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
+  use guess_grids, only: &
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4,mpi_sum
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
-       nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single,lat2,lon2
+       nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip,lat2,lon2
   use constants, only: zero_single,r10,r100,qcmin,zero,one
   use gsi_io, only: lendian_in, lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
@@ -1584,16 +1730,22 @@ subroutine wrwrfnmma_netcdf(mype)
   real(r_single) dx0_nmm(nlon_regional,nlat_regional),dy0_nmm(nlon_regional,nlat_regional)
 
 ! variables for cloud info
-  integer(i_kind) iret,ier,nguess
-  integer(i_kind) icw4crtm,iqtotal
+  integer(i_kind) iret,ier,n_actual_clouds
+  integer(i_kind) icw4crtm,iqtotal,istatus
   real(r_kind) total_ice
   real(r_kind),dimension(lat2,lon2):: work_clwmr,work_fice,work_frain
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh  =>NULL()
 
   real(r_single),allocatable:: pdbg(:),tbg(:,:),qbg(:,:),cwmbg(:,:),ubg(:,:),vbg(:,:)
   real(r_single),allocatable:: pdba(:),tba(:,:),qba(:,:),cwmba(:,:),uba(:,:),vba(:,:)
@@ -1630,8 +1782,8 @@ subroutine wrwrfnmma_netcdf(mype)
   it=ntguessig
 
 ! inquiry cloud guess
-  call gsi_metguess_get('dim',nguess,iret)
-  if (nguess>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,iret)
+  if (n_actual_clouds>0) then
 !    Determine whether or not cloud-condensate is the control variable
      icw4crtm=getindex(cvars3d,'cw')
 
@@ -1647,12 +1799,12 @@ subroutine wrwrfnmma_netcdf(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier/=0) nguess=0
+     if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier/=0) n_actual_clouds=0
   end if
 
   num_nmm_fields=3+4*lm
   if(update_pint) num_nmm_fields=num_nmm_fields+lm+1  ! contribution from PINT
-  if (nguess>0) num_nmm_fields=num_nmm_fields+4*lm
+  if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm
   num_all_fields=num_nmm_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat1+2,lon1+2,num_all_pad))
@@ -1670,7 +1822,7 @@ subroutine wrwrfnmma_netcdf(mype)
   i_v=i_u+lm
   i_sst=i_v+lm
   i_tsk=i_sst+1
-  if (nguess>0) then
+  if (n_actual_clouds>0) then
      i_cwm=i_tsk+1
      i_f_ice=i_cwm+lm
      i_f_rain=i_f_ice+lm
@@ -1693,6 +1845,15 @@ subroutine wrwrfnmma_netcdf(mype)
 ! Convert analysis variables to NMM variables
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u ,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v ,iret); ier=iret
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q ,iret); ier=iret
+  if (ier/=0) then ! doesn't need to die (but needs careful revision)
+     call die('wrwrfnmma_netcdf',': missing guess fields',ier)
+  endif
+
 ! Create all_loc from ges_*
 ! if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
   all_loc=zero_single
@@ -1707,18 +1868,18 @@ subroutine wrwrfnmma_netcdf(mype)
      kv=kv+1
      do i=1,lon1+2
         do j=1,lat1+2
-           all_loc(j,i,ku)=ges_u(j,i,k,it)
+           all_loc(j,i,ku)=ges_u(j,i,k)
 !          if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
 !               write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
-           all_loc(j,i,kv)=ges_v(j,i,k,it)
-           all_loc(j,i,kq)=ges_q(j,i,k,it)
+           all_loc(j,i,kv)=ges_v(j,i,k)
+           all_loc(j,i,kq)=ges_q(j,i,k)
            all_loc(j,i,kt)=ges_tsen(j,i,k,it)   ! sensible temperature
         end do
      end do
   end do
   do i=1,lon1+2
      do j=1,lat1+2
-        psfc_this=r10*ges_ps(j,i,it)   ! convert from mb to cb
+        psfc_this=r10*ges_ps(j,i)   ! convert from mb to cb
         pd=psfc_this-pdtop_ll-pt_ll
         all_loc(j,i,i_pd)=r100*pd
      end do
@@ -1727,13 +1888,21 @@ subroutine wrwrfnmma_netcdf(mype)
   write(6,*)'all_loc for pd   = ',k,maxval(all_loc(:,:,i_pd)),minval(all_loc(:,:,i_pd))                                                                                                               
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
+     ier=0
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+     ier=ier+istatus
+     if (ier/=0) then ! doesn't need to die (but needs careful revision)
+        call die('wrwrfnmma_netcdf',': missing pint/pd fields',ier)
+     endif
      kpint=i_pint-1
      do k=1,nsig_write+1         
         kpint=kpint+1
         do i=1,lon1+2
            do j=1,lat1+2
-              all_loc(j,i,kpint)=ges_pint(j,i,k,it) &
-                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j,i,it))   ! pint
+              all_loc(j,i,kpint)=ges_pint(j,i,k) &
+                          +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j,i))   ! pint
            end do
         end do
         if (mype==0) &
@@ -1742,7 +1911,7 @@ subroutine wrwrfnmma_netcdf(mype)
   end if
 
 ! cloud info: currently no new f_rimef info is written out
-  if (nguess>0) then ! cloud
+  if (n_actual_clouds>0) then ! cloud
      kcwm=i_cwm-1
      kf_ice=i_f_ice-1
      kf_rain=i_f_rain-1
@@ -1782,7 +1951,7 @@ subroutine wrwrfnmma_netcdf(mype)
            end do
         end do
      end do
-  end if ! end of nguess>0
+  end if ! end of n_actual_clouds>0
 
   if(mype == 0) then
      read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
@@ -1825,12 +1994,12 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) read(lendian_in)temp1
 ! if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
   if(mype == 0) write(6,*)' max,min(temp1) PD in       =',maxval(temp1),minval(temp1)       
-  call strip_single(all_loc(1,1,i_pd),strp,1)
+  call strip(all_loc(:,:,i_pd),strp)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
      call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtypeh)
+                        n_actual_clouds,im,jm,lm,bdim,igtypeh)
 !    if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
@@ -1846,7 +2015,7 @@ subroutine wrwrfnmma_netcdf(mype)
      write(lendian_out)temp1
      if(mype == 0) write(6,*)' max,min(temp1) PD out      =',maxval(temp1),minval(temp1)     
      call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtypeh)
+                        n_actual_clouds,im,jm,lm,bdim,igtypeh)
   end if
 
 !  FIS read/write
@@ -1863,7 +2032,7 @@ subroutine wrwrfnmma_netcdf(mype)
         kpint=kpint+1
         if(mype == 0) read(lendian_in)temp1
         if(mype == 0) write(6,*)' k,max,min(temp1) PINT in   =',k,maxval(temp1),minval(temp1)                                           
-        call strip_single(all_loc(1,1,kpint),strp,1)
+        call strip(all_loc(:,:,kpint),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -1887,12 +2056,12 @@ subroutine wrwrfnmma_netcdf(mype)
      kt=kt+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) T in      =',k,maxval(temp1),minval(temp1)                                             
-     call strip_single(all_loc(1,1,kt),strp,1)
+     call strip(all_loc(:,:,kt),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
+                           n_actual_clouds,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1903,7 +2072,7 @@ subroutine wrwrfnmma_netcdf(mype)
         write(lendian_out)temp1
         write(6,*)' k,max,min(temp1) T out     =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
+                           n_actual_clouds,im,jm,lm,bdim,igtypeh)
      end if
   end do
 ! if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
@@ -1916,12 +2085,12 @@ subroutine wrwrfnmma_netcdf(mype)
      kq=kq+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) Q in    =',k,maxval(temp1),minval(temp1)                                             
-     call strip_single(all_loc(1,1,kq),strp,1)
+     call strip(all_loc(:,:,kq),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
+                           n_actual_clouds,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1932,7 +2101,7 @@ subroutine wrwrfnmma_netcdf(mype)
         write(lendian_out)temp1
         write(6,*)' k,max,min(temp1) Q out   =',k,maxval(temp1),minval(temp1)        
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
+                           n_actual_clouds,im,jm,lm,bdim,igtypeh)
      end if
   end do
 
@@ -1943,13 +2112,13 @@ subroutine wrwrfnmma_netcdf(mype)
      ku=ku+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) U in    =',k,maxval(temp1),minval(temp1)                                             
-     call strip_single(all_loc(1,1,ku),strp,1)
+     call strip(all_loc(:,:,ku),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
 !    if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
+                           n_actual_clouds,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
 !       if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
@@ -1966,7 +2135,7 @@ subroutine wrwrfnmma_netcdf(mype)
         write(lendian_out)temp1
         write(6,*)' k,max,min(temp1) U out   =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
+                           n_actual_clouds,im,jm,lm,bdim,igtypev)
      end if
   end do
 ! if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
@@ -1978,12 +2147,12 @@ subroutine wrwrfnmma_netcdf(mype)
      kv=kv+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) V in    =',k,maxval(temp1),minval(temp1)                                             
-     call strip_single(all_loc(1,1,kv),strp,1)
+     call strip(all_loc(:,:,kv),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
+                           n_actual_clouds,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         do i=1,iglobal
@@ -1994,7 +2163,7 @@ subroutine wrwrfnmma_netcdf(mype)
         write(lendian_out)temp1
         write(6,*)' k,max,min(temp1) V out   =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
+                           n_actual_clouds,im,jm,lm,bdim,igtypev)
      end if
   end do
 
@@ -2024,7 +2193,7 @@ subroutine wrwrfnmma_netcdf(mype)
      if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update SST '    
      if(mype == 0) read(lendian_in)temp1
 !    if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_sst),strp,1)
+     call strip(all_loc(:,:,i_sst),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -2068,7 +2237,7 @@ subroutine wrwrfnmma_netcdf(mype)
      if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update TSK '   
      if(mype == 0) read(lendian_in)temp1
 !    if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_tsk),strp,1)
+     call strip(all_loc(:,:,i_tsk),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if (mype==0)write(6,*)' at 10.1'
@@ -2095,24 +2264,24 @@ subroutine wrwrfnmma_netcdf(mype)
   end if
 
 ! update cloud hydrometeors
-  if (nguess>0) then
+  if (n_actual_clouds>0) then
      if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update clouds '   
 !    Update cwm
      kcwm=i_cwm-1
      do k=1,nsig_write   
         kcwm=kcwm+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
-        call strip_single(all_loc(1,1,kcwm),strp,1)
+        call strip(all_loc(:,:,kcwm),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
            call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                              nguess,im,jm,lm,bdim,igtypeh)
+                              n_actual_clouds,im,jm,lm,bdim,igtypeh)
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            write(lendian_out)temp1
            call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                              nguess,im,jm,lm,bdim,igtypeh)
+                              n_actual_clouds,im,jm,lm,bdim,igtypeh)
         end if
      end do
 
@@ -2121,7 +2290,7 @@ subroutine wrwrfnmma_netcdf(mype)
      do k=1,nsig_write
         kf_ice=kf_ice+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
-        call strip_single(all_loc(1,1,kf_ice),strp,1)
+        call strip(all_loc(:,:,kf_ice),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2136,7 +2305,7 @@ subroutine wrwrfnmma_netcdf(mype)
      do k=1,nsig_write
         kf_rain=kf_rain+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
-        call strip_single(all_loc(1,1,kf_rain),strp,1)
+        call strip(all_loc(:,:,kf_rain),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
@@ -2153,7 +2322,7 @@ subroutine wrwrfnmma_netcdf(mype)
            write(lendian_out)temp1
         end do
      end if
-  end if  ! end of nguess>0
+  end if  ! end of n_actual_clouds>0
 
   if (mype==0) then
      close(lendian_in)

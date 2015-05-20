@@ -27,6 +27,7 @@ module constants
 !   2010-04-01 li        - add maximum diurnal thermocline thickness
 !   2011-10-27 Huang     - add i_missing and r_missing to detect missing values
 !   2011-11-01 eliu      - add minimum value for cloud water mixing ratio 
+!   2012-03-07 todling   - define lower bound for trace-gases (arbitrary unit as long as small)
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -69,8 +70,8 @@ module constants
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
   public :: max_varname_length
-  public :: z_w_max
-  public :: qmin,qcmin 
+  public :: z_w_max,tfrozen
+  public :: qmin,qcmin,tgmin
   public :: i_missing, r_missing
 
 ! Declare derived constants
@@ -129,8 +130,8 @@ module constants
   real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
 
-! maximum diurnal thermocline thickness
-  real(r_kind),parameter:: z_w_max   = 30.0_r_kind
+  real(r_kind),parameter:: z_w_max    = 30.0_r_kind     ! maximum diurnal thermocline thickness
+  real(r_kind),parameter:: tfrozen    = 271.2_r_kind    ! sea water frozen point temperature
 
   real(r_quad),parameter::  zero_quad = 0.0_r_quad
   real(r_quad),parameter::  one_quad  = 1.0_r_quad
@@ -225,9 +226,10 @@ module constants
                                      ! wgtlim does not alter the analysis, only
                                      ! the nonlinear qc data "count"
 
-! Minimum values for water vapor and cloud water mixing ratio 
+! Minimum values for water vapor, cloud water mixing ratio, and trace gases
   real(r_kind),parameter:: qmin   = 1.e-07_r_kind   ! lower bound on ges_q
   real(r_kind),parameter:: qcmin  = 0.0_r_kind      ! lower bound on ges_cw
+  real(r_kind),parameter:: tgmin  = 1.e-15_r_kind   ! lower bound on trace gases
 
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999

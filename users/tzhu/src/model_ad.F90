@@ -74,17 +74,20 @@ type(gsi_bundle), target, intent(inout) :: xini(nsubwin)   ! Adjoint state varia
 ! Declare local variables
 character(len=*), parameter :: myname = 'model_ad'
 
-integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ii,jj,ierr,n
+#ifdef _LAG_MODEL_
+integer(i_kind)    :: ii,jj
+real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
+real(r_kind),dimension(3):: ad_tmp_locvect
+#endif
+integer(i_kind)    :: nstep,istep,nfrctl,nfrobs,ierr,n
 integer(i_kind)    :: nymdi,nhmsi,ndt,dt,ndtpert
 real(r_kind)       :: d0,tstep
-real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
 type(gsi_bundle),pointer:: p_xini
 type(gsi_bundle),pointer:: p_xobs
 type(gsi_bundle) :: xxpert	! perturbation state, persistent between steps
 logical:: ldprt_,iau_on_
 
 ! Temporary vector for lagrangian backward integration
-real(r_kind),dimension(3):: ad_tmp_locvect
 real(r_kind):: wt
 
 !******************************************************************************
