@@ -699,6 +699,27 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
      write(6,*)'WRITE_SPREAD_DUALRES:  close 22 with iret=',iret
   end if
 
+  if (mype==0) then
+     open(22,file='ens_spread.ctl',form='formatted')
+     write(22,'("DSET ^",a)') trim(adjustl(grdfile))
+     write(22,'("OPTIONS yrev")')
+     write(22,'("UNDEF -9.99E+33")')
+     write(22,'("TITLE ensemble spread")')
+     write(22,'("XDEF",i6," LINEAR",2f12.6)') grd_anl%nlon,1.0,1.0
+     write(22,'("YDEF",i6," LINEAR",2f12.6)') grd_anl%nlat,1.0,1.0
+     write(22,'("ZDEF",i6," LINEAR 1 1")') grd_anl%nsig
+     write(22,'("TDEF",i6,1x,"LINEAR",1x,"00Z01Jan2000",1x,i6,"hr")') 1,12
+     write(22,'("VARS",i6)') 7
+     write(22,'("SF  ",i3," 99 stream function (/s)")') grd_anl%nsig
+     write(22,'("VP  ",i3," 99 velocity potential (/s)")') grd_anl%nsig
+     write(22,'("T   ",i3," 99 temperature (K)")') grd_anl%nsig
+     write(22,'("Q   ",i3," 99 specific humidity (kg/kg)")') grd_anl%nsig
+     write(22,'("OZ  ",i3," 99 ozone concentration (kg/kg)")') grd_anl%nsig
+     write(22,'("CW  ",i3," 99 cloud water mixing ratio (kg/kg)")') grd_anl%nsig
+     write(22,'("PS  ",i3," 99 surface pressure (Pa)")') 0
+     write(22,'(a)') 'ENDVARS'
+     close(22)
+    endif
 
   return
 end subroutine write_spread_dualres

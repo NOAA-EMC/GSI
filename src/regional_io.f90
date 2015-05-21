@@ -101,10 +101,10 @@ contains
     if (wrf_nmm_regional) then
        if (mype==0) then
           if (netcdf) then
-             call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              if (l_hyb_ens .and. regional_ensemble_option == 2)then
-                call convert_netcdf_nmm_ens
+                call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,.false.)
              end if
+             call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,.true.)
           else
              call convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
              if (l_hyb_ens .and. regional_ensemble_option == 2)then

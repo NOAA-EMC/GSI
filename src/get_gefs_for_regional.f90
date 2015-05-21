@@ -33,7 +33,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time    
+  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -1062,6 +1062,14 @@ subroutine get_gefs_for_regional
         end select
      end do
   end do
+
+!
+! CALCULATE ENSEMBLE SPREAD
+  if(write_ens_sprd)then
+     call mpi_barrier(mpi_comm_world,ierror)
+     call ens_spread_dualres_regional(mype)
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
 
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
