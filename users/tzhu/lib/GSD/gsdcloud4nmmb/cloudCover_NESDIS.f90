@@ -1,8 +1,7 @@
 SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                         xlong,xlat,t_bk,p_bk,h_bk,zh,xland, &
-                        soil_tbk,sat_ctp,sat_tem,w_frac,&
-                        l_cld_bld,cld_bld_hgt,build_cloud_frac_p,clear_cloud_frac_p,nlev_cld, &
-                        cld_cover_3d,cld_type_3d,wthr_type,Osfc_station_map)
+                        soil_tbk,sat_ctp,sat_tem,w_frac,nlev_cld, &
+                        cld_cover_3d,cld_type_3d,wthr_type)
 !
 !
 !$$$  subprogram documentation block
@@ -37,10 +36,6 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !     sat_ctp     - GOES cloud top pressure in analysis grid
 !     sat_tem     - GOES cloud top temperature in analysis grid
 !     w_frac      - GOES cloud coverage in analysis grid
-!     l_cld_bld   - logical for turning on GOES cloud building
-!     cld_bld_hgt - Height below which cloud building is done
-!     build_cloud_frac_p - Threshold above which we build clouds
-!     clear_cloud_frac_p - Threshold below which we clear clouds
 !
 !   output argument list:
 !     nlev_cld    - cloud status
@@ -67,7 +62,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   use constants, only: rd_over_cp, h1000
   use constants, only: deg2rad, rad2deg, pi
   use kinds, only: r_single,i_kind,r_kind
-  
+
   implicit none
 
   integer(i_kind),intent(in) :: mype
@@ -82,7 +77,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   real(r_single),intent(inout) :: p_bk(nlon,nlat,nsig)   ! pressure
   real(r_single),intent(in)    :: h_bk(nlon,nlat,nsig)   ! height
   real(r_single),intent(in)    :: zh(nlon,nlat)          ! terrain
-  real(r_single),intent(in)    :: xland(nlon,nlat)       ! surface
+  real(i_kind),  intent(in)    :: xland(nlon,nlat)       ! surface
   real(r_single),intent(in)    :: soil_tbk(nlon,nlat)    ! soil tmperature
 !  real(r_single),intent(in)    :: q_bk(nlon,nlat,nsig)   ! moisture, water vapor mixing ratio (kg/kg)
 !
@@ -92,13 +87,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   real(r_single),intent(inout) :: sat_tem(nlon,nlat)
   real(r_single),intent(inout) :: w_frac(nlon,nlat)
   integer(i_kind),intent(out)  :: nlev_cld(nlon,nlat)
-  integer(i_kind),intent(in)  :: Osfc_station_map(nlon,nlat)
 !
-! Turn on cloud building and height limit
-  logical,      intent(in)     :: l_cld_bld
-  real(r_kind), intent(in)     :: cld_bld_hgt
-  real(r_kind), intent(in)     :: build_cloud_frac_p
-  real(r_kind), intent(in)     :: clear_cloud_frac_p
 !
 !  Variables for cloud analysis
 !
@@ -142,30 +131,32 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   real(r_kind)    ::    RH_makecloud_p
   real(r_kind)    ::    cloud_up_p
   real(r_kind)    ::    min_cloud_p_p
+  real(r_kind)    ::    build_cloud_frac_p
+  real(r_kind)    ::    clear_cloud_frac_p
   real(r_kind)    ::    co2_preslim_p
   real(r_kind)    ::    auto_conver
   real(r_kind)    ::    zen_limit
-  real(r_kind)    ::    dt_remap_pcld_limit_p
+
 
 ! --- Key parameters
   data  Cloud_def_p        / 0.000001_r_kind/
-  data  Min_cloud_lev_p    / 1_i_kind  /        !  w/ sfc cld assim
-!  data  Min_cloud_lev_p    / 3_i_kind  /        !  w/ sfc cld assim
+!  data  Min_cloud_lev_p    / 1_i_kind  /        !  w/ sfc cld assim
+  data  Min_cloud_lev_p    / 3_i_kind  /        !  w/ sfc cld assim
   data  Rh_clear_p         / 0.80_r_kind/
-  data  Sat_cloud_pthick_p / 30._r_kind/
-!  data  Sat_cloud_pthick_p / 50._r_kind/
+  data  Sat_cloud_pthick_p / 50._r_kind/
   data  cloud_zthick_p     / 300._r_kind/
   data  Cloud_q_qvis_rat_p / 0.05_r_kind/
   data  Max_cloud_top_p    / 150._r_kind/
   data  RH_makecloud_p     / 0.90_r_kind/
   data  cloud_up_p         / 0._r_kind /
   data  min_cloud_p_p      / 1080._r_kind/      ! w/ sfc cld assim
+  data  build_cloud_frac_p / 0.50_r_kind/       !PR-version
+  data  clear_cloud_frac_p / 0.01_r_kind/       !PR-version
   data  co2_preslim_p      / 620._r_kind/
   data  auto_conver        / 0.0002_r_kind/
 ! -- change to 82 deg per Patrick Minnis - 4 Nov 09
   data  zen_limit          / 0.14_r_kind/
 ! data  zen_limit          / 0.20_r_kind /
-  data  dt_remap_pcld_limit_p / 3.5_r_kind /
 !-----------------------------------------------------------
 !
 ! temp.
@@ -197,9 +188,8 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 
   real(r_kind)     :: firstcloud, pdiff,pdiffabove
 
-  INTEGER(i_kind)  :: ista, k_closest, cld_warm_strat(nlon,nlat)
-  REAL(r_kind)     :: dist, tdiff
-
+  INTEGER(i_kind)  :: ista
+  REAL(r_kind)     :: dist
 !
 !====================================================================
 !  Begin
@@ -211,8 +201,6 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   iday=regional_time(3)
   call getdays(nday,iyear,imonth,iday)
   declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+nday)/365.0_r_kind)
-
-  cld_warm_strat=-1
 !
 !   from mb to Pa
 !
@@ -275,55 +263,48 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
        end do
 
        if ( w_frac(i,j) > -1._r_kind                  &
-            .and. (sat_tem(i,j)-soil_tbk(i,j)) > 4._r_kind    &
-            .and. soil_tbk(i,j) < 263._r_kind         &
+            .and. (sat_tem(i,j)-tsmin) > 2._r_kind    &
             .and. sat_ctp(i,j) > co2_preslim_p        &
             .and. sat_ctp(i,j) < 1010._r_kind         &
-            .and. abs(xland(i,j))>0.0001_r_single     &
+            .and. xland(i,j) /=0                      &
             .and. p_bk(i,j,1)/100. >=850._r_kind ) then
 !              w_frac(i,j) = -99999._r_kind
 !              sat_tem(i,j) =  99999._r_kind
 !              sat_ctp(i,j) =      0._r_kind
 !              nlev_cld(i,j) = -999
                npts_warm_cld_flag = npts_warm_cld_flag + 1
-               cld_warm_strat(i,j)=5
        end if
-!  PH changed condition to match RUC:   Tcld-Tskin(bkg) < 4, > -2
        if (      w_frac(i,j) > -1._r_kind             &
            .and. (sat_tem(i,j)-tsmin) > -2._r_kind    &
-           .and. (sat_tem(i,j)-tsmin) <= 4._r_kind    &
+           .and. (sat_tem(i,j)-tsmin) <= 2._r_kind    &
            .and. sat_ctp(i,j) > co2_preslim_p         &
            .and. sat_ctp(i,j) < 1010._r_kind          &
-           .and. abs(xland(i,j)) > 0.0001_r_single    &
+           .and. xland(i,j) /=0                       &
            .and. p_bk(i,j,1)/100._r_kind>= 950._r_kind ) then
               w_frac(i,j)  = -99999._r_kind
               sat_tem(i,j) =  99999._r_kind
               sat_ctp(i,j) =      0._r_kind
               nlev_cld(i,j)= -999
               npts_tskin_flag = npts_tskin_flag + 1
-              cld_warm_strat(i,j)=4
        end if
-       if (w_frac(i,j)<=clear_cloud_frac_p  .and.      &
+       if (w_frac(i,j)<clear_cloud_frac_p  .and.      &
            w_frac(i,j)>-1._r_kind)        then
               sat_ctp(i,j) = 1013.0_r_kind
               npts_clear   = npts_clear + 1
-              cld_warm_strat(i,j)=0
        end if
        if (w_frac(i,j) > clear_cloud_frac_p.and.      &
            w_frac(i,j) < build_cloud_frac_p) then
-!              w_frac(i,j) = -99999._r_kind
+               w_frac(i,j) = -99999._r_kind
                sat_tem(i,j)=  99999._r_kind
 ! mhu: this can cause problem: a miss line between cloud and clean, set it to clean
-! PH: for CLAVR data, just set sat_ctp = 0.
-               sat_ctp(i,j) =     0._r_kind
+!             sat_ctp(i,j) =      0._r_kind
+               sat_ctp(i,j) =   1013.0_r_kind
                nlev_cld(i,j)= -999
                npts_ptly_cloudy = npts_ptly_cloudy + 1
-               cld_warm_strat(i,j)=1
        end if
-       if (w_frac(i,j) >= build_cloud_frac_p.and.      &
+       if (w_frac(i,j) > build_cloud_frac_p.and.      &
            sat_ctp(i,j) < 1050) then
                npts_build = npts_build + 1
-               cld_warm_strat(i,j)=2
        end if
        if (sat_ctp(i,j)>co2_preslim_p .and. sat_ctp(i,j)<1010._r_kind)  &
              npts_bel650 = npts_bel650 + 1
@@ -365,31 +346,10 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 
 ! -- GOES indicates clouds in the lower troposphere
        if (sat_ctp(i,j) < 1010._r_kind .and. sat_ctp(i,j) > co2_preslim_p) then
-
-          tdiff = 999.
-          k_closest = -1
-          do k=3,nsig-1
-!      Attempt remapping if within 75 hPa (arbitrary)
-             if ((sat_ctp(i,j)-p_bk(i,j,k)/100._r_kind)< 75._r_kind) then
-               if (abs(sat_tem(i,j)-tbk_k(i,j,k)) < tdiff) then
-                 k_closest = k
-                 tdiff = abs(sat_tem(i,j)-tbk_k(i,j,k))
-               end if
-             end if
-          end do    ! k loop
-
-          if (k_closest <= 0 .and. abs(xland(i,j)) > 0.0001_r_single) then
-             npts_ctp_delete = npts_ctp_delete + 1
-             write (6,*) i,j,sat_tem(i,j),tdiff,k_closest,xland(i,j)
-             go to 111
-          end if
-
-          k = k_closest
-
-          if( abs(xland(i,j)) >0.0001_r_single ) then
-! PH: dt_limit was hardwired to 1.5K, changed it to 3.5K to match RUC
-             if ((tdiff < dt_remap_pcld_limit_p) .or.       &
-                 (cld_warm_strat(i,j) == 5 .and. tdiff < 4._r_kind )) then
+         do k=3,nsig-1
+           if ( (sat_ctp(i,j)-p_bk(i,j,k)/100._r_kind) < 75._r_kind) then
+             if (abs(sat_tem(i,j)-tbk_k(i,j,k)) < 1.5_r_kind       &
+                 .and. p_bk(i,j,k)/100._r_kind > co2_preslim_p ) then
                   dctpabs = dctpabs + abs(sat_ctp(i,j)-p_bk(i,j,k)/100._r_kind)
                   dctp    = dctp+ (sat_ctp(i,j)-p_bk(i,j,k)/100._r_kind)
                   k1      = k
@@ -416,41 +376,41 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                   sat_ctp(i,j) = p_bk(i,j,k)/100._r_kind
                   npts_ctp_change = npts_ctp_change + 1
                   go to 111
-             else
-                  npts_ctp_delete = npts_ctp_delete + 1
-!                  write (6,*) i,j,sat_tem(i,j),tdiff
-                  go to 111
              end if
-
-          else ! xland==0:  over water
+           end if
+         end do  ! k
 
 ! --- Remap marine cloud to min temp level below 880 mb
 !       if no matching RUC temp already found
 
-             if (sat_ctp(i,j)>880._r_kind)then
-                tempmin = -500._r_kind
+         if (xland(i,j)==0._r_kind .and. sat_ctp(i,j)>880._r_kind)then
+           tempmin = -500._r_kind
 
 ! --- Look thru lowest 15 levels for lowest temp for
 !        level to put marine cloud at.
-!  ---  Start at level 3
-                kisotherm = 20
-                ktempmin = 20
-                do k=min_cloud_lev_p+2,15
-                  if (p_bk(i,j,k)/100._r_kind .lt. 880._r_kind) go to 1101
-                    dth2dp2 = t_bk(i,j,k+1)+t_bk(i,j,k-1)-2._r_kind*t_bk(i,j,k)
-                    if (kisotherm==0 .and.                         &
-                       tbk_k(i,j,k) < tbk_k(i,j,k+1))  kisotherm = k
-                    if (dth2dp2>tempmin) then
-                       ktempmin = k
-                       tempmin = max(dth2dp2,tempmin)
-                    end if
-                end do
-1101            continue
-                ktempmin = min(ktempmin,kisotherm)
-                sat_ctp(i,j) = p_bk(i,j,ktempmin)/100._r_kind
-                npts_ctp_marine_remap = npts_ctp_marine_remap + 1
-             end if   !  sat_ctp(i,j)>880._r_kind
-          endif    !   xland == 0
+           kisotherm = 20
+           ktempmin = 20
+           do k=min_cloud_lev_p+2,15
+             if (p_bk(i,j,k)/100._r_kind .lt. 880._r_kind) go to 1101
+              dth2dp2 = t_bk(i,j,k+1)+t_bk(i,j,k-1)-2._r_kind*t_bk(i,j,k)
+              if (kisotherm==0 .and.                         &
+                  tbk_k(i,j,k) < tbk_k(i,j,k+1))  kisotherm = k
+              if (dth2dp2>tempmin) then
+                 ktempmin = k
+                 tempmin = max(dth2dp2,tempmin)
+              end if
+           end do
+1101       continue
+           ktempmin = min(ktempmin,kisotherm)
+           sat_ctp(i,j) = p_bk(i,j,ktempmin)/100._r_kind
+           npts_ctp_marine_remap = npts_ctp_marine_remap + 1
+         else
+           w_frac(i,j) = -99999._r_kind
+           sat_tem(i,j) =  99999._r_kind
+           sat_ctp(i,j) =  99999._r_kind
+           nlev_cld(i,j) = -999
+           npts_ctp_delete = npts_ctp_delete + 1
+         end if
        end if
 111    continue
      enddo  ! i
@@ -478,7 +438,8 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
           ibuddy = 0
           do j1=j-1,j+1
             do i1=i-1,i+1
-              if (sat_ctp(i1,j1)<1010._r_kind .and. sat_ctp(i1,j1)>50._r_kind)  ibuddy = 1
+              if (sat_ctp(i1,j1)<1010._r_kind .and. sat_ctp(i1,j1)>50._r_kind)  &
+               ibuddy = 1
             end do
           end do
           if (ibuddy==0) then
@@ -493,7 +454,8 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
             ibuddy = 0
             do j1=j-1,j+1
               do i1=i-1,i+1
-                if (sat_ctp(i1,j1) > 1010._r_kind .and. sat_ctp(i1,j1) <1100._r_kind) ibuddy = 1
+                if (sat_ctp(i1,j1) > 1010._r_kind .and. sat_ctp(i1,j1) <1100._r_kind) &
+                 ibuddy = 1
               end do
             end do
             if (ibuddy == 0) then
@@ -533,39 +495,17 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !        - or over land only if p<620 mb overnight
 !        - or at any level in daytime (zenith angle
 !                      greater than zen_limit threshold)
-!
-!  mhu  Nov. 26, 2014: Add a metar station map: Osfc_station_map
-!       when Osfc_station_map=1, it is a grid point around a metar station
-!       Then the satellite clean step will skip this metar station point.
 ! =============================================
     do j=2,nlat-1
       do i=2,nlon-1
         if (sat_ctp(i,j) >=1010.0_r_kind .and. sat_ctp(i,j) <1050._r_kind) then !clear
           do k=1,nsig
-             if ((csza(i,j)<zen_limit                            &
-                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p)     &
-                 .or. abs(xland(i,j)) < 0.0001_r_single          &
+             if (csza(i,j)<zen_limit                             &
+                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p      &
+                 .or. xland(i,j)==0._r_kind                       &
                  .or. csza(i,j)>=zen_limit) then
-                    if(Osfc_station_map(i,j) == 1 .and.          &
-                       cld_cover_3d(i,j,k) > 0.0001_r_kind) then
-                    else
-                       cld_cover_3d(i,j,k) = 0.0_r_single
-                       wthr_type(i,j) = 0
-                    endif
-!
-!mhu Nov 15 2014: don't let metar build cloud if
-!          - over land
-!          - during night
-!          - lower than co2_preslim_p
-!          - clear from satellite
-             elseif( (csza(i,j)<zen_limit .and.                      &
-                     p_bk(i,j,k)/100._r_kind>=co2_preslim_p) .and.    &   
-                     abs(xland(i,j)-0._r_single) > 0.0001_r_single .and. &
-                     cld_cover_3d(i,j,k) >0.0001_r_kind)  then
-                    if(Osfc_station_map(i,j) == 1) then  
-                    else
-                       cld_cover_3d(i,j,k) = - 77777.0_r_single     ! set to unknown
-                    endif
+                   cld_cover_3d(i,j,k) = 0
+                   wthr_type(i,j) = 0
              end if
           end do
 !mhu: use 1060hps cloud top pressure to clean above the low cloud top
@@ -573,11 +513,11 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
           do k=1,nsig
              if (csza(i,j)<zen_limit                             &
                 .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p      &
-                 .or. abs(xland(i,j)) < 0.0001_r_single          &
+                 .or. xland(i,j)==0._r_kind                       &
                  .or. csza(i,j)>=zen_limit) then
-                   if( abs(cld_cover_3d(i,j,k)) > 2.0_r_single ) then
-                       cld_cover_3d(i,j,k) = 0.0_r_single
-                       wthr_type(i,j) = 0
+                   if( abs(cld_cover_3d(i,j,k)) > 2 ) then
+                     cld_cover_3d(i,j,k) = 0
+                     wthr_type(i,j) = 0
                   endif
              end if
           end do 
@@ -594,7 +534,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 ! - return to previous (but experimental) version - 12 Oct 04
           if (csza(i,j) < zen_limit                           &
               .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p     &
-               .or. abs(xland(i,j)) < 0.0001_r_single         &
+               .or. xland(i,j)==0._r_kind                     &
                .or. csza(i,j)>=zen_limit) then
 ! --- since we set GOES to nearest RUC level, only clear at least
 !       1 RUC level above cloud top
@@ -608,15 +548,13 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                      cld_cover_3d(i,j,k+1) =                  &
                           max(0.0_r_single, cld_cover_3d(i,j,k+1))
                    else
-                     cld_cover_3d(i,j,k+1) = 0.0_r_single
+                     cld_cover_3d(i,j,k+1) = 0
                    endif
                  endif
           end if
         end do
       enddo
     enddo
-
-!    print *, 'h_bk max: ', maxval(h_bk(:,:,1)), ' min: ', minval(h_bk(:,:,1))
 
 ! =============================================
 ! - start building where GOES indicates so
@@ -636,19 +574,13 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
             if (pdiff<=0. .and. firstcloud==0) then
               pdiffabove = sat_ctp(i,j)-p_bk(i,j,k+1)/100._r_kind
               if (abs(pdiffabove)<abs(pdiff)) then
-!    sgb - 2/7/2012 - remove this condition
-!    Allow cloud building below CO2_preslim and at night and over land
-!                if (p_bk(i,j,k)/100._r_kind<co2_preslim_p    &
-!                    .or. abs(xland(i,j)) < 0.0001_r_single   &
-!                    .or. csza(i,j)==zen_limit) then
-                   if (l_cld_bld .and. h_bk(i,j,k+1) < cld_bld_hgt) then
-                      cld_cover_3d(i,j,k+1)=1.0_r_single
-                   else
-                      cld_cover_3d(i,j,k+1)=-99998.0_r_single
-                   end if
-                   firstcloud = 1
-                   
-!               end if
+                if (p_bk(i,j,k)/100._r_kind<co2_preslim_p    &
+                    .or. xland(i,j)==0._r_kind               &
+                    .or. csza(i,j)==zen_limit) then
+!mhu                       cld_cover_3d(i,j,k+1)=1
+                       cld_cover_3d(i,j,k+1)=-99998
+                       firstcloud = 1
+                end if
               else
 !
 !  mhu, some low cloud top press (> 800 hpa) over clean the cloud that observed by METAR
@@ -657,7 +589,7 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                  if(sat_ctp(i,j) >= 800.0_r_kind ) then
                     cld_cover_3d(i,j,k+1) = max(0.0_r_single, cld_cover_3d(i,j,k+1))
                  else
-                    cld_cover_3d(i,j,k+1) = 0.0_r_single
+                    cld_cover_3d(i,j,k+1) = 0
                  endif
                  firstcloud = 1
               end if
@@ -668,22 +600,16 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !
 ! --- Add 50mb thick (at least 1 level) of cloud where GOES
 !         indicates cloud top
-            if (abs(xland(i,j)) > 0.0001_r_single) then
+            if (xland(i,j)/=0._r_kind) then
               if (sat_ctp(i,j)< min_cloud_p_p .and.   &
                   pdiff<=cloud_up_p  ) then
                 if (firstcloud==0.or. firstcloud==1   &
                     .and.pdiff >= -1.*sat_cloud_pthick_p) then
-!    sgb - 2/7/2012 - remove this condition
-!    Allow cloud building below CO2_preslim and at night and over land
-!                    if (p_bk(i,j,k)/100._r_kind<co2_preslim_p ) then
-                       if (l_cld_bld .and. h_bk(i,j,k+1) < cld_bld_hgt) then
-                          cld_cover_3d(i,j,k)=1.0_r_single
-                       else
-                          cld_cover_3d(i,j,k)=-99998.0_r_single
-                       end if
-                       firstcloud = 1
-
-!                    end if
+                    if (p_bk(i,j,k)/100._r_kind<co2_preslim_p ) then
+!mhu                     cld_cover_3d(i,j,k) = 1
+                        cld_cover_3d(i,j,k) = -99998
+                        firstcloud = 1
+                    end if
                 end if
               end if
             else
@@ -691,12 +617,9 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
                  if (firstcloud==0.or. firstcloud==1    &
                      .and.pdiff >= -1.*sat_cloud_pthick_p) then
 ! xland ==0                   if (p_bk(i,j,k)/100..lt.co2_preslim_p) then
-                    if (l_cld_bld .and. h_bk(i,j,k+1) < cld_bld_hgt) then
-                       cld_cover_3d(i,j,k)=1.0_r_single
-                    else
-                       cld_cover_3d(i,j,k)=-99998.0_r_single
-                    end if
-                    firstcloud = 1
+!mhu                     cld_cover_3d(i,j,k) = 1
+                     cld_cover_3d(i,j,k) = -99998
+                     firstcloud = 1
                  end if
               end if
             end if

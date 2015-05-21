@@ -1,4 +1,4 @@
-subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts_rad)
+subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
 
 !
 !$$$  subprogram documentation block
@@ -22,7 +22,6 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 !     nn_obs   - 1st dimension of observation arry data_s
 !     numsao   - number of observation
 !     data_s   -  observation array for GOES cloud products
-!     npts_rad -  impact radius 
 !
 !   output argument list:
 !     sat_ctp   - GOES cloud top pressure in analysis grid
@@ -91,7 +90,6 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
       INTEGER(i_kind),intent(in) :: Nx, Ny
       INTEGER(i_kind),intent(in) :: ib, jb
       INTEGER(i_kind),intent(in) :: numsao, nn_obs
-      INTEGER(i_kind),intent(in) :: npts_rad
       real(r_kind),dimension(nn_obs,numsao):: data_s
 ! Output
       real(r_single), intent(out) ::  sat_ctp(Nx,Ny)
@@ -150,9 +148,9 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
              ii1 = int(xc+0.5_r_kind)
              jj1 = int(yc+0.5_r_kind)
 
-             do jj = max(1,jj1-npts_rad), min(ny,jj1+npts_rad)
+             do jj = max(1,jj1-2), min(ny,jj1+2)
                if (jj1-1 >= 1 .and. jj1+1 <= ny) then
-                 do ii = max(1,ii1-npts_rad), min(nx,ii1+npts_rad)
+                 do ii = max(1,ii1-2), min(nx,ii1+2)
                    if (ii1-1 >= 1 .and. ii1+1 <= nx) then
              
 ! * We check multiple data within gridbox
@@ -182,11 +180,11 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 !
       do jj = 1,Ny
         do ii = 1,Nx
-          if ((index(ii,jj) >= 1 .and. index(ii,jj) < 3) .and. npts_rad > 1) then
-             sat_ctp(ii,jj) = Pxx(ii,jj,1)
-             sat_tem(ii,jj) = Txx(ii,jj,1)
-             w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
-             w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
+          if (index(ii,jj) < 3 ) then
+!            sat_ctp(ii,jj) = Pxx(ii,jj,1)
+!            sat_tem(ii,jj) = Txx(ii,jj,1)
+!            w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
+!            w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
 
           elseif(index(ii,jj) >= 3) then
 
