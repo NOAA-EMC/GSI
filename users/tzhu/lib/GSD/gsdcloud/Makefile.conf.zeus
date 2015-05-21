@@ -1,0 +1,41 @@
+# This config file contains the compile options for compilation
+# of the GSI code on the NOAA HPCS.
+
+# ----------------------------------
+# Redefine variables for NOAA HPCS
+# ----------------------------------
+#
+# ---------------------------
+# General targets/definitions
+# ---------------------------
+
+FTN = mpif90
+LDR = mpif90
+CC  = cc
+
+GNRL_LD = $(LDR)
+
+TAR = tar
+AWK = awk
+RM  = rm
+LN  = ln
+
+ARFLAG =
+
+TOPDIR =
+
+INCLDIR =
+
+#-----------------------------------------------------------------------
+#
+## Compiler Flag of Options. The default is for AIX Fortran xlf.
+#
+##-----------------------------------------------------------------------
+
+FFLAGS = -O3 -xW -g -traceback -check bounds -assume byterecl  #   -I../../../include 
+CFLAGS =
+LDFLAGS =
+
+FIXFLAGS  =
+FREEFLAGS =
+

@@ -189,7 +189,7 @@ END SUBROUTINE pcp_mxr
 !
 SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
            ,cldpcp_type_3d                                              &
-           ,qr_3d,qs_3d,qg_3d,istatus,mype )
+           ,qr_3d,qs_3d,qg_3d,istatus )
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -322,12 +322,11 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
 !  INPUT:
   INTEGER(i_kind),intent(in) :: nx,ny,nz        ! Model grid size
 !
-  REAL(r_kind),   intent(inout) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
+  REAL(r_kind),   intent(in) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
   REAL(r_single), intent(in) :: t_3d(nx,ny,nz)  ! Temperature (deg. Kelvin)
   REAL(r_single), intent(in) :: p_3d(nx,ny,nz)  ! Pressure (Pascal)
 
   INTEGER(i_kind),intent(in) :: cldpcp_type_3d(nx,ny,nz) ! cloud/precip type field
-  INTEGER(i_kind),intent(in) :: mype
 !
 !  OUTPUT:
   INTEGER(i_kind),intent(out):: istatus
@@ -434,14 +433,6 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
           IF (tc <= 0.0_r_kind) THEN
             qs_3d(i,j,k) = zesnegf * (ze**zepowf) / rho
             qr_3d(i,j,k) = 0.0_r_kind
-          ELSE IF (tc < 5.0_r_kind) THEN             !wet snow
-             rfract=0.20_r_kind*tc
-             zer=rfract*ze
-             zes=(1.-rfract)*ze
-!             qs_3d(i,j,k) = zesposf * (zes**zepowf) / rho
-!             qr_3d(i,j,k) = zerf * (zer**zepowf) / rho
-             qs_3d(i,j,k) = zesnegf * (zes**zepowf) / rho
-             qr_3d(i,j,k) = zerf * (zer**zepowf) / rho
           else
             qr_3d(i,j,k) = zerf * (ze**zepowf) / rho
             qs_3d(i,j,k) = 0.0_r_kind
