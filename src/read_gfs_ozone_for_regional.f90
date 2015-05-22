@@ -468,7 +468,7 @@ subroutine read_gfs_ozone_for_regional
 
 !!  for now use just one time level for global ozone input
   do it=2,nfldsig
-   ges_oz(:,:,:,it)=ges_oz(:,:,:,1)
+     ges_oz(:,:,:,it)=ges_oz(:,:,:,1)
   enddo
 
 ! copy ges_oz to met-bundle ...
