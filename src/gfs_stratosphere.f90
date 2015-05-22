@@ -14,6 +14,7 @@ module gfs_stratosphere
 !             
 ! program history log:
 !   2012-02-07  parrish, initial documentation
+!   2013-02-08  zhu - add guess variables for hydrmeteros
 !
 ! subroutines included:
 !   sub init_gfs_stratosphere      - initialize module parameters to default values
@@ -52,7 +53,9 @@ module gfs_stratosphere
    public :: pblend0,pblend1
    public :: blend_rm,blend_gm
    public :: ges_tv_r,ges_q_r,ges_u_r,ges_v_r,ges_tsen_r,ges_oz_r
+   public :: ges_cw_r,ges_ql_r,ges_qi_r,ges_qr_r,ges_qs_r,ges_qg_r,ges_qh_r
    public :: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
+   public :: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
    public :: good_o3mr
 
    integer(i_kind) nsig_max,k0m,k1m,k0r,k1g,k0rm,k1mp,k0rp
@@ -64,8 +67,12 @@ module gfs_stratosphere
    real(r_kind),dimension(:),allocatable:: blend_rm,blend_gm
    real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r_g,ges_u_r_g,ges_v_r_g, &
                                                  ges_tsen_r_g,ges_oz_r_g,ges_q_r_g
-   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r  ,ges_u_r  ,ges_v_r  , &
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,& 
+                                                 ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_tv_r  ,gesq_r  ,ges_u_r  ,ges_v_r  , &
                                                  ges_tsen_r  ,ges_oz_r,ges_q_r
+   real(r_kind),dimension(:,:,:,:),allocatable:: ges_cw_r,ges_ql_r,ges_qi_r,ges_qr_r,ges_qs_r,& 
+                                                 ges_qg_r,ges_qh_r
    logical use_gfs_stratosphere
    logical good_o3mr
    logical zero_bkbridge
@@ -622,6 +629,20 @@ contains
       deallocate(ak5,bk5,blend_rm,blend_gm)
       deallocate(ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g)
       deallocate(ges_tv_r  ,ges_q_r  ,ges_u_r  ,ges_v_r  ,ges_tsen_r  ,ges_oz_r  )
+      if (allocated(ges_cw_r)) deallocate(ges_cw_r)
+      if (allocated(ges_ql_r)) deallocate(ges_ql_r)
+      if (allocated(ges_qi_r)) deallocate(ges_qi_r)
+      if (allocated(ges_qr_r)) deallocate(ges_qr_r)
+      if (allocated(ges_qs_r)) deallocate(ges_qs_r)
+      if (allocated(ges_qg_r)) deallocate(ges_qg_r)
+      if (allocated(ges_qh_r)) deallocate(ges_qh_r)
+      if (allocated(ges_cw_r_g)) deallocate(ges_cw_r_g)
+      if (allocated(ges_ql_r_g)) deallocate(ges_ql_r_g)
+      if (allocated(ges_qi_r_g)) deallocate(ges_qi_r_g)
+      if (allocated(ges_qr_r_g)) deallocate(ges_qr_r_g)
+      if (allocated(ges_qs_r_g)) deallocate(ges_qs_r_g)
+      if (allocated(ges_qg_r_g)) deallocate(ges_qg_r_g)
+      if (allocated(ges_qh_r_g)) deallocate(ges_qh_r_g)
    end subroutine destroy_nmmb_vcoords
 
 end module gfs_stratosphere

@@ -56,6 +56,7 @@ module ncepgfs_io
   public write_gfs_sfc_nst
   public sfc_interpolate
   public sigio_cnvtdv8
+  public write_ghg_grid
 
 contains
 
@@ -77,6 +78,8 @@ contains
 !                         rearrange Min-Jeong's code  
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
+!   2014-11-28  zhu     - assign cwgues0 right after reading in fg,
+!                       - set lower bound to cloud after assigning cwgues0
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -98,6 +101,7 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
+    use derivsmod, only: cwgues0
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -186,8 +190,9 @@ contains
 !      call set_cloud_lower_bound(ges_cwmr_it)
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
-       if (l_cld_derived) &            
-       call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
+       if (l_cld_derived) then
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
+       end if
 
     end do
 
@@ -904,6 +909,9 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   2009-11-28  todling - add increment option (hook-only for now)
 !   2010-03-31  treadon - add hires_b, sp_a, and sp_b
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2013-02-26  m.kim -  recompute and write cw analysis (= original cw gues + increment)                  
+!                        where cw increments are calculated with nonnegative cw
+!                        gues while original cw gues still have negative values.
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !
@@ -924,11 +932,14 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use guess_grids, only: dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig
+    use gridmod, only: lat2,lon2,nsig   
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use hybrid_ensemble_parameters, only: l_hyb_ens
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
+    use constants, only: qcmin 
+    use derivsmod, only: cwgues0  
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
@@ -939,6 +950,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
     integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
+    integer(i_kind) i,j,k 
 
     real(r_kind),dimension(lat2,lon2  ):: aux_ps
     real(r_kind),dimension(lat2,lon2  ):: aux_z
@@ -999,6 +1011,18 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        endif
 
        call set_analysis_(itoutsig)
+
+!   Get final cloud increments and add to the original cloud guess fields
+       if (associated(ges_cwmr_it)) then
+          do k=1,nsig
+             do j=1,lon2
+                 do i=1,lat2
+                    aux_cwmr(i,j,k) = cwgues0(i,j,k)  &
+                                 +(ges_cwmr_it(i,j,k)-max(cwgues0(i,j,k),qcmin))
+                 enddo
+             enddo
+          enddo
+       endif  
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b

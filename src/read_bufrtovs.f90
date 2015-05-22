@@ -81,7 +81,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2011-12-14  collard Remove ATMS
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-12-20  zhu - change icw4crtm>0 to icw4crtm>10  (bug fix)
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
+!   2014-04-27  eliu/zhu - add thinning options for AMSU-A under allsky condition 
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -129,7 +132,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use antcorr_application, only: remove_antcorr
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
@@ -181,7 +184,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm,iql4crtm
+  integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind) error_status,ier
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -229,8 +232,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   endif
 
 ! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
-  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
+  call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -577,21 +579,22 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
            t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-           if (l4dvar) then
+           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+           tdiff=(sstime-gstime)*r60inv
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
-              sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-              tdiff=(sstime-gstime)*r60inv
               if(abs(tdiff) > twind) cycle read_loop
            endif
 
            nread=nread+nchanl
 
-           if (l4dvar) then
+           if (thin4d) then
               timedif = zero
            else
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
+
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind+terrain + (llll-1)*500.0_r_kind + timedif 
@@ -742,6 +745,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1) 
                  ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2) 
+                 ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
               else
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
                        air_rad(ichan1)*cbias(15,ichan1)
@@ -750,11 +754,28 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               end if
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
-                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 if (icw4crtm>10 .or. iql4crtm>10) then
-                    qval=zero
-                 else
-                    qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
+                 qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 if (icw4crtm>10) then
+                  ! no preference in selecting clouds/precipitation
+                  ! qval=zero 
+                  ! favor non-precipitating clouds                                                   
+                    qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &         
+                                        0.454_r_kind*ch2-ch15   
+                    if (qval>=9.0_r_kind) then
+                       qval=1000.0_r_kind*qval
+                    else
+                       qval=zero
+                    end if
+                  ! favor thinner clouds
+                  ! cosza = cos(lza)
+                  ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+                  ! qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                  ! if (qval>0.2_r_kind) then
+                  !    qval=1000.0_r_kind*qval
+                  ! else
+                  !    qval=zero
+                  ! end if
                  end if
                  pred  = max(zero,qval)*100.0_r_kind
               else

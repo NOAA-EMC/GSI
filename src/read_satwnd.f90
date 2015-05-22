@@ -53,7 +53,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
 !   2014-07-16  Su      - read VIIRS winds 
 !   2014-10-16  Su      -add optione for 4d thinning and option to keep thinned data  
-
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
+!                        dynamic allocated array 
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -91,7 +93,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   implicit none
 
@@ -105,8 +107,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare local parameters
 
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=15000 ! max message count
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
@@ -142,6 +142,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
 
+  integer(i_kind) mxtb,nmsgmax 
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,nsattype
   integer(i_kind) nc,nx,isflg,itx,j,nchanl
@@ -156,7 +157,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
-  integer(i_kind) tab(mxtb,3)
   
   
  
@@ -164,8 +164,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),dimension(nmsgmax):: nrep
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
+  integer(i_kind),allocatable,dimension(:):: nrep,isort,iloc
+  integer(i_kind),allocatable,dimension(:,:):: tab
  
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m,ntime,itime
@@ -277,7 +277,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
       
 !!  go through the satedump to find out how many subset to process
 
-  allocate(lmsg(nmsgmax,ntread))
+!! get message and subset counts
+
+  call getcount_bufr(infile,nmsgmax,mxtb)
+
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+
+ 
   lmsg = .false.
   maxobs=0
   tab=0
@@ -539,7 +545,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            t4dv = real((nmind-iwinbgn),r_kind)*r60inv
            sstime = real(nmind,r_kind) 
            tdiff=(sstime-gstime)*r60inv
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
               if (abs(tdiff)>twind) cycle loop_readsb 
@@ -944,7 +950,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if (ithin > 0 .and. iuse >=0 .and. qm <4) then
               ntmp=ndata  ! counting moved to map3gridS
  !         Set data quality index for thinning
-              if (l4dvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)
@@ -1080,7 +1086,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
  
 
   ! Write header record and data to output file for further processing

@@ -274,6 +274,7 @@ clean:
 	genqsat.f90 \
 	genstats_gps.f90 \
 	gesinfo.f90 \
+        getcount_bufr.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_for_regional.f90 \
@@ -589,6 +590,7 @@ clean:
 	read_saphir.f90 \
 	read_satwnd.f90 \
 	read_sfcwnd.f90 \
+        read_rapidscat.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \

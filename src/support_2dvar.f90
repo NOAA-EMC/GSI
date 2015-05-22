@@ -2073,7 +2073,7 @@ subroutine mkvalley_file
   implicit none
 
   real(r_single) radius0,hdiff0
-  real(r_single) hmean,hmin,hmax,hdiff
+  real(r_single) hmean,hmin,hmax
   integer(i_kind) i,j,ijdel,ii,jj,ncount
   integer(i_kind) npassvalley
 

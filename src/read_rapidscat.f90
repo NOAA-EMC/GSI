@@ -1,22 +1,19 @@
-subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
+subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
      prsl_full)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_sfcwnd                    read scatterometer winds
-!   prgmmr: Li Bi                               date: 2012-08-20
+! subprogram:    read_rapidscat                    read scatterometer winds
+!   prgmmr: Ling Liu                               date: 2015-04-03
 !
-! abstract:  This routine reads OSCAT scatterometer winds from dump.        
-!            it also has options to thin the data by using conventional 
+! abstract:  This routine reads RapidScat scatterometer winds from BUFR dump.        
+!            It also has options to thin the data by using conventional 
 !            thinning programs 
 !            When running the gsi in regional mode, the code only
 !            retains those observations that fall within the regional
 !            domain
 !
 ! program history log:
-!   2012-08-20 Li Bi      
-!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
-!                        dynamic allocated array
+!   2015-04-03 Ling Liu    
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -53,13 +50,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   implicit none
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=20)                     ,intent(in   ) :: sis
+  character(len=*)                      ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twind
@@ -67,38 +64,62 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare local parameters
 
+  integer(i_kind),parameter:: mxtb=5000000
+  integer(i_kind),parameter:: nmsgmax=10000 ! max message count
+  real(r_kind),parameter:: r1_2= 1.2_r_kind
+  real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
+  real(r_kind),parameter:: r50= 50.0_r_kind
+  real(r_kind),parameter:: r54= 54.0_r_kind
+  real(r_kind),parameter:: r55= 55.0_r_kind
+  real(r_kind),parameter:: r56= 56.0_r_kind
+  real(r_kind),parameter:: r70= 70.0_r_kind
+  real(r_kind),parameter:: r85= 85.0_r_kind
   real(r_kind),parameter:: r90= 90.0_r_kind
+  real(r_kind),parameter:: r105= 105.0_r_kind
   real(r_kind),parameter:: r110= 110.0_r_kind
+  real(r_kind),parameter:: r125=125.0_r_kind
+  real(r_kind),parameter:: r200=200.0_r_kind
+  real(r_kind),parameter:: r250=250.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
+  real(r_kind),parameter:: r700=700.0_r_kind
+  real(r_kind),parameter:: r199=199.0_r_kind
+  real(r_kind),parameter:: r299=299.0_r_kind
   real(r_kind),parameter:: r421=421.0_r_kind
+  real(r_kind),parameter:: r296=296.0_r_kind
+  real(r_kind),parameter:: r799=799.0_r_kind
   real(r_kind),parameter:: r1200= 1200.0_r_kind
+  real(r_kind),parameter:: r10000= 10000.0_r_kind
   
   
 
 ! Declare local variables
-  logical outside
+  logical outside,inflate_error
+  logical asort
   logical luse,ithinp
   logical,allocatable,dimension(:,:):: lmsg     ! set true when convinfo entry id found in a message
 
   character(70) obstr,hdrtr,wndstr
+  character(50) satqctr,qcstr
   character(8) subset
+  character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
 
-  integer(i_kind) ireadmg,ireadsb,iuse,mxtb,nmsgmax
-  integer(i_kind) i,maxobs,idomsfc,nsattype
-  integer(i_kind) nc,nx,isflg,itx,nchanl
+  integer(i_kind) ireadmg,ireadsb,iuse
+  integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
+  integer(i_kind) nc,nx,id,isflg,itx,j,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,icntpnt,ii,icntpnt2
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
-  integer(i_kind) lim_qm
+  integer(i_kind) pqm,qm,lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
+  integer(i_kind) tab(mxtb,3)
   integer(i_kind) qc1,qc2,qc3
   
   
@@ -107,8 +128,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
-  integer(i_kind),allocatable,dimension(:,:)::tab 
+  integer(i_kind),dimension(nmsgmax):: nrep
+  integer(i_kind),allocatable,dimension(:):: isort,iloc
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m
 
@@ -118,23 +139,29 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
-  real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
+  real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth,oelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_kind) vdisterrmax,u00,v00,uob1,vob1
+  real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
+  real(r_kind),dimension(nsig-1):: dpres
   real(r_kind) uob_1,uob_2,uob_3,uob_4,vob_1,vob_2,vob_3,vob_4
   real(r_kind) lkcs_1,lkcs_2,lkcs_3,lkcs_4
   
-  real(r_double),dimension(8):: hdrdat
+  real(r_kind),dimension(22) :: ctwind_s,rmesh_conv_s,pmesh_conv_s
+  real(r_double),dimension(9):: hdrdat
   real(r_double),dimension(2):: satqc
   real(r_double),dimension(5):: obsdat
-  real(r_double),dimension(5,4):: wnddat
+  real(r_double),dimension(3,4):: wnddat
+  real(r_double),dimension(3,5) :: heightdnat
+  real(r_double),dimension(6,4) :: derdwdat
+  real(r_double),dimension(3,12) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
+  real(r_kind),allocatable,dimension(:,:):: cdata_out
 
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
@@ -142,13 +169,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 
 !******** Modify below from the bufrtable: 
-  data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU'/ 
-  data obstr/'WD10 WS10 SWVQ NWVA ISWV'/ 
-  data wndstr/'WS10 FUWS WD10 FUWD LKCS'/ 
+  data hdrtr /'SAID YEAR MNTH DAYS HOUR MINU SECO WS10 WD10'/ 
+  data obstr/'CLAT CLON WS10 WD10 SWVQ'/ 
+  data wndstr/'WS10 WD10 SWVQ'/ 
   
   
   data ithin / -9 /
-  data lunin / 11 /
+  data lunin / 21 /
   data rmesh / -99.999_r_kind /
 
 !**************************************************************************
@@ -166,7 +193,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   rewind ietabl
   etabl=1.e9_r_kind
   lcount=0
-  loopd : do
+loopd : do
      read(ietabl,100,IOSTAT=iflag) itypex
      if( iflag /= 0 ) exit loopd
      lcount=lcount+1
@@ -177,10 +204,10 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 100     format(1x,i3)
 110     format(1x,6e12.5)
   if(lcount<=0 ) then
-     write(6,*)'READ_SFCWND: obs error table not available to 3dvar. the program will stop'
+     write(6,*)'READ_RAPIDSCAT: obs error table not available to 3dvar. the program will stop'
      call stop2(49) 
   else
-     write(6,*)'READ_SFCWND: observation errors provided by local file errtable'
+     write(6,*)'READ_RAPIDSCAT: observation errors provided by local file errtable'
   endif
 
   close(ietabl)
@@ -198,13 +225,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   endif
 
 ! ** read convtype from convinfo file 
-! ** only read in OSCAT 291 for now ** 
+! ** only read in rapidsat 296 for now ** 
   ntread=1
   ntmatch=0
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) ==291) then
+     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) ==296) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
@@ -215,7 +242,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      end if
   end do
   if(ntmatch == 0)then
-     write(6,*) ' READ_SFCWND: no matching obstype found in convinfo ',obstype
+     write(6,*) ' READ_RAPIDSCAT: no matching obstype found in convinfo ',obstype
      return
   end if
       
@@ -223,17 +250,11 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !** Open and read data from bufr data file
 
   call closbf(lunin)
-  open(lunin,file=trim(infile),form='unformatted')
+  open(lunin,file=infile,form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-!! get message and subset counts
-
-  call getcount_bufr(infile,nmsgmax,mxtb)
-
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
-
-!  allocate(lmsg(nmsgmax,ntread))
+  allocate(lmsg(nmsgmax,ntread))
   lmsg = .false.
   maxobs=0
   tab=0
@@ -242,13 +263,11 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntb =0
   
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
-!    if(trim(subset) == 'NC005012') cycle msg_report 
-
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
      if (nmsg>nmsgmax) then
-        write(6,*)'READ_SFCWND: messages exceed maximum ',nmsgmax
+        write(6,*)'READ_RAPIDSCAT: messages exceed maximum ',nmsgmax
         call stop2(49)
      endif
      loop_report: do while (ireadsb(lunin) == 0)
@@ -256,24 +275,24 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         maxobs=maxobs+1
         nrep(nmsg)=nrep(nmsg)+1
         if (ntb>mxtb) then
-           write(6,*)'READ_SFCWND: reports exceed maximum ',mxtb   
+           write(6,*)'READ_RAPIDSCAT: reports exceed maximum ',mxtb   
            call stop2(49)
         endif
 
 !** Extract sat ID information from BUFR and assign type 
 !   This part will extract information from the bufrtable
-!   bufrtable need to be modified including the OSCAT data entry
+!   bufrtable need to be modified including the rapidscat data entry
 !   iobsub is the prepbufr subtype, still part of the convinfo file
-!********* iobsub=0 for OSCAT*
+!********* iobsub=0 for rapidscat*
 
-        call ufbint(lunin,hdrdat,8,1,iret,hdrtr)
+        call ufbint(lunin,hdrdat,9,1,iret,hdrtr)
 !       determine the satellite wind type 
-!       291: KNMI OSCAT data                                              
+!       296: rapidscat data                                              
         iobsub=0
         itype=-1
         if(trim(subset) == 'NC012255') then
-           if( hdrdat(1) == r421 ) then           !    KNMI OSCAT data
-             itype=291
+           if( hdrdat(1) == r296 ) then           !   rapidscat data
+             itype=296
            endif
         endif
 
@@ -321,7 +340,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   enddo msg_report
 
 ! Loop over convinfo file entries; operate on matches
-
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
   isort = 0
   cdata_all=zero
@@ -365,13 +383,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            endif
 
-           write(6,*)'READ_SFCWND: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
+           write(6,*)'READ_RAPIDSCAT: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
                    ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
         endif
      endif
 
      call closbf(lunin)
-     open(lunin,file=trim(infile),form='unformatted')
+     open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
 
@@ -424,27 +442,25 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
  
 
 ! Extract type, date, and location information
-           call ufbint(lunin,hdrdat,8,1,iret,hdrtr) 
+           call ufbint(lunin,hdrdat,9,1,iret,hdrtr) 
            call ufbint(lunin,obsdat,5,1,iret,obstr)
-           call ufbrep(lunin,wnddat,5,4,iret,wndstr)
-
-
+           call ufbrep(lunin,wnddat,3,4,iret,wndstr)
 !** potential can reject bad cell, etc, place holder for now
 !   reject the data with bad quality mark from SDM
 !** cycle loop means skip to the next record     
 
-           if(hdrdat(1) /= r421) cycle loop_readsb
+           if(hdrdat(1) /= r296) cycle loop_readsb
 
 !       Compare relative obs time with window.  If obs 
 !       falls outside of window, don't use this obs
-           idate5(1) = hdrdat(4)     !year
-           idate5(2) = hdrdat(5)     ! month
-           idate5(3) = hdrdat(6)     ! day
-           idate5(4) = hdrdat(7)     ! hours
-           idate5(5) = hdrdat(8)     ! minutes
+           idate5(1) = hdrdat(2)     !year
+           idate5(2) = hdrdat(3)     ! month
+           idate5(3) = hdrdat(4)     ! day
+           idate5(4) = hdrdat(5)     ! hours
+           idate5(5) = hdrdat(6)     ! minutes
            call w3fs21(idate5,nmind)
            t4dv = real((nmind-iwinbgn),r_kind)*r60inv
-           if (l4dvar.or.l4densvar) then
+           if (l4dvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
               sstime = real(nmind,r_kind) 
@@ -454,27 +470,25 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 
 !       determine the satellite wind type as in prepbufr
-!       291: OSCAT KNMI winds                              
+!       296: rapidscat winds                              
 
            iosub=0
-           if(abs(hdrdat(2)) >r90 ) cycle loop_readsb 
-           if(hdrdat(3) <zero) hdrdat(3)=hdrdat(3)+r360
-           if(hdrdat(3) == r360) hdrdat(3)=hdrdat(3)-r360
-           if(hdrdat(3) >r360) cycle loop_readsb 
-           if(abs(obsdat(2)) >= 100) cycle loop_readsb
-           if(obsdat(3) >=1) cycle loop_readsb
+           if(abs(obsdat(1)) >r90 ) cycle loop_readsb 
+           if(obsdat(2) <zero) obsdat(2)=obsdat(2)+r360
+           if(obsdat(2) == r360) obsdat(2)=obsdat(2)-r360
+           if(obsdat(2) >r360) cycle loop_readsb 
+           if(obsdat(5) >1) cycle loop_readsb
 
-           if(trim(subset) == 'NC012255') then    ! OSCAT KNMI wind
-              if( hdrdat(1) == r421) then          
-                   itype=291
+           if(trim(subset) == 'NC012255') then    ! rapidscat wind
+              if( hdrdat(1) == r296) then          
+                   itype=296
               endif
            endif
 
 
            nread=nread+1
-           dlon_earth=hdrdat(3)*deg2rad
-           dlat_earth=hdrdat(2)*deg2rad
-                              
+           dlon_earth=obsdat(2)*deg2rad
+           dlat_earth=obsdat(1)*deg2rad
 !       If regional, map obs lat,lon to rotated grid.
            if(regional)then
               call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
@@ -495,11 +509,11 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call grdcrd1(dlon,rlons,nlon,1)
            endif
 
-!     If OSCAT data, determine primary surface type.  If not open sea,
+!     If rapidscat data, determine primary surface type.  If not open sea,
 !     skip this observation.  This check must be done before thinning.
 !     isflg    - surface flag 0:sea 1:land 2:sea ice 3:snow 4:mixed
 
-           if (itype==291) then                              
+           if (itype==296) then                              
               call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
               if (isflg /= 0) cycle loop_readsb
               if (tsavg <= 273.0_r_kind) cycle loop_readsb
@@ -507,29 +521,9 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
        
 !!    convert from wind direction and speed to u,v component
-           uob=-obsdat(2)*sin(obsdat(1)*deg2rad)
-           vob=-obsdat(2)*cos(obsdat(1)*deg2rad)
-
-           qc1=obsdat(3)
-           qc2=obsdat(4)
-           qc3=obsdat(5)
-
-           uob_1=-wnddat(1,1)*sin(wnddat(3,1)*deg2rad)
-           vob_1=-wnddat(1,1)*cos(wnddat(3,1)*deg2rad)
-           uob_2=-wnddat(1,2)*sin(wnddat(3,2)*deg2rad)
-           vob_2=-wnddat(1,2)*cos(wnddat(3,2)*deg2rad)
-           uob_3=-wnddat(1,3)*sin(wnddat(3,3)*deg2rad)
-           vob_3=-wnddat(1,3)*cos(wnddat(3,3)*deg2rad)
-           uob_4=-wnddat(1,4)*sin(wnddat(3,4)*deg2rad)
-           vob_4=-wnddat(1,4)*cos(wnddat(3,4)*deg2rad)
-
-           lkcs_1=wnddat(5,1)
-           lkcs_2=wnddat(5,2)
-           lkcs_3=wnddat(5,3)
-           lkcs_4=wnddat(5,4)
-           
-
-
+           uob=obsdat(3)*sin(obsdat(4)*deg2rad)
+           vob=obsdat(3)*cos(obsdat(4)*deg2rad)
+           qc1=obsdat(5)
 
 !!  Get observation error from PREPBUFR observation error table
 !   only need read the 4th column for type 291 from the right
@@ -547,11 +541,15 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else
               del = huge_r_kind
            endif
+!print *,'huge_r_kind',huge_r_kind
+!print *,'del',del
            del=max(zero,min(del,one))
+!print *,'del1',del
            obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
+!print *,'obserr',obserr           
            obserr=max(obserr,werrmin)
-
-
+!print *,'obserr1',obserr
+!stop
 !         Set usage variable
            usage = 0 
            iuse=icuse(nc)
@@ -593,7 +591,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ntmp=ndata  ! counting moved to map3gridS
 
  !         Set data quality index for thinning
-              if (thin4d) then
+              if (l4dvar) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)
@@ -608,7 +606,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
@@ -657,7 +655,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(13,iout)=obserr              ! original obs error
            cdata_all(14,iout)=usage               ! usage parameter
            cdata_all(15,iout)=idomsfc             ! dominate surface type
-           cdata_all(16,iout)=tsavg               ! skin temperature
+           cdata_all(16,iout)=9999999               ! tsavg skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
            cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
@@ -666,12 +664,9 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
 
-
-
         enddo  loop_readsb
 
      enddo loop_msg
-
 !    Close unit to bufr file
      call closbf(lunin)
 !    Deallocate arrays used for thinning data
@@ -682,10 +677,9 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg)
  
-
-  ! Write header record and data to output file for further processing
+! Write header record and data to output file for further processing
   allocate(iloc(ndata))
   icount=0
   do i=1,maxobs
@@ -695,11 +689,10 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      end if
   end do
   if(ndata /= icount)then
-     write(6,*) ' READ_SFCWND: mix up in read_satwnd ,ndata,icount ',ndata,icount
+     write(6,*) ' READ_RAPIDSCAT: mix up in read_satwnd ,ndata,icount ',ndata,icount
      call stop2(49)
   end if
-
-  allocate(cdata_out(nreal,ndata))
+ allocate(cdata_out(nreal,ndata))
   do i=1,ndata
      itx=iloc(i)
      do k=1,nreal
@@ -709,28 +702,29 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   deallocate(iloc,isort,cdata_all)
   deallocate(etabl)
   
+
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) cdata_out
 
   deallocate(cdata_out)
 900 continue
-  if(diagnostic_reg .and. ntest>0) write(6,*)'READ_SFCWND:  ',&
+  if(diagnostic_reg .and. ntest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'ntest,disterrmax=',ntest,disterrmax
-  if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_SFCWND:  ',&
+  if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then
      call closbf(lunin)
-     write(6,*)'READ_SFCWND:  closbf(',lunin,')'
+     write(6,*)'READ_RAPIDSCAT:  closbf(',lunin,')'
   endif
   
-  write(6,*) 'READ_SFCWND,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata
+  write(6,*) 'READ_RAPIDSCAT,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata
 
   close(lunin)
-
+  
 ! End of routine
   return
 
 
 
-end subroutine read_sfcwnd
+end subroutine read_rapidscat

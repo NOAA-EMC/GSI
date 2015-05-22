@@ -15,6 +15,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !
 ! program history log:
 !   2014-11-07 J. Carley - Initial code     
+!   2015-03-06 C. Thomas - Add thin4d logical for removal of time thinning
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -50,7 +51,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       rlats,rlons,twodvar_regional
   use deter_sfc_mod, only: deter_sfc2
   use obsmod, only: iadate,bmiss,oberrflg,perturb_obs,perturb_fact,ran01dom
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use adjust_cloudobs_mod, only: adjust_goescldobs
 
   implicit none
@@ -72,8 +73,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
   character(8),parameter:: cspval= '88888888'
 
 ! Declare local variables
@@ -83,16 +82,16 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   character(len=8) :: c_prvstg,c_sprvstg ,c_station_id
 
 
-  integer(i_kind) :: nmsub,ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,nrep,ntb
-  integer(i_kind) :: iret,kx,minobs,minan,pflag,nlevp,nmind,levs,idomsfc
+  integer(i_kind) :: nmsub,ireadmg,ireadsb,nreal,nc,i,lunin,nmsg,ntb
+  integer(i_kind) :: iret,kx,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
   integer(i_kind) :: iout,ntmp,iiout,maxobs,icount,itx,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
   integer(i_kind),allocatable,dimension(:):: isort,iloc
-  real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,rtime,toff,t4dv
+  real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
   real(r_kind) :: dx,dx1,dy,dy1,w00,w10,w01,w11,crit1,timedif,tdiff
-  real(r_kind) :: zeps,rmesh,pmesh,xmesh,tcamt,tcamt_oe,ff10,tsavg
+  real(r_kind) :: rmesh,pmesh,xmesh,tcamt,tcamt_oe,ff10,tsavg
   real(r_kind) :: rminobs,ppb
   real(r_kind) :: low_cldamt,mid_cldamt,hig_cldamt,usage,zz,sfcr,rstation_id
   real(r_kind),allocatable,dimension(:):: presl_thin
@@ -184,14 +183,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
      ntb = ntb + nmsub(lunin) !nmsub is a bufrlib function which returns the number of subsets in 
                               !  a bufr message open for input via a previous call to a bufrlib
                               !  routine readmg or equivalent.  The subsets are not required to be read (saves time).
-     if (nmsg>nmsgmax) then
-        write(6,*)myname,': messages exceed maximum ',nmsgmax
-        call stop2(50)
-     endif
-     if (ntb>mxtb) then
-        write(6,*)myname,': reports exceed maximum ',mxtb   
-        call stop2(50)
-     endif
   end do
   maxobs=ntb
 
@@ -226,10 +217,11 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
             call w3fs21(idate5,nmind)
             rminobs=real(nmind,8)+(real(hdr(7),8)*r60inv)!convert the seconds of the ob to minutes and store to rminobs
             t4dv = (rminobs-real(iwinbgn,r_kind))*r60inv
-            if (l4dvar) then
+            tdiff=(rminobs-gstime)*r60inv  !GS time is the analysis time in minutes from w3fs21
+
+            if (l4dvar.or.l4densvar) then
                if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
             else
-               tdiff=(rminobs-gstime)*r60inv  !GS time is the analysis time in minutes from w3fs21
                ! - Check to make sure ob is within convinfo time window (ctwind) and 
                ! -  is within overwall time window twind (usually +-3)
                if( (abs(tdiff) > ctwind(nc)) .or. (abs(tdiff) > twind) )cycle loop_readsb
@@ -296,7 +288,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
             if (ithin > 0 .and. iuse >=0) then
                ntmp=ndata  ! counting moved to map3gridS
             ! - Set data quality index for thinning
-               if (l4dvar) then
+               if (thin4d) then
                   timedif = zero
                else
                   timedif=abs(t4dv-toff)
@@ -335,7 +327,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
          call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
          ! - Obtain the ob and tune the QC marks for ob error tuning a bit later
-         call adjust_goescldobs(goescld(3),tdiff,idomsfc,dlat_earth,dlon_earth, &
+         call adjust_goescldobs(goescld(3),tdiff,dlat_earth,dlon_earth, &
                                 low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                 hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
 

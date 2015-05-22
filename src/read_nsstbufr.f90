@@ -13,6 +13,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 ! program history log:
 !   2012-01-04  li      - modified based on read_nsstbufr.f90
+!   2015-03-06  Thomas  - added l4densvar logical to remove thinning in time
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -42,7 +43,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use obsmod, only: oberrflg
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   implicit none
@@ -462,7 +463,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            call w3fs21(idate5,nmind)
            t4dv=real((nmind-iwinbgn),r_kind)*r60inv
 !
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
               tdiff=(sstime-gstime)*r60inv
