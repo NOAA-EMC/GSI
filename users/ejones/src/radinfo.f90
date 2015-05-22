@@ -1290,6 +1290,12 @@ contains
       nstep = 30
       edge1 = 1
       edge2 = 30
+   else if (index(isis,'saphir')/=0) then
+      step  = 0.666_r_kind
+      start = -42.960_r_kind
+      nstep = 130
+      edge1 = 1
+      edge2 = 130
    end if
 
    return
