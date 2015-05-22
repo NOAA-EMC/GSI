@@ -39,6 +39,7 @@ subroutine intpmsl(pmslhead,rval,sval)
 ! program history log:
 !
 !   2014-03-19 -  pondeca
+!   2015-03-11 -  pondeca  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     pmslhead
@@ -55,7 +56,7 @@ subroutine intpmsl(pmslhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: pmsl_ob_type, lsaveobsens, l_do_adjoint
+  use obsmod, only: pmsl_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -102,17 +103,17 @@ subroutine intpmsl(pmslhead,rval,sval)
      val=w1*spmsl(j1)+w2*spmsl(j2)&
         +w3*spmsl(j3)+w4*spmsl(j4)
 
-     if (lsaveobsens) then
-        pmslptr%diags%obssen(jiter) = val*pmslptr%raterr2*pmslptr%err2
-     else
-        if (pmslptr%luse) pmslptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*pmslptr%raterr2*pmslptr%err2
+           pmslptr%diags%obssen(jiter) = grad
+        else
+           if (pmslptr%luse) pmslptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = pmslptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            if(.not.ladtest_obs)  val=val-pmslptr%res
 
 !          gradient of nonlinear operator

@@ -353,7 +353,7 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
 end subroutine adjust_convcldobs
 
 
-subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
+subroutine adjust_goescldobs(goescld,timeobs,dlat_earth,dlon_earth, &
                         low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                         hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
 !$$$  subprogram documentation block
@@ -380,7 +380,6 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   implicit none
 
 ! input variables
-  integer(i_kind),intent(in) :: idomsfc
   real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth
   real(r_kind),intent(in):: goescld
 
