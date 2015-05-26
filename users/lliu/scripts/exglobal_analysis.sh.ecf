@@ -38,7 +38,7 @@
 # 2012-02-14  S. Moorthi     Edited for Zeus and Gaea
 # 2013-10-31  R. Todling     Revisit OBS_INPUT (add table) 
 # 2014-03-13  X. Li          Add NSST
-#
+# 2015-05-25  L. Liu         Add RapidScat
 # Usage:  global_analysis.sh SFCGES SIGGES NSTGES GBIAS GBIASPC GRADSTAT GBIASAIR
 #                            SFCANL SIGANL NSTANL ABIAS ABIASPC ABIASAIR IGEN
 #
@@ -593,6 +593,7 @@ export PREPQC=${PREPQC:-${COMIN}/${PREINP}prepbufr${SUFINP}}
 export PREPQCPF=${PREPQCPF:-${COMIN}/${PREINP}prepbufr.acft_profiles${SUFINP}}
 export SATWND=${SATWND:-${COMIN}/${PREINP}satwnd.tm00.bufr_d${SUFINP}}
 export OSCATBF=${OSCATBF:-${COMIN}/${PREINP}oscatw.tm00.bufr_d${SUFINP}}
+export OSCATBF=${RAPIDSCATBF:-${COMIN}/${PREINP}rapidscatw.tm00.bufr_d${SUFINP}}
 export GSNDBF=${GSNDBF:-${COMIN}/${PREINP}goesnd.tm00.bufr_d${SUFINP}}
 export GSNDBF1=${GSNDBF1:-${COMIN}/${PREINP}goesfv.tm00.bufr_d${SUFINP}}
 export B1HRS2=${B1HRS2:-${COMIN}/${PREINP}1bhrs2.tm00.bufr_d${SUFINP}}
@@ -863,6 +864,7 @@ $FCPLN $PREPQC   prepbufr
 $FCPLN $PREPQCPF prepbufr_profl
 $FCPLN $SATWND   satwndbufr
 $FCPLN $OSCATBF  oscatbufr
+$FCPLN $RAPIDSCATBF  rapidscatbufr
 $FCPLN $GSNDBF   gsndrbufr
 $FCPLN $GSNDBF1  gsnd1bufr
 $FCPLN $B1HRS2   hirs2bufr
@@ -1217,6 +1219,7 @@ OBS_INPUT::
    gsnd1bufr      sndrd3      g15         sndrD3_g15          0.0     1     0
    gsnd1bufr      sndrd4      g15         sndrD4_g15          0.0     1     0
    oscatbufr      uv          null        uv                  0.0     0     0
+   rapidscatbufr  uv          null        uv                  0.0     0     0
    mlsbufr        mls30       aura        mls30_aura          0.0     0     0
    avhambufr      avhrr       metop-a     avhrr3_metop-a      0.0     1     0
    avhpmbufr      avhrr       n18         avhrr3_n18          0.0     1     0
