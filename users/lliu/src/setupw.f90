@@ -187,7 +187,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
-  real(r_kind) oscat_vec,ascat_vec
+  real(r_kind) dudiff_opp_rs, dvdiff_opp_rs, vecdiff_rs, vecdiff_opp_rs
+  real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
@@ -787,6 +788,24 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            error = zero
         endif
      endif
+
+!    QC RAPIDSCAT winds
+     if (itype==296) then
+        qcu = five
+        qcv = five
+!       Compute innovations for opposite vectors
+        dudiff_opp_rs = -uob - ugesin
+        dvdiff_opp_rs = -vob - vgesin
+        vecdiff_rs = sqrt(dudiff**2 + dvdiff**2)
+        vecdiff_opp_rs = sqrt(dudiff_opp_rs**2 + dvdiff_opp_rs**2)
+        rapidscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
+        if ( abs(dudiff) > qcu  .or. &       ! u component check
+             abs(dvdiff) > qcv  .or. &       ! v component check
+             vecdiff_rs > vecdiff_opp_rs ) then    ! ambiguity check
+           error = zero
+        endif
+     endif
+
 
 !    QC OSCAT winds     
      if (itype==291) then

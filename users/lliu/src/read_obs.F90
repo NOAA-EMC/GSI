@@ -353,14 +353,13 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
-       else if(trim(filename) == 'oscatbufr')then
+       else if(trim(filename) == 'rapidscatbufr')then
          lexist = .false.
-         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
-            if(trim(subset) == 'NC012255') then                                         
-               lexist = .true.
-               exit oscatloop
+         rapidscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then                                                lexist = .true.
+               exit rapidscatloop
             endif
-         end do oscatloop
+         end do rapidscatloop
        else if(trim(filename) == 'hdobbufr')then
          lexist = .false.
          loop_hdob: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -1130,11 +1129,11 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
-!             Process oscat winds which seperate from prepbufr
-                elseif ( index(infile,'oscatbufr') /=0 ) then
-                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+!             Process rapidscat/oscat winds which seperate from prepbufr
+                elseif ( index(infile,'rapidscatbufr') /=0 ) then
+                  call read_rapidscat(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
-                  string='READ_SFCWND'
+                  string='READ_RAPIDSCAT'
                 else if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
                      prsl_full)
