@@ -140,7 +140,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
-!
+!   2015-05-26  L. Liu - Added ISS-RapidScat
 ! REMARKS:
 !   language: f90
 !   machine:  ibm RS/6000 SP; SGI Origin 2000; Compaq HP

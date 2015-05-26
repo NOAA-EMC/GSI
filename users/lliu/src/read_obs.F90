@@ -126,7 +126,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
-!                           
+!   2015-05-26  L. Liu - Added ISS-RapidScat                           
 !
 !   input argument list:
 !    lexist    - file status
