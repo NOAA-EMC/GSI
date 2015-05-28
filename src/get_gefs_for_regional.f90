@@ -112,6 +112,7 @@ subroutine get_gefs_for_regional
   integer(i_kind) ii,jj,n1
   integer(i_kind) iimax,iimin,jjmax,jjmin
   integer(i_kind) nming1,nming2
+  integer(i_kind) its,ite
   real(r_kind) ratio_x,ratio_y
 
   real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
@@ -127,11 +128,15 @@ subroutine get_gefs_for_regional
      do i=1,ntlevs_ens
         write(filelists(i),'("filelist",i2.2)')ifilesig(i)
      enddo
+     its=1
+     ite=ntlevs_ens
   else
      write(filelists(1),'("filelist",i2.2)')nhr_assimilation
+     its=ntguessig
+     ite=ntguessig
   endif
 
-  do it=1,ntlevs_ens
+  do it=its,ite
 ! get pointers for typical meteorological fields
   ier=0
   call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps',ges_ps,istatus );ier=ier+istatus
@@ -146,7 +151,11 @@ subroutine get_gefs_for_regional
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
 !  filename='sigf06_ens_mem001'
-  open(10,file=trim(filelists(it)),form='formatted',err=30)
+  if(ntlevs_ens > 1) then
+     open(10,file=trim(filelists(it)),form='formatted',err=30)
+  else
+     open(10,file=trim(filelists(1)),form='formatted',err=30)
+  endif
   rewind (10) 
   do n=1,200
      read(10,'(a)',err=20,end=40)filename 
@@ -975,7 +984,11 @@ subroutine get_gefs_for_regional
 !                                                  end if
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
+        if(ntlevs_ens > 1) then
+           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
+        else
+           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        endif
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -1051,7 +1064,11 @@ subroutine get_gefs_for_regional
      end do
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
+        if(ntlevs_ens > 1) then
+           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
+        else
+           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        endif
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)
