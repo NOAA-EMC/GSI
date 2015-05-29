@@ -1245,7 +1245,7 @@
            if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
 
            call qc_gmi(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-              kraintype,clw_obs,tb_obs,gmi,varinv,aivals(1,is),id_qc)
+              kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
 
 !  ---------- SAPHIR -----------------
 !       SAPHIR Q C

@@ -918,6 +918,8 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   tb18v=tb(7); tb18h=tb(8); tb23v=tb(9); tb23h=tb(10); tb36v=tb(11)
   tb36h=tb(12); tb89v=tb(13); tb89h=tb(14)
 
+  tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /)
+
   ! intercepts
   a0_clw = 6.74205_r_kind
 
