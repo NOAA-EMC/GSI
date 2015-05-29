@@ -86,7 +86,7 @@ fi
 #--------------------------------------------------------------------
 #  Specify TANKDIR for this suffix
 #--------------------------------------------------------------------
-if [[ $AREA == "glb" ]]; then
+if [[ $GLB_AREA -eq 1 ]]; then
    export TANKDIR=${TANKverf}/stats/${SUFFIX}/gsistat
 else
    export TANKDIR=${TANKverf}/stats/regional/${SUFFIX}/gsistat
@@ -97,9 +97,10 @@ fi
 #  available cycle.
 #--------------------------------------------------------------------
 if [[ ${#PDATE} -le 0 ]]; then
-   lastdir=`ls -1d ${TANKDIR}/GDAS_minmon.* | tail -1`
-   lastln=`cat $lastdir/GDAS.gnorm_data.txt | tail -1`
-   export PDATE=`echo $lastln | gawk '{split($0,a,","); print a[1] a[2] a[3] a[4]}'`
+   echo "PDATE not specified:  setting PDATE using last cycle"
+   export PDATE=`${IG_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKDIR}`
+else
+   echo "PDATE was specified:  $PDATE"
 fi
 
 #--------------------------------------------------------------------
@@ -196,6 +197,11 @@ done
 #--------------------------------------------------------------------
 not_done=1
 ctr=0
+area=glb
+if [[ $GLB_AREA -eq 0 ]]; then
+   area=rgn
+fi
+
 while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
 
    #-----------------------------------------------------------------
@@ -203,11 +209,11 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    #  according to the $suffix
    #-----------------------------------------------------------------
    if [[ ! -e ${WORKDIR}/allgnorm.ctl ]]; then
-      cp ${IG_GRDS}/${AREA}_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
+      cp ${IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
    fi
  
    if [[ ! -e ${WORKDIR}/reduction.ctl ]]; then
-      cp ${IG_GRDS}/${AREA}_reduction.ctl ${WORKDIR}/reduction.ctl
+      cp ${IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
    fi
 
   
@@ -268,7 +274,6 @@ EOF
   #-----------------------------------------------------------------
   #  copy the modified gnorm_data.txt file to tmp
   #-----------------------------------------------------------------
-#  cp -f gnorm_data.txt ${TANKDIR}/
   cp gnorm_data.txt tmp/${SUFFIX}.gnorm_data.txt
 
  
@@ -281,33 +286,58 @@ done
 cp *cost*.txt tmp/.
 
 #--------------------------------------------------------------------
-#  Build and run the plot driver script for the four cycle plot and 
-#  move the image into ./tmp
+#  If error reporting is enabled:
+#    - if there is an errmsg.txt for this cycle
+#      then mail it to the MAIL_TO and MAIL_CC recipients
 #--------------------------------------------------------------------
-#PDATE=`${SCRIPTS}/get_last_cycle.pl ${WORKDIR}/gnorm_data.txt`
-#cp ${SCRIPTS}/plot_4_gnorms.gs ${WORKDIR}/.
-#
-#cat << EOF >${PDATE}_plot_4_gnorms.gs
-#'open allgnorm.ctl'
-#'run plot_4_gnorms.gs $SUFFIX $PDATE x1100 y850'
-#'quit'
-#EOF
+if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
-#$TIMEX $GRADS -blc "run ${PDATE}_plot_4_gnorms.gs"
+   err_msg=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${PDATE}.errmsg.txt
+   if [[ -e $err_msg ]]; then
+      err_rpt="./err_rpt.txt"
+      `cat $err_msg > $err_rpt`
+      echo "" >> $err_rpt
+      echo "" >> $err_rpt
+      echo "" >> $err_rpt
+      echo "*********************** WARNING ***************************" >> $err_rpt
+      echo "THIS IS AN AUTOMATED EMAIL.  REPLIES TO SENDER WILL NOT BE"  >> $err_rpt
+      echo "RECEIVED.  PLEASE DIRECT REPLIES TO $MAIL_TO"                >> $err_rpt
+      echo "*********************** WARNING ***************************" >> $err_rpt
+     
+      if [[ $MAIL_CC == "" ]]; then
+         /bin/mail -s RadMon_error_report ${MAIL_TO}< ${err_rpt}
+      else
+         /bin/mail -s RadMon_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${err_rpt}
+      fi
+   fi
+  
+#if [[ -s ${err_rpt} ]]; then
+#      lines=`wc -l <${err_rpt}`
+#      if [[ $lines -gt 2 ]]; then
+#echo "" >> $err_rpt
+#echo "" >> $err_rpt
+#echo "" >> $err_rpt
+#echo "*********************** WARNING ***************************" >> $err_rpt
+#echo "THIS IS AN AUTOMATED EMAIL.  REPLIES TO SENDER WILL NOT BE"  >> $err_rpt
+#echo "RECEIVED.  PLEASE DIRECT REPLIES TO edward.safford@noaa.gov" >> $err_rpt
+#echo "*********************** WARNING ***************************" >> $err_rpt
 #
-#if [[ ! -d ${WORKDIR}/tmp ]]; then
-#   mkdir ${WORKDIR}/tmp
-#fi
-#mv *.png tmp/.
+#         if [[ $MAIL_CC == "" ]]; then
+#            /bin/mail -s RadMon_error_report ${MAIL_TO}< ${err_rpt}
+#         else
+#            /bin/mail -s RadMon_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${err_rpt}
+#         fi
+#      fi
+#   fi
+
+
+fi
 
 #--------------------------------------------------------------------
 #  Push the image & txt files over to the server
 #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
       cd ./tmp
-#      echo "webuser:    $WEBUSER"
-#      echo "webserver:  $WEBSERVER"
-#      echo "webdir:     $WEBDIR"
       $RSYNC -ave ssh --exclude *.ctl*  ./ \
         ${WEBUSER}@${WEBSERVER}:${WEBDIR}/
    fi

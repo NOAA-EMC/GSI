@@ -43,9 +43,6 @@ SUFFIX=$1
 START_DATE=$2
 END_DATE=$3
 
-#RUN_ENVIR=${RUN_ENVIR:-dev}
-#RAD_AREA=${RAD_AREA:-glb}
-
 echo SUFFIX     = $SUFFIX
 echo START_DATE = $START_DATE
 echo END_DATE   = $END_DATE
@@ -168,6 +165,7 @@ while [[ $done -eq 0 ]]; do
       err_file=${LOGdir}/MinMon_DE_${SUFFIX}_${cdate}.err
 
       echo Processing ${cdate}
+      # need a switch for glb and rgn
       ${DE_SCRIPTS}/MinMon_DE.sh ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------

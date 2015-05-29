@@ -79,6 +79,10 @@ fi
 #  expand TANKverf for this SUFFIX
 ###################################
 NEWtank=${TANKverf}/stats/${SUFFIX}/gsistat
+if [[ $GLB_AREA -eq 0 ]]; then
+   NEWtank=${TANKverf}/stats/regional/${SUFFIX}/gsistat
+fi
+
 export TANKverf=$NEWtank
 echo "TANKverf = $TANKverf"
 
@@ -90,10 +94,11 @@ echo "TANKverf = $TANKverf"
 #    and advance one cycle.
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
-   lastdir=`ls -1d ${TANKverf}/${SUFFIX}_minmon.* | tail -1`
-   lastln=`cat $lastdir/${SUFFIX}.gnorm_data.txt | tail -1`
-   date=`echo $lastln | gawk '{split($0,a,","); print a[1] a[2] a[3] a[4]}'`
+   echo "PDATE not specified:  setting PDATE using last cycle"
+   date=`${DE_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKverf}`
    export PDATE=`$NDATE +6 $date`
+else
+   echo "PDATE was specified:  $PDATE"
 fi
 
 export PDY=`echo $PDATE|cut -c1-8`
@@ -114,7 +119,7 @@ echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o ${jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
 fi
 
 
