@@ -355,6 +355,8 @@ EOF
             
             cat ${diag_report}
          fi
+      else 
+         echo "NO DIAG REPORT"
       fi
    fi
 
@@ -485,7 +487,9 @@ EOF
             cat ${report}
          fi
       fi
-  fi
+   else
+      echo "NO ERROR REPORT"
+   fi
 
   fi
 
