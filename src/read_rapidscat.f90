@@ -250,7 +250,7 @@ loopd : do
 !** Open and read data from bufr data file
 
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -606,7 +606,7 @@ loopd : do
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
