@@ -1461,6 +1461,11 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
 ! real(r_kind) :: c0, c1, c2
 
   
+  coszat=cos(zasat)
+  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*coszat)*coszat
+  d1 = 0.754_r_kind
+  d2 = -2.265_r_kind
+
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
