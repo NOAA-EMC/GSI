@@ -7,6 +7,7 @@ set -xa
 # Specify whether the run is production or development
 #
 export RUN_ENVIR=${RUN_ENVIR:-prod}
+export envir=${envir:-prod}
 
 ###############################################################
 # This block can be modified for different test environment
@@ -25,7 +26,8 @@ export PS4='$SECONDS + '
 ###########################################################
 export pid=$$
 export DATA_IN=${DATA_IN:-/tmpnwprd}
-export SUFFIX=${SUFFIX:-GDAS}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export SUFFIX=${MINMON_SUFFIX}
 export job=${job:-${SUFFIX}_mmDE}
 
 export DATA=$DATA_IN/${job}.${pid}
@@ -97,8 +99,8 @@ source ./PDY
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
 TANKverf=${TANKverf:-/com/verf/${envir}}
-TANKverfM0=${TANKverf}/${SUFFIX}_minmon.${PDY}
-export TANKverfM1=${TANKverfM1:-${TANKverf}}/${SUFFIX}_minmon.${PDYm1}
+TANKverfM0=${TANKverf}/minmon.${PDY}
+export TANKverfM1=${TANKverf}/minmon.${PDYm1}
 export TANKverf=$TANKverfM0
 
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
