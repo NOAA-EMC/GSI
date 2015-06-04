@@ -77,15 +77,15 @@ else
 fi
 
 ##########################################
-#  expand TANKverf for this MINMON_SUFFIX
+#  expand M_TANKverf for this MINMON_SUFFIX
 ##########################################
-NEWtank=${TANKverf}/stats/${MINMON_SUFFIX}
+NEWtank=${M_TANKverf}/stats/${MINMON_SUFFIX}
 if [[ $GLB_AREA -eq 0 ]]; then
-   NEWtank=${TANKverf}/stats/regional/${MINMON_SUFFIX}
+   NEWtank=${M_TANKverf}/stats/regional/${MINMON_SUFFIX}
 fi
 
-export TANKverf=$NEWtank
-echo "TANKverf = $TANKverf"
+export M_TANKverf=$NEWtank
+echo "M_TANKverf = $M_TANKverf"
 
 
 ##############################################################
@@ -96,7 +96,7 @@ echo "TANKverf = $TANKverf"
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
    echo "PDATE not specified:  setting PDATE using last cycle"
-   date=`${DE_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKverf}`
+   date=`${DE_SCRIPTS}/find_cycle.pl GDAS 1 ${M_TANKverf}`
    export PDATE=`$NDATE +6 $date`
 else
    echo "PDATE was specified:  $PDATE"
