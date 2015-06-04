@@ -38,7 +38,7 @@
    ##------------------------------------------------------------------
 
    if ($#ARGV != 2 ) {
-	print "usage: find_cycle.pl  suffix 0/1 /path_to_directory/containing/[suffix]_minmon.YYYYMMDDHH subdirectories. \n";
+	print "usage: find_cycle.pl  suffix 0/1 /path_to_directory/containing/minmon.YYYYMMDDHH subdirectories. \n";
         print "                           0 = first, 1 = last \n";
 	exit;
    }
@@ -56,10 +56,10 @@
         push( @alldirs, $file );
    }
    closedir DIR;
-   my @mmdirs = grep { /${suffix}_minmon/ } @alldirs;
+   my @mmdirs = grep { /minmon/ } @alldirs;
 
    
-   #  If there are no ${suffix}_minmon* subdirectories, then exit without 
+   #  If there are no minmon* subdirectories, then exit without 
    #    returning any date string.
    #
    if( $#mmdirs < 0 ) {
@@ -88,7 +88,7 @@
          #  and parse out all unique date values.  The oldest is the answer
          #  we're looking for. 
          #
-         #  If there are no time.*ieee_d* files, step to the next iteration.
+         #  If there are no costs.txt files, step to the next iteration.
          #
          my $newdir = "${dirpath}/${sortmm[$ctr]}";
          opendir DIR, $newdir or die "Cannot open the current directory: $!";

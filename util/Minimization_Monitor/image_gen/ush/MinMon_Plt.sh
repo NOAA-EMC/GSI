@@ -4,7 +4,7 @@ function usage {
 #  echo "Usage:  MinMonPlt.sh SUFFIX [PDATE] [EDATE]"
   echo "Usage:  MinMonPlt.sh SUFFIX [PDATE]"
   echo "            SUFFIX is data source identifier that matches data in "
-  echo "              the $TANKverf/stats directory."
+  echo "              the $M_TANKverf/stats directory."
   echo "            PDATE (format:  YYYYMMDDHH) optional, is only/first date to plot"
 #  echo "            EDATE (format:  YYYYMMDDHH) optional, is last date to plot"
 }
@@ -87,9 +87,9 @@ fi
 #  Specify TANKDIR for this suffix
 #--------------------------------------------------------------------
 if [[ $GLB_AREA -eq 1 ]]; then
-   export TANKDIR=${TANKverf}/stats/${SUFFIX}/gsistat
+   export TANKDIR=${M_TANKverf}/stats/${SUFFIX}
 else
-   export TANKDIR=${TANKverf}/stats/regional/${SUFFIX}/gsistat
+   export TANKDIR=${M_TANKverf}/stats/regional/${SUFFIX}
 fi
 
 #--------------------------------------------------------------------
@@ -116,7 +116,7 @@ cd $WORKDIR
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
-gnorm_file=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.gnorm_data.txt
+gnorm_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.gnorm_data.txt
 local_gnorm=gnorm_data.txt
 
 if [[ -s ${gnorm_file} ]]; then
@@ -131,8 +131,8 @@ fi
 #  These aren't used for processing but will be pushed to the
 #    server from the tmp dir.
 #------------------------------------------------------------------
-costs=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${PDATE}.costs.txt
-cost_terms=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${PDATE}.cost_terms.txt
+costs=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.costs.txt
+cost_terms=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.cost_terms.txt
 
 if [[ -s ${costs} ]]; then
    cp ${costs} .
@@ -159,10 +159,10 @@ while [[ $cdate -le $edate ]]; do
    echo "processing cdate = $cdate"
    pdy=`echo $cdate|cut -c1-8`
 
-   gnorms_file=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${cdate}.gnorms.ieee_d
+   gnorms_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.gnorms.ieee_d
    local_gnorm=${cdate}.gnorms.ieee_d
 
-   reduct_file=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${cdate}.reduction.ieee_d
+   reduct_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.reduction.ieee_d
    local_reduct=${cdate}.reduction.ieee_d
 
    if [[ -s ${gnorms_file} ]]; then
@@ -292,7 +292,7 @@ cp *cost*.txt tmp/.
 #--------------------------------------------------------------------
 if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
-   err_msg=${TANKDIR}/${SUFFIX}_minmon.${pdy}/${SUFFIX}.${PDATE}.errmsg.txt
+   err_msg=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.errmsg.txt
    if [[ -e $err_msg ]]; then
       err_rpt="./err_rpt.txt"
       `cat $err_msg > $err_rpt`
