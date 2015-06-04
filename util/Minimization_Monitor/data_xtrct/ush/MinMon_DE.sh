@@ -16,7 +16,7 @@ function usage {
 #  MinMon_DE.sh begins here
 #--------------------------------------------------------------------
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
    usage
    exit 1
 fi
