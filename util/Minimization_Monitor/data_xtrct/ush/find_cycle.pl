@@ -38,7 +38,7 @@
    ##------------------------------------------------------------------
 
    if ($#ARGV != 2 ) {
-	print "usage: find_cycle.pl  suffix 0/1 /path_to_directory/containing/[suffix]_minmon.YYYYMMDDHH subdirectories. \n";
+	print "usage: find_cycle.pl  suffix 0/1 /path_to_directory/containing/minmon.YYYYMMDDHH subdirectories. \n";
         print "                           0 = first, 1 = last \n";
 	exit;
    }
@@ -56,10 +56,10 @@
         push( @alldirs, $file );
    }
    closedir DIR;
-   my @mmdirs = grep { /${suffix}_minmon/ } @alldirs;
+   my @mmdirs = grep { /minmon/ } @alldirs;
 
    
-   #  If there are no ${suffix}_minmon* subdirectories, then exit without 
+   #  If there are no minmon* subdirectories, then exit without 
    #    returning any date string.
    #
    if( $#mmdirs < 0 ) {
@@ -77,7 +77,7 @@
       my $found_cycle = 0;
 
       #  Start with the latest directory and attempt to locate the 
-      #  ${suffix}_gnorm_data.txt file.  The last line will contain the
+      #  gnorm_data.txt file.  The last line will contain the
       #  latest cycle processed. 
       do {
       

@@ -166,7 +166,7 @@ while [[ $done -eq 0 ]]; do
 
       echo Processing ${cdate}
       # need a switch for glb and rgn
-      ${DE_SCRIPTS}/MinMon_DE.sh ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
+      ${DE_SCRIPTS}/MinMon_DE.sh ${SUFFIX} dev ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
       # done is true (1) if the copy_script produced an error code, or

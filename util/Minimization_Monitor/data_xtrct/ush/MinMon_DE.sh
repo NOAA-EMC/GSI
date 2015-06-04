@@ -1,18 +1,19 @@
 #!/bin/sh
 
-#  Gmon data extraction script
+#  MinMon data extraction script
 
 #--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  MinMonDE.sh suffix [pdate]"
+  echo "Usage:  MinMonDE.sh suffix run_envir [pdate]"
   echo "            Suffix is the indentifier for this data source."
+  echo "            run_envir is either 'dev' or 'para'."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
 #--------------------------------------------------------------------
-#  GmonDE.sh begins here
+#  MinMon_DE.sh begins here
 #--------------------------------------------------------------------
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
@@ -28,21 +29,21 @@ this_dir=`dirname $0`
 #    if $COMOUT is defined then assume we're in a parallel, else
 #    it's dev.
 #--------------------------------------------------------------------
-export SUFFIX=$1
-export RUN_ENVIR=""
+export MINMON_SUFFIX=$1
+export RUN_ENVIR=$2
 
 if [[ $nargs -ge 2 ]]; then
-   export PDATE=$2;
+   export PDATE=$3;
    echo "PDATE set to $PDATE"
 fi
 
-if [[ $COMOUT = "" ]]; then
-  export RUN_ENVIR="dev"
-else 
-  export RUN_ENVIR="para"
-fi
+#if [[ $COMOUT = "" ]]; then
+#  export RUN_ENVIR="dev"
+#else 
+#  export RUN_ENVIR="para"
+#fi
 
-echo SUFFIX = $SUFFIX
+echo MINMON_SUFFIX = $MINMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
@@ -75,12 +76,12 @@ else
    exit 4
 fi
 
-###################################
-#  expand TANKverf for this SUFFIX
-###################################
-NEWtank=${TANKverf}/stats/${SUFFIX}/gsistat
+##########################################
+#  expand TANKverf for this MINMON_SUFFIX
+##########################################
+NEWtank=${TANKverf}/stats/${MINMON_SUFFIX}
 if [[ $GLB_AREA -eq 0 ]]; then
-   NEWtank=${TANKverf}/stats/regional/${SUFFIX}/gsistat
+   NEWtank=${TANKverf}/stats/regional/${MINMON_SUFFIX}
 fi
 
 export TANKverf=$NEWtank
@@ -89,9 +90,9 @@ echo "TANKverf = $TANKverf"
 
 ##############################################################
 #  Determine next cycle
-#    If PDATE wasn't an argument then pull the last processed 
-#    date from the latest $SUFFIX_minmon.gnorm_data.txt file 
-#    and advance one cycle.
+#    If PDATE wasn't an argument then call find_cycle.pl
+#    to determine the last processed cycle, and set PDATE to
+#    the next cycle.
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
    echo "PDATE not specified:  setting PDATE using last cycle"
@@ -105,9 +106,9 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
-export jlogfile="${jlogfile}${SUFFIX}.${PDY}.${cyc}.log"
+export jlogfile="${jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
 echo  "jlogfile = $jlogfile"
-export jobname=minmon_de_${SUFFIX}
+export jobname=minmon_de_${MINMON_SUFFIX}
 
 rm -f $jlogfile
 rm -rf $DATA_IN
@@ -122,4 +123,4 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
 fi
 
-
+echo "end MinMon_DE.sh"
