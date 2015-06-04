@@ -98,15 +98,15 @@ source ./PDY
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-TANKverf=${TANKverf:-/com/verf/${envir}}
-TANKverfM0=${TANKverf}/minmon.${PDY}
-export TANKverfM1=${TANKverf}/minmon.${PDYm1}
-export TANKverf=$TANKverfM0
+M_TANKverf=${M_TANKverf:-/com/verf/${envir}}
+M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
+export M_TANKverfM1=${M_TANKverf}/minmon.${PDYm1}
+export M_TANKverf=$M_TANKverfM0
 
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-mkdir -p -m 775 $TANKverf
+mkdir -p -m 775 $M_TANKverf
  
 env
 

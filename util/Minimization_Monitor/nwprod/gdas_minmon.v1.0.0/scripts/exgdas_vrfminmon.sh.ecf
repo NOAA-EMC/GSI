@@ -20,7 +20,7 @@
 #                   defaults to cyc; required
 #
 #   Imported Shell Variables:
-#     TANKDIR       repository for minmon data files
+#     TANKverf      repository for minmon data files
 #     DATA          data working space
 #     SUFFIX        data set identifier, defaults to GDAS
 #     FIXgdasgmon   fixed file directory, gdas specific
@@ -120,8 +120,8 @@ export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfminmon.sh.ecf
 
 # TANKverf is storage location for generated files
-export TANKverf=${TANKverf:-/com/verf/prod/minmon.${PDY}}
-export TANKverfM1=${TANKverfM1:-/com/verf/prod/minmmon.${PDYm1}}
+export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon.${PDY}}
+export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon.${PDYm1}}
 
 $LOGSCRIPT
 
@@ -151,10 +151,10 @@ if [[ -s ${gsistat} ]]; then
    #------------------------------------------------------------------
    #  Copy the $SUFFIX.gnorm_data.txt file to the working directory
    #------------------------------------------------------------------
-   if [[ -s ${TANKverf}/${SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${TANKverf}/${SUFFIX}.gnorm_data.txt .
-   elif [[ -s ${TANKverfM1}/${SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${TANKverfM1}/${SUFFIX}.gnorm_data.txt .
+   if [[ -s ${M_TANKverf}/${SUFFIX}.gnorm_data.txt ]]; then
+      $NCP ${M_TANKverf}/${SUFFIX}.gnorm_data.txt .
+   elif [[ -s ${M_TANKverfM1}/${SUFFIX}.gnorm_data.txt ]]; then
+      $NCP ${M_TANKverfM1}/${SUFFIX}.gnorm_data.txt .
    fi
 
    #------------------------------------------------------------------

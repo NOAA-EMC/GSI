@@ -54,9 +54,9 @@ if( (-e $infile) ) {
    close( OUTFILE );
 
    #----------------------------
-   #  copy outfile to $TANKverf
+   #  copy outfile to $M_TANKverf
    #----------------------------
-   my $tankdir = $ENV{"TANKverf"};
+   my $tankdir = $ENV{"M_TANKverf"};
    if(! -d $tankdir) {
       system( "mkdir -p $tankdir" );
    }
