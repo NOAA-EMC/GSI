@@ -713,7 +713,7 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
      end do
   else
      do k=s1g4%kbegin_loc,s1g4%kend_loc
-        vector=trim(s1g4%names(1,k))=='u'.and.trim(s1g4%names(1,k))=='v'
+        vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
 !$omp parallel sections
 !$omp section
         tmp1=zero
