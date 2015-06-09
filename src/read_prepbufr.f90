@@ -897,7 +897,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               t4dv=t4dv + time_correction
               time=timeobs + time_correction
            end if
-           if(use_prepb_satwnd .and. (kx >= 240 .or. kx <= 260)) iobsub = hdr(7)
+           if(use_prepb_satwnd .and. (kx >= 240 .and. kx <= 260)) iobsub = hdr(7)
 
  
 !          Balloon drift information available for these data
