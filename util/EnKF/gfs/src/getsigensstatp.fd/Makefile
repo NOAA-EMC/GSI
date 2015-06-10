@@ -186,7 +186,7 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = kinds.F90 specmod.f90 getsigensstatp.f90
+  SRCSF90C = getsigensstatp.f90
 
   SRCSF77 =
 

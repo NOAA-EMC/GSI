@@ -8,6 +8,7 @@ COREINC  = /contrib/nceplibs/nwprod/lib/incmod
 CORELIB  = /contrib/nceplibs/nwprod/lib
 INCsigio = $(COREINC)/sigio_4
 INCw3    = $(COREINC)/w3emc_4
+INCnemsio= $(COREINC)/nemsio
 
 # ---------------------------
 # General targets/definitions
@@ -27,12 +28,12 @@ INCw3    = $(COREINC)/w3emc_4
   OMP = #-qsmp=noauto
 
   FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCw3)
+  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCw3) -I $(INCnemsio)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
 
 
 # ----------------------
@@ -57,7 +58,7 @@ INCw3    = $(COREINC)/w3emc_4
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3nco_4 -lw3emc_4 -lsigio_4 -lsp_4
+  LIBS_N        = -L$(CORELIB) -lnemsio -lbacio_4 -lw3nco_4 -lw3emc_4 -lsigio_4 -lsp_4
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 
