@@ -143,7 +143,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   integer(i_kind) itype,msges,iqt,i
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
-  integer(i_kind) regime,istat
+  integer(i_kind) regime
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   
   logical sfctype
