@@ -80,7 +80,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   integer(i_kind) idate,iret,k
   integer(i_kind) kx,nreal,nchanl,ilat,ilon
   integer(i_kind) sstq,nmind
-  integer(i_kind):: idomsfc
+  integer(i_kind):: idomsfc,isflg
 
   integer(i_kind) :: ireadmg,ireadsb,klev,msub,nmsub
   integer(i_kind), dimension(5) :: idate5
@@ -96,9 +96,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   equivalence (crpid,hdr(7))
 
   real(r_kind),dimension(0:3):: ts
+  real(r_kind),dimension(0:3):: sfcpct
 
-  real(r_kind) :: tdiff,sstime,usage,sfcr,tsavg,ff10,t4dv
-  real(r_kind) :: zz
+  real(r_kind) :: tdiff,sstime,usage,sfcr,t4dv,rsc
+  real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
 
@@ -286,6 +287,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            idate5(3) = nint(hdr(3))    !day
            idate5(4) = nint(hdr(4))    !hour
            idate5(5) = nint(hdr(5))    !minute
+           rsc       = hdr(6)          !second in real
  
 
            call w3fs21(idate5,nmind)
@@ -461,7 +463,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if(ikx == 0) cycle read_loop             ! not ob type used
 
            call w3fs21(idate5,nmind)
-           t4dv=real((nmind-iwinbgn),r_kind)*r60inv
+           t4dv=(real((nmind-iwinbgn),r_kind) + rsc*r60inv)*r60inv
 !
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
@@ -481,9 +483,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               if (mod(ndata+1,ncnumgrp(ikx))== ncgroup(ikx)-1) usage=ncmiter(ikx)
            end if
 
-           call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
-
-           if( idomsfc /= zero)  cycle read_loop                            ! use data over water only
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+                          ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           if(sfcpct(0) == zero)  cycle read_loop
 
            nodata = nodata + 1
            ndata = ndata + 1
@@ -495,15 +497,17 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
            if(nst_gsi > 0) then
-              tref  = ts(0)
-              dtw   = zero
-              dtc   = zero
-              tz_tr = one
               call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               tz = tref
               if (nst_gsi > 2 ) then
                 tz = tref+dtw-dtc            ! Tz: Background temperature at depth of zob
               endif
+           else
+              tref  = ts(0)
+              dtw   = zero
+              dtc   = zero
+              tz_tr = one
+              tz    = ts(0)
            endif
 
            data_all(1,ndata)  = sstoe                   ! sst error
@@ -513,11 +517,11 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(5,ndata)  = hdr(7)                  ! station id
            data_all(6,ndata)  = t4dv                    ! time
            data_all(7,ndata)  = ikx                     ! type
-           data_all(8,ndata)  = sstoe*three             ! max error
+           data_all(8,ndata)  = ts(0)                   ! open water temperature
            data_all(9,ndata)  = zob                     ! depth of measurement
            data_all(10,ndata) = kx                      ! measurement type
            data_all(11,ndata) = sstq                    ! quality mark
-           data_all(12,ndata) = sstoe                   ! original obs error
+           data_all(12,ndata) = sfcpct(0)               ! open water percentage 
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
            data_all(15,ndata) = tz                      ! Tz: Background temperature at depth of zob

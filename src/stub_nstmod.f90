@@ -354,22 +354,22 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
   tztr = one
 
   if ( dt_warm > zero .and.  c1 /= zero ) then
-     if ( z <= zc  ) then
-       tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
-     elseif ( z > zc .and. z < zw ) then
-       tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
-     endif
-   elseif ( dt_warm == zero .and. c2 /= zero ) then
-     if ( z <= zc ) then
-       tztr = (one-z*fac_tsl*c_d)/c2
-     endif
-   endif
+    if ( z <= zc  ) then
+      tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
+    elseif ( z > zc .and. z < zw ) then
+      tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
+    endif
+  elseif ( dt_warm == zero .and. c2 /= zero ) then
+    if ( z <= zc ) then
+      tztr = (one-z*fac_tsl*c_d)/c2
+    endif
+  endif
 
-   if ( tztr <= one .and. tztr > half ) then
-     tztr = tztr
-   else
-!    write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
-   endif
+  if ( tztr <= one .and. tztr > half ) then
+    tztr = tztr
+  else
+!   write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+  endif
 
 end subroutine cal_tztr_
 !*******************************************************************************************

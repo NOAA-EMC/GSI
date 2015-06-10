@@ -954,6 +954,9 @@ subroutine read_obs(ndata,mype)
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
+          if(obstype == 'sst')then
+            use_sfc=.true.
+          endif
        else if(ditype(i) == 'rad' )then
           if(belong(i))then
             use_sfc=.true.
