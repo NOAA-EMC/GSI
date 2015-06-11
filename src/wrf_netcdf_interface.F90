@@ -982,7 +982,7 @@ subroutine convert_netcdf_mass
    
 end subroutine convert_netcdf_mass
 
-subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
+subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,guess)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    convert_netcdf_nmm    read wrf nmm netcdf restart
@@ -1006,9 +1006,11 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !   2012-01-13  zhu     - add cloud hydrometeors
 !   2012-10-11  eliu    - modify to add the use of use_gfs_stratosphere
 !   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
+!   2014-10-28  tong    - modify to read wrf nmm ensemble forecast
 !
 !   input argument list:
 !     update_pint:   false on input
+!     guess:         true read guess otherwise read wrf nmm ensemble forecast  
 !
 !   output argument list:
 !     update_pint:   true on output if field pint (non-hydrostatic pressure in nmm model)
@@ -1032,22 +1034,24 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 
   use kinds, only: r_single,i_kind,r_kind
   use gsi_4dvar, only: nhr_assimilation
-  use constants, only: half,rad2deg
+  use constants, only: half,rad2deg,zero
   use gsi_metguess_mod, only: gsi_metguess_get
-  use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max,nsig_save                                   
-  use gridmod, only: diagnostic_reg 
+  use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max,nsig_save
+  use gridmod, only: half_grid,filled_grid,fill_nmm_grid2a3,half_nmm_grid2a
+  use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
 
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
 ! include 'netcdf.inc'
 
+  logical     ,intent(in   ) :: guess
   logical     ,intent(inout) :: update_pint
   real(r_kind),intent(  out) :: ctph0,stph0,tlm0
 
   character(len=120) :: flnm1
   character(len=19)  :: DateStr1
-  character(len=6)   :: filename
+  character(len=24)  :: filename
   integer(i_kind)            :: dh1
   
   integer(i_kind) :: iunit
@@ -1063,6 +1067,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   character (len=80) :: SysDepInfo
 
   integer(i_kind) :: n_actual_clouds, ierr, Status, Status_next_time, n
+  integer(i_kind) :: nlp
 
 ! binary stuff
 
@@ -1071,7 +1076,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   character (len=31) :: rmse_var
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlon,nlat
   integer(i_kind) nsig_regional_new,nsig_read 
   real(r_single) pt_regional,pdtop_regional,dy_nmm
   real(r_single) dlmd_regional,dphd_regional
@@ -1081,6 +1086,13 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)    
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
+  real(r_single),allocatable:: glat(:,:),glon(:,:)
+  real(r_kind),allocatable:: glat8(:,:),glon8(:,:)
+  real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
+  real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
+  real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
+  real(r_kind),allocatable::region_lat(:,:),region_lon(:,:)
+  integer(i_kind) :: i0,j0
   integer(i_kind) wrf_real
   data iunit / 15 /
   wrf_real=104
@@ -1094,41 +1106,73 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 
   call ext_ncd_ioinit(sysdepinfo,status)
   call set_wrf_debug_level ( 1 )
+
+  if(guess) then
+     nlp=9
+  else
+     if(.not. merge_two_grid_ensperts) then
+        nlp=n_ens
+     else
+        nlp=2*n_ens
+     endif
+  endif
   
 
-  n_loop: do n=1,9 ! loop over forecast hours in assim interval
+  n_loop: do n=1,nlp ! loop over forecast hours in assim interval
 
-     if(n==nhr_assimilation)then
-        flnm1 = 'wrf_inout'
+     if(guess)then
+        if(n==nhr_assimilation)then
+           flnm1 = 'wrf_inout'
+        else
+           write(flnm1,'("wrf_inou",i1.1)')n
+        endif
+        write(filename,'("sigf",i2.2)') n
      else
-        write(flnm1,'("wrf_inou",i1.1)')n
-     endif
+        if(.not. merge_two_grid_ensperts)then
+           write(flnm1,'("wrf_en",i3.3)')n
+           write(filename,'("sigf06_ens_mem",i3.3)')n
+        else
+           if(n <= n_ens)then
+              write(flnm1,'("d01_en",i3.3)')n
+              write(filename,'("sigf06_ens_mem",i3.3)')n
+           else
+              write(flnm1,'("d02_en",i3.3)')n-n_ens
+              write(filename,'("sigf06_d02_ens_mem",i3.3)')n-n_ens
+           endif
+        endif
+     end if
    
      call ext_ncd_open_for_read( trim(flnm1), 0, 0, "", dh1, Status)
-     if(n==nhr_assimilation)then
+     if(guess)then
+        if(n==nhr_assimilation)then
+           if ( Status /= 0 )then
+              write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
+                   trim(flnm1),', Status = ', Status
+              call stop2(74)
+           endif
+        else
+           if ( Status /= 0 )then
+              write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
+                   trim(flnm1),', Status = ', Status
+              cycle
+           endif
+        end if
+     else
         if ( Status /= 0 )then
-           write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
+           write(6,*)'CONVERT_NETCDF_NMM:  problem with wrfens = ',&
                 trim(flnm1),', Status = ', Status
            call stop2(74)
         endif
-     else
-        if ( Status /= 0 )then
-           write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
-                trim(flnm1),', Status = ', Status
-           cycle
-        endif
      endif
   
-  
-     write(filename,'("sigf",i2.2)') n
      open(iunit,file=filename,form='unformatted')
-     write(6,*)'CONVERT_NETCDF_NMM: output file = ', filename  
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM: output file = ', filename  
 
 !-------------  get date info
 
      call ext_ncd_get_next_time(dh1, DateStr1, Status_next_time)
      read(DateStr1,'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') iyear,imonth,iday,ihour,iminute,isecond
-     write(6,*)' iy,m,d,h,m,s=',iyear,imonth,iday,ihour,iminute,isecond
+     if(guess)write(6,*)' iy,m,d,h,m,s=',iyear,imonth,iday,ihour,iminute,isecond
      
 !-------------  get grid info
      rmse_var='T'
@@ -1140,7 +1184,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !    these will hold original vertical structure for regional
      allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
      allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
-     write(6,*)'CONVERT_NETCDF_NMM: nlon,nlat,nsig_regional,nsig_max=', &
+     write(6,*)'CONVERT_NETCDF_NMM: nlon_regional,nlat_regional,nsig_regional,nsig_max=', &
                 nlon_regional,nlat_regional,nsig_regional,nsig_max
      allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))   
      allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
@@ -1150,12 +1194,13 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
-     
+
 !    Read in east-west angular distance (degrees) H-to-V points 
      rmse_var='DLMD'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
+
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           dlmd_regional,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -1163,12 +1208,12 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' dlmd=',dlmd_regional
+     if(guess)write(6,*)' dlmd=',dlmd_regional
      
      rmse_var='DPHD' ! north-south angular distance (degrees) H-to-V points                      
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           dphd_regional,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -1176,12 +1221,12 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' dphd=',dphd_regional
+     if(guess)write(6,*)' dphd=',dphd_regional
   
      rmse_var='PT' ! pressure (Pa) at top of domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           pt_regional,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -1189,12 +1234,12 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' pt=',pt_regional
+     if(guess)write(6,*)' pt=',pt_regional
 
      rmse_var='PDTOP' ! mass (pa) at model top in pressure domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           pdtop_regional,WRF_REAL,0,0,0,ordering,       &
           staggering, dimnames ,               &
@@ -1202,11 +1247,11 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' pdtop=',pdtop_regional
+     if(guess)write(6,*)' pdtop=',pdtop_regional
      rmse_var='DETA1' ! delta sigma in pressure domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1214,10 +1259,10 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
         deta1(k)=field1(k)    
-        write(6,*)' k,deta1(k)=',k,field1(k)
+        if(guess)write(6,*)' k,deta1(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional)  ! DETA1    
      
@@ -1226,7 +1271,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1234,17 +1279,17 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
         aeta1(k)=field1(k)
-        write(6,*)' k,aeta1(k)=',k,field1(k)
+        if(guess)write(6,*)' k,aeta1(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional)  ! AETA1
   
      rmse_var='ETA1' ! interface sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1252,17 +1297,17 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional+1
        eta1(k)=field1(k)  
-       write(6,*)' k, eta1(k)=',k,field1(k)
+       if(guess)write(6,*)' k, eta1(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional+1)  !  ETA1
   
      rmse_var='DETA2' ! delta sigma in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1270,17 +1315,17 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
         deta2(k)=field1(k) 
-        write(6,*)' k,deta2(k)=',k,field1(k)
+        if(guess)write(6,*)' k,deta2(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional)  ! DETA2 
      
      rmse_var='AETA2' ! midlayer sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1288,17 +1333,17 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
         aeta2(k)=field1(k) 
-        write(6,*)' k,aeta2(k)=',k,field1(k)
+        if(guess)write(6,*)' k,aeta2(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional)  ! AETA2 
      
      rmse_var='ETA2' ! interface sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -1306,10 +1351,10 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
-     write(6,*)'CONVERT_NETCDF_NMM:' 
+     if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional+1
         eta2(k)=field1(k) 
-        write(6,*)' k,eta2(k)=',k,field1(k)
+        if(guess)write(6,*)' k,eta2(k)=',k,field1(k)
      end do
 !    write(iunit)field1(1:nsig_regional+1)  ! ETA2
 !    Create new vertical coordinate structure if use_gfs_stratosphere is true 
@@ -1348,20 +1393,25 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
         deallocate(deta2_new,aeta2_new,eta2_new)
      end if ! use_gfs_stratosphere
 !    write out header and new vertical coordinate structure
-     write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional, &
-          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-     write(iunit)deta1(1:nsig_regional)    ! DETA1
+     if(guess)then
+        write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
+             nlon_regional,nlat_regional,nsig_regional, &
+             dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+     else
+        write(iunit) nlon_regional,nlat_regional,nsig_regional, &
+             dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+     end if      
+     if(guess)write(iunit)deta1(1:nsig_regional)    ! DETA1
      write(iunit)aeta1(1:nsig_regional)    ! AETA1
-     write(iunit) eta1(1:nsig_regional+1)  !  ETA1
-     write(iunit)deta2(1:nsig_regional)    ! DETA2
+     if(guess)write(iunit) eta1(1:nsig_regional+1)  !  ETA1
+     if(guess)write(iunit)deta2(1:nsig_regional)    ! DETA2
      write(iunit)aeta2(1:nsig_regional)    ! AETA2
-     write(iunit) eta2(1:nsig_regional+1)  !  ETA2
+     if(guess)write(iunit) eta2(1:nsig_regional+1)  !  ETA2
      deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2)
      rmse_var='GLAT' ! geographic latitude (radians)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1369,35 +1419,42 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' max,min GLAT=',rad2deg*maxval(field2),rad2deg*minval(field2)
-     write(6,*)' glat(1,1),glat(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-     write(6,*)' glat(1,nlat),glat(nlon,nlat)=', &
+     if(guess)write(6,*)' max,min GLAT=',rad2deg*maxval(field2),rad2deg*minval(field2)
+     if(guess)write(6,*)' glat(1,1),glat(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
+     if(guess)write(6,*)' glat(1,nlat),glat(nlon,nlat)=', &
           rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-     write(6,*)' my guess at tph0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+     if(guess)write(6,*)' my guess at tph0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
      ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
      stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
      
-     rmse_var='DX_NMM' ! east-west distance (m) H-to-V points 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2b,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min DX_NMM=',maxval(field2b),minval(field2b)
-     write(6,*)' dx_nmm(1,1),dx_nmm(nlon,1)=',field2b(1,1),field2b(nlon_regional,1)
-     write(6,*)' dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
-          field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
-     write(iunit)field2,field2b   !GLAT,DX_NMM
+     if(guess)then
+        rmse_var='DX_NMM' ! east-west distance (m) H-to-V points 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2b,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min DX_NMM=',maxval(field2b),minval(field2b)
+        write(6,*)' dx_nmm(1,1),dx_nmm(nlon,1)=',field2b(1,1),field2b(nlon_regional,1)
+        write(6,*)' dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
+             field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
+     end if
+     if(guess)then
+        write(iunit)field2,field2b   !GLAT,DX_NMM
+     else
+        allocate(glat(nlon_regional,nlat_regional))
+        glat=field2
+     end if
      
      rmse_var='GLON' ! geographic longitude (radians)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1405,33 +1462,88 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' max,min GLON=',rad2deg*maxval(field2),rad2deg*minval(field2)
-     write(6,*)' glon(1,1),glon(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-     write(6,*)' glon(1,nlat),glon(nlon,nlat)=', &
+     if(guess)write(6,*)' max,min GLON=',rad2deg*maxval(field2),rad2deg*minval(field2)
+     if(guess)write(6,*)' glon(1,1),glon(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
+     if(guess)write(6,*)' glon(1,nlat),glon(nlon,nlat)=', &
           rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-     write(6,*)' my guess at tlm0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+     if(guess)write(6,*)' my guess at tlm0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
      tlm0=half*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
               field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
 
-     rmse_var='DY_NMM' ! north-south distance (m) H-to-V points
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          dy_nmm,WRF_REAL,0,0,0,ordering,       &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' dy_nmm=',dy_nmm
-     field2b=dy_nmm
-     write(iunit)field2,field2b   !GLON,DY_NMM
+     if(guess)then
+        rmse_var='DY_NMM' ! north-south distance (m) H-to-V points
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             dy_nmm,WRF_REAL,0,0,0,ordering,       &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' dy_nmm=',dy_nmm
+        field2b=dy_nmm
+     end if
+     if(guess)then
+        write(iunit)field2,field2b   !GLON,DY_NMM
+     else
+        allocate(glon(nlon_regional,nlat_regional))
+        glon=field2        !GLON
+     end if
+
+     if(.not. guess)then
+        if(filled_grid) then
+           nlon=2*nlon_regional-1
+           nlat=nlat_regional
+        end if
+        if(half_grid) then
+           nlon=nlon_regional
+           nlat=1+nlat_regional/2
+        end if
+
+        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+        allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+        if(half_grid) then
+           call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
+           call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
+        end if
+
+        if(filled_grid) then
+           allocate(gxtemp(nlon_regional,nlat_regional))
+           allocate(gytemp(nlon_regional,nlat_regional))
+           allocate(glon8(nlon_regional,nlat_regional))
+           allocate(glat8(nlon_regional,nlat_regional))
+           glon8=glon
+           glat8=glat
+           i0=nlon_regional/2
+           j0=nlat_regional/2
+           call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
+                          gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
+           allocate(gxtemp_an(nlon,nlat))
+           allocate(gytemp_an(nlon,nlat))
+           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
+           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
+           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
+                          glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
+           deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
+        end if
+
+        do k=1,nlon
+           do i=1,nlat
+              region_lat(i,k)=glat_an(k,i)
+              region_lon(i,k)=glon_an(k,i)
+           end do
+        end do
+        write(iunit)region_lat
+        write(iunit)region_lon
+        deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
+     end if
 
      rmse_var='PD' ! mass (Pa) at grid point (I,J) in sigma domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1439,53 +1551,55 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     write(6,*)' max,min pd=',maxval(field2),minval(field2)
+     if(guess)write(6,*)' max,min pd=',maxval(field2),minval(field2)
      write(iunit)field2   !PD
      
-     rmse_var='FIS' ! surface geopotential (m2s-2)  
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
+     if(guess)then
+        rmse_var='FIS' ! surface geopotential (m2s-2)  
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min FIS=',maxval(field2),minval(field2)
-     write(iunit)field2   ! FIS
+             ierr                                 )
+        write(6,*)' max,min FIS=',maxval(field2),minval(field2)
+        write(iunit)field2   ! FIS
    
-     update_pint=.false. ! model layer interface pressure (Pa)
-     rmse_var='PINT'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     if(ierr==0) then
-       update_pint=.true.
-       write(6,*)' rmse_var=',trim(rmse_var)
-       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-            field3,WRF_REAL,0,0,0,ordering,           &
-            staggering, dimnames ,               &
-            start_index,end_index1,               & !dom
-            start_index,end_index1,               & !mem
-            start_index,end_index1,               & !pat
-            ierr                                 )
-       do k=1,nsig_read+1           
-          write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-               field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
-       end do
-       do k=1,nsig_read+1
-          write(6,'(i6,a6,3(2x,f15.6))') &
-                k,'PINT',field3(1,1,k), &
-                         field3(nlon_regional/2,nlat_regional/2,k), &
-                         field3(nlon_regional,nlat_regional,k)
-       enddo
+        update_pint=.false. ! model layer interface pressure (Pa)
+        rmse_var='PINT'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        if(ierr==0) then
+          update_pint=.true.
+          write(6,*)' rmse_var=',trim(rmse_var)
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index1,               & !dom
+               start_index,end_index1,               & !mem
+               start_index,end_index1,               & !pat
+               ierr                                 )
+          do k=1,nsig_read+1           
+             write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                  field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
+          end do
+          do k=1,nsig_read+1
+             write(6,'(i6,a6,3(2x,f15.6))') &
+                   k,'PINT',field3(1,1,k), &
+                            field3(nlon_regional/2,nlat_regional/2,k), &
+                            field3(nlon_regional,nlat_regional,k)
+          enddo
+        end if
      end if
      rmse_var='T' ! sensible temperature (K)  
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+     if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1494,20 +1608,22 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      do k=1,nsig_read     
-        write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        if(guess)write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
      end do
-     do k=1,nsig_read
-         write(6,'(i6,a6,3(2x,f15.6))') &
-               k,'T',field3(1,1,k), &
-                     field3(nlon_regional/2,nlat_regional/2,k), &
-                     field3(nlon_regional,nlat_regional,k)
-     enddo
+     if(guess)then
+        do k=1,nsig_read
+            write(6,'(i6,a6,3(2x,f15.6))') &
+                  k,'T',field3(1,1,k), &
+                        field3(nlon_regional/2,nlat_regional/2,k), &
+                        field3(nlon_regional,nlat_regional,k)
+        enddo
+     end if
      rmse_var='Q'    ! Read in specific humidity (Kg/Kg)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1516,20 +1632,22 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      do k=1,nsig_read       
-        write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        if(guess)write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
      end do
-     do k=1,nsig_read
-         write(6,'(i6,a6,3(2x,f15.12))') &
-                k,'Q',field3(1,1,k), &
-                      field3(nlon_regional/2,nlat_regional/2,k), &
-                      field3(nlon_regional,nlat_regional,k)
-     enddo
+     if(guess)then
+        do k=1,nsig_read
+            write(6,'(i6,a6,3(2x,f15.12))') &
+                   k,'Q',field3(1,1,k), &
+                         field3(nlon_regional/2,nlat_regional/2,k), &
+                         field3(nlon_regional,nlat_regional,k)
+        enddo
+     end if
      rmse_var='U' ! U component of wind (m/s)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1538,20 +1656,22 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      do k=1,nsig_read     
-        write(6,*)' k,max,min,mid U=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        if(guess)write(6,*)' k,max,min,mid U=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! U
      end do
-     do k=1,nsig_read 
-         write(6,'(i6,a6,3(2x,f15.6))') &
-               k,'U',field3(1,1,k), &
-                     field3(nlon_regional/2,nlat_regional/2,k), &
-                     field3(nlon_regional,nlat_regional,k)
-     enddo
+     if(guess)then
+        do k=1,nsig_read 
+            write(6,'(i6,a6,3(2x,f15.6))') &
+                  k,'U',field3(1,1,k), &
+                        field3(nlon_regional/2,nlat_regional/2,k), &
+                        field3(nlon_regional,nlat_regional,k)
+        enddo
+     end if
      rmse_var='V' ! V component of wind (m/s)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
+     if(guess)write(6,*)' rmse_var=',trim(rmse_var)
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -1560,197 +1680,153 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      do k=1,nsig_read      
-        write(6,*)' k,max,min,mid V=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        if(guess)write(6,*)' k,max,min,mid V=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! V
      end do
-     do k=1,nsig_read
-         write(6,'(i6,a6,3(2x,f15.6))') &
-               k,'V',field3(1,1,k), &
-                     field3(nlon_regional/2,nlat_regional/2,k), &
-                     field3(nlon_regional,nlat_regional,k)
-     enddo
-     rmse_var='SM' ! land-sea mask (sea=1 land=0) 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min sm=',maxval(field2),minval(field2)
-     write(6,*)' sm(1,1),sm(nlon,1)=',field2(1,1),field2(nlon_regional,1)
-     write(6,*)' sm(1,nlat),sm(nlon,nlat)=', &
-          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-     write(iunit)field2   !SM
-     
-     rmse_var='SICE' ! sea ice mask (1=sea ice 0=no sea ice) 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-   
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SICE=',maxval(field2),minval(field2)
-     write(iunit)field2   !SICE
-     
-     rmse_var='SST' ! sea surface temperature (K)
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SST=',maxval(field2),minval(field2)
-     write(iunit)field2   !SST
-     
-     rmse_var='IVGTYP' ! vegetation type
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          ifield2,WrfType,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min IVGTYP=',maxval(ifield2),minval(ifield2)
-     write(iunit)ifield2   !IVGTYP
- 
-     rmse_var='ISLTYP' ! soil type 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          ifield2,WrfType,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min ISLTYP=',maxval(ifield2),minval(ifield2)
-     write(iunit)ifield2   !ISLTYP
-     
-     rmse_var='VEGFRC' ! vegetation fraction 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min VEGFRC=',maxval(field2),minval(field2)
-     write(iunit)field2   !VEGFRC
-     
-     rmse_var='SNO' ! liquid water equivalent of snow on ground (kg/m2) 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SNO=',maxval(field2),minval(field2)
-     write(iunit)field2   !SNO
-     
-     rmse_var='U10' ! U at 10 meter (m/s)
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min U10=',maxval(field2),minval(field2)
-     write(iunit)field2   !U10
-     
-     rmse_var='V10' ! V at 10 meter (m/s) 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min V10=',maxval(field2),minval(field2)
-     write(iunit)field2   !V10
-     
-     rmse_var='SMC' ! soil moisture volume fraction 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     k=1
-     write(6,*)' k,max,min,mid SMC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-          field3(nlon_regional/2,nlat_regional/2,1)
-     write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMC
-     
-     rmse_var='STC' ! soil temperature 
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     k=1
-     write(6,*)' k,max,min,mid STC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-          field3(nlon_regional/2,nlat_regional/2,1)
-     write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! STC
-     
-     rmse_var='TSK' ! skin temperature (K)
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index1,               & !dom
-          start_index,end_index1,               & !mem
-          start_index,end_index1,               & !pat
-          ierr                                 )
-     write(6,*)' max,min TSK=',maxval(field2),minval(field2)
-     write(iunit)field2   !TSK
+     if(guess)then
+        do k=1,nsig_read
+            write(6,'(i6,a6,3(2x,f15.6))') &
+                  k,'V',field3(1,1,k), &
+                        field3(nlon_regional/2,nlat_regional/2,k), &
+                        field3(nlon_regional,nlat_regional,k)
+        enddo
+     end if
 
-     if (n_actual_clouds>0) then! Read in cloud related fields
-        rmse_var='CWM' ! cloud water mixing ratio    
+     if(guess)then
+        rmse_var='SM' ! land-sea mask (sea=1 land=0) 
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
-        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min sm=',maxval(field2),minval(field2)
+        write(6,*)' sm(1,1),sm(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+        write(6,*)' sm(1,nlat),sm(nlon,nlat)=', &
+             field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+        write(iunit)field2   !SM
+        
+        rmse_var='SICE' ! sea ice mask (1=sea ice 0=no sea ice) 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min SICE=',maxval(field2),minval(field2)
+        write(iunit)field2   !SICE
+        
+        rmse_var='SST' ! sea surface temperature (K)
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min SST=',maxval(field2),minval(field2)
+        write(iunit)field2   !SST
+        
+        rmse_var='IVGTYP' ! vegetation type
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             ifield2,WrfType,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min IVGTYP=',maxval(ifield2),minval(ifield2)
+        write(iunit)ifield2   !IVGTYP
+ 
+        rmse_var='ISLTYP' ! soil type 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             ifield2,WrfType,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min ISLTYP=',maxval(ifield2),minval(ifield2)
+        write(iunit)ifield2   !ISLTYP
+        
+        rmse_var='VEGFRC' ! vegetation fraction 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min VEGFRC=',maxval(field2),minval(field2)
+        write(iunit)field2   !VEGFRC
+     
+        rmse_var='SNO' ! liquid water equivalent of snow on ground (kg/m2) 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min SNO=',maxval(field2),minval(field2)
+        write(iunit)field2   !SNO
+        
+        rmse_var='U10' ! U at 10 meter (m/s)
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min U10=',maxval(field2),minval(field2)
+        write(iunit)field2   !U10
+        
+        rmse_var='V10' ! V at 10 meter (m/s) 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min V10=',maxval(field2),minval(field2)
+        write(iunit)field2   !V10
+        
+        rmse_var='SMC' ! soil moisture volume fraction 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
         call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
              field3,WRF_REAL,0,0,0,ordering,           &
              staggering, dimnames ,               &
@@ -1758,8 +1834,56 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        k=1
+        write(6,*)' k,max,min,mid SMC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+             field3(nlon_regional/2,nlat_regional/2,1)
+        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMC
+        
+        rmse_var='STC' ! soil temperature 
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        k=1
+        write(6,*)' k,max,min,mid STC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+             field3(nlon_regional/2,nlat_regional/2,1)
+        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! STC
+        
+        rmse_var='TSK' ! skin temperature (K)
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        write(6,*)' max,min TSK=',maxval(field2),minval(field2)
+        write(iunit)field2   !TSK
+     end if
+   
+     if (n_actual_clouds>0) then! Read in cloud related fields
+        rmse_var='CWM' ! cloud water mixing ratio    
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        do k=1,nsig_read
+           if(guess)write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                 field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! CWM
         end do
@@ -1767,7 +1891,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
         rmse_var='F_ICE' ! fraction of ice cloud in grid box
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
-        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
         call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
              field3,WRF_REAL,0,0,0,ordering,           &
              staggering, dimnames ,               &
@@ -1775,8 +1899,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,max,min,mid F_ICE=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        do k=1,nsig_read
+           if(guess)write(6,*)' k,max,min,mid F_ICE=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                 field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_ICE
         end do
@@ -1784,7 +1908,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
         rmse_var='F_RAIN' ! fraction of rain in grid box 
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
-        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
         call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
              field3,WRF_REAL,0,0,0,ordering,           &
              staggering, dimnames ,               &
@@ -1792,8 +1916,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,max,min,mid F_RAIN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        do k=1,nsig_read
+           if(guess)write(6,*)' k,max,min,mid F_RAIN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                 field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RAIN
         end do
@@ -1801,7 +1925,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
         rmse_var='F_RIMEF' ! ? 
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
-        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
         call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
              field3,WRF_REAL,0,0,0,ordering,           &
              staggering, dimnames ,               &
@@ -1809,8 +1933,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,max,min,mid F_RIMEF=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+        do k=1,nsig_read
+           if(guess)write(6,*)' k,max,min,mid F_RIMEF=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                 field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RIMEF
         end do

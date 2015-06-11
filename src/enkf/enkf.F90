@@ -466,7 +466,7 @@ do niter=1,numiter
       end if
       if (nf2 > 0) then
           taper3=taper(obt*obtimelinv)*hpfhtcon
-!$omp parallel do  schedule(dynamic,1) private(ii,i,nn,lnsig,kfgain,taper1,taperv)
+!$omp parallel do  schedule(dynamic,1) private(ii,i,nn,nnn,lnsig,kfgain,taper1,taperv)
           do ii=1,nf2
              taper1=taper_disgrd(ii)*taper3
              i = sresults1(ii)%idx
@@ -497,7 +497,7 @@ do niter=1,numiter
 
       if (nf > 0) then
         ! find indices of 'close' obs.
-!$omp parallel do  schedule(dynamic,1) private(nob1,nob2,lnsig,obt,kfgain)
+!$omp parallel do  schedule(dynamic,1) private(nob1,nob2,nob3,lnsig,obt,kfgain)
         do nob1=1,nf
            ! Note: only really need to do obs that have not yet been processed unless sat data
            ! for bias correction update,i.e. could skip if iassim(nob2)==1.
