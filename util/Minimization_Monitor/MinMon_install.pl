@@ -40,7 +40,7 @@
       $minmon = `pwd`;
       $minmon =~ s/^\s+|\s+$//g;
    }
-   my $my_minmon = "export MY_MINMON=\${MY_RADMON:-$minmon}";
+   my $my_minmon = "export MY_MINMON=\${MY_MINMON:-$minmon}";
    print "my_minmon = $my_minmon \n";
    print"\n\n";
 
