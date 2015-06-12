@@ -1,30 +1,27 @@
 # This config file contains the compile options for compilation
-# of the EnKF code on the NOAA HPCS.
+# of the GSI code on the NOAA HPCS.
 
 # ----------------------------------
 # Set library versions
 # ----------------------------------
 
-NETCDF_VERSION = 3.6.3
-SFCIO_VERSION = 1.0.0
-SIGIO_VERSION = 1.0.1
-SP_VERSION = 2.0.1
-W3NCO_VERSION = 2.0.6
+BACIO_VER = v2.0.1
+NEMSIO_VER = v2.2.1
+SIGIO_VER = v2.0.1
+SP_VER = v2.0.2
+W3NCO_VER = v2.0.6
 
-COREINC  = /nwprod/lib/incmod
 CORELIB  = /nwprod/lib
-INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
-INCsigio = $(COREINC)/sigio_v$(SIGIO_VERSION)_4
 
-NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
-INCnetcdf  = $(NETCDFPATH)/include
+NEMSIO_INC=$(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_$(NEMSIO_VER)
+SIGIO_INC4=$(CORELIB)/sigio/$(SIGIO_VER)/incmod/sigio_$(SIGIO_VER)_4
 
-# Empty out definition of libs use by GMAO EnKF building structure
-LIBtransf = #-L$(CORELIB) -ltransf
-LIBhermes = #-L$(CORELIB) -lhermes
-LIBgfio   = #-L$(CORELIB) -lgfio
-INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
-LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
+NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
+SIGIO_LIB4=$(CORELIB)/sigio/$(SIGIO_VER)/libsigio_$(SIGIO_VER)_4.a
+SP_LIB4=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_4.a
+W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
+
 
 # ---------------------------
 # General targets/definitions
@@ -40,39 +37,19 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FC            = $(CF)
 
 #--- Normal mode options
-  PROF= #-pg
+  PROF= 
   OMP = -openmp
 
-  FFLAGS_F90    = -D_REAL4_
-
-  FFLAGS_COM_N  = -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) \
-		-O3 -fp-model strict -convert big_endian -assume byterecl \
-		-implicitnone $(OMP)
-
-  FFLAGS_COM_N_NOSWAP  = -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) \
-		-O3 -fp-model strict -convert big_endian -assume byterecl \
-		-implicitnone $(OMP)
-
-  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
-  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
-  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF)
-  FFLAGS    = $(FFLAGS_N) $(PROF)
-
+  FFLAGS_F90    = 
+  FFLAGS_COM_N  = -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O3 -fp-model source \
+  		-convert big_endian -assume byterecl -implicitnone $(OMP)
+  FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  = -I ./ \
-        -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) \
-		-O0 -fp-model strict -convert big_endian -assume byterecl \
-		-implicitnone -warn all -g -traceback -debug all -check all
-  FFLAGS_COM_NOSWAP_D  = -I ./ \
-               -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) \
-  		       -O0 -fp-model strict -convert big_endian -assume byterecl \
-		       -implicitnone -warn all -g -traceback -debug all -check all
+  FFLAGS_COM_D  =  -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O0 -fp-model source \
+  		-convert big_endian -assume byterecl -implicitnone -traceback \
+		-g -warn all -debug all -check all
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
-  FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
-
 
 
 # ----------------------
@@ -83,11 +60,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
 
 #--- Debug mode options
 
-  CFLAGS_D      = -DLINUX -Dfunder -I ./  -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
+  CFLAGS_D      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
 
 
 # ------------------
@@ -97,11 +74,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   LD            = $(CF)
 
 #--- Normal mode options
-
-  LIBS_N        = -L$(CORELIB) -lsp_v$(SP_VERSION)_d -lw3nco_v$(W3NCO_VERSION)_4 \
-  		-lsigio_v$(SIGIO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4 -lbacio_4 \
-  		-L$(NETCDFPATH)/lib -lnetcdf
-
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4)
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
@@ -111,8 +84,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = -mkl -Wl,-Map,loadmap.txt
+  LDFLAGS_D     = $(LDFLAGS_N)
 
 #--- Empty out mpi library definition: embedded in compiler
 
-  LIBmpi	=
+  LIBmpi	= 

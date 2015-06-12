@@ -98,7 +98,7 @@ nvarhumid = 4
 nvarozone = 5
 if (nproc .eq. 0) then
 if (use_gfs_nemsio) then
-     filename = trim(adjustl(datapath))//"nemsiofg_"//datestring//"_fhr06_ensmean"
+     filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_init, iret=',iret
@@ -2095,7 +2095,7 @@ if (nproc .eq. 0) then
 
    ! Build the ensemble mean filename expected by routine
   
-   filename = trim(adjustl(datapath))//"nemsiofg_"//datestring//"_fhr06_ensmean"
+   filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
   
    call nemsio_init(iret=iret)
    if(iret/=0) then

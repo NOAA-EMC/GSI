@@ -31,7 +31,7 @@ export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 #
 #  WORKDIR is working directory (temp space)
 #
-export WORKDIR=/ptmpp1/${LOGNAME}/minmon_${SUFFIX} 
+export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${SUFFIX} 
 
 # 
 #  GLB_AREA indicates the valid area of the data source
@@ -44,17 +44,16 @@ export GLB_AREA=${GLB_AREA:-1}
 #  DO_ERROR_RPT 1 = mail any error reports to the MAIL_TO and MAIL_CC lists
 #               0 = take no action on any error reports (they will be in the
 #                   ${TANKverf}/${suffix}/minmon_[yyyymmdd]/ directory)
-export DO_ERROR_RPT=${DO_ERROR_RPT:-1}
+export DO_ERROR_RPT=${DO_ERROR_RPT:-0}
 
 #
 #  MAIL_TO is the mail recpient list for error reporting
 #
-export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
+export MAIL_TO=${MAIL_TO:-""}
 
 #
 #  MAIL_CC is the mail recpient cc list for error reporting
 #
-#export MAIL_CC=${MAIL_CC:-"edward.c.safford@gmail.com"}
 export MAIL_CC=${MAIL_CC:-""}
 
 

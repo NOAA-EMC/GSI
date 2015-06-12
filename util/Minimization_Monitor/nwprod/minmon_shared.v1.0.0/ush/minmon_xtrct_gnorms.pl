@@ -58,11 +58,13 @@ sub updateGnormData {
       @filearray = <INFILE>;
 
 #   This is the mechanism that limits the data to 30 days worth.  Should I 
-#   keep it or let the transfer script(s) truncate?
-#
-#      while( $#filearray > 119 ) {  # 30 days worth of data = 120 cycles
-#         shift( @filearray );
-#      }
+#   keep it or let the transfer script(s) truncate?  6/12/16 -- I'm going to keep
+#   it.  I can add this as a later change once I add a user mechanism to vary the 
+#   amount of data plotted (on the fly).
+
+      while( $#filearray > 119 ) {  # 30 days worth of data = 120 cycles
+         shift( @filearray );
+      }
       close( INFILE );
    }
 

@@ -14,7 +14,8 @@ export envir=${envir:-prod}
 ###############################################################
 if [ $RUN_ENVIR = prod -a $envir != prod ]; then
   export SENDDBN=${SENDDBN:-NO}
-  export jlogfile=${jlogfile:-/com/logs/${envir}/jlogfile}
+  export m_jlogfile=${m_jlogfile:-/com/logs/${envir}/jlogfile}
+  export jlogfile=${m_jlogfile}
 fi
 
 
@@ -28,7 +29,8 @@ export pid=$$
 export DATA_IN=${DATA_IN:-/tmpnwprd}
 export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
 export SUFFIX=${MINMON_SUFFIX}
-export job=${job:-${SUFFIX}_mmDE}
+export m_job=${m_job:-${SUFFIX}_mmDE}
+export job=${m_job}
 
 export DATA=$DATA_IN/${job}.${pid}
 mkdir -p $DATA

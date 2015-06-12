@@ -106,9 +106,9 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
-export jlogfile="${jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
-echo  "jlogfile = $jlogfile"
-export jobname=minmon_de_${MINMON_SUFFIX}
+export m_jlogfile="${jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
+echo  "m_jlogfile = $jlogfile"
+jobname=minmon_de_${MINMON_SUFFIX}
 
 rm -f $jlogfile
 rm -rf $DATA_IN
