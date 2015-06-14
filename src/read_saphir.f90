@@ -475,7 +475,12 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      else
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
              idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+
+           if(isflg/=0) cycle ObsLoop                     ! use data over water only
+
      endif
+
+
 
      crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01_r_kind * abs(zz)
      call checkob(dist1,crit1,itx,iuse)
@@ -509,7 +514,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      data_all(5 ,itx)= lza                       ! local zenith angle
      data_all(6 ,itx)= satazi                    ! local azimuth angle
      data_all(7 ,itx)= panglr                    ! look angle
-     data_all(8 ,itx)= ifovmod                   ! scan position
+     data_all(8 ,itx)= ifov                      ! scan position
      data_all(9 ,itx)= solzen                    ! solar zenith angle
      data_all(10,itx)= solazi                    ! solar azimuth angle
      data_all(11,itx) = sfcpct(0)                ! sea percentage of
@@ -566,7 +571,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
-! 
   if(mype_sub==mype_root)then
      do n=1,ndata
         do i=1,nchanl
