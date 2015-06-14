@@ -50,6 +50,7 @@ module qcmod
 !                         cloud info, diff_clw, scattering and surface wind
 !                         speed for AMSUA/ATMS cloudy radiance assimilation
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
+!   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -1163,8 +1164,8 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 ! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
   if(gmi) then
      clwcutofx(1:nchanl) =  &
-          (/0.35_r_kind, 0.35_r_kind, 0.35_r_kind, 0.35_r_kind, 0.27_r_kind, &
-            0.10_r_kind, 0.10_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, &
+          (/0.05_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, &
+            0.05_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, 0.05_r_kind, &
             0.05_r_kind, 0.05_r_kind, 0.05_r_kind/)
   end if
 
@@ -1176,13 +1177,14 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !    Over sea
   if(sea) then
 
-!    clw qc
+!    rain qc
      if( kraintype /= 0 ) then
         efact=zero; vfact=zero
         if(luse) then
            aivals(8) = aivals(8) + one
 
            do i=1,nchanl
+              varinv(i)=zero
               if( id_qc(i)== igood_qc .and. kraintype/= 0) then
                 id_qc(i)=ifail_krain_gmi_qc
               endif
@@ -1385,13 +1387,14 @@ subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !    Over sea
   if(sea) then
 
-!    clw qc
+!    rain qc
      if( kraintype /= 0 ) then
         efact=zero; vfact=zero
         if(luse) then
            aivals(8) = aivals(8) + one
 
            do i=1,nchanl
+              varinv(i)=zero
               if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_amsr2_qc
            end do
         end if
@@ -1511,6 +1514,7 @@ subroutine qc_saphir(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
            aivals(8) = aivals(8) + one
 
            do i=1,nchanl
+              varinv(i)=zero
               if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_saphir_qc
            end do
         end if
