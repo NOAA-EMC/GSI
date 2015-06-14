@@ -10,6 +10,7 @@ subroutine general_read_nmmb(grd,filename,mype,g_z,g_ps,g_u,g_v,g_tv,g_tsen,g_q,
 !
 ! program history log:
 !   2011-07-01  carley     - Initial adaptation
+!   2015-05-12  wu         - changes to read in multiple guess files for FGAT/4DEnVar 
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid
@@ -43,7 +44,7 @@ subroutine general_read_nmmb(grd,filename,mype,g_z,g_ps,g_u,g_v,g_tv,g_tsen,g_q,
          g_tv,g_tsen,g_q,g_oz
 
 !   Declare local variables
-    integer(i_kind) i,j,k,kr,nsig,lat2,lon2,mype_input
+    integer(i_kind) i,j,k,kr,nsig,lat2,lon2,mype_input,ierr
     real(r_kind) pd,psfc_this,pd_to_ps,dumtv                                                     
     logical good_o3mr
     real(r_kind),dimension(grd%lat2,grd%lon2) :: g_pd
@@ -64,7 +65,7 @@ subroutine general_read_nmmb(grd,filename,mype,g_z,g_ps,g_u,g_v,g_tv,g_tsen,g_q,
    mype_input=0
 
      call gsi_nemsio_open(filename,'READ', &
-                          'GENERAL_READ_NMMB:  problem with ens input file!',mype,mype_input)
+                          'GENERAL_READ_NMMB:  problem with ens input file!',mype,mype_input,ierr)
                           
 !                            ! pd
 

@@ -16,6 +16,7 @@ subroutine get_gefs_for_regional
 !   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
 !   2013-10-19  todling - all guess variables in met-guess
 !   2014-12-03  derber - changes to call for general_read_gfsatm
+!   2015-05-12  wu      - changes to read in multiple ensemble for 4DEnVar
 !
 !   input argument list:
 !
@@ -33,7 +34,8 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time    
+  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
+  use hybrid_ensemble_parameters, only: ntlevs_ens
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -51,12 +53,13 @@ subroutine get_gefs_for_regional
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ntguessig,geop_hgti
-  use guess_grids, only: ges_tsen
+  use guess_grids, only: ges_tsen,ifilesig,hrdifsig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
+  use gsi_4dvar, only: nhr_assimilation
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -67,7 +70,7 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable :: tmp_ens(:,:,:,:),tmp_anl(:,:,:,:),tmp_ens2(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),allocatable,dimension(:,:)::  sstbar,pbar_nmmb
+  real(r_kind),allocatable,dimension(:,:)::  pbar_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:)::st_eg,vp_eg,t_eg,rh_eg,oz_eg,cw_eg
   real(r_kind),allocatable,dimension(:,:,:):: p_eg_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl_e
@@ -79,9 +82,9 @@ subroutine get_gefs_for_regional
   character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
-  integer(i_kind) ic2,ic3
+  integer(i_kind) ic2,ic3,it
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
-  character(255) filename
+  character(255) filename,filelists(ntlevs_ens)
   logical ice
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
@@ -108,6 +111,8 @@ subroutine get_gefs_for_regional
   real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
   integer(i_kind) ii,jj,n1
   integer(i_kind) iimax,iimin,jjmax,jjmin
+  integer(i_kind) nming1,nming2
+  integer(i_kind) its,ite
   real(r_kind) ratio_x,ratio_y
 
   real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
@@ -119,21 +124,38 @@ subroutine get_gefs_for_regional
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
+  if(ntlevs_ens > 1) then
+     do i=1,ntlevs_ens
+        write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+     enddo
+     its=1
+     ite=ntlevs_ens
+  else
+     write(filelists(1),'("filelist",i2.2)')nhr_assimilation
+     its=ntguessig
+     ite=ntguessig
+  endif
+
+  do it=its,ite
 ! get pointers for typical meteorological fields
   ier=0
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'z', ges_z, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'u', ges_u, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'v', ges_v, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'tv',ges_tv,istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'q' ,ges_q, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps',ges_ps,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z', ges_z, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u', ges_u, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v', ges_v, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv',ges_tv,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q, istatus );ier=ier+istatus
   if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
 !  filename='sigf06_ens_mem001'
-  open(10,file='filelist',form='formatted',err=30)
+  if(ntlevs_ens > 1) then
+     open(10,file=trim(filelists(it)),form='formatted',err=30)
+  else
+     open(10,file=trim(filelists(1)),form='formatted',err=30)
+  endif
   rewind (10) 
   do n=1,200
      read(10,'(a)',err=20,end=40)filename 
@@ -193,14 +215,19 @@ subroutine get_gefs_for_regional
   iadate_gfs(1)=jda(1) ! year
   iadate_gfs(2)=jda(2) ! mon
   iadate_gfs(3)=jda(3) ! day
-  iadate_gfs(4)=jda(5) ! hour
+  if(ntlevs_ens > 1) then
+     iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
+  else
+     iadate_gfs(4)=jda(5) ! hour
+  endif
   iadate_gfs(5)=0      ! minute
   if(mype == 0) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if
-  if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
-                                 iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
+           call w3fs21(iadate,nming1)
+           call w3fs21(iadate_gfs,nming2)
+  if( nming1/=nming2 ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
      if(.not.l_ens_in_diff_time) call stop2(85)
   end if
@@ -592,11 +619,10 @@ subroutine get_gefs_for_regional
   allocate(ozbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(cwbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(pbar_nmmb(grd_mix%lat2,grd_mix%lon2))
-  allocate(sstbar(grd_mix%lat2,grd_mix%lon2))
 
 !   compute mean state
   stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
-  sstbar=zero ; pbar_nmmb=zero
+  pbar_nmmb=zero
   do n=1,n_ens
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
@@ -734,9 +760,9 @@ subroutine get_gefs_for_regional
 
   allocate(ges_prsl_e(grd_ens%inner_vars,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   if(dual_res) then
-     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,1,1,ntguessig),ges_prsl_e(:,1,1,1),regional) ! x?
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,1,1,it),ges_prsl_e(1,:,1,1),regional) ! x?
   else
-     ges_prsl_e(1,:,:,:)=ges_prsl(:,:,:,ntguessig)
+     ges_prsl_e(1,:,:,:)=ges_prsl(:,:,:,it)
   end if
 
   allocate(xspli(grd_mix%nsig),yspli(grd_mix%nsig),xsplo(grd_ens%nsig),ysplo(grd_ens%nsig))
@@ -853,7 +879,7 @@ subroutine get_gefs_for_regional
               end do
            end do
         end do
-        call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
+        call genqsat(qs,ges_tsen(:,:,:,it),ges_prsl(:,:,:,it),lat2,lon2,nsig,ice,iderivative)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!! The first member is full perturbation based on regional first guess !!!
@@ -958,7 +984,11 @@ subroutine get_gefs_for_regional
 !                                                  end if
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        if(ntlevs_ens > 1) then
+           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
+        else
+           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        endif
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -1034,7 +1064,11 @@ subroutine get_gefs_for_regional
      end do
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        if(ntlevs_ens > 1) then
+           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
+        else
+           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        endif
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)
@@ -1063,6 +1097,14 @@ subroutine get_gefs_for_regional
      end do
   end do
 
+!
+! CALCULATE ENSEMBLE SPREAD
+  if(write_ens_sprd)then
+     call mpi_barrier(mpi_comm_world,ierror)
+     call ens_spread_dualres_regional(mype)
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
+
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
   deallocate(st_eg,vp_eg,t_eg,rh_eg)
@@ -1072,6 +1114,7 @@ subroutine get_gefs_for_regional
   deallocate(prsl)
   deallocate(ut,vt,tt,rht,ozt,cwt)
 
+  enddo ! it=1,ntlevs_ens
   return
 
 30 write(6,*) 'GET_GEFS+FOR_REGIONAL open filelist failed '

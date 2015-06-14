@@ -751,6 +751,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                        air_rad(ichan1)*cbias(15,ichan1)
                  ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
                        air_rad(ichan2)*cbias(15,ichan2)   
+                 ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
               end if
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)

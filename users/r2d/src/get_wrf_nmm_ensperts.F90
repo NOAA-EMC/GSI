@@ -24,12 +24,14 @@ subroutine get_wrf_nmm_ensperts
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: netcdf,half_grid,filled_grid,regional
+    use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
     use hybrid_ensemble_isotropic, only: en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
-                         rd_over_cp,one_tenth
+                         rd_over_cp,one_tenth,ten
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens, &
-                                          merge_two_grid_ensperts,uv_hyb_ens,grid_ratio_ens
+                                          merge_two_grid_ensperts,uv_hyb_ens, &
+                                          grid_ratio_ens,write_ens_sprd
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use mpeu_util, only: getindex
     use gsi_io, only: lendian_in
@@ -44,12 +46,14 @@ subroutine get_wrf_nmm_ensperts
     use gsi_bundlemod, only: gsi_bundledestroy
     use gsi_bundlemod, only: gsi_gridcreate
     use gsi_4dvar, only: nhr_assimilation
+    use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,blend_rm, &
+                                aeta1_save,aeta2_save 
+    use aniso_ens_util, only: intp_spl
 
     implicit none
 
     real(r_kind),allocatable,dimension(:,:,:):: u,v,tv,cwmr,oz,rh
     real(r_kind),allocatable,dimension(:,:):: ps
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d)
 
     real(r_single),pointer,dimension(:,:,:):: w3
     real(r_single),pointer,dimension(:,:):: w2
@@ -70,11 +74,10 @@ subroutine get_wrf_nmm_ensperts
     logical,allocatable::vector(:)
     integer(i_kind):: nc3d_half,nc2d_half
     integer(i_kind):: kuv,ktvrh,kozcw,kps
-    integer(i_kind):: nlat_regional,nlon_regional,nsig,nlon_e,nlat_e
+    integer(i_kind):: nlat_regional,nlon_regional,nsig_regional,nlon_e,nlat_e
     real(r_single) dlmd_d02,dphd_d02,dlmd_anl,dphd_anl
-
     integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-    integer(i_kind):: nmix,nord_blend,nord_e2a
+    integer(i_kind):: nmix,nord_blend,nord_e2a,nsig_e,nsig_r
     real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
     real(r_kind),allocatable,dimension(:,:,:,:) :: fields_e,fields_a
     real(r_kind),allocatable,dimension(:,:,:,:) :: fields_e2a,fields_e2a_d02
@@ -82,6 +85,8 @@ subroutine get_wrf_nmm_ensperts
     real(r_kind),allocatable,dimension(:,:,:,:) :: work_sub
     real(r_kind),allocatable,dimension(:,:) :: mask
     real(r_single),allocatable,dimension(:,:) :: outwork
+    real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
+    real(r_kind) prsl
 
     character(24) filename,blendname
     logical test
@@ -117,7 +122,7 @@ subroutine get_wrf_nmm_ensperts
     if(.not. fexist) call stop2(400)
     open(lendian_in,file=filename,form='unformatted')
     rewind lendian_in
-    read(lendian_in) nlon_regional,nlat_regional,nsig
+    read(lendian_in) nlon_regional,nlat_regional,nsig_regional
     close(lendian_in)
     if(filled_grid) then
        nlon_e=2*nlon_regional-1
@@ -127,16 +132,37 @@ subroutine get_wrf_nmm_ensperts
        nlon_e=nlon_regional
        nlat_e=1+nlat_regional/2
     endif
-    if(mype == 0)print *,'nlon_e, nlat_e=', nlon_e, nlat_e
+    if(use_gfs_stratosphere) then
+       nsig_e=nsig_save
+       do k=1,grd_ens%nsig
+          if(blend_rm(k) < one)then
+             nsig_r=k
+             exit
+          end if
+       end do
+    else
+       nsig_e=nsig_regional
+    end if
+    if(use_gfs_stratosphere .and. mype == 0)print *,'get_wrf_nmm_enperts:nsig_r=',nsig_r
+
+    if(use_gfs_stratosphere)then
+       allocate(xspli(nsig_save),yspli(nsig_save))
+       allocate(xsplo(grd_ens%nsig),ysplo(grd_ens%nsig))
+    end if
+
+    write(6,*) 'get_wrf_nmm_enperts: nlon_regional,nlat_regional,nsig_regional=', &
+                nlon_regional,nlat_regional,nsig_regional
+    write(6,*) 'get_wrf_nmm_enperts: nlon_e,nlat_e,nsig_e,nsig_save=', &
+                nlon_e,nlat_e,nsig_e,nsig_save
        
     inner_vars=2
     nc3d_half=(nc3d+1)/2
     nc2d_half=(nc2d+1)/2
-    num_fields=max(0,nc3d_half)*nsig+max(0,nc2d_half)
+    num_fields=max(0,nc3d_half)*nsig_e+max(0,nc2d_half)
     allocate(vector(num_fields))
     vector=.false.
-    vector(1:nsig)=uv_hyb_ens
-    call general_sub2grid_create_info(grd_ens_d01,inner_vars,nlat_e,nlon_e,nsig,num_fields,regional,vector)
+    vector(1:nsig_e)=uv_hyb_ens
+    call general_sub2grid_create_info(grd_ens_d01,inner_vars,nlat_e,nlon_e,nsig_e,num_fields,regional,vector)
 
     if(merge_two_grid_ensperts)then
        filename='sigf06_d02_ens_mem001'
@@ -144,7 +170,7 @@ subroutine get_wrf_nmm_ensperts
        if(.not. fexist) call stop2(400)
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
-       read(lendian_in) nlon_regional,nlat_regional,nsig,dlmd_d02,dphd_d02
+       read(lendian_in) nlon_regional,nlat_regional,nsig_regional,dlmd_d02,dphd_d02
        close(lendian_in)
 
        if(filled_grid) then
@@ -155,7 +181,7 @@ subroutine get_wrf_nmm_ensperts
           nlon_e=nlon_regional
           nlat_e=1+nlat_regional/2
        endif
-       call general_sub2grid_create_info(grd_ens_d02,inner_vars,nlat_e,nlon_e,nsig,num_fields,regional,vector)
+       call general_sub2grid_create_info(grd_ens_d02,inner_vars,nlat_e,nlon_e,nsig_e,num_fields,regional,vector)
 
 !      find overlap area for domain 2 ensemble members and creat blending mask
 !      read analysis grid resolution
@@ -165,7 +191,7 @@ subroutine get_wrf_nmm_ensperts
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig, &
+          nlon_regional,nlat_regional,nsig_regional, &
           dlmd_anl,dphd_anl
        close(lendian_in)
 
@@ -193,7 +219,7 @@ subroutine get_wrf_nmm_ensperts
 
     end if
 
-    call general_sub2grid_create_info(grd_mix,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig, &
+    call general_sub2grid_create_info(grd_mix,inner_vars,grd_ens%nlat,grd_ens%nlon,nsig_e, &
                                       num_fields,regional,vector)
 
     deallocate(vector)
@@ -223,7 +249,8 @@ subroutine get_wrf_nmm_ensperts
        nmix=0
        nord_blend=0
        call merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_lat_ens,region_lon_ens, &
-              grd_ens_d01%nlat,grd_ens_d01%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
+              grd_ens_d01%nlat,grd_ens_d01%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,    &
+              gt_e,gt_a,p_e2a)
        deallocate(region_lat_e,region_lon_e)
 
        test=.false.
@@ -236,9 +263,9 @@ subroutine get_wrf_nmm_ensperts
                 ii=ii+1
                 outwork(j,i)=p_e2a%blend(ii)
              end do
-         end do
-         call outgrads1(outwork,nlon_ens,nlat_ens,'pblend')
-         deallocate(outwork)
+          end do
+          call outgrads1(outwork,nlon_ens,nlat_ens,'pblend')
+          deallocate(outwork)
        end if
 
        if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
@@ -366,7 +393,7 @@ subroutine get_wrf_nmm_ensperts
                 end do
              end do
 
-             call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
+ !            call grads3a(grd_mix,u,v,tv,rh,ps,grd_mix%nsig,mype,filename)
    
              deallocate(fields_sube2a)
           end if
@@ -615,7 +642,26 @@ subroutine get_wrf_nmm_ensperts
 
        end if
 
-!       call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
+!       call grads3a(grd_mix,u,v,tv,rh,ps,grd_mix%nsig,mype,filename)
+
+       if(use_gfs_stratosphere)then
+          do j=1,grd_ens%lon2
+             do i=1,grd_ens%lat2
+                do k=1,nsig_save
+                   prsl=one_tenth*(aeta1_save(k)*pdtop_ll + &
+                          aeta2_save(k)*(ten*ps(i,j)-pdtop_ll-pt_ll) + &
+                          pt_ll)
+                   xspli(k)=log(prsl*ten)
+                end do
+                do k=1,grd_ens%nsig
+                   prsl=one_tenth*(aeta1_ll(k)*pdtop_ll + &
+                          aeta2_ll(k)*(ten*ps(i,j)-pdtop_ll-pt_ll) + &
+                          pt_ll)
+                   xsplo(k)=log(prsl*ten)
+                end do
+             end do
+          end do
+       end if
 
 !
 ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -636,7 +682,7 @@ subroutine get_wrf_nmm_ensperts
 
              case('sf','SF')
 
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = u(i,j,k)
@@ -647,7 +693,7 @@ subroutine get_wrf_nmm_ensperts
   
              case('vp','VP')
   
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = v(i,j,k)
@@ -658,7 +704,7 @@ subroutine get_wrf_nmm_ensperts
   
              case('t','T')
   
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = tv(i,j,k)
@@ -669,7 +715,7 @@ subroutine get_wrf_nmm_ensperts
   
              case('q','Q')
   
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = rh(i,j,k)
@@ -681,7 +727,7 @@ subroutine get_wrf_nmm_ensperts
              case('oz','OZ')
 !            temporarily ignore ozone perturbations
 
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = oz(i,j,k)
@@ -693,7 +739,7 @@ subroutine get_wrf_nmm_ensperts
              case('cw','CW')
   !          temporarily ignore cloud water perturbations
   
-                do k=1,grd_ens%nsig
+                do k=1,nsig_e
                    do j=1,grd_ens%lon2
                       do i=1,grd_ens%lat2
                          w3(i,j,k) = cwmr(i,j,k)
@@ -703,6 +749,22 @@ subroutine get_wrf_nmm_ensperts
                 end do
 
           end select
+
+          if(use_gfs_stratosphere)then
+             do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                   do k=1,nsig_save
+                      yspli(k)=w3(i,j,k)
+                   end do
+                   call intp_spl(xspli,yspli,xsplo,ysplo,nsig_save,grd_ens%nsig)
+                   do k=1,grd_ens%nsig
+                      if(xsplo(k) < xspli(nsig_save)) ysplo(k)=yspli(nsig_save)
+                      if(xsplo(k) > xspli(1)) ysplo(k)=yspli(1)
+                      w3(i,j,k) = ysplo(k)
+                   end do
+                end do
+             end do
+          end if
        end do
 
        do ic2=1,nc2d
@@ -736,6 +798,39 @@ subroutine get_wrf_nmm_ensperts
 
     end do
 
+    if(use_gfs_stratosphere)then
+       deallocate(xspli,yspli,xsplo,ysplo)
+    end if
+
+
+    if (use_gfs_stratosphere)then
+        do n=1,n_ens
+           do ic3=1,nc3d
+              call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+              if(istatus/=0) then
+                 write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' &
+                 for ensemble member ',n
+                 call stop2(999)
+              end if
+              call gsi_bundlegetpointer(en_bar,trim(cvars3d(ic3)),x3,istatus)
+              if(istatus/=0) then
+                 write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
+                 call stop2(999)
+              end if
+              do k=nsig_r,grd_ens%nsig
+                 do j=1,grd_ens%lon2
+                    do i=1,grd_ens%lat2
+                       if(n == 1)then
+                          x3(i,j,k)=zero
+                       end if
+                       x3(i,j,k) = x3(i,j,k)+w3(i,j,k)
+                    end do
+                 end do
+              end do
+           end do
+        end do
+    end if
+
     if(merge_two_grid_ensperts)then
        deallocate(mask)
     end if
@@ -765,11 +860,11 @@ subroutine get_wrf_nmm_ensperts
        end if
     end do
 
-    call mpi_barrier(mpi_comm_world,ierror)
-!
-! CALCULATE ENSEMBLE SPREAD
-    call ens_spread_dualres_regional(en_bar,mype)
-    call mpi_barrier(mpi_comm_world,ierror)
+    if(write_ens_sprd)then
+       call mpi_barrier(mpi_comm_world,ierror)
+       call ens_spread_dualres_regional(mype,en_bar)
+       call mpi_barrier(mpi_comm_world,ierror)
+    end if
 !
 ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
     sig_norm=sqrt(one/max(one,n_ens-one))
@@ -784,173 +879,10 @@ subroutine get_wrf_nmm_ensperts
 
    test=.false.
    if(test)then
-      allocate(u(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-      allocate(v(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-      allocate(tv(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-      allocate(rh(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-      allocate(ps(grd_ens%lat2,grd_ens%lon2))
-  
-      u=zero; v=zero; tv=zero; rh=zero; ps=zero
-  
-      call gsi_bundlegetpointer(en_bar,cvars3d,ipc3d,istatus)
-      if(istatus/=0) then
-        write(6,*) 'in get_wrf_nmm_ensperts: cannot find 3d pointers'
-        call stop2(999)
-      endif
-      call gsi_bundlegetpointer(en_bar,cvars2d,ipc2d,istatus)
-      if(istatus/=0) then
-        write(6,*) 'in get_wrf_nmm_ensperts: cannot find 2d pointers'
-        call stop2(999)
-      endif
-  
-      do ic3=1,nc3d
-         select case (trim(cvars3d(ic3)))
-  
-            case('sf','SF')
-  
-               do k=1,grd_ens%nsig
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        u(i,j,k) = en_bar%r3(ipc3d(ic3))%q(i,j,k)
-                     end do
-                  end do
-               end do
-
-            case('vp','VP')
-
-               do k=1,grd_ens%nsig
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        v(i,j,k) = en_bar%r3(ipc3d(ic3))%q(i,j,k)
-                     end do
-                  end do
-               end do
-
-            case('t','T')
-
-               do k=1,grd_ens%nsig
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        tv(i,j,k) = en_bar%r3(ipc3d(ic3))%q(i,j,k)
-                     end do
-                  end do
-               end do
-
-            case('q','Q')
-
-               do k=1,grd_ens%nsig
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        rh(i,j,k) = en_bar%r3(ipc3d(ic3))%q(i,j,k)
-                     end do
-                  end do
-               end do
-
-         end select
-      end do
-
-      do ic2=1,nc2d
-         select case (trim(cvars2d(ic2)))
-
-            case('ps','PS')
-
-               do j=1,grd_ens%lon2
-                  do i=1,grd_ens%lat2
-                     ps(i,j) = en_bar%r2(ipc2d(ic2))%q(i,j)
-                  end do
-               end do
-
-         end select
-      end do
-
-      call grads3a(grd_ens,u,v,tv,rh,ps,grd_ens%nsig,mype,'en_bar')
-
-!     output perturbations
-
-      do n=1,n_ens
-
-         write(filename,"('enpert',i3.3)") n
-
-         call gsi_bundlegetpointer(en_perts(n,1),cvars3d,ipc3d,istatus) 
-         if(istatus/=0) then
-           write(6,*) 'in get_wrf_nmm_ensperts: cannot find 3d pointers'
-           call stop2(999)
-         endif
-         call gsi_bundlegetpointer(en_perts(n,1),cvars2d,ipc2d,istatus)
-         if(istatus/=0) then
-           write(6,*) 'in get_wrf_nmm_ensperts: cannot find 2d pointers'
-           call stop2(999)
-         endif
-
-         do ic3=1,nc3d
-            select case (trim(cvars3d(ic3)))
-     
-               case('sf','SF')
-
-                  do k=1,grd_ens%nsig
-                     do j=1,grd_ens%lon2
-                        do i=1,grd_ens%lat2
-                           u(i,j,k) = en_perts(n,1)%r3(ipc3d(ic3))%qr4(i,j,k)
-                        end do
-                     end do
-                  end do
-
-               case('vp','VP')
-  
-                  do k=1,grd_ens%nsig
-                     do j=1,grd_ens%lon2
-                        do i=1,grd_ens%lat2
-                           v(i,j,k) = en_perts(n,1)%r3(ipc3d(ic3))%qr4(i,j,k)
-                        end do
-                     end do
-                  end do
-  
-               case('t','T')
-  
-                  do k=1,grd_ens%nsig
-                     do j=1,grd_ens%lon2
-                        do i=1,grd_ens%lat2
-                           tv(i,j,k) = en_perts(n,1)%r3(ipc3d(ic3))%qr4(i,j,k)
-                        end do
-                     end do
-                  end do
-  
-               case('q','Q')
-  
-                  do k=1,grd_ens%nsig
-                     do j=1,grd_ens%lon2
-                        do i=1,grd_ens%lat2
-                           rh(i,j,k) = en_perts(n,1)%r3(ipc3d(ic3))%qr4(i,j,k)
-                        end do
-                     end do
-                  end do
-  
-            end select
-         end do
-
-         do ic2=1,nc2d
-            select case (trim(cvars2d(ic2)))
-
-               case('ps','PS')
-
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        ps(i,j) = en_perts(n,1)%r2(ipc2d(ic2))%qr4(i,j)
-                     end do
-                  end do
-
-            end select
-         end do
-
-         call grads3a(grd_ens,u,v,tv,rh,ps,grd_ens%nsig,mype,filename) 
-
-      end do
-
-      deallocate(u,v,tv,rh,ps)
-   end if ! if(test)then
-
-!!! end test
-
+       call mpi_barrier(mpi_comm_world,ierror)
+       call ens_member_mean_dualres_regional(en_bar,mype)
+       call mpi_barrier(mpi_comm_world,ierror)
+    end if
 !
    call gsi_bundledestroy(en_bar,istatus)
    if(istatus/=0) then
@@ -1713,383 +1645,6 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
 return       
 end subroutine general_read_wrf_nmm_binary
 
-subroutine convert_netcdf_nmm_ens
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convert_netcdf_nmm_ens    read wrf nmm netcdf restart
-!   prgmmr: parrish          org: np22                date: 2003-09-05
-!
-! abstract: using wrf library routines, read a wrf nmm netcdf
-!             format restart file.  write the result to temporary netcdf
-!             file expected by read_wrf_nmm_guess.
-!
-! program history log:
-!   2010-12-07  tong - adopt convert_netcdf_nmm to read wrf nmm ensemble forecast
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-     use kinds, only: r_kind,r_single,i_kind
-     use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
-     use gridmod, only: half_grid,filled_grid,fill_nmm_grid2a3,half_nmm_grid2a
-     use constants, only: half,rad2deg,zero
-     use gsi_io, only: lendian_in
-     use general_sub2grid_mod, only: sub2grid_info
-     use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
-     implicit none
-  
-     character(len=9)  :: wrfens 
-     character(len=24)  :: fileout
-     character(len=19)  :: DateStr1
-     integer(i_kind)    :: dh1
-
-     integer(i_kind) :: ndim1
-     integer(i_kind) :: WrfType
-     integer(i_kind), dimension(4)  :: start_index, end_index1
-     character (len= 4) :: staggering=' N/A'
-     character (len= 3) :: ordering
-
-     character (len=80), dimension(3)  ::  dimnames
-     character (len=80) :: SysDepInfo
-
-     integer(i_kind) :: ierr, Status, Status_next_time
-
-     character (len=31) :: rmse_var
-
-     integer(i_kind) n, nlp
-     integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-     integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlat,nlon
-     real(r_single) pt_regional,pdtop_regional
-     real(r_single) dlmd_regional,dphd_regional
-     real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
-     integer(i_kind),allocatable::ifield2(:,:)
-
-     real(r_single),allocatable:: glat(:,:),glon(:,:)
-     real(r_kind),allocatable:: glat8(:,:),glon8(:,:)
-     real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
-     real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
-     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
-     real(r_kind),allocatable::region_lat(:,:),region_lon(:,:)
-     integer(i_kind) :: iunit
-     integer(i_kind) :: i0,j0,i,j,k
-     integer(i_kind) :: wrf_real
-     data iunit / 15 /
-     wrf_real=104
-
-!  NMM input grid dimensions in module reg_glob_ll
-!      These are the following:
-!          im -- number of NMM longitudes (x-points) on E-grid
-!          jm -- number of NMM latitudes (y-points) on E-grid
-!          lm -- number of NMM vertical levels ( = nsig for now)
-
-
-     call ext_ncd_ioinit(sysdepinfo,status)
-     call set_wrf_debug_level ( 1 )
-
-     if(.not. merge_two_grid_ensperts) then
-        nlp=n_ens
-     else
-        nlp=2*n_ens
-     endif
-     n_loop: do n=1,nlp
- 
-        if(.not. merge_two_grid_ensperts)then
-           write(wrfens,'("wrf_en",i3.3)')n
-           write(fileout,'("sigf06_ens_mem",i3.3)')n
-        else
-           if(n <= n_ens)then
-              write(wrfens,'("d01_en",i3.3)')n
-              write(fileout,'("sigf06_ens_mem",i3.3)')n
-           else
-              write(wrfens,'("d02_en",i3.3)')n-n_ens
-              write(fileout,'("sigf06_d02_ens_mem",i3.3)')n-n_ens
-           endif
-        endif
-
-        call ext_ncd_open_for_read( trim(wrfens), 0, 0, "", dh1, Status)
-        if ( Status /= 0 )then
-           write(6,*)'convert_netcdf_nmm_ens:  problem with wrfens = ',&
-                trim(wrfens),', Status = ', Status
-           call stop2(74)
-        endif
-
-        open(iunit,file=fileout,form='unformatted')
-
-      !-------------  get date info
-
-        call ext_ncd_get_next_time(dh1, DateStr1, Status_next_time)
-        read(DateStr1,'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') iyear,imonth,iday,ihour,iminute,isecond
-!        write(6,*)'convert_netcdf_nmm_ens: iy,m,d,h,m,s=',iyear,imonth,iday,ihour,iminute,isecond
-
-      !-------------  get grid info
-        rmse_var='T'
-        call ext_ncd_get_var_info (dh1,rmse_var,ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-        nlon_regional=end_index1(1)
-        nlat_regional=end_index1(2)
-        nsig_regional=end_index1(3)
-   
-        allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))
-        allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
-        allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))
-        allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
-   
-        rmse_var='DLMD'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             dlmd_regional,WRF_REAL,0,0,0,ordering,          &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-   
-        rmse_var='DPHD'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             dphd_regional,WRF_REAL,0,0,0,ordering,          &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-   
-        rmse_var='PT'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             pt_regional,WRF_REAL,0,0,0,ordering,          &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-
-        rmse_var='PDTOP'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-                pdtop_regional,WRF_REAL,0,0,0,ordering,       &
-                staggering, dimnames ,               &
-                start_index,end_index1,               & !dom
-                start_index,end_index1,               & !mem
-                start_index,end_index1,               & !pat
-             ierr                                 )
-   
-        write(iunit) nlon_regional,nlat_regional,nsig_regional, &
-             dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-      
-        rmse_var='AETA1'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field1,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,                    &
-             start_index,end_index1,                   & !dom
-             start_index,end_index1,                   & !mem
-             start_index,end_index1,                   & !pat
-             ierr                                 )
-!        do k=1,nsig_regional
-!           write(6,*)' k,aeta1(k)=',k,field1(k)
-!        end do
-        write(iunit)field1(1:nsig_regional)  ! AETA1
-   
-        rmse_var='AETA2'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field1,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,                    &
-             start_index,end_index1,                   & !dom
-             start_index,end_index1,                   & !mem
-             start_index,end_index1,                   & !pat
-             ierr                                 )
-!        do k=1,nsig_regional
-!           write(6,*)' k,aeta2(k)=',k,field1(k)
-!        end do
-        write(iunit)field1(1:nsig_regional)  ! AETA2
-   
-        rmse_var='GLAT'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field2,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-         glat=field2
-!        write(6,*)' max,min GLAT=',rad2deg*maxval(field2),rad2deg*minval(field2)
-!        write(6,*)' glat(1,1),glat(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-!        write(6,*)' glat(1,nlat),glat(nlon,nlat)=', &
-!             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-
-        rmse_var='GLON'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field2,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-         glon=field2
-!        write(6,*)' max,min GLON=',rad2deg*maxval(field2),rad2deg*minval(field2)
-!        write(6,*)' glon(1,1),glon(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-!        write(6,*)' glon(1,nlat),glon(nlon,nlat)=', &
-!             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-
-        if(filled_grid) then
-           nlon=2*nlon_regional-1
-           nlat=nlat_regional
-        end if
-        if(half_grid) then
-           nlon=nlon_regional
-           nlat=1+nlat_regional/2
-        end if
-
-        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
-        allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
-        if(half_grid) then
-           call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
-           call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
-        end if
-
-        if(filled_grid) then
-           allocate(gxtemp(nlon_regional,nlat_regional))
-           allocate(gytemp(nlon_regional,nlat_regional))
-           allocate(glon8(nlon_regional,nlat_regional))
-           allocate(glat8(nlon_regional,nlat_regional))
-           glon8=glon
-           glat8=glat
-           i0=nlon_regional/2
-           j0=nlat_regional/2
-           call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
-                          gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
-           allocate(gxtemp_an(nlon,nlat))
-           allocate(gytemp_an(nlon,nlat))
-           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
-           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
-           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
-                          glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
-           deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
-        end if
-
-        do k=1,nlon
-           do i=1,nlat
-              region_lat(i,k)=glat_an(k,i)
-              region_lon(i,k)=glon_an(k,i)
-           end do
-        end do
-      
-        write(iunit)region_lat
-        write(iunit)region_lon
-      
-        deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
-
-        rmse_var='PD'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field2,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-!        write(6,*)' max,min pd=',maxval(field2),minval(field2)
-        write(iunit)field2   !PD
-   
-        rmse_var='T'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-        do k=1,nsig_regional
-!           write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-!                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
-        end do
-   
-        rmse_var='Q'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-        do k=1,nsig_regional
-!           write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-!                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
-        end do
-   
-        rmse_var='U'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-        do k=1,nsig_regional
-!           write(6,*)' k,max,min,mid U=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-!                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! U
-        end do
-   
-        rmse_var='V'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-!        write(6,*)' rmse_var=',trim(rmse_var)
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-        do k=1,nsig_regional
-!           write(6,*)' k,max,min,mid V=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-!                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! V
-        end do
-
-        deallocate(field1,field2,field2b,ifield2,field3)
-        close(iunit)
-        call ext_ncd_ioclose(dh1, Status)
-     enddo n_loop
-
-end subroutine convert_netcdf_nmm_ens
-
-
 subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
                                        region_lat,region_lon)
 
@@ -2347,7 +1902,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
            end do
         end do
      end do
-    
+
 !     call grads3a(grd,g_u,g_v,g_tsen,g_q,g_pd,grd%nsig,mype,filename)
 
      deallocate(aeta1,aeta2,aeta1_ll,aeta2_ll)
@@ -2358,7 +1913,6 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
 
 return
 end subroutine general_read_wrf_nmm_netcdf
-
 
 subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
 !$$$  subprogram documentation block
@@ -2658,6 +2212,66 @@ subroutine general_half_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
 
 end subroutine general_half_nmm_grid2
 
+#else /* Start no WRF-library block */
+subroutine get_wrf_nmm_ensperts
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_wrf_nmm_ensperts  read wrf nmm model ensemble members
+!   prgmmr: mtong           org: np22                date: 2010-06-28
+!
+! abstract: dummy for read ensemble members from the wrf nmm model in both
+! binary and netcdf
+!             format, for use with hybrid ensemble option. ensemble spread is
+!             also
+!             written out as a byproduct for diagnostic purposes.
+!
+!
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+
+    implicit none
+
+  write(6,*)'GET_WRF_NMM_ENSPERTS:  ***WARNING*** dummy call ... does nothing!'
+return
+end subroutine get_wrf_nmm_ensperts
+
+subroutine convert_binary_nmm_ens
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_binary_nmm_ens
+!   pgrmmr:
+!
+! abstract: dummy call... does nothing
+!
+! program history log:
+!   2012-02-27  parrish - added subprogram doc block
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  implicit none
+
+  write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does
+nothing!'
+  return
+end subroutine convert_binary_nmm_ens
+#endif /* end NO WRF-library block */
 
 subroutine generic_grid2sub_ens(grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
 !$$$  subprogram documentation block
@@ -3020,7 +2634,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   real(r_single) undef
   real(r_single) startp,pinc
 
-  if(mype.eq.0) then
+  if(mype==0) then
     startp=1._r_single
     pinc=1._r_single
     ioutdes=98750
@@ -3034,7 +2648,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
     do i=1,50000
       write(datdes(i),'(112a1)')(blank,k=1,112)
     end do
-    write(datdes(1),'("DSET ",a50)')dsname
+    write(datdes(1),'("DSET ^",a50)')dsname
     write(datdes(2),'("options big_endian sequential")')
     write(datdes(3),'("TITLE ",a50)')title
     write(datdes(4),'("UNDEF ",e11.2)')undef
@@ -3046,7 +2660,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
     write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
     next=next+1
     koutmax=1
-    write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
+    write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
     next=next+1
     write(datdes(next),'("VARS 5")')
     next=next+1
@@ -3066,7 +2680,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   endif
   do k=1,nvert
     call sub2grid_3a(grd,u(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -3076,7 +2690,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,v(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -3086,7 +2700,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -3096,7 +2710,7 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
   do k=1,nvert
     call sub2grid_3a(grd,q(1,1,k),work,0,mype)
-    if(mype.eq.0) then
+    if(mype==0) then
       do j=1,grd%nlon ; do i=1,grd%nlat
           outfield(j,i)=work(i,j)
       end do ; end do
@@ -3105,28 +2719,30 @@ subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
   end do
 
   call sub2grid_3a(grd,pd(1,1),work,0,mype)
-  if(mype.eq.0) then
+  if(mype==0) then
     do j=1,grd%nlon ; do i=1,grd%nlat
         outfield(j,i)=work(i,j)
     end do ; end do
     write(ioutdat)outfield
   end if
 
-  if(mype.eq.0) then
+  if(mype==0) then
     close(ioutdes)
     close(ioutdat)
   end if
 end subroutine grads3a
-subroutine grads2d(grd,field,mype,fname)
+
+subroutine grads3d(grd,field,nvert,mype,fname)
 
   use kinds, only: r_kind,i_kind,r_single
   use general_sub2grid_mod, only: sub2grid_info
   implicit none
 
   type(sub2grid_info)                   ,intent(in   ) :: grd
+  integer(i_kind) nvert
   integer(i_kind), intent(in)::mype
   character(*) fname
-  real(r_kind),dimension(grd%lat2,grd%lon2):: field
+  real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
 
   real(r_kind),dimension(grd%nlat,grd%nlon)::work
   real(r_single) outfield(grd%nlon,grd%nlat)
@@ -3144,13 +2760,13 @@ subroutine grads2d(grd,field,mype,fname)
   real(r_single) undef
   real(r_single) startp,pinc
 
-  if(mype.eq.0) then
+  if(mype==0) then
     startp=1._r_single
     pinc=1._r_single
     ioutdes=98752
     ioutdat=98753
-    write(filename,'(a,"x2d.des")')trim(fname)
-    write(dsname,'(a,"x2d.dat")')trim(fname)
+    write(filename,'(a,"x3d.ctl")')trim(fname)
+    write(dsname,'(a,"x3d.dat")')trim(fname)
     open(unit=ioutdes,file=trim(filename),form='formatted')
     open(unit=ioutdat,file=trim(dsname),form='unformatted')
     rewind ioutdes
@@ -3158,7 +2774,7 @@ subroutine grads2d(grd,field,mype,fname)
     do i=1,50000
       write(datdes(i),'(112a1)')(blank,k=1,112)
     end do
-    write(datdes(1),'("DSET ",a50)')dsname
+    write(datdes(1),'("DSET ^",a50)')dsname
     write(datdes(2),'("options big_endian sequential")')
     write(datdes(3),'("TITLE ",a50)')title
     write(datdes(4),'("UNDEF ",e11.2)')undef
@@ -3167,14 +2783,14 @@ subroutine grads2d(grd,field,mype,fname)
     next=next+1
     write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
     next=next+1
-    write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')1,startp,pinc
+    write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
     next=next+1
     koutmax=1
-    write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
+    write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
     next=next+1
     write(datdes(next),'("VARS 1")')
     next=next+1
-    write(datdes(next),'("f2d   ",i5," 99 f3d   ")')1
+    write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
     next=next+1
     write(datdes(next),'("ENDVARS")')
     last=next
@@ -3182,402 +2798,22 @@ subroutine grads2d(grd,field,mype,fname)
     write(6,'(a112)')(datdes(i),i=1,last)
   endif
 
-  call sub2grid_3a(grd,field,work,0,mype)
-  if(mype.eq.0) then
-    do j=1,grd%nlon ; do i=1,grd%nlat
-        outfield(j,i)=work(i,j)
-    end do ; end do
-    write(ioutdat)outfield
-  end if
+  do k=1,nvert
+    call sub2grid_3a(grd,field(1,1,k),work,0,mype)
+    if(mype==0) then
+      do j=1,grd%nlon ; do i=1,grd%nlat
+          outfield(j,i)=work(i,j)
+      end do ; end do
+      write(ioutdat)outfield
+    end if
+  end do
 
-  if(mype.eq.0) then
+  if(mype==0) then
     close(ioutdes)
     close(ioutdat)
   end if
 
-end subroutine grads2d
-
-#else /* Start no WRF-library block */
-subroutine get_wrf_nmm_ensperts
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    get_wrf_nmm_ensperts  read wrf nmm model ensemble members
-!   prgmmr: mtong           org: np22                date: 2010-06-28
-!
-! abstract: dummy for read ensemble members from the wrf nmm model in both binary and netcdf 
-!             format, for use with hybrid ensemble option. ensemble spread is also
-!             written out as a byproduct for diagnostic purposes.
-!
-!
-! program history log:
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-
-    implicit none
-
-  write(6,*)'GET_WRF_NMM_ENSPERTS:     ***WARNING*** dummy call ... does nothing!'
-return
-end subroutine get_wrf_nmm_ensperts
-
-subroutine convert_binary_nmm_ens
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convert_binary_nmm_ens
-!   pgrmmr:
-!
-! abstract: dummy call... does nothing
-!
-! program history log:
-!   2012-02-27  parrish - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  write(6,*)'CONVERT_BINARY_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
-  return
-end subroutine convert_binary_nmm_ens
-
-subroutine convert_netcdf_nmm_ens
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convert_netcdf_nmm_ens
-!   pgrmmr:
-!
-! abstract: dummy call... does nothing
-!
-! program history log:
-!   2012-02-27  parrish - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  write(6,*)'CONVERT_NETCDF_NMM_ENS:     ***WARNING*** dummy call ... does nothing!'
-  return
-end subroutine convert_netcdf_nmm_ens
-
-subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    fill_nmm_grid2         fill holes in (wrf) nmm e-grid
-!   prgmmr: parrish          org: np22                date: 2004-06-22
-!
-! abstract: creates an unstaggered A grid from the staggered E grid used
-!           by the wrf nmm.  This is done by interpolation to fill the
-!           holes in the E grid.  This is necessary because the gsi is
-!           not yet able to work with anything other than unstaggered
-!           grids.  This solution minimizes additional interpolation error
-!           but doubles the number of grid points.  This routine will be
-!           eliminated when the gsi has the capability to work directly
-!           with staggered grids.
-!
-! program history log:
-!   2010-11-21  mtong, add structure variable grd to make the program more general
-!
-!   input argument list:
-!     grd      - structure variable containing information about grid
-!                    (initialized by general_sub2grid_create_info, located in general_sub2grid_mod.f90)
-!     gin      - input staggered E grid field over entire horizontal domain
-!     nx,ny    - input grid dimensions
-!     igtype   - =1, then (1,1) on staggered grid is at corner of grid
-!                (mass point for nmm)
-!              - =2, then (1,1) is staggered (wind point for nmm,
-!                see illustration below)
-!
-!                   igtype=1:
-!
-!
-!
-!       ^   3             x     x     x     x
-!       |
-!       y   2                x     x     x     x
-!
-!           1             x     x     x     x
-!
-!                         1     2     3
-!
-!                           x -->
-!
-!                   igtype=2:
-!
-!
-!
-!       ^   3             x     x     x     x
-!       |
-!       y   2          x     x     x     x
-!
-!           1             x     x     x     x
-!
-!                         1     2     3
-!
-!                           x -->
-!
-!   output argument list
-!     gout     - output filled grid  (reorganized for distibution to local domains)
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_single,r_kind,i_kind
-  use constants, only: quarter,half,zero
-  use general_sub2grid_mod, only: sub2grid_info
-
-  implicit none
-
-!   Declare passed variables
-  type(sub2grid_info) ,intent(in   ) :: grd
-  integer(i_kind)     ,intent(in   ) :: nx,ny,igtype,iorder
-  real(r_single)      ,intent(in   ) :: gin(nx,ny)
-  real(r_single)      ,intent(  out) :: gout(grd%itotsub)
-  integer(i_kind)     ,intent(  out) :: ireturn
-
-  real(r_single) b(2*nx-1,ny)
-  integer(i_kind) i,im,ip,j,jm,jp
-  real(r_single) fill,test
-
-  ireturn=0
-  if(2*nx-1 /= grd%nlon .or. ny /= grd%nlat)then
-    print *,'input grid and output grid are not consistant'
-    ireturn=1
-    return
-  endif
-
-  fill=0.95_r_kind*huge(fill) ; test=0.95_r_kind*fill
-  do j=1,ny
-     do i=1,2*nx-1
-        b(i,j)=fill
-     end do
-  end do
-
-! First transfer all staggered points to appropriate
-! points on filled output grid
-  if(igtype==1) then
-     do j=1,ny,2
-        do i=1,nx
-           b(2*i-1,j)=gin(i,j)
-        end do
-     end do
-     do j=2,ny,2
-        do i=1,nx-1
-           b(2*i,j)=gin(i,j)
-        end do
-     end do
-  else
-     do j=1,ny,2
-        do i=1,nx-1
-           b(2*i,j)=gin(i,j)
-        end do
-     end do
-     do j=2,ny,2
-        do i=1,nx
-           b(2*i-1,j)=gin(i,j)
-        end do
-     end do
-  end if
-
-
-!  Now fill in holes
-
-! Top and bottom rows:
-  do j=1,ny,ny-1
-     do i=1,2*nx-1
-        if(b(i,j)>test) then
-           ip=i+1 ; if(ip>2*nx-1) ip=i-1
-           im=i-1 ; if(im<1) im=i+1
-           b(i,j)=half*(b(im,j)+b(ip,j))
-        end if
-     end do
-  end do
-
-
-! Left and right rows:
-  do j=1,ny
-     jp=j+1 ; if(jp>ny)   jp=j-1
-     jm=j-1 ; if(jm<1) jm=j+1
-     do i=1,2*nx-1,2*nx-2
-        if(b(i,j)>test) b(i,j)=half*(b(i,jm)+b(i,jp))
-     end do
-  end do
-
-! Interior points
-  do j=1,ny
-     jp=j+1 ; if(jp>ny) jp=j-1
-     jm=j-1 ; if(jm<1) jm=j+1
-     do i=1,2*nx-1
-        if(b(i,j)>test) then
-           ip=i+1 ; if(ip>2*nx-1) ip=i-1
-           im=i-1 ; if(im<1)      im=i+1
-           b(i,j)=quarter*(b(ip,j)+b(im,j)+b(i,jp)+b(i,jm))
-        end if
-     end do
-  end do
-
-
-! Reorganize for eventual distribution to local domains
-  do i=1,grd%itotsub
-     gout(i)=zero
-  end do
-  if(iorder==1)then
-     do i=1,grd%itotsub
-        gout(i)=b(grd%ltosj_s(i),grd%ltosi_s(i))
-     end do
-  else
-     do i=1,grd%iglobal
-        gout(i)=b(grd%ltosj(i),grd%ltosi(i))
-     end do
-  endif
-
-end subroutine general_fill_nmm_grid2
-
-subroutine general_half_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    half_nmm_grid2    make a-grid from every other row of e-grid
-!   prgmmr: parrish          org: np22                date: 2004-06-22
-!
-! abstract: creates an unstaggered A grid from the staggered E grid used by the wrf nmm.
-!           This is done by keeping every other row of the original E grid.  If this
-!           is a mass variable (igtype=1), then no interpolation is required.  If this
-!           is a wind variable (igtype=2), then interpolation is necessary.  This procedure
-!           is necessary because the gsi is not yet able to work with anything other than
-!           unstaggered grids.  This solution introduces greater interpolation error
-!           compared to the option fill_nmm_grid2, but has the advantage of 4 times fewer
-!           grid points compared to the output of fill_nmm__grid2.  This routine will be
-!           eliminated when the gsi has the capability to work directly with staggered grids.
-!
-! program history log:
-!   2010-11-21  mtong, add structure variable grd
-!
-!   input argument list:
-!     gin      - input staggered E grid field over entire horizontal domain
-!     nx,ny    - input grid dimensions
-!     igtype   - =1, then (1,1) on staggered grid is at corner of grid (mass point for nmm)
-!              - =2, then (1,1) is staggered (wind point for nmm, see illustration below)
-!
-!                   igtype=1:
-!
-!
-!
-!       ^   3             x     x     x     x
-!       |
-!       y   2                x     x     x     x
-!
-!           1             x     x     x     x
-!
-!                         1     2     3
-!
-!                           x -->
-!
-!                   igtype=2:
-!
-!
-!
-!       ^   3             x     x     x     x
-!       |
-!       y   2          x     x     x     x
-!
-!           1             x     x     x     x
-!
-!                         1     2     3
-!
-!                           x -->
-!
-!   output argument list
-!     gout     - output unstaggered half grid  (reorganized for distibution to local domains)
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_single,i_kind
-  use constants, only: quarter, zero
-  use general_sub2grid_mod, only: sub2grid_info
-
-  implicit none
-
-! Declare passed variables
-  type(sub2grid_info)                  ,intent(in   ) :: grd
-  integer(i_kind)                      ,intent(in   ) :: nx,ny,igtype,iorder
-  real(r_single),dimension(nx,ny)      ,intent(in   ) :: gin
-  real(r_single),dimension(grd%itotsub),intent(  out) :: gout
-  integer(i_kind)                      ,intent(  out) :: ireturn
-
-! Declare local variables
-  integer(i_kind) i,i0,im,j,jj,jm,jp
-  real(r_single),dimension(nx,(ny+5)/2):: c
-
-  ireturn=0
-  if(grd%nlon /= nx .or. grd%nlat /= 1+ny/2)then
-    print *,'input grid and output grid are not consistant'
-    ireturn=1
-    return
-  endif
-
-  if(igtype==1) then
-     jj=0
-     do j=1,ny,2
-        jj=jj+1
-        do i=1,nx
-           c(i,jj)=gin(i,j)
-        end do
-     end do
-  else
-     jj=0
-     do j=1,ny,2
-        jj=jj+1
-        jp=j+1 ; if(jp>ny)   jp=j-1
-        jm=j-1 ; if(jm<1) jm=j+1
-        do i=1,nx
-           im=i-1 ; if(im<1) im=i
-           i0=i      ; if(i==nx)   i0=im
-           c(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
-        end do
-     end do
-  end if
-
-! Reorganize for eventual distribution to local domains
-  do i=1,grd%itotsub
-     gout(i)=zero
-  end do
-  if(iorder==1)then
-     do i=1,grd%itotsub
-        gout(i)=c(grd%ltosj_s(i),grd%ltosi_s(i))
-     end do
-  else
-     do i=1,grd%iglobal
-        gout(i)=c(grd%ltosj(i),grd%ltosi(i))
-     end do
-  endif
-
-end subroutine general_half_nmm_grid2
-#endif /* end NO WRF-library block */
+end subroutine grads3d
 
 subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
@@ -3609,7 +2845,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
   call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
                  work1,grd%ijn,grd%displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
-  if(mype.eq.gridpe) then
+  if(mype==gridpe) then
     do k=1,grd%iglobal
       i=grd%ltosi(k) ; j=grd%ltosj(k)
       grid(i,j)=work1(k)
@@ -3668,7 +2904,167 @@ subroutine strip_grd(grd,field_in,field_out)
     end do
 
     return
-  end subroutine strip_grd
+end subroutine strip_grd
 
+subroutine ens_member_mean_dualres_regional(en_bar,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ens_member_mean_dualres_regional
+!   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
+!
+! abstract:
+!
+!
+! program history log:
+!   2010-08-11  parrish, initial documentation
+!   2011-04-05  parrish - add pseudo-bundle capability
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
+!
+!   input argument list:
+!     en_bar - ensemble mean
+!      mype  - current processor number
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+!
+  use kinds, only: r_single,r_kind,i_kind
+  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
+  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
+  use constants, only:  zero,one
+  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_gridcreate
+  implicit none
 
+  type(gsi_bundle),intent(in):: en_bar
+  integer(i_kind),intent(in):: mype
 
+  type(gsi_bundle):: sube,suba
+  type(gsi_grid):: grid_ens,grid_anl
+  real(r_kind) sig_norm_inv
+  type(sub2grid_info)::se,sa
+  integer(i_kind) k
+
+  integer(i_kind) i,n,ic3
+  logical regional
+  integer(i_kind) num_fields,inner_vars,istat,istatus
+  logical,allocatable::vector(:)
+  real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
+  real(r_kind),pointer,dimension(:,:):: ps
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
+  character(24) filename
+
+!      create simple regular grid
+        call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+        call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+
+!      create two internal bundles, one on analysis grid and one on ensemble grid
+
+       call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
+          call stop2(999)
+       endif
+       call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
+          call stop2(999)
+       endif
+
+  sig_norm_inv=sqrt(n_ens-one)
+
+  do n=1,n_ens+1
+
+     do i=1,nelen
+        if(n <= n_ens)then
+           sube%values(i)=en_perts(n,1)%valuesr4(i)*sig_norm_inv+en_bar%values(i)
+        else
+           sube%values(i)=en_bar%values(i)
+        end if
+     end do
+
+     if(grd_ens%latlon1n == grd_anl%latlon1n) then
+        do i=1,nelen
+           suba%values(i)=sube%values(i)
+        end do
+     else
+        inner_vars=1
+        num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
+        allocate(vector(num_fields))
+        vector=.false.
+        do ic3=1,nc3d
+           if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
+              do k=1,grd_ens%nsig
+                 vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
+              end do
+           end if
+        end do
+        call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
+                                          regional,vector)
+        call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
+                                          regional,vector)
+        deallocate(vector)
+        call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
+     end if
+
+     dum2=zero
+     dum3=zero
+     call gsi_bundlegetpointer(suba,'sf',st,istat)
+     if(istat/=0) then
+        write(6,*)' no sf pointer in ens_member_dualres, point st at dum3 array'
+        st => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'vp',vp,istat)
+     if(istat/=0) then
+        write(6,*)' no vp pointer in ens_member_dualres, point vp at dum3 array'
+        vp => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'t',tv,istat)
+     if(istat/=0) then
+        write(6,*)' no t pointer in ens_member_dualres, point tv at dum3 array'
+        tv => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'q',rh,istat)
+     if(istat/=0) then
+           write(6,*)' no q pointer in ens_member_dualres, point rh at dum3 array'
+        rh => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'oz',oz,istat)
+     if(istat/=0) then
+        write(6,*)' no oz pointer in ens_member_dualres, point oz at dum3 array'
+        oz => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'cw',cw,istat)
+     if(istat/=0) then
+           write(6,*)' no cw pointer in ens_member_dualres, point cw at dum3 array'
+        cw => dum3
+     end if
+     call gsi_bundlegetpointer(suba,'ps',ps,istat)
+     if(istat/=0) then
+        write(6,*)' no ps pointer in ens_member_dualres, point ps at dum2 array'
+        ps => dum2
+     end if
+   
+     if(n <= n_ens)then
+        write(filename,"('ens_mem',i3.3)") n
+        call grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,filename)
+     else
+        call grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,'ens_bar')
+     end if
+  end do
+   
+  return
+
+end subroutine ens_member_mean_dualres_regional

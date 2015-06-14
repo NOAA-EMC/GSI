@@ -23,6 +23,7 @@ WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_i
 LIBcrtm = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/CRTM_REL-2.2.1/crtm_v2.2.1/lib/libcrtm.a
 
 INCnetcdf       = ${NETCDF}/include
+LIBnetcdf       = -L$(NETCDF)/lib -lnetcdf
 
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf
@@ -106,12 +107,12 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 # LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
-#      -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+#      -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBnetcdf)
   LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
-       -lsfcio -lbufr_d_64 -lw3nco_d -lw3emc_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+       -lsfcio -lbufr_d_64 -lw3nco_d -lw3emc_d $(LIBcrtm) $(WRFLIB) $(LIBnetcdf)
 #      -L../lib/GSD/gsdcloud4nmmb -lgsdcloud
 # LIBS_N        = $(LIBnemsio) -L$(CORELIB) -lsp_d -lsigio_4 \
-#      -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBbacio) -L$(NETCDF)/lib -lnetcdf
+#      -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBbacio) $(LIBnetcdf)
 
   LDFLAGS_N     = 
 
