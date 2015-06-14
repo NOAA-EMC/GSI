@@ -1,0 +1,135 @@
+#!/bin/sh
+#############################################################
+# Set up environment for GFS Radiance Monitor job
+# change log:
+# 01/18/2012, Julia Zhu
+########################################
+set -xa
+#
+# Specify whether the run is production or development
+#
+export RUN_ENVIR=${RUN_ENVIR:-prod}
+
+###############################################################
+# This block can be modified for different test environment
+###############################################################
+if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+  export SENDDBN=${SENDDBN:-NO}
+  export jlogfile=${jlogfile:-/com/logs/${envir}/jlogfile}
+fi
+
+
+echo `date` $0 `date -u` begin
+export PS4='$SECONDS + '
+
+########################################################### 
+# obtain unique process id (pid) and make temp directories
+###########################################################
+export pid=$$
+export DATA_IN=${DATA_IN:-/tmpnwprd}
+
+export DATA=$DATA_IN/${job}.${pid}
+mkdir -p $DATA
+cd $DATA
+
+####################################
+# File To Log Msgs
+####################################
+export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
+
+####################################
+# Determine Job Output Name on System
+####################################
+export outid="LL$job"
+export jobid="${outid}.o${pid}"
+export cycle=t${cyc}z 
+
+###############################
+# Specify NET and RUN name
+##############################
+export NET=${NET:-gfs}
+export RUN=${RUN:-gdas}
+
+##################################################
+# SENDCOM  - Copy Files From TMPDIR to $COMOUT
+# SENDDBN  - Issue DBNet Client Calls
+##################################################
+export SENDCOM=${SENDCOM:-YES}
+export SENDDBN=${SENDDBN:-NO}
+export VERBOSE=${VERBOSE:-YES}
+export ERRSCRIPT=${ERRSCRIPT:-err_chk}
+
+export HOMEgdasradmon=${HOMEgdasradmon:-/nw${envir}/gdas_radmon.${gdas_radmon_ver}}
+export SCRIPTSgdasradmon=${SCRIPTSgdasradmon:-$HOMEgdasradmon/scripts}
+export FIXgdasradmon=${FIXgdasradmon:-$HOMEgdasradmon/fix}
+
+export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon_shared.${radmon_shared_ver}}
+export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
+
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+export Z=${Z:-gz}
+
+
+
+###################################
+# Set up the UTILITIES
+###################################
+export NWPROD=${NWPROD:-/nwprod}
+export utilscript=${utilscript:-$NWPROD/util/ush}
+export utilexec=${utilexec:-$NWPROD/util/exec}
+
+# Run setup to initialize working directory and utility scripts
+$utilscript/setup.sh
+
+# Run setpdy and initialize PDY variables
+$utilscript/setpdy.sh
+source ./PDY
+
+
+#############################################
+# COMOUT - WHERE GSI OUTPUT RESIDES
+# TANKverf - WHERE OUTPUT DATA WILL RESIDE
+#############################################
+export TANKverf=${TANKverf:-/com/verf/${envir}}
+export TANKverf_rad=${TANKverf}/radmon.${PDY}
+export COM_IN=${COM_IN:-/com/${NET}/${envir}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+
+mkdir -p -m 775 $TANKverf_rad
+ 
+env
+
+########################################
+# Set necessary environment variables
+########################################
+export RAD_AREA=${RAD_AREA:-glb}
+
+export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
+export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
+
+msg="JOB HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+########################################################
+# Execute the script.
+${RADMONSH:-$HOMEgdasradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
+########################################################
+
+msg="JOB COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+################################
+# Remove the Working Directory
+################################
+#RM_TMPDIR=NO
+cd $DATA_IN
+#if [ ${RM_TMPDIR:-YES} = YES ] ; then 
+#  rm -rf $DATA 
+#fi
+
+date
+
