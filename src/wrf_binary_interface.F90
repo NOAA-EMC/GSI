@@ -1359,6 +1359,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
 !   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !   2013-04-17  parrish - option to accept input lat/lon in both degrees and radians
+!   2015-05-12  wu      - changes for FGAT
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1432,11 +1433,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   
   n_loop: do n=1,9
 
-     if(n==nhr_assimilation)then
-        wrfges = 'wrf_inout'
-     else
-        write(wrfges,'("wrf_inou",i1.1)')n
-     endif
+        write(wrfges,'("wrf_inout",i2.2)')n
      call nemsio_open(gfile,wrfges,'READ',iret=iret)
      write(6,*)' convert_nems_nmmb: nemsio_open, file name, iret=',trim(wrfges),iret
      if(n==nhr_assimilation) then
@@ -1787,6 +1784,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SNO
      deallocate(field2,field2b,field2c,recname,reclevtyp,reclev,glat,glon,dx,dy)
+     deallocate(glata,glona,dxa,dya)
   
      call nemsio_close(gfile,iret=iret)
      write(6,*)' close nemsio file, iret=',iret
