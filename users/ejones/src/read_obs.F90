@@ -8,6 +8,7 @@ module read_obsmod
 !
 ! program history log:
 !   2009-01-05  todling - add gsi_inquire
+!   2015-05-01  Liu Ling - Add call to read_rapidscat 
 !
 ! subroutines included:
 !   sub gsi_inquire   -  inquire statement supporting fortran earlier than 2003
@@ -353,14 +354,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
-       else if(trim(filename) == 'oscatbufr')then
+       else if(trim(filename) == 'rapidscatbufr')then
          lexist = .false.
-         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
-            if(trim(subset) == 'NC012255') then                                         
+         rapidscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then
                lexist = .true.
-               exit oscatloop
+               exit rapidscatloop
             endif
-         end do oscatloop
+         end do rapidscatloop
        else if(trim(filename) == 'hdobbufr')then
          lexist = .false.
          loop_hdob: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -790,8 +791,9 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'amsr2')then
                 parallel_read(i)= .true.
              else if(obstype == 'gmi')then
-!                parallel_read(i)= .true.
-             else if(obstype == 'saphir')then
+                parallel_read(i)= .true.
+!   Parallel read for SAPHIR not currently working. Leave parallel read off.
+!             else if(obstype == 'saphir')then
 !                parallel_read(i)= .true.
 
              end if
@@ -1130,11 +1132,11 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
-!             Process oscat winds which seperate from prepbufr
-                elseif ( index(infile,'oscatbufr') /=0 ) then
-                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+!             Process rapidscat winds which seperate from prepbufr
+                elseif ( index(infile,'rapidscatbufr') /=0 ) then
+                  call read_rapidscat(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
-                  string='READ_SFCWND'
+                  string='READ_RAPIDSCAT'
                 else if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
                      prsl_full)
@@ -1181,7 +1183,7 @@ subroutine read_obs(ndata,mype)
                 if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis)
                 else
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis)
                 endif
                 string='READ_NASA_LaRC'
 
