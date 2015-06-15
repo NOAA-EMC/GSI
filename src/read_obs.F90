@@ -791,8 +791,9 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'amsr2')then
                 parallel_read(i)= .true.
              else if(obstype == 'gmi')then
-!                parallel_read(i)= .true.
-             else if(obstype == 'saphir')then
+                parallel_read(i)= .true.
+!   Parallel read for SAPHIR not currently working. Leave parallel read off.
+!             else if(obstype == 'saphir')then
 !                parallel_read(i)= .true.
 
              end if
