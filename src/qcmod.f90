@@ -1300,7 +1300,10 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 
   if(clw > zero)then
      do l=1,nchanl
-        if(clw > 900.0_r_kind) id_qc(l)=ifail_gmi_swathedge_qc
+        if(clw > 900.0_r_kind) then
+          id_qc(l)=ifail_gmi_swathedge_qc
+          varinv(l)=zero
+        endif
      end do
   end if
 
