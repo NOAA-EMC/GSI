@@ -111,7 +111,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind):: irec,isub,next
+  integer(i_kind):: irec,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -153,7 +153,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 
 ! ---- sun glint ----
   integer(i_kind) doy,mlen(12),mday(12),mon,m
-  real(r_kind) sun_elevation,sun_azimuth,bearaz,sun_zenith
+  real(r_kind) sun_azimuth,sun_zenith
   data  mlen/31,28,31,30,31,30, &
              31,31,30,31,30,31/ 
 
@@ -256,6 +256,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
         call ufbint(lnbufr,gcomspot_d,4,1,iret,'SAID ORBN SOLAZI SOEL')    !???
 
         said = nint(gcomspot_d(1))
+        if(said /= GCOMW1_SAID)    cycle read_loop
 
 !       Retrieve bufr 2/4 :get amsrspot (siid,ymdhs,lat,lon)
         call ufbrep(lnbufr,amsrspot_d,N_AMSRSPOT_LIST,1,iret, &
