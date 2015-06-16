@@ -127,7 +127,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 ! Declare local variables
   logical        :: assim,outside,iuse,gmi
 
-  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next,j
+  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,next,j
   integer(i_kind):: iret,idate,nchanl,nchanla
   integer(i_kind):: isflg,nreal,idomsfc
   integer(i_kind):: nmind,itx,nele,itt
@@ -136,15 +136,15 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind):: ilat,ilon
 
   real(r_kind) :: sfcr
-  real(r_kind) :: pred
   real(r_kind) :: sstime,tdiff,t4dv
   real(r_kind) :: crit1,dist1
   real(r_kind) :: timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) :: disterr,disterrmax,dlon00,dlat00
 
-  integer(i_kind) :: nscan,jc,bufsat,js,ij,npos,n, npos_bin
+  integer(i_kind) :: nscan,jc,bufsat,npos,n, npos_bin
   integer(i_kind),dimension(5):: iobsdate
   real(r_kind):: flgch
   real(r_kind),dimension(0:3):: sfcpct
@@ -198,7 +198,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      mday(mon) = m
      m = m + mlen(mon)
   end do
-
 
 ! Set various variables depending on type of data to be read
 
@@ -262,7 +261,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 ! Allocate arrays to hold data
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 !       Extract satellite id from the 1st MG.  If it is not the one we want, exit reading.
         call readmg(lnbufr, subset, iret, idate)
@@ -277,7 +276,10 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         enddo rd_loop
 ! Big loop to read data file
   next=0
+  irec=0
+  nrec=999999
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -352,8 +354,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            else
               dlat = dlat_earth  
               dlon = dlon_earth  
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 !          If available, set value of zenith angle
            if (pixelsaza(1) < bmiss ) then
@@ -385,16 +387,16 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            call zensun(doy,time_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth_ang)
            ! output solar zenith angles are between -90 and 90
            ! make sure solar zenith angles are between 0 and 180
-           sun_zenith = 90.-sun_zenith
+           sun_zenith = 90.0_r_kind-sun_zenith
         
 !          If use_swath_edge is true, set missing ch10-13 TBs to 500, so they
 !          can be tossed in gross check while ch1-9 TBs go through. If
 !          use_swath_edge is false, skip these obs 
 
            do jc=10,nchanl
-              if(mirad(jc)>1000.0) then         
+              if(mirad(jc)>1000.0_r_kind) then         
                  if(use_swath_edge) then
-                   mirad(jc) = 500.0 !-replace missing tbs(ch10-13, swath edge)
+                   mirad(jc) = 500.0_r_kind !-replace missing tbs(ch10-13, swath edge)
                  else
                    cycle read_loop   ! skip obs 
                  endif
@@ -405,7 +407,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            do jc=1, nchanla    ! only does such check the first 9 channels for GMI 1C-R data
               if( mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax .or. &
                  gmichq(jc) < -0.5_r_kind .or. gmichq(jc) > 1.5_r_kind .or. & 
-                 gmirfi(jc)>0.0) then ! &
+                 gmirfi(jc)>0.0_r_kind) then ! &
                  iskip = iskip + 1
               else
                  nread=nread+1
@@ -434,7 +436,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 
            ! if the obs is far from the grid box center, do not use it.
-           if(ithin .ne. 0) then
+           if(ithin /= 0) then
              if(.not. regional .and. dist1 > 0.75_r_kind) cycle read_loop  
            endif
 
@@ -459,7 +461,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
               ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 !          Only keep obs over ocean    - ej
-           if(isflg .ne. 0) cycle read_loop
+           if(isflg /= 0) cycle read_loop
 
            crit1 = crit1 + rlndsea(isflg)
            call checkob(dist1,crit1,itx,iuse)
@@ -540,6 +542,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            do i=1,nchanl
               data_all(i+nreal,itx)=tbob(i)
            end do
+           nrec(itx)=irec
 
      end do read_loop
   end do read_subset
@@ -549,9 +552,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
   write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
 
 !=========================================================================================================
