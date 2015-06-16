@@ -1451,7 +1451,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   integer(i_kind)                   ,intent(  out) :: ierrret 
   real(r_kind),optional             ,intent(  out) :: scat
 
-  real(r_kind)                    ::  tpwc_amsua
+! real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind

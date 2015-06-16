@@ -570,6 +570,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         iskip = 0
         jstart=1
+!$omp parallel do schedule(dynamic,1) private(i,radiance)
         do i=1,nchanl
 !  Check that channel radiance is within reason and channel number is consistent with CRTM initialisation
 !  Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
@@ -579,14 +580,15 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !         radiance to BT calculation
               radiance = allchan(1,i) * 1000.0_r_kind    ! Conversion from W to mW
               call crtm_planck_temperature(sensorindex,i,radiance,temperature(i))
-              if(temperature(i) < tbmin .or. temperature(i) > tbmax ) then
+           else           ! error with channel number or radiance
+              temperature(i) = tbmin
+           endif
+        end do
+        do i=1,nchanl
+              if(temperature(i) <= tbmin .or. temperature(i) > tbmax ) then
                  temperature(i) = min(tbmax,max(zero,temperature(i)))
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
-           else           ! error with channel number or radiance
-              temperature(i) = min(tbmax,max(zero,temperature(i)))
-              if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
-           endif
         end do
 
         if(iskip > 0)write(6,*) ' READ_CRIS : iskip > 0 ',iskip

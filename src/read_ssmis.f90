@@ -179,12 +179,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: sfcr,r07
 ! real(r_kind) :: pred
   real(r_kind) :: tdiff,timedif,dist1
-  real(r_kind) :: step,start 
+! real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind) :: disterr,disterrmax,cdist,dlon00,dlat00
   real(r_kind) :: fovn,sscan,orbn,rainf
-  real(r_kind) :: sort_time1, sort_time2   
+! real(r_kind) :: sort_time1, sort_time2   
   real(r_kind) :: flgch
   real(r_kind) :: clat,clon
   real(r_kind) :: dlat,dlon
@@ -337,8 +337,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   radedge_max = 1000
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
-        step  = radstep(i)
-        start = radstart(i)
+!       step  = radstep(i)
+!       start = radstart(i)
         if (radedge1(i)/=-1 .or. radedge2(i)/=-1) then
            radedge_min=radedge1(i)
            radedge_max=radedge2(i)
@@ -517,7 +517,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   if (do_noise_reduction) then 
 
-     call cpu_time(sort_time1)
+!    call cpu_time(sort_time1)
      write(*,*) 'READ_SSMIS: num_obs  = ', num_obs, num_obs*nchanl
 
 !    Sort time in ascending order and get sorted index 
@@ -543,7 +543,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      solazi_save(1:num_obs)              = solazi_save(sorted_index)
      bt_save(:,1:num_obs)                = bt_save(:,sorted_index)
 
-     call cpu_time(sort_time2)
+!    call cpu_time(sort_time2)
 !    write(*,*)'READ_SSMIS: cpu_time (sorting)  ', sort_time2-sort_time1
 !    write(*,*)'READ_SSMIS: min/max time        ', minval(relative_time_in_seconds(1:num_obs)), &
 !                                                  maxval(relative_time_in_seconds(1:num_obs))  
@@ -569,7 +569,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      write(*,*) 'READ_SSMIS: Calling ssmis_spatial_average, method =', method
 
      call ssmis_spatial_average(bufsat,method,num_obs,nchanl, & 
-                                ifov_save,inode_save,relative_time_in_seconds, & 
+                                ifov_save,inode_save,relative_time_in_seconds,  & 
                                 dlat_earth_save,dlon_earth_save, &
                                 bt_save(1:nchanl,1:num_obs),iret)  ! inout 
      if (iret /= 0) then
@@ -611,6 +611,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      bt_in      => bt_save(1:nchanl,iobs) 
 
      if (inode == 0) cycle obsloop   ! this indicate duplicated data
+     if (.not. use_edges .and. (ifov < radedge_min .or. ifov > radedge_max)) &
+       cycle obsloop
 
      dlat_earth_deg = dlat_earth 
      dlon_earth_deg = dlon_earth 
@@ -653,8 +655,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)cycle obsloop
 
-    if (.not. use_edges .and. (ifov < radedge_min .or. ifov > radedge_max)) &
-       cycle obsloop
 
      nread=nread+nchanl
 

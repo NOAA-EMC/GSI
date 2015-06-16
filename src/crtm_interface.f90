@@ -46,7 +46,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
     crtm_surface_create,crtm_k_matrix,crtm_forward, &   
-    ssu_input_setvalue, &
+    ssu_input_setvalue, crtm_atmosphere_inspect,crtm_surface_inspect, &
     crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
     crtm_atmosphere_associated, &
@@ -311,6 +311,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind) :: n_absorbers
 
 
+  if (mype==0) write(0,*) myname_, " obstype: ", obstype
   isst=-1
   ivs=-1
   ius=-1
@@ -1256,20 +1257,20 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
              f10=data_s(iff10)
              sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
              wind10    = sfc_speed 
- 	     if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1 
- 	     if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2 
- 	     if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4 
- 	     if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3 
- 	     if (abs(vv5*f10) >= windlimit) then 
- 	         windratio = (uu5*f10) / (vv5*f10) 
- 	     else 
- 	         windratio = 0.0_r_kind 
- 	         if (abs(uu5*f10) > windlimit) then 
- 	             windratio = windscale * uu5*f10 
- 	         endif 
- 	     endif 
- 	     windangle        = atan(abs(windratio))   ! wind azimuth is in radians 
- 	     wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)   
+             if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1 
+             if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2 
+             if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4 
+             if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3 
+             if (abs(vv5*f10) >= windlimit) then 
+                 windratio = (uu5*f10) / (vv5*f10) 
+             else 
+                 windratio = 0.0_r_kind 
+                 if (abs(uu5*f10) > windlimit) then 
+                     windratio = windscale * uu5*f10 
+                 endif 
+             endif 
+             windangle        = atan(abs(windratio))   ! wind azimuth is in radians 
+             wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)   
              surface(1)%wind_speed           = sfc_speed
              surface(1)%wind_direction       = rad2deg*wind10_direction
            else !RTodling: not sure the following option makes any sense
@@ -1398,9 +1399,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            if (trim(obstype) /= 'modis_aod')then
 
 !        Pass CRTM array of tb for surface emissiviy calculations
- 	      if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. & 
- 	        crtm_surface_associated(surface(1)) ) & 
- 	        surface(1)%sensordata%tb(i) = data_s(nreal+i) 
+           if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. & 
+                crtm_surface_associated(surface(1)) ) & 
+                surface(1)%sensordata%tb(i) = data_s(nreal+i) 
 
 !       set up to return layer_optical_depth jacobians
               rtsolution_k(i,1)%layer_optical_depth = one
@@ -1790,7 +1791,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Call CRTM K Matrix model
 
+
+  error_status = 0
   if ( trim(obstype) /= 'modis_aod' ) then
+!    if(mype == 11)then
+!    write(0,*) 'wind speed',surface(1)%wind_speed
+!    write(0,*) 'wind direction',surface(1)%wind_direction
+!    call crtm_atmosphere_inspect(atmosphere)
+!    call crtm_surface_inspect(surface(1))
+!    end if
      error_status = crtm_k_matrix(atmosphere,surface,rtsolution_k,&
         geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
         surface_k,rtsolution,options=options)

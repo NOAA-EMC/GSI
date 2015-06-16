@@ -2857,7 +2857,7 @@ subroutine init_sf_xy(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,jcap
+  integer(i_kind) i,ii,j,k,l,n,jcap,kk,nsigend
   real(r_kind),allocatable::g(:),gsave(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
@@ -3018,60 +3018,77 @@ subroutine init_sf_xy(jcap_in)
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
   do k=1,grd_sploc%nsig
-     do i=1,grd_sploc%nlat
-        f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
-     end do
-
-     do j=2,grd_sploc%nlon
+     if(k > 2 .and. s_ens_hv(k) == s_ens_hv(k-1))then
+        spectral_filter(:,k)=spectral_filter(:,k-1)
+     else
         do i=1,grd_sploc%nlat
-           f0(i,j)=f0(i,1)
+           f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
         end do
-     end do
 
-     call general_g2s0(grd_sploc,sp_loc,g,f0)
+        do j=2,grd_sploc%nlon
+           do i=1,grd_sploc%nlat
+              f0(i,j)=f0(i,1)
+           end do
+        end do
 
-     call general_s2g0(grd_sploc,sp_loc,g,f)
+        call general_g2s0(grd_sploc,sp_loc,g,f0)
 
-!    adjust so value at np = 1
-     f=f/f(grd_sploc%nlat,1)
-     call general_g2s0(grd_sploc,sp_loc,g,f)
-     call general_s2g0(grd_sploc,sp_loc,g,f)
-     if(mype == 0) write(6,*)' in init_sf_xy, jcap,s_ens_hv(',k,'), max diff(f0-f)=', &
-                                        sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+
+!       adjust so value at np = 1
+        f=f/f(grd_sploc%nlat,1)
+        f0=f
+        call general_g2s0(grd_sploc,sp_loc,g,f)
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+        if(mype == 0)then
+           nsigend=k
+           do kk=k+1,grd_sploc%nsig
+              if(s_ens_hv(kk) /= s_ens_hv(k))exit
+              nsigend=nsigend+1
+           end do
+           write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
+  900      format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
+                                        i10,f10.2,e20.10)
+        end if
 
 !            correct spectrum by dividing by pn0_npole
-     gsave=g
+        gsave=g
 
-!    obtain pn0_npole
-     do n=0,sp_loc%jcap
-        g=zero
-        g(2*n+1)=one
-        call general_s2g0(grd_sploc,sp_loc,g,f)
-        pn0_npole(n)=f(grd_sploc%nlat,1)
-     end do
-
-     g=zero
-     do n=0,sp_loc%jcap
-        g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
-     end do
-
-!    obtain spectral_filter
-
-     ii=0
-     do l=0,sp_loc%jcap
-        factor=one
-        if(l >  0) factor=half
-        do n=l,sp_loc%jcap
-           ii=ii+1
-           spectral_filter(ii,k)=factor*g(2*n+1)
-           ii=ii+1
-           if(l == 0) then
-              spectral_filter(ii,k)=zero
-           else
-              spectral_filter(ii,k)=factor*g(2*n+1)
-           end if
+!       obtain pn0_npole
+        do n=0,sp_loc%jcap
+           g=zero
+           g(2*n+1)=one
+           call general_s2g0(grd_sploc,sp_loc,g,f)
+           pn0_npole(n)=f(grd_sploc%nlat,1)
         end do
-     end do
+   
+        g=zero
+        do n=0,sp_loc%jcap
+           g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
+        end do
+
+!       obtain spectral_filter
+
+        ii=0
+        do l=0,sp_loc%jcap
+           factor=one
+           if(l >  0) factor=half
+           do n=l,sp_loc%jcap
+              ii=ii+1
+              if(sp_loc%factsml(ii)) then
+                 spectral_filter(ii,k)=zero
+              else
+                 spectral_filter(ii,k)=factor*g(2*n+1)
+              end if
+              ii=ii+1
+              if(l == 0 .or. sp_loc%factsml(ii)) then
+                 spectral_filter(ii,k)=zero
+              else
+                 spectral_filter(ii,k)=factor*g(2*n+1)
+              end if
+           end do
+        end do
+     end if
   end do
   sqrt_spectral_filter=sqrt(spectral_filter)
   deallocate(g,gsave,pn0_npole)

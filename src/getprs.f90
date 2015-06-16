@@ -299,6 +299,7 @@ subroutine getprs_tl(ps,t,prs)
      k=1
      k2=nsig+1
      do j=1,lon2
+!DIR$ IVDEP
         do i=1,lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
@@ -307,6 +308,7 @@ subroutine getprs_tl(ps,t,prs)
      if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
+!DIR$ IVDEP
               do i=1,lat2
                  prs(i,j,k)=bk5(k)*ps(i,j)
               end do
@@ -318,6 +320,7 @@ subroutine getprs_tl(ps,t,prs)
         it=ntguessig
         do k=2,nsig
            do j=1,lon2
+!DIR$ IVDEP
               do i=1,lat2
                  prs(i,j,k)=bk5(k)*ps(i,j)
               end do
@@ -327,6 +330,7 @@ subroutine getprs_tl(ps,t,prs)
         if(istatus==0) then
            do k=2,nsig
               do j=1,lon2
+!DIR$ IVDEP
                  do i=1,lat2
                     t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
                     tc1=half/tref5(k)
@@ -529,6 +533,7 @@ subroutine getprs_ad(ps,t,prs)
      if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
+!DIR$ IVDEP
               do i=1,lat2
                  ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
               end do
@@ -542,6 +547,7 @@ subroutine getprs_ad(ps,t,prs)
         if(istatus==0) then
            do k=2,nsig
               do j=1,lon2
+!DIR$ IVDEP
                  do i=1,lat2
                     t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
                     tc1=half/tref5(k)
@@ -555,6 +561,7 @@ subroutine getprs_ad(ps,t,prs)
         else
            do k=2,nsig
               do j=1,lon2
+!DIR$ IVDEP
                  do i=1,lat2
                     ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
                  end do
@@ -564,6 +571,7 @@ subroutine getprs_ad(ps,t,prs)
      end if
      k=1
      do j=1,lon2
+!DIR$ IVDEP
         do i=1,lat2
            ps(i,j)=ps(i,j) + prs(i,j,k)
         end do
@@ -572,6 +580,7 @@ subroutine getprs_ad(ps,t,prs)
 
   do k=1,nsig+1
      do j=1,lon2
+!DIR$ IVDEP
         do i=1,lat2
            prs(i,j,k)=zero
         end do

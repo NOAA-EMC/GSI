@@ -220,25 +220,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               tdir(isst+1)=w1*sst(j1) + w2*sst(j2) + w3*sst(j3) + w4*sst(j4)   
               rdir(isst+1)=w1*rst(j1) + w2*rst(j2) + w3*rst(j3) + w4*rst(j4)   
            end if
-           if(l_foto)then
-              time_rad=radptr%time*r3600
-              if(luseu)then
-                 tdir(ius+1)=tdir(ius+1)+ &
-                    (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
-                     w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
-                 rdir(ius+1)=rdir(ius+1)+ &
-                    (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
-                     w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
-              endif
-              if(lusev)then
-                 tdir(ivs+1)=tdir(ivs+1)+ &
-                    (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
-                     w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
-                 rdir(ivs+1)=rdir(ivs+1)+ &
-                    (w1*dhat_dt_v(j1) + w2*dhat_dt_v(j2) + &
-                     w3*dhat_dt_v(j3) + w4*dhat_dt_v(j4))*time_rad
-              endif
-           end if
 
            j1n(1) = j1
            j2n(1) = j2
@@ -302,6 +283,23 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
            end do
            if(l_foto)then
+              time_rad=radptr%time*r3600
+              if(luseu)then
+                 tdir(ius+1)=tdir(ius+1)+ &
+                    (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
+                     w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
+                 rdir(ius+1)=rdir(ius+1)+ &
+                    (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
+                     w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
+              endif
+              if(lusev)then
+                 tdir(ivs+1)=tdir(ivs+1)+ &
+                    (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
+                     w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
+                 rdir(ivs+1)=rdir(ivs+1)+ &
+                    (w1*dhat_dt_v(j1) + w2*dhat_dt_v(j2) + &
+                     w3*dhat_dt_v(j3) + w4*dhat_dt_v(j4))*time_rad
+              endif
               do n=1,nsig
                  j1 = j1n(n)
                  j2 = j2n(n)

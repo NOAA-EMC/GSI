@@ -404,26 +404,18 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-   integer(i_kind) i,j,k,nlatm1,jj
-   real(r_kind),dimension(nlon,nlat):: grid
+   integer(i_kind) i,j,k
 
 !  Transfer input grid from 1d to 2d local array.  As loading
 !  local array, reverse direction of latitude index.  Coming
 !  into the routine the order is south --> north.  On exit
 !  the order is north --> south
    do k=1,iglobal
-      i=nlat-ltosi(k)+1
-      j=ltosj(k)
-      grid(j,i)=grid_in(k)
-   end do
-   
-!  Transfer contents of local array to output array.
-   nlatm1=nlat-1
-   do j=2,nlatm1
-      jj=j-1
-      do i=1,nlon
-         grid_out(i,jj)=grid(i,j)
-      end do
+      i=nlat-ltosi(k)
+      if(i >= 1 .and. i <= nlat-2)then
+         j=ltosj(k)
+         grid_out(j,i)=grid_in(k)
+      end if
    end do
    
    return
