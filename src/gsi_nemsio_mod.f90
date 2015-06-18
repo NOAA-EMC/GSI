@@ -9,6 +9,7 @@ module gsi_nemsio_mod
 ! program history log:
 !   2009-08-04  lueken - added module doc block
 !   2014-06-30  wu     - remove debugging printout
+!   2015_05_13  wu     - output error flag of nemsio_open
 !
 ! subroutines included:
 !   sub gsi_nemsio_open
@@ -46,7 +47,7 @@ module gsi_nemsio_mod
 
 contains
 
-  subroutine gsi_nemsio_open(file_name,iostatus,message,mype,mype_io)
+  subroutine gsi_nemsio_open(file_name,iostatus,message,mype,mype_io,ierr)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
 ! subprogram:    gsi_nemsio_open
@@ -78,6 +79,7 @@ contains
     character(*)   ,intent(in   ) :: iostatus         !  'READ' for read only, 'rdwr' for read/write
     character(*)   ,intent(in   ) :: message          !  info to appear in write statement on status of file open
     integer(i_kind),intent(in   ) :: mype,mype_io
+    integer(i_kind),intent(out  ) :: ierr
 
     integer(i_kind) iret
 
@@ -87,10 +89,12 @@ contains
           write(6,*)trim(message),'  problem with nemsio_init, Status = ',iret
           call stop2(74)
        end if
+       ierr=0
        call nemsio_open(gfile,file_name,trim(iostatus),iret=iret)
        if(iret/=0) then
           write(6,*)trim(message),'  problem opening file',trim(file_name),', Status = ',iret
-          call stop2(74)
+          ierr=1
+          return
        end if
     end if
     allocate(work_saved(nlon_regional*nlat_regional))

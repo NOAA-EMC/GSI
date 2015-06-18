@@ -46,7 +46,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
     crtm_surface_create,crtm_k_matrix,crtm_forward, &   
-    ssu_input_setvalue, crtm_atmosphere_inspect,crtm_surface_inspect, &
+    ssu_input_setvalue, &
     crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
     crtm_atmosphere_associated, &
@@ -311,7 +311,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind) :: n_absorbers
 
 
-  if (mype==0) write(0,*) myname_, " obstype: ", obstype
   isst=-1
   ivs=-1
   ius=-1
@@ -1794,12 +1793,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   error_status = 0
   if ( trim(obstype) /= 'modis_aod' ) then
-!    if(mype == 11)then
-!    write(0,*) 'wind speed',surface(1)%wind_speed
-!    write(0,*) 'wind direction',surface(1)%wind_direction
-!    call crtm_atmosphere_inspect(atmosphere)
-!    call crtm_surface_inspect(surface(1))
-!    end if
      error_status = crtm_k_matrix(atmosphere,surface,rtsolution_k,&
         geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
         surface_k,rtsolution,options=options)

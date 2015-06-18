@@ -1209,7 +1209,7 @@ subroutine read_obs(ndata,mype)
                 if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 else
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis,nobs_sub1(1,i))
                 endif
                 string='READ_NASA_LaRC'
 

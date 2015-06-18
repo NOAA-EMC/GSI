@@ -27,7 +27,8 @@ subroutine get_pseudo_ensperts
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: nhr_assimilation 
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens,pseudo_hybens,grid_ratio_ens
+  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens,pseudo_hybens, &
+                                        grid_ratio_ens,write_ens_sprd
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub, &
                                   general_sub2grid_create_info
   use gsi_io, only: lendian_in
@@ -219,7 +220,7 @@ subroutine get_pseudo_ensperts
   call mpi_scatterv(temp,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
        wgt,grd_ens%ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
 
-  call grads2d(grd_ens,wgt,mype,'wgt')
+  call grads3d(grd_ens,wgt,1,mype,'wgt')
 
   deallocate(temp)
 
@@ -466,11 +467,12 @@ subroutine get_pseudo_ensperts
 ! Convert to mean
   bar_norm = one/float(n_ens)
   en_bar%values=en_bar%values*bar_norm
-  call mpi_barrier(mpi_comm_world,ierror)
-!
-! CALCULATE ENSEMBLE SPREAD
-!  call ens_spread_dualres_regional(en_bar,mype)
-!  call mpi_barrier(mpi_comm_world,ierror)
+
+  if(write_ens_sprd)then
+     call mpi_barrier(mpi_comm_world,ierror)
+     call ens_spread_dualres_regional(mype,en_bar)
+     call mpi_barrier(mpi_comm_world,ierror)
+  end if
 
   test=.false.
   if(test)then
