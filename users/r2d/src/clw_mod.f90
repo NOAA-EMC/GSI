@@ -738,10 +738,9 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
   real(r_kind)::regr_coeff_gwp(10),pred_var_gwp(2)
   real(r_kind)::a0_clw,a0_gwp
-  real(r_kind)::tb_regr(9)
   real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb37v,tb37h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
 
-  integer(i_kind)::i,n,idx,diff_var
+  integer(i_kind)::i,idx,diff_var
 ! ---------- Initialize some variables ---------------------
 
   kraintype = 0
@@ -776,8 +775,8 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   pred_var_clw(1) = log(tb18v - tb18h)
   pred_var_clw(2) = log(tb37v - tb37h)
 
-  pred_var_gwp(1) = 300.0-log(tb166v)
-  pred_var_gwp(2) = 300.0-log(tb183v)
+  pred_var_gwp(1) = 300.0_r_kind-log(tb166v)
+  pred_var_gwp(2) = 300.0_r_kind-log(tb183v)
 
 ! ---------- Gross check ------------------------------------
 ! Gross error check on all channels.  If there are any
@@ -797,14 +796,14 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 
   ! loop over variables
   ! start with spectral independent variables
-  if ( nchan_reg .gt. 0 )then
+  if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
       clw = clw + ( tb(idx) * regr_coeff_clw(i) )
     enddo
   endif
   ! weight by non-spectral independent variables
-  if ( nvar_clw .gt. nchan_reg ) then
+  if ( nvar_clw > nchan_reg ) then
     do i=1,diff_var
       clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
     enddo
@@ -818,8 +817,8 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   ! to 999.0
   ! so these observations can be flagged for swath edge in qc_gmi
 
-  if((tb(10) .gt. 490.0_r_kind) .and. (tb(11) .gt. 490.0_r_kind) .and. (tb(12).gt. 490.0_r_kind) &
-     .and. (tb(13) .gt. 490.0_r_kind)) then
+  if((tb(10) > 490.0_r_kind) .and. (tb(11) > 490.0_r_kind) .and. (tb(12) > 490.0_r_kind) &
+     .and. (tb(13) > 490.0_r_kind)) then
      clw=999.0_r_kind
   end if
 
@@ -829,21 +828,21 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 
   ! loop over variables
   ! spectral independent variables
-  if ( nchan_reg .gt. 0 )then
+  if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
       gwp = gwp + ( tb(idx) * regr_coeff_gwp(i) )
     enddo
   endif
   ! weight by non-spectral independent variables
-  if ( nvar_gwp .gt. nchan_reg ) then
+  if ( nvar_gwp > nchan_reg ) then
     do i=1,diff_var
       gwp = gwp + ( pred_var_gwp(i) * regr_coeff_gwp(i+nchan_reg) )
     enddo
   endif
 
   ! flag convective precip
-  if ( gwp .gt. 0.05_r_kind) then
+  if ( gwp > 0.05_r_kind) then
     kraintype = 2
   endif
 
@@ -905,10 +904,9 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   integer(i_kind)::nchan_reg,nvar_clw   !nvar_gwp
   real(r_kind)::regr_coeff_clw(16),pred_var_clw(2)
   real(r_kind)::a0_clw
-  real(r_kind)::tb_regr(14)
   real(r_kind)::tb6v,tb6h,tb7v,tb7h,tb10v,tb10h,tb18v,tb18h,tb23v,tb23h,tb36v,tb36h,tb89v,tb89h
 
-  integer(i_kind)::i,n,idx,diff_var
+  integer(i_kind)::i,idx,diff_var
 ! ---------- Initialize some variables ---------------------
 
   kraintype = 0
@@ -955,14 +953,14 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
 
   ! loop over variables
   ! start with spectral independent variables
-  if ( nchan_reg .gt. 0 )then
+  if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
       clw = clw + ( tb(idx) * regr_coeff_clw(i) )
     enddo
   endif
   ! weight by non-spectral independent variables
-  if ( nvar_clw .gt. nchan_reg ) then
+  if ( nvar_clw > nchan_reg ) then
     do i=1,diff_var
       clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
     enddo
@@ -1072,17 +1070,17 @@ subroutine retrieval_saphir(tb,iang,nchanl,gwp,kraintype,ierr)
 ! ----------- Loop over bins and apply regression to calculate gwp -----------
 
   ! get bin number
-  if ( (abs_iang .ge. angle_bin(1)) .and. (abs_iang .lt. angle_bin(2)) ) then
+  if ( (abs_iang >= angle_bin(1)) .and. (abs_iang < angle_bin(2)) ) then
     bin_no = 1
-  else if ( (abs_iang .ge. angle_bin(2)) .and. (abs_iang .lt. angle_bin(3)) ) then
+  else if ( (abs_iang >= angle_bin(2)) .and. (abs_iang < angle_bin(3)) ) then
     bin_no = 2
-  else if ( (abs_iang .ge. angle_bin(3)) .and. (abs_iang .lt. angle_bin(4)) ) then
+  else if ( (abs_iang >= angle_bin(3)) .and. (abs_iang < angle_bin(4)) ) then
     bin_no = 3
-  else if ( (abs_iang .ge. angle_bin(4)) .and. (abs_iang .lt. angle_bin(5)) ) then
+  else if ( (abs_iang >= angle_bin(4)) .and. (abs_iang < angle_bin(5)) ) then
     bin_no = 4
-  else if ( (abs_iang .ge. angle_bin(5)) .and. (abs_iang .lt. angle_bin(6)) ) then
+  else if ( (abs_iang >= angle_bin(5)) .and. (abs_iang < angle_bin(6)) ) then
     bin_no = 5
-  else if ( (abs_iang .lt. 0.0_r_kind) .or. (abs_iang .gt. 50.0_r_kind) ) then
+  else if ( (abs_iang < 0.0_r_kind) .or. (abs_iang > 50.0_r_kind) ) then
     write(6,*)'retrieval_saphir: could not determine angle bin.'
   endif
 
@@ -1091,7 +1089,7 @@ subroutine retrieval_saphir(tb,iang,nchanl,gwp,kraintype,ierr)
 
   ! loop over variables
   ! spectral independent variables
-  if ( (nchan_reg .gt. 0) .and. (bin_no .ne. 0) )then
+  if ( (nchan_reg > 0) .and. (bin_no /= 0) )then
     do i=1,nchan_reg
       idx = tb_index(i)
       gwp = gwp + ( tb(idx) * regr_coeff_gwp(bin_no,i) )
@@ -1099,7 +1097,7 @@ subroutine retrieval_saphir(tb,iang,nchanl,gwp,kraintype,ierr)
   endif
 
   ! flag convective precip
-  if ( gwp .gt. 0.05_r_kind) then
+  if ( gwp > 0.05_r_kind) then
     kraintype = 2
   endif
 

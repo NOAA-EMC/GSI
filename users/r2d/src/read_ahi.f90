@@ -84,7 +84,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -109,7 +109,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind), dimension(4)          :: ts_coef
   integer(i_kind), dimension(2)       :: ts_ichan
   real(r_kind)                        :: seca, dbt_ts
-  real(r_kind)                        :: dts_thresh = 330.
+  real(r_kind)                        :: dts_thresh = 330.0_r_kind
   integer(i_kind)                     :: qc_thresh = 1
   real(r_kind), dimension(2)          :: bt_ts
   !---regression sst from split window test
@@ -180,8 +180,9 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !---regression coefficients trained in clear simulation
   !   using CRTM v2.1.3 AHI and ECMWF
-  ts_coef    = (/1.16778, -1.27133, 0.416716, 2.16380/)
-  ts_coef0   = -51.0104
+  ts_coef    = (/1.16778_r_kind, -1.27133_r_kind, 0.416716_r_kind, &
+                 2.16380_r_kind/)
+  ts_coef0   = -51.0104_r_kind
   !---should be channels 11.2 and 12.38 microns
   ts_ichan   = (/10,11/) ! (8,9) offset by two for bands 5 and 6 of AHI
   !---threshold for difference in regression from tsavg
@@ -283,7 +284,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
             ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
-        if (isflg .ge. 1) cycle read_loop   !!!test ocean only
+        if (isflg >= 1) cycle read_loop   !!!test ocean only
 
 !       Set common predictor parameters
 
@@ -305,7 +306,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
              ts_coef0 + ts_coef(1)*bt_ts(2) + ts_coef(2)*dbt_ts + &
              ts_coef(3)*dbt_ts*dbt_ts + ts_coef(4) * seca
         !---automatically reject freezing regression temperatures
-        if ( ts_reg .le. 273.00_r_kind) ts_reg = -10.
+        if ( ts_reg <= 273.00_r_kind) ts_reg = -10.
         
         !---two options with the split window test
         ! 1.) throw out observations with large SST_reg - SST_detersfc
@@ -317,7 +318,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         ! with delta.ts > dts_threshold
         !  tsavg from deter_sfc
         sst_test = tsavg-ts_reg
-        IF (ABS(sst_test) .ge. dts_thresh) cycle read_loop
+        if (abs(sst_test) >= dts_thresh) cycle read_loop
 
         !---Option 2.)
         !---or we can do this --use sathin module to select best pixels
