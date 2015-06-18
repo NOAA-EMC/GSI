@@ -1233,8 +1233,8 @@
 
         else if (amsr2) then
 
-           call qc_amsr2(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-              kraintype,clw_obs,tb_obs,amsr2,varinv,aivals(1,is),id_qc)
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,amsr2,varinv,aivals(1,is),id_qc)
 
 
 !  ---------- GMI  -------------------
@@ -1244,7 +1244,7 @@
 ! remove some data near the scan edge
            if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
 
-           call qc_gmi(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
+           call qc_gmi(nchanl,zsges,luse(n),sea, &
               kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
 
 !  ---------- SAPHIR -----------------
@@ -1252,8 +1252,8 @@
         
         else if (saphir) then
 
-        call qc_saphir(nchanl,nsig,ich,zsges,luse(n),sea,mixed, &
-              kraintype,saphir,varinv,aivals(1,is),id_qc)
+        call qc_saphir(nchanl,zsges,luse(n),sea, &
+              kraintype,varinv,aivals(1,is),id_qc)
         
 !  ---------- SSU  -------------------
 !       SSU Q C
