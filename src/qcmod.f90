@@ -1087,7 +1087,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   return
 end subroutine qc_ssmi
 
-subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
+subroutine qc_gmi(nchanl,sfchgt,luse,sea, &
      kraintype,clw,tsavg5,tbobs,gmi,varinv,aivals,id_qc)
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1106,11 +1106,9 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich     - channel number
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
-!     mixed   - logical, mixed zone flag
 !     kraintype - [0]no rain, [others]rain ; see retrieval_mi
 !     clw     - retrieve clw [kg/m2]
 !     tsavg5       - surface skin temperature
@@ -1132,13 +1130,11 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in   ) :: nsig
   integer(i_kind)                  ,intent(in   ) :: nchanl
-  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind)                  ,intent(in   ) :: kraintype
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
-  logical                          ,intent(in   ) :: sea,mixed,luse
+  logical                          ,intent(in   ) :: sea,luse
   logical                          ,intent(in   ) :: gmi
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,clw,tsavg5
@@ -1271,7 +1267,7 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
     diff_em_36h = em36h - em2_36h
 
     ! check emissivity difference values against thresholds and assign flag if needed
-    if ( (diff_em_10h .gt. 0.01) .or. (diff_em_18h .gt. 0.035) .or. (diff_em_36h .gt. 0.05) ) then
+    if ( (diff_em_10h > 0.01_r_kind) .or. (diff_em_18h > 0.035_r_kind) .or. (diff_em_36h > 0.05_r_kind) ) then
        do i=1,13
           varinv(1:13)=zero
           if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
@@ -1310,8 +1306,8 @@ subroutine qc_gmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   return
 end subroutine qc_gmi
 
-subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
-     kraintype,clw,tbobs,amsr2,varinv,aivals,id_qc)
+subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
+     kraintype,clw,amsr2,varinv,aivals,id_qc)
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_amsr2     QC for amsr2 TBs
@@ -1327,14 +1323,11 @@ subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich     - channel number
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
-!     mixed   - logical, mixed zone flag
 !     kraintype - [0]no rain, [others]rain ; see retrieval_mi
 !     clw     - retrieve clw [kg/m2]
-!     tbobs   - brightness temperature observations
 !     amsr2   - logical true if gmi is processed
 !
 ! output argument list:
@@ -1352,24 +1345,19 @@ subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in   ) :: nsig
   integer(i_kind)                  ,intent(in   ) :: nchanl
-  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind)                  ,intent(in   ) :: kraintype
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
-  logical                          ,intent(in   ) :: sea,mixed,luse
+  logical                          ,intent(in   ) :: sea,luse
   logical                          ,intent(in   ) :: amsr2
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,clw
-  real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
 
 ! Declare local variables
-  integer(i_kind) :: l,i,idx
-  integer(i_kind) :: nch_emrgr                 ! nchan in emissivity regression
-  integer(i_kind),dimension(9)  :: idxch_emrgr ! chan used in emissivity regression
+  integer(i_kind) :: l,i
   real(r_kind) :: efact,vfact,fact
   real(r_kind),dimension(nchanl) :: clwcutofx
 
@@ -1443,8 +1431,8 @@ subroutine qc_amsr2(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   return
 end subroutine qc_amsr2
 
-subroutine qc_saphir(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
-     kraintype,saphir,varinv,aivals,id_qc)
+subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
+     kraintype,varinv,aivals,id_qc)
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_saphir     QC for SAPHIR TBs
@@ -1458,11 +1446,9 @@ subroutine qc_saphir(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich     - channel number
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
-!     mixed   - logical, mixed zone flag
 !     kraintype - [0]no rain, [others]rain ; see retrieval_mi
 !     saphir  - logical true if saphir is processed
 !
@@ -1483,14 +1469,11 @@ subroutine qc_saphir(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 ! Declare passed variables
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in   ) :: nsig
   integer(i_kind)                  ,intent(in   ) :: nchanl
-  integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind)                  ,intent(in   ) :: kraintype 
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
-  logical                          ,intent(in   ) :: sea,mixed,luse
-  logical                          ,intent(in   ) :: saphir
+  logical                          ,intent(in   ) :: sea,luse
 
   real(r_kind)                     ,intent(in   ) :: sfchgt
 

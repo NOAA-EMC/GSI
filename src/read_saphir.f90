@@ -107,7 +107,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind)       :: iskip 
   integer(i_kind)       :: lnbufr,ksatid,isflg  
-  integer(i_kind)       :: ilat,ilon, ifovmod, nadir
+  integer(i_kind)       :: ilat,ilon,nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
   integer(i_kind)       :: ier
@@ -122,7 +122,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)           :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind)           :: zob,tref,dtw,dtc,tz_tr
 
-  real(r_kind)           :: pred
   real(r_kind)           :: dlat,dlon,tdiff,panglr
   real(r_kind)           :: dlon_earth_deg,dlat_earth_deg 
   real(r_kind)           :: step,start,dist1
