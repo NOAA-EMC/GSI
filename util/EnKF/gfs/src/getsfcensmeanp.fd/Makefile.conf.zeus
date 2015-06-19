@@ -4,11 +4,13 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-COREINC  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/incmod
-CORELIB  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
+COREINC  = /contrib/nceplibs/nwprod/lib/incmod
+CORELIB  = /contrib/nceplibs/nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
+INCnemsio= $(COREINC)/nemsio
 
 # ---------------------------
+
 # General targets/definitions
 # ---------------------------
 
@@ -26,12 +28,12 @@ INCsfcio = $(COREINC)/sfcio_4
   OMP = #-qsmp=noauto
 
   FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsfcio)
+  FFLAGS_COM_N  = -I $(INCsfcio) -I $(INCnemsio)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
 
 
 # ----------------------
@@ -56,7 +58,7 @@ INCsfcio = $(COREINC)/sfcio_4
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3lib-2.0_4 -lsfcio_4
+  LIBS_N        = -L$(CORELIB) -lnemsio -lbacio_4 -lsfcio_4 -lw3nco_4
 
   LDFLAGS_N     =
 

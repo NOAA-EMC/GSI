@@ -144,8 +144,8 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         wall_tm="1:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
-     
+     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
         suffix=${sat} 
@@ -177,7 +177,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
   #    job for each is necessary.
   #   
 
-echo starting $bigSATLIST
+echo "starting $bigSATLIST"
 
 set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1
 
@@ -209,7 +209,13 @@ for sat in ${bigSATLIST}; do
             wall_tm="1:00"
          fi
 
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+        
+         mem="600"
+         if [[ $batch -eq 1 ]]; then
+            mem="7000"
+         fi
+
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
          (( batch=batch+1 ))
 

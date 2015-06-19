@@ -22,17 +22,31 @@ program getsfcensmeanp
 
 ! create ensemble mean NCEP GFS surface file.
   use sfcio_module
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
+       nemsio_writerec,nemsio_readrecv,nemsio_writerecv
+
   implicit none
+
+  real(4),parameter:: zero=0.0_4
+
+  logical:: nemsio, sfcio
 
   character*500 filenamein,filenameout,datapath,fileprefix
   character*3 charnanal
   integer lunin,lunout,iret,nanals,k
   integer mype,mype1,npe,orig_group, new_group, new_comm
+  integer nrec, lonb, latb, n, npts
+  integer,dimension(7):: idate
   integer,dimension(:),allocatable:: new_group_members
   real(8) rnanals
+  real,allocatable,dimension(:)   :: rwork1d,swork1d
 
   type(sfcio_head):: sfcheadi, sfcheado
   type(sfcio_data):: sfcdatai, sfcdatao
+
+  type(nemsio_gfile) :: gfile, gfileo
+
 
 ! mpi definitions.
   include 'mpif.h'
@@ -90,178 +104,182 @@ program getsfcensmeanp
      call mpi_abort(mpi_comm_world,101,iret)
   endif
 
+  sfcio=.false.
+  nemsio=.false.
+
 ! Process input files (one file per task)
   if (mype1 <= nanals) then
+
+     call nemsio_init(iret)
 
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
           trim(adjustl(fileprefix))//'_mem'//charnanal
      call sfcio_srohdc(lunin,filenamein,sfcheadi,sfcdatai,iret)
-     write(6,*)'Read ',trim(filenamein),' iret=',iret
+     if (iret == 0 ) then
+        sfcio = .true.
+     else
+        call nemsio_open(gfile,trim(filenamein),'READ',iret)
+        if (iret == 0 ) then
+           nemsio = .true.
+        else
+           write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+        endif
+     endif
+     if (.not.nemsio .and. .not.sfcio) goto 100
+     if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sfcio=',sfcio
+        
 
-!   sfcio_data        Surface file data fields
-!     tsea              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       surface temperature in K
-!     smc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       soil volumetric water content in fraction
-!     sheleg            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       snow depth in m
-!     stc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       soil temperature in K
-!     tg3               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       deep soil temperature in K
-!     zorl              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       roughness in cm
-!     cv                Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud cover in fraction
-!     cvb               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud bottom in kpa
-!     cvt               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       convective cloud top in kpa
-!     alvsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for visible scattered in fraction
-!     alvwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for visible beam in fraction
-!     alnsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for near-IR scattered in fraction
-!     alnwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       albedo for near-IR beam in fraction
-!     slmsk             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       sea-land-ice mask (0-sea, 1-land, 2-ice)
-!     vfrac             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       vegetation fraction in fraction
-!     canopy            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       canopy water in m
-!     f10m              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       10-meter wind speed over lowest model wind speed
-!     t2m               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       2-meter temperature in K
-!     q2m               Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       2-meter specific humidity in kg/kg
-!     vtype             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       vegetation type in integer 1-13
-!     stype             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       soil type in integer 1-9
-!     facsf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in fraction
-!     facwf             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in fraction
-!     uustar            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     ffmm              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     ffhh              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     hice              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     fice              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     tisfc             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     tprcp             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     srflag            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     snwdph            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     slc               Real(sfcio_realkind)(:,:,:) pointer to lonb*latb*lsoil
-!                       xxx in xxx
-!     shdmin            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     shdmax            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     slope             Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       slope type
-!     snoalb            Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       xxx in xxx
-!     orog              Real(sfcio_realkind)(:,:) pointer to lonb*latb
-!                       orography in m
+     if (sfcio) then
+        call sfcio_aldata(sfcheadi,sfcdatao,iret)
+        sfcheado = sfcheadi
 
-     call sfcio_aldata(sfcheadi,sfcdatao,iret)
-     sfcheado = sfcheadi
+!       These fields are fixed.  Do not compute mean
+        sfcdatao%slmsk  = sfcdatai%slmsk
+        sfcdatao%vtype = sfcdatai%vtype
+        sfcdatao%stype = sfcdatai%stype
+        sfcdatao%slope = sfcdatai%slope
+        sfcdatao%orog  = sfcdatai%orog
 
-!    These fields are fixed.  Do not compute mean
-     sfcdatao%slmsk  = sfcdatai%slmsk
-     sfcdatao%vtype = sfcdatai%vtype
-     sfcdatao%stype = sfcdatai%stype
-     sfcdatao%slope = sfcdatai%slope
-     sfcdatao%orog  = sfcdatai%orog
+!       Use mpi_reduce to sum fields.  Compute mean
+        call mpi_allreduce(sfcdatai%tsea,sfcdatao%tsea,    size(sfcdatai%tsea),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%smc,sfcdatao%smc,      size(sfcdatai%smc),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%sheleg,sfcdatao%sheleg,size(sfcdatai%sheleg),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%stc,sfcdatao%stc,      size(sfcdatai%stc),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%tg3,sfcdatao%tg3,      size(sfcdatai%tg3),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%zorl,sfcdatao%zorl,    size(sfcdatai%zorl),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%cv,sfcdatao%cv,        size(sfcdatai%cv),    mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%cvb,sfcdatao%cvb,      size(sfcdatai%cvb),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%cvt,sfcdatao%cvt,      size(sfcdatai%cvt),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%alvsf,sfcdatao%alvsf,  size(sfcdatai%alvsf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%alvwf,sfcdatao%alvwf,  size(sfcdatai%alvwf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%alnsf,sfcdatao%alnsf,  size(sfcdatai%alnsf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%alnwf,sfcdatao%alnwf,  size(sfcdatai%alnwf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%vfrac,sfcdatao%vfrac,  size(sfcdatai%vfrac), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%canopy,sfcdatao%canopy,size(sfcdatai%canopy),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%f10m,sfcdatao%f10m,    size(sfcdatai%f10m),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%t2m,sfcdatao%t2m,      size(sfcdatai%t2m),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%q2m,sfcdatao%q2m,      size(sfcdatai%q2m),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%facsf,sfcdatao%facsf,  size(sfcdatai%facsf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%facwf,sfcdatao%facwf,  size(sfcdatai%facwf), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%uustar,sfcdatao%uustar,size(sfcdatai%uustar),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%ffmm,sfcdatao%ffmm,    size(sfcdatai%ffmm),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%ffhh,sfcdatao%ffhh,    size(sfcdatai%ffhh),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%hice,sfcdatao%hice,    size(sfcdatai%hice),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%fice,sfcdatao%fice,    size(sfcdatai%fice),  mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%tisfc,sfcdatao%tisfc,  size(sfcdatai%tisfc), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%tprcp,sfcdatao%tprcp,  size(sfcdatai%tprcp), mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%srflag,sfcdatao%srflag,size(sfcdatai%srflag),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%snwdph,sfcdatao%snwdph,size(sfcdatai%snwdph),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%slc,sfcdatao%slc,      size(sfcdatai%slc),   mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%shdmin,sfcdatao%shdmin,size(sfcdatai%shdmin),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%shdmax,sfcdatao%shdmax,size(sfcdatai%shdmax),mpi_real,mpi_sum,new_comm,iret)
+        call mpi_allreduce(sfcdatai%snoalb,sfcdatao%snoalb,size(sfcdatai%snoalb),mpi_real,mpi_sum,new_comm,iret)
 
+        sfcdatao%tsea	=sfcdatao%tsea   * rnanals
+        sfcdatao%smc	=sfcdatao%smc	 * rnanals
+        sfcdatao%sheleg	=sfcdatao%sheleg * rnanals
+        sfcdatao%stc	=sfcdatao%stc	 * rnanals
+        sfcdatao%tg3 	=sfcdatao%tg3	 * rnanals
+        sfcdatao%zorl	=sfcdatao%zorl   * rnanals
+        sfcdatao%cv	=sfcdatao%cv	 * rnanals
+        sfcdatao%cvb	=sfcdatao%cvb	 * rnanals
+        sfcdatao%cvt	=sfcdatao%cvt	 * rnanals
+        sfcdatao%alvsf	=sfcdatao%alvsf  * rnanals
+        sfcdatao%alvwf	=sfcdatao%alvwf  * rnanals
+        sfcdatao%alnsf	=sfcdatao%alnsf  * rnanals
+        sfcdatao%alnwf	=sfcdatao%alnwf  * rnanals
+        sfcdatao%vfrac	=sfcdatao%vfrac  * rnanals
+        sfcdatao%canopy	=sfcdatao%canopy * rnanals
+        sfcdatao%f10m	=sfcdatao%f10m   * rnanals
+        sfcdatao%t2m	=sfcdatao%t2m    * rnanals
+        sfcdatao%q2m	=sfcdatao%q2m    * rnanals
+        sfcdatao%facsf	=sfcdatao%facsf  * rnanals
+        sfcdatao%facwf	=sfcdatao%facwf  * rnanals
+        sfcdatao%uustar	=sfcdatao%uustar * rnanals
+        sfcdatao%ffmm	=sfcdatao%ffmm   * rnanals
+        sfcdatao%ffhh	=sfcdatao%ffhh   * rnanals
+        sfcdatao%hice	=sfcdatao%hice   * rnanals
+        sfcdatao%fice	=sfcdatao%fice   * rnanals
+        sfcdatao%tisfc	=sfcdatao%tisfc  * rnanals
+        sfcdatao%tprcp  =sfcdatao%tprcp  * rnanals
+        sfcdatao%srflag	=sfcdatao%srflag * rnanals
+        sfcdatao%snwdph	=sfcdatao%snwdph * rnanals
+        sfcdatao%slc	=sfcdatao%slc    * rnanals
+        sfcdatao%shdmin	=sfcdatao%shdmin * rnanals
+        sfcdatao%shdmax	=sfcdatao%shdmax * rnanals
+        sfcdatao%snoalb	=sfcdatao%snoalb * rnanals
+
+        call sfcio_axdata(sfcdatai,iret)
+
+        if (mype==0) then
+           call sfcio_swohdc(lunout,filenameout,sfcheado,sfcdatao,iret)
+           write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
+        endif
+        
 !    Use mpi_reduce to sum fields.  Compute mean
-     call mpi_allreduce(sfcdatai%tsea,sfcdatao%tsea,    size(sfcdatai%tsea),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%smc,sfcdatao%smc,      size(sfcdatai%smc),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%sheleg,sfcdatao%sheleg,size(sfcdatai%sheleg),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%stc,sfcdatao%stc,      size(sfcdatai%stc),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%tg3,sfcdatao%tg3,      size(sfcdatai%tg3),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%zorl,sfcdatao%zorl,    size(sfcdatai%zorl),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%cv,sfcdatao%cv,        size(sfcdatai%cv),    mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%cvb,sfcdatao%cvb,      size(sfcdatai%cvb),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%cvt,sfcdatao%cvt,      size(sfcdatai%cvt),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%alvsf,sfcdatao%alvsf,  size(sfcdatai%alvsf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%alvwf,sfcdatao%alvwf,  size(sfcdatai%alvwf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%alnsf,sfcdatao%alnsf,  size(sfcdatai%alnsf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%alnwf,sfcdatao%alnwf,  size(sfcdatai%alnwf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%vfrac,sfcdatao%vfrac,  size(sfcdatai%vfrac), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%canopy,sfcdatao%canopy,size(sfcdatai%canopy),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%f10m,sfcdatao%f10m,    size(sfcdatai%f10m),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%t2m,sfcdatao%t2m,      size(sfcdatai%t2m),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%q2m,sfcdatao%q2m,      size(sfcdatai%q2m),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%facsf,sfcdatao%facsf,  size(sfcdatai%facsf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%facwf,sfcdatao%facwf,  size(sfcdatai%facwf), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%uustar,sfcdatao%uustar,size(sfcdatai%uustar),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%ffmm,sfcdatao%ffmm,    size(sfcdatai%ffmm),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%ffhh,sfcdatao%ffhh,    size(sfcdatai%ffhh),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%hice,sfcdatao%hice,    size(sfcdatai%hice),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%fice,sfcdatao%fice,    size(sfcdatai%fice),  mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%tisfc,sfcdatao%tisfc,  size(sfcdatai%tisfc), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%tprcp,sfcdatao%tprcp,  size(sfcdatai%tprcp), mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%srflag,sfcdatao%srflag,size(sfcdatai%srflag),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%snwdph,sfcdatao%snwdph,size(sfcdatai%snwdph),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%slc,sfcdatao%slc,      size(sfcdatai%slc),   mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%shdmin,sfcdatao%shdmin,size(sfcdatai%shdmin),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%shdmax,sfcdatao%shdmax,size(sfcdatai%shdmax),mpi_real,mpi_sum,new_comm,iret)
-     call mpi_allreduce(sfcdatai%snoalb,sfcdatao%snoalb,size(sfcdatai%snoalb),mpi_real,mpi_sum,new_comm,iret)
+     elseif (nemsio) then
+        call nemsio_getfilehead(gfile, nrec=nrec, idate=idate, dimx=lonb, dimy=latb, iret=iret)
 
+        if (mype==0) then
+           gfileo=gfile
+           call nemsio_open(gfileo,trim(filenameout),'WRITE',iret )
+        end if
 
-     sfcdatao%tsea	=sfcdatao%tsea   * rnanals
-     sfcdatao%smc	=sfcdatao%smc	 * rnanals
-     sfcdatao%sheleg	=sfcdatao%sheleg * rnanals
-     sfcdatao%stc	=sfcdatao%stc	 * rnanals
-     sfcdatao%tg3 	=sfcdatao%tg3	 * rnanals
-     sfcdatao%zorl	=sfcdatao%zorl   * rnanals
-     sfcdatao%cv	=sfcdatao%cv	 * rnanals
-     sfcdatao%cvb	=sfcdatao%cvb	 * rnanals
-     sfcdatao%cvt	=sfcdatao%cvt	 * rnanals
-     sfcdatao%alvsf	=sfcdatao%alvsf  * rnanals
-     sfcdatao%alvwf	=sfcdatao%alvwf  * rnanals
-     sfcdatao%alnsf	=sfcdatao%alnsf  * rnanals
-     sfcdatao%alnwf	=sfcdatao%alnwf  * rnanals
-     sfcdatao%vfrac	=sfcdatao%vfrac  * rnanals
-     sfcdatao%canopy	=sfcdatao%canopy * rnanals
-     sfcdatao%f10m	=sfcdatao%f10m   * rnanals
-     sfcdatao%t2m	=sfcdatao%t2m    * rnanals
-     sfcdatao%q2m	=sfcdatao%q2m    * rnanals
-     sfcdatao%facsf	=sfcdatao%facsf  * rnanals
-     sfcdatao%facwf	=sfcdatao%facwf  * rnanals
-     sfcdatao%uustar	=sfcdatao%uustar * rnanals
-     sfcdatao%ffmm	=sfcdatao%ffmm   * rnanals
-     sfcdatao%ffhh	=sfcdatao%ffhh   * rnanals
-     sfcdatao%hice	=sfcdatao%hice   * rnanals
-     sfcdatao%fice	=sfcdatao%fice   * rnanals
-     sfcdatao%tisfc	=sfcdatao%tisfc  * rnanals
-     sfcdatao%tprcp      =sfcdatao%tprcp * rnanals
-     sfcdatao%srflag	=sfcdatao%srflag * rnanals
-     sfcdatao%snwdph	=sfcdatao%snwdph * rnanals
-     sfcdatao%slc	=sfcdatao%slc    * rnanals
-     sfcdatao%shdmin	=sfcdatao%shdmin * rnanals
-     sfcdatao%shdmax	=sfcdatao%shdmax * rnanals
-     sfcdatao%snoalb	=sfcdatao%snoalb * rnanals
+        npts=lonb*latb
+        if (.not.allocated(rwork1d)) allocate(rwork1d(npts))
+        if (.not.allocated(swork1d)) allocate(swork1d(npts))
+        
+        do n=1,nrec
+           rwork1d=zero
+           call nemsio_readrec (gfile, n,rwork1d,iret)
+           swork1d=zero
+           call mpi_allreduce(rwork1d,swork1d,npts,mpi_real,mpi_sum,new_comm,iret)
+           swork1d = swork1d * rnanals
+           
+           if (mype==0) then
+              call nemsio_writerec(gfileo,n,swork1d,iret)
+           end if
+        end do
 
-     call sfcio_axdata(sfcdatai,iret)
+!       Following fields are not averaged
+!         slmsk = land sfc
+!         vtype = vtype sfc
+!         stype = sotyp sfc
+!         slope = sltyp sfc
+!         orog  = orog sfc
 
-     if (mype==0) then
-        call sfcio_swohdc(lunout,filenameout,sfcheado,sfcdatao,iret)
-        write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
+        if (mype==0) then
+           rwork1d=zero
+           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret)
+
+           rwork1d=zero
+           call nemsio_readrecv(gfile,'vtype','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'vtype','sfc',1,rwork1d,iret)
+
+           rwork1d=zero
+           call nemsio_readrecv(gfile,'sotyp','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'sotyp','sfc',1,rwork1d,iret)
+
+           rwork1d=zero
+           call nemsio_readrecv(gfile,'sltyp','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'sltyp','sfc',1,rwork1d,iret)
+
+           rwork1d=zero
+           call nemsio_readrecv(gfile,'orog','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'orog','sfc',1,rwork1d,iret)
+
+        end if
+        
+        deallocate(rwork1d)
+        deallocate(swork1d)
+        
+        call nemsio_close(gfile, iret)
+        if (mype==0) then
+           call nemsio_close(gfileo,iret)
+           write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
+        endif
      endif
 
 ! Jump here if more mpi processors than files to process
@@ -269,7 +287,14 @@ program getsfcensmeanp
      write(6,*) 'No files to process for mpi task = ',mype
   endif
 
+100 continue
   call mpi_barrier(mpi_comm_world,iret)
+
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sfcio) then
+     write(6,*)'***ERROR***  invalid surface file format'
+     call MPI_Abort(MPI_COMM_WORLD,98,iret)
+     stop
+  endif
 
   if (mype==0) then
      write(6,*) 'all done!'
