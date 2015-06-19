@@ -1,0 +1,284 @@
+<!doctype html>
+
+<!-- 12/2014  per WebStorm this file is now html5 compliant. -->
+
+<html>
+<head>
+
+  <style>
+      td {
+          vertical-align: text-top;
+          text-align: center;
+      }
+      img{
+          width:  60px;
+          height: 80px;
+          border: 1px solid blue;
+      }
+      body {
+          color: #000000;
+          background-color: #FFFFFF;
+      }
+      table{
+          border: 0;
+          padding-bottom: 1px;
+          padding-left: 1px;
+          padding-right: 1px;
+          padding-top: 1px;
+      }
+  </style>
+
+</head>
+
+
+<body>
+
+
+   <h2>Introduction</h2>
+   <P>     The purposes of monitoring the data assimilation system are
+   to ensure the proper performance of the assimilation system and
+   to diagnose problems with the system for future improvements.
+   Furthermore, it provides statistics for use in the assimilation
+   system.  The statistics shown here include the bias correction
+   and the observed-minus-simulated radiance statistics (with and
+   without bias correction).</P>
+
+   <P>     The sources of the departure statistics between the observed
+   and the simulated radiance include:
+   (i) errors in the observed data
+   (ii) errors in the profile obtained from the forecast model, and
+   (iii) errors in the radiative-transfer model used to compute
+   radiance from the forecast.</P>
+
+   <P> Some observation numbers may have the decimal points because they are normalized by 
+     the cycle numbers. </P>
+
+</body>
+
+<br>
+<h2>Summary plots</h2>
+Click on the thumbnail to see the full image
+<br>
+<br>
+
+<table>
+<tr>
+    <td>
+        <a href="./plot_summary.html?sat=airs_aqua" target="fmain">
+            <img src="pngs/summary/airs_aqua.summary.png">
+        </a>
+        <div>AQUA AIRS</div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=amsua_aqua" target="fmain">
+            <img src="pngs/summary/amsua_aqua.summary.png">
+        </a>
+        <div>AQUA AMSU-A</div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=ssmis_f16" target="fmain">
+            <img src="pngs/summary/ssmis_f16.summary.png">
+        </a>
+        <div>F16 SSMIS</div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=ssmis_f17" target="fmain">
+            <img src="pngs/summary/ssmis_f17.summary.png">
+        </a>
+        <div>F17 SSMIS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=ssmis_f18" target="fmain">
+            <img src="pngs/summary/ssmis_f18.summary.png">
+        </a>
+        <div>F18 SSMIS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd1_g13" target="fmain">
+            <img src="pngs/summary/sndrd1_g13.summary.png" >
+        </a>
+        <div> GOES-13 SNDRD1 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd2_g13" target="fmain">
+            <img src="pngs/summary/sndrd2_g13.summary.png" >
+        </a>
+        <div>GOES-13 SNDRD2 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd3_g13" target="fmain">
+            <img src="pngs/summary/sndrd3_g13.summary.png" >
+        </a>
+        <div>GOES-13 SNDRD3 </div>
+    </td>
+
+</tr>
+<tr>
+    <td>
+        <a href="./plot_summary.html?sat=sndrd4_g13" target="fmain">
+            <img src="pngs/summary/sndrd4_g13.summary.png" >
+        </a>
+        <div>GOES-13 SNDRD4 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd1_g15" target="fmain">
+            <img src="pngs/summary/sndrd1_g15.summary.png" >
+        </a>
+        <div>GOES-15 SNDRD1 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd2_g15" target="fmain">
+            <img src="pngs/summary/sndrd2_g15.summary.png" >
+        </a>
+        <div>GOES-15 SNDRD2 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd3_g15" target="fmain">
+            <img src="pngs/summary/sndrd3_g15.summary.png" >
+        </a>
+        <div>GOES-15 SNDRD3 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=sndrd4_g15" target="fmain">
+            <img src="pngs/summary/sndrd4_g15.summary.png" >
+        </a>
+        <div>GOES-15 SNDRD4 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=seviri_m10" target="fmain">
+            <img src="pngs/summary/seviri_m10.summary.png" >
+        </a>
+        <div>M10 SEVIRI </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=amsua_metop-a" target="fmain">
+            <img src="pngs/summary/amsua_metop-a.summary.png" >
+        </a>
+        <div>METOP-A AMSU-A </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=hirs4_metop-a" target="fmain">
+            <img src="pngs/summary/hirs4_metop-a.summary.png">
+        </a>
+        <div>METOP-A HIRS/4 </div>
+    </td>
+
+</tr>
+<tr>
+    <td>
+        <a href="./plot_summary.html?sat=iasi_metop-a" target="fmain">
+            <img src="pngs/summary/iasi_metop-a.summary.png">
+        </a>
+        <div>METOP-A IASI </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=mhs_metop-a" target="fmain">
+            <img src="pngs/summary/mhs_metop-a.summary.png" >
+        </a>
+        <div>METOP-A MHS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=amsua_metop-b" target="fmain">
+            <img src="pngs/summary/amsua_metop-b.summary.png">
+        </a>
+        <div>METOP-B AMSU-A </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=hirs4_metop-b" target="fmain">
+            <img src="pngs/summary/hirs4_metop-b.summary.png">
+        </a>
+        <div>METOP-B HIRS/4 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=iasi_metop-b" target="fmain">
+            <img src="pngs/summary/iasi_metop-b.summary.png" >
+        </a>
+        <div>METOP-B IASI </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=mhs_metop-b" target="fmain">
+            <img src="pngs/summary/mhs_metop-b.summary.png">
+        </a>
+        <div>METOP-B MHS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=amsua_n15" target="fmain">
+            <img src="pngs/summary/amsua_n15.summary.png">
+        </a>
+        <div>NOAA-15 AMSU-A </div>
+    </td>
+
+</tr>
+<tr>
+    <td>
+        <a href="./plot_summary.html?sat=amsua_n18" target="fmain">
+            <img src="pngs/summary/amsua_n18.summary.png">
+        </a>
+        <div>NOAA-18 AMSU-A </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=mhs_n18" target="fmain">
+            <img src="pngs/summary/mhs_n18.summary.png">
+        </a>
+        <div>NOAA-18 MHS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=amsua_n19" target="fmain">
+            <img src="pngs/summary/amsua_n19.summary.png">
+        </a>
+        <div>NOAA-19 AMSU-A </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=hirs4_n19" target="fmain">
+            <img src="pngs/summary/hirs4_n19.summary.png">
+        </a>
+        <div>NOAA-19 HIRS/4 </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=mhs_n19" target="fmain">
+            <img src="pngs/summary/mhs_n19.summary.png">
+        </a></div>
+        <div>NOAA-19 MHS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=atms_npp" target="fmain">
+            <img src="pngs/summary/atms_npp.summary.png">
+        </a>
+        <div>NPP ATMS </div>
+    </td>
+
+    <td>
+        <a href="./plot_summary.html?sat=cris_npp" target="fmain">
+            <img src="pngs/summary/cris_npp.summary.png">
+        </a>
+        <div>NPP CRIS </div>
+    </td>
+
+</tr>
+</table>
+</html>
