@@ -45,7 +45,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  li      - add ntguessfc to use guess_grids to apply intrp2a11 correctly
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
-!   2015-05-30  li     - Modify to use surface mask dependent interpolation
+!   2015-05-30  li     - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -65,7 +65,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: dsfct,ntguessfc,isli2
+  use guess_grids, only: dsfct,ntguessfc,isli2,hrdifnst,nfldnst
   use obsmod, only: ssthead,ssttail,rmiss_single,i_sst_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: sst_ob_type
@@ -74,7 +74,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,lat1,lon2,lat2,nsig
   use gridmod, only: get_ij
-  use constants, only: zero,tiny_r_kind,one,half,wgtlim, &
+  use constants, only: zero,tiny_r_kind,one,quarter,half,wgtlim, &
             two,cg_term,pi,huge_single,r1000,tfrozen
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
@@ -84,7 +84,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
-  integer(i_kind),parameter:: nprep=12
+  integer(i_kind),parameter:: istyp=0,nprep=1
 ! Declare passed variables
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
@@ -122,7 +122,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
   integer(i_kind) istat,id_qc
   integer(i_kind) idomsfc,itz
-  integer(i_kind) idatamax
+  integer(i_kind) idatamax,nwsum,nfinal,nobs_qc
   
   logical,dimension(nobs):: luse,muse
 
@@ -181,6 +181,10 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
+  nobs_qc=0
+  nwsum=0
+  nfinal=0
 
   dup=one
   do k=1,nobs
@@ -303,10 +307,10 @@ endif
 if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     if ( owpct > zero ) then
-!    if ( isli == 0 ) then
-       call int2_msk_sub_prep(dsfct(1,1,ntguessfc),isli2,dsfct_tmp,isli2_tmp,0,nprep,mype)
-       call int21_msk_sub(dsfct_tmp,isli2_tmp,dsfct_obx,dlat,dlon,0,mype)
+     if ( isli == 0 ) then
+       nobs_qc = nobs_qc + 1
+       call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
+
      else
        dsfct_obx = zero
      endif
@@ -533,7 +537,6 @@ if(.not.in_curbin) cycle
         endif
  
      end if
-
 
   end do                    ! do i=1,nobs
 

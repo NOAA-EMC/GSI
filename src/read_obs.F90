@@ -503,6 +503,9 @@ subroutine read_obs(ndata,mype)
 !   2014-11-12  carley  - Add call to read goes imager sky cover data for tcamt
 !   2014-12-03  derber - modify for no radiance cases and read processor for
 !                        surface fields
+!   2015-05-30  li     - modify for no radiance cases but sst (nsstbufr) and read processor for
+!                        surface fields (use_sfc = .true. for data type of sst),
+!                        to use deter_sfc in read_nsstbufr.f90)
 !   
 !
 !   input argument list:
@@ -1161,7 +1164,7 @@ subroutine read_obs(ndata,mype)
                 if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis)
                 else
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis)
                 endif
                 string='READ_NASA_LaRC'
 

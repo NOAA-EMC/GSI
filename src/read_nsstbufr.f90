@@ -14,6 +14,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 ! program history log:
 !   2012-01-04  li      - modified based on read_nsstbufr.f90
 !   2015-03-06  Thomas  - added l4densvar logical to remove thinning in time
+!   2015-05-30  Li      - Modify to use deter_sfc instead of deter_sfc2
+!   2015-06-01  Li      - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

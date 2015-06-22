@@ -210,7 +210,7 @@
 
  end subroutine int22_msk_glb
 
- subroutine int21_msk_sub(a,isli,x,dlat,dlon,istyp,mype)
+ subroutine int21_msk_sub(a,isli,x,dlat,dlon,istyp,nwsum,nfinal,mype)
                         
 !$$$  subprogram documentation block
 !                .      .    .
@@ -226,7 +226,7 @@
 !
 !  input argument list:
 !    a      - real: 2-d array such as analysis increment at analysis grids of a subdomain
-!    isli   - integer: 2-d array: surface mask (0 = water, 1 = land, 2 = sea ice) for a grids
+!    isli   - integer: 2-d array: surface mask (0 = water, 1 = land, 2 = sea ice) for grid of a
 !    dlat   - grid relative latitude (obs location) 
 !    dlon   - grid relative longitude (obs location)
 !    istyp  - integer: surface type of point x
@@ -247,13 +247,13 @@
 
  real   (r_kind), intent(in   ) :: dlat,dlon
  integer(i_kind), intent(in   ) :: istyp,mype
+ integer(i_kind), intent(inout) :: nwsum,nfinal
 
 !OUTPUT:
  real   (r_kind), intent(  out) :: x
 
 !Declare local variables
  integer(i_kind) :: ix1,iy1,ix,iy,ii,jj,ixa,iya,mm1
- integer(i_kind) :: nwsum,nfinal
 
  real(r_kind)    :: dx0,dx1,dx2,dx3,dy0,dy1,dy2,dy3,dx,dy,dr
  real(r_kind)    :: dx0s,dx1s,dx2s,dx3s,dy0s,dy1s,dy2s,dy3s
@@ -265,8 +265,6 @@
  mm1 = mype + 1
  dr = 8.0_r_kind    ! square of the search radius for 16-point cressman-type analysis
 
- nwsum  = 0
- nfinal = 0
  x=zero
 !
 ! to get interpolated value of x with a (array) and mask info

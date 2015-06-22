@@ -304,6 +304,7 @@
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
 !  03-01-2015 Li        add zsea1 & zsea2 to namelist for vertical mean temperature based on NSST T-Profile
+!  05-13-2015 wu        remove check to turn off regional 4densvar
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1268,10 +1269,6 @@
      call stop2(329)
   endif
 
-! Only allow 4d-ensemble-var in global mode, for now
-  if (l4densvar .and. regional) then
-     call die(myname_,'4d-ensemble-var not yet available for regional applications',99)
-  end if
 
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
