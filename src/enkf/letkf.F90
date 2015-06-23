@@ -55,7 +55,7 @@ module letkf
 ! Public Variables: None
 !
 ! Modules Used: kinds, constants, params, covlocal, mpisetup, loadbal, statevec,
-!               enkf_obsmod, radinfo, radbias, gridinfo, common_mtx
+!               enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
 !   2011-06-01  Created from Whitaker's serial EnSRF core module.
@@ -66,6 +66,7 @@ module letkf
 !$$$
 
 use mpisetup
+use omp_lib, only: omp_get_num_threads
 use covlocal, only:  taper, latval
 use kinds, only: r_double,i_kind,r_kind,r_single
 use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
@@ -89,7 +90,7 @@ use params, only: sprd_tol, ndim, datapath, nanals,&
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd
-use common_mtx, only: mtx_eigen
+!use common_mtx, only: mtx_eigen
 
 implicit none
 
@@ -113,20 +114,25 @@ real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_single), allocatable, dimension(:) :: buffertmp, buffertmp2
 integer(i_kind) ierr
 integer(i_kind) nanal,nn,nobm,nsame
-logical lastiter
+logical lastiter, vlocal
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
 real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,obdep,oberinv
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
-integer(i_kind),allocatable,dimension(:) :: nobs_use
+integer(i_kind),dimension(nobsgood) :: nobs_use
 integer(i_kind),allocatable,dimension(:) :: oupdate, oindex
 real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
 real(r_kind) :: hdist, vdist, tdist, pi2, minlat, maxlat, minlon, maxlon
 real(r_kind) :: radlat, radlon, latband, lonband, corrlength
 real(r_single) :: deglat, dist
-integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax
+integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads
 logical :: firstobs
+
+!$omp parallel
+nthreads = omp_get_num_threads()
+!$omp end parallel
+if (nproc == 0) print *,'using',nthreads,' openmp threads'
 
 ! allocate temporary array.
 allocate(anal_obchunk(nanals,nobs_max))
@@ -136,6 +142,35 @@ allocate(oberinv(nobsgood))
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
 r_nanalsm1=one/float(nanals-1)
+
+if (minval(lnsigl) > 1.e3) then
+   vlocal = .false.
+   if (nproc == 0) print *,'no vertical localization in LETKF'
+else
+   vlocal = .true.
+endif
+
+if (numiter == 0) then
+! don't do update in observation space.
+  anal_obchunk = anal_obchunk_prior
+  ! nob1 is the index of the obs to be processed on this rank
+  ! nob2 maps nob1 to 1:nobsgood array (nob)
+  do nob1=1,numobsperproc(nproc+1)
+     nob2 = indxproc_obs(nproc+1,nob1)
+     ensmean_obchunk(nob1) = ensmean_ob(nob2)
+  enddo
+  oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
+  ! Compute the inverse of cut-off length and 
+  ! the observation departure from first guess
+!$omp parallel do private(nob)
+  do nob=1,nobsgood
+     invcorlen(nob)=one/corrlengthsq(nob)
+     invlnsigl(nob)=one/lnsigl(nob)
+     invobtimel(nob)=one/obtimel(nob)
+     oberinv(nob)=one/oberrvaruse(nob)
+     obdep(nob)=ob(nob)-ensmean_ob(nob)
+  end do
+end if
 
 do niter=1,numiter
 
@@ -208,8 +243,7 @@ do niter=1,numiter
 
   ! Compute the inverse of cut-off length and 
   ! the observation departure from first guess
-!$omp parallel private(nob)
-!$omp do
+!$omp parallel do private(nob)
   do nob=1,nobsgood
      invcorlen(nob)=one/corrlengthsq(nob)
      invlnsigl(nob)=one/lnsigl(nob)
@@ -217,24 +251,23 @@ do niter=1,numiter
      oberinv(nob)=one/oberrvaruse(nob)
      obdep(nob)=ob(nob)-ensmean_ob(nob)
   end do
-!$omp end do
-!$omp end parallel
 
-  allocate(oupdate(numobsperproc(nproc+1)))
-  oupdate(1:numobsperproc(nproc+1)) = 0
   pi2 = 2._r_kind * pi
   t2 = zero
   t3 = zero
   t4 = zero
   t5 = zero
-!$omp parallel private(nobs_use,nob1,nob2,nob3,nob4,nobsl,nobsl2,radlat,radlon, &
+  firstobs=.true.
+  allocate(oupdate(numobsperproc(nproc+1)))
+  oupdate(1:numobsperproc(nproc+1)) = 0
+  ! Loop for each observations
+!$omp parallel do schedule(dynamic) private(nobs_use,nob,nob1,nob2, &
+!$omp                  nob3,nob4,nobsl,nobsl2,radlat,radlon, &
 !$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
 !$omp                  imin,imax,jmin,jmax,hdxf,rdiag,dep,rloc,hdist,vdist, &
-!$omp                  tdist,nf,nob,work,trans,firstobs,t1)
-  allocate(nobs_use(nobsgood))
-  firstobs=.true.
-  ! Loop for each observations
-!$omp do schedule(dynamic)
+!$omp                  tdist,nf,work,trans,firstobs, &
+!$omp                  nskip,work2,dist,oupdate) &
+!$omp  reduction(+:t1,t2,t3,t4,t5)
   obsloop: do nob1=1,numobsperproc(nproc+1)
 
      t1 = mpi_wtime()
@@ -316,9 +349,9 @@ do niter=1,numiter
      
      ! Skip when no observation is available
      if(nobsl == 0) then
-        oupdate(nob1)=1
-        nskip=nskip+1
-        cycle obsloop
+         oupdate(nob1)=1
+         nskip=nskip+1
+         cycle obsloop
      end if
 
      ! Pick up variables passed to LETKF core process
@@ -362,7 +395,7 @@ do niter=1,numiter
      end if
 
      ! Skip the already updated observation priors
-     if(oupdate(nob1) == 1) then
+     if (oupdate(nob1) == 1) then
         deallocate(hdxf,rdiag,dep,rloc)
         cycle obsloop
      end if
@@ -396,14 +429,13 @@ do niter=1,numiter
      t5 = t5 + mpi_wtime() - t1
 
   end do obsloop
-!$omp end do
-  deallocate(nobs_use)
-!$omp end parallel
+!$omp end parallel do
 
   deallocate(oupdate)
   t1 = mpi_wtime()
   if (nproc == 0 .and. nskip > 0) print *,nskip,' out of',numobsperproc(nproc+1),'obs skipped'
   if (nproc == 0 .and. nrej >  0) print *,nrej,' obs rejected by varqc'
+  t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
   if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',t1-tbegin,t2,t3,t4,t5,nrej
   8003  format(i2,1x,a14,1x,i5,1x,a3,5(f8.2,1x),i4)
 
@@ -429,6 +461,7 @@ do niter=1,numiter
 
 end do ! niter loop
 
+if (numiter > 0) then
 allocate(buffertmp(nobsgood))
 allocate(buffertmp2(nobsgood))
 buffertmp=zero
@@ -444,6 +477,7 @@ predx = predx + deltapredx ! add increment to bias coeffs.
 t3 = mpi_wtime()
 if (nproc == 0) print *,'time to gather obsprd_post = ',t3-t2,' secs'
 deallocate(buffertmp,buffertmp2)
+end if
 
 ! free temporary arrays.
 deallocate(anal_obchunk_prior)
@@ -455,13 +489,13 @@ t5 = zero
 t6 = mpi_wtime()
 ! Next, update analysis ensemble on each grid points
 ! Loop for each horizontal grid points
-!$omp parallel private(nobs_use,npt,nob,nobsl,nobsl2,ngrd1,corrlength, &
+!$omp parallel do schedule(dynamic) private(nobs_use,npt,nob,nobsl, &
+!$omp                  nobsl2,ngrd1,corrlength, &
 !$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
 !$omp                  imin,imax,jmin,jmax,nf,hdist0,vdist,tdist, &
-!$omp                  nn,hdxf,rdiag,dep,rloc,i,work,trans,t1, &
-!$omp                  oindex,nanal)
-allocate(nobs_use(nobsgood))
-!$omp do schedule(dynamic)
+!$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
+!$omp                  oindex,nanal,deglat,dist) &
+!$omp  reduction(+:t1,t2,t3,t4,t5)
 grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()
@@ -535,6 +569,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    ! Skip when no observation is available
    if(nobsl == 0) cycle grdloop
 
+   if (vlocal) then
    ! Loop for each vertical layers
    verloop: do nn=1,nlevs_pres
 
@@ -600,12 +635,73 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t1 = mpi_wtime()
 
    end do verloop
+   else ! no vertical localization
+
+   ! Pick up variables passed to LETKF core process
+   allocate(hdxf(nobsl,nanals))
+   allocate(rdiag(nobsl))
+   allocate(dep(nobsl))
+   allocate(rloc(nobsl))
+   allocate(oindex(nobsl))
+   nobsl2=1
+   do nob=1,nobsl
+      nf=nobs_use(nob)
+      if(hdist0(nob) >= one) cycle
+      if(abs(obtime(nf)) >= obtimel(nf)) cycle
+      tdist=obtime(nf)*invobtimel(nf)
+      hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+      rdiag(nobsl2)=oberinv(nf)
+      dep(nobsl2)=obdep(nf)
+      dist = sqrt(hdist0(nob)+tdist*tdist)
+      rloc(nobsl2)=taper(dist)
+      oindex(nobsl2)=nf
+      if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
+         nobsl2=nobsl2+1
+      end if
+   end do
+   nobsl2=nobsl2-1 ! total number of obs in local volume.
+
+   if(nobsl2 > 0) then
+
+      t3 = t3 + mpi_wtime() - t1
+      t1 = mpi_wtime()
+
+      ! Compute transformation matrix of LETKF
+      call letkf_core(nobsl2,hdxf(1:nobsl2,1:nanals),rdiag(1:nobsl2), &
+           dep(1:nobsl2),rloc(1:nobsl2),trans)
+      deallocate(hdxf,rdiag,dep,rloc,oindex)
+
+      t4 = t4 + mpi_wtime() - t1
+      t1 = mpi_wtime()
+
+      ! Update analysis ensembles
+      ! since there is no vertical localization, weights computed
+      ! for this horizontal grid point can be applied to all points/variables in column.
+      do i=1,ndim
+         work(1:nanals) = anal_chunk(1:nanals,npt,i)
+         work2(1:nanals) = ensmean_chunk(npt,i)
+         if(r_kind == kind(1.d0)) then
+            call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                 & work2,1)
+         else
+            call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                 & work2,1)
+         end if
+         ensmean_chunk(npt,i) = sum(work2(1:nanals)) * r_nanals
+         anal_chunk(1:nanals,npt,i) = work2(1:nanals)-ensmean_chunk(npt,i)
+      end do
+
+      t5 = t5 + mpi_wtime() - t1
+      t1 = mpi_wtime()
+   else ! no obs in volume
+      deallocate(hdxf,rdiag,dep,rloc,oindex)
+   end if
+   endif
 end do grdloop
-!$omp end do
-deallocate(nobs_use)
-!$omp end parallel
+!$omp end parallel do
 
 tend = mpi_wtime()
+t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
 if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',tend-t6,t2,t3,t4,t5,' secs'
 
 deallocate(obdep,oberinv)
@@ -650,6 +746,11 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !
 ! program history log:
 !   2011-06-03  ota: created from miyoshi's LETKF core subroutine
+!   2014-06-20  whitaker: optimization for case when no vertical localization
+!               is used.  Allow for numiter=0 (skip ob space update). Fixed
+!               missing openmp private declarations in obsloop and grdloop.
+!               Use openmp reductions for profiling openmp loops. Use LAPACK
+!               routine for eigenanalysis (instead of mtx_eigen from eispack).
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch
@@ -679,7 +780,7 @@ real(r_kind),dimension(nanals,nanals) :: eivec,pa,work1
 real(r_kind),dimension(nanals) :: eival,work3
 real(r_kind),dimension(nobsl) :: rrloc
 real(r_kind) :: rho
-integer(i_kind) :: i,j,nob,nanal
+integer(i_kind) :: i,j,nob,nanal,ierr,lwork
 ! hdxf Rinv
 do nob=1,nobsl
   rrloc(nob) = rdiaginv(nob) * rloc(nob)
@@ -710,7 +811,13 @@ do nanal=1,nanals
    work1(nanal,nanal) = work1(nanal,nanal) + real(nanals-1,r_kind)
 end do
 ! eigenvalues and eigenvectors of [ hdxb^T Rinv hdxb + (m-1) I ]
-call mtx_eigen(1,nanals,work1,eival,eivec,i)
+! use internal eispack routine
+!call mtx_eigen(1,nanals,work1,eival,eivec,i)
+! use external (LAPACK) routine
+eivec(:,:) = work1(:,:); lwork = -1
+call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
+lwork = min(nanals*nanals, int(work1(1,1)))
+call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
 ! Pa = [ hdxb^T Rinv hdxb + (m-1) I ]inv
 do j=1,nanals
    do i=1,nanals

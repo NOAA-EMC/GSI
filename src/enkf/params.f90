@@ -49,6 +49,8 @@ integer(i_kind), public, parameter :: nsatmax_oz = 100
 integer,public :: nhr_anal=6
 character(len=2), public :: charfhr_anal
 logical, public :: iau=.false. 
+! write out text file with innov stats for conventional obs
+logical, public :: write_convobs=.false.
 character(len=10), public ::  datestring
 character(len=500),public :: datapath
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
@@ -68,6 +70,7 @@ real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
 real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
+real(r_single),public :: covl_minfact, covl_efold
 real(r_single),public :: boxsize
 logical,public :: params_initialized = .true.
 ! do sat bias correction update.
@@ -93,6 +96,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
+                   covl_minfact,covl_efold,write_convobs,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
@@ -135,6 +139,16 @@ lnsigcutoffpssh = -999._r_single  ! value for surface pressure
 obtimelnh = 2800._r_single*1000._r_single/(30._r_single*3600._r_single) ! hours to move 2800 km at 30 ms-1.
 obtimeltr = obtimelnh
 obtimelsh = obtimelnh
+! min localization reduction factor for adaptive localization
+! based on HPaHt/HPbHT. Default (1.0) means no adaptive localization.
+! 0.25 means minimum localization is 0.25*corrlength(nh,tr,sh).
+covl_minfact = 1.0
+! efolding distance for adapative localization.
+! Localization reduction factor is 1. - exp( -((1.-paoverpb)/covl_efold) )
+! When 1-pavoerpb=1-HPaHt/HPbHt=cov_efold localization scales reduced by
+! factor of 1-1/e ~ 0.632. When paoverpb==>1, localization scales go to zero.
+! When paoverpb==>1, localization scales not reduced.
+covl_efold = 1.e-10
 ! path to data directory (include trailing slash)
 datapath = " " ! mandatory
 ! tolerance for background check.
@@ -248,9 +262,12 @@ latboundmp=-latbound+p5delat
 latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
+! have to do ob space update for serial filter (not for LETKF).
+if (.not. letkf_flag .and. numiter < 1) numiter = 1
+
 !! if not performing satellite bias correction update, set iterations to 1
 if (.not. lupd_satbiasc) then 
-   numiter=1
+   if (numiter > 1) numiter=1
    if (nproc == 0) then
      write(6,*) 'PARAMS: NOT UPDATING BIAS CORRECTION COEFFS, SET NUMBER OF ITERATIONS TO 1'
      write(6,*) 'LUPD_SATBIASC, NUMITER = ',lupd_satbiasc,numiter

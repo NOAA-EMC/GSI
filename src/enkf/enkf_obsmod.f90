@@ -314,6 +314,7 @@ end if
 allocate(obloc(3,nobsgood))
 allocate(oblnp(nobstot)) ! log(p) at ob locations.
 allocate(corrlengthsq(nobsgood),lnsigl(nobsgood),obtimel(nobsgood))
+lnsigl=1.e10
 do nob=1,nobsgood
    oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
    if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_single
@@ -334,7 +335,6 @@ do nob=1,nobsgood
    end if
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
-
 end do
 
 ! these allocated here, but not computed till after the state 
