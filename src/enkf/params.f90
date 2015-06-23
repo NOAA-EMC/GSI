@@ -49,8 +49,6 @@ integer(i_kind), public, parameter :: nsatmax_oz = 100
 integer,public :: nhr_anal=6
 character(len=2), public :: charfhr_anal
 logical, public :: iau=.false. 
-! write out text file with innov stats for conventional obs
-logical, public :: write_convobs=.false.
 character(len=10), public ::  datestring
 character(len=500),public :: datapath
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
