@@ -94,7 +94,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   covl_minfact,covl_efold,write_convobs,&
+                   covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
