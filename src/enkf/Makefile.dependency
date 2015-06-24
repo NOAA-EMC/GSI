@@ -17,7 +17,7 @@ netcdf_io_wrf.o : netcdf_io_wrf.f90
 netlib.o : netlib.f90 
 enkf_obsmod.o : enkf_obsmod.f90 covlocal.o   mpi_readobs.o params.o  mpisetup.o 
 params.o : params.f90   mpisetup.o 
-sorting.o: sorting.o
+sorting.o: sorting.f90
 radbias.o : radbias.f90 loadbal.o params.o enkf_obsmod.o  mpisetup.o 
 read_locinfo.o : read_locinfo.f90 mpisetup.o gridinfo.o  kdtree2.o enkf_obsmod.o params.o 
 readconvobs.o : readconvobs.f90  
