@@ -266,7 +266,7 @@ do niter=1,numiter
 !$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
 !$omp                  imin,imax,jmin,jmax,hdxf,rdiag,dep,rloc,hdist,vdist, &
 !$omp                  tdist,nf,work,trans,firstobs, &
-!$omp                  nskip,work2,dist,oupdate) &
+!$omp                  nskip,work2,dist,oupdate,oindex) &
 !$omp  reduction(+:t1,t2,t3,t4,t5)
   obsloop: do nob1=1,numobsperproc(nproc+1)
 
@@ -355,9 +355,7 @@ do niter=1,numiter
      end if
 
      ! Pick up variables passed to LETKF core process
-     allocate(hdxf(nobsl,nanals))
-     allocate(rdiag(nobsl))
-     allocate(dep(nobsl))
+     allocate(oindex(nobsl))
      allocate(rloc(nobsl))
      nobsl2=1
      do nob=1,nobsl
@@ -373,37 +371,42 @@ do niter=1,numiter
         vdist=vdist*invlnsigl(nf)
         hdist=hdist*invcorlen(nf)
         tdist=tdist*invobtimel(nf)
-        hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf)  ! WE NEED anal_ob (global)
-        rdiag(nobsl2)=oberinv(nf)
-        dep(nobsl2)=obdep(nf)
         dist = sqrt(hdist+vdist*vdist+tdist*tdist)
         rloc(nobsl2)=taper(dist)
+        oindex(nobsl2)=nf
         if(rloc(nobsl2) /= zero) then
            nobsl2=nobsl2+1
         end if
      end do
-
      nobsl2=nobsl2-1
+     allocate(rdiag(nobsl2))
+     allocate(dep(nobsl2))
+     allocate(hdxf(nobsl2,nanals))
+     do nob=1,nobsl2
+        nf = oindex(nob)
+        hdxf(nob,1:nanals)=anal_ob(1:nanals,nf)  ! WE NEED anal_ob (global)
+        rdiag(nob)=oberinv(nf)
+        dep(nob)=obdep(nf)
+     enddo
 
      t3 = t3 + mpi_wtime() - t1
      t1 = mpi_wtime()
 
      if(nobsl2 == 0) then
-        deallocate(hdxf,rdiag,dep,rloc)
+        deallocate(hdxf,rdiag,dep,rloc,oindex)
         oupdate(nob1) = 1
         cycle obsloop
      end if
 
      ! Skip the already updated observation priors
      if (oupdate(nob1) == 1) then
-        deallocate(hdxf,rdiag,dep,rloc)
+        deallocate(hdxf,rdiag,dep,rloc,oindex)
         cycle obsloop
      end if
 
      ! Compute transformation matrix of LETKF
-     call letkf_core(nobsl2,hdxf(1:nobsl2,1:nanals),rdiag(1:nobsl2), &
-          dep(1:nobsl2),rloc(1:nobsl2),trans)
-     deallocate(hdxf,rdiag,dep,rloc)
+     call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
+     deallocate(hdxf,rdiag,dep,rloc,oindex)
 
      t4 = t4 + mpi_wtime() - t1
      t1 = mpi_wtime()
@@ -574,9 +577,6 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    verloop: do nn=1,nlevs_pres
 
       ! Pick up variables passed to LETKF core process
-      allocate(hdxf(nobsl,nanals))
-      allocate(rdiag(nobsl))
-      allocate(dep(nobsl))
       allocate(rloc(nobsl))
       allocate(oindex(nobsl))
       nobsl2=1
@@ -588,9 +588,6 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          if(abs(obtime(nf)) >= obtimel(nf)) cycle
          vdist=vdist*invlnsigl(nf)
          tdist=obtime(nf)*invobtimel(nf)
-         hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-         rdiag(nobsl2)=oberinv(nf)
-         dep(nobsl2)=obdep(nf)
          dist = sqrt(hdist0(nob)+vdist*vdist+tdist*tdist)
          rloc(nobsl2)=taper(dist)
          oindex(nobsl2)=nf
@@ -599,6 +596,16 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          end if
       end do
       nobsl2=nobsl2-1
+      allocate(hdxf(nobsl2,nanals))
+      allocate(rdiag(nobsl2))
+      allocate(dep(nobsl2))
+      do nob=1,nobsl2
+         nf=oindex(nob)
+         hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+         rdiag(nob)=oberinv(nf)
+         dep(nob)=obdep(nf)
+      end do
+
       if(nobsl2 == 0) then
          deallocate(hdxf,rdiag,dep,rloc,oindex)
          cycle verloop
@@ -608,8 +615,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t1 = mpi_wtime()
 
       ! Compute transformation matrix of LETKF
-      call letkf_core(nobsl2,hdxf(1:nobsl2,1:nanals),rdiag(1:nobsl2), &
-           dep(1:nobsl2),rloc(1:nobsl2),trans)
+      call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
       deallocate(hdxf,rdiag,dep,rloc,oindex)
 
       t4 = t4 + mpi_wtime() - t1
@@ -635,23 +641,17 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t1 = mpi_wtime()
 
    end do verloop
-   else ! no vertical localization
+   else ! vlocal = .false.: no vertical localization
 
    ! Pick up variables passed to LETKF core process
-   allocate(hdxf(nobsl,nanals))
-   allocate(rdiag(nobsl))
-   allocate(dep(nobsl))
-   allocate(rloc(nobsl))
    allocate(oindex(nobsl))
+   allocate(rloc(nobsl))
    nobsl2=1
    do nob=1,nobsl
       nf=nobs_use(nob)
       if(hdist0(nob) >= one) cycle
       if(abs(obtime(nf)) >= obtimel(nf)) cycle
-      tdist=obtime(nf)*invobtimel(nf)
-      hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-      rdiag(nobsl2)=oberinv(nf)
-      dep(nobsl2)=obdep(nf)
+      tdist = obtime(nf)*invobtimel(nf)
       dist = sqrt(hdist0(nob)+tdist*tdist)
       rloc(nobsl2)=taper(dist)
       oindex(nobsl2)=nf
@@ -660,6 +660,15 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       end if
    end do
    nobsl2=nobsl2-1 ! total number of obs in local volume.
+   allocate(hdxf(nobsl2,nanals))
+   allocate(rdiag(nobsl2))
+   allocate(dep(nobsl2))
+   do nob=1,nobsl2
+      nf=oindex(nob)
+      hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+      rdiag(nob)=oberinv(nf)
+      dep(nob)=obdep(nf)
+   end do
 
    if(nobsl2 > 0) then
 
@@ -667,8 +676,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t1 = mpi_wtime()
 
       ! Compute transformation matrix of LETKF
-      call letkf_core(nobsl2,hdxf(1:nobsl2,1:nanals),rdiag(1:nobsl2), &
-           dep(1:nobsl2),rloc(1:nobsl2),trans)
+      call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
       deallocate(hdxf,rdiag,dep,rloc,oindex)
 
       t4 = t4 + mpi_wtime() - t1
@@ -706,8 +714,9 @@ if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gri
 
 deallocate(obdep,oberinv)
 
-! Gathering analysis perturbations projected on the observation space
-if(nproc /= 0) then
+! Gathering updated analysis perturbations projected on the observation space
+if (numiter > 0) then
+if (nproc /= 0) then
   deallocate(anal_ob)
   call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real4,0, &
        1,mpi_comm_world,ierr)
@@ -726,6 +735,7 @@ else
       anal_ob(:,nob2) = anal_obchunk(:,nob1)
    end do
    deallocate(buffertmp3)
+end if
 end if
 
 deallocate(anal_obchunk) ! this one is allocated in loadbal
@@ -801,10 +811,10 @@ end do
 !end do
 if(r_kind == kind(1.d0)) then
    call dgemm('t','n',nanals,nanals,nobsl,1.d0,hdxf_rinv,nobsl, &
-        hdxf(1:nobsl,1:nanals),nobsl,0.d0,work1,nanals)
+        hdxf,nobsl,0.d0,work1,nanals)
 else
    call sgemm('t','n',nanals,nanals,nobsl,1.e0,hdxf_rinv,nobsl, &
-        hdxf(1:nobsl,1:nanals),nobsl,0.e0,work1,nanals)
+        hdxf,nobsl,0.e0,work1,nanals)
 end if
 ! hdxb^T Rinv hdxb + (m-1) I
 do nanal=1,nanals
