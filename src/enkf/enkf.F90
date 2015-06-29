@@ -110,7 +110,7 @@ use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
-                  covl_minfact,covl_efold,nhr_anal
+                  covl_minfact,covl_efold,nbackgrounds
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -129,7 +129,7 @@ use random_normal, only : rnorm, set_random_seed
 
 ! local variables.
 integer(i_kind) nob,nob1,nob2,nob3,npob,nf,nf2,ii,nobx,nskip,&
-                niter,i,nrej,npt,nuse,ncount
+                niter,i,nrej,npt,nuse,ncount,nb
 integer(i_kind) indxens1(nanals),indxens2(nanals)
 real(r_single) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
              dist,lnsig,obt,&
@@ -534,7 +534,7 @@ do niter=1,numiter
       end if
       if (nf2 > 0) then
           taper3=taper(obt*obtimelinv)*hpfhtcon
-!$omp parallel do  schedule(dynamic,1) private(ii,i,nn,nnn,lnsig,kfgain,taper1,taperv)
+!$omp parallel do  schedule(dynamic,1) private(ii,i,nb,nn,nnn,lnsig,kfgain,taper1,taperv)
           do ii=1,nf2
              taper1=taper_disgrd(ii)*taper3
              i = sresults1(ii)%idx
@@ -547,15 +547,18 @@ do niter=1,numiter
                end if
              end do
              do nn=nn1,nn2
-                 nnn=index_pres(nn)
-                 if (taperv(nnn) > zero) then
-                     ! gain includes covariance localization.
-                     kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn)*anal_obtmp)
-                     ! update mean.
-                     ensmean_chunk(i,nn) = ensmean_chunk(i,nn) + kfgain*obinc_tmp
-                     ! update perturbations.
-                     anal_chunk(:,i,nn) = anal_chunk(:,i,nn) + kfgain*obganl(:)
-                 end if
+                nnn=index_pres(nn)
+                if (taperv(nnn) > zero) then
+                    ! gain includes covariance localization.
+                    ! update all time levels
+                    do nb=1,nbackgrounds
+                      kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn,nb)*anal_obtmp)
+                      ! update mean.
+                      ensmean_chunk(i,nn,nb) = ensmean_chunk(i,nn,nb) + kfgain*obinc_tmp
+                      ! update perturbations.
+                      anal_chunk(:,i,nn,nb) = anal_chunk(:,i,nn,nb) + kfgain*obganl(:)
+                    enddo
+                end if
              end do
           end do
       end if ! if .not. lastiter or no close grid points

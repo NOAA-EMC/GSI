@@ -86,7 +86,7 @@ use constants, only: pi, one, zero, rad2deg, deg2rad
 use params, only: sprd_tol, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,&
-                  corrlengthnh,corrlengthtr,corrlengthsh
+                  corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd
@@ -126,7 +126,7 @@ real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
 real(r_kind) :: hdist, vdist, tdist, pi2, minlat, maxlat, minlon, maxlon
 real(r_kind) :: radlat, radlon, latband, lonband, corrlength
 real(r_single) :: deglat, dist
-integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads
+integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads, nb
 logical :: firstobs
 
 !$omp parallel
@@ -497,7 +497,7 @@ t6 = mpi_wtime()
 !$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
 !$omp                  imin,imax,jmin,jmax,nf,hdist0,vdist,tdist, &
 !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
-!$omp                  oindex,nanal,deglat,dist) &
+!$omp                  oindex,nanal,deglat,dist,nb) &
 !$omp  reduction(+:t1,t2,t3,t4,t5)
 grdloop: do npt=1,numptsperproc(nproc+1)
 
@@ -621,11 +621,12 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t4 = t4 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
-      ! Update analysis ensembles
+      ! Update analysis ensembles (all time levels)
+      do nb=1,nbackgrounds
       do i=1,ndim
          if(index_pres(i) /= nn) cycle
-         work(1:nanals) = anal_chunk(1:nanals,npt,i)
-         work2(1:nanals) = ensmean_chunk(npt,i)
+         work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+         work2(1:nanals) = ensmean_chunk(npt,i,nb)
          if(r_kind == kind(1.d0)) then
             call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
                  & work2,1)
@@ -633,8 +634,9 @@ grdloop: do npt=1,numptsperproc(nproc+1)
             call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
                  & work2,1)
          end if
-         ensmean_chunk(npt,i) = sum(work2(1:nanals)) * r_nanals
-         anal_chunk(1:nanals,npt,i) = work2(1:nanals)-ensmean_chunk(npt,i)
+         ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+         anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+      end do
       end do
 
       t5 = t5 + mpi_wtime() - t1
@@ -682,12 +684,13 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t4 = t4 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
-      ! Update analysis ensembles
+      ! Update analysis ensembles (all time levels)
       ! since there is no vertical localization, weights computed
       ! for this horizontal grid point can be applied to all points/variables in column.
+      do nb=1,nbackgrounds
       do i=1,ndim
-         work(1:nanals) = anal_chunk(1:nanals,npt,i)
-         work2(1:nanals) = ensmean_chunk(npt,i)
+         work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+         work2(1:nanals) = ensmean_chunk(npt,i,nb)
          if(r_kind == kind(1.d0)) then
             call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
                  & work2,1)
@@ -695,8 +698,9 @@ grdloop: do npt=1,numptsperproc(nproc+1)
             call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
                  & work2,1)
          end if
-         ensmean_chunk(npt,i) = sum(work2(1:nanals)) * r_nanals
-         anal_chunk(1:nanals,npt,i) = work2(1:nanals)-ensmean_chunk(npt,i)
+         ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+         anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+      end do
       end do
 
       t5 = t5 + mpi_wtime() - t1

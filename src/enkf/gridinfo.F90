@@ -30,7 +30,8 @@ module gridinfo
 !   ptop: (real scalar) pressure (hPa) at top model layer interface.
 !   lonsgrd(npts): real array of analysis grid longitudes (radians).
 !   latsgrd(npts): real array of analysis grid latitudes (radians).
-!   logp(npts,ndim):  -log(press) for all 2d analysis grids.
+!   logp(npts,ndim):  -log(press) for all 2d analysis grids. Assumed invariant
+!   in assimilation window, computed fro ensemble mean at middle of window.
 !   gridloc(3,npts): spherical cartesian coordinates (x,y,z) for analysis grid.
 !   
 ! Modules Used: mpisetup, params, kinds
@@ -44,8 +45,9 @@ module gridinfo
 !$$$
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
-use params, only: datapath,nlevs,nvars,ndim,datestring,&
-                  nlons,nlats,reducedgrid,massbal_adjust,use_gfs_nemsio
+use params, only: datapath,nlevs,nvars,ndim,datestring,charfhr_anal,&
+                  nlons,nlats,nbackgrounds,reducedgrid,massbal_adjust,use_gfs_nemsio,&
+                  fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -98,7 +100,7 @@ nvarhumid = 4
 nvarozone = 5
 if (nproc .eq. 0) then
 if (use_gfs_nemsio) then
-     filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+     filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_init, iret=',iret
@@ -123,7 +125,7 @@ if (use_gfs_nemsio) then
        call stop2(23)
      end if
 else
-     filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+     filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
      ! define sighead on all tasks.
      call sigio_sropen(iunit,trim(filename),iret)
      if (iret /= 0) then
@@ -754,7 +756,7 @@ contains
 
     ! Build the ensemble mean filename expected by routine
 
-    filename = trim(adjustl(datapath))//"firstguess.ensmean"
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
 
     ! Obtain unstaggered grid dimensions from ingested variable file
 
@@ -1456,7 +1458,7 @@ contains
 
     ! Build the ensemble mean filename expected by routine
 
-    filename = trim(adjustl(datapath))//"firstguess.ensmean"
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
 
     ! Obtain unstaggered grid dimensions from ingested variable file
 
@@ -2095,7 +2097,7 @@ if (nproc .eq. 0) then
 
    ! Build the ensemble mean filename expected by routine
   
-   filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+   filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"_ensmean"
   
    call nemsio_init(iret=iret)
    if(iret/=0) then

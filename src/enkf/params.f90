@@ -45,18 +45,26 @@ public :: read_namelist
 !   part of the diag* filename).
 integer(i_kind), public, parameter :: nsatmax_rad = 200
 integer(i_kind), public, parameter :: nsatmax_oz = 100
-! forecast time for first-guess forecast
-integer,public :: nhr_anal=6
-character(len=2), public :: charfhr_anal
-logical, public :: iau=.false. 
-character(len=10), public ::  datestring
-character(len=500),public :: datapath
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
 character(len=20), public, dimension(nsatmax_oz) ::sattypes_oz
+! forecast times for first-guess forecasts to be updated
+integer,dimension(7),public ::  nhr_anal = (/6,-1,-1,-1,-1,-1,-1/)
+! character string version of nhr_anal with leading zeros.
+character(len=2),dimension(7),public :: charfhr_anal
+! prefix for background and analysis file names (mem### appended)
+! default is "sfg_"//datestring//"_fhr##_" and
+! "sanl_"//datestring//"_fhr##_". If only one time level
+! in background, default for analysis is "sanl_"//datestring//"_"
+character(len=120),dimension(7),public :: fgfileprefixes
+character(len=120),dimension(7),public :: anlfileprefixes
+! analysis date string (YYYYMMDDHH)
+character(len=10), public ::  datestring
+! filesystem path to input files (first-guess, GSI diagnostic files).
+character(len=500),public :: datapath
 logical, public :: deterministic, sortinc, pseudo_rh,&
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
-                           nlons,nlats,ndim
+                           nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
@@ -98,8 +106,9 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
-                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,newpc4pred,&
-                   nmmb,iau,nhr_anal,letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
+                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
+                   newpc4pred,nmmb,nhr_anal,nbackgrounds,&
+                   letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
 namelist /nam_wrf/arw,nmm,doubly_periodic
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -108,7 +117,7 @@ namelist /ozobs_enkf/sattypes_oz
 contains
 
 subroutine read_namelist()
-integer i
+integer i,nb
 ! have all processes read namelist from file enkf.nml
 
 ! defaults
@@ -218,6 +227,10 @@ sattypes_rad=' '
 sattypes_oz=' '
 dsis=' '
 
+! Initialize first-guess and analysis file name prefixes.
+! (blank means use default names)
+fgfileprefixes = ''; anlfileprefixes=''
+
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
 read(912,nam_enkf)
@@ -311,9 +324,29 @@ if (nproc == 0) then
 end if
 
 ! background forecast time for analysis
-write(charfhr_anal,'(i2.2)') nhr_anal
+nbackgrounds=0
+do while (nhr_anal(nbackgrounds+1) > 0)
+   write(charfhr_anal(nbackgrounds+1),'(i2.2)') nhr_anal(nbackgrounds+1)
+   if (trim(fgfileprefixes(nbackgrounds+1)) .eq. "") then
+    ! default first-guess file prefix
+    fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+   endif
+   nbackgrounds = nbackgrounds+1
+end do
+do nb=1,nbackgrounds
+   if (trim(anlfileprefixes(nb)) .eq. "") then
+    ! default analysis file prefix
+    if (nbackgrounds > 1) then
+      anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+    else
+      anlfileprefixes(nb)="sanl_"//datestring//"_"
+    endif
+   endif
+enddo
 if (nproc .eq. 0) then
-  print *,'first-guess forecast hour for analysis = ',charfhr_anal
+  print *,'number of background forecast times to be updated = ',nbackgrounds
+  print *,'first-guess forecast hours for analysis = ',&
+  charfhr_anal(1:nbackgrounds)
 endif
 
 ! total number of 2d grids to update.
