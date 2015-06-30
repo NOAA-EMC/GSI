@@ -135,13 +135,13 @@ costs=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.costs.txt
 cost_terms=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.cost_terms.txt
 
 if [[ -s ${costs} ]]; then
-   cp ${costs} .
+   cp ${costs} ${WORKDIR}/${SUFFIX}.${PDATE}.costs.txt
 else
    echo "WARNING:  Unable to locate ${costs}"
 fi
 
 if [[ -s ${cost_terms} ]]; then
-  cp ${cost_terms} .
+  cp ${cost_terms} ${WORKDIR}/${SUFFIX}.${PDATE}.cost_terms.txt 
 else
    echo "WARNING:  Unable to locate ${cost_terms}"
 fi
