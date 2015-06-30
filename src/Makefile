@@ -558,6 +558,7 @@ clean:
 	read_radarref_mosaic.f90 \
 	read_aerosol.f90 \
 	read_airs.f90 \
+	read_amsr2.f90 \
 	read_amsre.f90 \
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
@@ -568,7 +569,9 @@ clean:
 	read_cris.f90 \
 	read_diag.f90 \
         read_fl_hdob.f90 \
+	read_gmi.f90 \
 	read_goesimg.f90 \
+	read_ahi.f90 \
 	read_goesimgr_skycover.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -584,8 +587,10 @@ clean:
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
+	read_saphir.f90 \
 	read_satwnd.f90 \
 	read_sfcwnd.f90 \
+	read_rapidscat.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \

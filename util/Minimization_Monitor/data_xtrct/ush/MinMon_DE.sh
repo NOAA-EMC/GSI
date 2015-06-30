@@ -96,7 +96,7 @@ echo "M_TANKverf = $M_TANKverf"
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
    echo "PDATE not specified:  setting PDATE using last cycle"
-   date=`${DE_SCRIPTS}/find_cycle.pl GDAS 1 ${M_TANKverf}`
+   date=`${M_DE_SCRIPTS}/find_cycle.pl GDAS 1 ${M_TANKverf}`
    export PDATE=`$NDATE +6 $date`
 else
    echo "PDATE was specified:  $PDATE"
