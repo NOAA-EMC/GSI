@@ -842,6 +842,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !                     clear-sky background or background with small amount of cloud     
 !   2014-04-27  eliu - add option to calculate clear-sky Tb under all-sky condition                
 !   2015-02-27  eliu-- wind direction fix for using CRTM FASTEM model 
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1627,7 +1628,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! also, geometryinfo is not needed in crtm aod calculation
   if ( trim(obstype) /= 'modis_aod' ) then
      panglr = data_s(iscan_ang)
-     if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
+     if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'ahi')panglr = zero
      geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
      geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
      geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle
