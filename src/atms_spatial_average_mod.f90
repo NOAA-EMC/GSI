@@ -187,7 +187,7 @@ CONTAINS
 
     END DO
     do ichan=1,nchanl
-      if(err(ichan) > 1)then
+      if(err(ichan) >= 1)then
          error_status = 1
          return
       end if
