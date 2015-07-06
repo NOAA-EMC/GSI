@@ -156,10 +156,16 @@
 !                       - add all-sky obs error adjustment based on scattering index, diff of clw, 
 !                         cloud mismatch info, and surface wind speed
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
-!   2015-01-15 zhu      - change amsua quality control interface to apply emissivity sensitivity 
+!   2015-01-15  zhu     - change amsua quality control interface to apply emissivity sensitivity
 !                         screen to all-sky AMSUA and ATMS radiance
-!   2015-03-31 zhu      - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
-!                         change quality control interface for AMSUA and ATMS. 
+!   2015-01-16  ejones  - Added call to qc_gmi for gmi observations
+!                       - Added saphir
+!   2015-02-12  ejones  - Write gwp to diag file for GMI
+!   2015-03-11  ejones  - Added call to qc_amsr2 for amsr2 observations
+!   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
+!                         change quality control interface for AMSUA and ATMS.
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -214,9 +220,9 @@
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua 
-  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
+  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms,qc_gmi,qc_amsr2,qc_saphir
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc,ifail_outside_range
+  use qcmod, only: setup_tzr_qc,ifail_outside_range,ifail_scanedge_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
@@ -264,15 +270,16 @@
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) gwp,clw_obs
   real(r_kind) scat,scatp
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind) bias       
   real(r_kind) factch6    
 
-  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
+  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
-  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
+  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
   logical microwave, microwave_low
@@ -367,6 +374,7 @@
   airs       = obstype == 'airs'
   hsb        = obstype == 'hsb'
   goes_img   = obstype == 'goes_img'
+  ahi        = obstype == 'ahi'
   avhrr      = obstype == 'avhrr'
   avhrr_navy = obstype == 'avhrr_navy'
   ssmi       = obstype == 'ssmi'
@@ -374,6 +382,8 @@
   amsre_mid  = obstype == 'amsre_mid'
   amsre_hig  = obstype == 'amsre_hig'
   amsre      = amsre_low .or. amsre_mid .or. amsre_hig
+  amsr2      = obstype == 'amsr2'
+  gmi        = obstype == 'gmi'
   ssmis      = obstype == 'ssmis'
   ssmis_las  = obstype == 'ssmis_las'
   ssmis_uas  = obstype == 'ssmis_uas'
@@ -383,11 +393,13 @@
   cris       = obstype == 'cris'
   seviri     = obstype == 'seviri'
   atms       = obstype == 'atms'
+  saphir     = obstype == 'saphir'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-            ssmi  .or. ssmis  .or. amsre .or. atms
+            ssmi  .or. ssmis  .or. amsre .or. atms .or. &
+            amsr2 .or. gmi  .or.  saphir
 
   microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
 
@@ -810,7 +822,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. seviri .or. ssmis) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -825,10 +837,12 @@
            end do
         end if
 
-!       Compute microwave cloud liquid water for bias correction and QC.
+!       Compute microwave cloud liquid water or graupel water path for bias correction and QC.
         clw=zero
         clwp_amsua=zero
+        clw_obs=zero
         clw_guess_retrieval=zero
+        gwp=zero
         tpwc_amsua=zero
         tpwc_guess_retrieval=zero
         scatp=zero
@@ -843,9 +857,12 @@
               call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
               scatp=scat 
            else
-              call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, & 
-                   tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-           endif
+              call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
+                   amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
+                if(gmi .or. amsr2) then   ! set clw_obs for gmi and amsr2
+                  clw_obs = clw
+                endif
+           end if
            if (ierrret /= 0) then 
              varinv(1:nchanl)=zero
              id_qc(1:nchanl) = ifail_cloud_qc
@@ -863,7 +880,7 @@
            if (.not. newpc4pred) then
               pred(1,i) = r0_01
               pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
-              if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+              if(ssmi .or. ssmis .or. amsre .or. gmi .or. amsr2)pred(2,i)=zero
            else
               pred(1,i) = one
               if (adp_anglebc) then
@@ -1211,6 +1228,33 @@
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
               varinv,errf,aivals(1,is),id_qc)
 
+!  ---------- AMSR2  -------------------
+!       AMSR2 Q C
+
+        else if (amsr2) then
+
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,amsr2,varinv,aivals(1,is),id_qc)
+
+
+!  ---------- GMI  -------------------
+!       GMI Q C
+
+        else if (gmi) then
+! remove some data near the scan edge
+           if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
+
+           call qc_gmi(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
+
+!  ---------- SAPHIR -----------------
+!       SAPHIR Q C
+        
+        else if (saphir) then
+
+        call qc_saphir(nchanl,zsges,luse(n),sea, &
+              kraintype,varinv,aivals(1,is),id_qc)
+        
 !  ---------- SSU  -------------------
 !       SSU Q C
 
@@ -1718,7 +1762,11 @@
               diagbuf(17) = surface(1)%ice_temperature        ! surface temperature over ice (K)
               diagbuf(18) = surface(1)%snow_temperature       ! surface temperature over snow (K)
               diagbuf(19) = surface(1)%soil_temperature       ! soil temperature (K)
-              diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              if (gmi .or. saphir) then
+                diagbuf(20) = gwp                             ! graupel water path
+              else
+                diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              endif
               diagbuf(21) = surface(1)%land_type              ! surface land type
            else
               diagbuf(15) = tsavg5                            ! SST first guess used for SST retrieval
@@ -1744,9 +1792,13 @@
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
            else
-              if(lcw4crtm .and. sea) then
-                 diagbuf(25)  = clwp_amsua                    ! retrieved CLWP (kg/m**2) from observed BT
-                 diagbuf(26)  = clw_guess_retrieval           ! retrieved CLWP (kg/m**2) from simulated BT                               
+              if((lcw4crtm .and. sea) .or. gmi .or. amsr2) then
+                 if (gmi .or. amsr2) then
+                   diagbuf(25)  = clw_obs                       ! clw (kg/m**2) from retrievals
+                 else
+                   diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
+                 endif
+                 diagbuf(26)  = clw_guess_retrieval        ! retrieved CLWP (kg/m**2) from simulated BT                   
               else
                  diagbuf(25)  = clw                           ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = tpwc                          ! total column precip. water (km/m**2)
