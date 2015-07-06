@@ -1113,6 +1113,7 @@ subroutine get_gefs_for_regional
   call general_sub2grid_destroy_info(grd_mix)
   call general_sub2grid_destroy_info(grd_gfst)
 !
+!
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)

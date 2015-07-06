@@ -113,23 +113,6 @@
                     }
                     request.send();
 
-                    // next load comparison file:
-                    //var CkBxCmp  = document.getElementById( "ckboxCmp"  ).value;
-                    //log( 'value of CkBxCmp = ' + CkBxCmp );
-                    //var cmpFile = '../' + CkBxCmp + file.substring(1);
-                    //log( '2nd file to load is ' + cmpFile );
-
-                    //request2.open( 'GET', cmpFile, true );
-                    //request2.onload = function(e) {
-                    //    if( request2.status === 200 && request2.readyState === 4 ){
-                    //        idx = 1;
-                    //        parseCSV( request2.responseText, idx );
-                    //        fillData( idx );
-                    //        fillCharts();
-                    //    }
-                    //}
-                    //request2.send();
-
                 }
 
 
@@ -193,7 +176,8 @@
                                 notassim = 1;
                             }
 
-                            log( "column.length = " + column.length);
+
+                            //log( "column.length = " + column.length);
 
                             var gcyc1 = Number(column[2]);
                             var gcyc2 = Number(column[3]);
@@ -223,7 +207,6 @@
 
                             // add object to dataProvider array
                             dataProvider[idx].push(dataObject);
-                            //dataProvider[1].push(dataObject);
                         }
                     }
 
@@ -295,6 +278,8 @@
                     // data is the container for the first chart's information.
                     data = new google.visualization.DataTable();
                     data.addColumn('number', 'chan');
+                    data.addColumn('number', 'chan assim');
+                    data.addColumn('number', 'chan not assim');
                     data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle1);
                     data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle2);
                     data.addColumn('number', 'ges ' + dataProvider[idx][0].cycle3);
@@ -303,21 +288,17 @@
                     data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle2);
                     data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle3);
                     data.addColumn('number', 'anl ' + dataProvider[idx][0].cycle4);
-                    data.addColumn('number', 'assim');
-                    data.addColumn('number', 'not_assim');
 
                     for (var ii = 1; ii < dataProvider[idx].length; ii++) {
                         data.addRows([
                             [Number(dataProvider[idx][ii].chan),
+                                Number(dataProvider[idx][ii].assim), Number(dataProvider[idx][ii].notassim),
                                 Number(dataProvider[idx][ii].gcyc1), Number(dataProvider[idx][ii].gcyc2),
                                 Number(dataProvider[idx][ii].gcyc3), Number(dataProvider[idx][ii].gcyc4),
                                 Number(dataProvider[idx][ii].acyc1), Number(dataProvider[idx][ii].acyc2),
-                                Number(dataProvider[idx][ii].acyc3), Number(dataProvider[idx][ii].acyc4),
-                                Number(dataProvider[idx][ii].assim), Number(dataProvider[idx][ii].notassim)
+                                Number(dataProvider[idx][ii].acyc3), Number(dataProvider[idx][ii].acyc4)
                             ]
                         ]);
-
-
                     }
 
                     // load data2 for chart2
@@ -397,6 +378,10 @@
                     var options = {
                         title: 'Number of Observations Passing QC',
                         titleTextStyle:{ fontSize: 20 },
+                        series: {
+                            0: { pointSize: 10, pointShape: { type: 'square' }, color: 'green', lineWidth: 0 },
+                            1: { pointSize: 10, pointShape: { type: 'square' }, color: 'red', lineWidth: 0}
+                        },
                         vAxis:{ format          : '0.##E+0',
                             logScale        : 'true'},
                         hAxis:{ title           : 'Channel',
@@ -426,26 +411,24 @@
                     var CkBxCyc2 = document.getElementById( "ckboxCyc2" ).checked;
                     var CkBxCyc3 = document.getElementById( "ckboxCyc3" ).checked;
                     var CkBxCyc4 = document.getElementById( "ckboxCyc4" ).checked;
-                    myView.hideColumns([9]);
-                    myView.hideColumns([10]);
 
                     if( ! CkBxGes )  {
-                        myView.hideColumns([1,2,3,4]);
+                        myView.hideColumns([3,4,5,6]);
                     }
                     if( ! CkBxAnl )  {
-                        myView.hideColumns([5,6,7,8]);
+                        myView.hideColumns([7,8,9,10]);
                     }
                     if( !CkBxCyc1 ) {
-                        myView.hideColumns([1,5]);
-                    }
-                    if( !CkBxCyc2 ) {
-                        myView.hideColumns([2,6]);
-                    }
-                    if( !CkBxCyc3 ) {
                         myView.hideColumns([3,7]);
                     }
-                    if( !CkBxCyc4 ) {
+                    if( !CkBxCyc2 ) {
                         myView.hideColumns([4,8]);
+                    }
+                    if( !CkBxCyc3 ) {
+                        myView.hideColumns([5,9]);
+                    }
+                    if( !CkBxCyc4 ) {
+                        myView.hideColumns([6,10]);
                     }
 
 
@@ -750,6 +733,7 @@
                      It could be loaded using a php file, but that risks a condition where
                      a source might be missing for some reason, and we should know about that
                      if it was to happen, so it's better that a data load would fail here.  -->
+
                 <!-- INSERT_TABLE -->
                 <OPTION VALUE="airs_aqua"> AQUA AIRS </OPTION>
                 <OPTION VALUE="amsua_aqua"> AQUA AMSU-A </OPTION>
@@ -780,6 +764,9 @@
                 <OPTION VALUE="mhs_n18"> NOAA-18 MHS </OPTION>
                 <OPTION VALUE="amsua_n19"> NOAA-19 AMSU-A </OPTION>
                 <OPTION VALUE="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
+                <OPTION VALUE="mhs_n19"> NOAA-19 MHS </OPTION>
+                <OPTION VALUE="atms_npp"> NPP ATMS </OPTION>
+                <OPTION VALUE="cris_npp"> NPP CRIS </OPTION>
                 <!-- END_TABLE_INSERT -->
             </select>
         </form>
@@ -818,16 +805,16 @@
         <table style="position:absolute;left:1px;top:220px;width:150px">
             <caption><b>Last 4 Cycles</b> </caption>
             <tr><td>
-                <input type="checkbox" id="ckboxCyc1" name="checkbox" value="cycle1" checked onclick="boxCheck(this.value)"><label for="ckboxCyc1" id="labCyc1">cycle 1</label></input>
+                <input type="checkbox" id="ckboxCyc1" name="checkbox" value="cycle1" checked onclick="boxCheck(this.value)"><label for="ckboxCyc1" id="labCyc1">cycle 1</label>
             </td></tr>
             <tr><td>
-                <input type="checkbox" id="ckboxCyc2" name="checkbox" value="cycle2" checked onclick="boxCheck(this.value)"><label for="ckboxCyc2" id="labCyc2">cycle 2</label></input>
+                <input type="checkbox" id="ckboxCyc2" name="checkbox" value="cycle2" checked onclick="boxCheck(this.value)"><label for="ckboxCyc2" id="labCyc2">cycle 2</label>
             </td></tr>
             <tr><td>
-                <input type="checkbox" id="ckboxCyc3" name="checkbox" value="cycle3" checked onclick="boxCheck(this.value)"><label for="ckboxCyc3" id="labCyc3">cycle 3</label></input>
+                <input type="checkbox" id="ckboxCyc3" name="checkbox" value="cycle3" checked onclick="boxCheck(this.value)"><label for="ckboxCyc3" id="labCyc3">cycle 3</label>
             </td></tr>
             <tr><td>
-                <input type="checkbox" id="ckboxCyc4" name="checkbox" value="cycle4" checked onclick="boxCheck(this.value)"><label for="ckboxCyc4" id="labCyc4">cycle 4</label></input>
+                <input type="checkbox" id="ckboxCyc4" name="checkbox" value="cycle4" checked onclick="boxCheck(this.value)"><label for="ckboxCyc4" id="labCyc4">cycle 4</label>
             </td></tr>
         </table>
 
