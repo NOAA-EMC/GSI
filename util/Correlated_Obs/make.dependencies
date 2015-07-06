@@ -1,0 +1,10 @@
+calc_cov.o : calc_cov.f90 kinds.o obs_tools.o RadDiag_IO.o Message_Handler.o RadDiag_Define.o
+File_Utility.o : File_Utility.f90 
+Message_Handler.o : Message_Handler.f90 File_Utility.o 
+RadDiag_Data_Define.o : RadDiag_Data_Define.f90 Message_Handler.o kinds.o
+RadDiag_Define.o : RadDiag_Define.f90 RadDiag_Data_Define.o RadDiag_Hdr_Define.o 
+RadDiag_Hdr_Define.o : RadDiag_Hdr_Define.f90 Message_Handler.o kinds.o
+RadDiag_IO.o : RadDiag_IO.f90 RadDiag_Define.o Message_Handler.o File_Utility.o kinds.o
+obs_tools.o : obs_tools.f90 kinds.o
+pairs.o : pairs.f90 kinds.o obs_tools.o
+kinds.o : kinds.f90
