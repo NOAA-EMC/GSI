@@ -105,7 +105,6 @@ mkdir -p $tmpdir
 cd $tmpdir
 
 export PLOT=0
-export PLOT_HORIZ=0
 
 mkdir -p $LOGdir
 
@@ -172,9 +171,9 @@ fi
 
 export PLOT=1
 
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+#if [[ "$CYA" = "00" ]];then
+#   export PLOT_HORIZ=1
+#fi
 
 
 #--------------------------------------------------------------------

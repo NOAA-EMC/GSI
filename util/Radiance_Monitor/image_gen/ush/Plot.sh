@@ -148,7 +148,6 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
 #--------------------------------------------------------------------
 # Check status of plot jobs. If any are still running then exit
 # this script. If none are running then remove any old job records 
@@ -195,9 +194,9 @@ export PDY=`echo $PDATE|cut -c1-8`
 # Make horizontal plots only on 00z cycle.  All other plotting
 # is done with each cycle. 
 #--------------------------------------------------------------------
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+#if [[ "$CYA" = "00" ]];then
+#   export PLOT_HORIZ=1
+#fi
 
 
 if [[ -d $PLOT_WORK_DIR ]]; then

@@ -75,7 +75,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: sst_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
   use radinfo, only: nst_gsi
   use gsi_bundlemod, only: gsi_bundle
@@ -126,7 +126,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
            w3=sstptr%wij(3)
            w4=sstptr%wij(4)
 
-           if ( nst_gsi > 2 ) then
+           if ( nst_gsi > 2 .and. (sstptr%tz_tr > zero .and. sstptr%tz_tr <= one) ) then
              tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
              rdir = w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
              val  = sstptr%tz_tr*rdir

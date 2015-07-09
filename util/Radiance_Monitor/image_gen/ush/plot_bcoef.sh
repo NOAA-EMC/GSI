@@ -54,6 +54,8 @@ echo ctldir = $ctldir
 # of radmon.YYYYMMDD directories under $TANKDIR.
 
 
+$NCP ${IG_SCRIPTS}/nu_plot_bcoef.sh .
+
 for type in ${SATYPE}; do
 
    $NCP $ctldir/${type}.ctl* ./
@@ -65,12 +67,22 @@ for type in ${SATYPE}; do
 
       if [[ -d ${TANKDIR}/radmon.${day} ]]; then
          test_file=${TANKDIR}/radmon.${day}/bcoef.${type}.${cdate}.ieee_d
+         test_file_anl=${TANKDIR}/radmon.${day}/bcoef.${type}_anl.${cdate}.ieee_d
+         
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
          elif [[ -s ${test_file}.${Z} ]]; then
             $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
+
+         if [[ -s $test_file_anl ]]; then
+            $NCP ${test_file_anl} ./${type}_anl.${cdate}.ieee_d
+         elif [[ -s ${test_file_anl}.${Z} ]]; then
+            $NCP ${test_file_anl}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
+         fi
+
       fi
+
       if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
       fi
@@ -79,22 +91,32 @@ for type in ${SATYPE}; do
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 
-   list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
-   for var in $list; do
+   if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
+      list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
+      for var in $list; do
+
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-   done 
+         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
+
+      done 
+   fi
+
+   if [[ ${RAD_AREA} = "glb" ]]; then
+      ./nu_plot_bcoef.sh ${type}
+   fi
 
 
 #   rm -f ${type}.ieee_d
 #   rm -f ${type}.ctl
 
 done
+
+#         rm -f nu_plot_time.sh
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
@@ -103,7 +125,8 @@ done
 if [[ ! -d ${IMGNDIR}/bcoef ]]; then
    mkdir -p ${IMGNDIR}/bcoef
 fi
-cp -r *.png  ${IMGNDIR}/bcoef
+cp -f *.png  ${IMGNDIR}/bcoef
+cp -f *.bcoef.txt ${IMGNDIR}/bcoef
 
 for var in $list; do
    rm -f ${type}.${var}*.png

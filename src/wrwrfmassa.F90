@@ -39,6 +39,8 @@ subroutine wrwrfmassa_binary(mype)
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
+!   2015-01-15  hu     - add i_snowT_check to control temperature adjustment
+!                               over snow  
 !
 !   input argument list:
 !     mype     - pe number
@@ -63,7 +65,7 @@ subroutine wrwrfmassa_binary(mype)
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
-       l_use_2mQ4B
+       i_use_2mq4b
   use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -106,13 +108,13 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
-  integer(i_kind) request,request_ldmk
+  integer(i_kind) request,request_ldmk,request_ldmk_snow,request_ldmk_seaice
   integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
-  real(r_single),allocatable::mub(:,:), landmask(:,:)
-  integer(i_kind) kdim_mub
+  real(r_single),allocatable::mub(:,:), landmask(:,:),snow(:,:),seaice(:,:)
+  integer(i_kind) kdim_mub,i_snowT_check
   integer(i_kind) kt,kq,ku,kv
   integer(i_kind) mfcst
   integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
@@ -296,7 +298,9 @@ subroutine wrwrfmassa_binary(mype)
   allocate(landmask(im,jm))
   call mpi_file_iread_at(mfcst,n_position,landmask,im*jm,mpi_real4,request_ldmk,ierror)
 
-  read(lendian_in)                                                    ! xice
+  read(lendian_in) n_position                                         ! xice
+  allocate(seaice(im,jm))
+  call mpi_file_iread_at(mfcst,n_position,seaice,im*jm,mpi_real4,request_ldmk_seaice,ierror)
 
   i=i+1 ; i_sst=i                                                ! sst
   read(lendian_in) n_position
@@ -306,7 +310,11 @@ subroutine wrwrfmassa_binary(mype)
   read(lendian_in)                                                    ! ivgtyp
   read(lendian_in)                                                    ! isltyp
   read(lendian_in)                                                    ! vegfrac
-  read(lendian_in)                                                    ! sno
+
+  read(lendian_in) n_position                                         ! sno
+  allocate(snow(im,jm))
+  call mpi_file_iread_at(mfcst,n_position,snow,im*jm,mpi_real4,request_ldmk_snow,ierror)
+
   read(lendian_in)                                                    ! u10
   read(lendian_in)                                                    ! v10
   if(l_gsd_soilTQ_nudge) then
@@ -683,7 +691,7 @@ subroutine wrwrfmassa_binary(mype)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
-  if (l_use_2mQ4B) then
+  if (i_use_2mq4b > 0) then
      do i=1,lon1
         ip1=i+1
         do j=1,lat1
@@ -709,6 +717,20 @@ subroutine wrwrfmassa_binary(mype)
   if(byte_swap) then
      num_swap=im*jm
      call to_native_endianness_r4(landmask(1,1),num_swap) !got landmask for
+                                                          ! soil nudging in 2X
+                                                          ! grid
+  end if
+  call mpi_wait(request_ldmk_snow,status,ierror)
+  if(byte_swap) then
+     num_swap=im*jm
+     call to_native_endianness_r4(snow(1,1),num_swap)     !got snow for
+                                                          ! soil nudging in 2X
+                                                          ! grid
+  end if
+  call mpi_wait(request_ldmk_seaice,status,ierror)
+  if(byte_swap) then
+     num_swap=im*jm
+     call to_native_endianness_r4(seaice(1,1),num_swap)   !got seaice for
                                                           ! soil nudging in 2X
                                                           ! grid
   end if
@@ -967,7 +989,12 @@ subroutine wrwrfmassa_binary(mype)
            (ifld >=i_smois .and. ifld <=i_smois+ksize-1) .or. &
            (ifld >=i_tslb .and. ifld <=i_tslb+ksize-1) ) then 
 ! for 2X soil nudging
-           call unfill_mass_grid2t_ldmk(tempa(1,ifld),im,jm,temp1,landmask)
+           i_snowT_check=0
+           if(ifld==i_tsk .or. ifld==i_soilt1 .or. ifld ==i_tslb) &
+                i_snowT_check=1 
+           if(ifld >=i_smois .and. ifld <=i_smois+ksize-1) i_snowT_check=2
+           call unfill_mass_grid2t_ldmk(tempa(1,ifld),im,jm,temp1,landmask, &
+                                        snow,seaice,i_snowT_check)
         else
            call unfill_mass_grid2t(tempa(1,ifld),im,jm,temp1)
         endif
@@ -1219,6 +1246,8 @@ subroutine wrwrfmassa_binary(mype)
   deallocate(length)
   deallocate(mub)
   deallocate(landmask)
+  deallocate(snow)
+  deallocate(seaice)
   deallocate(tempa)
   deallocate(tempb)
   deallocate(temp1)
@@ -1654,7 +1683,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
-       l_use_2mQ4B
+       i_use_2mq4b
   use chemmod, only: laeroana_gocart
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1674,13 +1703,13 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_single),allocatable::temp1(:),temp1u(:),temp1v(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
-  real(r_single),allocatable::landmask(:)
+  real(r_single),allocatable::landmask(:),snow(:),seaice(:)
   character(6) filename
   integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
   integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt
   integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
-  integer(i_kind) :: iv, n_gocart_var
+  integer(i_kind) :: iv, n_gocart_var,i_snowT_check
   integer(i_kind),allocatable :: i_chem(:), kchem(:)
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0,nsoil
@@ -1810,7 +1839,7 @@ subroutine wrwrfmassa_netcdf(mype)
   endif
   
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
-  allocate(landmask(im*jm))
+  allocate(landmask(im*jm),snow(im*jm),seaice(im*jm))
 
   if(mype == 0) write(6,*)' at 2 in wrwrfmassa'
 
@@ -2121,7 +2150,7 @@ subroutine wrwrfmassa_netcdf(mype)
         end do
      end do
   endif ! l_gsd_soilTQ_nudge
-  if (l_use_2mQ4B) then
+  if (i_use_2mq4b >0) then
      do i=1,lon2
         do j=1,lat2
 ! Convert 2m specific humidity to mixing ratio
@@ -2137,6 +2166,7 @@ subroutine wrwrfmassa_netcdf(mype)
      write(lendian_out)temp1
 ! SICE
      read(lendian_in)temp1
+     seaice=temp1
      write(lendian_out)temp1
   end if
 
@@ -2172,7 +2202,15 @@ subroutine wrwrfmassa_netcdf(mype)
 ! REST OF FIELDS
   if(l_gsd_soilTQ_nudge) then
      if (mype == 0) then
-        do k=4,9
+        do k=4,6
+           read(lendian_in)temp1
+           write(lendian_out)temp1
+        end do
+! SM   This is snow
+        read(lendian_in)temp1
+        write(lendian_out)temp1
+        snow=temp1
+        do k=8,9
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
@@ -2190,7 +2228,9 @@ subroutine wrwrfmassa_netcdf(mype)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
-           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask)
+           i_snowT_check=2
+           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask,&
+                                        snow,seaice,i_snowT_check)
            write(lendian_out)temp1
         end if
      end do
@@ -2207,7 +2247,10 @@ subroutine wrwrfmassa_netcdf(mype)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
-           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask)
+           i_snowT_check=0
+           if(k==1) i_snowT_check=1
+           call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                        snow,seaice,i_snowT_check)
            write(lendian_out)temp1
         end if
      end do
@@ -2217,6 +2260,7 @@ subroutine wrwrfmassa_netcdf(mype)
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
+        snow=0
      end if
   endif !  l_gsd_soilTQ_nudge
   
@@ -2236,7 +2280,9 @@ subroutine wrwrfmassa_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask)
+        i_snowT_check=1
+        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                     snow,seaice,i_snowT_check)
         write(lendian_out)temp1
      end if
   else
@@ -2284,7 +2330,9 @@ subroutine wrwrfmassa_netcdf(mype)
            tempa(i)=tempa(i)-tempb(i)
         end do
         write(6,*)' at 10.3 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
-        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask)
+        i_snowT_check=1
+        call unfill_mass_grid2t_ldmk(tempa,im,jm,temp1,landmask, &
+                                    snow,seaice,i_snowT_check)
         write(6,*)' at 10.4 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
@@ -2478,6 +2526,8 @@ subroutine wrwrfmassa_netcdf(mype)
   deallocate(tempa)
   deallocate(tempb)
   deallocate(landmask)
+  deallocate(snow)
+  deallocate(seaice)
   
 end subroutine wrwrfmassa_netcdf
 

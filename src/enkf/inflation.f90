@@ -168,35 +168,37 @@ do nn=1,ndim
  end do
 end do
 
-allocate(covinfglobal(npts,ndim),covinfglobal2(npts,ndim))
-covinfglobal2=zero
-do i=1,numptsperproc(nproc+1)
-   covinfglobal2(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
-end do
-call mpi_allreduce(covinfglobal2,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
 if (smoothparm .gt. zero) then
+   ! inflation smoothing.
+   ! (warning: this requires a lot of memory)
+   allocate(covinfglobal(npts,ndim),covinfglobal2(npts,ndim))
+   covinfglobal2=zero
+   do i=1,numptsperproc(nproc+1)
+      covinfglobal2(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
+   end do
+   call mpi_allreduce(covinfglobal2,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    call smooth(covinfglobal,covinfglobal2)
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
    where (covinfglobal > covinflatemax) covinfglobal = covinflatemax
    do i=1,numptsperproc(nproc+1)
       tmp_chunk2(i,:) = covinfglobal(indxproc(nproc+1,i),:)
    end do
-end if
-deallocate(covinfglobal2)
-if(nproc == 0)then
-   print *,'min/max var 1 inflation = ',minval(covinfglobal(:,1:nlevs)),maxval(covinfglobal(:,1:nlevs))
-   print *,'min/max var 2 inflation = ',minval(covinfglobal(:,nlevs+1:2*nlevs)),maxval(covinfglobal(:,nlevs+1:2*nlevs))
-   print *,'min/max var 3 inflation = ',minval(covinfglobal(:,2*nlevs+1:3*nlevs)),maxval(covinfglobal(:,2*nlevs+1:3*nlevs))
-   if (nvarhumid .gt. 0) then
-   print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
-   endif
-   print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
-!  write it out.
-   iunit = 88
-   filename = trim(adjustl(datapath))//"covinflate.dat"
-   open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
-   write(iunit,rec=1) covinfglobal 
-   close(iunit)
+   if(nproc == 0)then
+      print *,'min/max var 1 inflation = ',minval(covinfglobal(:,1:nlevs)),maxval(covinfglobal(:,1:nlevs))
+      print *,'min/max var 2 inflation = ',minval(covinfglobal(:,nlevs+1:2*nlevs)),maxval(covinfglobal(:,nlevs+1:2*nlevs))
+      print *,'min/max var 3 inflation = ',minval(covinfglobal(:,2*nlevs+1:3*nlevs)),maxval(covinfglobal(:,2*nlevs+1:3*nlevs))
+      if (nvarhumid .gt. 0) then
+      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
+      endif
+      print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
+      ! write out inflation.
+      !iunit = 88
+      !filename = trim(adjustl(datapath))//"covinflate.dat"
+      !open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
+      !write(iunit,rec=1) covinfglobal 
+      !close(iunit)
+   end if
+   deallocate(covinfglobal,covinfglobal2)
 end if
 
 suma2 = zero
@@ -232,7 +234,7 @@ do nn=1,ndim
  end do
 end do
 
-deallocate(tmp_chunk2,covinfglobal)
+deallocate(tmp_chunk2)
 
 ! collect statistics of area mean inflation, posterior and prior standard deviation for ps.
 call mpi_reduce(sprdmin,sprdminall,1,mpi_real4,mpi_min,0,mpi_comm_world,ierr)

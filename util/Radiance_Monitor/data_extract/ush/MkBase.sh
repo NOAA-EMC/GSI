@@ -20,6 +20,8 @@ function usage {
   echo "Usage:  MkBase.sh suffix [sat] 1>log 2>err"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKverf/stats directory."
+  echo "            Sat (optional) restricts the list of satellite sources."
+  echo "              No sat means all satellite sources will be included." 
   echo "            Redirection of log and err files is recommended for "
   echo "              diagnostic purposes, but not essential"
 }
@@ -51,7 +53,8 @@ echo $area
 # Set environment variables.
 #-------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
 if [[ -s ${RADMON_VERSION} ]]; then
    . ${RADMON_VERSION}
 else
@@ -59,6 +62,7 @@ else
    exit 2
 fi
 
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -206,7 +210,8 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${HOMEradmon}/exec/make_base ./
+#   $NCP ${HOMEradmon}/exec/make_base ./
+   $NCP ${DE_EXEC}/make_base ./
 
 cat << EOF > input
  &INPUT

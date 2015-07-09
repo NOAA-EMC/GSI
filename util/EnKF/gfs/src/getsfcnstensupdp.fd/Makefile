@@ -2,7 +2,7 @@ SHELL=/bin/sh
 
 #==============================================================================
 #
-# EnKF Makefile
+# EnKF utility Makefile
 #
 # <Usage>
 #   0) Export this makefile name to a variable 'MAKE_FILE' as 
@@ -14,18 +14,21 @@ SHELL=/bin/sh
 #  0a) Modify the include link to either use compile.config.ibm
 #      or compile.config.sgi for compilation on the ibm sp or sgi
 #
-#   1) To make a EnKF executable file, type
+#   1) To make a EnKF utility executable file, type
 #         > make  or  > make all
 #
-#   2) To make a EnKF executable file with debug options, type
+#   2) To make a EnKF utility executable file with debug options, type
 #         > make debug
 #
-#   3) To copy the EnKF load module to installing directory, type
+#   3) To copy the EnKF utility load module to installing directory, type
 #         > make install
 #      . Specify the directory to a variable 'INSTALL_DIR' below.
 #
 #   4) To crean up files created by make, type
 #         > make clean
+#
+#   5) To create a library, libgsi.a, in the lib directory, type
+#         > make library
 #
 #
 # Created by Y.Tahara in May,2002
@@ -117,7 +120,7 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-  EXE_FILE = global_enkf
+  EXE_FILE = getsfcnstensupdp.x
 
 
 # --------------------
@@ -184,47 +187,14 @@ clean:
 # ------------
 
   SRCSF90C = \
-	common_mtx.f90 \
-	covlocal.f90 \
-	enkf.F90 \
-	enkf_main.f90 \
-	fftpack.f90 \
-	genqsat1.f90 \
-	gridinfo.F90 \
-	gridio.F90 \
-	inflation.f90 \
-	innovstats.f90 \
-	kdtree2.f90 \
-	letkf.F90 \
-	loadbal.f90 \
-	mpi_readobs.f90 \
-	mpisetup.f90 \
-	netcdf_io_wrf.f90 \
-	netlib.f90 \
-	enkf_obsmod.f90 \
-	params.f90 \
-	quicksort.f90 \
-	radbias.f90 \
-	read_locinfo.f90 \
-	readconvobs.f90 \
-	readozobs.f90 \
-	readsatobs.f90 \
-	reducedgrid.f90 \
-	rnorm.f90 \
-	smooth.F90 \
-	specmod.f90 \
-	statevec.f90 \
-	write_logfile.f90
-
-  SRCSF90C_NOSWAP =
-
-  ENKFGC_SRCS =
+	getsfcnstensupdp.f90 \
+	nstio_module.f90
 
   SRCSF77 =
 
-  SRCSC =
+  SRCSC = 
 
-  SRCS = $(SRCSF90C) $(ENKFGC_SRCS) $(SRCSF77) $(SRCSC) $(XSRCSC)
+  SRCS = $(SRCSF90C) $(SRCSF77) $(SRCSC)
 
   DOCSRCS = *.f90 *.F90
 
@@ -233,12 +203,8 @@ clean:
 # ------------
 
   SRCSF90	= ${SRCSF90C:.F90=.f90}
-  SRCSF90_NOSWAP= ${SRCSF90C_NOSWAP:.F90=.f90}
 
   OBJS 		= ${SRCSF90:.f90=.o} ${SRCSF77:.f=.o} ${SRCSC:.c=.o}
-  OBJS_NOSWAP	= ${SRCSF90_NOSWAP:.f90=.o}
-
-  GSIOBJS	= $(shell find ../ -maxdepth 1 -name "*.o" -print | grep -v gsimain)
 
 
 # -----------------------
@@ -268,11 +234,6 @@ clean:
 	@echo '---> Compiling $<'
 	$(CC) $(CFLAGS) -c $<
 
-$(OBJS_NOSWAP) :
-	@echo '---> Special handling of Fortran "native" BUFR-OPEN $<'
-	$(CF) -c $(FFLAGS_NOSWAP) $<
-
-
 # ------------
 # Dependencies
 # ------------
@@ -281,8 +242,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) $(GSIOBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(GSIOBJS) $(LIBS)
+$(EXE_FILE) :  $(OBJS) 
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 # ------------------------
@@ -295,14 +256,26 @@ all :
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_N)" \
-		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP)
+		$(OBJS) 
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"LIBS=$(LIBS_N)" "LDFLAGS=$(LDFLAGS_N)" \
 		$(EXE_FILE)
+
+library :
+	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
+	@echo
+	@echo '==== COMPILE ================================================='
+	@$(MAKE) -f $(MAKE_FILE) \
+		"FFLAGS=$(FFLAGS_N)" \
+		"CFLAGS=$(CFLAGS_N)" \
+		$(OBJS) 
+	@echo
+	@echo '==== CREATING LIBRARY ========================================'
+	$(MAKE) lib
+	mv $(LIB) ../lib
 
 debug :
 	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
@@ -310,9 +283,8 @@ debug :
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_D)" \
-		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) $(OBJS_NOSWAP)
+		$(OBJS) 
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -333,50 +305,6 @@ check_mode :
 	fi
 	@echo $(COMP_MODE) > $(LOG_FILE)
 
-# -------------------------
-# GMAO Nomenclature/targets
-# -------------------------
-LIB =   libenkf.a
-
-lib: $(LIB)
-
-enkf.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB)
-	$(FC) $(LDFLAGS) -o enkf.x enkf_main.o libenkf.a $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
-
-$(LIB): $(OBJS) $(OBJS_NOSWAP)
-	$(RM) $(LIB)
-	$(AR) $@ $(OBJS) $(OBJS_NOSWAP)
-
-export: libenkf.a enkf.x prepbykx.x
-	$(MKDIR)               $(COREBIN)
-	$(CP) $(LIB)           $(CORELIB)
-	$(CP) enkf.x            $(COREBIN)
-	$(CP) enkf.rc.sample    $(COREETC)/enkf.rc
-	$(CP) tlmadj_parameter.rc.sample $(COREETC)/tlmadj_parameter.rc
-	$(CP) gmao_airs_bufr.tbl       $(COREETC)/gmao_airs_bufr.tbl
-	$(CP) gmao_global_pcpinfo.txt  $(COREETC)/gmao_global_pcpinfo.rc
-	$(CP) gmao_global_satinfo.txt  $(COREETC)/gmao_global_satinfo.rc
-	$(CP) gmao_global_ozinfo.txt   $(COREETC)/gmao_global_ozinfo.rc
-	$(CP) gmao_global_convinfo.txt $(COREETC)/gmao_global_convinfo.rc
-	$(SED) -e "s^@DASPERL^$(DASPERL)^" < analyzer > $(COREBIN)/analyzer
-	chmod 755 $(COREBIN)/analyzer
-
-doc:              AnIntro $(DOCSRC)
-	$(PROTEX) AnIntro *.f90 *.F90 >  enkf.tex
-	$(LATEX) enkf.tex
-	$(LATEX) enkf.tex
-
 doclean:
 	- $(RM) *.tex *.dvi *.aux *.toc *.log *.ps *.pdf
-
-help:
-	@ echo "Available targets:"
-	@ echo "NCEP:  make             creates enkf executable        "
-	@ echo "NPEP:  make debug       created enkf exec for debugging purposes"
-	@ echo "NCEP:  make install     creates enkf exec & places it in bin"
-	@ echo "GMAO:  make lib         creates enkf library"
-	@ echo "GMAO:  make export      creates lib, exec, & copies all to bin/inc/etc"
-	@ echo "       make clean       cleans objects, exec, and alien files"  
-	@ echo "       make doc         creates documentation"
-	@ echo "       make doclean     clean doc-related temporary files"
 

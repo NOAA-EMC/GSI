@@ -101,6 +101,7 @@ subroutine pcgsoi()
 !                          and ensctl2state.  I put in temporary fix to allow debug compile
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
+!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
 !                       
 !
 ! input argument list:
@@ -151,6 +152,7 @@ subroutine pcgsoi()
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
+    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
   implicit none
 
@@ -783,7 +785,7 @@ subroutine pcgsoi()
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
-  if(jiter == miter) then
+  if(jiter == miter .and. i_gsdcldanal_type==1) then
     if(use_reflectivity) then
      call gsdcloudanalysis4nmmb(mype)
     else

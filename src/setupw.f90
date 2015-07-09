@@ -140,6 +140,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-05-01  Liu Ling - Added ISS Rapidscat wind (u,v) qc 
 !
 ! REMARKS:
 !   language: f90
@@ -173,7 +174,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables
 
   real(r_double) rstation_id
-  real(r_kind) qcu,qcv,qc_spd,qc_prs,trop5,tfact,fact
+  real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
   real(r_kind) residual,ressw,ress,val,val2,valqc2,dudiff,dvdiff
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc
@@ -187,12 +188,19 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
-  real(r_kind) oscat_vec,ascat_vec
+  real(r_kind) dudiff_opp_rs, dvdiff_opp_rs, vecdiff_rs, vecdiff_opp_rs
+  real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
+
+! Variables needed for new polar winds QC based on Log Normalized Vector Departure (LNVD)
+  real(r_kind) LNVD_wspd
+  real(r_kind) LNVD_omb
+  real(r_kind) LNVD_ratio
+  real(r_kind) LNVD_threshold
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
   integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,icat
@@ -723,20 +731,29 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
  
 !       Set and computes modis specific qc parameters
-        qcu = r7
-        qcv = r7
-        qc_spd = (spdges+r15)/three
-        qc_prs=zero
-        if (itype==257) qc_prs = prsfc - r200
-        if (itype==258 .or. itype==259) qc_prs = r400
-        if ( presw > qc_prs .and. qc_spd < qcu ) then
-           qcu = (spdob + r15)/three
-           qcv = (qcv*qcu)/r7
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
+           error = zero
         endif
+       endif ! ???
 
-!       if (presw < trop5-r50 .or. &                      !  tropopause check
-        if(abs(dudiff) > qcu .or. &                      !  u component check
-            abs(dvdiff) > qcv .or. &                      !  v component check
+!    QC AVHRR winds
+     if (itype==244) then
+!       Get guess values of tropopause pressure and sea/land/ice
+!       mask at observation location
+        prsfc = r10*prsfc       ! surface pressure in hPa
+
+!       Set and computes modis specific qc parameters
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
@@ -769,6 +786,23 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              abs(dvdiff) > qcv  .or. &       ! v component check
              vecdiff > vecdiff_opp ) then    ! ambiguity check
  
+           error = zero
+        endif
+     endif
+
+!    QC RAPIDSCAT winds
+     if (itype==296) then
+        qcu = five
+        qcv = five
+!       Compute innovations for opposite vectors
+        dudiff_opp_rs = -uob - ugesin
+        dvdiff_opp_rs = -vob - vgesin
+        vecdiff_rs = sqrt(dudiff**2 + dvdiff**2)
+        vecdiff_opp_rs = sqrt(dudiff_opp_rs**2 + dvdiff_opp_rs**2)
+        rapidscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
+        if ( abs(dudiff) > qcu  .or. &       ! u component check
+             abs(dvdiff) > qcv  .or. &       ! v component check
+             vecdiff_rs > vecdiff_opp_rs ) then    ! ambiguity check
            error = zero
         endif
      endif
@@ -828,6 +862,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if(spdb <0 )then
+        if(itype ==244) then   ! AVHRR, use same as MODIS
+          qcgross=r0_7*cgross(ikx)
+        endif
         if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
@@ -1213,10 +1250,36 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wtail(ibin)%head%b=cvar_b(ikx)
            wtail(ibin)%head%pg=cvar_pg(ikx)
            wtail(ibin)%head%luse=luse(i)
+
            if(luse_obsdiag)then
               wtail(ibin)%head%diagu => obsptr
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagu
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           1/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,1,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+
               wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
-           end if
+
+              my_head => wtail(ibin)%head
+              my_diag => wtail(ibin)%head%diagv
+              if(my_head%idv/=my_diag%idv .or. &
+                 my_head%iob/=my_diag%iob .or. &
+                           2/=my_diag%ich ) then
+                 call perr(myname,'mismatched %[head,diag], (idv,iob,ich,ibin) =',&
+                       (/is,i,2,ibin/))
+                 call perr(myname,'head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
+                 call perr(myname,'diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                 call die(myname)
+              endif
+           endif
 
            prest = prest - pps_press_incr
 

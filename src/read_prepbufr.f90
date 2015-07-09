@@ -124,6 +124,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-06-26  carley - simplify call to apply_hilbertcurve 
 !   2014-11-20  zhu  - added code for aircraft temperature kx=130
+!   2014-10-01  Xue    - add gsd surface observation uselist
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-03-23  Su      -fix array size with maximum message and subset  number from fixed number to
+!                        dynamic allocated array
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -161,12 +165,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
-  use gsi_4dvar, only: l4dvar,time_4dvar,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,noiqc,newvad
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
+  use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist,destroy_gsd_sfcuselist                       
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
@@ -176,6 +181,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
+  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist
 
   implicit none
 
@@ -207,9 +213,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r0_01_bmiss=r0_01*bmiss
   character(80),parameter:: cspval= '88888888'
 
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
-! integer(i_kind),parameter:: nmsgmax=10000 ! max message count
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob
@@ -239,7 +242,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
@@ -261,13 +264,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
   integer(i_kind) iyyyymm
   integer(i_kind) jj,start,next
-  integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind),dimension(nmsgmax):: nrep
   integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm,pmq
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
+  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:,:):: tab 
   integer(i_kind) ibfms,thisobtype_usage
 
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
@@ -283,7 +285,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind) time_correction
-  real(r_kind) obval
   real(r_kind) tcamt,lcbas,ceiling
   real(r_kind) tcamt_oe,lcbas_oe
   real(r_kind) low_cldamt,mid_cldamt,hig_cldamt
@@ -447,14 +448,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !  Set qc limits based on noiqc flag
   if (noiqc) then
      lim_qm=8
-     if (psob) lim_zqm=7
-     if (qob)  lim_tqm=7
-     if (tob)  lim_qqm=8
+     if (psob)         lim_zqm=7
+     if (qob.or.tdob)  lim_tqm=7
+     if (tob)          lim_qqm=8
   else
      lim_qm=4
-     if (psob) lim_zqm=4
-     if (qob)  lim_tqm=4
-     if (tob)  lim_qqm=4
+     if (psob)         lim_zqm=4
+     if (qob.or.tdob)  lim_tqm=4
+     if (tob)          lim_qqm=4
   endif
 
   if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
@@ -517,7 +518,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      return
   end if
 
-  allocate(lmsg(nmsgmax,ntread))
+!! get message and subset counts
+
+  call getcount_bufr(infile,nmsgmax,mxtb)
+
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+
   lmsg = .false.
   maxobs=0
   tab=0
@@ -682,6 +688,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   call init_rjlists
   call init_aircraft_rjlists
+  if(i_gsdsfc_uselist==1) call init_gsd_sfcuselist
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
@@ -887,7 +894,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            driftl=kx==120.or.kx==220.or.kx==221
 
            if (.not. (aircraft_t_bc .and. acft_profl_file)) then
-              if (l4dvar) then
+              if (l4dvar.or.l4densvar) then
                  if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
               else
                  if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
@@ -1313,7 +1320,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
                  t4dv=t4dv + time_correction
                  time=timeobs + time_correction
-                 if (l4dvar) then
+                 if (l4dvar.or.l4densvar) then
                     if (t4dv<zero.OR.t4dv>winlen) cycle LOOP_K_LEVS
                  else
                     if (real(abs(time))>real(ctwind(nc)) .or.  real(abs(time))>real(twindin)) cycle LOOP_K_LEVS
@@ -1342,7 +1349,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (abs(time_drift-time)>four) time_drift = time
  
 !                Check to see if the time is outside range
-                 if (l4dvar) then
+                 if (l4dvar.or.l4densvar) then
                     t4dv=toff+time_drift
                     if (t4dv<zero .or. t4dv>winlen) then
                        t4dv=toff+timex
@@ -1402,7 +1409,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  ntmp=ndata  ! counting moved to map3gridS
            
 !                Set data quality index for thinning
-                 if (l4dvar) then
+                 if (thin4d) then
                     timedif = zero
                  else
                     timedif=abs(t4dv-toff)
@@ -1467,9 +1474,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
               if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
 
-              if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
-                                            dlon_earth,dlat_earth,idate,t4dv-toff, &
+              if (sfctype) then 
+                 if (i_gsdsfc_uselist==1 ) then
+                    if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
+                    call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                            usage)
+                 else
+                    call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                            dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
+                 endif
+              endif
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
@@ -1513,6 +1528,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
                  if(ppb < r100)toe=toe*r1_2
+                 if (aircraft_t_bc .and. kx==130 .and. ppb>=500.0_r_kind) toe=toe*r10
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -2153,7 +2169,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (k==1) then
 !                   adjust quality mark/usage parameter
                     if (trim(subset) == 'GOESND') then
-                       call adjust_goescldobs(goescld(2,1),timeobs,idomsfc,dlat_earth,dlon_earth, &
+                       call adjust_goescldobs(goescld(2,1),timeobs,dlat_earth,dlon_earth, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                   hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
                     else
@@ -2257,7 +2273,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
 
 ! Apply hilbert curve for cross validation if requested
 
@@ -2304,6 +2320,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(cdata_out)
   call destroy_rjlists
   call destroy_aircraft_rjlists
+  if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
   if (twodvar_regional) call destroy_ndfdgrid
 
