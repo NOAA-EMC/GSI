@@ -209,7 +209,7 @@ do jj=1,nsubwin
       if (cw_to_hydro_ad) then
 !        Case when cw is generated from hydrometeors
          if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
-         call cw2hydro_ad(rval(jj),wbundle,rv_tsen,clouds,nclouds)
+         call cw2hydro_ad(rval(jj),wbundle,clouds,nclouds)
          if(.not. do_tv_to_tsen_ad) then 
             call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
             deallocate(rv_tsen)

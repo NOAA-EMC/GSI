@@ -39,6 +39,7 @@ subroutine intmxtm(mxtmhead,rval,sval)
 ! program history log:
 !
 !   2014-03-19 -  pondeca
+!   2015-03-11 -  pondeca  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     mxtmhead
@@ -55,7 +56,7 @@ subroutine intmxtm(mxtmhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: mxtm_ob_type, lsaveobsens, l_do_adjoint
+  use obsmod, only: mxtm_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -102,17 +103,17 @@ subroutine intmxtm(mxtmhead,rval,sval)
      val=w1*smxtm(j1)+w2*smxtm(j2)&
         +w3*smxtm(j3)+w4*smxtm(j4)
 
-     if (lsaveobsens) then
-        mxtmptr%diags%obssen(jiter) = val*mxtmptr%raterr2*mxtmptr%err2
-     else
-        if (mxtmptr%luse) mxtmptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*mxtmptr%raterr2*mxtmptr%err2
+           mxtmptr%diags%obssen(jiter) = grad
+        else
+           if (mxtmptr%luse) mxtmptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = mxtmptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            if(.not.ladtest_obs)  val=val-mxtmptr%res
 
 !          gradient of nonlinear operator

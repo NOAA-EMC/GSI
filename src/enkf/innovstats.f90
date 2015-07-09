@@ -24,7 +24,7 @@ module innovstats
 
 use enkf_obsmod, only:  oberrvar,ob,ensmean_ob,obtype,nobs_conv,nobs_oz,&
                    nobs_sat,nobstot,obloclat,ensmean_obnobc,obpress,stattype,&
-                   indxsat
+                   oberrvar_orig,indxsat
 use params, only : latbound
 use kinds, only: i_kind, r_kind,r_single
 use radinfo, only: jpch_rad,nusis,nuchan
@@ -107,13 +107,13 @@ if (nobs_conv+nobs_oz > 0) then
   do nob=1,nobs_conv+nobs_oz
      if(oberrvar(nob) < 1.e10_r_single)then
          if (obtype(nob)(1:3) == ' ps') then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumps_nh,biasps_nh,sumps_spread_nh,sumps_oberr_nh,nobsps_nh,&
                  sumps_sh,biasps_sh,sumps_spread_sh,sumps_oberr_sh,nobsps_sh,&
                  sumps_tr,biasps_tr,sumps_spread_tr,sumps_oberr_tr,nobsps_tr)
          else if (obtype(nob)(1:3) == '  t' .and. stattype(nob) /= 121) then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumt_nh,biast_nh,sumt_spread_nh,sumt_oberr_nh,nobst_nh,&
                  sumt_sh,biast_sh,sumt_spread_sh,sumt_oberr_sh,nobst_sh,&
@@ -125,37 +125,37 @@ if (nobs_conv+nobs_oz > 0) then
         !        ((stattype(nob) >= 280 .and. stattype(nob) <= 282) .or. &
         !         (stattype(nob) >= 220 .and. stattype(nob) <= 221) .or. &
         !         (stattype(nob) >= 230 .and. stattype(nob) <= 235) ) then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumwnd_nh,biaswnd_nh,sumwnd_spread_nh,sumwnd_oberr_nh,nobswnd_nh,&
                  sumwnd_sh,biaswnd_sh,sumwnd_spread_sh,sumwnd_oberr_sh,nobswnd_sh,&
                  sumwnd_tr,biaswnd_tr,sumwnd_spread_tr,sumwnd_oberr_tr,nobswnd_tr)
          else if (obtype(nob)(1:3) == '  q') then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumq_nh,biasq_nh,sumq_spread_nh,sumq_oberr_nh,nobsq_nh,&
                  sumq_sh,biasq_sh,sumq_spread_sh,sumq_oberr_sh,nobsq_sh,&
                  sumq_tr,biasq_tr,sumq_spread_tr,sumq_oberr_tr,nobsq_tr)
          else if (obtype(nob)(1:3) == 'spd') then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumspd_nh,biasspd_nh,sumspd_spread_nh,sumspd_oberr_nh,nobsspd_nh,&
                  sumspd_sh,biasspd_sh,sumspd_spread_sh,sumspd_oberr_sh,nobsspd_sh,&
                  sumspd_tr,biasspd_tr,sumspd_spread_tr,sumspd_oberr_tr,nobsspd_tr)
          else if (obtype(nob)(1:3) == 'gps') then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumgps_nh,biasgps_nh,sumgps_spread_nh,sumgps_oberr_nh,nobsgps_nh,&
                  sumgps_sh,biasgps_sh,sumgps_spread_sh,sumgps_oberr_sh,nobsgps_sh,&
                  sumgps_tr,biasgps_tr,sumgps_spread_tr,sumgps_oberr_tr,nobsgps_tr)
          else if (obtype(nob)(1:3) == ' pw') then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumpw_nh,biaspw_nh,sumpw_spread_nh,sumpw_oberr_nh,nobspw_nh,&
                  sumpw_sh,biaspw_sh,sumpw_spread_sh,sumpw_oberr_sh,nobspw_sh,&
                  sumpw_tr,biaspw_tr,sumpw_spread_tr,sumpw_oberr_tr,nobspw_tr)
          else if (nob > nobs_conv) then
-            call obstats(obfit(nob),oberrvar(nob),&
+            call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
                  sumoz_nh,biasoz_nh,sumoz_spread_nh,sumoz_oberr_nh,nobsoz_nh,&
                  sumoz_sh,biasoz_sh,sumoz_spread_sh,sumoz_oberr_sh,nobsoz_sh,&
@@ -205,7 +205,7 @@ if (nobs_sat > 0) then
      nchan = indxsat(nn)
      if (oberrvar(nob) < 1.e10_r_single .and. nchan > 0) then
        sumsprd_sat(nchan)=sumsprd_sat(nchan)+obsprd(nob)
-       sumerr_sat(nchan)=sumerr_sat(nchan)+oberrvar(nob)
+       sumerr_sat(nchan)=sumerr_sat(nchan)+oberrvar_orig(nob)
        sumfitsq_sat(nchan)=sumfitsq_sat(nchan)+obfit(nob)**2
        sumfit_sat(nchan)=sumfit_sat(nchan)+obfit(nob)
        nob_sat(nchan)=nob_sat(nchan) + 1

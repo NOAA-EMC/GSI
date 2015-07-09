@@ -50,7 +50,7 @@ if [[ ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
 
       if [[ ${machine} != "wcoss" ]]; then
          rm -f Makefile.conf
-         ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+         cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
       fi
 
       echo make ${var} ${mode}
@@ -64,25 +64,25 @@ if [[ ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
 
    cd ${top_level}/data_extract/sorc/make_base.fd
    rm -f Makefile.conf
-   ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+   cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
    make ${mode}  
 
    cd ${top_level}/data_extract/sorc/validate_time.fd
    rm -f Makefile.conf
-   ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+   cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
    make ${mode}  
 
 
    #------------------------------------------------------------------
    #  make image generation executables
    #------------------------------------------------------------------
-   executables="horiz"
+   executables="horiz summary time bcoef angle"
 
    cd ${top_level}/image_gen/src
    echo "Making image_gen/src:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+      cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}

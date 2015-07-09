@@ -32,6 +32,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !   2011-08-01  lueken  - add module use deter_sfc_mod
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     nread    - counter for all data on this pe
@@ -87,7 +88,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
-  use gsi_4dvar, only: l4dvar,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
   use deter_sfc_mod, only: deter_sfc2
   implicit none
 
@@ -184,7 +185,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      read(lnbufr)suplon0,suplat0,suphgt,suptime0,supyhat,suprhat,supbigu,supid
 
      t4dv = toff + suptime0
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle
      else
         suptime=suptime0 + time_correction

@@ -405,7 +405,7 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 ! Declare local variables
   integer(i_kind) i,ii,j,k
 
-  real(r_kind),dimension(lat2*lon2*nsig) :: vd1,vd2
+  real(r_kind),dimension(lat2*lon2*nsig) :: vd1
   real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1
   real(r_kind),dimension(sp_a%nc):: spc1
 

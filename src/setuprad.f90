@@ -136,13 +136,36 @@
 !   2013-07-19  zhu     - add emissivity sensitivity predictor for radiance bias correction
 !   2013-11-19  sienkiewicz - merge back in changes for adjustable preweighting for SSMIS bias terms
 !   2013-11-21  todling - inquire diag-file version using get_radiag
+!   2013-12-10  zhu     - apply bias correction to tb_obs for ret_amsua calculation
+!   2013-12-21  eliu    - add amsu-a obs errors for allsky condition 
+!   2013-12-21  eliu    - add error handling for CLWP calculation for allsky
+!   2014-01-17  zhu     - add cld_rbc_idx for bias correction sample to handle cases with cloud 
+!                         inconsistency between obs and first guess for all-sky microwave radiance
+!   2014-01-19  zhu     - add scattering index calculation, add it as a predictor for allsky
+!                       - calculate retrieved clw using bias-corrected tsim 
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-01-31  mkim    - Remove abs(60.0degree) boundary which existed for all-sky MW radiance DA 
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
+!   2014-04-27  eliu    - change qc_amsua/atms interface
+!   2014-04-27  eliu    - change call_crtm interface to output clear-sky Tb under all-sky condition (optional)
+!   2014-04-27  eliu    - add cloud effect calculation for AMSU-A/ATMS under all-sky condition
 !   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
+!   2014-08-01  zhu     - remove scattering index predictor 
+!                       - add all-sky obs error adjustment based on scattering index, diff of clw, 
+!                         cloud mismatch info, and surface wind speed
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-01-15  zhu     - change amsua quality control interface to apply emissivity sensitivity
+!                         screen to all-sky AMSUA and ATMS radiance
+!   2015-01-16  ejones  - Added call to qc_gmi for gmi observations
+!                       - Added saphir
+!   2015-02-12  ejones  - Write gwp to diag file for GMI
+!   2015-03-11  ejones  - Added call to qc_amsr2 for amsr2 observations
+!   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
+!                         change quality control interface for AMSUA and ATMS.
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -197,9 +220,9 @@
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua 
-  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
+  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms,qc_gmi,qc_amsr2,qc_saphir
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc,ifail_outside_range
+  use qcmod, only: setup_tzr_qc,ifail_outside_range,ifail_scanedge_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
@@ -247,13 +270,16 @@
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) gwp,clw_obs
+  real(r_kind) scat,scatp
   real(r_kind) dtsavg,r90,coscon,sincon
-! real(r_kind) dlat,wlat 
+  real(r_kind) bias       
+  real(r_kind) factch6    
 
-  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
+  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
-  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
+  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
   logical microwave, microwave_low
@@ -273,11 +299,13 @@
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf
-  real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
+  real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
-  real(r_kind),dimension(nchanl):: tsim,wavenumber
+  real(r_kind),dimension(nchanl):: tsim,wavenumber,tsim_bc
+  real(r_kind),dimension(nchanl):: tsim_clr,cldeff_obs,cldeff_sim 
+  real(r_kind),dimension(nchanl):: cclr,ccld    
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
@@ -285,9 +313,11 @@
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
+  real(r_kind),dimension(nchanl):: cld_rbc_idx
   real(r_kind) :: ptau5deriv, ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval
+  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
 ! real(r_kind) :: predchan6_save   
+  real(r_kind) :: cldeff_obs5
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -312,6 +342,7 @@
   coscon     = cos( (r90-55.0_r_kind)*deg2rad )
   sincon     = sin( (r90-55.0_r_kind)*deg2rad )
 
+  factch6 = zero  
   cld   = zero
   cldp  = zero
   tpwc  = zero
@@ -343,6 +374,7 @@
   airs       = obstype == 'airs'
   hsb        = obstype == 'hsb'
   goes_img   = obstype == 'goes_img'
+  ahi        = obstype == 'ahi'
   avhrr      = obstype == 'avhrr'
   avhrr_navy = obstype == 'avhrr_navy'
   ssmi       = obstype == 'ssmi'
@@ -350,6 +382,8 @@
   amsre_mid  = obstype == 'amsre_mid'
   amsre_hig  = obstype == 'amsre_hig'
   amsre      = amsre_low .or. amsre_mid .or. amsre_hig
+  amsr2      = obstype == 'amsr2'
+  gmi        = obstype == 'gmi'
   ssmis      = obstype == 'ssmis'
   ssmis_las  = obstype == 'ssmis_las'
   ssmis_uas  = obstype == 'ssmis_uas'
@@ -359,11 +393,13 @@
   cris       = obstype == 'cris'
   seviri     = obstype == 'seviri'
   atms       = obstype == 'atms'
+  saphir     = obstype == 'saphir'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-            ssmi  .or. ssmis  .or. amsre .or. atms
+            ssmi  .or. ssmis  .or. amsre .or. atms .or. &
+            amsr2 .or. gmi  .or.  saphir
 
   microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
 
@@ -375,7 +411,34 @@
      if(icw4crtm >0) lcw4crtm = .true.
   end if
 
-  lcw4crtm=lcw4crtm .and. (amsua .or. atms)
+! lcw4crtm=lcw4crtm .and. (amsua .or. atms)  
+  lcw4crtm=lcw4crtm .and.  amsua            !leave ATMS as clear-sky for now          
+
+  if (lcw4crtm) then
+!    Parameters for the observation error model 
+!    cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
+!    increase in error take place
+     cclr(:)=zero
+     ccld(:)=zero
+     do i=1,nchanl
+        cclr( 1)=0.05_r_kind
+        cclr( 2)=0.03_r_kind
+        cclr( 3)=0.03_r_kind
+        cclr( 4)=0.02_r_kind
+        cclr( 5)=0.00_r_kind
+        cclr( 6)=0.10_r_kind
+        cclr(15)=0.03_r_kind
+     end do
+     do i=1,nchanl
+        ccld( 1)=0.60_r_kind
+        ccld( 2)=0.45_r_kind
+        ccld( 3)=0.40_r_kind
+        ccld( 4)=0.45_r_kind
+        ccld( 5)=1.00_r_kind
+        ccld( 6)=1.50_r_kind
+        ccld(15)=0.20_r_kind
+     end do
+  endif
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -580,7 +643,6 @@
 
   lextra = (iextra>0)
 
-
 ! Allocate array to hold channel information for diagnostic file and/or lobsdiagsave option
   idiag=ipchan_radiag+npred+2
   ioff0=idiag
@@ -707,11 +769,20 @@
  
 
 !       Interpolate model fields to observation location, call crtm and create jacobians
-        call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,prsltmp,prsitmp, &
-             trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
-             temp,wmix,jacobian,error_status)
+!       Output both tsim and tsim_clr for allsky
+        if (lcw4crtm) then
+           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+                tvp,qvp,clw_guess,prsltmp,prsitmp, &
+                trop5,tzbgr,dtsavg,sfc_speed, &
+                tsim,emissivity,ptau5,ts,emissivity_k, &
+                temp,wmix,jacobian,error_status,tsim_clr)
+        else
+           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+                tvp,qvp,clw_guess,prsltmp,prsitmp, &
+                trop5,tzbgr,dtsavg,sfc_speed, &
+                tsim,emissivity,ptau5,ts,emissivity_k, &
+                temp,wmix,jacobian,error_status)
+        endif 
 
 ! If the CRTM returns an error flag, do not assimilate any channels for this ob 
 ! and set the QC flag to ifail_crtm_qc.
@@ -751,7 +822,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. seviri .or. ssmis) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -766,27 +837,38 @@
            end do
         end if
 
-!       Compute microwave cloud liquid water for bias correction and QC.
+!       Compute microwave cloud liquid water or graupel water path for bias correction and QC.
         clw=zero
         clwp_amsua=zero
+        clw_obs=zero
         clw_guess_retrieval=zero
+        gwp=zero
         tpwc_amsua=zero
         tpwc_guess_retrieval=zero
+        scatp=zero
+        scat=zero  
         ierrret=0
         tpwc=zero
         kraintype=0
+        cldeff_obs=zero 
+        cldeff_sim=zero  
         if(microwave .and. sea) then 
-           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
-                tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-           if(lcw4crtm) then
-              call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua, ierrret)
-              call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval, ierrret)
+           if(lcw4crtm) then                            
+              call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
+              scatp=scat 
+           else
+              call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
+                   amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
+                if(gmi .or. amsr2) then   ! set clw_obs for gmi and amsr2
+                  clw_obs = clw
+                endif
            end if
            if (ierrret /= 0) then 
              varinv(1:nchanl)=zero
              id_qc(1:nchanl) = ifail_cloud_qc
            endif
         endif
+
         predbias=zero
         do i=1,nchanl
            mm=ich(i)
@@ -798,7 +880,7 @@
            if (.not. newpc4pred) then
               pred(1,i) = r0_01
               pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
-              if(ssmi .or. ssmis .or. amsre)pred(2,i)=zero
+              if(ssmi .or. ssmis .or. amsre .or. gmi .or. amsr2)pred(2,i)=zero
            else
               pred(1,i) = one
               if (adp_anglebc) then
@@ -814,7 +896,7 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-           if(lcw4crtm .and. sea) pred(3,i ) = zero
+           if(lcw4crtm .and. sea) pred(3,i ) = zero 
  
 !       Apply bias correction
  
@@ -845,6 +927,7 @@
            tlap = tlapchn(i)-tlapmean(mm)
            pred(4,i)=tlap*tlap
            pred(5,i)=tlap
+
 !          additional bias predictor (as/ds node) for SSMIS         
            pred(6,i)= zero                                      
            pred(7,i)= zero                                     
@@ -875,27 +958,11 @@
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
            end if
-!          Smooth the channel dependent asc/dsc coefficient to zero at the
-!          transition zone
-!          in order to remove sudden changes near 90N and 90S latitudes (for
-!          SSMIS only)
-!           if (ssmis) then
-!              wlat = one
-!              dlat = 90.0_r_kind-70.0_r_kind
-!              if (cenlat >=  70.0_r_kind) &
-!                 wlat = abs(tanh((90.0_r_kind-cenlat)*pi/dlat))
-!              if (cenlat <= -70.0_r_kind) &
-!                 wlat = abs(tanh((90.0_r_kind+cenlat)*pi/dlat))
-!              predchan6_save = predchan(6,i)    ! save the orginal (unscaled)
-!              coefficient for asc/dsc node
-!              predchan(6,i) = wlat*predchan(6,i)
-!           endif
+
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
            end do
            predbias(npred+1,i) = cbias(nadir,mm)*ang_rad(mm)      !global_satangbias
-!          if (ssmis) predchan(6,i) = predchan6_save  ! recovered the original
-!          coefficient for asc/dsc node
  
 !          Apply SST dependent bias correction with cubic spline
            if (retrieval) then
@@ -914,11 +981,70 @@
            end do
            tbc(i)=tbc(i) - predbias(npred+1,i)
            tbc(i)=tbc(i) - predbias(npred+2,i)
- 
-           error0(i)     = tnoise(i)
 
-!          Assign observation error if assimilating all-sky MW radiance data 
-           if(lcw4crtm .and. sea)  call obserr_allsky_mw(error0(i),tnoise(i),tnoise_cld(i),clwp_amsua,clw_guess_retrieval) 
+!          Calculate cloud effect for QC
+           if (lcw4crtm) then
+              cldeff_sim(i) = tsim(i)-tsim_clr(i)      ! simulated cloud delta
+              cldeff_obs(i) = tb_obs(i)-tsim_clr(i)    ! observed cloud delta (no bias correction)                
+              ! need to apply bias correction ? need to think about this
+              bias = zero
+              do j=1, npred-angord
+                 bias = bias+predbias(j,i)
+              end do
+              bias = bias+predbias(npred+1,i)
+              bias = bias+predbias(npred+2,i)
+              cldeff_obs(i)=cldeff_obs(i) - bias       ! observed cloud delta (bias corrected)                
+           endif
+
+!       End of loop over channels
+        end do
+ 
+!       Compute retrieved microwave cloud liquid water and 
+!       assign cld_rbc_idx for bias correction in allsky conditions
+        cld_rbc_idx=one
+        if (lcw4crtm .and. sea)  then
+           ierrret=0
+           do i=1,nchanl
+              mm=ich(i)
+              tsim_bc(i)=tsim(i)
+              do j=1,npred-angord
+                 tsim_bc(i)=tsim_bc(i)+predbias(j,i)
+              end do
+              tsim_bc(i)=tsim_bc(i)+predbias(npred+1,i)
+              tsim_bc(i)=tsim_bc(i)+predbias(npred+2,i)
+           end do
+           call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
+           do i=1,nchanl
+!             if (clwp_amsua<=cclr(i) .and. clw_guess_retrieval> cclr(i)) cld_rbc_idx(i)=zero  
+!             if (clwp_amsua> cclr(i) .and. clw_guess_retrieval<=cclr(i)) cld_rbc_idx(i)=zero  
+              if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero .and.  &
+                   abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
+           end do
+
+           if (ierrret /= 0) then
+             varinv(1:nchanl)=zero
+             id_qc(1:nchanl) = ifail_cloud_qc
+           endif
+
+        end if ! end of (lcw4crtm .and. sea)
+        
+
+        do i=1,nchanl
+           mm=ich(i)
+           error0(i) = tnoise(i) 
+           errf0(i) = error0(i)
+
+           if(lcw4crtm .and. sea)  then   
+              clwtmp=half*(clwp_amsua+clw_guess_retrieval)
+              if(clwtmp <= cclr(i)) then
+                 error0(i) = tnoise(i)
+              else if(clwtmp > cclr(i) .and. clwtmp < ccld(i)) then
+                 error0(i) = tnoise(i) + &
+                     (clwtmp-cclr(i))*(tnoise_cld(i)-tnoise(i))/(ccld(i)-cclr(i))
+              else
+                 error0(i) = tnoise_cld(i) 
+              endif
+           endif
 
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
@@ -986,10 +1112,11 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
+           cldeff_obs5=cldeff_obs(5)   ! observed cloud effect for channel 5       
            call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
-              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv)
-
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
+              cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                    
 
 !  If cloud impacted channels not used turn off predictor
 
@@ -998,6 +1125,7 @@
                  pred(3,i) = zero
               end if
            end do
+
 
 !  ---------- AMSU-B -------------------
 !       QC AMSU-B and MHS data
@@ -1015,12 +1143,14 @@
 
            if (adp_anglebc) then
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+              cldeff_obs5=cldeff_obs(6)   ! observed cloud effect for ATMS channel 6        
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
-              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv)
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
+              cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                   
 
 !  ---------- GOES imager --------------
 !       GOES imager Q C
@@ -1098,6 +1228,33 @@
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
               varinv,errf,aivals(1,is),id_qc)
 
+!  ---------- AMSR2  -------------------
+!       AMSR2 Q C
+
+        else if (amsr2) then
+
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,amsr2,varinv,aivals(1,is),id_qc)
+
+
+!  ---------- GMI  -------------------
+!       GMI Q C
+
+        else if (gmi) then
+! remove some data near the scan edge
+           if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
+
+           call qc_gmi(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
+
+!  ---------- SAPHIR -----------------
+!       SAPHIR Q C
+        
+        else if (saphir) then
+
+        call qc_saphir(nchanl,zsges,luse(n),sea, &
+              kraintype,varinv,aivals(1,is),id_qc)
+        
 !  ---------- SSU  -------------------
 !       SSU Q C
 
@@ -1114,15 +1271,21 @@
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
-
-              if(lcw4crtm .and. sea) then
-                 errf(i) = three*errf(i)
+              if(lcw4crtm .and. sea) then 
+                 if (i <= 3 .or. i==15) then         
+                    errf(i) = 3.00_r_kind*errf(i)    
+                 else if (i == 4) then                     
+                    errf(i) = 3.00_r_kind*errf(i)           
+                 else if (i == 5) then
+                    errf(i) = 3.00_r_kind*errf(i)
+                 else
+                    errf(i) = min(three*errf(i),ermax_rad(m))
+                 endif
               else if (ssmis) then
                  errf(i) = min(1.5_r_kind*errf(i),ermax_rad(m))  ! tighten up gross check for SSMIS
               else
                  errf(i) = min(three*errf(i),ermax_rad(m))
               endif
-
               if (abs(tbc(i)) > errf(i)) then
 !                If mean obs-ges difference around observations
 !                location is too large and difference at the 
@@ -1133,7 +1296,6 @@
                  if(luse(n))stats(2,m) = stats(2,m) + one
                  if(luse(n))aivals(7,is) = aivals(7,is) + one
               end if
-
            end if
         end do
 
@@ -1210,10 +1372,14 @@
                  dradnob = tbcnob(i)
                  varrad  = drad*varinv(i)
                  stats(1,m)  = stats(1,m) + one              !number of obs
-                 stats(3,m)  = stats(3,m) + drad             !obs-mod(w_biascor)
-                 stats(4,m)  = stats(4,m) + tbc(i)*drad      !(obs-mod(w_biascor))**2
+!                stats(3,m)  = stats(3,m) + drad             !obs-mod(w_biascor)
+!                stats(4,m)  = stats(4,m) + tbc(i)*drad      !(obs-mod(w_biascor))**2
+!                stats(5,m)  = stats(5,m) + tbc(i)*varrad    !penalty contribution
+!                stats(6,m)  = stats(6,m) + dradnob          !obs-mod(w/o_biascor)
+                 stats(3,m)  = stats(3,m) + drad*cld_rbc_idx(i)        !obs-mod(w_biascor)
+                 stats(4,m)  = stats(4,m) + tbc(i)*drad*cld_rbc_idx(i) !(obs-mod(w_biascor))**2
                  stats(5,m)  = stats(5,m) + tbc(i)*varrad    !penalty contribution
-                 stats(6,m)  = stats(6,m) + dradnob          !obs-mod(w/o_biascor)
+                 stats(6,m)  = stats(6,m) + dradnob*cld_rbc_idx(i)     !obs-mod(w/o_biascor)
 
                  exp_arg = -half*(tbc(i)/error0(i))**2
                  error=sqrt(varinv(i))
@@ -1241,7 +1407,7 @@
 
 !                   summation of observation number
                     if (newpc4pred) then
-                       ostats(m)  = ostats(m) + one
+                       ostats(m)  = ostats(m) + one*cld_rbc_idx(i)
                     end if
                  end if
 
@@ -1257,7 +1423,7 @@
 !                summation of observation number,
 !                skip ostats accumulation for channels without coef. initialization 
                  if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
-                    ostats(m)  = ostats(m) + one
+                    ostats(m)  = ostats(m) + one*cld_rbc_idx(i)
                  end if
                  iccm=iccm+1
               end if
@@ -1340,7 +1506,7 @@
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
 
                     do k=1,npred
-                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
+                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
                     end do
 
                     do k=1,nsigradjac
@@ -1542,7 +1708,7 @@
                     radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     radtailm(ibin)%head%icx(iii)=m                       ! channel index
                     do k=1,npred
-                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
+                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
                     end do
 
                     my_headm%ich(iii)=ii
@@ -1596,7 +1762,11 @@
               diagbuf(17) = surface(1)%ice_temperature        ! surface temperature over ice (K)
               diagbuf(18) = surface(1)%snow_temperature       ! surface temperature over snow (K)
               diagbuf(19) = surface(1)%soil_temperature       ! soil temperature (K)
-              diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              if (gmi .or. saphir) then
+                diagbuf(20) = gwp                             ! graupel water path
+              else
+                diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
+              endif
               diagbuf(21) = surface(1)%land_type              ! surface land type
            else
               diagbuf(15) = tsavg5                            ! SST first guess used for SST retrieval
@@ -1607,18 +1777,28 @@
               diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
+           if(lcw4crtm .and. sea) then  
+           !  diagbuf(22) = tpwc_amsua   
+              diagbuf(22) = scat                              ! scattering index from AMSU-A 
+              diagbuf(23) = clw_guess                         ! integrated CLWP (kg/m**2) from background                
+           else
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
-              diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
+           endif
+           diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
  
 !          Note:  The following quantities are not computed for all sensors
            if (.not.microwave) then
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
            else
-              if(lcw4crtm .and. sea) then
-                 diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
-                 diagbuf(26)  = clw_guess                     ! total column precip. water (km/m**2)
+              if((lcw4crtm .and. sea) .or. gmi .or. amsr2) then
+                 if (gmi .or. amsr2) then
+                   diagbuf(25)  = clw_obs                       ! clw (kg/m**2) from retrievals
+                 else
+                   diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
+                 endif
+                 diagbuf(26)  = clw_guess_retrieval        ! retrieved CLWP (kg/m**2) from simulated BT                   
               else
                  diagbuf(25)  = clw                           ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = tpwc                          ! total column precip. water (km/m**2)
@@ -1644,7 +1824,7 @@
               do i=1,nchanl_diag
                  diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
               end do
-           end if
+          end if
 
            do i=1,nchanl_diag
               diagbufchan(1,i)=tb_obs(ich_diag(i))       ! observed brightness temperature (K)
@@ -1656,9 +1836,17 @@
               if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
-              diagbufchan(6,i)=emissivity(ich_diag(i))                ! surface emissivity
+              if (lcw4crtm) then             
+                 diagbufchan(6,i)=error0(ich_diag(i))
+              else
+                 diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
+              endif
               diagbufchan(7,i)=tlapchn(ich_diag(i))                   ! stability index
-              diagbufchan(8,i)=ts(ich_diag(i))                        ! d(Tb)/d(Ts)
+              if (lcw4crtm) then
+                 diagbufchan(8,i)=cld_rbc_idx(ich_diag(i))            ! indicator of cloudy consistency
+              else
+                 diagbufchan(8,i)=ts(ich_diag(i))                     ! d(Tb)/d(Ts)
+              end if
 
               if (lwrite_predterms) then
                  predterms=zero

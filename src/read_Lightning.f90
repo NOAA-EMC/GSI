@@ -13,6 +13,9 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
 !    2008-12-20  Hu  make it read in BUFR form lightning data
 !    2010-04-09  Hu  make changes based on current trunk style
 !    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
+!    2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!    2015-03-23  Su  fix array size with maximum message and subset number
+!                    from fixed number to dynamic allocated array
 !
 !
 !   input argument list:
@@ -45,7 +48,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
   use constants, only: zero,one
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
-  use gsi_4dvar, only: l4dvar,winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
@@ -77,15 +80,11 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl
-    INTEGER(i_kind)  ::  numlvl,numlight,numobsa
-    INTEGER(i_kind)  ::  k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
-    INTEGER(i_kind)  ::  nmsg,ntb
-    INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=20000
-
-    REAL(r_kind),allocatable :: lightning_in(:,:)   ! 3D reflectivity in column
+    integer(i_kind)  ::  maxlvl
+    integer(i_kind)  ::  numlvl,numlight,numobsa
+    integer(i_kind)  ::  k,iret
+    integer(i_kind)  ::  nmsg,ntb,nmsgmax,maxobs
+    real(r_kind),allocatable :: lightning_in(:,:)   ! 3D reflectivity in column
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
@@ -109,6 +108,11 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
    ifn = 15
 !
    if(lightningobs) then
+!! get message and subset counts
+
+      call getcount_bufr(infile,nmsgmax,maxobs)
+
+
       lunin = 10            
       maxlvl= 1
       allocate(lightning_in(maxlvl+2,maxobs))
@@ -118,7 +122,6 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
       CALL DATELEN  ( 10 )
 
       nmsg=0
-      nrep=0
       ntb = 0
       msg_report: do while (ireadmg(lunin,subset,idate) == 0)
          nmsg=nmsg+1
@@ -128,7 +131,6 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
          endif
          loop_report: do while (ireadsb(lunin) == 0)
             ntb = ntb+1
-            nrep(nmsg)=nrep(nmsg)+1
             if (ntb>maxobs) then
                 write(6,*)'read_lightning: reports exceed maximum ',maxobs
                 call stop2(50)
@@ -137,7 +139,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
 !    Extract type, date, and location information
            call ufbint(lunin,hdr,5,1,iret,hdrstr)
 ! check time window in subset
-            if (l4dvar) then
+            if (l4dvar.or.l4densvar) then
                t4dv=hdr(4)
                if (t4dv<zero .OR. t4dv>winlen) then
                   write(6,*)'read_lightning:      time outside window ',&

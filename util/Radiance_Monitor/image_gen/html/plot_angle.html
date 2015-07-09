@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+
+    <!-- ****************************************************-->
+    <!-- Angle Plot via Google Charts (javascript extension) -->
+    <!-- ****************************************************-->
+
+
+    <!-- load google chart api and local copy of date.format.js -->
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="jsuri-1.1.1.js"></script>
+    <script type="text/javascript" src="stats.js"></script>
+
+
+    <script type="text/javascript">
+        google.load("visualization", "1", {packages:["corechart"]});
+
+        // on document load event fire the drawCharts() function
+        google.setOnLoadCallback(drawCharts);
+
+
+        // array for retrieved data from the csv file
+        var chanData    = [];    // channel meta-data
+        var chartData1  = [];    // chart data structures
+        var chartData2  = [];
+
+        var data1;              // data container for chart 1
+        var data2;              // data container for chart 2
+
+
+        var url    = window.location.href;
+
+        var initialLoad = true;
+
+        // These are numeric values corresponding to UI select list values
+        var curStat;
+        var curChan;
+        var curSrc;
+
+        // This is the plain text name of the sat/instrument source.
+        var curSrcName;
+        var curStatName;
+
+
+        function drawCharts(){
+            //log ('--> drawCharts');
+
+            // Handles to the selection lists in the UI.
+            var platformSel  = document.getElementById("platformSelect");
+            var statSel      = document.getElementById("statSelect");
+            var chanSel      = document.getElementById("chanSelect");
+
+            var targetChan;
+
+            /*
+             *  Pull the data source from the url sent to this page
+             */
+            var url = window.location.href;
+
+
+            /* ---------------------------------------------------------
+             * loadChanData requests data from [satname].chan.txt file
+             * ---------------------------------------------------------*/
+            function loadChanData( file ){
+                //log( '--> loadChanData ' + file );
+                if (window.XMLHttpRequest) {
+                    // IE7+, Firefox, Chrome, Opera, Safari
+                    var request = new XMLHttpRequest();
+                }
+                else {
+                    // code for IE6, IE5
+                    var request = new ActiveXObject('Microsoft.XMLHTTP');
+                }
+
+                // load file
+                //   The request object is used to get the file from the server.  Note that this is object oriented
+                //   programming, not procedural.
+                //
+                //   The request.open sets the server instruction to get the requested data file asynchronously.
+                //   Synchronous requests are still possible but most browsers have deprecated that option and will
+                //   eventually remove it.
+                //
+                //   The request.onload() function specifies the actions to take when the data file is loaded;
+                //   the request.status of 200 indicates the load was successful, and request.readystate 4
+                //   indicates the transaction is complete.  The readyState test is included as a sanity check;
+                //   the onload function should only fire when the load is complete or terminated.  The check
+                //   on request.status is necessary; there's no guarantee that the request was successful.
+                //   A warning is dumped to the log in the event of failure, but unless the user has a web
+                //   console (term may vary with browser) open s/he won't see it.
+                //
+                //   The request.send() method actually initiates the processing of the request.
+
+                request.open('GET', file, true);
+                request.onload = function(e) {
+                    if( request.status === 200 && request.readyState === 4 ) {
+                        parseChanData( request.responseText);
+                        fillChanData();
+
+                        // after the channel data is loaded load the data file for the currently selected
+                        // source and channel
+                        var dataFile = './pngs/angle/' + curSrcName + '.' + curChan + '.cnt.angle.txt';
+                        loadData( dataFile );
+                    }
+                    else {
+                        log (" Failed to load " + file + " ; request.status = " + request.status );
+                    }
+                }
+                request.send();
+
+                //log( '<-- loadChanData');
+            }
+
+            /* ---------------------------------------------------------
+             * parseChanData loads channel data into the chanData array
+             * --------------------------------------------------------- */
+            function parseChanData( data ){
+                //log( '--> parseChanData' );
+
+                //replace UNIX new lines
+                data = data.replace(/\r\n/g, "\n");
+                //replace MAC new lines
+                data = data.replace(/\r/g, "\n");
+                //split into rows
+                var rows = data.split("\n");
+
+                var sat    = '';
+                var nchan  = 0;
+                var nsteps = 0;
+
+                /*
+                 *  File line 0 contains the satname, number of channels, and number of steps (angle scan positions)
+                 */
+                if (rows[0]) {
+                    var column = rows[0].split(",");
+                    sat    = column[0];
+                    nchan  = parseInt(column[1]);
+                    nsteps = parseInt(column[2]);
+                }
+
+                /*
+                 * File lines 1..nchanl contain the individual channel meta data including:
+                 *          - actual channel number (some instrument channels are non-contiguously numbered)
+                 *          - use flag (1 is assimilated, -1 is not)
+                 *          - 10 chi values (ges regions 1-5, anl regions 1-5)
+                 *          - wavelength
+                 *          - frequency
+                 */
+                for (var i = 1; i <= nchan; i++){
+                    // this line helps to skip empty rows
+                    if (rows[i]) {
+                        // our columns are separated by comma
+                        var column = rows[i].split(",");
+
+                        // data element order is channel, use flag, 10 chi values, wavelength, freq
+                        var chan    = Number(column[0]);
+                        var use     = Number(column[1]);
+                        var chi     = [];
+                        chi.push(Number(column[2]));    chi.push(Number(column[3]));    chi.push(Number(column[4]));
+                        chi.push(Number(column[5]));    chi.push(Number(column[6]));    chi.push(Number(column[7]));
+                        chi.push(Number(column[8]));    chi.push(Number(column[9]));    chi.push(Number(column[10]));
+                        chi.push(Number(column[11]));
+                        var wvlnth  = Number(column[12]);
+                        var freq    = Number(column[13]);
+
+                        // put sat, nchan, and ncyc in each channel object so that we can later use curChan as index
+                        // rather than curchan -1
+                        var dataObject = {sat:sat, nchan:nchan, nsteps:nsteps, chan:chan, use:use,
+                            chi:chi, wvlnth:wvlnth, freq:freq};
+
+                        // add object to dataProvider array
+                        chanData.push(dataObject);
+                    }
+                }
+
+                //log( '<-- parseChanData' );
+            }
+
+            /* ------------------------------------------------------------
+             * fillChanData
+             *    Take the data from the chanData structure, load it into
+             *    the channel menu in the UI and set the current selection.
+             * ------------------------------------------------------------ */
+            function fillChanData( ){
+                //log( '--> fillChanData, targetChan = ' + targetChan);
+
+                var nchan = chanData[0].nchan;
+
+                removeOptions( chanSel );
+
+                var targetChanFound = false;
+                for (var ii = 0; ii < nchan; ii++) {                // this loop loads the channel list
+                    var option = document.createElement("option");
+                    option.text = chanData[ii].chan;
+                    chanSel.add(option);
+                    if ( option.text === targetChan ) {
+                        curChan = ii;
+                        targetChanFound = true;
+                    }
+                }
+
+                if( !targetChanFound ){
+                    var logMsg = " Requested channel " + targetChan + " not found, using default value";
+                    log( logMsg );
+                    curChan = 0;
+                }
+
+                chanSel.selectedIndex = curChan;                    // set the requested chan or 0 (default)
+                //log( '<-- fillChanData');
+            }
+
+
+            /* -----------------------------------------------------------------------------------
+             * loadData loads data from comma separated value file for a given instrument/channel
+             * ----------------------------------------------------------------------------------- */
+            function loadData( file ) {
+                //log( '--> loadData ' + file);
+                if (window.XMLHttpRequest) {
+                    // IE7+, Firefox, Chrome, Opera, Safari
+                    var request = new XMLHttpRequest();
+                }
+                else {
+                    // code for IE6, IE5
+                    var request = new ActiveXObject('Microsoft.XMLHTTP');
+                }
+
+                //
+                // See note in loadChanData about the use of request object.
+                // The same thing is at work here.
+                //
+                request.open('GET', file, true);
+                request.onload = function(e) {
+                    if( request.status === 200 && request.readyState === 4 ) {
+                        //log( 'load completed');
+
+                        // see parseData for full explanation of 2nd param
+                        parseData( request.responseText, 0);
+                        fillCharts();
+
+                        // If a additional data files are desired for comparison purposes they could
+                        //   be loaded here.  Maybe the calling routine is a better place though?
+                        //var dataFile = './pngs/time/' + curSrcName + '.' + curChan + '.time.txt';
+                    }
+                    else {
+                        log (" Failed to load " + file + " ; request.status = " + request.status );
+                    }
+                }
+                request.send();
+
+                //log( '<-- loadData' );
+            }
+
+
+            /* ---------------------------------------------------------------------------------------
+             *  parseData
+             *      Parse data received from the file and load it into the chartData1 & 2 structures.
+             *      Note:  The idx was used in the prototype to allow for 2 data files being loaded
+             *             for comparison purposes.  I've left the idx param in to facilitate adding
+             *             that functionality in the future.
+             * --------------------------------------------------------------------------------------- */
+            function parseData(data, idx) {
+                //log( '--> parseData ,idx = ' + idx);
+
+                //replace UNIX new lines
+                data = data.replace(/\r\n/g, "\n");
+                //replace MAC new lines
+                data = data.replace(/\r/g, "\n");
+
+                // Replace -999.000 (rmiss) with null; null values are not plotted.
+                // Initially I used 0.000 but that gets plotted and is a potential valid value.
+                data = data.replace(/-999.000/g, "null");
+
+                // split into rows
+                var rows = data.split("\n");
+                //log( 'rows.length = ' + rows.length );
+
+                //
+                // Note that this adapted code (from time) used ncyc as a data dimension, but here in
+                // angle we use nsteps (angle scan positions).
+                var nsteps  = chanData[0].nsteps;
+                //log( 'nsteps = ' + nsteps );
+
+                //-------------------------------------------------------------
+                // load null values into the chartData arrays for each channel
+                //-------------------------------------------------------------
+                for( var ii=0; ii < chanData[0].nchan; ii++ ) {
+                    chartData1[ii]    = new Array(2);
+                    chartData1[ii][0] = null;
+                    chartData1[ii][1] = null;
+
+                    chartData2[ii]    = new Array(2);
+                    chartData2[ii][0] = null;
+                    chartData2[ii][0] = null;
+                }
+
+                //log( ' curStat in load = ' + curStat );
+
+                //------------------------------------------------------------------------------
+                // Load count data for each channel using arrays for the time and gr/ar values.
+                //      variable naming:    g = ges, a = anl
+                //                          rN indicates region (N = 1-5)
+                //                          dN indicates time period (day1, day7, day30)
+                //                          s indicates an sdv value, no s is an avg
+                //------------------------------------------------------------------------------
+                var time        = [];   var start   = [];   var stepsz = [];
+                var scanpos     = [];
+
+                var g_r1d1  = [];   var a_r1d1  = [];   var g_r1d1s  = [];   var a_r1d1s  = [];
+                var g_r2d1  = [];   var a_r2d1  = [];   var g_r2d1s  = [];   var a_r2d1s  = [];
+                var g_r3d1  = [];   var a_r3d1  = [];   var g_r3d1s  = [];   var a_r3d1s  = [];
+                var g_r4d1  = [];   var a_r4d1  = [];   var g_r4d1s  = [];   var a_r4d1s  = [];
+                var g_r5d1  = [];   var a_r5d1  = [];   var g_r5d1s  = [];   var a_r5d1s  = [];
+
+                var g_r1d7  = [];   var a_r1d7  = [];   var g_r1d7s  = [];   var a_r1d7s  = [];
+                var g_r2d7  = [];   var a_r2d7  = [];   var g_r2d7s  = [];   var a_r2d7s  = [];
+                var g_r3d7  = [];   var a_r3d7  = [];   var g_r3d7s  = [];   var a_r3d7s  = [];
+                var g_r4d7  = [];   var a_r4d7  = [];   var g_r4d7s  = [];   var a_r4d7s  = [];
+                var g_r5d7  = [];   var a_r5d7  = [];   var g_r5d7s  = [];   var a_r5d7s  = [];
+
+                var g_r1d30 = [];   var a_r1d30 = [];   var g_r1d30s = [];   var a_r1d30s = [];
+                var g_r2d30 = [];   var a_r2d30 = [];   var g_r2d30s = [];   var a_r2d30s = [];
+                var g_r3d30 = [];   var a_r3d30 = [];   var g_r3d30s = [];   var a_r3d30s = [];
+                var g_r4d30 = [];   var a_r4d30 = [];   var g_r4d30s = [];   var a_r4d30s = [];
+                var g_r5d30 = [];   var a_r5d30 = [];   var g_r5d30s = [];   var a_r5d30s = [];
+
+                for( var i = 0; i < rows.length-1; i++ ){
+
+                    if (rows[i]) {                      // this if statement helps to skip empty rows
+                        var column = rows[i].split(",");
+
+                        if( i == 0 ) {          // row 0 is valid time, start pos, and scan step size
+                            time.push(   column[1]);
+                            start.push(  column[2]);
+                            stepsz.push( column[3]);
+                            //log( ' start, stepsz = ' + ' ' + start[0] + ' ' + stepsz[0] );
+
+                            //log( 'time[0] = ' + time[0] );
+
+                            //------------------------------------
+                            //  calculate and load scan positions
+                            //------------------------------------
+                            for (ctr = 0; ctr < nsteps; ctr++) {
+                                var next_scan = ( Number(ctr) * Number(stepsz[0]) ) + Number(start[0]) + Number(1);
+                                scanpos.push(Number(next_scan));
+                                //log('ctr, scanpos, next_scan = ' + ctr + ' ' + scanpos[ctr] + ' ' + next_scan);
+                            }
+                        }
+
+                        var ctr = 0;
+                        if( i == 1 ) {              // row 1 is ges data for d1 (regions 1-5)
+
+                            for (ctr = 0; ctr < nsteps; ctr++) {
+                                g_r1d1.push(Number(column[ctr]));
+                                g_r2d1.push(Number(column[ctr + nsteps]));
+                                g_r3d1.push(Number(column[ctr + 2 * nsteps]));
+                                g_r4d1.push(Number(column[ctr + 3 * nsteps]));
+                                g_r5d1.push(Number(column[ctr + 4 * nsteps]));
+                            }
+
+                        }
+                        else {
+                            if( curStat < 2 ) {             // count & pen only have avg values, no sdv
+                                if( i == 2 ){        // row 2 is ges data for d7 (regions 1-5)
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d7.push(Number(column[ctr]));
+                                        g_r2d7.push(Number(column[ctr + nsteps]));
+                                        g_r3d7.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d7.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d7.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 3 ){        // row 3 is ges data for d30 (regions 1-5)
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d30.push(Number(column[ctr]));
+                                        g_r2d30.push(Number(column[ctr + nsteps]));
+                                        g_r3d30.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d30.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d30.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+
+                                } else if( i == 4 ){          // row 4 is analysis data for d1 (regions 1-5)
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d1.push(Number(column[ctr]));
+                                        a_r2d1.push(Number(column[ctr + nsteps]));
+                                        a_r3d1.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d1.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d1.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+
+
+
+                                } else if( i == 5 ){        // row 5 is anl data for d7 (regions 1-5)
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d7.push(Number(column[ctr]));
+                                        a_r2d7.push(Number(column[ctr + nsteps]));
+                                        a_r3d7.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d7.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d7.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+
+
+
+                                } else if( i == 6 ){        // row 6 is anl data for d30 (regions 1-5)
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d30.push(Number(column[ctr]));
+                                        a_r2d30.push(Number(column[ctr + nsteps]));
+                                        a_r3d30.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d30.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d30.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+
+                                }
+                            } else {                    // loading stat with both avg and sdv values
+                                if( i == 2 ) {        // row 2 is ges data for d1 (regions 1-5) SDV
+
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d1s.push(Number(column[ctr]));
+                                        g_r2d1s.push(Number(column[ctr + nsteps]));
+                                        g_r3d1s.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d1s.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d1s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 3 ){    // row 3 is ges data for d7, AVG
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d7.push(Number(column[ctr]));
+                                        g_r2d7.push(Number(column[ctr + nsteps]));
+                                        g_r3d7.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d7.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d7.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 4 ){    // row 4 is ges data for d7, SDV
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d7s.push(Number(column[ctr]));
+                                        g_r2d7s.push(Number(column[ctr + nsteps]));
+                                        g_r3d7s.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d7s.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d7s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 5 ){    // row 5 is ges data for d30, AVG
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d30.push(Number(column[ctr]));
+                                        g_r2d30.push(Number(column[ctr + nsteps]));
+                                        g_r3d30.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d30.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d30.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 6 ){    // row 6 is ges data for d30, SDV
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        g_r1d30s.push(Number(column[ctr]));
+                                        g_r2d30s.push(Number(column[ctr + nsteps]));
+                                        g_r3d30s.push(Number(column[ctr + 2 * nsteps]));
+                                        g_r4d30s.push(Number(column[ctr + 3 * nsteps]));
+                                        g_r5d30s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 7 ){    // row 7 is anl data for D1, AVG
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d1.push(Number(column[ctr]));
+                                        a_r2d1.push(Number(column[ctr + nsteps]));
+                                        a_r3d1.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d1.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d1.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 8 ){    // row 8 is anl data for D1, SDV
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d1s.push(Number(column[ctr]));
+                                        a_r2d1s.push(Number(column[ctr + nsteps]));
+                                        a_r3d1s.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d1s.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d1s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 9 ){    // row 9 is anl data for D7, AVG
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d7.push(Number(column[ctr]));
+                                        a_r2d7.push(Number(column[ctr + nsteps]));
+                                        a_r3d7.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d7.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d7.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 10 ){   // row 10 is anl data for D7, SDV
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d7s.push(Number(column[ctr]));
+                                        a_r2d7s.push(Number(column[ctr + nsteps]));
+                                        a_r3d7s.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d7s.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d7s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 11 ){   // row 11 is anl data for D30, AVG
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d30.push(Number(column[ctr]));
+                                        a_r2d30.push(Number(column[ctr + nsteps]));
+                                        a_r3d30.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d30.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d30.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                } else if( i == 12 ){   // row 12 is anl data for D30, SDV
+                                    for (ctr = 0; ctr < nsteps; ctr++) {
+                                        a_r1d30s.push(Number(column[ctr]));
+                                        a_r2d30s.push(Number(column[ctr + nsteps]));
+                                        a_r3d30s.push(Number(column[ctr + 2 * nsteps]));
+                                        a_r4d30s.push(Number(column[ctr + 3 * nsteps]));
+                                        a_r5d30s.push(Number(column[ctr + 4 * nsteps]));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                var chanObj1 = {
+                    scanpos: scanpos,           time: time,
+
+                    g_r1d1: g_r1d1,             a_r1d1: a_r1d1,
+                    g_r2d1: g_r2d1,             a_r2d1: a_r2d1,
+                    g_r3d1: g_r3d1,             a_r3d1: a_r3d1,
+                    g_r4d1: g_r4d1,             a_r4d1: a_r4d1,
+                    g_r5d1: g_r5d1,             a_r5d1: a_r5d1,
+
+                    g_r1d7: g_r1d7,             a_r1d7: a_r1d7,
+                    g_r2d7: g_r2d7,             a_r2d7: a_r2d7,
+                    g_r3d7: g_r3d7,             a_r3d7: a_r3d7,
+                    g_r4d7: g_r4d7,             a_r4d7: a_r4d7,
+                    g_r5d7: g_r5d7,             a_r5d7: a_r5d7,
+
+                    g_r1d30: g_r1d30,           a_r1d30: a_r1d30,
+                    g_r2d30: g_r2d30,           a_r2d30: a_r2d30,
+                    g_r3d30: g_r3d30,           a_r3d30: a_r3d30,
+                    g_r4d30: g_r4d30,           a_r4d30: a_r4d30,
+                    g_r5d30: g_r5d30,           a_r5d30: a_r5d30
+                };
+
+                var chanObj2 = {
+                    scanpos: scanpos,           time: time,
+
+                    g_r1d1s: g_r1d1s,             a_r1d1s: a_r1d1s,
+                    g_r2d1s: g_r2d1s,             a_r2d1s: a_r2d1s,
+                    g_r3d1s: g_r3d1s,             a_r3d1s: a_r3d1s,
+                    g_r4d1s: g_r4d1s,             a_r4d1s: a_r4d1s,
+                    g_r5d1s: g_r5d1s,             a_r5d1s: a_r5d1s,
+
+                    g_r1d7s: g_r1d7s,             a_r1d7s: a_r1d7s,
+                    g_r2d7s: g_r2d7s,             a_r2d7s: a_r2d7s,
+                    g_r3d7s: g_r3d7s,             a_r3d7s: a_r3d7s,
+                    g_r4d7s: g_r4d7s,             a_r4d7s: a_r4d7s,
+                    g_r5d7s: g_r5d7s,             a_r5d7s: a_r5d7s,
+
+                    g_r1d30s: g_r1d30s,           a_r1d30s: a_r1d30s,
+                    g_r2d30s: g_r2d30s,           a_r2d30s: a_r2d30s,
+                    g_r3d30s: g_r3d30s,           a_r3d30s: a_r3d30s,
+                    g_r4d30s: g_r4d30s,           a_r4d30s: a_r4d30s,
+                    g_r5d30s: g_r5d30s,           a_r5d30s: a_r5d30s
+                };
+
+                if( idx === 1 || idx === 0 ) {
+                    //log( ' loading chartData[curChan] w/ curChan =  ' + curChan)
+                    chartData1[curChan][idx] = chanObj1;
+                    chartData2[curChan][idx] = chanObj2;
+                }
+
+                //log( 'curChan = ' + curChan );
+                //log( 'chartData1[curChan][0].scanpos[0] = ' + chartData1[curChan][0].scanpos[0] );
+                //log( 'chartData1[curChan][0].scanpos[1] = ' + chartData1[curChan][0].scanpos[1] );
+
+                //log( '<-- parseData ');
+            }
+
+
+            /* ----------------------------------------------------------------------
+             *  fillCharts
+             *      load data from the chartData structures to the chart structure(s)
+             * ---------------------------------------------------------------------- */
+            function fillCharts() {
+                //log('--> fillCharts');
+
+                // ---------------------------------------------------------------
+                //   Define data1, the container for chart1's information.
+                //      Note:  In the Haixia's prototype I added hard-wired
+                //              ctl_ges items in order to show comparison plots.
+                // ---------------------------------------------------------------
+                data1 = new google.visualization.DataTable();
+
+                data1.addColumn('number', 'Scan Position');
+                data1.addColumn('number', 'ges, 1day, global');
+                data1.addColumn('number', 'anl, 1day, global');
+                data1.addColumn('number', 'ges, 1day, land');
+                data1.addColumn('number', 'anl, 1day, land');
+                data1.addColumn('number', 'ges, 1day, water');
+                data1.addColumn('number', 'anl, 1day, water');
+                data1.addColumn('number', 'ges, 1day, ice/snow');
+                data1.addColumn('number', 'anl, 1day, ice/snow');
+                data1.addColumn('number', 'ges, 1day, mixed');
+                data1.addColumn('number', 'anl, 1day, mixed');
+
+                data1.addColumn('number', 'ges, 7day, global');
+                data1.addColumn('number', 'anl, 7day, global');
+                data1.addColumn('number', 'ges, 7day, land');
+                data1.addColumn('number', 'anl, 7day, land');
+                data1.addColumn('number', 'ges, 7day, water');
+                data1.addColumn('number', 'anl, 7day, water');
+                data1.addColumn('number', 'ges, 7day, ice/snow');
+                data1.addColumn('number', 'anl, 7day, ice/snow');
+                data1.addColumn('number', 'ges, 7day, mixed');
+                data1.addColumn('number', 'anl, 7day, mixed');
+
+                data1.addColumn('number', 'ges, 30day, global');
+                data1.addColumn('number', 'anl, 30day, global');
+                data1.addColumn('number', 'ges, 30day, land');
+                data1.addColumn('number', 'anl, 30day, land');
+                data1.addColumn('number', 'ges, 30day, water');
+                data1.addColumn('number', 'anl, 30day, water');
+                data1.addColumn('number', 'ges, 30day, ice/snow');
+                data1.addColumn('number', 'anl, 30day, ice/snow');
+                data1.addColumn('number', 'ges, 30day, mixed');
+                data1.addColumn('number', 'anl, 30day, mixed');
+
+                // ---------------------------------------------------------------
+                //   Define data2, the container for chart2's information.
+                // ---------------------------------------------------------------
+                data2 = new google.visualization.DataTable();
+
+                data2.addColumn('number', 'Scan Position');
+                data2.addColumn('number', 'ges, 1day, global');
+                data2.addColumn('number', 'anl, 1day, global');
+                data2.addColumn('number', 'ges, 1day, land');
+                data2.addColumn('number', 'anl, 1day, land');
+                data2.addColumn('number', 'ges, 1day, water');
+                data2.addColumn('number', 'anl, 1day, water');
+                data2.addColumn('number', 'ges, 1day, ice/snow');
+                data2.addColumn('number', 'anl, 1day, ice/snow');
+                data2.addColumn('number', 'ges, 1day, mixed');
+                data2.addColumn('number', 'anl, 1day, mixed');
+
+                data2.addColumn('number', 'ges, 7day, global');
+                data2.addColumn('number', 'anl, 7day, global');
+                data2.addColumn('number', 'ges, 7day, land');
+                data2.addColumn('number', 'anl, 7day, land');
+                data2.addColumn('number', 'ges, 7day, water');
+                data2.addColumn('number', 'anl, 7day, water');
+                data2.addColumn('number', 'ges, 7day, ice/snow');
+                data2.addColumn('number', 'anl, 7day, ice/snow');
+                data2.addColumn('number', 'ges, 7day, mixed');
+                data2.addColumn('number', 'anl, 7day, mixed');
+
+                data2.addColumn('number', 'ges, 30day, global');
+                data2.addColumn('number', 'anl, 30day, global');
+                data2.addColumn('number', 'ges, 30day, land');
+                data2.addColumn('number', 'anl, 30day, land');
+                data2.addColumn('number', 'ges, 30day, water');
+                data2.addColumn('number', 'anl, 30day, water');
+                data2.addColumn('number', 'ges, 30day, ice/snow');
+                data2.addColumn('number', 'anl, 30day, ice/snow');
+                data2.addColumn('number', 'ges, 30day, mixed');
+                data2.addColumn('number', 'anl, 30day, mixed');
+
+                var idx = curChan;
+                var nsteps = chanData[0].nsteps;
+
+
+                var chartTitle1;
+                var chartTitle2;
+                //var logScale = "false";
+                //var vAxisFormat = '0.##';
+
+                // --------------------------------------
+                //   load data1 object to make the chart
+                // --------------------------------------
+
+                for (var ii = 0; ii < nsteps; ii++) {
+                    data1.addRows([
+                        [
+                            Number(chartData1[idx][0].scanpos[ii]),
+                            Number(chartData1[idx][0].g_r1d1[ii]), Number(chartData1[idx][0].a_r1d1[ii]),
+                            Number(chartData1[idx][0].g_r2d1[ii]), Number(chartData1[idx][0].a_r2d1[ii]),
+                            Number(chartData1[idx][0].g_r3d1[ii]), Number(chartData1[idx][0].a_r3d1[ii]),
+                            Number(chartData1[idx][0].g_r4d1[ii]), Number(chartData1[idx][0].a_r4d1[ii]),
+                            Number(chartData1[idx][0].g_r5d1[ii]), Number(chartData1[idx][0].a_r5d1[ii]),
+
+                            Number(chartData1[idx][0].g_r1d7[ii]), Number(chartData1[idx][0].a_r1d7[ii]),
+                            Number(chartData1[idx][0].g_r2d7[ii]), Number(chartData1[idx][0].a_r2d7[ii]),
+                            Number(chartData1[idx][0].g_r3d7[ii]), Number(chartData1[idx][0].a_r3d7[ii]),
+                            Number(chartData1[idx][0].g_r4d7[ii]), Number(chartData1[idx][0].a_r4d7[ii]),
+                            Number(chartData1[idx][0].g_r5d7[ii]), Number(chartData1[idx][0].a_r5d7[ii]),
+
+                            Number(chartData1[idx][0].g_r1d30[ii]), Number(chartData1[idx][0].a_r1d30[ii]),
+                            Number(chartData1[idx][0].g_r2d30[ii]), Number(chartData1[idx][0].a_r2d30[ii]),
+                            Number(chartData1[idx][0].g_r3d30[ii]), Number(chartData1[idx][0].a_r3d30[ii]),
+                            Number(chartData1[idx][0].g_r4d30[ii]), Number(chartData1[idx][0].a_r4d30[ii]),
+                            Number(chartData1[idx][0].g_r5d30[ii]), Number(chartData1[idx][0].a_r5d30[ii])
+                        ]
+                    ]);
+                }
+
+                //----------------------------------
+                // determine correct title for plot
+                //----------------------------------
+                if( curStatName == "cnt" ) {
+                    chartTitle1 = "Number of Observations";
+                } else if( curStatName == "pen" ) {
+                    chartTitle1 = "Contribution to Penalty";
+                } else if( curStatName == "omgnbc" ) {
+                    chartTitle1 = "Avg   Ges|Anl (without bias correction) - Obs";
+                    chartTitle2 = "Sdv   Ges|Anl (without bias correction) - Obs";
+                } else if( curStatName == "totcor" ){
+                    chartTitle1 = "Avg   Total Bias Correction (K)";
+                    chartTitle2 = "Sdv   Total Bias Correction (K)";
+                } else if( curStatName == "omgbc" ){
+                    chartTitle1 = "Avg   Ges|Anl (with bias correction) - Obs";
+                    chartTitle2 = "Sdv   Ges|Anl (with bias correction) - Obs";
+                } else if( curStatName == "fixang" ){
+                    chartTitle1 = "Avg   Fixed Angle Correction (K)";
+                    chartTitle2 = "Sdv   Fixed Angle Correction (K)";
+                } else if( curStatName == "lapse"){
+                    chartTitle1 = "Avg   Lapse Rate Correction (K)";
+                    chartTitle1 = "Sdv   Lapse Rate Correction (K)";
+                } else if( curStatName == "lapse2" ){
+                    chartTitle1 = "Avg   ( Lapse Rate )**2 Correction (K)";
+                    chartTitle2 = "Sdv   ( Lapse Rate )**2 Correction (K)";
+                } else if( curStatName == "mean" ){
+                    chartTitle1 = "Avg   Mean Correction (K)";
+                    chartTitle2 = "Sdv   Mean Correction (K)";
+                } else if( curStatName == "scangl" ){
+                    chartTitle1 = "Avg   Scan Angle Correction (K)";
+                    chartTitle2 = "Sdv   Scan Angle Correction (K)";
+                } else if( curStatName == "clw" ){
+                    chartTitle1 = "Avg   Cloud Liquid Water Correction (K)";
+                    chartTitle2 = "Sdv   Cloud Liquid Water Correction (K)";
+                } else if( curStatName == "cos" ){
+                    chartTitle1 = "Avg   Cosine for SSMIS";
+                    chartTitle2 = "Sdv   Cosine for SSMIS";
+                } else if( curStatName == "sin" ){
+                    chartTitle1 = "Avg   Sine for SSMIS";
+                    chartTitle2 = "Sdv   Sine for SSMIS";
+                } else if( curStatName == "emiss" ) {
+                    chartTitle1 = "Avg   Emissivity Sensitivity Term";
+                    chartTitle2 = "Sdv   Emissivity Sensitivity Term";
+                } else if( curStatName == "ordang1" ){
+                    chartTitle1 = "Avg   1st Order Angle Term";
+                    chartTitle2 = "Sdv   1st Order Angle Term";
+                } else if( curStatName == "ordang2" ){
+                    chartTitle1 = "Avg   2nd Order Angle Term";
+                    chartTitle2 = "Sdv   2nd Order Angle Term";
+                } else if( curStatName == "ordang3" ){
+                    chartTitle1 = "Avg   3rd Order Angle Term";
+                    chartTitle2 = "Sdv   3rd Order Angle Term";
+                } else if( curStatName == "ordang4" ){
+                    chartTitle1 = "Avg   4th Order Angle Term";
+                    chartTitle2 = "Sdv   4th Order Angle Term";
+                }
+
+                //log( 'chartTitle1 = ' + chartTitle1 );
+
+                // formatter1 modifies format of date to be YYYYMMDDHH
+                //var formatter1 = new google.visualization.DateFormat({pattern: "yyyyMMddHH"});
+                //formatter1.format(data1, 0);
+
+                // format the scan position to avoid long decimal strings
+                var formatter1 = new google.visualization.NumberFormat( {pattern: "##.#"});
+                formatter1.format( data1, 0 );
+
+                var options1 = {
+                    title: chartTitle1,
+                    titleTextStyle:{ fontSize: 20 },
+                    vAxis:{ format          : '0.##E+0'},
+                    hAxis:{ title           : 'Scan Position'}
+                        //    format          : '0.#'}
+                        //showTextEvery       :  1 }
+                };
+
+                var chart1 = new google.visualization.LineChart(document.getElementById('plot1'));
+
+                // add callback for mouse events
+                //google.visualization.events.addListener(chart1, 'select', selectHandler);
+
+                //-------------------------------------------------------------------
+                // Create a view for the display of only selected values for chart1.
+                //-------------------------------------------------------------------
+                var myView1 = new google.visualization.DataView( data1 );
+
+                // turn on/off viewed data according to current checkbox configuration
+                var CkBxGes = document.getElementById( "ckboxGes"    ).checked;
+                var CkBxAnl = document.getElementById( "ckboxAnl"    ).checked;
+                var CkBxGlb = document.getElementById( "ckboxGlobal" ).checked;
+                var CkBxLnd = document.getElementById( "ckboxLand"   ).checked;
+                var CkBxWtr = document.getElementById( "ckboxWater"  ).checked;
+                var CkBxIce = document.getElementById( "ckboxIce"    ).checked;
+                var CkBxMix = document.getElementById( "ckboxMixed"  ).checked;
+                var CkBxD1  = document.getElementById( "ckboxD1"     ).checked;
+                var CkBxD7  = document.getElementById( "ckboxD7"     ).checked;
+                var CkBxD30 = document.getElementById( "ckboxD30"    ).checked;
+
+                if (!CkBxGes) {
+                    myView1.hideColumns( [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29] );
+                    //log( '!ges, Hiding 1,3,5,7,9');
+                }
+                if (!CkBxAnl) {
+                    myView1.hideColumns( [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30] );
+                    //log( '!anl, Hiding 2,4,6,8,10');
+                }
+                if( !CkBxD1 ){
+                    myView1.hideColumns( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] );
+                    //log( '!CkBxD1, hiding 1..10' );
+                }
+                if( !CkBxD7 ){
+                    myView1.hideColumns( [11, 12, 13, 14, 15, 16, 17, 18, 19, 20] );
+                }
+                if( !CkBxD30 ){
+                    myView1.hideColumns( [21, 22, 23, 24, 25, 26, 27, 28, 29, 30] );
+                }
+                if( !CkBxGlb ) {
+                    myView1.hideColumns( [1, 2, 11, 12, 21, 22] );
+                }
+                if( !CkBxLnd ){
+                    myView1.hideColumns( [3, 4, 13, 14, 23, 24] );
+                }
+                if( !CkBxWtr ) {
+                    myView1.hideColumns( [5, 6, 15, 16, 25, 26] );
+                }
+                if( !CkBxIce ){
+                    myView1.hideColumns( [7, 8, 17, 18, 27, 28] );
+                }
+                if( !CkBxMix ){
+                    myView1.hideColumns( [9, 10, 19, 20, 29, 30] );
+                }
+
+                // ------------------
+                // display the chart
+                // ------------------
+                chart1.draw(myView1, options1);
+
+
+
+                // ------------------------------------------
+                //   load data2 object to make the 2nd chart
+                // ------------------------------------------
+
+                if( curStat >= 2 ) {
+                    for (var ii = 0; ii < nsteps; ii++) {
+                        data2.addRows([
+                            [
+                                Number(chartData2[idx][0].scanpos[ii]),
+                                Number(chartData2[idx][0].g_r1d1s[ii]), Number(chartData2[idx][0].a_r1d1s[ii]),
+                                Number(chartData2[idx][0].g_r2d1s[ii]), Number(chartData2[idx][0].a_r2d1s[ii]),
+                                Number(chartData2[idx][0].g_r3d1s[ii]), Number(chartData2[idx][0].a_r3d1s[ii]),
+                                Number(chartData2[idx][0].g_r4d1s[ii]), Number(chartData2[idx][0].a_r4d1s[ii]),
+                                Number(chartData2[idx][0].g_r5d1s[ii]), Number(chartData2[idx][0].a_r5d1s[ii]),
+
+                                Number(chartData2[idx][0].g_r1d7s[ii]), Number(chartData2[idx][0].a_r1d7s[ii]),
+                                Number(chartData2[idx][0].g_r2d7s[ii]), Number(chartData2[idx][0].a_r2d7s[ii]),
+                                Number(chartData2[idx][0].g_r3d7s[ii]), Number(chartData2[idx][0].a_r3d7s[ii]),
+                                Number(chartData2[idx][0].g_r4d7s[ii]), Number(chartData2[idx][0].a_r4d7s[ii]),
+                                Number(chartData2[idx][0].g_r5d7s[ii]), Number(chartData2[idx][0].a_r5d7s[ii]),
+
+                                Number(chartData2[idx][0].g_r1d30s[ii]), Number(chartData2[idx][0].a_r1d30s[ii]),
+                                Number(chartData2[idx][0].g_r2d30s[ii]), Number(chartData2[idx][0].a_r2d30s[ii]),
+                                Number(chartData2[idx][0].g_r3d30s[ii]), Number(chartData2[idx][0].a_r3d30s[ii]),
+                                Number(chartData2[idx][0].g_r4d30s[ii]), Number(chartData2[idx][0].a_r4d30s[ii]),
+                                Number(chartData2[idx][0].g_r5d30s[ii]), Number(chartData2[idx][0].a_r5d30s[ii])
+                            ]
+                        ]);
+                    }
+
+                    formatter1.format( data2, 0 );
+
+                    var options2 = {
+                        title: chartTitle2,
+                        titleTextStyle:{ fontSize: 20 },
+                        vAxis:{ format          : '0.##E+0'},
+                        hAxis:{ title           : 'Scan Position'}
+                        //format              : '0.##',
+                        //showTextEvery       :  1 }
+                    };
+
+                    var chart2 = new google.visualization.LineChart(document.getElementById('plot2'));
+
+                    // add callback for mouse events
+                    //google.visualization.events.addListener(chart1, 'select', selectHandler);
+
+                    //-------------------------------------------------------------------
+                    // Create a view for the display of only selected values for chart1.
+                    //-------------------------------------------------------------------
+                    var myView2 = new google.visualization.DataView( data2 );
+
+                    // turn on/off viewed data according to current checkbox configuration
+                    if (!CkBxGes) {
+                        myView2.hideColumns( [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29] );
+                        //log( '!ges, Hiding 1,3,5,7,9');
+                    }
+                    if (!CkBxAnl) {
+                        myView2.hideColumns( [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30] );
+                        //log( '!anl, Hiding 2,4,6,8,10');
+                    }
+                    if( !CkBxD1 ){
+                        myView2.hideColumns( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] );
+                        //log( '!CkBxD1, hiding 1..10' );
+                    }
+                    if( !CkBxD7 ){
+                        myView2.hideColumns( [11, 12, 13, 14, 15, 16, 17, 18, 19, 20] );
+                    }
+                    if( !CkBxD30 ){
+                        myView2.hideColumns( [21, 22, 23, 24, 25, 26, 27, 28, 29, 30] );
+                    }
+                    if( !CkBxGlb ) {
+                        myView2.hideColumns( [1, 2, 11, 12, 21, 22] );
+                    }
+                    if( !CkBxLnd ){
+                        myView2.hideColumns( [3, 4, 13, 14, 23, 24] );
+                    }
+                    if( !CkBxWtr ) {
+                        myView2.hideColumns( [5, 6, 15, 16, 25, 26] );
+                    }
+                    if( !CkBxIce ){
+                        myView2.hideColumns( [7, 8, 17, 18, 27, 28] );
+                    }
+                    if( !CkBxMix ){
+                        myView2.hideColumns( [9, 10, 19, 20, 29, 30] );
+                    }
+
+                    // ------------------
+                    // display the chart
+                    // ------------------
+                    chart2.draw(myView2, options2);
+
+                }
+
+                //---------------------------------------
+                // update the channel specific labels
+                //---------------------------------------
+                var chanLab = document.getElementById("chanLabel");
+                var newLab =  "Channel " + chanData[curChan].chan + "<p>";
+                chanLab.innerHTML = newLab;
+
+                var freqLab = document.getElementById("freqLabel");
+                var newLab = "f " + chanData[curChan].freq + " GHZ";
+                freqLab.innerHTML = newLab;
+
+                var waveLab = document.getElementById("waveLabel");
+                var newLab = "&lambda; " + chanData[curChan].wvlnth + " &mu;m";
+                waveLab.innerHTML = newLab;
+
+                //------------------------------------------------------------------------------------
+                // Determine if chi value can be displayed and if avg & sdv calculation can be done.
+                // This can only be done if a single data source is displayed (when numColumns == 2).
+                // If numColumns != 2 then hide avg, sdv, and chi from view.
+                //------------------------------------------------------------------------------------
+                var avgLabel = document.getElementById("avgLabel");
+                var sdvLabel = document.getElementById("sdvLabel");
+                var chiLabel = document.getElementById("chiLabel");
+                var numColumns = myView1.getNumberOfColumns();
+
+                if( numColumns == 2 ){
+                    var dataPts1 = [];
+
+                    // determine new chi value by finding the ges/anl setting and the displayed region
+                    var region = 0;
+
+                    var newLab = "&chi;  " + chanData[curChan].chi[region];
+                    chiLabel.innerHTML = newLab;
+                    chiLabel.style.display = "block";
+
+                    // -----------------------------------------------------------------------------------
+                    // calculate avg and sdv values (uses the stats.js package (handle is "st" below)
+                    // ------------------------------------------------------------------------------------
+                    for (var ii = 0; ii < nsteps; ii++) {
+                        if( !isNaN(myView1.getValue(ii,1)) ) {
+                            dataPts1.push(myView1.getValue(ii, 1));
+                        }
+                    }
+                    var avg = st.getAverageFromNumArr( dataPts1, 2 );
+                    var sdv = st.getStandardDeviation( dataPts1, 2 );
+
+
+                    var newLab = "avg:  " + avg;
+                    avgLabel.innerHTML = newLab;
+                    avgLabel.style.display = "block";
+
+                    var newLab = "sdv:  " + sdv;
+                    sdvLabel.innerHTML = newLab;
+                    sdvLabel.style.display = "block";
+
+                } else {
+                    avgLabel.style.display = "none";
+                    sdvLabel.style.display = "none";
+                    chiLabel.style.display = "none";
+                }
+
+                // ----------------------------------------------------
+                //  turn on/off the non-assimilated channel message if
+                //  use flag is 1 (assim) or 0 (non-assim)
+                // ----------------------------------------------------
+                var chanAssimLbl = document.getElementById("chanAssimLabel");
+                var isNotLbl     = document.getElementById("isNotLabel");
+                var assimLbl     = document.getElementById("assimLabel");
+
+                if( chanData[curChan].use === 1) {
+                    chanAssimLbl.style.display  = "none";
+                    isNotLbl.style.display      = "none";
+                    assimLbl.style.display      = "none";
+                }else {
+                    chanAssimLbl.innerHTML      = '<p style="color:green">' + "Channel " + chanData[curChan].chan + "<p>";
+                    chanAssimLbl.style.display  = "inLine";
+                    isNotLbl.style.display      = "inline";
+                    assimLbl.style.display      = "inLine";
+                }
+
+                //--------------------------------------------------------------------
+                // Modify the page title and valid time labels for the data selection
+                //--------------------------------------------------------------------
+                var titleLbl       = document.getElementById("title");
+                var newTitle       = curSrcName.toUpperCase() + ", Angle Plot";
+                titleLbl.innerHTML = newTitle;
+
+                var validLbl       = document.getElementById("valid");
+                validLbl.innerHTML = "Valid " + chartData1[idx][0].time[0];  // use chartData1 not myView1 so times aren't formatted
+
+
+                //------------------------------------------------------------------------------------
+                //  store current menu selections in parent.window.value so the current data
+                //  selections can be continued after switching plot types (time/angle/summary/bcoef)
+                //------------------------------------------------------------------------------------
+                var chanSel = document.getElementById("chanSelect");
+                var chanName = chanSel.options[curChan].value;
+                var curSelStr = '?sat=' + curSrcName + '&channel=' + chanName + '&stat=' + curStatName;
+                parent.window.value = curSelStr;
+
+                //var testStr = parent.window.value;
+                //log( 'testStr = ' + testStr );
+
+                //log( '<-- fillCharts');
+            }
+
+
+                /*------------------------------
+                 * -----------------------------
+                 *
+                 *  drawCharts code starts here
+                 *
+                 * -----------------------------
+                 * -----------------------------*/
+
+
+            // targetSrc is the input src (source) value for the User Interface (re)load.
+            var targetSrc;
+
+            //
+            //  On initial load pull any encoded values from the url line for src, stat, and/or channel
+            //   and load into target[Src|Stat|Chan].
+            //  If other than initial load, then we're reloading based on user action.  So load the
+            //   target[Src|Stat|Chan] values using the current UI settings
+            //
+            if( initialLoad ) {
+                //log('initial Load is true ');
+
+                // Determine if the src, stat and/or chan were set via the input html stream.
+                // These should all be human readable inputs (src, stat, chan);
+                //      - Sanitize any data in them
+                //      - Translate inputs into interface values
+                //      - Anything unspecified defaults to the first in the list (airs_aqua, cnt, 1)
+
+                var src = new Uri(url).getQueryParamValue('sat');
+                var stat = new Uri(url).getQueryParamValue('stat');  // this is cnt, pen, omgnbc, biascr, omgbc
+                var chan = new Uri(url).getQueryParamValue('channel');  // this is actual channel#, not sequential#
+
+
+                // --------------------------------------------------------------------------------
+                // Attempt to match input src to an existing string in the platformSel list.
+                // No input value or no match to the list defaults to the first item in the list.
+                // --------------------------------------------------------------------------------
+                if( src ) {
+                    var numPlatSel = platformSel.length;
+                    var srcFound = false;
+
+                    //log( 'numPlatSel = ' + numPlatSel );
+                    for (var i = 0; i < numPlatSel; ++i) {
+                        //log( 'platformSel.options[i].value = ' + platformSel.options[i].value );
+                        if( platformSel.options[i].value === src ) {
+                            targetSrc = src;
+                            srcFound = true;
+                        }
+                    }
+                    if( !srcFound ){
+                        var logMsg = 'Unable to match input src: ' + src + ' to any existing source, using Default';
+                        log( logMsg );
+                        src = null;
+                    }
+                }
+
+                if ( !src ) {
+                    curSrc = 0;
+                    curSrcName = platformSel.options[curSrc].value;
+                    src = curSrcName;
+                    targetSrc = src;
+                }
+
+
+                // -------------------------------------------------------------------------------
+                // Stat value is matched to one of the 12 stat types.  No value input or no match
+                // defaults to the first stat type (mean).
+                // -------------------------------------------------------------------------------
+                curStat = 0;					// default value
+
+                if ( stat ) {
+                    var numStatSel = statSel.length;
+                    var statFound = false;
+
+                    for( var i=0; i < numStatSel; ++i ){
+                        if( statSel.options[i].value === stat ){
+                            curStat = i;
+                            statFound = true;
+                            break;
+                        }
+                    }
+
+                    if( !statFound ){
+                        var logMsg = 'Unable to match input stat: ' + stat + ' to any existing statistic, using Default';
+                        log( logMsg );
+                    }
+                }
+
+                statSel.selectedIndex = curStat;
+                curStatName = statSel.options[statSel.selectedIndex].value;
+
+                // ------------------------------------------------------------
+                // Chan is validated by ensuring it's a positive integer.
+                // If no value or an incorrect one it defaults to 0.
+                // ------------------------------------------------------------
+                if( ! chan ){
+                    //log( 'NO chan specified; curChan set to 0');
+                    chan = 0;
+                }
+                if ( ! isInt( chan ) ) {
+                    var logMsg = "Input chan value " + chan + ' is not an integer value, using Default instead';
+                    //log( logMsg );
+                    chan = 0;
+                }
+                targetChan = chan;  // value unavailable until chanData is loaded
+
+
+                // ------------------------------
+                // End of initial load condition
+                // ------------------------------
+                initialLoad = false;
+
+            } else {
+                // --------------------------------------------------------------
+                //  Not initial load, use the UI settings to set curSrc, curStat
+                // --------------------------------------------------------------
+                targetSrc  = platformSel.options[platformSel.selectedIndex].value;
+
+                curSrcName = targetSrc;
+                curSrc     = platformSel.selectedIndex;
+                curStat    = statSel.selectedIndex;
+                curStatName = statSel.options[statSel.selectedIndex].value;
+                //log( 'non-initial load, curStatName = ' + curStatName );
+            }
+
+            // -----------------------------------------------------------------------
+            //  set the platform menu to targetSrc or set to 0 if targetSrc not found
+            // -----------------------------------------------------------------------
+            var foundSrc = false;
+            for (var i = 0; i < platformSel.options.length; i++) {
+                if ( platformSel.options[i].value === targetSrc ) {
+                    platformSel.selectedIndex = i;
+                    curSrc = i;
+                    curSrcName = targetSrc;
+                    foundSrc = true;
+                    break;
+                }
+            }
+            if( !foundSrc ){
+                var errorMsg = 'requested source ' + targetSrc + ' NOT found';
+                log( errorMsg );
+                platformSel.selectedIndex = 0;
+                curSrc = 0;
+                curSrcName = platformSel.options[curSrc].value;
+            }
+
+
+            // ------------------------------------------------------------------------
+            //  reload the channel data if we've changed src or are on an initial load
+            // ------------------------------------------------------------------------
+            if( chanData.length <= 0 ) {
+                chanSel.selectedIndex = curChan;
+                var chanFile = './pngs/angle/' + curSrcName + '.chan.txt';
+                loadChanData(chanFile);
+            }
+            else {
+                // -----------------------------------------------------------------
+                // reload the data if needed, else just fill and display the charts
+                //------------------------------------------------------------------
+                curChan = chanSel.selectedIndex;
+                curStat = statSel.selectedIndex;
+                curStatName = statSel.options[statSel.selectedIndex].value;
+                //log( 'curStatName = ' + curStatName );
+
+                var platformSel  = document.getElementById("platformSelect");
+                curSrc = platformSel.options[platformSel.selectedIndex].text;
+
+                var dataFile = './pngs/angle/' + curSrcName + '.' + curChan + '.' + curStatName + '.angle.txt';
+                loadData(dataFile);
+            }
+
+            //log ('<-- drawCharts');
+        }
+
+        // removeOptions:  remove all options in a select box menu
+        function removeOptions( selectbox ){
+            var i;
+            for(i=selectbox.options.length-1;i>=0;i--){
+                selectbox.remove(i);
+            }
+        }
+
+        // statisticSelect :    callback for a change in selected stat type
+        function statisticSelect( value ){
+            //
+            // redraw chart using selected stat type
+            //
+            drawCharts();
+        }
+
+
+        // platSelect : callback for change in platform (satype) selection
+        function platSelect( value ){
+            //
+            // wipe chanData, redraw chart(s) using selected platform
+            //
+            chanData    = [];
+            drawCharts();
+        }
+
+        // channelSelect :  callback for a change in selected channel
+        function channelSelect(value){
+            //
+            // redraw chart using selected channel
+            //
+            var chanSel = document.getElementById("chanSelect");
+            curChan     = chanSel.selectedIndex;
+            drawCharts();
+        }
+
+
+        //  boxCheck :  callback for any change in checkboxes
+        function boxCheck(value) {
+            //
+            // draw or redraw the chart
+            //
+            drawCharts();
+        }
+
+        //  log :   debug tool, this sends output msg to web console (in a browser) as an error
+        function log(msg) {
+            setTimeout(function() {
+                throw new Error(msg);
+            }, 0);
+        }
+
+        // isInt :  determine if input value is an integer, returning True or False
+        function isInt(value) {
+            return !isNaN(value) &&
+                    parseInt(Number(value)) == value &&
+                    !isNaN(parseInt(value, 10));
+        }
+
+
+    </script>
+
+</head>
+<body>
+
+
+<h2 id="title" align='center'>Angle Plot </h2>
+<h3 id="valid" align="center">Valid</h3>
+
+<div id="plot1" style="width: 1000px; height: 400px; float:right"></div>
+<div id="plot2" style="width: 1000px; height: 400px; float:right"></div>
+
+<label id="source" style="position: absolute; left: 2px; top:12px"><b> Source:</b></label>
+<label id="suffix" value="INSERT_SUFFIX" style="position: absolute; left: 72px; top:12px; color: blue"><b>INSERT_SUFFIX</b></label>
+
+
+<form id="satSelectForm" action="" style="position:absolute; left:2px;top:40px">
+    <b>Platform:</b>
+    <select id="platformSelect" onChange="platSelect(this.value)">
+        <!-- This menu will need to be customized by Install_html.sh on wcoss
+             It could be loaded using a php file, but that risks a condition where
+             a source might be missing for some reason, and we should know about that
+             if it was to happen, so it's better that a data load would fail here.  -->
+        <!-- INSERT_TABLE -->
+        <OPTION VALUE="airs_aqua"> AQUA AIRS       </OPTION>
+        <OPTION VALUE="amsua_aqua"> AQUA AMSU-A    </OPTION>
+        <OPTION VALUE="ssmis_f16"> F16 SSMIS       </OPTION>
+        <OPTION VALUE="ssmis_f17"> F17 SSMIS       </OPTION>
+        <OPTION VALUE="ssmis_f18"> F18 SSMIS       </OPTION>
+        <OPTION VALUE="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
+        <OPTION VALUE="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
+        <OPTION VALUE="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
+        <OPTION VALUE="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
+        <OPTION VALUE="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
+        <OPTION VALUE="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
+        <OPTION VALUE="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
+        <OPTION VALUE="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
+        <OPTION VALUE="seviri_m10"> M10 SEVIRI </OPTION>
+        <OPTION VALUE="amsua_metop-a"> METOP-A AMSU-A </OPTION>
+        <option value="avhrr_metop-a"> METOP-A AVHRR </option>
+        <OPTION VALUE="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
+        <OPTION VALUE="iasi_metop-a"> METOP-A IASI </OPTION>
+        <OPTION VALUE="mhs_metop-a"> METOP-A MHS </OPTION>
+        <OPTION VALUE="amsua_metop-b"> METOP-B AMSU-A </OPTION>
+        <OPTION VALUE="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
+        <OPTION VALUE="iasi_metop-b"> METOP-B IASI </OPTION>
+        <OPTION VALUE="mhs_metop-b"> METOP-B MHS </OPTION>
+        <OPTION VALUE="amsua_n15"> NOAA-15 AMSU-A </OPTION>
+        <OPTION VALUE="amsua_n18"> NOAA-18 AMSU-A </OPTION>
+        <option value="avhrr_n18"> NOAA-18 AVHRR </option>
+        <OPTION VALUE="mhs_n18"> NOAA-18 MHS </OPTION>
+        <OPTION VALUE="amsua_n19"> NOAA-19 AMSU-A </OPTION>
+        <OPTION VALUE="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
+        <OPTION VALUE="mhs_n19"> NOAA-19 MHS </OPTION>
+        <OPTION VALUE="atms_npp"> NPP ATMS </OPTION>
+        <OPTION VALUE="cris_npp"> NPP CRIS </OPTION>
+        <!-- END_TABLE_INSERT -->
+    </select>
+</form>
+
+<form id="statSelectForm" action="" style="position:absolute; left:2px;top:70px">
+    <b>Statistic</b>
+    <select id="statSelect" onchange="statisticSelect(this.value)">
+        <option value="cnt">    Number of Observations             </option>
+        <option value="pen">    Contribution to Penalty            </option>
+        <option value="omgnbc"> Ges|Anl (w/o bias correction) - Obs</option>
+        <option value="totcor"> Total Bias Correction              </option>
+        <option value="omgbc">  Ges|Anl (w/ bias correction) - Obs </option>
+        <option value="fixang"> Fixed Angle Correction             </option>
+        <option value="lapse">  Lapse Rate Correction              </option>
+        <option value="lapse2"> (Lapse Rate)**2 Correction         </option>
+        <option value="mean">   Mean Correction                    </option>
+        <option value="scangl"> Scan Angle Correction              </option>
+        <option value="clw">    Cloud Liquid Water Correction      </option>
+        <option value="cos">    Cosine for SSMIS                   </option>
+        <option value="sin">    Sine for SSMIS                     </option>
+        <option value="emiss">  Emissivity Sensitivity Term        </option>
+        <option value="ordang1">1st Order Angle Term               </option>
+        <option value="ordang2">2nd Order Angle Term               </option>
+        <option value="ordang3">3rd Order Angle Term               </option>
+        <option value="ordang4">4th Order Angle Term               </option>
+    </select>
+</form>
+
+<!-- The channel menu is loaded dynamically according to the selected sat/instrument. -->
+<form id="chanSelectForm" action="" style="position:absolute;left:2px;top:100px">
+    <b>Channel:</b>
+    <select id="chanSelect" onChange="channelSelect(this.value)">
+    </select>
+</form>
+
+<!--
+   This is the prototype solution (crude hack) for presenting mutiple data sets to the user.
+   In this case Haixia needed to compare data from set ccr2 and Ctl.  Ideally this menu would be loaded dynamically
+   based on the sets located in parallel to the current one on the user's web server directory.
+
+  <table style="position:absolute;left:2px;top:140px;width:150px">
+    <caption style="text-indent:2em"><b>Data Sources:</b></caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxCcr2" name="checkbox" value="ccr2" checked onclick="boxCheck(this.value)">ccr2</input>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxCtl"  name="checkbox" value="Ctl" onclick="boxCheck(this.value)" >Ctl</input>
+    </td></tr>
+</table> -->
+
+
+<table style="position:absolute;left:2px;top:150px;width:150px">
+    <caption style="text-indent:2em"><b>Data Sets:</b> </caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxGes" name="checkbox" value="gesdata" checked onclick="boxCheck(this.value)"><label for="ckboxGes" id="labGes">ges data</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxAnl" name="checkbox" value="anldata" onclick="boxCheck(this.value)"><label for="ckboxAnl" id="labAnl">anl data</label>
+    </td></tr>
+</table>
+
+<table style="position: absolute;left:2px;top:230px;width:150px">
+    <caption style="text-indent:2em"><b>Periods:</b></caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxD1" name="ckboxD1" value="d1" checked onclick="boxCheck(this.value)"><label for="ckboxD1" id="labD1">1 Day</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxD7" name="ckboxD7" value="d7" checked onclick="boxCheck(this.value)"><label for="ckboxD7" id="labD7">7 Day</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxD30" name="ckboxD30" value="d30" checked onclick="boxCheck(this.value)"><label for="ckboxD30" id="labD30">30 Day</label>
+    </td></tr>
+</table>
+
+<table style="position: absolute;left:2px;top:340px;width:150px">
+    <caption style="text-indent:2em"><b>Regions:</b></caption>
+    <tr><td>
+        <input type="checkbox" id="ckboxGlobal" name="checkbox" value="global" checked onclick="boxCheck(this.value)"><label for="ckboxGlobal" id="labGlobal">Global</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxLand" name="checkbox" value="land"  onclick="boxCheck(this.value)"><label for="ckboxLand" id="labLand">Land</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxWater" name="checkbox" value="water"  onclick="boxCheck(this.value)"><label for="ckboxWater" id="labWater">Water</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxIce" name="checkbox" value="ice"  onclick="boxCheck(this.value)"><label for="ckboxIce" id="labIce">Ice/Snow</label>
+    </td></tr>
+    <tr><td>
+        <input type="checkbox" id="ckboxMixed" name="checkbox" value="mixed"  onclick="boxCheck(this.value)"><label for="ckboxMixed" id="labMixed">Mixed</label>
+    </td></tr>
+</table>
+
+<label id="chanLabel" style="position:absolute;left:165px;top:200px">
+    <i>Channel numb</i>
+</label>
+<label id="chiLabel" style="position:absolute;left:165px;top:220px">
+    <i> &chi; </i>
+</label>
+<label id="freqLabel" style="position:absolute;left:165px;top:240px">
+    <i>f GHZ</i>
+</label>
+<label id="waveLabel" style="position:absolute;left:165px;top:260px">
+    <i> &lambda; &mu;m:</i>
+</label>
+<label id="avgLabel" style="position:absolute;left:165px;top:280px">
+    <i> avg: </i>
+</label>
+<label id="sdvLabel" style="position:absolute;left:165px;top:300px">
+    <i> sdv: </i>
+</label>
+<label id="chanAssimLabel" style="position:absolute;left:165px;top:320px">
+    <i> non-assimilated channel number (green) </i>
+</label>
+<label id="isNotLabel" style="position:absolute;left:165px;top:352px;color:#ff1eaf">
+    <i> *** is NOT *** </i>
+</label>
+<label id="assimLabel" style="position:absolute;left:165px;top:366px;color:green">
+    <i> assimilated</i>
+</label>
+
+<img id="chartImg" />
+
+
+</body>
+</html>

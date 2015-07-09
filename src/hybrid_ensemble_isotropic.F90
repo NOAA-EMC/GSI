@@ -46,6 +46,7 @@ module hybrid_ensemble_isotropic
 !   2014-05-22  wu      - increase dimension of variables used in the recursive filter 
 !                         for vertically varying ability
 !   2014-12-02  derber  - many optimization changes
+!   2015-04-07  carley  - bug fix to allow grd_loc%nlat=grd_loc%nlon
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -991,7 +992,7 @@ subroutine normal_new_factorization_rf_y
 
   ynorm_new=one
 
-  if(grd_loc%nlat < grd_loc%nlon)then
+  if(grd_loc%nlat <= grd_loc%nlon)then
     lend=1
     iend=grd_loc%nlat 
   else
@@ -1137,6 +1138,8 @@ end subroutine normal_new_factorization_rf_y
 !   2011-12-07  tong    - add the option to read wrf_nmm ensemble
 !   2012-01-30  parrish - remove wrf_nmm_regional,wrf_mass_regional,netcdf,nems_nmmb_regional
 !   2013-10-25  todling - nullify work pointer
+!   2015-01-22  Hu      - add namelist (i_en_perts_io) and functions to save and 
+!                         read ensemble perturbations in ensemble grid.
 !
 !   input argument list:
 !
@@ -1150,7 +1153,8 @@ end subroutine normal_new_factorization_rf_y
     use gridmod, only: regional
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
-                                          pseudo_hybens,regional_ensemble_option
+                                          pseudo_hybens,regional_ensemble_option,&
+                                          i_en_perts_io
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype,ierror
     implicit none
@@ -1299,7 +1303,11 @@ end subroutine normal_new_factorization_rf_y
 
 !     regional_ensemble_option = 1: use GEFS internally interpolated to ensemble grid.
 
-                call get_gefs_for_regional
+                if(i_en_perts_io==2) then ! get en_perts from save files
+                   call en_perts_get_from_save
+                else
+                   call get_gefs_for_regional
+                endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
 !                             GEFS ensemble perturbations in TC vortex area
@@ -3920,10 +3928,12 @@ subroutine hybens_localization_setup
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
          n_ens,vvlocal,&
          s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
-         readin_localization,nval_lenz_en,readin_beta,betas_inv,betae_inv,beta1_inv
+         readin_localization,nval_lenz_en,readin_beta,betas_inv,betae_inv,beta1_inv,&
+         regional_ensemble_option
   use gridmod,only: regional
   use constants, only: one,zero
   use mpimod, only: mype
+  use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
   implicit none
 
   character(len=40)  :: fname = 'hybens_locinfo'
@@ -3964,6 +3974,16 @@ subroutine hybens_localization_setup
         betae_inv(k) = one - beta1_inv
      enddo
   endif 
+
+  if(regional_ensemble_option == 2 .and. use_gfs_stratosphere)then
+     do k=1,grd_ens%nsig
+        betae_inv(k) = betae_inv(k) * blend_rm(k)
+        betas_inv(k) = one - betae_inv(k)
+        if(mype == 0)write(6,*)'betas_inv, betae_inv=', &
+                     k,betas_inv(k),betae_inv(k)
+     end do
+  end if
+
 ! Set up localization parameters as function of level
 
 ! if horizontal parameter is set <= 0, read in k-levels of localization parameters

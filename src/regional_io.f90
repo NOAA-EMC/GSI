@@ -14,6 +14,8 @@ module regional_io
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
 !   2010-09-15  pagowski - add cmaq
 !   2012-02-16  parrish - if use_gfs_stratosphere true, then broadcast extra parameters to all pes from pe 0.
+!   2013-02-25  zhu - add cold_start option
+!   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis       
 !   
 ! Subroutines Included:
 !   sub convert_regional_guess  - convert regional guess to internal format
@@ -31,6 +33,7 @@ module regional_io
        nems_nmmb_regional,cmaq_regional,&
        twodvar_regional,netcdf
   use mpimod, only: mpi_comm_world,ierror
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   implicit none
 
 ! set default to private
@@ -40,11 +43,12 @@ module regional_io
   public :: convert_regional_guess
   public :: write_regional_analysis
 ! set passed variables to public
-  public :: update_pint,preserve_restart_date
+  public :: update_pint,preserve_restart_date,cold_start
 
   logical update_pint            !  if true, then this is nmm run with pint variable, so update pint
                                  !    (where pint is non-hydrostatic 3-d pressure variable)
   logical preserve_restart_date  !  if true, then do not update date information on restart file
+  logical cold_start             !  if true, then restart file is from GFS
 
 contains
 
@@ -93,13 +97,14 @@ contains
 !   two possible input formats:  netcdf or binary
 
     update_pint=.false.
+    cold_start=.true.
     if (wrf_nmm_regional) then
        if (mype==0) then
           if (netcdf) then
-             call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              if (l_hyb_ens .and. regional_ensemble_option == 2)then
-                call convert_netcdf_nmm_ens
+                call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,.false.)
              end if
+             call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,.true.)
           else
              call convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
              if (l_hyb_ens .and. regional_ensemble_option == 2)then
@@ -211,7 +216,7 @@ contains
     if (wrf_mass_regional) then
        if(netcdf) then
           call wrwrfmassa_netcdf(mype)
-          if (mype==0) then
+          if (mype==0 .and. i_gsdcldanal_type /=5) then
              call update_netcdf_mass
           endif
           call mpi_barrier(mpi_comm_world,ierror)
@@ -226,7 +231,7 @@ contains
 
 !   Write nems nmmb analysis file.
 
-    if (nems_nmmb_regional) call wrnemsnmma_binary(mype)
+    if (nems_nmmb_regional) call wrnemsnmma_binary(mype,cold_start)
 
 !   Write 2d analysis file
 !   output format: binary
