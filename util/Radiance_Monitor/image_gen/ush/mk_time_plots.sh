@@ -112,9 +112,9 @@ fi
    rm ${logfile}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 0:30 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
