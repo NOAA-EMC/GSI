@@ -185,14 +185,23 @@ if [[ ! -s ./${time_exec} ]]; then
    err=8
 fi
 
+local_base="local_base"
 if [[ $DO_DATA_RPT -eq 1 ]]; then
-   $NCP ${base_file}* ./
+#   $NCP ${base_file}*  ./${local_base} 
    if [[ -e ${base_file}.${Z} ]]; then
-      ${UNCOMPRESS} ${base_file}.${Z}
+      $NCP ${base_file}.${Z}  ./${local_base}.{Z}
+      ${UNCOMPRESS} ${local_base}.${Z}
+   else
+      $NCP ${base_file}  ./${local_base}
    fi
-   tar -xf ${base_file}
-   if [[ ! -s ${base_file} ]]; then
+
+   if [[ ! -s ./${local_file} ]]; then
+      echo "RED LIGHT: local_base file not found"
       err=9
+   else
+      echo "Confirming local_base file is good = ${local_base}"
+      tar -xf ./${local_base}
+      echo "local_base is untarred"
    fi
 fi
 
