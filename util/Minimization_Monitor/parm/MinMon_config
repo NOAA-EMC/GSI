@@ -5,33 +5,33 @@
 ###################################################################
 export MY_MACHINE=wcoss
 
-export MY_MINMON=${MY_MINMON:-"/u/${LOGNAME}"}
+export MY_MINMON=${MY_MINMON:-/u/${LOGNAME}}
 
 export HOMEgdasgmon=${MY_MINMON}/nwprod/gdas_minmon.v${gdas_minmon_ver}
 export HOMErapgmon=${MY_MINMON}/nwprod/rap_minmon.v${rap_minmon_ver}
 export HOMEgmon=${MY_MINMON}/nwprod/minmon_shared.v${minmon_shared_ver}
 
 export MINMON_DE=${MINMON_DE:-${MY_MINMON}/data_xtrct}
-export DE_SCRIPTS=${DE_SCRIPTS:-${MINMON_DE}/ush}
+export M_DE_SCRIPTS=${M_DE_SCRIPTS:-${MINMON_DE}/ush}
 
 export MINMON_IG=${MINMON_IG:-${MY_MINMON}/image_gen}
-export IG_SCRIPTS=${IG_SCRIPTS:-${MINMON_IG}/ush}
-export IG_GRDS=${IG_GRDS:-${MINMON_IG}/grds}
-export IG_PARM=${IG_PARM:-${MINMON_IG}/parm}
+export M_IG_SCRIPTS=${M_IG_SCRIPTS:-${MINMON_IG}/ush}
+export M_IG_GRDS=${M_IG_GRDS:-${MINMON_IG}/grds}
+export M_IG_PARM=${M_IG_PARM:-${MINMON_IG}/parm}
 
-export MY_STMP=${MY_STMP:-/stmpd1}
-export MY_PTMP=${MY_PTMP:-/ptmpd1}
+export MY_STMP=${MY_STMP:-/stmpp1}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
 
 export envir=prod
 export DATA_IN=${DATA_IN:-${MY_STMP}/${LOGNAME}/minmon}	# working directory
 
 export LOGdir=${LOGdir:-${MY_PTMP}/${LOGNAME}/logs}
-export jlogfile=${jlogfile:-${LOGdir}/minmon.DE.}
+export m_jlogfile=${m_jlogfile:-${LOGdir}/minmon.DE.}
 
 export MY_TANKDIR=${MY_TANKDIR:-/u/${LOGNAME}/nbns}
 export M_TANKverf=${M_TANKverf:-${MY_TANKDIR}}	
 
-export WEBUSER=${WEBUSER:-} 		# user name on webserver
+export WEBUSER=${WEBUSER:-}
 export WEBSERVER=${WEBSERVER:-}
 export WEBDIR=${WEBDIR:-}
 
