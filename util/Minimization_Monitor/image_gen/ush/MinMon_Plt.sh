@@ -62,7 +62,7 @@ else
    exit 4
 fi
 
-plot_minmon_conf=${plot_minmon_conf:-${IG_PARM}/plot_minmon_conf}
+plot_minmon_conf=${plot_minmon_conf:-${M_IG_PARM}/plot_minmon_conf}
 if [[ -s ${plot_minmon_conf} ]]; then
    . ${plot_minmon_conf}
    echo "able to source ${plot_minmon_conf}"
@@ -76,7 +76,7 @@ fi
 #  Check for my monitoring use.  Abort if running on prod machine.
 #--------------------------------------------------------------------
 if [[ RUN_ONLY_ON_DEV =  1 ]]; then
-   is_prod=`${IG_SCRIPTS}/onprod.sh`
+   is_prod=`${M_IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -98,7 +98,7 @@ fi
 #--------------------------------------------------------------------
 if [[ ${#PDATE} -le 0 ]]; then
    echo "PDATE not specified:  setting PDATE using last cycle"
-   export PDATE=`${IG_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKDIR}`
+   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKDIR}`
 else
    echo "PDATE was specified:  $PDATE"
 fi
@@ -209,11 +209,11 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    #  according to the $suffix
    #-----------------------------------------------------------------
    if [[ ! -e ${WORKDIR}/allgnorm.ctl ]]; then
-      cp ${IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
+      cp ${M_IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
    fi
  
    if [[ ! -e ${WORKDIR}/reduction.ctl ]]; then
-      cp ${IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
+      cp ${M_IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
    fi
 
   
@@ -221,8 +221,8 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    # update the tdef line in the ctl files
    # 
    bdate=`$NDATE -168 $PDATE`
-   ${IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/allgnorm.ctl ${bdate}
-   ${IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
+   ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/allgnorm.ctl ${bdate}
+   ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
 
 #   if [[ $AREA = "glb" ]]; then
 #      ${SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 202 
@@ -233,17 +233,17 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    #######################
 
    if [[ $SUFFIX = "RAP" ]]; then
-      ${IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
+      ${M_IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
    fi
 
    #-----------------------------------------------------------------
    #  Copy the plot script and build the plot driver script 
    #-----------------------------------------------------------------
    if [[ ! -e ${WORKDIR}/plot_gnorms.gs ]]; then
-      cp ${IG_GRDS}/plot_gnorms.gs ${WORKDIR}/.
+      cp ${M_IG_GRDS}/plot_gnorms.gs ${WORKDIR}/.
    fi
    if [[ ! -e ${WORKDIR}/plot_reduction.gs ]]; then
-      cp ${IG_GRDS}/plot_reduction.gs ${WORKDIR}/.
+      cp ${M_IG_GRDS}/plot_reduction.gs ${WORKDIR}/.
    fi
  
  

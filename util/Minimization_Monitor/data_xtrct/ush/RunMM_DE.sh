@@ -84,7 +84,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${DE_SCRIPTS}/onprod.sh`
+   is_prod=`${M_DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -116,7 +116,7 @@ start_len=`echo ${#START_DATE}`
 verf_dir="${TANKverf}/stats/${SUFFIX}/gsistat"
 
 if [[ ${start_len} -le 0 ]]; then
-   pdate=`${DE_SCRIPTS}/find_cycle.pl ${SUFFIX} 1 ${verf_dir}`
+   pdate=`${M_DE_SCRIPTS}/find_cycle.pl ${SUFFIX} 1 ${verf_dir}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -ne 10 ]]; then
       exit 12 
@@ -166,7 +166,7 @@ while [[ $done -eq 0 ]]; do
 
       echo Processing ${cdate}
       # need a switch for glb and rgn
-      ${DE_SCRIPTS}/MinMon_DE.sh ${SUFFIX} dev ${cdate} 1>${log_file} 2>${err_file}
+      ${M_DE_SCRIPTS}/MinMon_DE.sh ${SUFFIX} dev ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
       # done is true (1) if the copy_script produced an error code, or
@@ -180,7 +180,7 @@ while [[ $done -eq 0 ]]; do
 #      sleep 60
 #      PDY=`echo $cdate|cut -c1-8`
 #      cyc=`echo $cdate|cut -c9-10`
-#      logfile="${jlogfile}${SUFFIX}.${PDY}.${cyc}.log"
+#      logfile="${m_jlogfile}${SUFFIX}.${PDY}.${cyc}.log"
 #      rc=`grep "exit value" ${logfile} | tail -1 | gawk '{split($0,a," "); print a[6]}'`
 #      rc_len=`echo ${#rc}`
 

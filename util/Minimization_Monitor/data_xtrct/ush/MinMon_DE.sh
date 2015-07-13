@@ -106,11 +106,11 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
-export m_jlogfile="${jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
-echo  "m_jlogfile = $jlogfile"
+export m_jlogfile="${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
+echo  "m_jlogfile = $m_jlogfile"
 jobname=minmon_de_${MINMON_SUFFIX}
 
-rm -f $jlogfile
+rm -f $m_jlogfile
 rm -rf $DATA_IN
 
 echo "MY_MACHINE = $MY_MACHINE"
@@ -120,7 +120,7 @@ echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
 fi
 
 echo "end MinMon_DE.sh"
