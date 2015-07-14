@@ -1,7 +1,11 @@
 cov_calc computes interchannel observation covariances based on Desroziers' method.
 
-This program uses the radstat.gdas.$date files, and outputs four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), the second contains the wavenumbers of the satellite instrument, and the third contains the assumed obs error. (The wavenumbers and assumed obs errors can used for plotting).  The fourth file is simply the correlation matrix, which can readily be plotted with plot_cov.m
+This program uses the radstat.gdas.$date files, and outputs four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. The second contains the wavenumbers of the satellite instrument, and the third contains the assumed obs error. (The wavenumbers and assumed obs errors can used for plotting).  The fourth file is simply the correlation matrix, which can readily be plotted with plot_cov.m
 
-For convenience, get_rads.sh can be used to retrieve radstat files from hpss
+To use the computed covariance matrix in the GSI:
+1.  Add a table to the anavinfo file, following the comments in correlated_obsmod.F90
+2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.
+
+For convenience, get_rads.sh can be used to retrieve radstat files from hpss.
 
 To run this program, edit the parameters in the first few lines of run.sh.  Compile by typing 'make'.  (To make clean type 'make clean').  Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  

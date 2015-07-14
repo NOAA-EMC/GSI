@@ -60,7 +60,6 @@ integer(i_kind):: nch_active                            !number of assimilated c
 integer(i_kind),dimension(:),allocatable:: indR         !indices of the assimlated channels
 integer, dimension(3):: ng                              !the number of background omg's for three time steps
 
-
 !FOV choice
 integer:: Surface_Type, Cloud_Type
 integer, parameter:: All_Surfaces=0
@@ -73,12 +72,14 @@ real(r_kind), parameter:: cloud_threshold=0.01_r_kind   !if using clear sky data
 real(r_kind), parameter:: sea_threshold=0.99_r_kind     !if using sea data, do not use if below this threshold
 real(r_kind), parameter:: land_threshold=0.99_r_kind    !if using land data, do not use if below this threshold
 real(r_kind):: numb
+
 !constants
 real(r_kind), parameter:: one=1.0_r_kind                
 real(r_kind), parameter:: zero=0.0_r_kind               
 integer,parameter:: three=3
-real(r_kind), parameter:: sixty=60.0
-real(r_kind), parameter:: threesixty=360.0
+real(r_kind), parameter:: sixty=60.0_r_kind
+real(r_kind), parameter:: threesixty=360.0_r_kind
+real(r_kind), parameter:: two=2.0_r_kind
 
 !Data times
 real(r_kind):: time_min                                 !time of obs, relative to time of corresponding diag file
@@ -93,10 +94,9 @@ real(r_kind), dimension(2):: anlloc                     !location (lat,lon) of a
 integer,dimension(:), allocatable:: obs_pairs
 real(r_single), dimension(:,:), allocatable:: Rcov      !the covariance matrix
 real(r_single), dimension(:,:), allocatable:: Rcorr     !the correlation matrix
-real(r_single), dimension(:,:), allocatable:: Ra, Rg
-real(r_single), dimension(:,:), allocatable::  Aa, Ag
+real(r_single), dimension(:,:), allocatable:: Aa, Ag
 integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
-real(r_kind):: su, sua, sua2, sug, sug2
+real(r_kind):: su, sua, sug
 real(r_kind):: val
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, numb, fileout, fileout1, fileout2
@@ -176,7 +176,6 @@ do tim=1,ntimes
          allocate(gesuse(dsize,nch_active,gsize), anluse(nch_active))
          allocate(Rcov(nch_active,nch_active),Rcorr(nch_active,nch_active))
          allocate(divider(nch_active,nch_active))
-         allocate(Ra(nch_active,nch_active),Rg(nch_active,nch_active))
          allocate(Aa(nch_active,nch_active),Ag(nch_active,nch_active))
          allocate(chaninfo(nch_active),errout(nch_active))
          do r=1,nch_active
@@ -187,8 +186,6 @@ do tim=1,ntimes
          Rcov=zero
          Rcorr=zero
          divider=zero
-         Ra=zero
-         Rg=zero
          Aa=zero
       end if !tim=1, ncc=0
       ng(gblock)=0
@@ -271,110 +268,118 @@ do tim=1,ntimes
          !do nothing
       end select
       !if doesnt meet criteria, cycle 
-       if ((Surface_Type==sea).and.(RadDiag_Data%Scalar%Water_Frac<sea_threshold)) &
+      if ((Surface_Type==sea).and.(RadDiag_Data%Scalar%Water_Frac<sea_threshold)) &
+         cycle anl_read_loop
+      if ((Surface_Type==land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) &
+         cycle anl_read_loop
+      if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>cloud_threshold)) &
           cycle anl_read_loop
-       if ((Surface_Type==land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) &
-          cycle anl_read_loop
-       if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>cloud_threshold)) &
-           cycle anl_read_loop
-       if (abs(RadDiag_Data%Scalar%satzen_ang)>numb) cycle anl_read_loop
-       nc=0
-       anl_channel_loop: do jj=1,nch_active
-          j=indR(jj)
-          if (((Cloud_Type>All_Cloud).and.&
-          (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
-          (abs(RadDiag_Data%Channel(j)%errinv)>zero)) then 
-             anl(jj)=RadDiag_Data%Channel(j)%omgbc
-             anluse(jj)=1
-             nc=nc+1
-          else
-             anl(jj)=zero
-             anluse(jj)=0
-          end if
-       end do anl_channel_loop
-       if (nc<one) cycle anl_read_loop
-          time_min=RadDiag_Data%Scalar%obstime
-          anl_time=(time_min*sixty)+(threesixty*(tim-1))
-          anlloc(1)=RadDiag_Data%Scalar%lat
-          anlloc(2)=RadDiag_Data%Scalar%lon
-          !ptimes is the number of ges diag files to use with the current
-          !anl diag file to compute the statistics.  
-          !if ntimes=1 then only need data from one ges diag file
-          !if tim=1 then need the current ges diag data and the data from tim+1
-          !if tim=ntimes then need the current ges diag data and data from tim-1
-          !otherwise need data from three files (current, tim-1 and tim+1 data)
-           if (ntimes==1) then 
-              ptimes=1
-           else if ((tim==1).or.(tim==ntimes)) then 
-              ptimes=2
-           else
-              ptimes=3
-           end if
-           if ((tim==ntimes).and.(ntimes>2)) then
-              gtim=tim-1
-              gcmod=mod(gtim,3)
-              i1=gcmod+1
-              gtim=tim-2
-              gcmod=mod(gtim,3)
-              i2=gcmod+1
-           end if
-           do ii=1,ptimes
-              i=ii
-              if ((tim==ntimes).and.(ntimes>2)) then
-                 i=i2
-                 if (ii==1) i=i1
-              end if
-              !find all possible pairs for this one oma
-              !cycle through preceding, concurrent, and proceding diag
-              !ges files to find all matches
-              call make_pairs(gesloc(:,:,i),anlloc,ges_times(:,i),anl_time,ng(i),obs_pairs,Lt)
-              if (Lt>zero) then
-                 do r=1,nch_active
-                    do c=1,nch_active
-                       su=zero
-                       L=zero
-                       sua=zero
-                       sug=zero
-                       sua2=zero
-                       sug2=zero
-                       do j=1,Lt
-                          if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
-                             su=su+(anl(r)*ges(obs_pairs(j),c,i))
-                             sua=sua+anl(r)
-                             sua2=sua2+(anl(r))**2 
-                             sug=sug+ges(obs_pairs(j),c,i) 
-                             sug2=sug2+ges(obs_pairs(j),c,i)**2 
-                             L=L+1
-                          end if  
-                       end do
-                       Rcov(r,c)=Rcov(r,c)+su
-                       Ra(r,c)=Ra(r,c)+sua2
-                       Rg(r,c)=Rg(r,c)+sug2
-                       Aa(r,c)=Aa(r,c)+sua
-                       Ag(r,c)=Ag(r,c)+sug
-                       divider(r,c)=divider(r,c)+L
-                    end do
-                 end do
-              end if  
-           end do !ii=1,ptimes
-       end do anl_read_loop
+      if (abs(RadDiag_Data%Scalar%satzen_ang)>numb) cycle anl_read_loop
+      nc=0
+      anl_channel_loop: do jj=1,nch_active
+         j=indR(jj)
+         if (((Cloud_Type>All_Cloud).and.&
+         (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
+         (abs(RadDiag_Data%Channel(j)%errinv)>zero)) then 
+            anl(jj)=RadDiag_Data%Channel(j)%omgbc
+            anluse(jj)=1
+            nc=nc+1
+         else
+            anl(jj)=zero
+            anluse(jj)=0
+         end if
+      end do anl_channel_loop
+      if (nc<one) cycle anl_read_loop
+      time_min=RadDiag_Data%Scalar%obstime
+      anl_time=(time_min*sixty)+(threesixty*(tim-1))
+      anlloc(1)=RadDiag_Data%Scalar%lat
+      anlloc(2)=RadDiag_Data%Scalar%lon
+      !ptimes is the number of ges diag files to use with the current
+      !anl diag file to compute the statistics.  
+      !if ntimes=1 then only need data from one ges diag file
+      !if tim=1 then need the current ges diag data and the data from tim+1
+      !if tim=ntimes then need the current ges diag data and data from tim-1
+      !otherwise need data from three files (current, tim-1 and tim+1 data)
+      if (ntimes==1) then 
+         ptimes=1
+      else if ((tim==1).or.(tim==ntimes)) then 
+         ptimes=2
+      else
+         ptimes=3
+      end if
+      if ((tim==ntimes).and.(ntimes>2)) then
+         gtim=tim-1
+         gcmod=mod(gtim,3)
+         i1=gcmod+1
+         gtim=tim-2
+         gcmod=mod(gtim,3)
+         i2=gcmod+1
+      end if
+      do ii=1,ptimes
+         i=ii
+         if ((tim==ntimes).and.(ntimes>2)) then
+            i=i2
+            if (ii==1) i=i1
+         end if
+         !find all possible pairs for this one oma
+         !cycle through preceding, concurrent, and proceding diag
+         !ges files to find all matches
+         call make_pairs(gesloc(:,:,i),anlloc,ges_times(:,i),anl_time,ng(i),obs_pairs,Lt)
+         if (Lt>zero) then
+            do r=1,nch_active
+               do c=1,nch_active
+                  su=zero
+                  L=zero
+                  sua=zero
+                  sug=zero
+                  do j=1,Lt
+                     if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
+                        su=su+(anl(r)*ges(obs_pairs(j),c,i))
+                        sua=sua+anl(r)
+                        sug=sug+ges(obs_pairs(j),c,i) 
+                        L=L+1
+                     end if  
+                  end do
+                  Rcov(r,c)=Rcov(r,c)+su
+                  Aa(r,c)=Aa(r,c)+sua
+                  Ag(r,c)=Ag(r,c)+sug
+                  divider(r,c)=divider(r,c)+L
+               end do
+            end do
+          end if  
+      end do !ii=1,ptimes
+   end do anl_read_loop
 end do !ntimes
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)
 deallocate(ges_times,gesloc,ges,anl)
 deallocate(gesuse,anluse)
-
 !covariance calculation
 do r=1,nch_active
    do c=1,nch_active
       if (divider(r,c)>zero) then
-         val=((divider(r,c)*Ra(r,c))-(Aa(r,c)**2))*((divider(r,c)*Rg(r,c))-(Ag(r,c)**2))
-         val=sqrt(val)/(divider(r,c)**2)
          Rcov(r,c)=(Rcov(r,c)/divider(r,c))-((Aa(r,c)*Ag(r,c))/(divider(r,c)**2))
-         Rcorr(r,c)=Rcov(r,c)/val
+      else if (r==c) then 
+         Rcov(r,c)=errout(r)
       end if
    end do
 end do
+do r=1,nch_active
+   do c=1,nch_active
+     if (divider(r,c)>zero) then
+         val=Rcov(r,r)*Rcov(c,c)
+         val=sqrt(val)
+         Rcorr(r,c)=Rcov(r,c)/val
+      else if (r==c) then
+         Rcorr(r,c)=one
+      end if
+   end do
+end do
+!make covariance matrix symmetric
+Rcov=Rcov+TRANSPOSE(Rcov)
+Rcorr=Rcorr+TRANSPOSE(Rcorr)
+Rcov=Rcov/two
+Rcorr=Rcorr/two
 
 !output
 inquire(iolength=reclen) Rcov(1,1)
@@ -393,7 +398,7 @@ open(25,file=trim(fileout3),form='unformatted',access='direct',recl=nch_active*n
 write(25,rec=1) Rcorr
 close(25)
 deallocate(Rcov,chaninfo,errout)
-deallocate(indR,Rcorr,Ra,Rg)
+deallocate(indR,Rcorr)
 deallocate(divider)
 deallocate(Aa,Ag)
 deallocate(obs_pairs)
