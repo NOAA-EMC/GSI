@@ -20,7 +20,7 @@
 #                   defaults to cyc; required
 #
 #   Imported Shell Variables:
-#     TANKverf      repository for minmon data files
+#     M_TANKverf    repository for minmon data files
 #     DATA          data working space
 #     SUFFIX        data set identifier, defaults to GDAS
 #     FIXgdasgmon   fixed file directory, gdas specific
@@ -42,6 +42,7 @@
 #   Exported Shell Variables:
 #     PDATE	    Processing date
 #     err           last return code
+#     VERBOSE       switches on more/less log output
 #
 #   Modules and files referenced:
 #     scripts    : $INISCRIPT
@@ -119,7 +120,7 @@ export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfminmon.sh.ecf
 
-# TANKverf is storage location for generated files
+# M_TANKverf is storage location for generated files
 export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon.${PDY}}
 export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon.${PDYm1}}
 
