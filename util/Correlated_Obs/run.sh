@@ -7,7 +7,6 @@ bdate=2013102500
 edate=2013111500
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
-#instr=airs_aqua
 #location of radstat file
 exp=prexoz
 diagdir=/scratch1/portfolios/NCEPDEV/da/noscrub/Kristen.Bathmann/archive/${exp}
