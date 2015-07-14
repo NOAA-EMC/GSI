@@ -48,7 +48,7 @@ while [[ $cdate -le $edate ]] ; do
       fon=000$nt
    elif [ $nt -lt 100 ] ; then
       fon=00$nt
-   elif [ $nt -lt 1000] ; then
+   elif [ $nt -lt 1000 ] ; then
       fon=0$nt
    else
       fon=$nt
