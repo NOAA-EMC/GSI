@@ -301,25 +301,27 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
+  var_jb=zero
+
+!  handle multiple-report observations at a station
   dup=one
   do k=1,nobs
      do l=k+1,nobs
         if(data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
-           data(ipres,k)== data(ipres,l) .and. &
+           data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(l) .and. muse(k))then
+           muse(k) .and. muse(l))then
 
            tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
            dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
            dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-
         end if
      end do
   end do
 
-  call dtime_setup()
   num_bad_ikx=0
+  call dtime_setup()
   do i=1,nobs
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
@@ -845,7 +847,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         error = zero
         ratio_errors = zero
      else
-        ratio_errors =ratio_errors/sqrt(dup(i)) 
+        if (dup(i) .lt. r1000) then
+           ratio_errors = ratio_errors/sqrt(dup(i))
+        else
+           ratio_errors=zero
+        endif
      end if
 
      if (lowlevelsat .and. twodvar_regional) then
@@ -906,20 +912,17 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term =log((arg+wgross)/(one+wgross))
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
-          valqc = -two*rat_err2*term
+           valqc = -two*rat_err2*term
         else if(var_jb >tiny_r_kind .and.  var_jb <10.0_r_kind .and. error >tiny_r_kind) then
            if(exp_arg  == zero) then
               wgt=one
            else
-!             wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error*ratio_errors/sqrt(two*var_jb)
               wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-!          term=-two*var_jb*log(cosh((sqrt(val)*ratio_errors)/sqrt(two*var_jb)))
-!          term=-two*var_jb*rat_err2*log(cosh((sqrt(val))/sqrt(two*var_jb)))
-           term=-two*var_jb*ratio_errors*log(cosh(sqrt(val)/sqrt(two*var_jb)))
-           rwgt = wgt/wgtlim
-           valqc = -two*term
+           term=-two*var_jb*log(cosh(sqrt(val)/sqrt(two*var_jb)))
+           valqc = -two*ratio_errors*term
+           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim

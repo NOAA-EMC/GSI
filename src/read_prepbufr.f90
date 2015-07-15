@@ -277,7 +277,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(nconvtype+1)::ntx
   integer(i_kind),allocatable,dimension(:):: isort,iloc
   integer(i_kind) ibfms,thisobtype_usage
-
+  integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr2_uv,ierr_pw !  the position of error table collum
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -477,6 +477,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (blacklst) call blacklist_read(obstype)
 
+  terrmin=half
+  werrmin=one
+  perrmin=0.3_r_kind
+  qerrmin=0.05_r_kind
+  pwerrmin=one
+  tjbmin=zero
+  qjbmin=zero
+  wjbmin=zero
+  pjbmin=zero
 !------------------------------------------------------------------------
 ! Open, then read date from bufr data
   call closbf(lunin)
@@ -948,7 +957,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !          If available, get obs errors from error table
            if(oberrflg)then
-
 !             Set lower limits for observation errors
               terrmin=half
               werrmin=one
@@ -961,7 +969,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pjbmin=zero
               itypey=kx
               if (psob)  then
-                 itypex=itypey-99
+!                 itypex=itypey-99
+                 itypex=itypey
                  ierr_ps=index_sub(nc)
                  if(ierr_ps >maxsub_ps) ierr_ps=2
                  if( icsubtype(nc) /= isuble_ps(itypex,ierr_ps-1)) then
@@ -972,6 +981,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  do k=1,levs
                     ppb=obsdat(1,k)
                     if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
+                    cat=nint(min(obsdat(10,k),qcmark_huge))
+                    if (cat /=0 ) cycle
                     ppb=max(zero,min(ppb,r2000))
                     if(ppb>=etabl_ps(itypex,1,1)) k1_ps=1
                     do kl=1,32
@@ -987,7 +998,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     endif
                     del_ps=max(zero,min(del_ps,one))
                     if(oberrflg)then
-!                      write(6,*) 'READ_PREPBUFR_PS:',itypex,k1_ps,ierr_ps,k2_ps,ierr_ps
                        obserr(1,k)=(one-del_ps)*etabl_ps(itypex,k1_ps,ierr_ps)+del_ps*etabl_ps(itypex,k2_ps,ierr_ps)
 ! Surface pressure error
                        obserr(1,k)=max(obserr(1,k),perrmin)
@@ -996,13 +1006,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Surface pressure b
                     var_jb(1,k)=max(var_jb(1,k),pjbmin)
                     if (var_jb(1,k) >=10.0_r_kind) var_jb(1,k)=zero
-!                   if(itypey==180) then
-!                      write(6,*) 'READ_PREPBUFR:120_ps,obserr,var_jb=',obserr(1,k),var_jb(1,k),ppb
-!                   endif
                  enddo
               endif
               if (tob) then
-                 itypex=itypey-99
+!                 itypex=itypey-99
+                 itypex=itypey
                  ierr_t=index_sub(nc)
                  if(ierr_t >maxsub_t) ierr_t=2
                  if( icsubtype(nc) /= isuble_t(itypex,ierr_t-1)) then
@@ -1037,13 +1045,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     var_jb(3,k)=(one-del_t)*btabl_t(itypex,k1_t,ierr_t)+del_t*btabl_t(itypex,k2_t,ierr_t)
                     var_jb(3,k)=max(var_jb(3,k),tjbmin)
                     if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
-!                    if(itypey==180) then
-!                      write(6,*) 'READ_PREPBUFR:120_t,obserr,var_jb=',obserr(3,k),var_jb(3,k),ppb
-!                    endif
+                     
                  enddo
               endif
               if (qob) then
-                 itypex=itypey-99
+!                 itypex=itypey-99
+                 itypex=itypey
                  ierr_q=index_sub(nc)
                  if(ierr_q >maxsub_q) ierr_q=2
                  if( icsubtype(nc) /= isuble_q(itypex,ierr_q-1)) then
@@ -1084,7 +1091,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  enddo
              endif
              if (uvob) then
-                itypex=itypey-199
+!                itypex=itypey-199
+                itypex=itypey
                 ierr_uv=index_sub(nc)
                 ierr2_uv=ierr_uv-1
                 if(ierr_uv >maxsub_uv) ierr_uv=2
@@ -1126,7 +1134,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                 enddo
              endif
              if (pwob)  then
-                itypex=itypey-149
+!                itypex=itypey-149
+                itypex=itypey
                 ierr_pw=index_sub(nc)
                 if(ierr_pw >maxsub_pw) ierr_pw=2
                 if( icsubtype(nc) /= isuble_pw(itypex,ierr_pw-1)) then
@@ -1414,6 +1423,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(visob) then
                  visqm=0    ! need to fix this later
                  qm=visqm
+!! RY: check this late when using tdob??
               else if(tdob) then
                  if(obsdat(12,k) > r0_01_bmiss)cycle loop_k_levs !you have a similar statement further down / MPondeca
                  tdqm=qqm(k)

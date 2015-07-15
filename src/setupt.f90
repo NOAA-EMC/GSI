@@ -300,6 +300,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
   if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   var_jb=zero
+
+!  handle multiple reported data at a station
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -316,13 +318,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end do
   end do
 
-
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      ii=0
      nchar=1
      nreal=19
-     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
+    if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
           nreal=nreal+npredt+1
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
@@ -625,19 +626,29 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then                  
-        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind )then 
-            qcgross=three*qcgross                    ! Terrain aware modification
+     if (twodvar_regional) then
+
+        ! Gross error relaxation for when buddycheck_t==.true.
+        if (buddycheck_t) then 
+           if (buddyuse(i)==1) then
+              ! - Passed buddy check, relax gross qc
+              qcgross=three*qcgross
+              data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
+                                                    ! in diag files  (will show as an extra 0.50 appended) 
+           else if (buddyuse(i)==0) then
+              ! - Buddy check did not run (too few buddies, rusage >= 100, outside twindow, etc.)
+              ! - In the case of an isolated ob in complex terrain, see about relaxing the the gross qc 
+              if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+                 qcgross=three*qcgross               ! Terrain aware modification
                                                      ! to gross error check
-            if (buddycheck_t .and.buddyuse(i)==1) then
-               qcgross=two*qcgross                  ! Relax even more for terrain in cases where 
-               data(iuse,i)=data(iuse,i)+0.50_r_kind ! buddy check passes.  Label usage so we can identify obs  
-                                                     ! with extra relaxed gross qc in diag files 
-            end if                                   ! (will show as an extra 0.75 appended)
-        else if (buddycheck_t .and. buddyuse(i)==1) then
-            qcgross=three*qcgross
-            data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
-                                                  ! in diag files  (will show as an extra 0.50 appended)            
+              end if         
+           else if (buddyuse(i)==-1) then
+              ! - Observation has failed the buddy check - reject.
+              ratio_errors = zero
+           end if
+        else if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+          qcgross=three*qcgross               ! Terrain aware modification
+                                              ! to gross error check       
         end if  
      endif
 
@@ -683,13 +694,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(exp_arg  == zero) then
               wgt=one
            else
-!              wgt=ddiff*error*ratio_errors/sqrt(two*var_jb)
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
-           rwgt = wgt/wgtlim
-           valqc = -two*term
+           term= -two*var_jb*log(cosh(val/sqrt(two*var_jb)))
+           valqc = -two*ratio_errors*term
+           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim
@@ -866,7 +876,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         else
            rdiagbuf(12,ii) = -one
         endif
-
         err_input = data(ier2,i)
         err_adjst = data(ier,i)
         if (ratio_errors*error>tiny_r_kind) then

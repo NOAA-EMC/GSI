@@ -176,25 +176,22 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
      
         if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
-!          pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)*qptr%raterr2/(two*qptr%jb))))
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo
         endif
 
         if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
-            out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
+           out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
            do kk=2,nstep
               out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
-
-          do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
-          end do
-       else
-          out(1) = out(1)+pen(1)*qptr%raterr2
-          do kk=2,nstep
+           end do
+        else
+           out(1) = out(1)+pen(1)*qptr%raterr2
+           do kk=2,nstep
              out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
-          end do
-       endif
+           end do
+        endif
+
      end if
      qptr => qptr%llpoint
 

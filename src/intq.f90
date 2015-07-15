@@ -182,8 +182,17 @@ subroutine intq_(qhead,rval,sval)
               val=sqrt(two*qptr%jb)*tanh(sqrt(qptr%err2)*val/sqrt(two*qptr%jb))
            endif
            if ( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+!-------------------------------------------------------------------------
+!RY:  in intt,intps,intq,intw
+!     two ways to use the raterr2:
+! (1) inconsistence in using ratio-errors between the penalty and grad
+!            grad = val*sqrt(psptr%raterr2*psptr%err2)
+! KEEP this for a running time check
+! (2): consistence in using ratio_errors between the penalty and grad
+!            grad = val*psptr%raterr2*psptr%err2
+! test (1)
+!-------------------------------------------------------------------------
               grad = val*sqrt(qptr%raterr2*qptr%err2)
-!              grad = val*qptr%raterr2*qptr%err2
            else
               grad = val*qptr%raterr2*qptr%err2
            endif

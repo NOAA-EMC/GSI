@@ -121,7 +121,10 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-  EXE_FILE = global_gsi
+#  EXE_FILE = global_gsi
+#
+  EXE_FILE_OLD  = global_gsi
+  EXE_FILE = ../../exec/urma2p5_gsianl
 
 
 # --------------------
@@ -135,7 +138,7 @@ include $(MAKE_CONF)
 # Log file
 # --------
 
-  LOG_FILE = log.make.$(EXE_FILE)
+  LOG_FILE = log.make.$(EXE_FILE_OLD)
 
 
 # ---------------

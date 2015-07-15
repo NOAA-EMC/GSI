@@ -236,6 +236,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
+  var_jb=zero
+
+! choose only one observation--arbitrarily choose the one with positive time departure
+!  handle multiple-reported data at a station
+
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -250,7 +255,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
      end do
   end do
-
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -486,7 +490,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ratio_errors=zero
 
      else
-        ratio_errors=ratio_errors/sqrt(dup(i))
+        ratio_errors = ratio_errors/sqrt(dup(i))
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
@@ -519,21 +523,17 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term =log((arg+wgross)/(one+wgross))
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
-          valqc = -two*rat_err2*term
+           valqc = -two*rat_err2*term
         else if(var_jb >tiny_r_kind .and.  error >tiny_r_kind .and. var_jb <10.0_r_kind) then
            if(exp_arg  == zero) then
               wgt=one
            else
-!             wgt=ddiff*error*ratio_errors/sqrt(two*var_jb)
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-!          term=-two*var_jb*log(cosh((val*ratio_errors)/sqrt(two*var_jb)))
-!          term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
-           wgt  = wgtlim
-           rwgt = wgt/wgtlim
-           valqc = -two*term
+           term=-two*var_jb*log(cosh(val/sqrt(two*var_jb)))
+           valqc = -two*ratio_errors*term
+           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim

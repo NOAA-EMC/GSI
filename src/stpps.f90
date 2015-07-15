@@ -163,7 +163,6 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !   for Dr. Jim purser' non liear quality control
         if( psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
-!             pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)*psptr%raterr2/(two*psptr%jb))))
               pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)/(two*psptr%jb))))
            enddo
         endif
@@ -178,6 +177,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
               out(kk) = out(kk)+(pen(kk)-pen(1))*psptr%raterr2
            end do
         endif
+
      end if
 
      psptr => psptr%llpoint

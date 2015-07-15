@@ -219,9 +219,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
-!  Check for duplicate observations at same location
-
   dup=one
+!  handle multiple reported data at a station
   do k=1,nobs
      do l=k+1,nobs
         if(data(ilat,k) == data(ilat,l) .and. &
@@ -234,8 +233,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
      end do
   end do
-
-
 ! If requested, save select data for output to diagnostic file
 
   if(conv_diagsave)then
@@ -247,7 +244,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      ii=0
   end if
-
   call dtime_setup()
   do i = 1,nobs
      dtime=data(itime,i)
@@ -436,9 +432,17 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
         ratio_errors = ratio_errors/sqrt(dup(i))
      end if
+! yang: 07/2015: 
+! When variable's pdf follows super-logistic model (Jim's ON468),
+! the current way to use dup is questionable provided that the number of multiple-reports is large. 
+! Currently, the penalty is divided by the dup, which is close to the number of multiple-reports,
+! when variable's pdf is of Gaussian or Gaussian+ uniform distribution. 
+! Say the multiple-reported data is 12 within the observation time window at a
+! station, the dup is close to 12. 
+! The better way is to add an element to store dup in the type X_ob_type, X is
+! the observation type.
 
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false.
-
 
 ! If requested, setup for single obs test.
 
@@ -455,8 +459,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Compute penalty terms, and accumulate statistics.
 
-
      val      = error*ddiff
+
      if(luse(i))then
 
 !    Compute penalty terms (linear & nonlinear qc).
@@ -475,16 +479,13 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         else if(var_jb >tiny_r_kind .and.  error >tiny_r_kind .and. var_jb < 10.0_r_kind)  then
            if(exp_arg  == zero) then
               wgt=one
-            else
-!              wgt=ddiff*error*ratio_errors/sqrt(two*var_jb)
+           else
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-!          term=-two*var_jb*log(cosh((val*ratio_errors)/sqrt(two*var_jb)))
-!          term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
-           rwgt = wgt/wgtlim
-           valqc = -two*term
+           term=-two*var_jb*log(cosh(val/sqrt(two*var_jb)))
+           valqc = -two*ratio_errors*term
+           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim
@@ -593,7 +594,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-!       rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
         rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then

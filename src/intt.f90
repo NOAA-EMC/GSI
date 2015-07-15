@@ -316,7 +316,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            endif
            if ( tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               grad = val*sqrt(tptr%raterr2*tptr%err2)
-!              grad = val*tptr%raterr2*tptr%err2
            else
               grad = val*tptr%raterr2*tptr%err2
            endif

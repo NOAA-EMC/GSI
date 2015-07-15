@@ -114,7 +114,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: maxobs 
      integer(i_kind) :: itype,iobsub,itypey 
      integer(i_kind) :: ierr_ps,ierr_q,ierr_t,ierr_uv 
-     integer(i_kind) :: itype
      integer(i_kind) :: iecol 
      integer(i_kind) :: qcm,lim_qm
      integer(i_kind) :: p_qm,g_qm,t_qm,q_qm,uv_qm,wspd_qm,ps_qm

@@ -207,10 +207,20 @@ subroutine intw_(whead,rval,sval)
               valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
            endif
            if ( wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
-              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
-              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
+!-------------------------------------------------------------------------
+!RY:  in intt,intps,intq,intw
+!     two ways to use the raterr2:
+! (1) inconsistence in using ratio-errors between the penalty and grad
+!             gradu = valu*sqrt(wptr%raterr2*wptr%err2)
+!             gradv = valv*sqrt(wptr%raterr2*wptr%err2)
+! KEEP this for a running time check
+! (2): consistence in using ratio_errors between the penalty and grad
 !              gradu = valu*wptr%raterr2*wptr%err2
 !              gradv = valv*wptr%raterr2*wptr%err2
+! test (1)
+!-------------------------------------------------------------------------
+              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
+              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2
