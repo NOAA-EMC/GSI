@@ -120,6 +120,7 @@ echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
+   export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
 fi
 
