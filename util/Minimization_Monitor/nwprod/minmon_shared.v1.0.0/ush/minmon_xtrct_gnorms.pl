@@ -2,7 +2,9 @@
 
 use strict;
 use warnings;
-
+use List::MoreUtils 'true';
+use List::MoreUtils 'first_index';
+use List::MoreUtils 'last_index';
 
 #---------------------------------------------------------------------------
 #  minmo_xtrct_gnorms.pl
@@ -68,8 +70,40 @@ sub updateGnormData {
       close( INFILE );
    }
 
-   push( @filearray, $newln );
-
+   #  Here is the problem Russ encountered after re-running the MinMon:  
+   #     If the cycle time in $newln is the same as an existing record in 
+   #       *.gnorm_data.txt then we end up with 2+ rows for the same cycle time.
+   #       In that case $newln should replace the first existing line
+   #       in @filearray and all other lines that might match should be deleted.
+   #     Else when the cycle time doesn't already exist (the expected condition) 
+   #       it should be pushed into @filearray.
+ 
+   # algorithm:  
+   # =========
+   #   Establish $count of matches on "$yr,$mon,$day,$hr"
+   #     if $count > 0 
+   #       while $count > 1
+   #          get last_index and remove with splice
+   #       replace first_index with $newln
+   #     else
+   #       push $newln
+   # 
+   my $srch_strng = "$yr,$mon,$day,$hr";
+   my $count = true { /$srch_strng/ } @filearray;
+ 
+   if( $count > 0 ) {
+      while( $count > 1 ) {
+         my $l_index = last_index { /$srch_strng/ } @filearray;
+         splice @filearray, $l_index, 1;
+         $count = true { /$srch_strng/ } @filearray;
+      }
+      my $f_index = first_index { /$srch_strng/ } @filearray;
+      splice @filearray, $f_index, 1, $newln;
+   }
+   else {
+      push( @filearray, $newln );
+   }
+   
    open( OUTFILE, ">$outfile" ) or die "Can't open ${$outfile}: $!\n";
    print OUTFILE @filearray;
    close( OUTFILE );
