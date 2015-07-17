@@ -116,8 +116,8 @@ subroutine glbsoi(mype)
   use anisofilter, only: anprewgt_reg
   use anisofilter_glb, only: anprewgt
   use berror, only: create_berror_vars_reg,create_berror_vars,&
-      set_predictors_var,destroy_berror_vars_reg,&
-      destroy_berror_vars,bkgv_flowdep,pcinfo,fut2ps,cwcoveqqcov
+      set_predictors_var,destroy_berror_vars_reg,destroy_berror_vars,& 
+      bkgv_flowdep,pcinfo,fut2ps,cwcoveqqcov
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
       destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph
@@ -172,6 +172,7 @@ subroutine glbsoi(mype)
 
   if(mype==0) write(6,*) 'glbsoi: starting ...'
 
+
 ! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
   if(l_hyb_ens) then
      call hybens_grid_setup
@@ -208,7 +209,7 @@ subroutine glbsoi(mype)
      else
         call create_berror_vars_reg
      end if
-     call prebal_reg
+     call prebal_reg(cwcoveqqcov)
      if (.not. R_option) then
         if(anisotropic) then
            call anprewgt_reg(mype)
@@ -439,4 +440,5 @@ subroutine glbsoi(mype)
   call timer_fnl('glbsoi')
 
 ! End of routine
+
 end subroutine glbsoi

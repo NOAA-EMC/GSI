@@ -39,6 +39,7 @@ subroutine inttd2m(td2mhead,rval,sval)
 ! program history log:
 !
 !   2014-03-19 -  pondeca
+!   2015-03-11 -  pondeca  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     td2mhead
@@ -55,7 +56,7 @@ subroutine inttd2m(td2mhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: td2m_ob_type, lsaveobsens, l_do_adjoint
+  use obsmod, only: td2m_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -102,17 +103,17 @@ subroutine inttd2m(td2mhead,rval,sval)
      val=w1*std2m(j1)+w2*std2m(j2)&
         +w3*std2m(j3)+w4*std2m(j4)
 
-     if (lsaveobsens) then
-        td2mptr%diags%obssen(jiter) = val*td2mptr%raterr2*td2mptr%err2
-     else
-        if (td2mptr%luse) td2mptr%diags%tldepart(jiter)=val
+     if(luse_obsdiag)then
+        if (lsaveobsens) then
+           grad = val*td2mptr%raterr2*td2mptr%err2
+           td2mptr%diags%obssen(jiter) = grad
+        else
+           if (td2mptr%luse) td2mptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = td2mptr%diags%obssen(jiter)
- 
-        else
+        if (.not. lsaveobsens) then
            if(.not.ladtest_obs)  val=val-td2mptr%res
 
 !          gradient of nonlinear operator

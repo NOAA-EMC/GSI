@@ -32,6 +32,8 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 compress="/usrx/local/bin/pigz -f"
+no_diag_rpt=0
+no_error_rpt=0
 
 export SUFFIX=$1
 export DATE=$2
@@ -47,24 +49,31 @@ echo DATE   = $DATE
 #--------------------------------------------------------------------
 
 top_parm=${this_dir}/../../parm
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} (radmon version) file"
+   exit 2
+fi
 
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
-   echo "Unable to source ${RADMON_CONFIG} file"
+   echo "Unable to source ${RADMON_CONFIG} (radmon config) file"
    exit 2
 fi
 
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source ${RADMON_USER_SETTINGS} file"
+   echo "Unable to source ${RADMON_USER_SETTINGS} (radmon user settings) file"
    exit 3
 fi
 
 . ${DE_PARM}/data_extract_config
-export USHgfs=${USHgfs:-$HOMEgfs/ush}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
 #--------------------------------------------------------------------
@@ -186,7 +195,7 @@ if [[ $exit_value == 0 ]]; then
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
    $NCP $DE_SCRIPTS/radmon_err_rpt.sh      ${test_dir}/.
-   $NCP $USHgfs/radmon_getchgrp.pl           ${test_dir}/.
+   $NCP $HOMEradmon/ush/radmon_getchgrp.pl ${test_dir}/.
 
    prev_bad_pen=${TANKverf}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}
@@ -273,13 +282,15 @@ if [[ $exit_value == 0 ]]; then
       mv -f $opr_log opr_log.bu 
       $NCP $tmp_log $opr_log 
 
+   else
+      no_diag_rpt=1 
    fi
 
 
    #--------------------------------------------------------------------
    #  Penalty report processing
    #--------------------------------------------------------------------
-   end=`grep -n '============ ======= ======      Cycle                 Penalty          Bound' ${opr_log}`
+   end=`grep -n '============ ======= ======      Cycle                 Penalty          Bound' ${opr_log} | tail -1`
    opr_log_end=`echo $end | sed 's/:/ /g' | gawk '{print $1}'`
 
    if [[ $opr_log_end -gt 1 ]]; then
@@ -292,16 +303,21 @@ if [[ $exit_value == 0 ]]; then
       #  $outfile
       #------------------------------------------------------------------------
       if [[ -s $outfile ]]; then
+         echo "OUTFILE -s $outfile is TRUE"
          opr_log_end=`expr $opr_log_end + 1`
          gawk "NR>=$opr_log_start && NR<=$opr_log_end" ${opr_log} >> $new_log
          cat $outfile >> $new_log
          echo "End Cycle Data Integrity Report" >> $new_log
       else
+         echo "OUTFILE -s $outfile is FALSE"
          opr_log_end=`expr $opr_log_end - 15`
          gawk "NR>=$opr_log_start && NR<=$opr_log_end" ${opr_log} >> $new_log
+#         echo "NO ERROR REPORT" >> $new_log
+         no_error_rpt=1 
       fi
 
    else
+      
       if [[ -s $outfile ]]; then
          rm -f report.txt
          cp $opr_log $new_log
@@ -338,11 +354,18 @@ if [[ $exit_value == 0 ]]; then
       fi
    fi
 
+   if [[ $no_diag_rpt -eq 1 ]]; then
+      echo "NO DIAG REPORT" >> $new_log
+   fi
+   if [[ $no_error_rpt -eq 1 ]]; then
+      echo "NO ERROR REPORT" >> $new_log
+   fi
+
    $NCP ./$new_log ${LOGdir}/data_extract.${day}.${cycle}.log
 
-   rm -f $new_log
+   #rm -f $new_log
    rm -f $opr_log 
-   rm -f $new_diag $tmp_diag
+   #rm -f $new_diag $tmp_diag
    rm -f $tmp_log
 
    $compress *.ctl

@@ -18,6 +18,8 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !   2012-06-25  parrish - reorganize subroutine smooth2d so use one call in place of 4 calls.
 !   2013-10-19  todling - metguess now holds background; count to fcount (count is intrisic function);
 !                         protect against calls from non-FGAT run
+!   2014-12-03  derber - restructure to do difference before sub2grid to
+!                        optimize code
 !
 !   input argument list:
 !     sfvar     - stream function variance
@@ -327,6 +329,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   if (abs(max_dps0)>tiny_r_kind) rmax_dps0=one/max_dps0
 
 ! Get rescaling factor for each of the variables based on factor, mean, and max
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
@@ -402,8 +405,8 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 ! Declare local variables
   integer(i_kind) i,ii,j,k
 
-  real(r_kind),dimension(lat2*lon2*nsig) :: vd1,vd2
-  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1,work2
+  real(r_kind),dimension(lat2*lon2*nsig) :: vd1
+  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1
   real(r_kind),dimension(sp_a%nc):: spc1
 
   ii=0
@@ -411,14 +414,11 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
      do j=1,lon2
         do i=1,lat2
            ii=ii+1
-           vd1(ii)=vordiv1(i,j,k)
-           vd2(ii)=vordiv2(i,j,k)
+           vd1(ii)=vordiv2(i,j,k)-vordiv1(i,j,k)
         end do
      end do
   end do
   call general_sub2grid(g3,vd1,work1)
-  call general_sub2grid(g3,vd2,work2)
-  work1=work2-work1
 
 ! Perform scalar g2s on work array
 !$omp parallel do schedule(dynamic,1) private(k,spc1)

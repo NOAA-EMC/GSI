@@ -140,6 +140,8 @@ module hybrid_ensemble_parameters
 !   2013-11-22  kleist  - add option for q perturbations
 !   2013-12-03  wu      - add parameter coef_bw for option:betaflg
 !   2014-05-14  wu      - add logical variable vvlocal for vertically verying horizontal localization length in regional
+!   2015-01-22  Hu      - add flag i_en_perts_io to control reading ensemble perturbation.
+!   2015-02-11  Hu      - add flag l_ens_in_diff_time to force GSI hybrid use ensembles not available at analysis time
 !
 ! subroutines included:
 
@@ -211,6 +213,18 @@ module hybrid_ensemble_parameters
 !                                   (global runs only--allows possiblity for non-gaussian ensemble grid)
 !   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
 !   def vvlocal             - logical switch for vertically varying horizontal localization length
+!   def i_en_perts_io       - flag to write out and read in ensemble perturbations in ensemble grid.   
+!                             This is to speed up RAP/HRRR hybrid runs because the
+!                             same ensemble perturbations are used in 6 cycles    
+!                               =0:  No ensemble perturbations IO (default)
+!                               =2:  skip get_gefs_for_regional and read in ensemble
+!                                     perturbations from saved files.
+!   def  l_ens_in_diff_time  -  if use ensembles that are available at different       
+!                               time from analysis time.
+!                             =false: only ensembles available at analysis time
+!                                      can be used for hybrid. (default)
+!                             =true: ensembles available time can be different
+!                                      from analysis time in hybrid analysis
 !
 ! attributes:
 !   language: f90
@@ -257,6 +271,8 @@ module hybrid_ensemble_parameters
   public :: nval_lenz_en
   public :: ntlevs_ens
   public :: enspreproc
+  public :: i_en_perts_io
+  public :: l_ens_in_diff_time
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
   logical enspreproc
@@ -273,6 +289,8 @@ module hybrid_ensemble_parameters
   logical use_gfs_ens
   logical eqspace_ensgrid
   logical vvlocal
+  logical l_ens_in_diff_time
+  integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens,coef_bw
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
@@ -343,6 +361,7 @@ subroutine init_hybrid_ensemble_parameters
   eqspace_ensgrid=.false.
   enspreproc=.false.
   vvlocal=.false.
+  l_ens_in_diff_time=.false.
   coef_bw=0.9_r_kind
   n_ens=0
   nlat_ens=0
@@ -359,6 +378,7 @@ subroutine init_hybrid_ensemble_parameters
   s_ens_v = 30._r_kind       ! grid units
   nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
+  i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
 
 end subroutine init_hybrid_ensemble_parameters
 

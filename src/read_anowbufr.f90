@@ -16,6 +16,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 !   2010-09-13  pagowski adopted prepbufr reader code for 
 !  AIRNow bufr for pm2_5
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -41,7 +42,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
        tll2xy,txy2ll,rlats,rlons,region_dx
   use convinfo, only: nconvtype,ctwind, &
        icuse,ioctype,ictype,cermin,cermax
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use chemmod, only : obs2model_anowbufr_pm2_5,&
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
         elev_missing,site_scale,tunable_error,&
@@ -240,12 +241,12 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            
            call w3fs21(idate5,nmind)
            t4dv=real((nmind-iwinbgn),r_kind)*r60inv
+           obstime=real(nmind,r_kind)
+           tdiff=(obstime-gstime)*r60inv
 
-           if (l4dvar) then
+           if (l4dvar.or.l4densvar) then
               if (t4dv < zero .or. t4dv > winlen) cycle
            else
-              obstime=real(nmind,r_kind)
-              tdiff=(obstime-gstime)*r60inv
               if(abs(tdiff) > twindin .or. &
                     abs(tdiff) > ctwind(ikx)) cycle  ! outside time window
            endif

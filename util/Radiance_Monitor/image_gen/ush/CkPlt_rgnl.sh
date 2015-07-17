@@ -56,6 +56,14 @@ export RAD_AREA=rgn
 export PLOT_ALL_REGIONS=
 
 top_parm=${this_dir}/../../parm
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
+
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
 if [[ -s ${RADMON_CONFIG} ]]; then
@@ -97,7 +105,6 @@ mkdir -p $tmpdir
 cd $tmpdir
 
 export PLOT=0
-export PLOT_HORIZ=0
 
 mkdir -p $LOGdir
 
@@ -164,9 +171,9 @@ fi
 
 export PLOT=1
 
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+#if [[ "$CYA" = "00" ]];then
+#   export PLOT_HORIZ=1
+#fi
 
 
 #--------------------------------------------------------------------

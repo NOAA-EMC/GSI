@@ -36,9 +36,12 @@ shell=ksh
 # 
 # Need better reference here!
 if [[ $SUFFIX = "wopr" ]]; then
-   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/wopr"
-else
-   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/wopr"
+elif [[ $SUFFIX = "pr4dev" ]]; then 
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/pr4dev"
+elif [[ $SUFFIX = "nrx" ]]; then
+#   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
 fi
 
 HTAR="/usrx/local/hpss/htar"
@@ -107,10 +110,10 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    done
 
    #------------------------------------------------------------------
-   #  Remove any directories in $ARCHIVE_DIR in excess of 60 
+   #  Remove any directories in $ARCHIVE_DIR in excess of 30 
    #------------------------------------------------------------------
    total=`ls -d1 ${ARCHIVE_DIR}/radmon.* | wc -l`
-   ((extra=total-61)) 
+   ((extra=total-31)) 
 
    if [[ $extra -gt 0 ]]; then
       `ls -d1 ${ARCHIVE_DIR}/radmon.* | head -n $extra | xargs rm -rf`

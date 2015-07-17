@@ -13,6 +13,8 @@
 !                                 MHS antenna patterns. add airs
 !                                 and iasi.
 !   2011-09-13  gayno             improve module's error handling
+!   2015-03-24  ejones            changed maxinstr to accomodate the addition of
+!                                 megha tropiques
 !
 ! subroutines included:
 !   sub fov_ellipse_crosstrk   - calc lat/lon of fov polygon
@@ -57,13 +59,14 @@
  private
 
  integer(i_kind) , parameter, public    :: npoly = 30
- integer(i_kind) , parameter, private   :: maxinstr = 18
+ integer(i_kind) , parameter, private   :: maxinstr = 19
  integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048,2048,2048, &
                                                               56,56,56, &
                                                               56,56, 8, &
                                                               11,30,90, &
                                                               90,96,96, &
-                                                              96,90,30 /)
+                                                              96,90,30, &
+                                                              130 /)
 
  real(r_kind) , dimension(:), allocatable, private :: alongtrackangle
  real(r_kind) , dimension(:), allocatable, private :: crosstrackangle
@@ -726,6 +729,7 @@
 !   2011-09-13  gayno - pass back bad status (variable valid)
 !                       if inputs are incorrect.  use amsua
 !                       noaa19 coefficients as default for aqua.
+!   2015-03-24  ejones    - Add SAPHIR
 !
 ! input argument list:
 !   instr      - Instrument number
@@ -747,6 +751,7 @@
 !                16 = ATMS 1.1 DEG
 !                17 = AIRS
 !                18 = IASI
+!                19 = SAPHIR
 !   satid     - satellite id
 !   expansion - expansion factor.  Must be 1.0 for accurate renderine, 
 !               > 1.0 makes bigger ellipses, < 1.0 makes smaller ellipses.
@@ -1064,6 +1069,7 @@
 !   2007-08-09  kleespies
 !   2007-08-13  gayno - modified for gsi software standards
 !   2009-09-21  kleespies - add AIRS and IASI
+!   2015-03-24  ejones    - add SAPHIR
 !
 ! input argument list:
 !   instr     - Instrument number
@@ -1085,6 +1091,7 @@
 !            16 = ATMS 1.1 DEG
 !            17 = AIRS
 !            18 = IASI
+!            19 = SAPHIR
 !   height    - height of satellite in km
 !   fov       - fov number  min = 1, max as below
 !	        2048 = AVHRR-2 LAC/HRPT
@@ -1102,6 +1109,7 @@
 !               96 = ATMS
 !               90 = AIRS
 !               120 = IASI
+!               130 = SAPHIR
 !  
 ! output argument list:
 !   AlongTrackAngle    - along track angle of a fov
@@ -1145,25 +1153,25 @@
                                                       9.4737e0_r_kind, 3.e0_r_kind+one/three,                 &
                                                       1.1e0_r_kind , 10.e0_r_kind/9.e0_r_kind , 1.1e0_r_kind, &
                                                       1.1e0_r_kind, 1.1e0_r_kind,                             & 
-                                                      1.1e0_r_kind, 3.e0_r_kind+one/three  /)
+                                                      1.1e0_r_kind, 3.e0_r_kind+one/three, 0.6660465_r_kind  /)
  real(r_kind) , dimension(maxinstr) :: fovangle  = (/ 0.0745_r_kind,   0.0745_r_kind,  0.0745_r_kind,         &
                                                       1.22_r_kind,  1.40_r_kind,  1.40_r_kind,                &
                                                       1.40_r_kind,  0.70_r_kind,  10.0_r_kind,                &
                                                       7.5_r_kind,  3.3_r_kind,    1.1_r_kind,                 &
                                                       1.1_r_kind ,   5.2_r_kind,   2.2_r_kind,   1.1_r_kind,  &
-                                                      1.1_r_kind, 0.839383_r_kind /)
+                                                      1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind /)
  real(r_kind) , dimension(maxinstr) :: halfscan  = (/ 55.37_r_kind, 55.37_r_kind, 55.25_r_kind, 49.5_r_kind,  &
                                                       49.5_r_kind,  49.5_r_kind,  49.5_r_kind,  49.5_r_kind,  &
                                                       35.0_r_kind,  47.3685_r_kind,                           &
                                                       48._r_kind+one/three,  48.95_r_kind,          &
                                                       48.95_r_kind, 52.73_r_kind, 52.73_r_kind, 52.73_r_kind, &
                                                       44.5_r_kind*10.0_r_kind/9.0_r_kind,                     &
-                                                      48._r_kind+one/three  /)
+                                                      48._r_kind+one/three, 42.96_r_kind  /)
  real(r_kind) , dimension(maxinstr) :: assymetry = (/ zero,         zero,         zero,         zero,         &
                                                       zero,         zero,        -1.8_r_kind,   zero,         &
                                                       zero,         zero,         zero,         zero,         &
                                                       zero,         zero,         zero,         zero,         &
-                                                      zero,         zero       /)
+                                                      zero,         zero,         zero       /)
 
 ! declare local variables
  real(r_kind) nadirangle, nadirangle_m, nadirangle_p
@@ -1218,6 +1226,7 @@
 !   2009-12-20  gayno - add metop-b/c 
 !   2011-09-13  gayno - pass back bad status for undefined 
 !                       satellites
+!   2015-03-24  ejones - add megha tropiques
 !
 ! input argument list:
 !   satid         - satellite id
@@ -1258,6 +1267,8 @@
        height=705._r_kind
     case('metop-a', 'metop-b', 'metop-c')
        height=817._r_kind
+    case('meghat')
+       height=866._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)
        valid=.false.
@@ -1363,7 +1374,7 @@
                                                      1.40_r_kind,   0.70_r_kind,   10.0_r_kind,             &
                                                      7.5_r_kind,    3.3_r_kind,    1.1_r_kind,              &
                                                      1.1_r_kind,    5.2_r_kind,    2.2_r_kind, 1.1_r_kind,  &
-                                                     1.1_r_kind,0.839383_r_kind /)
+                                                     1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind /)
 
 ! Declare local variables.
  integer(i_kind) :: fov

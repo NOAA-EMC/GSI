@@ -1,4 +1,4 @@
-subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,sis)
+subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis)
 !
 !   PRGMMR: Shun Liu          ORG: EMC        DATE: 2013-05-14
 !
@@ -7,6 +7,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 !     code 
 !
 ! PROGRAM HISTORY LOG:
+!    2014-12-03 derber - remove unused variables
 !
 !   variable list
 !
@@ -32,9 +33,8 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   implicit none
 
 ! Declare passed variables
-  character(len=*),intent(in   ) :: obstype,infile
+  character(len=*),intent(in   ) :: obstype
   character(len=20),intent(in  ) :: sis
-  real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nouse
 ! real(r_kind),dimension(nlat,nlon,nsig),intent(in):: hgtl_full
@@ -50,7 +50,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   real(r_kind) dlatmax,dlonmax,dlatmin,dlonmin
   real(r_kind) usage
 
-  integer(i_kind) nreal,nchanl,ilat,ilon,ikx
+  integer(i_kind) nreal,nchanl,ilat,ilon
 
   real(r_kind),parameter:: r360=360.0_r_kind
 
@@ -297,6 +297,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
 !     from a bufr file                      
 !
 ! PROGRAM HISTORY LOG:
+!   2015-05-12  s. liu  - increase max_obstime from 10 to 20 
 !
 !   variable list
 !
@@ -324,7 +325,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
   character(80):: hdstr='YEAR  MNTH  DAYS HOUR  MINU  SECO'
   real(8) :: hdr(6)
 
-  INTEGER(i_kind) :: ireadmg,ireadsb
+  integer(i_kind) :: ireadmg,ireadsb
 
   character(8) subset
   integer(i_kind) :: unit_in=10,idate,iret,nmsg,ntb
@@ -337,7 +338,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
 
   INTEGER(i_kind) ::  obs_time
 
-  INTEGER(i_kind),parameter :: max_obstime=10
+  INTEGER(i_kind),parameter :: max_obstime=20
   integer(i_kind) :: num_obstime_all(max_obstime)  
   integer(i_kind) :: num_subset_all(max_obstime) 
   integer(i_kind) :: num_obstime_hh(max_obstime) 

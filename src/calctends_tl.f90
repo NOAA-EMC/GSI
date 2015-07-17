@@ -33,6 +33,8 @@ subroutine calctends_tl(fields,fields_dt,mype)
 !   2013-10-19  todling - revamp interface (pass all in bundles); derivatives and
 !                         guess fields also in bundles
 !   2013-10-28  todling - rename p3d to prse
+!   2014-06-05  eliu    - move location to get cw index(icw) from sv table; add condition
+!                         to get pointer for cw 
 !
 ! usage:
 !   input argument list:
@@ -122,13 +124,20 @@ subroutine calctends_tl(fields,fields_dt,mype)
 ! linearized about guess solution, so set it flag accordingly
   it=ntguessig
 
+  if(fields%n2d>0) allocate(fvars2d(fields%n2d))
+  if(fields%n3d>0) allocate(fvars3d(fields%n3d))
+  call gsi_bundleinquire (fields,'shortnames::2d',fvars2d,istatus)
+  call gsi_bundleinquire (fields,'shortnames::3d',fvars3d,istatus)
+  icw=getindex(fvars3d,'cw')
+
   ier=0
   call gsi_bundlegetpointer(fields,'u',   u,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields,'v',   v,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields,'tv',  t,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields,'q',   q,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields,'oz' , oz,  istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(fields,'cw' , cw,  istatus);ier=istatus+ier
+  if (icw>0) &  
+  call gsi_bundlegetpointer(fields,'cw' , cw,  istatus);ier=istatus+ier 
   call gsi_bundlegetpointer(fields,'prse',pri, istatus);ier=istatus+ier
   if(ier/=0) then
      write(6,*) myname,': pointers not found on input, ier=', ier
@@ -141,7 +150,8 @@ subroutine calctends_tl(fields,fields_dt,mype)
   call gsi_bundlegetpointer(fields_dt,'tv',  t_t, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields_dt,'q',   q_t, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(fields_dt,'oz' , oz_t,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(fields_dt,'cw' , cw_t,istatus);ier=istatus+ier
+  if (icw>0) &
+  call gsi_bundlegetpointer(fields_dt,'cw' , cw_t,istatus);ier=istatus+ier       
   call gsi_bundlegetpointer(fields_dt,'prse',p_t ,istatus);ier=istatus+ier
   if(ier/=0) then
      write(6,*) myname,': pointers not found on tendency, ier=', ier
@@ -200,13 +210,6 @@ subroutine calctends_tl(fields,fields_dt,mype)
   end if
 
 ! preliminaries:
-
-  if(fields%n2d>0) allocate(fvars2d(fields%n2d))
-  if(fields%n3d>0) allocate(fvars3d(fields%n3d))
-  call gsi_bundleinquire (fields,'shortnames::2d',fvars2d,istatus)
-  call gsi_bundleinquire (fields,'shortnames::3d',fvars3d,istatus)
-  icw=getindex(fvars3d,'cw')  
-
   ihave_xtra_derivatives=.false. 
   ier=0
   call gsi_bundledup ( fields, xderivative, 'lon-derivatives', istatus )

@@ -20,8 +20,8 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  Plot_glbl.sh suffix start_date end_date"
-  echo "            File name for CkPlt_glbl.sh may be full or relative path"
+  echo "Usage:  Plot.sh suffix start_date end_date"
+  echo "            File name for Plot.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
   echo "            start_date and end_date are in the format YYYYMMDDHH."
@@ -70,6 +70,15 @@ fi
 #--------------------------------------------------------------------
 
 top_parm=${this_dir}/../../parm
+
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
+
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
 if [[ -s ${RADMON_CONFIG} ]]; then
@@ -139,7 +148,6 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
 #--------------------------------------------------------------------
 # Check status of plot jobs. If any are still running then exit
 # this script. If none are running then remove any old job records 
@@ -186,9 +194,9 @@ export PDY=`echo $PDATE|cut -c1-8`
 # Make horizontal plots only on 00z cycle.  All other plotting
 # is done with each cycle. 
 #--------------------------------------------------------------------
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+#if [[ "$CYA" = "00" ]];then
+#   export PLOT_HORIZ=1
+#fi
 
 
 if [[ -d $PLOT_WORK_DIR ]]; then

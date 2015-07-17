@@ -42,6 +42,7 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2012-12-15  zhu     - add treatment of dssv for cw for all-sky radiance
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !                          (fixes WCOSS debug compile error)
 !
@@ -73,9 +74,9 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw,nhscrf
+       init_rftable,hzscl,slw,nhscrf,cwcoveqqcov
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
-  use jfunc, only: varq,qoption
+  use jfunc, only: varq,qoption,varcw,cwoption
   use control_vectors, only: cvars2d,cvars3d
   use control_vectors, only: as2d,as3d,atsfc_sdv
   use control_vectors, only: nrf,nc3d,nc2d,nvars,mvars !_RT ,nrf3_loc,nrf2_loc,nrf_var
@@ -111,7 +112,7 @@ subroutine prewgt_reg(mype)
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
-  integer(i_kind) nrf3_oz,nrf2_sst,istatus
+  integer(i_kind) nrf3_oz,nrf2_sst,nrf3_cw,istatus
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) samp2,dl1,dl2,d
@@ -151,6 +152,7 @@ subroutine prewgt_reg(mype)
 
 ! Get required indexes from CV var names
   nrf3_oz  = getindex(cvars3d,'oz')
+  nrf3_cw  = getindex(cvars3d,'cw')
   nrf2_sst = getindex(cvars2d,'sst')
 
 ! Read dimension of stats file
@@ -164,7 +166,7 @@ subroutine prewgt_reg(mype)
   allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
-  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,mype,inerr)
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
 
 ! find ozmz for background error variance
   kb=0
@@ -313,7 +315,7 @@ subroutine prewgt_reg(mype)
   end do
 
 ! Special case of dssv for qoption=2 and cw
-  if (qoption==2 .or. getindex(cvars3d,'cw')>0) call compute_qvar3d
+  if (qoption==2) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d

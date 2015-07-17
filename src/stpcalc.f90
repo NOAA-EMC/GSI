@@ -252,7 +252,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
   real(r_quad),dimension(4):: pbcqmin,pbcqmax,pbcqmini,pbcqmaxi
-  real(r_quad),dimension(3):: pstpdryi,pstpdry
   real(r_quad) :: dirx_yhat,diry_xhat,xhat_yhat,dirx_diry
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
@@ -371,19 +370,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Penalty, b, c for dry pressure
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
-       call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3))
+       call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3),1)
     else
-       pstpdry=zero_quad
-       do ibin=1,nobs_bins
-          pstpdryi=zero_quad
-          call stpjcpdry(dval(ibin),sval(ibin),pstpdryi(1),pstpdryi(2),pstpdryi(3))
-          do j=1,3
-             pstpdry(j) = pstpdry(j) + pstpdryi(j)
-          end do         
-       end do
-       do j=1,3
-          pstart(j,3) = pstpdry(j)
-       end do
+       call stpjcpdry(dval,sval,pstart(1,3),pstart(2,3),pstart(3,3),nobs_bins)
     end if
   end if
 

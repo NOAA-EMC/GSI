@@ -3,10 +3,9 @@
 #------------------------------------------------------------------
 #  makeall
 #
-#  This scripts makes each of the executables in the data_extract
-#  and image_gen subdirectories for both rgn (regional) and glb
-#  (global) sources.  The executables will be put into the correct
-#  exec directories. 
+#  This scripts makes all of the executables in the nwprod, 
+#  data_extract and image_gen subdirectories and places the 
+#  executables into the proper exec directories.
 #
 #  An optional argument to this script is "clean".  Use this if 
 #  you wish to remove *.o, *.mod, and *.x files in the various src 
@@ -20,7 +19,13 @@ top_level=`pwd`
 machine=`./get_hostname.pl`
 echo "machine = $machine"
 
-if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
+#------------------------------
+#  set correct version numbers
+#------------------------------
+. ${top_level}/parm/radmon.ver
+
+
+if [[ ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    echo Building executables on ${machine}
    echo
 
@@ -35,45 +40,49 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    fi
 
    executables="angle bcoef bcor time"
-   echo "Making data extraction executables in data_extract/nwprod/sorc:"
+   echo "Making executables in nwprod/radmon_shared.v${radmon_shared_ver}/sorc:"
    for var in ${executables}; do
       if [[ $var = "angle" ]]; then
-         cd ${top_level}/nwprod/sorc/verf_radang.fd
+         cd ${top_level}/nwprod/radmon_shared.v${radmon_shared_ver}/sorc/verf_radang.fd
       else
-         cd ${top_level}/nwprod/sorc/verf_rad${var}.fd
+         cd ${top_level}/nwprod/radmon_shared.v${radmon_shared_ver}/sorc/verf_rad${var}.fd
       fi
 
-      rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+      if [[ ${machine} != "wcoss" ]]; then
+         rm -f Makefile.conf
+         cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+      fi
 
       echo make ${var} ${mode}
       make ${mode}
       echo
 
       if [[ $mode = all ]]; then
-         cp -f radmon_${var} ${top_level}/nwprod/exec/.
+         cp -f radmon_${var} ${top_level}/nwprod/radmon_shared.v${radmon_shared_ver}/exec/.
       fi
    done
 
-   cd ${top_level}/nwprod/sorc/make_base.fd
+   cd ${top_level}/data_extract/sorc/make_base.fd
    rm -f Makefile.conf
-   ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+   cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
    make ${mode}  
-   if [[ $mode = all ]]; then
-      cp -f make_base ${top_level}/nwprod/exec/.
-   fi
+
+   cd ${top_level}/data_extract/sorc/validate_time.fd
+   rm -f Makefile.conf
+   cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+   make ${mode}  
 
 
    #------------------------------------------------------------------
    #  make image generation executables
    #------------------------------------------------------------------
-   executables="horiz"
+   executables="horiz summary time bcoef angle"
 
    cd ${top_level}/image_gen/src
    echo "Making image_gen/src:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
+      cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}

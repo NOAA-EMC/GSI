@@ -22,9 +22,13 @@ module crtm_interface
 !                        (2) skip loading geometry and surface structures for modis_aod
 !                        (3) separate jacobian calculation for modis_aod
 !   2012-01-17  sienkiewicz - pass date to crtm for SSU cell pressure
+!   2013-02-25  zhu - add cold_start option for regional applications
 !   2013-10-19  todling - metguess now holds background
 !   2013-11-16  todling - merge in latest DTC AOD development;
 !                         revisit handling of green-house-gases
+!   2014-01-01  li     - change the protection of data_s(itz_tr)
+!   2014-02-26  zhu - add non zero jacobian
+!   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
 !
 ! subroutines included:
 !   sub init_crtm
@@ -41,7 +45,7 @@ use kinds,only: r_kind,i_kind,r_single
 use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
-    crtm_surface_create,crtm_k_matrix, &
+    crtm_surface_create,crtm_k_matrix,crtm_forward, &   
     ssu_input_setvalue, &
     crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
@@ -50,7 +54,8 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated, &
     crtm_irlandcoeff_classification, &
-    crtm_kind => fp
+    crtm_kind => fp, &
+    crtm_microwave_sensor => microwave_sensor
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
@@ -180,6 +185,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   type(crtm_atmosphere_type),save,allocatable,dimension(:,:):: atmosphere_k
   type(crtm_surface_type),save,allocatable,dimension(:,:):: surface_k
   type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution
+  type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution0              
   type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution_k
 
 ! Mapping land surface type of GFS to CRTM
@@ -244,8 +250,11 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !   2011-05-20  mccarty - add atms wmo_sat_id hack (currently commented out)
 !   2011-07-20  zhu     - modified codes for lcw4crtm
 !   2012-03-12  yang    - modify to use ch4,n2o,and co
-!   2014-01-31  mkim    - add flexibility for the case when ql and qi are separate control variables
-!                         for all-sky MW radiance DA   
+!   2012-12-03  eliu    - add logic for RH total 
+!   2014-01-31  mkim    - add flexibility in the variable lcw4crtm for the case when ql and 
+!                         qi are separate control variables for all-sky MW radiance DA   
+!   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
+!                         clear-sky Tb under all-sky condition 
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -388,7 +397,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     if(n_clouds>0) then
        call gsi_metguess_get ( 'clouds::3d', n_actual_clouds, ier )
        if (getindex(cvars3d,'cw')>0 .or. getindex(cvars3d,'ql')>0 .or. getindex(cvars3d,'qi')>0) lcw4crtm=.true.
-
+                                                                                                                              
        if (mype==0) write(0,*) myname_, " n_clouds, n_actual_clouds: ", n_clouds, n_actual_clouds
 
        allocate(cloud_cont(msig,n_clouds))
@@ -577,6 +586,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Allocate structures for radiative transfer
 
+ if (lcw4crtm) allocate(rtsolution0(channelinfo(sensorindex)%n_channels,1))       
+
  allocate(&
     rtsolution  (channelinfo(sensorindex)%n_channels,1),&
     rtsolution_k(channelinfo(sensorindex)%n_channels,1),&
@@ -598,18 +609,32 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
-    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+ if ( channelinfo(sensorindex)%sensor_type == crtm_microwave_sensor ) then
+   call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+   if (.NOT.(crtm_surface_associated(surface(1)))) then
+      write(6,*)myname_,' ***ERROR** creating surface.'
+   else
+      surface(1)%sensordata%sensor_id        = channelinfo(sensorindex)%sensor_id
+      surface(1)%sensordata%wmo_sensor_id    = channelinfo(sensorindex)%wmo_sensor_id
+      surface(1)%sensordata%wmo_satellite_id = channelinfo(sensorindex)%wmo_satellite_id
+      surface(1)%sensordata%sensor_channel   = channelinfo(sensorindex)%sensor_channel
+   end if
+ end if
 !_RTod-NOTE endif
+ if (lcw4crtm) &                                       
+ call crtm_rtsolution_create(rtsolution0,msig) 
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
  call crtm_options_create(options,nchanl)
 
  if (.NOT.(crtm_atmosphere_associated(atmosphere(1)))) &
     write(6,*)myname_,' ***ERROR** creating atmosphere.'
- if (.NOT.(crtm_surface_associated(surface(1)))) &
-    write(6,*)myname_,' ***ERROR** creating surface.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
+ if (lcw4crtm) then                                            
+ if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution0)))) &  
+    write(6,*)' ***ERROR** creating rtsolution0.'             
+ endif                                                        
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution_k)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution_k.'
  if (.NOT.(ANY(crtm_options_associated(options)))) &
@@ -632,19 +657,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !!  surface(1)%sensordata%select_wmo_sensor_id  = channelinfo(1)%wmo_sensor_id
 !! RB-1.1.rev1855 CRTM
 
- surface(1)%sensordata%sensor_id             =  channelinfo(sensorindex)%sensor_id
- surface(1)%sensordata%WMO_sensor_id         =  channelinfo(sensorindex)%WMO_sensor_id
- surface(1)%sensordata%WMO_Satellite_id      =  channelinfo(sensorindex)%WMO_Satellite_id
- surface(1)%sensordata%sensor_channel        =  channelinfo(sensorindex)%sensor_channel
-
-
  atmosphere(1)%n_layers = msig
  atmosphere(1)%absorber_id(1) = H2O_ID
  atmosphere(1)%absorber_id(2) = O3_ID
  atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
  atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
  atmosphere(1)%level_pressure(0) = TOA_PRESSURE
-
 
 ! Currently all considered trace gases affect CRTM. Load trace gases into CRTM atmosphere
  ico2=-1
@@ -747,6 +765,8 @@ subroutine destroy_crtm
   endif
   call crtm_atmosphere_destroy(atmosphere(1))
   call crtm_surface_destroy(surface(1))
+  if (lcw4crtm) &     
+  call crtm_rtsolution_destroy(rtsolution0)    
   call crtm_rtsolution_destroy(rtsolution)
   call crtm_rtsolution_destroy(rtsolution_k)
   call crtm_options_destroy(options)
@@ -756,11 +776,17 @@ subroutine destroy_crtm
      write(6,*)myname_,' ***ERROR** destroying surface.'
   if (ANY(crtm_rtsolution_associated(rtsolution))) &
      write(6,*)myname_,' ***ERROR** destroying rtsolution.'
+  if (lcw4crtm) then            
+  if (ANY(crtm_rtsolution_associated(rtsolution0))) &    
+     write(6,*)' ***ERROR** destroying rtsolution0.'    
+  endif                                                 
   if (ANY(crtm_rtsolution_associated(rtsolution_k))) &
      write(6,*)myname_,' ***ERROR** destroying rtsolution_k.'
   if (ANY(crtm_options_associated(options))) &
      write(6,*)myname_,' ***ERROR** destroying options.'
   deallocate(rtsolution,atmosphere_k,surface_k,rtsolution_k)
+  if (lcw4crtm) &         
+  deallocate(rtsolution0) 
   if(n_aerosols>0)then
      deallocate(aero_names)
      deallocate(aero,aero_conc,auxrh)
@@ -786,8 +812,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                    h,q,clw_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,ptau5,ts, &
-                   emissivity_k,temp,wmix,jacobian,error_status, &
-                   layer_od,jacobian_aero)
+                   emissivity_k,temp,wmix,jacobian,error_status,tsim_clr, &
+                   layer_od,jacobian_aero)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    call_crtm   creates vertical profile of t,q,oz,p,zs,etc., 
@@ -806,11 +832,17 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2011-05-17  auligne/todling - add handling for hydrometeors
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-07-05  zhu - add cloud_efr & cloudefr; add cloud_efr & jcloud in the interface of Set_CRTM_Cloud
-!   2011-07-05  zhu - rewrite cloud_cont & cwj when total cloud condensate is control variable (lcw4crtm)
+!   2011-07-05  zhu - rewrite cloud_cont & cwj for cloud control variables (lcw4crtm)
 !   2012-03-12  veldelst-- add a internal interpolation function (option)
 !   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
 !                       invoked by the global_anavinfo.ghg.l64.txt
+!   2013-02-25  zhu - add cold_start option for regional applications
 !   2014-01-31  mkim-- remove 60.0degree boundary for icmask for all-sky MW radiance DA 
+!   2014-02-26  zhu - add non zero jacobian so jacobian will be produced for            
+!                     clear-sky background or background with small amount of cloud     
+!   2014-04-27  eliu - add option to calculate clear-sky Tb under all-sky condition                
+!   2015-02-27  eliu-- wind direction fix for using CRTM FASTEM model 
+!   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -841,6 +873,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !     error_status - error status from crtm
 !     layer_od     - layer optical depth
 !     jacobian_aero- nsigaerojac level jacobians for use in intaod
+!     tsim_clr     - option to output simulated brightness temperatures for clear sky                  
 !
 ! attributes:
 !   language: f90
@@ -864,9 +897,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_metguess_mod,  only: gsi_metguess_bundle   ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use gridmod, only: istart,jstart,nlon,nlat,lon1
+  use regional_io, only: cold_start
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
-  use constants, only: max_varname_length
+  use constants, only: max_varname_length,pi  
 
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
@@ -891,6 +925,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out) :: temp,ptau5,wmix
   real(r_kind),dimension(nsigradjac,nchanl),intent(out):: jacobian
   real(r_kind)                          ,intent(  out) :: clw_guess
+  real(r_kind),dimension(nchanl)        ,intent(  out), optional  :: tsim_clr      
   real(r_kind),dimension(nsigaerojac,nchanl),intent(out),optional :: jacobian_aero
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out)  ,optional :: layer_od
 
@@ -900,8 +935,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
+  real(r_kind),parameter:: windscale = 999999.0_r_kind
+  real(r_kind),parameter:: windlimit = 0.0001_r_kind
+  real(r_kind),parameter:: quadcof  (4, 2  ) =      &
+      reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
+               -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
 
 ! Declare local variables  
+  integer(i_kind):: iquadrant  
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
@@ -917,6 +958,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! ******************************
   integer(i_kind):: lai_type
 
+  real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
 ! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
@@ -936,8 +978,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
   real(r_kind) cf
-  real(r_kind),dimension(nsig) :: ugkg_kgm2
-  real(r_kind),allocatable,dimension(:):: cwj
+  real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:  )::psges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:  )::psges_itsigp=>NULL()
@@ -958,7 +999,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 
-  logical :: sea,icmask
+  logical :: sea,icmask   
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
@@ -1140,8 +1181,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            endif
         endif 
 
-
-
 ! Create constants for later
 
         qclr(k)=max(qsmall,qclr(k))
@@ -1299,10 +1338,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsigp
-           cloud(k,ii)=max(cloud(k,ii),zero)
+           cloud(k,ii)=max(cloud(k,ii),zero)     
          end do
 
-         if (regional .and. (.not. wrf_mass_regional)) then
+         if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
             if (trim(cloud_names(iii))== 'ql' ) then
                do k=1,nsig
                  cloudefr(k,ii)=(efr_ql(ix ,iy ,k,itsig)*w00+efr_ql(ixp,iy ,k,itsig)*w10+ &
@@ -1484,6 +1523,21 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (lwind) then
         f10=data_s(iff10)
         sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
+        wind10    = sfc_speed
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
+        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
+        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
+        if (abs(vv5*f10) >= windlimit) then
+          windratio = (uu5*f10) / (vv5*f10)
+        else
+          windratio = 0.0_r_kind
+          if (abs(uu5*f10) > windlimit) then
+             windratio = windscale * uu5*f10
+          endif
+        endif
+        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
+        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)                          
      endif
 
 ! Load surface structure
@@ -1509,12 +1563,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         surface(1)%Soil_Type = istype
         lai_type = itype
      end if
-                                    
+
      if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(-uu5,-vv5)
-       if ( surface(1)%wind_direction < zero ) surface(1)%wind_direction = &
-          surface(1)%wind_direction + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*wind10_direction
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
@@ -1562,9 +1614,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%soil_temperature      = data_s(istp)
      surface(1)%snow_depth            = data_s(isn)
 
-     sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-     icmask = sea 
-
 ! assign tzbgr for Tz retrieval when necessary
      tzbgr = surface(1)%water_temperature
 
@@ -1579,7 +1628,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! also, geometryinfo is not needed in crtm aod calculation
   if ( trim(obstype) /= 'modis_aod' ) then
      panglr = data_s(iscan_ang)
-     if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
+     if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'ahi')panglr = zero
      geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
      geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
      geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle
@@ -1638,29 +1687,31 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   do i=1,nchanl
 
-!  Pass CRTM array of tb for surface emissiviy calculations
-
-     if (trim(obstype) /= 'modis_aod') &
-        surface(1)%sensordata%tb(i) = data_s(nreal+i)
 
 !  Set-up to return Tb jacobians.                                         
 
      rtsolution_k(i,1)%radiance = zero
      rtsolution_k(i,1)%brightness_temperature = one
 
-     ! set up to return layer_optical_depth jacobians
-     if (trim(obstype) == 'modis_aod') then
+     if (trim(obstype) /= 'modis_aod')then
+
+!  Pass CRTM array of tb for surface emissiviy calculations
+       if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. &
+            crtm_surface_associated(surface(1)) ) &
+         surface(1)%sensordata%tb(i) = data_s(nreal+i)
+
+! set up to return layer_optical_depth jacobians
         rtsolution_k(i,1)%layer_optical_depth = one
      endif
 
   end do
 
+!$omp section 
+
 !  Zero atmosphere jacobian structures
 
   call crtm_atmosphere_zero(atmosphere_k(:,:))
   call crtm_surface_zero(surface_k(:,:))
-
-!$omp end parallel sections
 
   clw_guess = zero
 
@@ -1671,6 +1722,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         aero(k,:)=aero(k,:)*ugkg_kgm2(k)
      enddo
   endif
+
+  sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind
+  icmask = sea
 
   do k = 1,msig
 
@@ -1705,14 +1759,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
 
 ! Include cloud guess profiles in mw radiance computation
+
      if (n_clouds>0) then
         if (lcw4crtm) then
-           if (icmask) then
+          if (icmask) then 
               c6(k) = (atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
               auxdp(k)=abs(prsi_rtm(kk+1)-prsi_rtm(kk))*r10
               auxq (k)=q(kk2)
 
-              if (regional .and. (.not. wrf_mass_regional)) then
+              if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
                  do ii=1,n_clouds
                     cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
                     cloud_efr (k,ii)=cloudefr(kk2,ii)
@@ -1724,7 +1779,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               end if
 
               clw_guess = clw_guess +  cloud_cont(k,1)
-           endif
+              do ii=1,n_clouds
+                 if (ii==1 .and. atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
+                    cloud_cont(k,1)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,1))
+                 if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
+                    cloud_cont(k,2)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,2))
+              end do
+
+          endif   
         else 
            kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
            do ii=1,n_clouds
@@ -1743,8 +1805,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
   end do
 
+
 ! Set clouds for CRTM
   if(n_clouds>0) then
+     atmosphere(1)%n_clouds = n_clouds  
      call Set_CRTM_Cloud (msig,n_actual_clouds,cloud_names,icmask,n_clouds,cloud_cont,cloud_efr,jcloud,auxdp, &
                           atmosphere(1)%temperature,atmosphere(1)%pressure,auxq,atmosphere(1)%cloud)
   endif
@@ -1754,6 +1818,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      call Set_CRTM_Aerosol ( msig, n_aerosols, n_aerosols_crtm, aero_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
   endif
+
+!$omp end parallel sections
 
 ! Call CRTM K Matrix model
 
@@ -1774,15 +1840,36 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         error_status
   end if
 
+! Calculate clear-sky Tb for AMSU-A over sea when allsky condition is on
+  if (lcw4crtm .and. present(tsim_clr)) then
+     if(n_clouds>0) then
+        ! Zero out data array in cloud structure: water content, effective
+        ! radius and variance
+
+        atmosphere(1)%n_clouds = 0
+!       call crtm_cloud_zero(atmosphere(1)%cloud)
+
+        ! call crtm forward model for clear-sky calculation
+        error_status = crtm_forward(atmosphere,surface,&
+                                    geometryinfo,channelinfo(sensorindex:sensorindex),&
+                                    rtsolution0,options=options)
+        ! If the CRTM returns an error flag, do not assimilate any channels for this ob
+        ! and set the QC flag to 10 (done in setuprad).
+        if (error_status /=0) then
+           write(6,*)'CRTM_FORWARD  ***ERROR*** during crtm_forward call ',&
+           error_status
+        end if
+     endif 
+  endif 
+
   if (trim(obstype) /= 'modis_aod' ) then
 ! Secant of satellite zenith angle
 
     secant_term = one/cos(data_s(ilzen_ang))
 
-    if (n_clouds > 0) allocate(cwj(nsig))
-
 !$omp parallel do  schedule(dynamic,1) private(i) &
-!$omp private(total_od,k,kk,m,term,ii)
+!$omp private(total_od,k,kk,m,term,ii,cwj)
+
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
       do k=1,nsig
@@ -1795,6 +1882,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
 
+       if (lcw4crtm .and. present(tsim_clr)) &                          
+       tsim_clr(i)=rtsolution0(i,1)%brightness_temperature  
+
 !  Estimated emissivity
        emissivity(i)   = rtsolution(i,1)%surface_emissivity
 
@@ -1802,7 +1892,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        emissivity_k(i) = rtsolution_k(i,1)%surface_emissivity
 
 !  Surface temperature sensitivity
-       if(nst_gsi>1) then
+       if(nst_gsi>1 .and. (data_s(itz_tr) > zero .and. data_s(itz_tr) <= one) ) then
           ts(i)   = surface_k(i,1)%water_temperature*data_s(itz_tr) + &
                     surface_k(i,1)%land_temperature + &
                     surface_k(i,1)%ice_temperature + &
@@ -1911,8 +2001,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            jacobian(isst+1,i)=ts(i)             ! surface skin temperature sensitivity
        endif
     end do
-
-    if (n_clouds > 0) deallocate(cwj)
 
   else                                    !       obstype == 'modis_aod'
      ! initialize intent(out) variables that are not available with modis_aod
@@ -2029,15 +2117,15 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
   real(r_kind)    wei1s, wei2s
   integer(i_kind) n1, n2, mm, mmm, mmp
 !
-        anal_time=0
-        obs_time=0
-        tmp_time=zero
-        tmp_time(2)=data_s(itime)
-        anal_time(1)=iadate(1)
-        anal_time(2)=iadate(2)
-        anal_time(3)=iadate(3)
-        anal_time(5)=iadate(4)
-        call w3movdat(tmp_time,anal_time,obs_time)
+      anal_time=0
+      obs_time=0
+      tmp_time=zero
+      tmp_time(2)=data_s(itime)
+      anal_time(1)=iadate(1)
+      anal_time(2)=iadate(2)
+      anal_time(3)=iadate(3)
+      anal_time(5)=iadate(4)
+      call w3movdat(tmp_time,anal_time,obs_time)
 
       jdow = 0
       jdoy = 0
@@ -2046,28 +2134,29 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
       rjday=jdoy+obs_time(5)/24.0_r_kind
       if(rjday.lt.dayhf(1)) rjday=rjday+365.0
 
-          DO MM=1,2
-            MMM=MM
-            MMP=MM+1
-            IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
-                 N1=MMM
-                 N2=MMP
-               GO TO 10
-            ENDIF
-          ENDDO
-          PRINT *,'WRONG RJDAY',RJDAY
-   10     CONTINUE
-          WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
-          WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
-          IF(N2.EQ.3) N2=1
+      DO MM=1,2
+        MMM=MM
+        MMP=MM+1
+        IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
+            N1=MMM
+            N2=MMP
+            GO TO 10
+        ENDIF
+      ENDDO
+      PRINT *,'WRONG RJDAY',RJDAY
+   10 CONTINUE
+      WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
+      WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
+      IF(N2.EQ.3) N2=1
 
       do i =1,13
         lai_season(i,1) = lai_min(i)
         lai_season(i,2) = lai_max(i)
+        if(data_s(ilate) < 0.0_r_kind) then
+           lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
+        else
            lai(i) = wei1s * lai_season(i,n1) + wei2s * lai_season(i,n2)
-           if(data_s(ilate) < 0.0_r_kind) then
-              lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
-           endif
+        endif
       enddo
 
   return

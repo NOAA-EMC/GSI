@@ -58,6 +58,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-07-10  sienkiewicz  add control for choosing noise reduction method  0=no smoothing
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
+!   2014-12-03  derber remove unused variables
+!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -97,7 +99,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -150,7 +152,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) :: isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
@@ -183,7 +184,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) :: dlat,dlon
   real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
   real(r_kind) :: utc_hour,sun_zenith,sun_azimuth
-  real(r_kind) :: sstx_1,sstx_2,sstx_3,sstx_4
 
   real(r_double),dimension(7)         :: bufrinit
   real(r_double),dimension(3,5)       :: bufrymd
@@ -193,7 +193,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   
   real(r_double) :: rnode
 
-  real(r_kind),dimension(0:3) :: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: ts
@@ -435,15 +434,14 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrinit(2),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
-
-!       Give score based on time in the window 
-        if (l4dvar) then
+        if (thin4d) then
+!          Give score based on time in the window 
 !          crit1 = 0.01_r_kind+ flgch  
            crit1 = zero              
         else
@@ -632,7 +630,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
 
 !    Check time window
-     if (l4dvar) then
+     if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle obsloop 
      else
         tdiff=t4dv+(iwinbgn-gstime)*r60inv

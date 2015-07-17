@@ -104,6 +104,7 @@ module guess_grids
 !   2013-10-19  todling - metguess now holds background
 !                         all tendencies now in a bundle (see tendsmod)
 !                         all derivaties now in a bundle (see derivsmod)
+!   2015-01-15  Hu      - Add coast_prox to hold coast proximity
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -138,7 +139,7 @@ module guess_grids
   public :: ges_teta
   public :: fact_tv,tropprs,sfct
   public :: ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
-  public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
+  public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi,coast_prox 
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: wgt_lcbas
@@ -205,6 +206,7 @@ module guess_grids
   integer(i_kind),allocatable,dimension(:,:,:):: isli    ! snow/land/ice mask
   integer(i_kind),allocatable,dimension(:,:,:):: isli_g  ! isli on horiz/global grid
   integer(i_kind),allocatable,dimension(:,:):: isli2     ! snow/land/ice mask at analysis time
+  real(r_kind),allocatable,dimension(:,:):: coast_prox   ! coast proximity mask
 
   real(r_kind),allocatable,dimension(:,:,:):: sno2  ! sno depth on subdomain
 
@@ -325,7 +327,7 @@ contains
          veg_type(lat2,lon2,nfldsfc),veg_frac(lat2,lon2,nfldsfc),&
          sfc_rough(lat2,lon2,nfldsfc),&
          soil_type(lat2,lon2,nfldsfc),soil_temp(lat2,lon2,nfldsfc),&
-         soil_moi(lat2,lon2,nfldsfc), &
+         soil_moi(lat2,lon2,nfldsfc), coast_prox(lat2,lon2),&
          stat=istatus)
     if (istatus/=0) write(6,*)'CREATE_SFC_GRIDS(2):  allocate error, istatus=',&
          istatus,lat2,lon2,nlat,nlon,nfldsfc
@@ -344,6 +346,7 @@ contains
        do j=1,lon2
           do i=1,lat2
              isli(i,j,it)=0
+             coast_prox(i,j)=zero
              fact10(i,j,it)=zero
              sfct(i,j,it)=zero
              dsfct(i,j,it)=zero
@@ -867,6 +870,7 @@ contains
     if(allocated(soil_temp))deallocate(soil_temp)
     if(allocated(soil_moi))deallocate(soil_moi)
     if(allocated(dsfct))deallocate(dsfct)
+    if(allocated(coast_prox))deallocate(coast_prox)
 
     return
   end subroutine destroy_sfc_grids
