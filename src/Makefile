@@ -252,6 +252,7 @@ clean:
         convb_uv.f90 \
 	convinfo.f90 \
 	convthin.f90 \
+	convthin_time.f90 \
         correlated_obsmod.F90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
@@ -263,6 +264,7 @@ clean:
 	enorm_state.f90 \
 	ensctl2state.f90 \
 	ensctl2model.f90 \
+        en_perts_io.f90 \
 	evaljgrad.f90 \
 	evaljo.f90 \
 	evalqlim.f90 \
@@ -283,6 +285,7 @@ clean:
 	genqsat.f90 \
 	genstats_gps.f90 \
 	gesinfo.f90 \
+        getcount_bufr.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_for_regional.f90 \
@@ -347,6 +350,7 @@ clean:
 	intpw.f90 \
 	intq.f90 \
 	intrad.f90 \
+        intrp_msk.f90 \
 	intrp2a.f90 \
 	intrp3oz.f90 \
 	intrw.f90 \
@@ -409,6 +413,7 @@ clean:
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
+	Nst_Var_ESMFMod.f90 \
         obserr_allsky_mw.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
@@ -560,10 +565,11 @@ clean:
 	oneobmod.F90 \
 	radinfo.f90 \
 	read_Lightning.f90 \
-	read_NASA_LaRC.f90 \
-	read_RadarRef_mosaic.f90 \
+	read_nasa_larc.f90 \
+	read_radarref_mosaic.f90 \
 	read_aerosol.f90 \
 	read_airs.f90 \
+	read_amsr2.f90 \
 	read_amsre.f90 \
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
@@ -574,7 +580,9 @@ clean:
 	read_cris.f90 \
 	read_diag.f90 \
         read_fl_hdob.f90 \
+	read_gmi.f90 \
 	read_goesimg.f90 \
+	read_ahi.f90 \
 	read_goesimgr_skycover.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -583,14 +591,17 @@ clean:
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
+	read_nsstbufr.f90 \
 	read_obs.F90 \
 	read_ozone.f90 \
 	read_pblh.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
+	read_saphir.f90 \
 	read_satwnd.f90 \
 	read_sfcwnd.f90 \
+	read_rapidscat.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \

@@ -65,6 +65,8 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-30  jung    - changed zero to qmin in sensible temp calc and re-compute sensible
 !                         temperature after clipping supersaturation
+!   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
+!                         proximity over full domain instead of subdomain
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -96,6 +98,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use ncepnems_io, only: read_nems,read_nems_chem
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsd_update_mod, only: gsd_gen_coast_prox 
 
   implicit none
 
@@ -233,6 +236,9 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
+
+! Compute the coast proximity
+  call gsd_gen_coast_prox
 
 !  If this is a regional run and ozone is desired from the gfs model, bring it in here:
   if(regional.and.use_gfs_ozone.and..not.use_gfs_stratosphere) &

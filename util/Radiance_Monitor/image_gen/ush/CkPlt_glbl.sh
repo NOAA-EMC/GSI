@@ -58,6 +58,15 @@ fi
 RAD_AREA=glb
 
 top_parm=${this_dir}/../../parm
+
+export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
+if [[ -s ${RADMON_VERSION} ]]; then
+   . ${RADMON_VERSION}
+else
+   echo "Unable to source ${RADMON_VERSION} file"
+   exit 2
+fi
+
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
 if [[ -s ${RADMON_CONFIG} ]]; then
@@ -93,7 +102,6 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
 
 
 #--------------------------------------------------------------------
@@ -176,16 +184,9 @@ if [[ "$proceed" != "YES" ]]; then
    exit
 fi
 
-#--------------------------------------------------------------------
-# Make horizontal plots only on 00z cycle.  All other plotting
-# is done with each cycle. 
-#--------------------------------------------------------------------
-if [[ "$CYA" = "00" ]];then
-   export PLOT_HORIZ=1
-fi
+
 
 echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
-
 
 prev_cycle=`$NDATE -6 $PDATE`
 
@@ -252,14 +253,18 @@ else
    fi
 fi
 
+
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
+
 ${IG_SCRIPTS}/mk_angle_plots.sh
 
 ${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-${IG_SCRIPTS}/mk_bcor_plots.sh
+if [[ ${PLOT_STATIC_IMGS} -eq 1 ]]; then
+   ${IG_SCRIPTS}/mk_bcor_plots.sh
+fi
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=${RADSTAT_LOCATION}
@@ -275,6 +280,8 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
 fi
 
 ${IG_SCRIPTS}/mk_time_plots.sh
+
+
 
 #------------------------------------------------------------------
 #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.

@@ -15,6 +15,8 @@ module convinfo
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
 !   2013-08-20  s.liu - add reflectivity
+!   2013-11-20        su - add ptime_conv as time dimension,and pmot_conv as
+!                           parameter tfor the option to keep thinned data as monitored
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -45,6 +47,8 @@ module convinfo
 !   def ithin_conv     - 0, no thinning, 1 - thinning
 !   def rmesh_conv     - size of thinning mesh (km)
 !   def pmesh_conv     - size of vertical thinning mesh 
+!   def pmot_conv      - option to keep thinned data out
+!   def ptime_conv     - option to add time dimension
 !
 !
 !   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw,pm2_5
@@ -78,7 +82,7 @@ module convinfo
   public :: stndev_conv_spd,stndev_conv_t,id_bias_ps,npred_conv_max,id_bias_t,conv_bias_ps,id_bias_spd
   public :: stndev_conv_pm2_5,conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
 
-  public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg
+  public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg,pmot_conv,ptime_conv
   public :: cermin,cgross
   public :: use_prepb_satwnd
   public :: index_sub
@@ -88,7 +92,7 @@ module convinfo
   logical :: use_prepb_satwnd
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-										rmesh_conv,pmesh_conv,stndev_conv
+		                          rmesh_conv,pmesh_conv,stndev_conv,pmot_conv,ptime_conv
   integer(i_kind),allocatable,dimension(:):: ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,&
                                              ithin_conv,npred_conv,index_sub
   character(len=16),allocatable,dimension(:)::ioctype
@@ -242,7 +246,7 @@ contains
              ncnumgrp(nconvtype),icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
              ioctype(nconvtype), index_sub(nconvtype),& 
              ithin_conv(nconvtype),rmesh_conv(nconvtype),pmesh_conv(nconvtype),&
-             npred_conv(nconvtype), &
+             npred_conv(nconvtype),pmot_conv(nconvtype),ptime_conv(nconvtype),  &
              stndev_conv(nconvtype), &
              stat=ier )
     if ( ier /= 0 )  then
@@ -256,6 +260,8 @@ contains
        pmesh_conv(i)=zero
        stndev_conv(i)=one
        index_sub(i)=2
+       pmot_conv(i)=zero
+       ptime_conv(i)=zero
     enddo
     nc=zero
 
@@ -291,7 +297,7 @@ contains
        if(icuset < use_limit)cycle
        nc=nc+1
        ioctype(nc)=iotype
-           !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred
+           !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred pmot ptime
            !ps       120    0    1     3.0      0      0      0   5.0   3.0   1.0  10.0  0.000 0 99999.    5
            !ioctype(nc),
            !  ictype(nc),
@@ -465,7 +471,7 @@ contains
              ncnumgrp,icuse,ictype,icsubtype, &
              ioctype,index_sub, & 
              ithin_conv,rmesh_conv,pmesh_conv, &
-             npred_conv, &
+             npred_conv,pmot_conv,ptime_conv, &
              stndev_conv, &
              stat=ier )
     if ( ier /= 0 )  then

@@ -42,6 +42,7 @@ contains
 !
 ! program history log:
 !   2010-10-20  hclin   - modified from intrad for total aod
+!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     aerohead  - obs type pointer to obs structure
@@ -59,7 +60,7 @@ contains
     use kinds, only: r_kind,i_kind,r_quad
     use aeroinfo, only: aerojacnames,aerojacindxs,nsigaerojac
     use state_vectors, only: svars
-    use obsmod, only: aero_ob_type,lsaveobsens,l_do_adjoint
+    use obsmod, only: aero_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
     use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
     use gridmod, only: latlon11,latlon1n,nsig
     use qcmod, only: nlnqc_iter,varqc_iter
@@ -146,17 +147,18 @@ contains
              val=val+tdir(k)*aeroptr%daod_dvar(k,nn)
           end do
 
-          if (lsaveobsens) then
-             aeroptr%diags(nn)%ptr%obssen(jiter) = val*aeroptr%err2(nn)*aeroptr%raterr2(nn)
-          else
-             if (aeroptr%luse) aeroptr%diags(nn)%ptr%tldepart(jiter) = val
+          if(luse_obsdiag)then
+             if (lsaveobsens) then
+                val = val*aeroptr%err2(nn)*aeroptr%raterr2(nn)
+                aeroptr%diags(nn)%ptr%obssen(jiter) = val
+             else
+                if (aeroptr%luse) aeroptr%diags(nn)%ptr%tldepart(jiter) = val
+             endif
           endif
 
           if (l_do_adjoint) then
-             if (lsaveobsens) then
-                val=aeroptr%diags(nn)%ptr%obssen(jiter)
- 
-             else
+             if ( .not. lsaveobsens) then
+
                 val=val-aeroptr%res(nn)
 
 !             Multiply by variance.

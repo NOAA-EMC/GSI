@@ -278,7 +278,7 @@ subroutine anbkgcov(bundle)
 
 ! Local Variables
 
-  integer(i_kind) i,j,k,iflg,ier,n,istatus
+  integer(i_kind) n,istatus
   integer(i_kind) i_sst,i_stl,i_sti,i_ps,i_t,i_q,i_gust,i_wspd10m, &
                   i_td2m,i_mxtm,i_mitm, & 
                   i_pswter,i_twter,i_qwter,i_gustwter,i_wspd10mwter, &

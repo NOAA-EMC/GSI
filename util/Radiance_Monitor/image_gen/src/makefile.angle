@@ -1,0 +1,44 @@
+# *****************************************************************
+#  makefile.angle
+#
+#  Make the angle.x executable.  The executable will extract angle
+#  radiance data from an angle ieee_d file and write it to text
+#  files for use in the interactive angle plots.
+#
+# *****************************************************************
+
+SHELL=/bin/sh
+SRCS = angle.f90 avgsdv.f90
+
+OBJS = angle.o avgsdv.o
+
+#
+# *****************************************************************
+#
+
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+
+CMD = angle.x
+
+all:  $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f angle.x
+
+$(CMD):         $(OBJS)
+	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../exec/.
+
+angle.o : angle.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+avgsdv.o : avgsdv.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+

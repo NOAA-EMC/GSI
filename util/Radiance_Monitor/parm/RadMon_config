@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/td2/emc/da/noscrub/Edward.Safford/RadMon_390/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -25,6 +25,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363
 #  this location.
 #
 export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+
 if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
       export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
@@ -34,7 +35,6 @@ if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
       export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
    fi
 fi
-
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
@@ -66,14 +66,14 @@ export PTMP=${PTMP:-/ptmpp1}
 export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
 export STMP=${STMP:-/stmpp1}
 export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
-  
+
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
 export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
 export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${SUFFIX}}
 
 export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${SUFFIX}}
 export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
-
+  
 
 #
 #  Job queue check definition
@@ -86,11 +86,7 @@ fi
 
 
 #
-#  Definitions for package internal reference.  These definitions
-#  should generally not be overridden though that is supported.
-#  Under most circumstances overriding one or both parm files
-#  (below) is the perferred approach when using a central RadMon
-#  package installation to support multiple users.
+#  Definitions for internal reference
 #
 export RADMON_DATA_EXTRACT=${RADMON_DATA_EXTRACT:-${MY_RADMON}/data_extract}
 export DE_EXEC=${DE_EXEC:-${RADMON_DATA_EXTRACT}/exec}
@@ -104,8 +100,10 @@ export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
 export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
-export HOMEgfs=${HOMEgfs:-${MY_RADMON}/nwprod}
-
+. $RADMON_PARM/radmon.ver
+export HOMEgdasradmon=${HOMEgdasradmon:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
+export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.v${radmon_shared_ver}}
+ 
 
 #
 #  Definitions for parm files.  This allows users to swap in 
@@ -116,12 +114,11 @@ export RADMON_CONFIG=${RADMON_CONFIG:-${RADMON_PARM}/RadMon_config}
 export RADMON_USER_SETTINGS=${RADMON_USER_SETTINGS:-${RADMON_PARM}/RadMon_user_settings}
 
 
-
 #
 #  Utilities used by the RadMon package
 #
-export NCP="/bin/cp -f"
-export Z="gz"
+export NCP=${NCP:-"/bin/cp -f"}
+export Z=${Z:-"gz"}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh

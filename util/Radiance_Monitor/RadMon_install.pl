@@ -5,8 +5,7 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for ccs, zeus, and wcoss
-#  machines.
+#  executables.  This script works for zeus and wcoss machines.
 #
 #-------------------------------------------------------------------
 
@@ -16,7 +15,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss" ) {
+   if( $machine ne "zeus" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -199,12 +198,12 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-ada}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
    if( $machine ne "zeus" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
-   my $project = "export PROJECT=\${PROJECT:-GDAS-T20}";
+   my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
    if( $machine ne "wcoss" ) {
       $project="export PROJECT=";
    } 
