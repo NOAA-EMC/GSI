@@ -1382,6 +1382,7 @@ contains
 !   Initialize local variables
     mm1=mype+1
     nlatm2=grd%nlat-2
+    diff_res=.false.
 
     if(sp_a%jcap /= jcap_b) then
        if ( mype == 0 ) write(6, &

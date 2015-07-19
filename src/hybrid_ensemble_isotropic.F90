@@ -2870,6 +2870,7 @@ subroutine init_sf_xy(jcap_in)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
   logical make_test_maps
+  logical,allocatable,dimension(:)::ksame
   integer(i_kind) nord_sploc2ens
   integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
 
@@ -3018,8 +3019,13 @@ subroutine init_sf_xy(jcap_in)
   allocate(sqrt_spectral_filter(sp_loc%nc,grd_sploc%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
+  allocate(ksame(grd_sploc%nsig))
+  ksame=.false.
+  do k=2,grd_sploc%nsig
+     if(s_ens_hv(k) == s_ens_hv(k-1))ksame(k)=.true.
+  end do
   do k=1,grd_sploc%nsig
-     if(k > 2 .and. s_ens_hv(k) == s_ens_hv(k-1))then
+     if(ksame(k))then
         spectral_filter(:,k)=spectral_filter(:,k-1)
      else
         do i=1,grd_sploc%nlat
@@ -3091,8 +3097,9 @@ subroutine init_sf_xy(jcap_in)
         end do
      end if
   end do
+  deallocate(g,gsave,pn0_npole,ksame)
+
   sqrt_spectral_filter=sqrt(spectral_filter)
-  deallocate(g,gsave,pn0_npole)
 
 !  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
 
