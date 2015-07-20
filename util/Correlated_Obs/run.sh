@@ -1,6 +1,5 @@
 #!/bin/sh
 #date of first radstat file
-#bdate=2013111100
 bdate=2013102500
 #date of last radstat file
 #edate=bdate
@@ -20,13 +19,8 @@ type=1
 cloud=1
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=20
-#The name of the outputted covariance file
-fileout=Rcov_$instr
-#Name of file that contains the wavenumbers of the channels of $instr
-fileout1=wave_$instr
-#Name of file that contains the assumed obs error of the channels of $instr
-fileout2=err_$instr
- ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+
+ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
 ####################
 
@@ -71,10 +65,10 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$nt $type $cloud $angle $fileout $fileout1 $fileout2
+$nt $type $cloud $angle $instr
 EOF
 
-cp $fileout $savdir
-cp $fileout1 $savdir
-cp $fileout2 $savdir
-cp ${fileout}_corr $savdir
+cp Rcov_$instr $savdir
+cp Rcorr_$instr $savdir
+cp wave_$instr $savdir
+cp err_$instr $savdir

@@ -3,7 +3,7 @@ program cov_calc
 !Kristen Bathmann
 !5-2015
 
-use kinds, only:             r_kind, i_kind, r_single
+use kinds, only:             r_kind, i_kind
 use obs_tools
 use pairs
 use RadDiag_IO, only:        RadDiag_Hdr_type, &
@@ -39,11 +39,13 @@ character(256):: fileout                                !name of outputted covar
 character(256):: fileout1                               !name of outputted file containing channel wavenumbers
 character(256):: fileout2                               !name of outputted file containing assumed obs errors
 character(256):: fileout3                               !name of outputted correlation file
+character(256):: instr
 integer:: Error_Status, gesid, anlid
 integer, parameter:: dsize=4500                         !cap size on the number of omg's that can be stored at each time step
 integer:: gcmod, gsize
 integer:: gwhile, gblock
 integer:: read_status, len
+integer:: lencov, lencorr, lenwave, lenerr
 integer(i_kind):: reclen
 
 !Diag data
@@ -92,17 +94,27 @@ real(r_kind), dimension(2):: anlloc                     !location (lat,lon) of a
 
 !Covariance Definition
 integer,dimension(:), allocatable:: obs_pairs
-real(r_single), dimension(:,:), allocatable:: Rcov      !the covariance matrix
-real(r_single), dimension(:,:), allocatable:: Rcorr     !the correlation matrix
-real(r_single), dimension(:,:), allocatable:: Aa, Ag
+real(r_kind), dimension(:,:), allocatable:: Rcov      !the covariance matrix
+real(r_kind), dimension(:,:), allocatable:: Rcorr     !the correlation matrix
+real(r_kind), dimension(:,:), allocatable:: Aa, Ag
 integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
 real(r_kind):: su, sua, sug
 real(r_kind):: val
 
-read(5,*) ntimes, Surface_Type, Cloud_Type, numb, fileout, fileout1, fileout2
-len=len_trim(fileout)
-fileout3(1:len)=fileout
-fileout3(len+1:len+5)='_corr'
+read(5,*) ntimes, Surface_Type, Cloud_Type, numb, instr
+len=len_trim(instr)
+lencov=len_trim('Rcov_')
+fileout(1:lencov)='Rcov_'
+fileout(lencov+1:lencov+len)=instr
+lencorr=len_trim('Rcorr_')
+fileout3(1:lencorr)='Rcorr_'
+fileout3(lencorr+1:len+lencorr)=instr
+lenwave=len_trim('wave_')
+fileout1(1:lenwave)='wave_'
+fileout1(lenwave+1:lenwave+len)=instr
+lenerr=len_trim('err_')
+fileout2(1:lenerr)='err_'
+fileout2(lenerr+1:len+lenerr)=instr
 
 gesc(1:5)='dges_'
 anlc(1:5)='danl_'
