@@ -126,7 +126,8 @@ real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
 real(r_kind) :: hdist, vdist, tdist, pi2, minlat, maxlat, minlon, maxlon
 real(r_kind) :: radlat, radlon, latband, lonband, corrlength
 real(r_single) :: deglat, dist
-integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads, nb
+integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads, nb, &
+                   nobslocal_max,nobslocal_maxall
 logical :: firstobs
 
 !$omp parallel
@@ -490,6 +491,7 @@ t3 = zero
 t4 = zero
 t5 = zero
 t6 = mpi_wtime()
+nobslocal_max = -999
 ! Next, update analysis ensemble on each grid points
 ! Loop for each horizontal grid points
 !$omp parallel do schedule(dynamic) private(nobs_use,npt,nob,nobsl, &
@@ -498,7 +500,8 @@ t6 = mpi_wtime()
 !$omp                  imin,imax,jmin,jmax,nf,hdist0,vdist,tdist, &
 !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
 !$omp                  oindex,nanal,deglat,dist,nb) &
-!$omp  reduction(+:t1,t2,t3,t4,t5)
+!$omp  reduction(+:t1,t2,t3,t4,t5) &
+!$omp  reduction(max:nobslocal_max)
 grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()
@@ -596,6 +599,11 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          end if
       end do
       nobsl2=nobsl2-1
+      if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+      if(nobsl2 == 0) then
+         deallocate(rloc,oindex)
+         cycle verloop
+      end if
       allocate(hdxf(nobsl2,nanals))
       allocate(rdiag(nobsl2))
       allocate(dep(nobsl2))
@@ -605,11 +613,6 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          rdiag(nob)=oberinv(nf)
          dep(nob)=obdep(nf)
       end do
-
-      if(nobsl2 == 0) then
-         deallocate(hdxf,rdiag,dep,rloc,oindex)
-         cycle verloop
-      end if
 
       t3 = t3 + mpi_wtime() - t1
       t1 = mpi_wtime()
@@ -662,17 +665,19 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       end if
    end do
    nobsl2=nobsl2-1 ! total number of obs in local volume.
-   allocate(hdxf(nobsl2,nanals))
-   allocate(rdiag(nobsl2))
-   allocate(dep(nobsl2))
-   do nob=1,nobsl2
-      nf=oindex(nob)
-      hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-      rdiag(nob)=oberinv(nf)
-      dep(nob)=obdep(nf)
-   end do
+   if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
 
-   if(nobsl2 > 0) then
+   if(nobsl2 > 0) then ! obs in volume
+
+      allocate(hdxf(nobsl2,nanals))
+      allocate(rdiag(nobsl2))
+      allocate(dep(nobsl2))
+      do nob=1,nobsl2
+         nf=oindex(nob)
+         hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+         rdiag(nob)=oberinv(nf)
+         dep(nob)=obdep(nf)
+      end do
 
       t3 = t3 + mpi_wtime() - t1
       t1 = mpi_wtime()
@@ -706,15 +711,17 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       t5 = t5 + mpi_wtime() - t1
       t1 = mpi_wtime()
    else ! no obs in volume
-      deallocate(hdxf,rdiag,dep,rloc,oindex)
+      deallocate(rloc,oindex)
    end if
-   endif
+   end if
 end do grdloop
 !$omp end parallel do
 
 tend = mpi_wtime()
 t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
 if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',tend-t6,t2,t3,t4,t5,' secs'
+call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
 
 deallocate(obdep,oberinv)
 
@@ -783,41 +790,40 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !$$$ end documentation block
 implicit none
 integer(i_kind)                      ,intent(in ) :: nobsl
-real(r_kind),dimension(nobsl ,nanals),intent(in ) :: hdxf
+real(r_kind),dimension(nobsl ,nanals),intent(inout) :: hdxf
 real(r_kind),dimension(nobsl        ),intent(in ) :: rdiaginv
 real(r_kind),dimension(nobsl        ),intent(in ) :: dep
 real(r_kind),dimension(nobsl        ),intent(in ) :: rloc
 real(r_kind),dimension(nanals,nanals),intent(out) :: trans
-real(r_kind),dimension(nobsl ,nanals) :: hdxf_rinv
-real(r_kind),dimension(nanals,nobsl ) :: work2
-real(r_kind),dimension(nanals,nanals) :: eivec,pa,work1
-real(r_kind),dimension(nanals) :: eival,work3
-real(r_kind),dimension(nobsl) :: rrloc
+real(r_kind), allocatable, dimension(:,:) :: work1,work2,eivec,pa
+real(r_kind), allocatable, dimension(:) :: rrloc,eival,work3
 real(r_kind) :: rho
 integer(i_kind) :: i,j,nob,nanal,ierr,lwork
-! hdxf Rinv
-do nob=1,nobsl
-  rrloc(nob) = rdiaginv(nob) * rloc(nob)
-end do
+allocate(work3(nanals),work2(nanals,nobsl))
+allocate(eivec(nanals,nanals),pa(nanals,nanals))
+allocate(work1(nanals,nanals),eival(nanals),rrloc(nobsl))
+! hdxf sqrt(Rinv)
+rrloc(1:nobsl) = rdiaginv(1:nobsl) * rloc(1:nobsl)
+rho = tiny(rrloc)
+where (rrloc < rho) rrloc = rho
+rrloc = sqrt(rrloc)
 do nanal=1,nanals
-   do nob=1,nobsl
-      hdxf_rinv(nob,nanal) = hdxf(nob,nanal) * rrloc(nob)
-   end do
+   hdxf(1:nobsl,nanal) = hdxf(1:nobsl,nanal) * rrloc(1:nobsl)
 end do
 ! hdxf^T Rinv hdxf
 !do j=1,nanals
 !   do i=1,nanals
-!      work1(i,j) = hdxf_rinv(1,i) * hdxf(1,j)
+!      work1(i,j) = hdxf(1,i) * hdxf(1,j)
 !      do nob=2,nobsl
-!         work1(i,j) = work1(i,j) + hdxf_rinv(nob,i) * hdxf(nob,j)
+!         work1(i,j) = work1(i,j) + hdxf(nob,i) * hdxf(nob,j)
 !      end do
 !   end do
 !end do
 if(r_kind == kind(1.d0)) then
-   call dgemm('t','n',nanals,nanals,nobsl,1.d0,hdxf_rinv,nobsl, &
+   call dgemm('t','n',nanals,nanals,nobsl,1.d0,hdxf,nobsl, &
         hdxf,nobsl,0.d0,work1,nanals)
 else
-   call sgemm('t','n',nanals,nanals,nobsl,1.e0,hdxf_rinv,nobsl, &
+   call sgemm('t','n',nanals,nanals,nobsl,1.e0,hdxf,nobsl, &
         hdxf,nobsl,0.e0,work1,nanals)
 end if
 ! hdxb^T Rinv hdxb + (m-1) I
@@ -853,20 +859,24 @@ else
    call sgemm('n','t',nanals,nanals,nanals,1.e0,work1,nanals,eivec,&
         nanals,0.e0,pa,nanals)
 end if
+! convert hdxf * Rinv^T from hdxf * sqrt(Rinv)^T
+do nanal=1,nanals
+   hdxf(1:nobsl,nanal) = hdxf(1:nobsl,nanal) * rrloc(1:nobsl)
+end do
 ! Pa hdxb_rinv^T
 !do nob=1,nobsl
 !   do nanal=1,nanals
-!      work2(nanal,nob) = pa(nanal,1) * hdxf_rinv(nob,1)
+!      work2(nanal,nob) = pa(nanal,1) * hdxf(nob,1)
 !      do k=2,nanals
-!         work2(nanal,nob) = work2(nanal,nob) + pa(nanal,k) * hdxf_rinv(nob,k)
+!         work2(nanal,nob) = work2(nanal,nob) + pa(nanal,k) * hdxf(nob,k)
 !      end do
 !   end do
 !end do
 if(r_kind == kind(1.d0)) then
-   call dgemm('n','t',nanals,nobsl,nanals,1.d0,pa,nanals,hdxf_rinv,&
+   call dgemm('n','t',nanals,nobsl,nanals,1.d0,pa,nanals,hdxf,&
         nobsl,0.d0,work2,nanals)
 else
-   call sgemm('n','t',nanals,nobsl,nanals,1.e0,pa,nanals,hdxf_rinv,&
+   call sgemm('n','t',nanals,nobsl,nanals,1.e0,pa,nanals,hdxf,&
         nobsl,0.e0,work2,nanals)
 end if
 ! Pa hdxb_rinv^T dep
@@ -904,6 +914,7 @@ do j=1,nanals
       trans(i,j) = trans(i,j) + work3(i)
    end do
 end do
+deallocate(work2,eivec,pa,work1,rrloc,eival,work3)
 
 return
 end subroutine letkf_core
