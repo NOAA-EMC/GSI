@@ -160,7 +160,7 @@ fi
       chmod 755 $cmdfile
 
       if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-         wall_tm="1:30"
+         wall_tm="2:30"
       else
          wall_tm="0:45"
       fi
@@ -215,7 +215,7 @@ fi
 #         ntasks=`cat $cmdfile|wc -l `
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-            wall_tm="2:00"
+            wall_tm="2:30"
          else
             wall_tm="1:00"
          fi
