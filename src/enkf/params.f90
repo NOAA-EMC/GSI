@@ -61,7 +61,7 @@ character(len=120),dimension(7),public :: anlfileprefixes
 character(len=10), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
 character(len=500),public :: datapath
-logical, public :: deterministic, sortinc, pseudo_rh,&
+logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
@@ -79,6 +79,7 @@ real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
 real(r_single),public :: boxsize
 logical,public :: params_initialized = .true.
+logical,public :: save_inflation = .false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .true.
 logical,public :: simple_partition = .true.
@@ -107,7 +108,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
-                   newpc4pred,nmmb,nhr_anal,nbackgrounds,&
+                   newpc4pred,nmmb,nhr_anal,nbackgrounds,save_inflation,&
                    letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
 namelist /nam_wrf/arw,nmm,doubly_periodic
 namelist /satobs_enkf/sattypes_rad,dsis

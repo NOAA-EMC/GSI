@@ -47,10 +47,10 @@ module inflation
 
 use mpisetup
 use params, only: analpertwtnh,analpertwtsh,analpertwttr,ndim,nanals,nlevs,ndim,&
-                  latbound, delat, datapath, covinflatemax, &
+                  latbound, delat, datapath, covinflatemax, save_inflation, &
                   covinflatemin, nlons, nlats, smoothparm, nbackgrounds
 use kinds, only: r_single, i_kind
-use constants, only: one,zero, rad2deg, deg2rad
+use constants, only: one, zero, rad2deg, deg2rad
 use covlocal, only: latval
 use statevec, only: anal_chunk, anal_chunk_prior
 use gridinfo, only: latsgrd, logp, npts, nvarhumid
@@ -79,8 +79,7 @@ real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumato
 real(r_single) fnanalsml,coslat
 integer(i_kind) i,nn,iunit,ierr,nb
 character(len=500) filename
-real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,&
-         covinfglobal, covinfglobal2
+real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal
 
 ! if no inflation called for, do nothing.
 if (abs(analpertwtnh) < 1.e-5_r_single .and. &
@@ -89,7 +88,7 @@ if (abs(analpertwtnh) < 1.e-5_r_single .and. &
 
 fnanalsml = one/(real(nanals-1,r_single))
 
-do nb=1,nbackgrounds ! loop over time levels in background
+nbloop: do nb=1,nbackgrounds ! loop over time levels in background
 
 ! if analpertwtnh<0 use 'relaxation-to-prior' ensemble inflation,
 ! as first described in:
@@ -108,11 +107,12 @@ if (analpertwtnh < 0) then
         (one-analpertwt)*anal_chunk(:,i,nn,nb)
     end do
    end do
-   return
+   cycle nbloop
 end if
 
 ! adaptive posterior inflation based upon ratio of posterior to prior spread.
 allocate(tmp_chunk2(npts_max,ndim))
+tmp_chunk2 = covinflatemin
 
 ! compute inflation.
 sumf = zero
@@ -170,16 +170,21 @@ do nn=1,ndim
  end do
 end do
 
+iunit = 88 ! inflation output file (used if save_inflation=.true.)
+filename = trim(adjustl(datapath))//"covinflate.dat"
 if (smoothparm .gt. zero) then
    ! inflation smoothing.
    ! (warning: this requires a lot of memory)
-   allocate(covinfglobal(npts,ndim),covinfglobal2(npts,ndim))
-   covinfglobal2=zero
+   allocate(covinfglobal(npts,ndim))
+   covinfglobal=zero
    do i=1,numptsperproc(nproc+1)
-      covinfglobal2(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
+      covinfglobal(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
    end do
-   call mpi_allreduce(covinfglobal2,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-   call smooth(covinfglobal,covinfglobal2)
+   !call mpi_allreduce(mpi_in_place,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+   do nn=1,ndim
+     call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+   enddo
+   call smooth(covinfglobal)
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
    where (covinfglobal > covinflatemax) covinfglobal = covinflatemax
    do i=1,numptsperproc(nproc+1)
@@ -194,13 +199,28 @@ if (smoothparm .gt. zero) then
       endif
       print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
       ! write out inflation.
-      !iunit = 88
-      !filename = trim(adjustl(datapath))//"covinflate.dat"
-      !open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
-      !write(iunit,rec=1) covinfglobal 
-      !close(iunit)
+      if (save_inflation) then
+         open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
+         write(iunit,rec=1) covinfglobal 
+         close(iunit)
+      endif
    end if
-   deallocate(covinfglobal,covinfglobal2)
+   deallocate(covinfglobal)
+else if (save_inflation) then
+   allocate(covinfglobal(npts,ndim))
+   covinfglobal=zero
+   do i=1,numptsperproc(nproc+1)
+      covinfglobal(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
+   end do
+   do nn=1,ndim
+     call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+   enddo
+   if (nproc == 0) then
+      open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
+      write(iunit,rec=1) covinfglobal 
+      close(iunit)
+      deallocate(covinfglobal)
+   endif
 end if
 
 suma2 = zero
@@ -278,7 +298,7 @@ if (nproc == 0) then
    endif
 end if
 
-end do ! end loop over time levels in background
+end do nbloop ! end loop over time levels in background
 
 
 end subroutine inflate_ens
