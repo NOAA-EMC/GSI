@@ -87,6 +87,7 @@ use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
 use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
+use constants, only: zero
 
 implicit none
 private
@@ -103,6 +104,7 @@ integer(i_kind),public, allocatable, dimension(:) :: iprocob, indxob_chunk,&
 integer(i_kind),public, allocatable, dimension(:,:) :: indxproc, indxproc_obs
 integer(i_kind),public :: npts_min, npts_max, nobs_min, nobs_max, numobsmax1, &
  numobsmax2
+integer(8) totsize
 ! kd-tree structures.
 type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid
 
@@ -118,7 +120,8 @@ use random_normal, only : set_random_seed
 ! smallest load.
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs, numobs1
-integer(i_kind) np,nob,i,j,n,nn,nob1,nob2,ierr,ib1,ib2,ib3,ie1,ie2,ie3
+real(r_single), allocatable, dimension(:) :: buffer
+integer(i_kind) np,nob,i,j,n,nn,nob1,nob2,ierr,ib1,ib2,ib3,ie1,ie2,ie3,nanal
 real(r_double) t1
 
 ! partition state vector for enkf using Grahams rule..
@@ -323,14 +326,33 @@ end if
 allocate(anal_obchunk_prior(nanals,nobs_max))
 if(nproc == 0) then
    print *,'sending out observation prior ensemble perts from root ...'
+   totsize = nobstot
+   totsize = totsize*nanals
+   print *,'nobstot*nanals',totsize
+   totsize = npts
+   totsize = totsize*ndim
+   print *,'npts*ndim',totsize
    t1 = mpi_wtime()
 end if
 if(letkf_flag) then
-   call mpi_bcast(anal_ob,nobstot*nanals,mpi_real4,0,mpi_comm_world,ierr)
-   do nob1=1,numobsperproc(nproc+1)
-      nob2 = indxproc_obs(nproc+1,nob1)
-      anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
+   ! broadcast entire obs prior ensemble to every task
+   !call mpi_bcast(anal_ob,nobstot*nanals,mpi_real4,0,mpi_comm_world,ierr)
+   !do nob1=1,numobsperproc(nproc+1)
+   !   nob2 = indxproc_obs(nproc+1,nob1)
+   !   anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
+   !end do
+   ! broadcast one ensemble member at a time.
+   allocate(buffer(nobstot))
+   do nanal=1,nanals
+      buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
+      call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
+      anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
+      do nob1=1,numobsperproc(nproc+1)
+         nob2 = indxproc_obs(nproc+1,nob1)
+         anal_obchunk_prior(nanal,nob1) = buffer(nob2)
+      enddo
    end do
+   deallocate(buffer)
 else
    !allocate(rtmp(nobs_max))
    if(nproc == 0) then
@@ -338,7 +360,7 @@ else
       do np=1,numproc-1
          do nob1=1,numobsperproc(np+1)
             nob2 = indxproc_obs(np+1,nob1)
-            anal_obchunk_prior(:,nob1) = anal_ob(:,nob2)
+            anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
          end do
          call mpi_send(anal_obchunk_prior,nobs_max*nanals,mpi_real4,np, &
               1,mpi_comm_world,ierr)
@@ -346,7 +368,7 @@ else
       ! anal_obchunk_prior on root (no send necessary)
       do nob1=1,numobsperproc(1)
          nob2 = indxproc_obs(1,nob1)
-         anal_obchunk_prior(:,nob1) = anal_ob(:,nob2)
+         anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
       end do
       ! now we don't need anal_ob anymore for EnKF. (only defined on root)
       deallocate(anal_ob)
