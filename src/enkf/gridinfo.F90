@@ -280,7 +280,10 @@ if (nproc .ne. 0) then
       call reducedgrid_init(nlons,nlats,asin_gaulats)
    end if
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+!call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+do k=1,nlevs_pres
+  call mpi_bcast(logp(1,k),npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
@@ -2204,7 +2207,10 @@ if (nproc .ne. 0) then
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+!call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+do k=1,nlevs_pres
+  call mpi_bcast(logp(1,k),npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
