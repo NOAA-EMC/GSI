@@ -204,7 +204,7 @@ nvars = 5
 ! (same as in the GSI).
 biasvar = 0.1_r_single
 ! Observation box size for LETKF (deg)
-boxsize = 90._r_single
+boxsize = 30._r_single
 
 ! factor to multiply sat radiance errors.
 saterrfact = 1._r_single
