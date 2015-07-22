@@ -51,6 +51,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
    export RSYNC=/usr/bin/rsync
+   export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
 else    # zeus 
    shell=sh
    /usr/bin/modulecmd $shell load ncep
