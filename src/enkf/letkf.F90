@@ -287,9 +287,8 @@ do niter=1,numiter
           obtime_chunk(nob1) == obtime_chunk(nob4) .and. &
           sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob4))) == zero) cycle obsloop
 
-     ! Pick up observation boxes to use in this point
-     ! This process is necessary only when the horizontal location is
-     ! different from the previous one.
+     ! Pick up observation boxes to use for this ob
+     ! Note: kdtree not used here because is (or was?) not thread safe.
      if(firstobs .or. obloclat(nob2) /= obloclat(nob3) .or. &
           & obloclon(nob2) /= obloclon(nob3)) then
         firstobs=.false.
@@ -506,9 +505,8 @@ grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()
 
-   ! Pick up observation boxes to use in this grid point
-   ! This process is necessary only when the horizontal location is
-   ! different from the previous one.
+   ! Pick up observation boxes to use in this grid point.
+   ! Note: kdtree not used here because is (or was?) not thread safe.
    nobsl=0
    ngrd1=indxproc(nproc+1,npt)
    deglat = latsgrd(ngrd1)*rad2deg
