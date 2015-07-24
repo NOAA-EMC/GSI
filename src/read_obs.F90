@@ -382,6 +382,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
             endif
             nread = nread + 1
          end do loop
+       else if(trim(filename) == 'oscatbufr')then
+         lexist = .false.
+         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then
+               lexist = .true.
+               exit oscatloop
+            endif
+         end do oscatloop
        else if(trim(filename) == 'rapidscatbufr')then
          lexist = .false.
          rapidscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -1181,14 +1189,19 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full,nobs_sub1(1,i))
                   string='READ_SATWND'
+!             Process oscat winds which seperate from prepbufr
+                elseif ( index(infile,'oscatbufr') /=0 ) then
+                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                     prsl_full,nobs_sub1(1,i))
+                  string='READ_SFCWND'
 !             Process rapidscat winds which seperate from prepbufr
                 elseif ( index(infile,'rapidscatbufr') /=0 ) then
                   call read_rapidscat(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full,nobs_sub1(1,i))
                   string='READ_RAPIDSCAT'
                 else if ( index(infile,'hdobbufr') /=0 ) then
-                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
-                     prsl_full,nobs_sub1(1,i))
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                       prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
