@@ -77,7 +77,6 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
-real(r_single),public :: boxsize
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
 ! do sat bias correction update.
@@ -109,7 +108,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nbackgrounds,save_inflation,&
-                   letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc
 namelist /nam_wrf/arw,nmm,doubly_periodic
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -203,8 +202,6 @@ nvars = 5
 ! analysis error variance from the previous cycle is used instead
 ! (same as in the GSI).
 biasvar = 0.1_r_single
-! Observation box size for LETKF (deg)
-boxsize = 30._r_single
 
 ! factor to multiply sat radiance errors.
 saterrfact = 1._r_single
