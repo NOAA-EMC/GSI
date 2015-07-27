@@ -65,6 +65,8 @@ module loadbal
 !   in grid point space (only searches grid points assigned to this task).
 !  kdtree_obs: pointer to kd-tree structure used for nearest neighbor searches
 !   in observation space (only searches ob locations assigned to this task).
+!  kdtree_obs2: pointer to kd-tree structure used for nearest neighbor searches
+!   for LETKF.
 !   
 !
 ! Modules Used: mpisetup, params, kinds, constants, enkf_obsmod, gridinfo,
@@ -73,6 +75,7 @@ module loadbal
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-21  Added the option of observation box selection for LETKF.
+!   2015-07-25  Remove observation box selection (use kdtree instead).
 !
 ! attributes:
 !   language: f95
@@ -81,8 +84,7 @@ module loadbal
 
 use mpisetup
 use params, only: ndim, datapath, nanals, simple_partition, letkf_flag
-use enkf_obsmod, only: nobsgood, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq, nobstot, &
-     boxmax, nlocconv, nlocoz, nlocsat, blatnum, blonnum, nobs_conv, nobs_oz
+use enkf_obsmod, only: nobsgood, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq, nobstot
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
@@ -106,7 +108,7 @@ integer(i_kind),public :: npts_min, npts_max, nobs_min, nobs_max, numobsmax1, &
  numobsmax2
 integer(8) totsize
 ! kd-tree structures.
-type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid
+type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid, kdtree_obs2
 
 
 contains
@@ -119,22 +121,22 @@ use random_normal, only : set_random_seed
 ! stated, assigns each new work item to the task that currently has the 
 ! smallest load.
 implicit none
-integer(i_kind), allocatable, dimension(:) :: rtmp,numobs, numobs1
+integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 real(r_single), allocatable, dimension(:) :: buffer
-integer(i_kind) np,nob,i,j,n,nn,nob1,nob2,ierr,ib1,ib2,ib3,ie1,ie2,ie3,nanal
+integer(i_kind) np,nob,i,n,nn,nob1,nob2,ierr,nanal
 real(r_double) t1
 
 ! partition state vector for enkf using Grahams rule..
 ! ("When a new job arrives, allocate it to the server 
 ! that currently has the smallest load")
-allocate(numobs(npts),numobs1(npts))
+allocate(numobs(npts))
 allocate(numobsperproc(numproc))
 allocate(numptsperproc(numproc))
 allocate(rtmp(numproc))
 t1 = mpi_wtime()
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
-call mpi_allreduce(numobs,numobs1,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (nproc == 0) print *,'time in estimate_work_enkf1 = ',mpi_wtime()-t1,' secs'
 ! loop over horizontal grid points on analysis grid.
 t1 = mpi_wtime()
@@ -144,7 +146,7 @@ do n=1,npts
    np = minloc(rtmp,dim=1)
    ! np is processor with the fewest number of obs to process
    ! add this grid point to list for nmin
-   rtmp(np) = rtmp(np)+numobs1(n)
+   rtmp(np) = rtmp(np)+numobs(n)
    numptsperproc(np) = numptsperproc(np)+1
 end do
 npts_max = maxval(numptsperproc)
@@ -156,7 +158,7 @@ rtmp = 0
 numptsperproc = 0
 do n=1,npts
    np = minloc(rtmp,dim=1)
-   rtmp(np) = rtmp(np)+numobs1(n)
+   rtmp(np) = rtmp(np)+numobs(n)
    numptsperproc(np) = numptsperproc(np)+1 ! recalculate
    indxproc(np,numptsperproc(np)) = n
 end do
@@ -166,9 +168,10 @@ if (nproc == 0) then
     print *,'time to do model space decomp = ',mpi_wtime()-t1
 end if
 
-! partition obs for enkf using Graham's rule ...
-deallocate(numobs,numobs1)
-if(simple_partition)then
+! partition obs for observation space update.
+deallocate(numobs)
+if (simple_partition) then
+  ! just distribute obs randomly
   deallocate(rtmp)
   t1 = mpi_wtime()
   numobsperproc = 0
@@ -177,118 +180,16 @@ if(simple_partition)then
   do n=1,nobsgood
      np=np+1
      if(np > numproc)np = 1
-     ! np is processor with the fewest number of close obs to process
      numobsperproc(np) = numobsperproc(np)+1
      iprocob(n) = np-1
   enddo
-else if(letkf_flag) then
-  t1 = mpi_wtime()
-  rtmp = 0
-  numobsperproc = 0
-  allocate(iprocob(nobsgood))
-  iprocob(1:nobsgood)=-1
-  ! Loop over each observation box
-  do j=1,blatnum+1
-     do i=1,blonnum+1
-        if(i /= 1) then
-           ib1=nlocconv(j,i-1)+1
-           ib2=nlocoz(j,i-1)+1
-           ib3=nlocsat(j,i-1)+1
-        else
-           if(j /= 1) then
-              ib1=nlocconv(j-1,blonnum+1)+1
-              ib2=nlocoz(j-1,blonnum+1)+1
-              ib3=nlocsat(j-1,blonnum+1)+1
-           else
-              ib1=1
-              ib2=nobs_conv+1
-              ib3=nobs_conv+nobs_oz+1
-           end if
-        end if
-        ie1=nlocconv(j,i)
-        ie2=nlocoz(j,i)
-        ie3=nlocsat(j,i)
-        ! For conventional observations
-        do nob=ib1,ie1
-           ! Search for same observation location and time
-           ! The search range is limited within the same observation box
-           do nob2=nob-1,ib1,-1
-              if(obloc(1,nob2)/=obloc(1,nob)) cycle
-              if(obloc(2,nob2)/=obloc(2,nob)) cycle
-              if(obloc(3,nob2)/=obloc(3,nob)) cycle
-              if(oblnp(nob2)/=oblnp(nob)) cycle
-              if(obtime(nob2)/=obtime(nob)) cycle
-              np=iprocob(nob2)+1
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = iprocob(nob2)
-              exit
-           end do
-           ! If there is no desirable observation, simply distribute to the smallest node.
-           if(iprocob(nob) == -1) then
-              np=minloc(rtmp,dim=1)
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = np-1
-           end if
-        end do
-        ! For ozone observations
-        do nob=ib2,ie2
-           ! Search for same observation location and time
-           ! The search range is limited within the same observation box
-           do nob2=nob-1,ib2,-1
-              if(obloc(1,nob2)/=obloc(1,nob)) cycle
-              if(obloc(2,nob2)/=obloc(2,nob)) cycle
-              if(obloc(3,nob2)/=obloc(3,nob)) cycle
-              if(oblnp(nob2)/=oblnp(nob)) cycle
-              if(obtime(nob2)/=obtime(nob)) cycle
-              np=iprocob(nob2)+1
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = iprocob(nob2)
-              exit
-           end do
-           ! If there is no desirable observation, simply distribute to the smallest node.
-           if(iprocob(nob) == -1) then
-              np=minloc(rtmp,dim=1)
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = np-1
-           end if
-        end do
-        ! For satellite radiance observations
-        do nob=ib3,ie3
-           ! Search for same observation location and time
-           ! The search range is limited within the same observation box
-           do nob2=nob-1,ib3,-1
-              if(obloc(1,nob2)/=obloc(1,nob)) cycle
-              if(obloc(2,nob2)/=obloc(2,nob)) cycle
-              if(obloc(3,nob2)/=obloc(3,nob)) cycle
-              if(oblnp(nob2)/=oblnp(nob)) cycle
-              if(obtime(nob2)/=obtime(nob)) cycle
-              np=iprocob(nob2)+1
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = iprocob(nob2)
-              exit
-           end do
-           ! If there is no desirable observation, simply distribute to the smallest node.
-           if(iprocob(nob) == -1) then
-              np=minloc(rtmp,dim=1)
-              rtmp(np) = rtmp(np)+1
-              numobsperproc(np) = numobsperproc(np)+1
-              iprocob(nob) = np-1
-           end if
-        end do
-     end do
-  end do
-  deallocate(rtmp)
 else
-  allocate(numobs(nobsgood),numobs1(nobsgood))
+  ! use graham's rule
+  allocate(numobs(nobsgood))
   t1 = mpi_wtime()
   call estimate_work_enkf2(numobs) ! fill numobs array with number of obs close to each ob
   ! distribute the results of estimate_work to all processors.
-  call mpi_allreduce(numobs,numobs1,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(mpi_in_place,numobs,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
   if (nproc == 0) print *,'time in estimate_work_enkf2 = ',mpi_wtime()-t1,' secs'
   t1 = mpi_wtime()
   rtmp = 0
@@ -298,12 +199,11 @@ else
   do n=1,nobsgood
      np = minloc(rtmp,dim=1)
      ! np is processor with the fewest number of close obs to process
-     rtmp(np) = rtmp(np)+1
+     rtmp(np) = rtmp(np)+numobs(n)
      numobsperproc(np) = numobsperproc(np)+1
      iprocob(n) = np-1
   enddo
-  deallocate(rtmp)
-  deallocate(numobs,numobs1)
+  deallocate(rtmp,numobs)
 end if
 nobs_min = minval(numobsperproc)
 nobs_max = maxval(numobsperproc)
@@ -399,14 +299,16 @@ end do
 ! deallocate here to save memory (allocated in gridinfo).
 deallocate(logp,gridloc)
 
-! set up kd-trees to search only the subset
+! set up kd-trees for serial filter to search only the subset
 ! of gridpoints, obs to be updated on this processor..
-if (numptsperproc(nproc+1) >= 3) then
+if (.not. letkf_flag .and. numptsperproc(nproc+1) >= 3) then
    kdtree_grid => kdtree2_create(grdloc_chunk,sort=.false.,rearrange=.true.)
 endif
-if (numobsperproc(nproc+1) >= 3) then
+if (.not. letkf_flag .and. numobsperproc(nproc+1) >= 3) then
    kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
 endif
+! for letkf, search all obs.
+if (letkf_flag) kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
 
 ! nob1 is the index of the obs to be processed on this rank
 ! nob2 maps nob1 to 1:nobsgood array (nobx)
@@ -448,6 +350,7 @@ obsloop: do i=n1,n2
        numobs(i) = numobs(i) + 1
     end do ! i
 end do obsloop
+!$omp end parallel do
 
 end subroutine estimate_work_enkf1
 
@@ -485,6 +388,7 @@ obsloop: do nob2=n1,n2
        numobs(nob2) = numobs(nob2) + 1
     end do ! loop over obs on this processor
 end do obsloop
+!$omp end parallel do
 
 end subroutine estimate_work_enkf2
 
@@ -503,6 +407,7 @@ if (allocated(numptsperproc)) deallocate(numptsperproc)
 if (allocated(numobsperproc)) deallocate(numobsperproc)
 if (allocated(indxproc)) deallocate(indxproc)
 if (associated(kdtree_obs)) call kdtree2_destroy(kdtree_obs)
+if (associated(kdtree_obs2)) call kdtree2_destroy(kdtree_obs2)
 if (associated(kdtree_grid)) call kdtree2_destroy(kdtree_grid)
 end subroutine loadbal_cleanup
 
