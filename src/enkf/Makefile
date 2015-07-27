@@ -213,8 +213,6 @@ clean:
 	specmod.f90 \
 	statevec.f90 \
 	write_logfile.f90
-#netlib.f90 \
-#common_mtx.f90 \
 
   SRCSF90C_NOSWAP =
 

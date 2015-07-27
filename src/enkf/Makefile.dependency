@@ -1,4 +1,3 @@
-common_mtx.o : common_mtx.f90 netlib.o 
 covlocal.o : covlocal.f90 params.o 
 enkf.o : enkf.F90 rnorm.o gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o kdtree2.o covlocal.o mpisetup.o sorting.o
 enkf_main.o : enkf_main.f90 inflation.o  enkf.o letkf.o loadbal.o statevec.o gridinfo.o innovstats.o enkf_obsmod.o mpisetup.o params.o 
@@ -14,7 +13,6 @@ loadbal.o : loadbal.f90 rnorm.o gridinfo.o kdtree2.o enkf_obsmod.o params.o mpis
 mpi_readobs.o : mpi_readobs.f90 mpisetup.o readozobs.o readsatobs.o readconvobs.o  params.o 
 mpisetup.o : mpisetup.f90 
 netcdf_io_wrf.o : netcdf_io_wrf.f90 
-netlib.o : netlib.f90 
 enkf_obsmod.o : enkf_obsmod.f90 covlocal.o   mpi_readobs.o params.o  mpisetup.o 
 params.o : params.f90   mpisetup.o 
 sorting.o: sorting.f90
