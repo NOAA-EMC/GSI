@@ -59,6 +59,8 @@ module letkf
 !
 ! program history log:
 !   2011-06-01  Created from Whitaker's serial EnSRF core module.
+!   2015-07-25  Modified to use kdtree for range search instead of
+!               original box routine.  Optimizations for no vert localization.
 !
 ! attributes:
 !   language: f95
@@ -73,15 +75,14 @@ use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    indxproc, lnp_chunk, &
                    ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
                    obtime_chunk, grdloc_chunk, obloc_chunk, &
-                   anal_obchunk_prior
+                   anal_obchunk_prior, kdtree_obs2, kdtree_obs
 use statevec, only: ensmean_chunk, anal_chunk
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobsgood, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
                   numobspersat, deltapredx, biaspreds,&
                   biasprednorm, probgrosserr, prpgerr,&
-                  corrlengthsq,lnsigl,obtimel,anal_ob,obloclat, obloclon, &
-                  boxlat, boxlon, nlocconv, nlocsat, nlocoz, blatnum, blonnum
+                  corrlengthsq,lnsigl,obtimel,anal_ob,obloclat, obloclon
 use constants, only: pi, one, zero, rad2deg, deg2rad
 use params, only: sprd_tol, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
@@ -90,12 +91,12 @@ use params, only: sprd_tol, ndim, datapath, nanals,&
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd
-!use common_mtx, only: mtx_eigen
+use kdtree2_module, only: kdtree2_r_nearest, kdtree2_result
 
 implicit none
 
 private
-public :: letkf_update, obs_local
+public :: letkf_update
 
 contains
 
@@ -104,7 +105,7 @@ implicit none
 ! LETKF update.
 
 ! local variables.
-integer(i_kind) nob,nob1,nob2,nob3,nob4,nf,nobxx,nskip,&
+integer(i_kind) nob,nob1,nob2,nf,nobxx,nskip,&
                 niter,i,nrej,npt,np
 real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
 real(r_kind) r_nanals,r_nanalsm1
@@ -113,22 +114,23 @@ real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_single), allocatable, dimension(:) :: buffertmp, buffertmp2
 integer(i_kind) ierr
-integer(i_kind) nanal,nn,nobm,nsame
+integer(i_kind) nn,nobm,nsame
 logical lastiter, vlocal
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
 real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,obdep,oberinv
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
-integer(i_kind),dimension(nobsgood) :: nobs_use
-integer(i_kind),allocatable,dimension(:) :: oupdate, oindex
-real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
-real(r_kind) :: hdist, vdist, tdist, pi2, minlat, maxlat, minlon, maxlon
-real(r_kind) :: radlat, radlon, latband, lonband, corrlength
-real(r_single) :: deglat, dist
-integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax, nthreads, nb, &
+logical,dimension(nobs_max) :: oupdate
+integer(i_kind),allocatable,dimension(:) :: oindex
+real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel
+real(r_kind) :: vdist, tdist
+real(r_kind) :: corrlength
+real(r_single) :: deglat, dist, corrsq, eps
+integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
                    nobslocal_max,nobslocal_maxall
-logical :: firstobs
+type(kdtree2_result),dimension(:),allocatable :: sresults
+logical :: sameloc,samehloc,samevloc
 
 !$omp parallel
 nthreads = omp_get_num_threads()
@@ -239,7 +241,6 @@ do niter=1,numiter
   end if
 
   nobm = 1
-  nskip = 0
   tbegin = mpi_wtime()
 
   ! Compute the inverse of cut-off length and 
@@ -253,104 +254,67 @@ do niter=1,numiter
      obdep(nob)=ob(nob)-ensmean_ob(nob)
   end do
 
-  pi2 = 2._r_kind * pi
   t2 = zero
   t3 = zero
   t4 = zero
   t5 = zero
-  firstobs=.true.
-  allocate(oupdate(numobsperproc(nproc+1)))
-  oupdate(1:numobsperproc(nproc+1)) = 0
-  ! Loop for each observations
-!$omp parallel do schedule(dynamic) private(nobs_use,nob,nob1,nob2, &
-!$omp                  nob3,nob4,nobsl,nobsl2,radlat,radlon, &
-!$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
-!$omp                  imin,imax,jmin,jmax,hdxf,rdiag,dep,rloc,hdist,vdist, &
-!$omp                  tdist,nf,work,trans,firstobs, &
-!$omp                  nskip,work2,dist,oupdate,oindex) &
-!$omp  reduction(+:t1,t2,t3,t4,t5)
+  nskip = 0
+  eps = 1.e-5 ! threshold distance for determining if ob is at same location
+  oupdate = .false.
+  ! Update ensemble in observation space.
+  ! Loop for observations on this task.
+!$omp parallel do schedule(dynamic) private(nob,nob1,nob2, &
+!$omp                  nobsl,nobsl2,corrsq,corrlength, &
+!$omp                  hdxf,rdiag,dep,rloc,vdist, &
+!$omp                  tdist,nf,work,trans,sameloc,samehloc,samevloc, &
+!$omp                  work2,dist,oindex,oupdate,sresults) &
+!$omp  reduction(+:t1,t2,t3,t4,t5,nskip)
   obsloop: do nob1=1,numobsperproc(nproc+1)
 
      t1 = mpi_wtime()
-
      nob2=indxproc_obs(nproc+1,nob1)
-     if(firstobs) then
-        nob3=nob2
-        nob4=nob1
+
+     ! no need to recompute LETKF transformation matrix (trans)
+     ! if this ob is at same lat/lon/pressure as previous one.
+     if(nob1 .ne. 1) then
+        samehloc = &
+        sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob1-1))) < eps
+        samevloc = abs(oblnp_chunk(nob1)-oblnp_chunk(nob1-1)) < eps
      else
-        nob4=nob1-1
-     end if
+        samehloc = .false.
+        samevloc = .false.
+     endif
+     ! if no vertical localization, can use same LETKF transformation
+     ! for all observation variables at the same horizontal location.
+     if (.not. vlocal) samevloc = .true.
+     sameloc = samehloc .and. samevloc
 
-     ! If the observation location and time are same as the previous
-     ! observation, skip the following steps.
-     if(.not. firstobs .and. oblnp_chunk(nob1) == oblnp_chunk(nob4) .and. &
-          obtime_chunk(nob1) == obtime_chunk(nob4) .and. &
-          sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob4))) == zero) cycle obsloop
+     ! if horiz and vert location is the same as previous one, this ob can be skipped
+     if (sameloc) cycle obsloop
 
-     ! Pick up observation boxes to use for this ob
-     ! Note: kdtree not used here because it is (or was?) not thread safe.
-     if(firstobs .or. obloclat(nob2) /= obloclat(nob3) .or. &
-          & obloclon(nob2) /= obloclon(nob3)) then
-        firstobs=.false.
-        nobsl=0
-        radlat=obloclat(nob2)*deg2rad
-        radlon=obloclon(nob2)*deg2rad
-        latband=2._r_kind*asin(0.5_r_kind*sqrt(corrlengthsq(nob2)))
-        maxlat=radlat+latband
-        minlat=radlat-latband
-        lonband=latband/max(min(cos(maxlat),cos(minlat)),1.e-10_r_kind)
-        maxlon=radlon+lonband
-        minlon=radlon-lonband
-        do jmin=1,blatnum
-           if(minlat < boxlat(jmin)) exit
-        end do
-        do jmax=2,blatnum
-           if(maxlat < boxlat(jmax)) exit
-        end do
-        if(maxlat >= boxlat(blatnum)) jmax=blatnum+1
-        do imin=1,blonnum
-           if(minlon < boxlon(imin)) exit
-        end do
-        do imax=2,blonnum
-           if(maxlon < boxlon(imax)) exit
-        end do
-        if(maxlon >= boxlon(blonnum)) imax=blonnum+1
-        if(lonband >= pi2) then
-           imin=1
-           imax=blonnum+1
-           call obs_local(imin,imax,jmin,jmax,nobsl,nobs_use)
-        else if(minlon < zero .and. imin==1) then
-           imin=imax
-           minlon=minlon+pi2
-           do imax=2,blonnum
-              if(minlon < boxlon(imax)) exit
-           end do
-           if(minlon >= boxlon(blonnum)) imax=blonnum+1
-           imax=max(imin+1,imax)
-           call obs_local(1,imin,jmin,jmax,nobsl,nobs_use)
-           call obs_local(imax,blonnum+1,jmin,jmax,nobsl,nobs_use)
-        else if(maxlon > pi2 .and. imax==blonnum+1) then
-           imax=imin
-           maxlon=maxlon-pi2
-           do imin=1,blonnum
-              if(maxlon < boxlon(imin)) exit
-           end do
-           imin=min(imax-1,imin)
-           call obs_local(1,imin,jmin,jmax,nobsl,nobs_use)
-           call obs_local(imax,blonnum+1,jmin,jmax,nobsl,nobs_use)
-        else
-           call obs_local(imin,imax,jmin,jmax,nobsl,nobs_use)
-        end if
-        nob3=nob2
-     end if
+     ! Pick up observations close to current ob (in horizontal).
+     ! if ob location is same as previous one, don't recompute.
+     if(.not. samehloc) then
+        if (allocated(sresults)) deallocate(sresults)
+        allocate(sresults(nobsgood))
+        ! kd-tree fixed range search
+        call kdtree2_r_nearest(tp=kdtree_obs2,qv=obloc_chunk(:,nob1),&
+             r2=corrlengthsq(nob2),&
+             nfound=nobsl,nalloc=nobsgood,results=sresults)
+     endif
 
      t2 = t2 + mpi_wtime() - t1
      t1 = mpi_wtime()
-     
-     ! Skip when no observation is available
-     if(nobsl == 0) then
-         oupdate(nob1)=1
+
+     ! if ob already updated, skip it.
+     if (oupdate(nob1)) then
          nskip=nskip+1
+         cycle obsloop
+     endif
+     
+     ! Skip when there are observations in range.
+     if(nobsl == 0) then
+         oupdate(nob1) = .true.
          cycle obsloop
      end if
 
@@ -359,19 +323,16 @@ do niter=1,numiter
      allocate(rloc(nobsl))
      nobsl2=1
      do nob=1,nobsl
-        nf=nobs_use(nob)
+        nf = sresults(nob)%idx
         vdist=oblnp_chunk(nob1)-oblnp(nf)
         if(abs(vdist) >= lnsigl(nf)) cycle
-        hdist=(obloc_chunk(1,nob1)-obloc(1,nf))*(obloc_chunk(1,nob1)-obloc(1,nf)) + &
-             (obloc_chunk(2,nob1)-obloc(2,nf))*(obloc_chunk(2,nob1)-obloc(2,nf)) + &
-             (obloc_chunk(3,nob1)-obloc(3,nf))*(obloc_chunk(3,nob1)-obloc(3,nf))
-        if(hdist >= corrlengthsq(nf)) cycle
         tdist=obtime_chunk(nob1)-obtime(nf)
         if(abs(tdist) >= obtimel(nf)) cycle
         vdist=vdist*invlnsigl(nf)
-        hdist=hdist*invcorlen(nf)
         tdist=tdist*invobtimel(nf)
-        dist = sqrt(hdist+vdist*vdist+tdist*tdist)
+        dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+&
+                    vdist*vdist+tdist*tdist)
+        if (dist >= one) cycle
         rloc(nobsl2)=taper(dist)
         oindex(nobsl2)=nf
         if(rloc(nobsl2) /= zero) then
@@ -388,36 +349,34 @@ do niter=1,numiter
         rdiag(nob)=oberinv(nf)
         dep(nob)=obdep(nf)
      enddo
+     deallocate(oindex)
 
      t3 = t3 + mpi_wtime() - t1
      t1 = mpi_wtime()
 
      if(nobsl2 == 0) then
-        deallocate(hdxf,rdiag,dep,rloc,oindex)
-        oupdate(nob1) = 1
+        deallocate(hdxf,rdiag,dep,rloc)
+        oupdate(nob1) = .true.
         cycle obsloop
      end if
 
-     ! Skip the already updated observation priors
-     if (oupdate(nob1) == 1) then
-        deallocate(hdxf,rdiag,dep,rloc,oindex)
-        cycle obsloop
-     end if
-
-     ! Compute transformation matrix of LETKF
+     ! Compute transformation matrix (trans) of LETKF
      call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-     deallocate(hdxf,rdiag,dep,rloc,oindex)
+     deallocate(hdxf,rdiag,dep,rloc)
 
      t4 = t4 + mpi_wtime() - t1
      t1 = mpi_wtime()
 
-     ! Update observation posterior ensembles
+     ! Update observation space ensembles
+     ! loop over all obs not yet processed, update those
+     ! at same horizontal and vertical location.
      do nob=nob1,numobsperproc(nproc+1)
-        if(oblnp_chunk(nob1) /= oblnp_chunk(nob)) exit
-        if(obtime_chunk(nob1) /= obtime_chunk(nob)) exit
-        if(sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob))) > tiny(obloc_chunk(1,nob1))) exit
-        if(oupdate(nob) == 1) cycle
-        oupdate(nob) = 1
+        if(oupdate(nob)) cycle
+        samehloc = &
+        sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob))) < eps
+        samevloc = abs(oblnp_chunk(nob1)-oblnp_chunk(nob)) < eps
+        if (.not. samehloc .or. .not. samevloc) cycle
+        oupdate(nob) = .true.
         work(1:nanals) = anal_obchunk(1:nanals,nob)
         work2(1:nanals) = ensmean_obchunk(nob)
         if(r_kind == kind(1.d0)) then
@@ -427,17 +386,19 @@ do niter=1,numiter
         end if
         ensmean_obchunk(nob) = sum(work2(1:nanals)) * r_nanals
         anal_obchunk(1:nanals,nob) = work2(1:nanals)-ensmean_obchunk(nob)
-     end do
+     enddo
 
      t5 = t5 + mpi_wtime() - t1
 
   end do obsloop
 !$omp end parallel do
+  if (allocated(sresults)) deallocate(sresults)
 
-  deallocate(oupdate)
   t1 = mpi_wtime()
-  if (nproc == 0 .and. nskip > 0) print *,nskip,' out of',numobsperproc(nproc+1),'obs skipped'
-  if (nproc == 0 .and. nrej >  0) print *,nrej,' obs rejected by varqc'
+  if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nskip > 0) print *,nskip,' obs skipped out of',&
+                                                              numobsperproc(nproc+1),' on procr',nproc
+  if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nrej >  0) print *,nrej,' obs rejected by varqc on proc',&
+                                                              numobsperproc(nproc+1)
   t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
   if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',t1-tbegin,t2,t3,t4,t5,nrej
   8003  format(i2,1x,a14,1x,i5,1x,a3,5(f8.2,1x),i4)
@@ -491,86 +452,34 @@ t4 = zero
 t5 = zero
 t6 = mpi_wtime()
 nobslocal_max = -999
-! Next, update analysis ensemble on each grid points
-! Loop for each horizontal grid points
-!$omp parallel do schedule(dynamic) private(nobs_use,npt,nob,nobsl, &
+
+! Update ensemble on model grid.
+! Loop for each horizontal grid points on this task.
+!$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
 !$omp                  nobsl2,ngrd1,corrlength, &
-!$omp                  latband,lonband,maxlat,minlat,maxlon,minlon, &
-!$omp                  imin,imax,jmin,jmax,nf,hdist0,vdist,tdist, &
+!$omp                  nf,vdist,tdist, &
 !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
-!$omp                  oindex,nanal,deglat,dist,nb) &
+!$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
 !$omp  reduction(+:t1,t2,t3,t4,t5) &
 !$omp  reduction(max:nobslocal_max)
 grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()
 
-   ! Pick up observation boxes to use in this grid point.
-   ! Note: kdtree not used here because it is (or was?) not thread safe.
-   nobsl=0
+   ! find obs close to this grid point (using kdtree)
    ngrd1=indxproc(nproc+1,npt)
    deglat = latsgrd(ngrd1)*rad2deg
    corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
-   latband=2._r_kind*asin(0.5_r_kind*corrlength)
-   maxlat=latsgrd(ngrd1)+latband
-   minlat=latsgrd(ngrd1)-latband
-   lonband=latband/max(min(cos(maxlat),cos(minlat)),1.e-10_r_kind)
-   maxlon=lonsgrd(ngrd1)+lonband
-   minlon=lonsgrd(ngrd1)-lonband
-   do jmin=1,blatnum
-      if(minlat < boxlat(jmin)) exit
-   end do
-   do jmax=2,blatnum
-      if(maxlat < boxlat(jmax)) exit
-   end do
-   if(maxlat >= boxlat(blatnum)) jmax=blatnum+1
-   do imin=1,blonnum
-      if(minlon < boxlon(imin)) exit
-   end do
-   do imax=2,blonnum
-      if(maxlon < boxlon(imax)) exit
-   end do
-   if(maxlon >= boxlon(blonnum)) imax=blonnum+1
-   if(lonband >= pi2) then
-      imin=1
-      imax=blonnum+1
-      call obs_local(imin,imax,jmin,jmax,nobsl,nobs_use)
-   else if(minlon < zero .and. imin==1) then
-      imin=imax
-      minlon=minlon+pi2
-      do imax=2,blonnum
-         if(minlon < boxlon(imax)) exit
-      end do
-      if(minlon >= boxlon(blonnum)) imax=blonnum+1
-      imax=max(imin+1,imax)
-      call obs_local(1,imin,jmin,jmax,nobsl,nobs_use)
-      call obs_local(imax,blonnum+1,jmin,jmax,nobsl,nobs_use)
-   else if(maxlon > pi2 .and. imax==blonnum+1) then
-      imax=imin
-      maxlon=maxlon-pi2
-      do imin=1,blonnum
-         if(maxlon < boxlon(imin)) exit
-      end do
-      imin=min(imax-1,imin)
-      call obs_local(1,imin,jmin,jmax,nobsl,nobs_use)
-      call obs_local(imax,blonnum+1,jmin,jmax,nobsl,nobs_use)
-   else
-      call obs_local(imin,imax,jmin,jmax,nobsl,nobs_use)
-   end if
-   
-   ! Calculate horizontal distances
-   do nob=1,nobsl
-      nf=nobs_use(nob)
-      hdist0(nob)=((grdloc_chunk(1,npt)-obloc(1,nf))*(grdloc_chunk(1,npt)-obloc(1,nf)) + &
-           (grdloc_chunk(2,npt)-obloc(2,nf))*(grdloc_chunk(2,npt)-obloc(2,nf)) + &
-           (grdloc_chunk(3,npt)-obloc(3,nf))*(grdloc_chunk(3,npt)-obloc(3,nf))) &
-           * invcorlen(nf)
-   end do
-   
+   corrsq = corrlength**2
+   allocate(sresults(nobsgood))
+   ! kd-tree fixed range search
+   call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
+        nfound=nobsl,nalloc=nobsgood,results=sresults)
+
    t2 = t2 + mpi_wtime() - t1
    t1 = mpi_wtime()
 
-   ! Skip when no observation is available
+   ! Skip when no observations in local area
    if(nobsl == 0) cycle grdloop
 
    if (vlocal) then
@@ -582,14 +491,15 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       allocate(oindex(nobsl))
       nobsl2=1
       do nob=1,nobsl
-         nf=nobs_use(nob)
+         nf = sresults(nob)%idx
          vdist=lnp_chunk(npt,nn)-oblnp(nf)
          if(abs(vdist) >= lnsigl(nf)) cycle
-         if(hdist0(nob) >= one) cycle
          if(abs(obtime(nf)) >= obtimel(nf)) cycle
          vdist=vdist*invlnsigl(nf)
          tdist=obtime(nf)*invobtimel(nf)
-         dist = sqrt(hdist0(nob)+vdist*vdist+tdist*tdist)
+         dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+&
+                     vdist*vdist+tdist*tdist)
+         if (dist >= one) cycle
          rloc(nobsl2)=taper(dist)
          oindex(nobsl2)=nf
          if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
@@ -611,13 +521,14 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          rdiag(nob)=oberinv(nf)
          dep(nob)=obdep(nf)
       end do
+      deallocate(oindex)
 
       t3 = t3 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
       ! Compute transformation matrix of LETKF
       call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-      deallocate(hdxf,rdiag,dep,rloc,oindex)
+      deallocate(hdxf,rdiag,dep,rloc)
 
       t4 = t4 + mpi_wtime() - t1
       t1 = mpi_wtime()
@@ -651,11 +562,11 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    allocate(rloc(nobsl))
    nobsl2=1
    do nob=1,nobsl
-      nf=nobs_use(nob)
-      if(hdist0(nob) >= one) cycle
+      nf = sresults(nob)%idx
       if(abs(obtime(nf)) >= obtimel(nf)) cycle
       tdist = obtime(nf)*invobtimel(nf)
-      dist = sqrt(hdist0(nob)+tdist*tdist)
+      dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+tdist*tdist)
+      if (dist >= one) cycle
       rloc(nobsl2)=taper(dist)
       oindex(nobsl2)=nf
       if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
@@ -676,13 +587,14 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          rdiag(nob)=oberinv(nf)
          dep(nob)=obdep(nf)
       end do
+      deallocate(oindex)
 
       t3 = t3 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
       ! Compute transformation matrix of LETKF
       call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-      deallocate(hdxf,rdiag,dep,rloc,oindex)
+      deallocate(hdxf,rdiag,dep,rloc)
 
       t4 = t4 + mpi_wtime() - t1
       t1 = mpi_wtime()
@@ -712,6 +624,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       deallocate(rloc,oindex)
    end if
    end if
+   if (allocated(sresults)) deallocate(sresults)
 end do grdloop
 !$omp end parallel do
 
@@ -769,7 +682,7 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !               is used.  Allow for numiter=0 (skip ob space update). Fixed
 !               missing openmp private declarations in obsloop and grdloop.
 !               Use openmp reductions for profiling openmp loops. Use LAPACK
-!               routine for eigenanalysis (instead of mtx_eigen from eispack).
+!               routine for eigenanalysis.
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch
@@ -829,9 +742,6 @@ do nanal=1,nanals
    work1(nanal,nanal) = work1(nanal,nanal) + real(nanals-1,r_kind)
 end do
 ! eigenvalues and eigenvectors of [ hdxb^T Rinv hdxb + (m-1) I ]
-! use internal eispack routine
-!call mtx_eigen(1,nanals,work1,eival,eivec,i)
-! use external (LAPACK) routine
 eivec(:,:) = work1(:,:); lwork = -1
 call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
 lwork = min(nanals*nanals, int(work1(1,1)))
@@ -916,82 +826,5 @@ deallocate(work2,eivec,pa,work1,rrloc,eival,work3)
 
 return
 end subroutine letkf_core
-
-subroutine obs_local(imin,imax,jmin,jmax,nobsl,nobs_use)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    obs_local
-!
-!   prgmmr: ota
-!
-! abstract:  select local observations from the observation box
-!
-! program history log:
-!   2011-06-20  ota
-!
-!   input argument list:
-!     imin imax jmin jmax  - search range for observation box
-!     nobsl    - number of observations already collected
-!     nobs_use - observation indices selected
-!
-!   output argument list:
-!     nobsl    - number of observations already collected
-!     nobs_use - observation indices selected
-!
-! attributes:
-!   language:  f95
-!   machine:
-!
-!$$$ end documentation block
-implicit none
-integer(i_kind),intent(in) :: imin
-integer(i_kind),intent(in) :: imax
-integer(i_kind),intent(in) :: jmin
-integer(i_kind),intent(in) :: jmax
-integer(i_kind),intent(inout) :: nobsl
-integer(i_kind),intent(inout) :: nobs_use(nobsgood)
-integer(i_kind) :: j,ib1,ib2,ib3,ie1,ie2,ie3,ip
-do j=jmin,jmax
-   ! Get observation index
-   if(imin > 1) then
-      ib1 = nlocconv(j,imin-1)+1
-      ib2 = nlocoz(j,imin-1)+1
-      ib3 = nlocsat(j,imin-1)+1
-   else
-      if(j > 1) then
-         ib1 = nlocconv(j-1,blonnum+1)+1
-         ib2 = nlocoz(j-1,blonnum+1)+1
-         ib3 = nlocsat(j-1,blonnum+1)+1
-      else
-         ib1=1
-         ib2=nobs_conv+1
-         ib3=nobs_conv+nobs_oz+1
-      end if
-   end if
-   ie1 = nlocconv(j,imax)
-   ie2 = nlocoz(j,imax)
-   ie3 = nlocsat(j,imax)
-   if(nobs_conv > 0) then
-      do ip=ib1,ie1
-         nobsl=nobsl+1
-         nobs_use(nobsl)=ip
-      end do
-   end if
-   if(nobs_oz > 0) then
-      do ip=ib2,ie2
-         nobsl=nobsl+1
-         nobs_use(nobsl)=ip
-      end do
-   end if
-   if(nobs_sat > 0) then
-      do ip=ib3,ie3
-         nobsl=nobsl+1
-         nobs_use(nobsl)=ip
-      end do
-   end if
-end do
-
-return
-end subroutine obs_local
 
 end module letkf
