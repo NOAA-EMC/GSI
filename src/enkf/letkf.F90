@@ -396,7 +396,7 @@ do niter=1,numiter
 
   t1 = mpi_wtime()
   if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nskip > 0) print *,nskip,' obs skipped out of',&
-                                                              numobsperproc(nproc+1),' on procr',nproc
+                                                              numobsperproc(nproc+1),' on proc',nproc
   if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nrej >  0) print *,nrej,' obs rejected by varqc on proc',&
                                                               numobsperproc(nproc+1)
   t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
