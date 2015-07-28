@@ -2,20 +2,19 @@
 #date of first radstat file
 bdate=2013102500
 #date of last radstat file
-#edate=bdate
-edate=2013111500
+edate=2013110500
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
 #location of radstat file
-exp=prexoz
-diagdir=/scratch1/portfolios/NCEPDEV/da/noscrub/Kristen.Bathmann/archive/${exp}
+exp=prCtl
+diagdir=/scratch1/portfolios/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch2/portfolios/NCEPDEV/stmp/Kristen.Bathmann/desroziers_${exp}_${bdate}
+wrkdir=/scratch2/portfolios/NCEPDEV/stmp/${USER}/desroziers_${exp}_${bdate}
 #location the covariance matrix is saved to
 savdir=$diagdir
-#type- 0 for all, 1 for sea, 2 for land
+#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
 type=1
-#cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels
+#cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
 cloud=1
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=20

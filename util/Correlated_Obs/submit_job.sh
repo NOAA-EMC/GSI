@@ -1,8 +1,8 @@
 #!/bin/ksh
 
 #Zeus Job options
-#PBS -o compout_airs
-#PBS -e comperr_airs
+#PBS -o compout
+#PBS -e comperr
 #PBS -N covcalc
 #PBS -q batch
 #PBS -l walltime=04:00:00
@@ -23,5 +23,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
+rundir=${PWD#*/}
+cd ${rundir}
 ./run.sh
 
