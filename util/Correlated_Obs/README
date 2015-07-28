@@ -1,4 +1,7 @@
-cov_calc computes interchannel observation covariances based on Desroziers' method.
+cov_calc computes satellite IR observation covariances based on Desroziers' method. It will compute interchannel correlations, if they exist. 
+
+See
+Desroziers, Gérald, et al. "Diagnosis of observation, background and analysis‐error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
 
 This program uses the radstat.gdas.$date files, and outputs four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. The second and third contain the wavenumbers of the satellite instrument, and the assumed obs error (these can used for plotting).  The fourth file is the correlation matrix.
 
@@ -8,4 +11,4 @@ To use the computed covariance matrix in the GSI:
 
 For convenience, get_rads.sh can be used to retrieve radstat files from hpss.
 
-To run this program, edit the parameters in the first few lines of run.sh.  Compile by typing 'make'.  (To make clean type 'make clean').  Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  
+To run cov_calc, edit the parameters in the first few lines of run.sh.  Compile by typing 'make'.  (To make clean type 'make clean').  Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  For 10 days of radstats, 2.5 hours should be sufficient. 
