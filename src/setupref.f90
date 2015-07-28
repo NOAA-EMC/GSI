@@ -238,6 +238,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !440 => Megha-Tropiques
 !821 => SACD
 !44  => PAZ
+!750-755 => COSMIC-2 Equatorial
+!724-729 => COSMIC-2 Polar
 
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse

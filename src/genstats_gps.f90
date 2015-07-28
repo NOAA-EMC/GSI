@@ -43,6 +43,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !                         add dtype, dobs to distinguish use of toss_gps between ref/bending, add SR QC for obs
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-13 derber   - minor optimization modifications
+!   2015-07-28 cucurull - add QC for regional bending angle assimilation
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
@@ -79,6 +80,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: ten   = 10.0_r_kind
+  real(r_kind),parameter:: six   = 6.0_r_kind
   real(r_kind),parameter:: r1em3 = 1.0e-3_r_kind
   real(r_kind),parameter:: r20   = 20.0_r_kind
   real(r_kind),parameter:: scale = 100.0_r_kind
@@ -372,12 +374,16 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         if(regional) then
            toss=.false.
            if(ratio_errors*data_ier > tiny_r_kind) then
-              satid        = gps_allptr%rdiag(1)
-              if((satid==41).or.(satid==722).or.(satid==723).or.(satid==4).or.(satid==786).or.(satid==3)) then
-                 if ((high_gps(kprof)) < ten)  toss=.true.
-              else ! OL
-                 if ((high_gps(kprof)) < five) toss=.true.
-              endif
+             if(dtype==zero) then !refractivity
+                satid        = gps_allptr%rdiag(1)
+                if((satid==41).or.(satid==722).or.(satid==723).or.(satid==4).or.(satid==786).or.(satid==3)) then
+                   if ((high_gps(kprof)) < ten)  toss=.true.
+                else ! OL
+                   if ((high_gps(kprof)) < five) toss=.true.
+                endif
+             else !bending angle
+                if ((high_gps(kprof)) <= six)  toss=.true.
+             endif
            endif
            if (toss) then
               if (luse) then
