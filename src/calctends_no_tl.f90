@@ -136,8 +136,14 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
 ! get 3d pressure
   call getprs_tl(p,t,pri)
 
-  call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
-                                        u_y,v_y,t_y,pri_y,uvflag)
+  if(uvflag)then
+    call get_derivatives2uv(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
+                                        u_y,v_y,t_y,pri_y)
+  else
+    call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
+                                        u_y,v_y,t_y,pri_y)
+  end if
+
 
 !$omp parallel do private(i,j,k,kk,tmp,tmp2,uduvdv, &
 !$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)

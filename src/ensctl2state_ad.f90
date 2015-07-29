@@ -75,7 +75,9 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
+logical :: do_tlnmc
 logical :: do_cw_to_hydro_ad
+
 !****************************************************************************
 
 ! Initialize timer
@@ -139,26 +141,25 @@ do jj=1,ntlevs_ens
 
 
 !  Calculate sensible temperature
-   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
+!  if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
 !  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+!  if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 ! If calling TLNMC, already have u,v (so set last argument to true)
-   if(lstrong_bk_vars) then
-      if ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) ) then
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+            (jj==ibin_anl .and. tlnmc_option==2))  
+   if(do_tlnmc) then
 
 !  Adjoint of consistency for 3d pressure and sensible temperature
 !  Calculate sensible temperature
-         if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
+      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
 !  Adjoint to convert ps to 3-d pressure
-         if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+      if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 !  Adjoint of strong_bk
-         call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
-      end if
+      call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
    end if
 
    call self_add(mval,eval(jj))
@@ -212,7 +213,7 @@ do jj=1,ntlevs_ens
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
 !  call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk                    
 !  Calculate sensible temperature
-   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
+   if(do_tv_to_tsen_ad .and. .not. do_tlnmc) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh

@@ -33,7 +33,7 @@ subroutine add_gfs_stratosphere
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional,wrf_nmm_regional 
+  use gridmod, only: idsl5,regional,wrf_nmm_regional,use_gfs_nemsio
   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
@@ -42,10 +42,11 @@ subroutine add_gfs_stratosphere
   use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
   use mpeu_util, only: die
+  use mpimod, only: npe
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-  use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
+  use general_sub2grid_mod, only: general_grid2sub,general_sub2grid,general_sub2grid_destroy_info
   use general_specmod, only: spec_vars,general_init_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
@@ -66,12 +67,12 @@ subroutine add_gfs_stratosphere
   use control_vectors, only: cvars3d
   implicit none
 
-  type(sub2grid_info) grd_gfs,grd_mix
+  type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs,sp_b
   real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
-  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen,cwt,qlt,qit,qrt,qst,qgt,qht
+  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen,qlt,qit,qrt,qst,qgt,qht
 
   character(len=*),parameter::myname='add_gfs_stratosphere'
   integer(i_kind) it_beg,it_end 
@@ -82,7 +83,7 @@ subroutine add_gfs_stratosphere
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
-  integer(i_kind) inner_vars,num_fields,nsig_gfs,jcap_gfs_test
+  integer(i_kind) inner_vars,num_fields,num_fieldst,nsig_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r,jcap_org,nlon_b
   logical,allocatable :: vector(:)
   logical hires
@@ -319,6 +320,7 @@ subroutine add_gfs_stratosphere
   jcap_org=sighead%jcap
   nsig_gfs=nsigg
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
+  num_fieldst=min(num_fields,npe)!  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
 
@@ -333,12 +335,14 @@ subroutine add_gfs_stratosphere
   end if 
 
   if(mype==0) write(6,*)' in add_gfs_stratosphere before general_sub2grid_create_info'                                                
-  if(mype==0) write(6,*)' in add_gfs_stratosphere: num_fields = ', num_fields  
+  if(mype==0) write(6,*)' in add_gfs_stratosphere: num_fields = ', num_fields,num_fieldst  
   if(mype==0) write(6,*)' in add_gfs_stratosphere: jcap_org, jcap_gfs= ', &
               jcap_org, jcap_gfs
   if(mype==0) write(6,*)' in add_gfs_stratosphere: nlon_b, nlon_gfs, hires=', &
                           nlon_b, nlon_gfs, hires
 
+  call general_sub2grid_create_info(grd_gfst,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fieldst, &
+                                  .not.regional)
   allocate(vector(num_fields))
   vector=.false.
   vector(1:2*nsig_gfs)=.true.
@@ -375,12 +379,17 @@ subroutine add_gfs_stratosphere
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     if (hires) then
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     if(use_gfs_nemsio)then
+           call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,.true.,.false.,.true., &
+                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
      else
-        call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
-                                 z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+        if (hires) then
+           call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
+                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        else
+           call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
+                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        end if
      end if
         
 !test
@@ -558,7 +567,6 @@ subroutine add_gfs_stratosphere
   allocate(ttsen(lat2,lon2,nsig))
   allocate(qt(lat2,lon2,nsig))
   allocate(ozt(lat2,lon2,nsig))
-  allocate(cwt(lat2,lon2,nsig))
   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
      allocate(qlt(lat2,lon2,nsig))
      allocate(qit(lat2,lon2,nsig))
@@ -902,6 +910,10 @@ subroutine add_gfs_stratosphere
      end do
   end do
 
+  call general_sub2grid_destroy_info(grd_gfs)
+  call general_sub2grid_destroy_info(grd_gfst)
+  call general_sub2grid_destroy_info(grd_mix)
+  deallocate(ut,vt,tt,ttsen,qt,ozt)
   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
@@ -954,7 +966,6 @@ subroutine add_gfs_stratosphere
      end if
   end if
 
-  deallocate(ut,vt,tt,ttsen,qt,ozt,cwt)
   deallocate(xspli_r,yspliu_r,yspliv_r,xsplo)
   deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
   deallocate(xspli_g,yspliu_g,yspliv_g)

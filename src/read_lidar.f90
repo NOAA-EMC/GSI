@@ -1,4 +1,4 @@
-subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
+subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_lidar                   read doppler lidar winds
@@ -51,6 +51,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !     ndata    - number of doppler lidar wind profiles retained for further processing
 !     nodata   - number of doppler lidar wind observations retained for further processing
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -65,6 +66,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
   use deter_sfc_mod, only: deter_sfc2
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -72,6 +74,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe),intent(inout) :: nobs
   real(r_kind)    ,intent(in   ) :: twind
 
 ! Declare local parameters
@@ -294,6 +297,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 
 ! Write observations to scratch file
+  call count_obs(ndata,maxdat,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
 
