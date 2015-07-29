@@ -1,6 +1,6 @@
 subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_gmi           read  GMI  bufr data
@@ -55,6 +55,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !     nread    - number of BUFR  observations read (after eliminating orbit overlap)
 !     ndata    - number of BUFR  profiles retained for further processing (thinned)
 !     nodata   - number of BUFR  observations retained for further processing (thinned)
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -76,6 +77,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
@@ -91,6 +93,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind)   , intent(inout) :: val_gmi
   integer(i_kind),intent(inout)  :: nread
   integer(i_kind),intent(inout)  :: ndata,nodata
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Declare local parameters
   logical                   :: use_swath_edge
@@ -643,6 +646,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         super_val(itt)=super_val(itt)+val_gmi
      end do
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   

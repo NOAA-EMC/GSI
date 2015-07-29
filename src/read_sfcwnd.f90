@@ -1,5 +1,5 @@
 subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
-     prsl_full)
+     prsl_full,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_sfcwnd                    read scatterometer winds
@@ -32,6 +32,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !     nread    - number of satellite winds read 
 !     ndata    - number of satellite winds retained for further processing
 !     nodata   - number of satellite winds retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -55,6 +56,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -62,6 +64,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe)        ,intent(inout) :: nobs
   real(r_kind)                          ,intent(in   ) :: twind
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
@@ -709,6 +712,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   deallocate(iloc,isort,cdata_all)
   deallocate(etabl)
   
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) cdata_out
 

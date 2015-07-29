@@ -1,6 +1,6 @@
 subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            obstype,twind,sis,ithin,rmesh, &
-           mype,mype_root,mype_sub,npe_sub,mpi_comm_sub)
+           mype,mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_aerosol                    read aerosol data
@@ -44,6 +44,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     nread    - number of modis aerosol observations read
 !     ndata    - number of modis aerosol profiles retained for further processing
 !     nodata   - number of modis aerosol observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! remarks:
 !
@@ -60,6 +61,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
+  use mpimod, only: npe
   implicit none
 !
 ! Declare local parameters
@@ -71,6 +73,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character(len=20),intent(in)   :: sis
   integer(i_kind), intent(in)    :: lunout, ithin
   integer(i_kind), intent(inout) :: nread
+  integer(i_kind),dimension(npe), intent(inout) :: nobs
   integer(i_kind), intent(inout) :: ndata, nodata
   integer(i_kind) ,intent(in)    :: mype
   integer(i_kind) ,intent(in)    :: mype_root
@@ -330,6 +333,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
                  end do
               end do
               ! Write final set of "best" observations to output file
+              call count_obs(ndata,naerodat,ilat,ilon,aeroout,nobs)
               write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
               write(lunout) ((aeroout(k,n),k=1,naerodat),n=1,ndata)
            end if
