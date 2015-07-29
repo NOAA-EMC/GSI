@@ -212,8 +212,8 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 
      end do
 100  format('o-g ',i2.2,1x,a7)
-720  format(1x,a14,1x,a4,a8,1x,a5,1x,i7,1x,10(i6,1x),i7)
-800  format(1x,a14,1x,a4,a8,1x,a5,1x,f7.2,1x,10(f6.2,1x),f7.2)
+720  format(1x,a14,1x,a4,a8,1x,a5,1x,i8,1x,10(i7,1x),i8)
+800  format(1x,a14,1x,a4,a8,1x,a5,1x,f8.2,1x,10(f8.2,1x),f8.2)
      
   endif
   return

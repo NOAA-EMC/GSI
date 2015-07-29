@@ -298,6 +298,16 @@ module obsmod
 !   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
 !                      files
 !   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
+!   def dval_use       -   = .true. if any dval weighting is used for satellite
+!                           data
+!   def obs_sub        - number of observations of each type in each subdomain
+!                        (nobs_type,npe)
+!   def stpcnt         - number of non-zero obs types (including time domain) on
+!                        processor - used for threading of stpjo
+!   def ll_jo          - points at ob type for location in stpcnt - used for
+!                        threading of stpjo
+!   def ll_ib          - points at time bin for location in stpcnt - used for
+!                        threading of stpjo
 !
 ! attributes:
 !   langauge: f90
@@ -322,7 +332,7 @@ module obsmod
   public :: destroyobs
   public :: destroyobs_passive
   public :: destroy_obsmod_vars
-  public :: ran01dom
+  public :: ran01dom,dval_use
   public :: destroy_genstats_gps
   public :: inquire_obsdiags
   public :: dfile_format
@@ -384,6 +394,8 @@ module obsmod
 
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
+  public :: nobs_sub
+  public :: ll_jo,ib_jo,stpcnt
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -1444,7 +1456,7 @@ module obsmod
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
-  integer(i_kind) nlco,use_limit 
+  integer(i_kind) nlco,use_limit,stpcnt
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
@@ -1460,6 +1472,8 @@ module obsmod
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
+  integer(i_kind),allocatable :: nobs_sub(:,:)
+  integer(i_kind),allocatable,dimension(:)::ll_jo,ib_jo
   integer(i_kind),allocatable :: obscounts(:,:)
   integer(i_kind),allocatable :: obs_sub_comm(:)
   
@@ -1476,7 +1490,7 @@ module obsmod
 
   logical, save :: obs_instr_initialized_=.false.
 
-  logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on
+  logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on,dval_use
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
@@ -1848,6 +1862,10 @@ contains
     ALLOCATE(lcbastail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
+    allocate(ll_jo(nobs_bins*nobs_type),ib_jo(nobs_bins*nobs_type))
+    ll_jo=0
+    ib_jo=0
+    stpcnt=0
 
     if(luse_obsdiag)ALLOCATE(obsdiags(nobs_type,nobs_bins))
 
@@ -2385,6 +2403,7 @@ contains
 
 
     if (allocated(obscounts)) deallocate(obscounts) 
+    if (allocated(nobs_sub)) deallocate(nobs_sub) 
 
     return
   end subroutine destroyobs_
@@ -2763,6 +2782,7 @@ allocate(ditype(nall),ipoint(nall))
 
 ! Retrieve each token of interest from table and define
 ! variables participating in state vector
+dval_use = .false. 
 do ii=1,nrows
    read(utable(ii),*) dfile(ii),& ! local file name from which to read observatinal data
                       dtype(ii),& ! character string identifying type of observatio
@@ -2773,6 +2793,7 @@ do ii=1,nrows
                       dsfcalc(ii) ! use orig bilinear FOV surface calculation (routine deter_sfc)
 
    if(trim(dplat(ii))=='null') dplat(ii)=' '
+   if(dval(ii) > 0.0) dval_use = .true.
    ditype(ii)= ' '                    ! character string identifying group type of ob (see read_obs)
    ipoint(ii)= 0                      ! default pointer (values set in gsisub) _RT: This is never needed
    time_window(ii) = time_window_max  ! default to maximum time window

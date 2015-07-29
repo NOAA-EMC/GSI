@@ -53,7 +53,6 @@ subroutine getuv(u,v,st,vp,iflg)
   real(r_kind),dimension(nlat,nlon)::awork,bwork
 
   allocate(worksub(2,s2guv%lat2,s2guv%lon2,s2guv%nsig))
-  allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
 
   if(iflg == 0)then
      do k=1,nsig
@@ -64,7 +63,6 @@ subroutine getuv(u,v,st,vp,iflg)
            end do
         end do
      end do
-     call general_sub2grid(s2guv,worksub,work1)
   else
      do k=1,nsig
         do j=1,lon2
@@ -74,8 +72,10 @@ subroutine getuv(u,v,st,vp,iflg)
            end do
         end do
      end do
-     call general_sub2grid(s2guv,worksub,work1)
   end if
+
+  allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
+  call general_sub2grid(s2guv,worksub,work1)
 
   if(regional)then
      if(iflg == 0)then
@@ -112,6 +112,7 @@ subroutine getuv(u,v,st,vp,iflg)
   end if
 
   call general_grid2sub(s2guv,work1,worksub)
+  deallocate(work1)
   if(iflg == 0) then
      do k=1,nsig
         do j=1,lon2
@@ -132,7 +133,7 @@ subroutine getuv(u,v,st,vp,iflg)
      end do
   end if
 
-  deallocate(worksub,work1)
+  deallocate(worksub)
 
   return
 end subroutine getuv
