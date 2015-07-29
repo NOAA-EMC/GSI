@@ -32,7 +32,10 @@ use kinds, only: i_kind
 implicit none
 
 PRIVATE
-PUBLIC intrad
+PUBLIC intrad,setrad
+PUBLIC itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+PUBLIC luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+       luseqr,luseqs,lusesst
 
 interface intrad; module procedure &
           intrad_
@@ -42,10 +45,12 @@ integer(i_kind) :: itv,iqv,ioz,icw,ius,ivs,isst
 integer(i_kind) :: iqg,iqh,iqi,iql,iqr,iqs
 logical :: done_setting = .false.
 logical :: lgoback
+logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+        luseqr,luseqs,lusesst
 
 contains
 
-subroutine set_(sval)
+subroutine setrad(sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    set_  sat radiance operator setting
@@ -173,10 +178,24 @@ subroutine set_(sval)
   iqs=-1
   if(look) iqs =radjacindxs(indx)
 
+  luseu=ius>=0
+  lusev=ivs>=0
+  luset=itv>=0
+  luseq=iqv>=0
+  luseoz=ioz>=0
+  lusecw=icw>=0
+  luseql=iql>=0
+  luseqi=iqi>=0
+  luseqh=iqh>=0
+  luseqg=iqg>=0
+  luseqr=iqr>=0
+  luseqs=iqs>=0
+  lusesst=isst>=0
+
   done_setting = .true.
 
   return
-end subroutine set_
+end subroutine setrad
 
 subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$  subprogram documentation block
@@ -286,8 +305,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
-  logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
-          luseqr,luseqs,lusesst
 
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
@@ -299,22 +316,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !  If no rad observations return
   if(.not.associated(radhead)) return
 ! Set required parameters
-  call set_(sval)
   if(lgoback) return
 
-  luseu=ius>=0
-  lusev=ivs>=0
-  luset=itv>=0
-  luseq=iqv>=0
-  luseoz=ioz>=0
-  lusecw=icw>=0
-  luseql=iql>=0
-  luseqi=iqi>=0
-  luseqh=iqh>=0
-  luseqg=iqg>=0
-  luseqr=iqr>=0
-  luseqs=iqs>=0
-  lusesst=isst>=0
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0
@@ -421,7 +424,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -467,27 +469,24 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            tdir(iqs+k)=w1* sqs(i1)+w2* sqs(i2)+ &
                        w3* sqs(i3)+w4* sqs(i4)
         end if
-        if(k == 1)then
-           if(luseu)then
-              tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
-                             w3* su(j3) +w4* su(j4)
-           endif
-           if(lusev)then
-              tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
-                             w3* sv(j3) +w4* sv(j4)
-           endif
-           if(lusesst)then
-              tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
-                           w3*sst(j3) +w4*sst(j4)
-           end if
-        end if
-
      end do
+     if(luseu)then
+        tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
+                       w3* su(j3) +w4* su(j4)
+     endif
+     if(lusev)then
+        tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
+                       w3* sv(j3) +w4* sv(j4)
+     endif
+     if(lusesst)then
+        tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
+                           w3*sst(j3) +w4*sst(j4)
+     end if
+
 
 
      if (l_foto) then
         time_rad=radptr%time*r3600
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
@@ -525,7 +524,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !  For all other configurations
 !  begin channel specific calculations
      allocate(val(radptr%nchan))
-!$omp parallel do schedule(dynamic,1) !private(nn,ic,ix,k,n,cg_rad,wnotgross,wgross,p0)
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
         ix=(ic-1)*npred
@@ -585,7 +583,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !          Begin adjoint
 
      if (l_do_adjoint) then
-!$omp parallel do schedule(dynamic,1) private(k,nn)
         do k=1,nsigradjac
            tval(k)=zero
 
@@ -598,34 +595,31 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !    Distribute adjoint contributions over surrounding grid points
  
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+        if(luseu) then
+           ru(j1)=ru(j1)+w1*tval(ius+1)
+           ru(j2)=ru(j2)+w2*tval(ius+1)
+           ru(j3)=ru(j3)+w3*tval(ius+1)
+           ru(j4)=ru(j4)+w4*tval(ius+1)
+        endif
+        if(lusev) then
+           rv(j1)=rv(j1)+w1*tval(ivs+1)
+           rv(j2)=rv(j2)+w2*tval(ivs+1)
+           rv(j3)=rv(j3)+w3*tval(ivs+1)
+           rv(j4)=rv(j4)+w4*tval(ivs+1)
+        endif
+
+        if (lusesst) then
+           rst(j1)=rst(j1)+w1*tval(isst+1)
+           rst(j2)=rst(j2)+w2*tval(isst+1)
+           rst(j3)=rst(j3)+w3*tval(isst+1)
+           rst(j4)=rst(j4)+w4*tval(isst+1)
+        end if
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
            i3 = i3n(k)
            i4 = i4n(k)
 
-           if(k == 1)then
-              if(luseu) then
-                 ru(j1)=ru(j1)+w1*tval(ius+1)
-                 ru(j2)=ru(j2)+w2*tval(ius+1)
-                 ru(j3)=ru(j3)+w3*tval(ius+1)
-                 ru(j4)=ru(j4)+w4*tval(ius+1)
-              endif
-              if(lusev) then
-                 rv(j1)=rv(j1)+w1*tval(ivs+1)
-                 rv(j2)=rv(j2)+w2*tval(ivs+1)
-                 rv(j3)=rv(j3)+w3*tval(ivs+1)
-                 rv(j4)=rv(j4)+w4*tval(ivs+1)
-              endif
-
-              if (lusesst) then
-                 rst(j1)=rst(j1)+w1*tval(isst+1)
-                 rst(j2)=rst(j2)+w2*tval(isst+1)
-                 rst(j3)=rst(j3)+w3*tval(isst+1)
-                 rst(j4)=rst(j4)+w4*tval(isst+1)
-              end if
-           end if
  
            if(luset)then
               mm=itv+k
@@ -699,26 +693,23 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            end if
         end do
         if (l_foto) then
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+           if(luseu) then
+              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
+              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
+              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
+              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
+           endif
+           if(lusev) then
+              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
+              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
+              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
+              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
+           endif
            do k=1,nsig
               i1 = i1n(k)
               i2 = i2n(k)
               i3 = i3n(k)
               i4 = i4n(k)
-              if(k == 1)then
-                 if(luseu) then
-                    dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
-                    dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
-                    dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
-                    dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
-                 endif
-                 if(lusev) then
-                    dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
-                    dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
-                    dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
-                    dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
-                 endif
-              endif
               if(luset)then
                  mm=itv+k
                  dhat_dt_t(i1)=dhat_dt_t(i1)+w1*tval(mm)*time_rad

@@ -1,7 +1,7 @@
 subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 ! subprogram:    read_saphir                 read bufr format saphir data
 ! prgmmr :   ejones          org: jcsda               date: 2015-01-02
 ! code copied from read_atms.f90
@@ -40,6 +40,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !     nread    - number of BUFR ATMS 1b observations read
 !     ndata    - number of BUFR ATMS 1b profiles retained for further processing
 !     nodata   - number of BUFR ATMS 1b observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -61,6 +62,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
@@ -77,6 +79,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Declare local parameters
 
@@ -588,6 +591,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      end do
      
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   end if

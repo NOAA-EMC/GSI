@@ -1,6 +1,7 @@
 subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
+     nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_goesimg                    read goes imager data
@@ -56,11 +57,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !     obstype  - observation type to process
 !     twind    - input group time window (hours)
 !     sis      - satellite/instrument/sensor indicator
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR GOES imager observations read
 !     ndata    - number of BUFR GOES imager profiles retained for further processing
 !     nodata   - number of BUFR GOES imager observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -76,24 +79,26 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,nrec_start
   integer(i_kind) ,intent(inout) :: ndata,nodata
   integer(i_kind) ,intent(inout) :: nread
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)    ,intent(inout) :: val_img
   integer(i_kind) ,intent(in   ) :: mype_root
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  logical         ,intent(in   ) :: dval_use
 
 ! Declare local parameters
   integer(i_kind),parameter:: nimghdr=13
-  integer(i_kind),parameter:: maxinfo=37
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -106,7 +111,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   character(8) subset
 
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
-  integer(i_kind) nmind,lnbufr,idate,ilat,ilon
+  integer(i_kind) nmind,lnbufr,idate,ilat,ilon,maxinfo
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
@@ -132,6 +137,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !**************************************************************************
 ! Initialize variables
+  maxinfo=35
   lnbufr = 10
   disterrmax=zero
   ntest=0
@@ -192,6 +198,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   if(jsatid == 'g15') kidsat = 259
 
 ! Allocate arrays to hold all data for given satellite
+  if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
@@ -201,8 +208,9 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   irec=0
 
 ! Big loop over bufr file
-  do while(IREADMG(lnbufr,subset,idate) >= 0)
+  read_msg: do while(IREADMG(lnbufr,subset,idate) >= 0)
      irec=irec+1
+     if(irec < nrec_start)cycle read_msg
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -366,8 +374,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(30,itx)= dlon_earth*rad2deg          ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth*rad2deg          ! earth relative latitude (degrees)
 
-        data_all(36,itx) = val_img
-        data_all(37,itx) = itt
+        if(dval_use)then
+           data_all(36,itx) = val_img
+           data_all(37,itx) = itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
@@ -385,7 +395,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         nrec(itx)=irec
 
      enddo read_loop
-  enddo
+  enddo read_msg
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
@@ -397,11 +407,16 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if(data_all(k+nreal,n) > tbmin .and. &
            data_all(k+nreal,n) < tbmax)nodata=nodata+1
     end do
-    itt=nint(data_all(maxinfo,n))
-    super_val(itt)=super_val(itt)+val_img
   end do
+  if(dval_use .and. assim)then
+     do n=1,ndata
+       itt=nint(data_all(37,n))
+       super_val(itt)=super_val(itt)+val_img
+     end do
+  end if
 
 ! Write final set of "best" observations to output file
+  call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
