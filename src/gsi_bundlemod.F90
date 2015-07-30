@@ -2112,11 +2112,9 @@ CONTAINS
 !   retrieve variable
     if( irank==1 ) then
         Bundle%r1(ipnt)%qr8 = cnst
-    endif
-    if( irank==2 ) then
+    else if( irank==2 ) then
         Bundle%r2(ipnt)%qr8 = cnst
-    endif
-    if( irank==3 ) then
+    else if( irank==3 ) then
         Bundle%r3(ipnt)%qr8 = cnst
     endif
 
@@ -2166,11 +2164,9 @@ CONTAINS
 !   retrieve variable
     if( irank==1 ) then
         Bundle%r1(ipnt)%qr4 = cnst
-    endif
-    if( irank==2 ) then
+    else if( irank==2 ) then
         Bundle%r2(ipnt)%qr4 = cnst
-    endif
-    if( irank==3 ) then
+    else if( irank==3 ) then
         Bundle%r3(ipnt)%qr4 = cnst
     endif
 
@@ -2229,11 +2225,9 @@ CONTAINS
 !   retrieve variable
     if( irank==1 ) then
         Bundle%r1(ipnt)%qr8 = fld
-    endif
-    if( irank==2 ) then
+    else if( irank==2 ) then
         Bundle%r2(ipnt)%qr8 = reshape(fld,(/im,jm/))
-    endif
-    if( irank==3 ) then
+    else if( irank==3 ) then
         Bundle%r3(ipnt)%qr8 = reshape(fld,(/im,jm,km/))
     endif
 
@@ -3210,30 +3204,27 @@ subroutine self_add_st(yst,xst)
      call stop2(999)
   endif
 
-  if(yst%AllKinds==r_single .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+xst%valuesR4(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double .and. &
-     xst%AllKinds==r_double ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+xst%valuesR8(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_single .and. &
-     xst%AllKinds==r_double ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+xst%valuesR8(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+xst%valuesR4(ii)
-     ENDDO
-  endif
+  if(xst%AllKinds==r_double)then
+     if(yst%AllKinds==r_double)then
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+xst%valuesR8(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single)then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+xst%valuesR8(ii)
+        ENDDO
+     endif
+  else if(xst%AllKinds==r_single)then
+     if(yst%AllKinds==r_double )then
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+xst%valuesR4(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single)then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+xst%valuesR4(ii)
+        ENDDO
+     endif
+  end if
 
   return
 end subroutine self_add_st
@@ -3279,29 +3270,26 @@ subroutine self_add_R8scal(yst,pa,xst)
      call stop2(999)
   endif
 
-  if(yst%AllKinds==r_single .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double   .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR4(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_single  .and. &
-     xst%AllKinds==r_double   ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR8(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double .and. &
-     xst%AllKinds==r_double ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR8(ii)
-     ENDDO
+  if(xst%AllKinds==r_double ) then 
+     if(yst%AllKinds==r_double )then 
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR8(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single) then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR8(ii)
+        ENDDO
+     endif
+  else if(xst%AllKinds==r_single ) then
+     if(yst%AllKinds==r_double) then
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR4(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single)then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
+        ENDDO
+     end if
   endif
 
   return
@@ -3348,29 +3336,26 @@ subroutine self_add_R4scal(yst,pa,xst)
      call stop2(999)
   endif
 
-  if(yst%AllKinds==r_single .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double   .and. &
-     xst%AllKinds==r_single ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR4(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_single  .and. &
-     xst%AllKinds==r_double   ) then
-     DO ii=1,yst%ndim
-        yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR8(ii)
-     ENDDO
-  endif
-  if(yst%AllKinds==r_double .and. &
-     xst%AllKinds==r_double ) then
-     DO ii=1,yst%ndim
-        yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR8(ii)
-     ENDDO
+  if(xst%AllKinds==r_double ) then 
+     if(yst%AllKinds==r_double )then 
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR8(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single) then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR8(ii)
+        ENDDO
+     endif
+  else if(xst%AllKinds==r_single ) then
+     if(yst%AllKinds==r_double) then
+        DO ii=1,yst%ndim
+           yst%valuesR8(ii)=yst%valuesR8(ii)+pa*xst%valuesR4(ii)
+        ENDDO
+     else if(yst%AllKinds==r_single)then
+        DO ii=1,yst%ndim
+           yst%valuesR4(ii)=yst%valuesR4(ii)+pa*xst%valuesR4(ii)
+        ENDDO
+     end if
   endif
 
   return
@@ -3393,8 +3378,7 @@ subroutine self_mulR8_(yst,pa)
      DO ii=1,yst%ndim
         yst%valuesR8(ii)=pa*yst%valuesR8(ii)
      ENDDO
-  endif
-  if (yst%AllKinds==r_single) then
+  else if (yst%AllKinds==r_single) then
      DO ii=1,yst%ndim
         yst%valuesR4(ii)=pa*yst%valuesR4(ii)
      ENDDO
@@ -3419,8 +3403,7 @@ subroutine self_mulR4_(yst,pa)
      DO ii=1,yst%ndim
         yst%valuesR8(ii)=pa*yst%valuesR8(ii)
      ENDDO
-  endif
-  if (yst%AllKinds==r_single) then
+  else if (yst%AllKinds==r_single) then
      DO ii=1,yst%ndim
         yst%valuesR4(ii)=pa*yst%valuesR4(ii)
      ENDDO

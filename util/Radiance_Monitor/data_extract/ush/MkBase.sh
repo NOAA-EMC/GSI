@@ -22,8 +22,6 @@ function usage {
   echo "              the $TANKverf/stats directory."
   echo "            Sat (optional) restricts the list of satellite sources."
   echo "              No sat means all satellite sources will be included." 
-  echo "            Redirection of log and err files is recommended for "
-  echo "              diagnostic purposes, but not essential"
 }
 
 nargs=$#
@@ -285,8 +283,9 @@ if [[ -e ${TANKverf}/info/${basefile} || -e ${TANKverf}/info/${basefile}.${Z} ]]
    rm -f ${TANKverf}/info/${basefile}*
 fi
 
-${COMPRESS} ${basefile}
-$NCP ${basefile}.${Z} ${TANKverf}/info/.
+#${COMPRESS} ${basefile}
+#$NCP ${basefile}.${Z} ${TANKverf}/info/.
+$NCP ${basefile} ${TANKverf}/info/.
 
 #-------------------------------------------------------------------
 #  Clean up $tmpdir

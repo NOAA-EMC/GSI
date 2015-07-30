@@ -39,13 +39,14 @@ subroutine read_gfs_ozone_for_regional
 !$$$ end documentation block
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
-  use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional
+  use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional,use_gfs_nemsio
   use constants,only: zero,half,fv,rd_over_cp,one,h300
                        use constants, only: rad2deg  !  debug
-  use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
+  use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max,npe
   use kinds, only: r_kind,i_kind
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
+  use general_sub2grid_mod, only: general_sub2grid_destroy_info
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
@@ -57,7 +58,7 @@ subroutine read_gfs_ozone_for_regional
   use gsi_4dvar, only: nhr_assimilation
   implicit none
 
-  type(sub2grid_info) grd_gfs,grd_mix
+  type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs,sp_b
   real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
@@ -74,7 +75,7 @@ subroutine read_gfs_ozone_for_regional
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
-  integer(i_kind) inner_vars,num_fields,nsig_gfs,jcap_gfs_test
+  integer(i_kind) inner_vars,num_fields,num_fieldst,nsig_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r,jcap_org,nlon_b
   logical,allocatable :: vector(:)
   logical vector0
@@ -229,7 +230,8 @@ subroutine read_gfs_ozone_for_regional
   inner_vars=1
   jcap_org=sighead%jcap
   nsig_gfs=sighead%levs
-  num_fields=2*nsig_gfs
+  num_fields=6*nsig_gfs+1
+  num_fieldst=min(num_fields,npe)
 
   nlon_b=((2*jcap_org+1)/nlon_gfs+1)*nlon_gfs
   if (nlon_b > nlon_gfs) then
@@ -246,10 +248,14 @@ subroutine read_gfs_ozone_for_regional
   if(mype==0) write(6,*)'read_gfs_ozone_for_regional: nlon_b, nlon_gfs, hires=', &
                          nlon_b, nlon_gfs, hires
 
+  call general_sub2grid_create_info(grd_gfst,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fieldst, &
+                                  .not.regional)
+  num_fields=2*nsig_gfs
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
+  deallocate(vector)
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
   if (hires) then
@@ -259,6 +265,9 @@ subroutine read_gfs_ozone_for_regional
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
 
+  num_fields=2*nsig_gfs
+  allocate(vector(num_fields))
+  vector=.false.
   call general_sub2grid_create_info(grd_mix,inner_vars,nlat,nlon,nsig_gfs,num_fields,regional,vector)
   deallocate(vector)
 
@@ -277,13 +286,17 @@ subroutine read_gfs_ozone_for_regional
   allocate(prsl(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
-
-  if (hires) then
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,iret)
+  if(use_gfs_nemsio)then
+     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
   else
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,iret)
+     if (hires) then
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     else
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     end if
   end if
 
 ! test
@@ -474,6 +487,9 @@ subroutine read_gfs_ozone_for_regional
 ! copy ges_oz to met-bundle ...
   call copy_vars_
   call final_vars_
+  call general_sub2grid_destroy_info(grd_gfs)
+  call general_sub2grid_destroy_info(grd_mix)
+  call general_sub2grid_destroy_info(grd_gfst)
   deallocate(infiles)
 
   return

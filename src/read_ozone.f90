@@ -1,5 +1,5 @@
 subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
-           obstype,twind,sis,ithin,rmesh)
+           obstype,twind,sis,ithin,rmesh,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_ozone                    read ozone data
@@ -80,6 +80,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     nread    - number of sbuv/omi ozone observations read
 !     ndata    - number of sbuv/omi ozone profiles retained for further processing
 !     nodata   - number of sbuv/omi ozone observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! remarks:
 !   NCEP stopped producing IEEE format sbuv ozone files in April 2004.  
@@ -103,6 +104,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use qcmod, only: use_poq7
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -110,6 +112,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: gstime,twind,rmesh
 
@@ -1018,6 +1021,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   endif
 
 ! Write header record and data to output file for further processing
+  call count_obs(ndata,nozdat,ilat,ilon,ozout,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((ozout(k,i),k=1,nozdat),i=1,ndata)
   nread=nmrecs

@@ -57,6 +57,7 @@ use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
 use bias_predictors, only: update_bias_preds
 use intjomod, only: intjo
+use intradmod, only: setrad
 use intjcmod, only: intjcdfi
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use gsi_bundlemod, only: gsi_bundle
@@ -186,6 +187,7 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
+call setrad(sval(1))
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 do ibin=1,nobs_bins

@@ -29,144 +29,8 @@ implicit none
 PRIVATE
 PUBLIC stprad
 
-integer(i_kind) :: itv,iqv,ioz,icw,ius,ivs,isst
-integer(i_kind) :: iqg,iqh,iqi,iql,iqr,iqs
-logical :: done_setting=.false.
-logical :: lgoback
 
 contains
-
-subroutine set_(xval)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    set_ set parameters for stprad
-!   prgmmr: todling          org: np22                date: 2011-05-17
-!
-! abstract: set parameters for stprad
-!           This routine is NEVER to be make public.
-!
-! program history log:
-!   2011-05-17  todling
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad,one_quad
-  use gsi_bundlemod, only: gsi_bundle
-  use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_metguess_mod, only: gsi_metguess_get
-  use mpeu_util, only: getindex
-  implicit none
-  
-! Declare passed variables
-  type(gsi_bundle),intent(in) :: xval
-
-! Declare local variables
-  integer(i_kind) ier,istatus
-  integer(i_kind) indx
-  logical         look
-  real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
-  real(r_kind),pointer,dimension(:) :: sst
-
-  if(done_setting) return
-
-! Retrieve pointers
-  ier=0; itv=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
-  iqg=0; iqh=0; iqi=0; iql=0; iqr=0; iqs=0
-  call gsi_bundlegetpointer(xval,'u',  su, istatus);ius=istatus+ius
-  call gsi_bundlegetpointer(xval,'v',  sv, istatus);ivs=istatus+ivs
-  call gsi_bundlegetpointer(xval,'tv' ,st, istatus);itv=istatus+itv
-  call gsi_bundlegetpointer(xval,'q',  sq, istatus);iqv=istatus+iqv
-  call gsi_bundlegetpointer(xval,'cw' ,scw,istatus);icw=istatus+icw
-  call gsi_bundlegetpointer(xval,'oz' ,soz,istatus);ioz=istatus+ioz
-  call gsi_bundlegetpointer(xval,'sst',sst,istatus);isst=istatus+isst
-  call gsi_bundlegetpointer(xval,'qg' ,sqg,istatus);iqg=istatus+iqg
-  call gsi_bundlegetpointer(xval,'qh' ,sqh,istatus);iqh=istatus+iqh
-  call gsi_bundlegetpointer(xval,'qi' ,sqi,istatus);iqi=istatus+iqi
-  call gsi_bundlegetpointer(xval,'ql' ,sql,istatus);iql=istatus+iql
-  call gsi_bundlegetpointer(xval,'qr' ,sqr,istatus);iqr=istatus+iqr
-  call gsi_bundlegetpointer(xval,'qs' ,sqs,istatus);iqs=istatus+iqs
-  lgoback=(ius/=0).and.(ivs/=0).and.(itv/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
-  lgoback=lgoback .and.(iqg/=0).and.(iqh/=0).and.(iqi/=0).and.(iql/=0).and.(iqr/=0).and.(iqs/=0)
-  if(lgoback)return
-
-! check to see if variable participates in forward operator
-! tv
-  indx=getindex(radjacnames,'tv')
-  look=(itv==0.and.indx>0)
-  itv=-1
-  if(look) itv=radjacindxs(indx)
-! q
-  indx=getindex(radjacnames,'q')
-  look=(iqv==0.and.indx>0)
-  iqv=-1
-  if(look) iqv=radjacindxs(indx)
-! oz
-  indx=getindex(radjacnames,'oz')
-  look=(ioz ==0.and.indx>0)
-  ioz=-1
-  if(look) ioz =radjacindxs(indx)
-! cw
-  indx=getindex(radjacnames,'cw')
-  look=(icw ==0.and.indx>0)
-  icw=-1
-  if(look) icw =radjacindxs(indx)
-! sst
-  indx=getindex(radjacnames,'sst')
-  look=(isst==0.and.indx>0)
-  isst=-1
-  if(look) isst=radjacindxs(indx)
-! us & vs
-  indx=getindex(radjacnames,'u')
-  look=(ius==0.and.indx>0)
-  ius=-1
-  if(look) ius=radjacindxs(indx)
-  indx=getindex(radjacnames,'v')
-  look=(ivs==0.and.indx>0)
-  ivs=-1
-  if(look) ivs=radjacindxs(indx)
-! qg
-  indx=getindex(radjacnames,'qg')
-  look=(iqg ==0.and.indx>0)
-  iqg=-1
-  if(look) iqg =radjacindxs(indx)
-! qh
-  indx=getindex(radjacnames,'qh')
-  look=(iqh ==0.and.indx>0)
-  iqh=-1
-  if(look) iqh =radjacindxs(indx)
-! qi
-  indx=getindex(radjacnames,'qi')
-  look=(iqi ==0.and.indx>0)
-  iqi=-1
-  if(look) iqi =radjacindxs(indx)
-! ql
-  indx=getindex(radjacnames,'ql')
-  look=(iql ==0.and.indx>0)
-  iql=-1
-  if(look) iql =radjacindxs(indx)
-! qr
-  indx=getindex(radjacnames,'qr')
-  look=(iqr ==0.and.indx>0)
-  iqr=-1
-  if(look) iqr =radjacindxs(indx)
-! qs
-  indx=getindex(radjacnames,'qs')
-  look=(iqs ==0.and.indx>0)
-  iqs=-1
-  if(look) iqs =radjacindxs(indx)
-
-  done_setting =.true.
-  return
-end subroutine set_
 
 subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !$$$  subprogram documentation block
@@ -245,6 +109,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
+  use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
+          luseqr,luseqs,lusesst
+  use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
   implicit none
   
 ! Declare passed variables
@@ -266,8 +133,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
   type(rad_ob_type), pointer :: radptr
-  logical luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
-          luseqr,luseqs,lusesst
 
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
@@ -280,8 +145,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !  If no rad data return
   if(.not. associated(radhead))return
 
-! Set internal parameters
-  call set_(xval)
   if(lgoback)return
 
 ! Retrieve pointers
@@ -328,19 +191,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
      call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ioz=istatus+ioz
      if(ier/=0)return
   endif
-  luseu=ius>=0
-  lusev=ivs>=0
-  luset=itv>=0
-  luseq=iqv>=0
-  luseoz=ioz>=0
-  lusecw=icw>=0
-  luseql=iql>=0
-  luseqi=iqi>=0
-  luseqh=iqh>=0
-  luseqg=iqg>=0
-  luseqr=iqr>=0
-  luseqs=iqs>=0
-  lusesst=isst>=0
 
 
   tdir=zero
@@ -369,25 +219,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            if (isst>=0) then
               tdir(isst+1)=w1*sst(j1) + w2*sst(j2) + w3*sst(j3) + w4*sst(j4)   
               rdir(isst+1)=w1*rst(j1) + w2*rst(j2) + w3*rst(j3) + w4*rst(j4)   
-           end if
-           if(l_foto)then
-              time_rad=radptr%time*r3600
-              if(luseu)then
-                 tdir(ius+1)=tdir(ius+1)+ &
-                    (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
-                     w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
-                 rdir(ius+1)=rdir(ius+1)+ &
-                    (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
-                     w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
-              endif
-              if(lusev)then
-                 tdir(ivs+1)=tdir(ivs+1)+ &
-                    (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
-                     w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
-                 rdir(ivs+1)=rdir(ivs+1)+ &
-                    (w1*dhat_dt_v(j1) + w2*dhat_dt_v(j2) + &
-                     w3*dhat_dt_v(j3) + w4*dhat_dt_v(j4))*time_rad
-              endif
            end if
 
            j1n(1) = j1
@@ -452,6 +283,23 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
            end do
            if(l_foto)then
+              time_rad=radptr%time*r3600
+              if(luseu)then
+                 tdir(ius+1)=tdir(ius+1)+ &
+                    (w1*xhat_dt_u(j1) + w2*xhat_dt_u(j2) + &
+                     w3*xhat_dt_u(j3) + w4*xhat_dt_u(j4))*time_rad
+                 rdir(ius+1)=rdir(ius+1)+ &
+                    (w1*dhat_dt_u(j1) + w2*dhat_dt_u(j2) + &
+                     w3*dhat_dt_u(j3) + w4*dhat_dt_u(j4))*time_rad
+              endif
+              if(lusev)then
+                 tdir(ivs+1)=tdir(ivs+1)+ &
+                    (w1*xhat_dt_v(j1) + w2*xhat_dt_v(j2) + &
+                     w3*xhat_dt_v(j3) + w4*xhat_dt_v(j4))*time_rad
+                 rdir(ivs+1)=rdir(ivs+1)+ &
+                    (w1*dhat_dt_v(j1) + w2*dhat_dt_v(j2) + &
+                     w3*dhat_dt_v(j3) + w4*dhat_dt_v(j4))*time_rad
+              endif
               do n=1,nsig
                  j1 = j1n(n)
                  j2 = j2n(n)
