@@ -1,0 +1,141 @@
+#!/bin/sh
+#############################################################
+# Set up environment for GDAS Minimization Monitor job
+#############################################################
+set -xa
+#
+# Specify whether the run is production or development
+#
+export RUN_ENVIR=${RUN_ENVIR:-prod}
+export envir=${envir:-prod}
+
+###############################################################
+# This block can be modified for different test environment
+###############################################################
+if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+  export SENDDBN=${SENDDBN:-NO}
+  export m_jlogfile=${m_jlogfile:-/com/logs/${envir}/jlogfile}
+  export jlogfile=${m_jlogfile}
+fi
+
+
+echo `date` $0 `date -u` begin
+export PS4='$SECONDS + '
+
+########################################################### 
+# obtain unique process id (pid) and make temp directories
+###########################################################
+export pid=$$
+export DATA_IN=${DATA_IN:-/tmpnwprd}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export SUFFIX=${MINMON_SUFFIX}
+export m_job=${m_job:-${SUFFIX}_mmDE}
+export job=${m_job}
+
+export DATA=$DATA_IN/${job}.${pid}
+mkdir -p $DATA
+cd $DATA
+
+####################################
+# File To Log Msgs
+####################################
+export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
+#if [[ -e $jlogfile ]]; then
+#  rm -f $jlogfile
+#fi
+
+####################################
+# Determine Job Output Name on System
+####################################
+export outid="LL$job"
+export jobid="${outid}.o${pid}"
+export cycle=t${cyc}z 
+
+###############################
+# Specify NET and RUN name
+##############################
+export NET=${NET:-gfs}
+export RUN=${RUN:-gdas}
+
+##################################################
+# SENDCOM  - Copy Files From TMPDIR to $COMOUT
+# SENDDBN  - Issue DBNet Client Calls
+##################################################
+export SENDCOM=${SENDCOM:-YES}
+export SENDDBN=${SENDDBN:-NO}
+export VERBOSE=${VERBOSE:-YES}
+export ERRSCRIPT=${ERRSCRIPT:-err_chk}
+
+export HOMEgdasgmon=${HOMEgdasgmon:-/nw${envir}/gdas_minmon.v${gdas_minmon_ver}}
+export SCRIPTSgdasgmon=${SCRIPTSgdasgmon:-$HOMEgdasgmon/scripts}
+echo "HOMEgdasgmon = $HOMEgdasgmon"
+
+export HOMEgmon=${HOMEgmon:-/nw${envir}/minmon_shared.v${minmon_shared_ver}}
+echo "HOMEgmon = $HOMEgmon"
+export EXECgmon=${EXECgmon:-$HOMEgmon/exec}
+export FIXgmon=${FIXgmon:-${HOMEgmon}/fix}
+export USHradmon=${USHgmon:-$HOMEgmon/ush}
+
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+export Z=${Z:-gz}
+
+
+
+###################################
+# Set up the UTILITIES
+###################################
+export NWPROD=${NWPROD:-/nwprod}
+export utilscript=${utilscript:-$NWPROD/util/ush}
+export utilexec=${utilexec:-$NWPROD/util/exec}
+
+# Run setup to initialize working directory and utility scripts
+$utilscript/setup.sh
+
+# Run setpdy and initialize PDY variables
+$utilscript/setpdy.sh
+source ./PDY
+
+
+#############################################
+# TANKverf - WHERE OUTPUT DATA WILL RESIDE
+#############################################
+M_TANKverf=${M_TANKverf:-/com/verf/${envir}}
+M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
+export M_TANKverfM1=${M_TANKverf}/minmon.${PDYm1}
+export M_TANKverf=$M_TANKverfM0
+
+export COM_IN=${COM_IN:-/com/${NET}/${envir}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+
+mkdir -p -m 775 $M_TANKverf
+ 
+env
+
+########################################
+# Set necessary environment variables
+########################################
+export gsistat=${gsistat:-${COMIN}/gdas1.t${cyc}z.gsistat}
+
+msg="JOB HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+########################################################
+# Execute the script.
+${GMONSH:-$SCRIPTSgdasgmon/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
+########################################################
+
+msg="JOB COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+################################
+# Remove the Working Directory
+################################
+#RM_TMPDIR=NO
+#cd $DATA_IN
+#if [ ${RM_TMPDIR:-YES} = YES ] ; then 
+#  rm -rf $DATA 
+#fi
+
+date
+
