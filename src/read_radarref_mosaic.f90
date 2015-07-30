@@ -1,4 +1,4 @@
-subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
+subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  read_radarref_mosaic     Reading in reflectivity mosaic in RR grid
@@ -27,6 +27,7 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 !   output argument list:
 !     nread    - number of type "obstype" observations read
 !     ndata    - number of type "obstype" observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! USAGE:
 !   INPUT FILES:  refInGSI
@@ -50,6 +51,7 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
+  use mpimod, only: npe
 
   implicit none
 !
@@ -57,6 +59,7 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   character(10),    intent(in)    :: infile,obstype
   integer(i_kind),  intent(in)    :: lunout
   integer(i_kind),  intent(inout) :: nread,ndata
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   real(r_kind),     intent(in   ) :: twind
   character(20),    intent(in)    :: sis
 !
@@ -194,12 +197,14 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       nreal=maxlvl+2
       if(numref > 0 ) then
          if(nlon==nlon_regional .and. nlat==nlat_regional) then
+            call count_obs(numref,maxlvl+2,ilat,ilon,ref3d_column,nobs)
             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
             write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
          else
             call wrfmass_obs_to_a8(ref3d_column,nreal,numref,ilat,ilon,numobsa)
             nread=numobsa
             ndata=numobsa
+            call count_obs(numobsa,maxlvl+2,ilat,ilon,ref3d_column,nobs)
             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
             write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numobsa)
          endif

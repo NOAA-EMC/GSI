@@ -1,4 +1,4 @@
-subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis)
+subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
 !
 !   PRGMMR: Shun Liu          ORG: EMC        DATE: 2013-05-14
 !
@@ -29,6 +29,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis)
   use kinds, only: r_kind,i_kind,r_single
   use constants, only: zero,deg2rad,rad2deg
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons
+  use mpimod, only: npe
 
   implicit none
 
@@ -37,6 +38,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis)
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nouse
+  integer(i_kind) ,dimension(npe),intent(inout) :: nobs
 ! real(r_kind),dimension(nlat,nlon,nsig),intent(in):: hgtl_full
 
 ! Declare local parameters
@@ -166,6 +168,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis)
    nread=numobs
    ndata=numobs
    nouse=0
+   call count_obs(numobs,maxdat,ilat,ilon,cdata_all,nobs)
    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
    write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,numobs)
    write(6,*)'NASA larccld::',nreal,numobs

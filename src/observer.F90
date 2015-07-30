@@ -37,7 +37,7 @@ module observermod
 
   use kinds, only: i_kind
   use constants, only: rearth
-  use mpimod, only: mype
+  use mpimod, only: mype,npe
   use jfunc, only: miter,jiter,jiterstart,&
        switch_on_derivatives,tendsflag
   use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig,&
@@ -45,7 +45,7 @@ module observermod
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
        destroy_ges_grids,destroy_sfc_grids,nfldsig
   use cloud_efr_mod, only: cloud_init,cloud_final
-  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
+  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,ndat,nobs_sub, &
        lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate,luse_obsdiag
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
@@ -315,7 +315,7 @@ subroutine set_
 
 ! Declare local variables
   logical:: lhere
-  integer(i_kind):: lunsave,istat1,istat2
+  integer(i_kind):: lunsave,istat1,istat2,istat3,ndat_old,npe_old
   
   data lunsave  / 22 /
 _ENTRY_(Iam)
@@ -345,8 +345,9 @@ _ENTRY_(Iam)
         call stop2(329)
      endif
   
+     allocate(nobs_sub(npe,ndat))
      open(lunsave,file=obs_input_common,form='unformatted')
-     read(lunsave,iostat=istat1) ndata,superp,nprof_gps,ditype
+     read(lunsave,iostat=istat1) ndata,ndat_old,npe_old,superp,nprof_gps,ditype
      allocate(super_val1(0:superp))
      read(lunsave,iostat=istat2) super_val1
      if (istat1/=0 .or. istat2/=0) then
@@ -354,6 +355,16 @@ _ENTRY_(Iam)
              trim(obs_input_common),' istat1,istat2=',istat1,istat2,'  Terminate execution'
         call stop2(329) 
      endif
+     if(npe_old /= npe .or. ndat /= ndat_old) then
+        if (mype==0) write(6,*) ' observer_set: inconsistent ndat,npe ',ndat,npe,    &
+               ' /= ',ndat_old,npe_old
+        call stop2(330)
+     end if
+     read(lunsave,iostat=istat3) nobs_sub
+     if(istat3 /= 0) then
+        if(mype == 0) write(6,*) ' observer_set: error reading nobs_sub '
+        call stop2(331)
+     end if
      close(lunsave)
 
      if (mype==0) write(6,*)'OBSERVER_SET:  read collective obs selection info from ',&

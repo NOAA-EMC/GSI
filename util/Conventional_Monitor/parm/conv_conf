@@ -5,8 +5,8 @@
 export MY_MACHINE=wcoss
 export MY_OS=linux
 
-export CONVDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/dup_ConvMon_277/util/Conventional_Monitor
-export MY_TANKDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/nbns
+export CONVDIR=/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monitor
+export MY_TANKDIR=/u/${LOGNAME}/nbns
 
 export TANKDIR=${MY_TANKDIR}/stats/convweb/${SUFFIX}
 export IMGNDIR=${MY_TANKDIR}/imgn/convweb/${SUFFIX}
@@ -32,8 +32,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 fi
  
-export STMP=/stmpp1/Edward.Safford
-export PTMP=/ptmpp1/Edward.Safford
+export STMP=/stmpp1/${LOGNAME}
+export PTMP=/ptmpp1/${LOGNAME}
 
 
 export LOGDIR=${PTMP}/logs/conv${SUFFIX}
@@ -49,7 +49,7 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt
 #
 #  Web server resources
 #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=esafford
+export WEBDIR=
+export WEBUSER=${LOGNAME}
 export WEBSVR=emcrzdm
 
