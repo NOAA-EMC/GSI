@@ -1,6 +1,7 @@
 subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
+     nrec_start,dval_use)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_ssmi           read SSM/I  bufr1b data
@@ -69,11 +70,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR SSM/I observations read (after eliminating orbit overlap)
 !     ndata    - number of BUFR SSM/I profiles retained for further processing (thinned)
 !     nodata   - number of BUFR SSM/I observations retained for further processing (thinned)
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -91,13 +94,14 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
-  integer(i_kind),intent(in   ) :: mype,lunout,ithin
+  integer(i_kind),intent(in   ) :: mype,lunout,ithin,nrec_start
   integer(i_kind),intent(in   ) :: mype_root
   integer(i_kind),intent(in   ) :: mype_sub
   integer(i_kind),intent(in   ) :: npe_sub
@@ -105,14 +109,15 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind)   ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)   ,intent(inout) :: val_ssmi
 
+  integer(i_kind),dimension(npe),intent(inout):: nobs
   integer(i_kind),intent(inout):: nread
 
   integer(i_kind),intent(inout):: ndata,nodata
+  logical        ,intent(in   ):: dval_use
 
 
 ! Declare local parameters
   integer(i_kind),parameter :: n1bhdr=14
-  integer(i_kind),parameter :: maxinfo=33
   integer(i_kind),parameter :: maxchanl=30
 
   integer(i_kind),parameter :: ntime=8      !time header
@@ -135,7 +140,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind):: iret,idate,nchanl
   integer(i_kind):: isflg,nreal,idomsfc
   integer(i_kind):: nmind,itx,nele,itt
-  integer(i_kind):: iskip
+  integer(i_kind):: iskip,maxinfo
   integer(i_kind):: lnbufr
   integer(i_kind):: ilat,ilon
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -173,6 +178,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
 !**************************************************************************
 ! Initialize variables
+  maxinfo=31
   lnbufr = 15
   disterrmax=zero
   ntest=0
@@ -223,9 +229,9 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      if (nusis(i)==sis) then
         if (iuse_rad(i)>=0) then
            if (iuse_rad(i)>0) assim=.true.
-	   if (nuchan(i)==6) ch6=.true.
-	   if (nuchan(i)==7) ch7=.true.
-	   if (assim.and.ch6.and.ch7) exit
+           if (nuchan(i)==6) ch6=.true.
+           if (nuchan(i)==7) ch7=.true.
+           if (assim.and.ch6.and.ch7) exit
         endif
      endif
   end do search
@@ -242,6 +248,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   call datelen(10)
 
 ! Allocate arrays to hold data
+  if(dval_use)maxinfo=maxinfo+2
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
@@ -252,6 +259,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   next=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
      irec=irec+1
+     if(irec < nrec_start) cycle read_subset
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -470,8 +478,10 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            data_all(29,itx)= ff10                 ! ten meter wind factor
            data_all(30,itx)= dlon_earth*rad2deg   ! earth relative longitude (degrees)
            data_all(31,itx)= dlat_earth*rad2deg   ! earth relative latitude (degrees)
-           data_all(maxinfo-1,itx)= val_ssmi
-           data_all(maxinfo,itx)= itt
+           if(dval_use)then
+              data_all(32,itx)= val_ssmi
+              data_all(33,itx)= itt
+           end if
 
            if(nst_gsi>0) then
               data_all(maxinfo+1,itx) = tref       ! foundation temperature
@@ -510,12 +520,16 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_ssmi
-
      end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(33,n))
+           super_val(itt)=super_val(itt)+val_ssmi
+        end do
+     end if
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   

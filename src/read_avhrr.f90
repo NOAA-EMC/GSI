@@ -1,6 +1,7 @@
 subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      gstime,infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
+     nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_avhrr_gac                  read gac avhrr data
@@ -57,11 +58,13 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !     obstype  - observation type to process
 !     twind    - input group time window (hours)
 !     sis      - satellite/instrument/sensor indicator
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR GAC AVHRR observations read
 !     ndata    - number of BUFR GAC AVHRR profiles retained for further processing
 !     nodata   - number of BUFR GAC AVHRR observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -79,14 +82,16 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
   implicit none
 
 
 ! Declare passed variables
   character(len=*), intent(in  ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,nrec_start
   integer(i_kind) ,intent(inout) :: nread
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)    ,intent(inout) :: val_avhrr
@@ -94,11 +99,11 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  logical         ,intent(in   ) :: dval_use
 
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
-  integer(i_kind),parameter:: maxinfo = 35
   integer(i_kind),parameter:: mlat_sst = 3000
   integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
@@ -118,7 +123,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) klon1,klatp1,klonp1,klat1
   integer(i_kind) nchanl,iret,ifov, ich4, ich_offset
 ! integer(i_kind) ich_win
-  integer(i_kind) idate
+  integer(i_kind) idate,maxinfo
   integer(i_kind) ilat,ilon
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) nmind,isflg,idomsfc
@@ -162,6 +167,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !**************************************************************************
 
 ! Start routine here.  Set constants.  Initialize variables
+  maxinfo = 33
   lnbufr = 10
   disterrmax=zero
   ntest=0
@@ -228,6 +234,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Allocate arrays to hold all data for given satellite
+  if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
@@ -242,9 +249,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   nrec=999999
   irec=0
 ! Read BUFR AVHRR GAC 1b data
-  do while (ireadmg(lnbufr,subset,idate) >= 0)
-     next=next+1
+  read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
      irec=irec+1
+     if(irec < nrec_start) cycle read_msg
+     next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr) == 0)
@@ -485,8 +493,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(31,itx) = dlat_earth*rad2deg     ! earth relative latitude (degrees)
         data_all(32,itx) = hdr(13)                ! CLAVR Cloud flag (only 0 = clear and 1 = probably clear included the data set used now)
         data_all(33,itx) = sst_hires              ! interpolated hires SST (deg K)
-        data_all(34,itx) = val_avhrr              ! weighting factor applied to super obs
-        data_all(35,itx) = itt                    !
+        if(dval_use)then
+           data_all(34,itx) = val_avhrr              ! weighting factor applied to super obs
+           data_all(35,itx) = itt                    !
+        end if
 
         if(nst_gsi>0) then
            data_all(maxinfo+1,itx) = tref            ! foundation temperature
@@ -503,7 +513,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !    End of satellite read block
 
      enddo read_loop
-  enddo
+  enddo read_msg
   call closbf(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
@@ -511,24 +521,26 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-! write(6,*) 'READ_AVHRR:  mype, total number of obs info, nread,ndata : ',mype, nread,ndata
-
-!    Identify "bad" observation (unreasonable brightness temperatures).
-!    Update superobs sum according to observation location
   if (mype_sub==mype_root.and.ndata>0) then
-    do n=1,ndata
-       do k=1,nchanl
-          if(data_all(k+nreal,n) > tbmin .and. &
-             data_all(k+nreal,n) < tbmax) nodata=nodata+1
-       end do
-       itt=nint(data_all(maxinfo,n))
-       super_val(itt)=super_val(itt)+val_avhrr
-    end do
-
-!   Write retained data to local file
-    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+   do n=1,ndata
+      do k=1,nchanl
+         if(data_all(k+nreal,n) > tbmin .and. &
+            data_all(k+nreal,n) < tbmax) nodata=nodata+1
+      end do
+   end do
+   if(dval_use .and. assim)then
+      do n=1,ndata
+         itt=nint(data_all(35,n))
+         super_val(itt)=super_val(itt)+val_avhrr
+      end do
+   end if
+ 
+!  Write retained data to local file
+   call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   endif
+! write(6,*) 'READ_AVHRR:  mype, total number of obs info, nread,ndata : ',mype, nread,ndata
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)

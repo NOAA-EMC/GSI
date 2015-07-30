@@ -28,7 +28,7 @@ subroutine get_gefs_for_regional
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional
+  use gridmod, only: idsl5,regional,use_gfs_nemsio
   use gridmod, only: region_lat,region_lon  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
@@ -49,6 +49,7 @@ subroutine get_gefs_for_regional
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
   use general_sub2grid_mod, only: general_suba2sube,general_sube2suba
+  use general_sub2grid_mod, only: general_sub2grid_destroy_info
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
@@ -56,13 +57,14 @@ subroutine get_gefs_for_regional
   use guess_grids, only: ges_tsen,ifilesig,hrdifsig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
+  use mpimod, only: npe
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
   implicit none
 
-  type(sub2grid_info) grd_gfs,grd_mix
+  type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs
   real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl,prsl1000
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
@@ -90,7 +92,7 @@ subroutine get_gefs_for_regional
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
-  integer(i_kind) nord_g2r
+  integer(i_kind) nord_g2r,num_fieldst
   logical,allocatable :: vector(:)
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
@@ -103,7 +105,7 @@ subroutine get_gefs_for_regional
   integer(i_kind) istatus
   real(r_kind) rdog,h,dz
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
-  logical add_bias_perturbation
+  logical add_bias_perturbation,inithead
   integer(i_kind) n_ens_temp
   real(r_kind),allocatable::psfc_out(:,:)
   integer(i_kind) ilook,jlook,ier
@@ -276,9 +278,12 @@ subroutine get_gefs_for_regional
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
+  num_fieldst=min(num_fields,npe)
   allocate(vector(num_fields))
   vector=.false.
   vector(1:2*nsig_gfs)=uv_hyb_ens
+  call general_sub2grid_create_info(grd_gfst,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fieldst, &
+                                  .not.regional)
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
   jcap_gfs=sighead%jcap
@@ -311,6 +316,7 @@ subroutine get_gefs_for_regional
 !                begin loop over ensemble members
 
   rewind(10)
+  inithead=.true.
   do n=1,n_ens
      read(10,'(a)',err=20,end=20)filename 
      filename=trim(filename)
@@ -331,8 +337,14 @@ subroutine get_gefs_for_regional
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
-            z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     if(use_gfs_nemsio)then
+        call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
+               z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     else
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
+               z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+     end if
+     inithead = .false.
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
@@ -1097,6 +1109,10 @@ subroutine get_gefs_for_regional
      end do
   end do
 
+  call general_sub2grid_destroy_info(grd_gfs)
+  call general_sub2grid_destroy_info(grd_mix)
+  call general_sub2grid_destroy_info(grd_gfst)
+!
 !
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then

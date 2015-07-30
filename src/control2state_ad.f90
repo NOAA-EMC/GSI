@@ -196,14 +196,14 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
    call gsi_bundlegetpointer (rval(jj),'v'   ,rv_v,   istatus)
-   if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter', cv_sfwter,istatus)
-   if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter', cv_vpwter,istatus)
    call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
 !  Convert RHS calculations for u,v to st/vp for application of
 !  background error
    if (do_getuv) then
        if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
+           call gsi_bundlegetpointer (wbundle,'sfwter', cv_sfwter,istatus)
+           call gsi_bundlegetpointer (wbundle,'vpwter', cv_vpwter,istatus)
            allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
                     uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
 
