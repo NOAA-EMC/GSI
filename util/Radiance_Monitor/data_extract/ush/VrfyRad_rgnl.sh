@@ -283,7 +283,7 @@ if [ -s $radstat -a -s $biascr ]; then
    #   Override the default base_file declaration if there is an
    #   available base file for this source.
    #------------------------------------------------------------------
-   if [[ -s ${TANKverf}/info/radmon_base.tar.Z || -s ${TANKverf}/info/radmon_base.tar ]]; then
+   if [[ -s ${TANKverf}/info/radmon_base.tar.${Z} || -s ${TANKverf}/info/radmon_base.tar ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
 
