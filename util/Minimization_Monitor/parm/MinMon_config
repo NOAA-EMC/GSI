@@ -1,0 +1,65 @@
+#!/bin/sh
+
+###################################################################
+#  Note:  MinMon/parm/MinMon.ver file must be sourced before this file
+###################################################################
+export MY_MACHINE=wcoss
+
+export MY_MINMON=${MY_MINMON:-/u/${LOGNAME}}
+
+export HOMEgdasgmon=${MY_MINMON}/nwprod/gdas_minmon.v${gdas_minmon_ver}
+export HOMEgmon=${MY_MINMON}/nwprod/minmon_shared.v${minmon_shared_ver}
+
+export MINMON_DE=${MINMON_DE:-${MY_MINMON}/data_xtrct}
+export M_DE_SCRIPTS=${M_DE_SCRIPTS:-${MINMON_DE}/ush}
+
+export MINMON_IG=${MINMON_IG:-${MY_MINMON}/image_gen}
+export M_IG_SCRIPTS=${M_IG_SCRIPTS:-${MINMON_IG}/ush}
+export M_IG_GRDS=${M_IG_GRDS:-${MINMON_IG}/grds}
+export M_IG_PARM=${M_IG_PARM:-${MINMON_IG}/parm}
+
+export MY_STMP=${MY_STMP:-/stmpp1}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
+
+export envir=prod
+export DATA_IN=${DATA_IN:-${MY_STMP}/${LOGNAME}/minmon}	# working directory
+
+export LOGdir=${LOGdir:-${MY_PTMP}/${LOGNAME}/logs}
+export m_jlogfile=${m_jlogfile:-${LOGdir}/minmon.DE.}
+
+export MY_TANKDIR=${MY_TANKDIR:-/u/${LOGNAME}/nbns}
+export M_TANKverf=${M_TANKverf:-${MY_TANKDIR}}	
+
+export WEBUSER=${WEBUSER:-}
+export WEBSERVER=${WEBSERVER:-}
+export WEBDIR=${WEBDIR:-}
+
+
+#
+#  Utilities used by the GMon package
+#
+export NCP=${NCP:-"/bin/cp -f"}
+export Z=${Z:-"gz"}
+
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+
+   export SUB="bsub"
+   export NWPROD=/nwprod
+   export COMPRESS=/usrx/local/bin/pigz
+   export UNCOMPRESS="/usrx/local/bin/unpigz -f"
+   export RSYNC=/usr/bin/rsync
+   export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
+else    # zeus 
+   shell=sh
+   /usr/bin/modulecmd $shell load ncep
+
+   export SUB=/apps/torque/default/bin/qsub
+   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+fi
+
+export NDATE=${NWPROD}/util/exec/ndate
