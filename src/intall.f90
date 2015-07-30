@@ -175,6 +175,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use jfunc, only: l_foto,dhat_dt
   use jfunc, only: nrclen,nsclen,npclen,ntclen
   use obsmod, only: yobs
+  use intradmod, only: setrad
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
@@ -185,6 +186,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_bundlemod, only: assignment(=)
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
+  use mpimod, only: mype
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
   implicit none
@@ -194,6 +196,7 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(in   ) :: sbias
   type(gsi_bundle), intent(inout) :: rval(nobs_bins)
   type(predictors), intent(inout) :: rbias
+  real(r_quad),dimension(max(1,nrclen),nobs_bins) :: qpred_bin
   real(r_quad),dimension(max(1,nrclen)) :: qpred
   real(r_quad),dimension(2*nobs_bins) :: mass
 
@@ -213,14 +216,20 @@ subroutine intall(sval,sbias,rval,rbias)
   do ii=1,nobs_bins
      rval(ii)=zero
   enddo
-  rbias=zero
 
 ! Compute RHS in physical space
-
-  qpred=zero_quad
+  call setrad(sval(1))
+  qpred_bin=zero_quad
 ! RHS for Jo
+!$omp parallel do  schedule(dynamic,1) private(ibin)
   do ibin=1,nobs_bins
-     call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
+     call intjo(yobs(ibin),rval(ibin),qpred_bin(:,ibin),sval(ibin),sbias,ibin)
+  end do
+  qpred=zero_quad
+  do ibin=1,nobs_bins
+     do i=1,nrclen
+        qpred(i)=qpred(i)+qpred_bin(i,ibin)
+     end do
   end do
 
 
@@ -297,15 +306,20 @@ subroutine intall(sval,sbias,rval,rbias)
      call deallocate_state(dhat_dt)
   end if
 
-  do i=1,nsclen
-     rbias%predr(i)=rbias%predr(i)+qpred(i)
-  end do
-  do i=1,npclen
-     rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
-  end do
+  if(nsclen > 0)then
+     do i=1,nsclen
+        rbias%predr(i)=qpred(i)
+     end do
+  end if
+  if(npclen > 0)then
+     
+     do i=1,npclen
+        rbias%predp(i)=qpred(nsclen+i)
+     end do
+  end if
   if (ntclen>0) then
      do i=1,ntclen
-        rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
+        rbias%predt(i)=qpred(nsclen+npclen+i)
      end do
   end if
 

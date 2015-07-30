@@ -176,12 +176,14 @@ end function is_extOzone_
 
 subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type managing
   nread,npuse,nouse, &                          ! intent(out), beside other implicit output variables
-  jsatid,gstime,lunout,twind,ithin,rmesh)       ! intent(in), beside other implicit input variables
+  jsatid,gstime,lunout,twind,ithin,rmesh,nobs)       ! intent(in), beside other implicit input variables
 
   use obsmod   , only: dfile_format
   use constants, only: zero
   use mpeu_util, only: die,perr,tell
+  use mpimod, only: npe
 !  use mpeu_util, only: mprefix,stdout
+!     nobs     - array of observations on each subdomain for each processor
 
   implicit none
   character(len=*), intent(in):: dfile   ! obs_input filename
@@ -198,6 +200,7 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
   character(len=*), parameter:: myname_=myname//'::read_'
 
   integer(kind=i_kind), intent(out):: nread     ! number of obs record reads in this call
+  integer(kind=i_kind),dimension(npe), intent(inout):: nobs     ! number of obs record reads in this call
   integer(kind=i_kind), intent(out):: npuse     ! nnmber of "preofiles" retained in this call
   integer(kind=i_kind), intent(out):: nouse     ! nnmber of obs retained in this call
 
@@ -328,6 +331,7 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
         ! obviously a bad idea that n_out has been missing from the header for
         ! its second dimension.
 
+  call count_obs(npuse,nreal,ilat,ilon,p_out,nobs)
   write(lunout) dtype, dsis, nreal, nchan, ilat, ilon
   write(lunout) p_out(:,1:npuse)
 
