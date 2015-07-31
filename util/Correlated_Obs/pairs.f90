@@ -1,3 +1,8 @@
+!This module searches for pairs of observations that
+!are within a certain time and distance of one another
+!Kristen Bathmann
+!5-2015
+
 module pairs
 
 use kinds, only: r_kind
@@ -18,7 +23,7 @@ real(r_kind),dimension(:,:),intent(in)::ges_locs !locations of background omg's 
 real(r_kind),dimension(:),intent(in):: ges_times !times of background omg's (minutes)
 integer, dimension(:), intent(out):: obs_pairs   !indicies of ges that correspond to pairs
 integer,intent(in):: Tg                          !length of ges
-integer,intent(out):: n_pair                         !number of pairs found
+integer,intent(out):: n_pair                     !number of pairs found
 real(r_kind),dimension(2):: p1,p2
 integer:: g
 real(r_kind):: d1

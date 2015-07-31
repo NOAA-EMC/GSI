@@ -47,7 +47,9 @@ integer:: gwhile, gblock
 integer:: read_status, leninstr
 integer:: lencov, lencorr, lenwave, lenerr
 integer(i_kind):: reclen
-
+logical:: out_wave                                      !option to output channel wavenumbers
+logical:: out_err                                       !option to output assigned obs errors
+logical:: out_corr                                      !option to output correlation matrix
 !Diag data
 integer:: no_chn                                        !number of instrument channels available
 type(RadDiag_Hdr_type):: RadDiag_Hdr                    !header info about the diag data
@@ -109,7 +111,7 @@ integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the 
 real(r_kind):: cov_sum, anl_sum, ges_sum
 real(r_kind):: val
 
-read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr
+read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
 cov_file(1:lencov)='Rcov_'
@@ -424,15 +426,21 @@ write(26) nch_active
 write(26) indR
 write(26) Rcov
 close(26)
-open(28,file=trim(wave_file),form='unformatted',access='direct',recl=nch_active*reclen)
-write(28,rec=1) chaninfo
-close(28)
-open(29,file=trim(err_file),form='unformatted',access='direct',recl=nch_active*reclen)
-write(29,rec=1) errout
-close(29)
-open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
-write(25,rec=1) Rcorr
-close(25)
+if (out_wave) then
+   open(28,file=trim(wave_file),form='unformatted',access='direct',recl=nch_active*reclen)
+   write(28,rec=1) chaninfo
+   close(28)
+end if
+if (out_err) then
+   open(29,file=trim(err_file),form='unformatted',access='direct',recl=nch_active*reclen)
+   write(29,rec=1) errout
+   close(29)
+end if
+if (out_corr) then 
+   open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
+   write(25,rec=1) Rcorr
+   close(25)
+end if
 deallocate(Rcov,chaninfo,errout)
 deallocate(indR,Rcorr)
 deallocate(divider)

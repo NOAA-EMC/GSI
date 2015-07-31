@@ -3,12 +3,10 @@ cov_calc computes satellite IR observation covariances based on Desroziers' meth
 See
 Desroziers, Gérald, et al. "Diagnosis of observation, background and analysis‐error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
 
-This program uses the radstat.gdas.$date files, and outputs four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. The second and third contain the wavenumbers of the satellite instrument, and the assumed obs error (these can used for plotting).  The fourth file is the correlation matrix.
+This program uses the radstat.gdas.$date files, and outputs up to four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. Outputting the other files is optional. They contain the wavenumbers of the satellite instrument, the assumed obs error, and the correlation matrix.
 
 To use the computed covariance matrix in the GSI:
 1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90
 2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.
 
-For convenience, get_rads.sh can be used to retrieve radstat files from hpss.
-
-To run cov_calc, edit the parameters in the first few lines of run.sh.  Compile by typing 'make'.  (To make clean type 'make clean').  Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  For 10 days of radstats, 2.5 hours should be sufficient. 
+To run cov_calc, edit the parameters in the first few lines of run.sh and submit_job.sh. Compile by typing 'make'. Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  For 10 days of radstats, 2.5 hours should be sufficient. 
