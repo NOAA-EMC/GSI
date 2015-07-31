@@ -945,19 +945,19 @@
 !
 ! input argument list:
 !   ifov            - fov number  min = 1, max as below
-!		       2048 = AVHRR-2 LAC/HRPT
-!		       2048 = AVHRR-3 LAC/HRPT
-!		       2048 = AVHRR-3 LAC/HRPT on NOAA-16
-!	               56 = HIRS-2
-!		       56 = HIRS-2I
-!		       56 = HIRS-3
-!		       56 = HIRS-4
-!		        8 = SSU
-!		       11 = MSU
+!                      2048 = AVHRR-2 LAC/HRPT
+!                      2048 = AVHRR-3 LAC/HRPT
+!                      2048 = AVHRR-3 LAC/HRPT on NOAA-16
+!                      56 = HIRS-2
+!                      56 = HIRS-2I
+!                      56 = HIRS-3
+!                      56 = HIRS-4
+!                      8 = SSU
+!                      11 = MSU
 !                      13 = MHS
-!		       30 = AMSU-A
-!		       90 = AMSU-B
-!		       90 = AIRS
+!                      30 = AMSU-A
+!                      90 = AMSU-B
+!                      90 = AIRS
 !                      96 = ATMS
 !                     120 = IASI
 !   instr           - Instrument number
@@ -1080,7 +1080,7 @@
 !             5 = HIRS-2I
 !             6 = HIRS-3 NOAA-K
 !             7 = HIRS-3 NOAA-L,M
-!	      8 = HIRS-4
+!             8 = HIRS-4
 !             9 = SSU
 !            10 = MSU
 !            11 = AMSU-A
@@ -1094,18 +1094,18 @@
 !            19 = SAPHIR
 !   height    - height of satellite in km
 !   fov       - fov number  min = 1, max as below
-!	        2048 = AVHRR-2 LAC/HRPT
-!		2048 = AVHRR-3 LAC/HRPT
-!		2048 = AVHRR-3 LAC/HRPT on NOAA-16
+!               2048 = AVHRR-2 LAC/HRPT
+!               2048 = AVHRR-3 LAC/HRPT
+!               2048 = AVHRR-3 LAC/HRPT on NOAA-16
 !               56 = HIRS-2
-!		56 = HIRS-2I
-!		56 = HIRS-3
-!		56 = HIRS-4
-!		8 = SSU
-!		11 = MSU
+!               56 = HIRS-2I
+!               56 = HIRS-3
+!               56 = HIRS-4
+!               8 = SSU
+!               11 = MSU
 !               90 = MHS
-!		30 = AMSU-A
-!		90 = AMSU-B
+!               30 = AMSU-A
+!               90 = AMSU-B
 !               96 = ATMS
 !               90 = AIRS
 !               120 = IASI
@@ -1278,7 +1278,7 @@
  end subroutine get_sat_height
  subroutine inside_fov_crosstrk(instr, ifov, satellite_azimuth,  &
                                 lat, lon, testlat, testlon,      &
-		                expansion, ichan, inside)
+                                expansion, ichan, inside)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  inside_fov_crosstrk         determine antenna power
@@ -1400,7 +1400,6 @@
     fov = (ifov-1)/4 + 1
  endif
 
- fovanglesize = fovangle(instr)
 
 ! Get satellite az where we want it.
 ! 1st, convert +- to 0-360
@@ -1438,20 +1437,21 @@
 
  inside = zero
  if (d<r) then
-    rat = d / r * expansion * fovanglesize * half
-
-    x = rat * cos(psi)
-    y = rat * sin(psi)
    
     inside = one  ! for other instruments
 
     if(instr == 11) then ! AMSUA
+       fovanglesize = fovangle(instr)
+       rat = d / r * expansion * fovanglesize * half
+
+       x = rat * cos(psi)
+       y = rat * sin(psi)
        px = amsucoeff(0,1,ichan) + amsucoeff(1,1,ichan)*x    + amsucoeff(2,1,ichan)*x**2 &
-	                         + amsucoeff(3,1,ichan)*x**3 + amsucoeff(4,1,ichan)*x**4 &
+                                 + amsucoeff(3,1,ichan)*x**3 + amsucoeff(4,1,ichan)*x**4 &
                                  + amsucoeff(5,1,ichan)*x**5 + amsucoeff(6,1,ichan)*x**6 &
                                  + amsucoeff(7,1,ichan)*x**7   
        py = amsucoeff(0,2,ichan) + amsucoeff(1,2,ichan)*y    + amsucoeff(2,2,ichan)*y**2 &
-	                         + amsucoeff(3,2,ichan)*y**3 + amsucoeff(4,2,ichan)*y**4 &
+                                 + amsucoeff(3,2,ichan)*y**3 + amsucoeff(4,2,ichan)*y**4 &
                                  + amsucoeff(5,2,ichan)*y**5 + amsucoeff(6,2,ichan)*y**6 &
                                  + amsucoeff(7,2,ichan)*y**7   
 
@@ -1465,12 +1465,17 @@
     endif ! amsuA
 
     if(instr == 13) then ! mhs
+       fovanglesize = fovangle(instr)
+       rat = d / r * expansion * fovanglesize * half
+
+       x = rat * cos(psi)
+       y = rat * sin(psi)
        px = mhscoeff(0,1,ichan) + mhscoeff(1,1,ichan)*x    + mhscoeff(2,1,ichan)*x**2 &
                                 + mhscoeff(3,1,ichan)*x**3 + mhscoeff(4,1,ichan)*x**4 &
                                 + mhscoeff(5,1,ichan)*x**5 + mhscoeff(6,1,ichan)*x**6 &
                                 + mhscoeff(7,1,ichan)*x**7   
        py = mhscoeff(0,2,ichan) + mhscoeff(1,2,ichan)*y    + mhscoeff(2,2,ichan)*y**2 &
-	                        + mhscoeff(3,2,ichan)*y**3 + mhscoeff(4,2,ichan)*y**4 &
+                                + mhscoeff(3,2,ichan)*y**3 + mhscoeff(4,2,ichan)*y**4 &
                                 + mhscoeff(5,2,ichan)*y**5 + mhscoeff(6,2,ichan)*y**6 &
                                 + mhscoeff(7,2,ichan)*y**7   
 
@@ -1522,13 +1527,15 @@
 
  integer(i_kind):: ifov
 
- ifov = fov
+ valid=.true.
+
  if(instr == 18) then   ! iasi
     ifov = (fov-1)/4 + 1
+ else 
+    ifov = fov
  endif
 
 ! test for fov in range
- valid=.true.
  if (ifov < 1) then 
     write(6,*) "FOV_CHECK: ERROR, FOV NUMBER LESS THAN ONE "
     valid=.false.
@@ -1547,9 +1554,8 @@
      valid=.false.
      return
    endif 
- endif
 
- if (instr == 13) then
+ else if (instr == 13) then
    if (ichan < 1 .or. ichan > 5) then
      write(6,*) "FOV_CHECK: ERROR, invalid mhs channel number"
      valid=.false.

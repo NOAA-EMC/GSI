@@ -201,6 +201,7 @@ module egrid2agrid_mod
 
       integer(i_kind) i
       real(r_kind) diffmax,range_lat,range_lon
+      logical e2a_only
  
       p%nlata=nlata
       p%nlona=nlona
@@ -226,8 +227,9 @@ module egrid2agrid_mod
 
       if(.not.p%identity) then
 
-         call get_3ops(p%e2a_lon,nlona,rlona,nlone,rlone,nord_e2a)
-         call get_3ops(p%e2a_lat,nlata,rlata,nlate,rlate,nord_e2a)
+         e2a_only=.true.
+         call get_3ops(p%e2a_lon,nlona,rlona,nlone,rlone,nord_e2a,e2a_only)
+         call get_3ops(p%e2a_lat,nlata,rlata,nlate,rlate,nord_e2a,e2a_only)
 
       end if
 
@@ -1349,7 +1351,8 @@ module egrid2agrid_mod
 
    end subroutine egrid2points
 
-   subroutine g_create_egrid2agrid(nlata,rlata,nlona,rlona,nlate,rlate,nlone,rlone,nord_e2a,p,eqspace)
+   subroutine g_create_egrid2agrid(nlata,rlata,nlona,rlona,nlate,rlate,nlone,rlone,nord_e2a, &
+            p,e2a_only,eqspace)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    g_create_egrid2agrid  create interpolation variables for full global grids
@@ -1394,6 +1397,7 @@ module egrid2agrid_mod
       integer(i_kind),intent(in) :: nlata,nlona,nlate,nlone,nord_e2a
       real(r_kind),intent(in) :: rlata(nlata),rlona(nlona),rlate(nlate),rlone(nlone)
       type(egrid2agrid_parm),intent(inout) :: p
+      logical,intent(in):: e2a_only
       logical,intent(in),optional:: eqspace
 
       integer(i_kind) i,ilona,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
@@ -1535,8 +1539,8 @@ module egrid2agrid_mod
          rlone_ex(j)=rlone(nlone-nextend+j)-two_pi
          rlone_ex(nextend+nlone+j)=two_pi+rlone(j)
       end do
-      call get_3ops(p%e2a_lon,nlona,rlona,nlone_ex,rlone_ex,nord_e2a)
-      call get_3ops(p%e2a_lat,nlata,rlata,nlate_ex,rlate_ex,nord_e2a)
+      call get_3ops(p%e2a_lon,nlona,rlona,nlone_ex,rlone_ex,nord_e2a,e2a_only)
+      call get_3ops(p%e2a_lat,nlata,rlata,nlate_ex,rlate_ex,nord_e2a,e2a_only)
 
    end subroutine g_create_egrid2agrid
 

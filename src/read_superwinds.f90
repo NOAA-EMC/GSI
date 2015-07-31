@@ -1,5 +1,5 @@
 subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
-            twind,sis)
+            twind,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_superwinds   read in and reformat wind superobs
@@ -46,6 +46,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !     ndata    - number of observation records
 !     nodata   - number of observation data
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 !   remarks: 
 !   input file format: 
@@ -90,6 +91,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
   use deter_sfc_mod, only: deter_sfc2
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -98,6 +100,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
 
 ! Declare local parameters
   real(r_kind),parameter:: r360=360.0_r_kind
@@ -286,6 +289,8 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 
 ! Write observations to scratch file
+
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

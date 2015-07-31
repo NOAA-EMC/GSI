@@ -204,7 +204,7 @@
       i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: obs_diag,luse_obsdiag,dval_use
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
@@ -757,9 +757,11 @@
 
 !       Set relative weight value
         val_obs=one
-        ixx=nint(data_s(nreal-nstinfo,n))
-        if (ixx > 0 .and. super_val1(ixx) >= one) then
-           val_obs=data_s(nreal-nstinfo-1,n)/super_val1(ixx)
+        if(dval_use)then
+           ixx=nint(data_s(nreal-nstinfo,n))
+           if (ixx > 0 .and. super_val1(ixx) >= one) then
+              val_obs=data_s(nreal-nstinfo-1,n)/super_val1(ixx)
+           endif
         endif
 
 !       Load channel data into work array.

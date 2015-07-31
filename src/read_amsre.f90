@@ -1,6 +1,6 @@
 subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use)
 
 ! subprogram:    read_amsre                  read bufr format amsre data
 ! prgmmr :   okamoto         org: np20                date: 2004-10-12
@@ -81,11 +81,13 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     nrec_start - first subset with useful information
 !
 ! output argument list:
 !     nread    - number of BUFR AQUA observations read
 !     ndata    - number of BUFR AQUA profiles retained for further processing
 !     nodata   - number of BUFR AQUA observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !     language: f90
@@ -103,13 +105,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
 ! Input variables
   character(len=*) ,intent(in   ) :: infile
   character(len=*) ,intent(in   ) :: obstype
-  integer(i_kind)  ,intent(in   ) :: mype
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -121,9 +124,11 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub
+  logical          ,intent(in   ) :: dval_use
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind)  ,intent(inout) :: ndata,nodata
 
 ! Number of channels for sensors in BUFR
@@ -131,7 +136,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! integer(i_kind),parameter :: N_MAXCH   =  20
   integer(i_kind) :: said, AQUA_SAID  = 784  !WMO satellite identifier 
   integer(i_kind) :: siid, AMSRE_SIID = 345  !WMO instrument identifier 
-  integer(i_kind),parameter :: maxinfo    =  33
 
 ! BUFR file sequencial number
   character(len=8)  :: subset
@@ -181,7 +185,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   logical       :: amsre_low
   logical       :: amsre_mid
   logical       :: amsre_hig
-  integer(i_kind) ntest
+  integer(i_kind) ntest,maxinfo
   integer(i_kind) :: nscan,iskip,kskip,kch,kchanl
 ! real(r_kind),parameter :: TEN      =  10._r_kind
 ! real(r_kind),parameter :: R45      =  45._r_kind
@@ -225,6 +229,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! data selection
 
+  maxinfo    =  31
 ! Initialize variables
   ilon = 3
   ilat = 4
@@ -240,6 +245,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   end do 
   disterrmax=zero
   ntest = 0
+  if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo+nstinfo
   ndata = 0
   nodata = 0
@@ -335,8 +341,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   next=0
   nrec=999999
   irec=0
-  do while(ireadmg(lnbufr,subset,idate)>=0)
+  read_msg: do while(ireadmg(lnbufr,subset,idate)>=0)
      irec=irec+1
+     if(irec < nrec_start) cycle read_msg
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -606,8 +613,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(30,itx)= dlon_earth*rad2deg         ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth*rad2deg         ! earth relative latitude (degrees)
 
-        data_all(32,itx)= val_amsre
-        data_all(33,itx)= itt
+        if(dval_use)then
+           data_all(32,itx)= val_amsre
+           data_all(33,itx)= itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref                ! foundation temperature
@@ -623,7 +632,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 
      enddo read_loop
-  enddo
+  enddo read_msg
   call closbf(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
@@ -645,12 +654,17 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_amsre
-
      end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(33,n))
+           super_val(itt)=super_val(itt)+val_amsre
+
+        end do
+     end if
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
