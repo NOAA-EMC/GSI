@@ -23,7 +23,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=${PWD#*/}
+rundir=/scratch1/portfolios/NCEPDEV/da/save/${USER}/trunk/util/Correlated_OBS/
 cd ${rundir}
 ./run.sh
 

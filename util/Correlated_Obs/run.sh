@@ -18,6 +18,12 @@ type=1
 cloud=1
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=20
+#option to output the channel wavenumbers
+wave_out=.true.
+#option to output the assigned observation errors
+err_out=.true.
+#option to output the correlation matrix
+corr_out=.true.
 
 ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
@@ -64,10 +70,11 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$nt $type $cloud $angle $instr
+$nt $type $cloud $angle $instr $wave_out $err_out $corr_out
 EOF
 
 cp Rcov_$instr $savdir
-cp Rcorr_$instr $savdir
-cp wave_$instr $savdir
-cp err_$instr $savdir
+
+[ -f Rcorr_$instr ] && cp Rcorr_$instr $savdir
+[ -f wave_$instr ] && cp wave_$instr $savdir
+[ -f err_$instr ] && cp err_$instr $savdir

@@ -1,3 +1,7 @@
+!This module contains routines used in cov_calc.f90
+!Kristen Bathmann
+!5-2015
+
 module obs_tools
 
 use kinds
