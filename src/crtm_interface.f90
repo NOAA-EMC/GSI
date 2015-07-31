@@ -287,6 +287,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
+  use obsmod, only: dval_use
 
   implicit none
 
@@ -303,7 +304,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind) :: ier,ii,error_status,iderivative
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
-  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm
+  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm,icount
 ! ...all "additional absorber" variables
   integer(i_kind) :: j
   integer(i_kind) :: ig
@@ -357,13 +358,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   n_aerosols=0
   n_aerosols_jac=0
   call gsi_chemguess_get ( 'aerosols::3d', n_aerosols, ier )
-  call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
   if (n_aerosols > 0) then
      allocate(aero_names(n_aerosols))
      call gsi_chemguess_get ('aerosols::3d',aero_names,ier)
      indx_p25   = getindex(aero_names,'p25')
      indx_dust1 = getindex(aero_names,'dust1')
      indx_dust2 = getindex(aero_names,'dust2')
+     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
      if (n_aerosols_jac >0) then
         allocate(iaero_jac(n_aerosols_jac))
         iaero_jac=-1
@@ -470,18 +471,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  iff10     = 29 ! index of ten meter wind factor
  ilone     = 30 ! index of earth relative longitude (degrees)
  ilate     = 31 ! index of earth relative latitude (degrees)
- itref     = 34 ! index of foundation temperature: Tr
- idtw      = 35 ! index of diurnal warming: d(Tw) at depth zob
- idtc      = 36 ! index of sub-layer cooling: d(Tc) at depth zob
- itz_tr    = 37 ! index of d(Tz)/d(Tr)
-
- if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) then         ! when an independent SST analysis is read in
-   itref     = 36 ! index of foundation temperature: Tr
-   idtw      = 37 ! index of diurnal warming: d(Tw) at depth zob
-   idtc      = 38 ! index of sub-layer cooling: d(Tc) at depth zob
-   itz_tr    = 39 ! index of d(Tz)/d(Tr)
- endif
-
+ icount=ilate
+ if(dval_use) icount=icount+2
+ if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) icount=icount+2 ! when an independent SST analysis is read in
+ itref     = icount+1 ! index of foundation temperature: Tr
+ idtw      = icount+2 ! index of diurnal warming: d(Tw) at depth zob
+ idtc      = icount+3 ! index of sub-layer cooling: d(Tc) at depth zob
+ itz_tr    = icount+4 ! index of d(Tz)/d(Tr)
 
  if (obstype == 'goes_img') then
     iclr_sky      =  7 ! index of clear sky amount
@@ -901,13 +897,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
   use constants, only: max_varname_length,pi  
-
-
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
   use crtm_module, only: limit_exp,o3_id
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
+
   implicit none
 
 ! Declare passed variables
@@ -997,13 +992,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
 
-
-
   logical :: sea,icmask   
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
-  real(r_kind),dimension(13)::   lai
+  real(r_kind) ::   lai
 
   m1=mype+1
 
@@ -1079,7 +1072,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      dtsfc=one
   end if
   dtsfcp=one-dtsfc
-  jacobian=zero
 
   ier=0
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'ps',psges_itsig ,istatus)
@@ -1112,8 +1104,313 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
-!$omp parallel do  schedule(dynamic,1) private(k,cf)
+!$omp parallel do  schedule(dynamic,1) private(k,cf,ii,iii)
   do k=1,nsig
+    if(k == 1)then
+        jacobian=zero
+!    Set surface type flag.  (Same logic as in subroutine deter_sfc)
+
+        istyp00 = isli2(ix ,iy )
+        istyp10 = isli2(ixp,iy )
+        istyp01 = isli2(ix ,iyp)
+        istyp11 = isli2(ixp,iyp)
+        sno00= sno2(ix ,iy ,itsfc)*dtsfc+sno2(ix ,iy ,itsfcp)*dtsfcp
+        sno01= sno2(ix ,iyp,itsfc)*dtsfc+sno2(ix ,iyp,itsfcp)*dtsfcp
+        sno10= sno2(ixp,iy ,itsfc)*dtsfc+sno2(ixp,iy ,itsfcp)*dtsfcp
+        sno11= sno2(ixp,iyp,itsfc)*dtsfc+sno2(ixp,iyp,itsfcp)*dtsfcp
+        if(istyp00 >= 1 .and. sno00 > minsnow)istyp00 = 3
+        if(istyp01 >= 1 .and. sno01 > minsnow)istyp01 = 3
+        if(istyp10 >= 1 .and. sno10 > minsnow)istyp10 = 3
+        if(istyp11 >= 1 .and. sno11 > minsnow)istyp11 = 3
+
+!        Find delta Surface temperatures for all surface types
+
+        sst00= dsfct(ix ,iy,ntguessfc) ; sst01= dsfct(ix ,iyp,ntguessfc)
+        sst10= dsfct(ixp,iy,ntguessfc) ; sst11= dsfct(ixp,iyp,ntguessfc) 
+        dtsavg=sst00*w00+sst10*w10+sst01*w01+sst11*w11
+
+        dtskin(0:3)=zero
+        wgtavg(0:3)=zero
+
+        if(istyp00 == 1)then
+           wgtavg(1) = wgtavg(1) + w00
+           dtskin(1)=dtskin(1)+w00*sst00
+        else if(istyp00 == 2)then
+           wgtavg(2) = wgtavg(2) + w00
+           dtskin(2)=dtskin(2)+w00*sst00
+        else if(istyp00 == 3)then
+           wgtavg(3) = wgtavg(3) + w00
+           dtskin(3)=dtskin(3)+w00*sst00
+        else
+           wgtavg(0) = wgtavg(0) + w00
+           dtskin(0)=dtskin(0)+w00*sst00
+        end if
+
+        if(istyp01 == 1)then
+           wgtavg(1) = wgtavg(1) + w01
+           dtskin(1)=dtskin(1)+w01*sst01
+        else if(istyp01 == 2)then
+           wgtavg(2) = wgtavg(2) + w01
+           dtskin(2)=dtskin(2)+w01*sst01
+        else if(istyp01 == 3)then
+           wgtavg(3) = wgtavg(3) + w01
+           dtskin(3)=dtskin(3)+w01*sst01
+        else
+           wgtavg(0) = wgtavg(0) + w01
+           dtskin(0)=dtskin(0)+w01*sst01
+        end if
+
+        if(istyp10 == 1)then
+           wgtavg(1) = wgtavg(1) + w10
+           dtskin(1)=dtskin(1)+w10*sst10
+        else if(istyp10 == 2)then
+           wgtavg(2) = wgtavg(2) + w10
+           dtskin(2)=dtskin(2)+w10*sst10
+        else if(istyp10 == 3)then
+           wgtavg(3) = wgtavg(3) + w10
+           dtskin(3)=dtskin(3)+w10*sst10
+        else
+           wgtavg(0) = wgtavg(0) + w10
+           dtskin(0)=dtskin(0)+w10*sst10
+        end if
+
+        if(istyp11 == 1)then
+           wgtavg(1) = wgtavg(1) + w11
+           dtskin(1)=dtskin(1)+w11*sst11
+        else if(istyp11 == 2)then
+           wgtavg(2) = wgtavg(2) + w11
+           dtskin(2)=dtskin(2)+w11*sst11
+        else if(istyp11 == 3)then
+           wgtavg(3) = wgtavg(3) + w11
+           dtskin(3)=dtskin(3)+w11*sst11
+        else
+           wgtavg(0) = wgtavg(0) + w11
+           dtskin(0)=dtskin(0)+w11*sst11
+        end if
+
+        if(wgtavg(0) > zero)then
+           dtskin(0) = dtskin(0)/wgtavg(0)
+        else
+           dtskin(0) = dtsavg
+        end if
+        if(wgtavg(1) > zero)then
+           dtskin(1) = dtskin(1)/wgtavg(1)
+        else
+           dtskin(1) = dtsavg
+        end if
+        if(wgtavg(2) > zero)then
+           dtskin(2) = dtskin(2)/wgtavg(2)
+        else
+           dtskin(2) = dtsavg
+        end if
+        if(wgtavg(3) > zero)then
+           dtskin(3) = dtskin(3)/wgtavg(3)
+        else
+           dtskin(3) = dtsavg
+        end if
+
+        if (n_clouds>0) then
+            ps=(psges_itsig (ix,iy )*w00+psges_itsig (ixp,iy )*w10+ &
+                psges_itsig (ix,iyp)*w01+psges_itsig (ixp,iyp)*w11)*dtsig + &
+               (psges_itsigp(ix,iy )*w00+psges_itsigp(ixp,iy )*w10+ &
+                psges_itsigp(ix,iyp)*w01+psges_itsigp(ixp,iyp)*w11)*dtsigp
+        endif
+
+!       skip loading surface structure if obstype is modis_aod
+        if (trim(obstype) /= 'modis_aod') then
+
+!       Load surface structure
+
+! **NOTE:  The model surface type --> CRTM surface type
+!          mapping below is specific to the versions NCEP
+!          GFS and NNM as of September 2005
+
+           itype  = nint(data_s(ivty))
+           istype = nint(data_s(isty))
+           if (regional) then
+              itype  = min(max(1,itype),nvege_type)
+              istype = min(max(1,istype),NAM_SOIL_N_TYPES)
+              surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
+              surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
+              surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
+              lai_type = nmm_to_crtm_mwave(itype)
+           else
+              itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
+              istype = min(max(1,istype),GFS_SOIL_N_TYPES)
+              surface(1)%land_type = gfs_to_crtm(itype)
+              surface(1)%Vegetation_Type = max(1,itype)
+              surface(1)%Soil_Type = istype
+              lai_type = itype
+           end if
+                                    
+           if (lwind) then
+!        Interpolate lowest level winds to observation location 
+
+             uu5=(uges_itsig (ix,iy ,1)*w00+uges_itsig (ixp,iy ,1)*w10+ &
+                  uges_itsig (ix,iyp,1)*w01+uges_itsig (ixp,iyp,1)*w11)*dtsig + &
+                 (uges_itsigp(ix,iy ,1)*w00+uges_itsigp(ixp,iy ,1)*w10+ &
+                  uges_itsigp(ix,iyp,1)*w01+uges_itsigp(ixp,iyp,1)*w11)*dtsigp
+             vv5=(vges_itsig (ix,iy ,1)*w00+vges_itsig (ixp,iy ,1)*w10+ &
+                  vges_itsig (ix,iyp,1)*w01+vges_itsig (ixp,iyp,1)*w11)*dtsig + &
+                 (vges_itsigp(ix,iy ,1)*w00+vges_itsigp(ixp,iy ,1)*w10+ &
+                  vges_itsigp(ix,iyp,1)*w01+vges_itsigp(ixp,iyp,1)*w11)*dtsigp
+             f10=data_s(iff10)
+             sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
+             wind10    = sfc_speed 
+             if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1 
+             if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2 
+             if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4 
+             if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3 
+             if (abs(vv5*f10) >= windlimit) then 
+                 windratio = (uu5*f10) / (vv5*f10) 
+             else 
+                 windratio = 0.0_r_kind 
+                 if (abs(uu5*f10) > windlimit) then 
+                     windratio = windscale * uu5*f10 
+                 endif 
+             endif 
+             windangle        = atan(abs(windratio))   ! wind azimuth is in radians 
+             wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)   
+             surface(1)%wind_speed           = sfc_speed
+             surface(1)%wind_direction       = rad2deg*wind10_direction
+           else !RTodling: not sure the following option makes any sense
+             surface(1)%wind_speed           = zero
+             surface(1)%wind_direction       = zero
+           endif
+
+!       CRTM will reject surface coverages if greater than one and it is possible for
+!       these values to be larger due to round off.
+
+           surface(1)%water_coverage        = min(max(zero,data_s(ifrac_sea)),one)
+           surface(1)%land_coverage         = min(max(zero,data_s(ifrac_lnd)),one)
+           surface(1)%ice_coverage          = min(max(zero,data_s(ifrac_ice)),one)
+           surface(1)%snow_coverage         = min(max(zero,data_s(ifrac_sno)),one)
+     
+!
+!       get vegetation lai from summer and winter values.
+!
+
+           surface(1)%Lai  = zero
+           if (surface(1)%land_coverage>zero) then
+              if(lai_type>0)then
+                call get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
+                surface(1)%Lai  = lai   ! LAI  
+              endif     
+     
+              ! for Glacial land ice soil type and vegetation type
+              if(surface(1)%Soil_Type == 9 .OR. surface(1)%Vegetation_Type == 13) then
+                 surface(1)%ice_coverage = min(surface(1)%ice_coverage + surface(1)%land_coverage, one)
+                 surface(1)%land_coverage = zero
+              endif
+           endif
+
+           surface(1)%water_temperature     = max(data_s(its_sea)+dtskin(0),270._r_kind)
+           if(nst_gsi>1 .and. surface(1)%water_coverage>zero) then
+              surface(1)%water_temperature  = max(data_s(itref)+data_s(idtw)-data_s(idtc)+dtskin(0),271._r_kind)
+           endif
+           surface(1)%land_temperature      = data_s(its_lnd)+dtskin(1)
+           surface(1)%ice_temperature       = min(data_s(its_ice)+dtskin(2),280._r_kind)
+           surface(1)%snow_temperature      = min(data_s(its_sno)+dtskin(3),280._r_kind)
+           surface(1)%soil_moisture_content = data_s(ism)
+           surface(1)%vegetation_fraction   = data_s(ivfr)
+           surface(1)%soil_temperature      = data_s(istp)
+           surface(1)%snow_depth            = data_s(isn)
+
+           sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
+           icmask = sea 
+
+!       assign tzbgr for Tz retrieval when necessary
+           tzbgr = surface(1)%water_temperature
+
+        endif ! end of loading surface structure
+
+!       Load geometry structure
+
+!       skip loading geometry structure if obstype is modis_aod
+!       iscan_ang,ilzen_ang,ilazi_ang are not available in the modis aod bufr file
+!       also, geometryinfo is not needed in crtm aod calculation
+        if ( trim(obstype) /= 'modis_aod' ) then
+           panglr = data_s(iscan_ang)
+           if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
+           geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
+           geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
+           geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle
+           geometryinfo(1)%source_azimuth_angle = data_s(isazi_ang)         ! solar zenith angle
+           geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg             ! scan angle
+           geometryinfo(1)%ifov                = nint(data_s(iscan_pos))    ! field of view position
+
+!        For some microwave instruments the solar and sensor azimuth angles can be
+!        missing  (given a value of 10^11).  Set these to zero to get past CRTM QC.
+
+           if (geometryinfo(1)%source_azimuth_angle > 360.0_r_kind .OR. &
+               geometryinfo(1)%source_azimuth_angle < zero ) &
+               geometryinfo(1)%source_azimuth_angle = zero
+           if (geometryinfo(1)%sensor_azimuth_angle > 360.0_r_kind .OR. &
+               geometryinfo(1)%sensor_azimuth_angle < zero ) &
+               geometryinfo(1)%sensor_azimuth_angle = zero
+
+        endif ! end of loading geometry structure
+
+!       Special block for SSU cell pressure leakage correction.   Need to compute
+!       observation time and load into Time component of geometryinfo structure.
+!       geometryinfo%time is only defined in CFSRR CRTM.
+        if (obstype == 'ssu') then
+
+!          Compute absolute observation time
+
+           anal_time=0
+           obs_time=0
+           tmp_time=zero
+           tmp_time(2)=obstime
+           anal_time(1)=iadate(1)
+           anal_time(2)=iadate(2)
+           anal_time(3)=iadate(3)
+           anal_time(5)=iadate(4)
+
+!external-subroutine w3movdat()
+
+           call w3movdat(tmp_time,anal_time,obs_time)
+
+!          Compute decimal year, for example 1/10/1983
+!          d_year = 1983.0 + 10.0/365.0
+
+           leap_day = 0
+           if( mod(obs_time(1),4)==0 ) then
+              if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
+           endif
+           day_of_year = mday(obs_time(2)) + obs_time(3)
+           if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
+
+           call ssu_input_setvalue( options%SSU, &
+              Time=float(obs_time(1)) + float(day_of_year)/(365.0_r_kind+leap_day))
+
+        endif
+
+!       Load surface sensor data structure
+
+        do i=1,nchanl
+
+
+!        Set-up to return Tb jacobians.                                         
+
+           rtsolution_k(i,1)%radiance = zero
+           rtsolution_k(i,1)%brightness_temperature = one
+
+           if (trim(obstype) /= 'modis_aod')then
+
+!        Pass CRTM array of tb for surface emissiviy calculations
+           if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. & 
+                crtm_surface_associated(surface(1)) ) & 
+                surface(1)%sensordata%tb(i) = data_s(nreal+i) 
+
+!       set up to return layer_optical_depth jacobians
+              rtsolution_k(i,1)%layer_optical_depth = one
+           endif
+
+        end do
+
+     end if
+
      h(k)  =(ges_tsen(ix ,iy ,k,itsig )*w00+ &
              ges_tsen(ixp,iy ,k,itsig )*w10+ &
              ges_tsen(ix ,iyp,k,itsig )*w01+ &
@@ -1207,6 +1504,57 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
          poz(k)=max(ozsmall,poz(k))
      endif ! oz
+! Quantities required for MW cloudy radiance calculations
+
+     if (n_clouds>0) then
+        do ii=1,n_clouds
+           iii=jcloud(ii)
+           cloud(k,ii) =(gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &     ! kg/kg
+                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
+                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
+                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsig + &
+                        (gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &
+                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
+                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
+                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsigp
+           cloud(k,ii)=max(cloud(k,ii),zero)
+
+           if (regional .and. (.not. wrf_mass_regional)) then
+               if (trim(cloud_names(iii))== 'ql' ) then
+                 cloudefr(k,ii)=(efr_ql(ix ,iy ,k,itsig)*w00+efr_ql(ixp,iy ,k,itsig)*w10+ &
+                                 efr_ql(ix ,iyp,k,itsig)*w01+efr_ql(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_ql(ix ,iy ,k,itsigp)*w00+efr_ql(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_ql(ix ,iyp,k,itsigp)*w01+efr_ql(ixp,iyp,k,itsigp)*w11)*dtsigp
+               else if (trim(cloud_names(iii))== 'qi' ) then
+                 cloudefr(k,ii)=(efr_qi(ix ,iy ,k,itsig)*w00+efr_qi(ixp,iy ,k,itsig)*w10+ &
+                                 efr_qi(ix ,iyp,k,itsig)*w01+efr_qi(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_qi(ix ,iy ,k,itsigp)*w00+efr_qi(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_qi(ix ,iyp,k,itsigp)*w01+efr_qi(ixp,iyp,k,itsigp)*w11)*dtsigp
+               else if (trim(cloud_names(iii))== 'qs' ) then
+                 cloudefr(k,ii)=(efr_qs(ix ,iy ,k,itsig)*w00+efr_qs(ixp,iy ,k,itsig)*w10+ &
+                                 efr_qs(ix ,iyp,k,itsig)*w01+efr_qs(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_qs(ix ,iy ,k,itsigp)*w00+efr_qs(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_qs(ix ,iyp,k,itsigp)*w01+efr_qs(ixp,iyp,k,itsigp)*w11)*dtsigp
+               else if (trim(cloud_names(iii))== 'qg' ) then
+                 cloudefr(k,ii)=(efr_qg(ix ,iy ,k,itsig)*w00+efr_qg(ixp,iy ,k,itsig)*w10+ &
+                                 efr_qg(ix ,iyp,k,itsig)*w01+efr_qg(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_qg(ix ,iy ,k,itsigp)*w00+efr_qg(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_qg(ix ,iyp,k,itsigp)*w01+efr_qg(ixp,iyp,k,itsigp)*w11)*dtsigp
+               else if (trim(cloud_names(iii))== 'qh' ) then
+                 cloudefr(k,ii)=(efr_qh(ix ,iy ,k,itsig)*w00+efr_qh(ixp,iy ,k,itsig)*w10+ &
+                                 efr_qh(ix ,iyp,k,itsig)*w01+efr_qh(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_qh(ix ,iy ,k,itsigp)*w00+efr_qh(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_qh(ix ,iyp,k,itsigp)*w01+efr_qh(ixp,iyp,k,itsigp)*w11)*dtsigp
+               else  if (trim(cloud_names(iii))== 'qr' ) then
+                 cloudefr(k,ii)=(efr_qr(ix ,iy ,k,itsig)*w00+efr_qr(ixp,iy ,k,itsig)*w10+ &
+                                 efr_qr(ix ,iyp,k,itsig)*w01+efr_qr(ixp,iyp,k,itsig)*w11)*dtsig + &
+                                (efr_qr(ix ,iy ,k,itsigp)*w00+efr_qr(ixp,iy ,k,itsigp)*w10+ &
+                                 efr_qr(ix ,iyp,k,itsigp)*w01+efr_qr(ixp,iyp,k,itsigp)*w11)*dtsigp
+               end if
+            end if
+
+        end do  
+     endif ! <n_clouds>
   end do
 ! Interpolate level pressure to observation point for top interface
   prsi(nsig+1)=(ges_prsi(ix ,iy ,nsig+1,itsig )*w00+ &
@@ -1298,6 +1646,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                            aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
              end do
        enddo
+       do k = 1, nsig
+!         Convert mixing-ratio to concentration
+          ugkg_kgm2(k)=1.0e-9_r_kind*(prsi(k)-prsi(k+1))*r1000/grav
+          aero(k,:)=aero(k,:)*ugkg_kgm2(k)
+       enddo
     endif
     if(.not.lcf4crtm) then ! otherwise already calculated
        do k=1,nsig
@@ -1321,392 +1674,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   trop5= one_tenth*(tropprs(ix,iy )*w00+tropprs(ixp,iy )*w10+ &
                     tropprs(ix,iyp)*w01+tropprs(ixp,iyp)*w11)
-
-
-
-! Quantities required for MW cloudy radiance calculations
-
-  if (n_clouds>0) then
-     do ii=1,n_clouds
-        iii=jcloud(ii)
-        do k=1,nsig
-           cloud(k,ii) =(gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &     ! kg/kg
-                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
-                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
-                         gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsig + &
-                        (gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsigp
-           cloud(k,ii)=max(cloud(k,ii),zero)     
-         end do
-
-         if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
-            if (trim(cloud_names(iii))== 'ql' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_ql(ix ,iy ,k,itsig)*w00+efr_ql(ixp,iy ,k,itsig)*w10+ &
-                                 efr_ql(ix ,iyp,k,itsig)*w01+efr_ql(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_ql(ix ,iy ,k,itsigp)*w00+efr_ql(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_ql(ix ,iyp,k,itsigp)*w01+efr_ql(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            else if (trim(cloud_names(iii))== 'qi' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_qi(ix ,iy ,k,itsig)*w00+efr_qi(ixp,iy ,k,itsig)*w10+ &
-                                 efr_qi(ix ,iyp,k,itsig)*w01+efr_qi(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_qi(ix ,iy ,k,itsigp)*w00+efr_qi(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_qi(ix ,iyp,k,itsigp)*w01+efr_qi(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            else if (trim(cloud_names(iii))== 'qs' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_qs(ix ,iy ,k,itsig)*w00+efr_qs(ixp,iy ,k,itsig)*w10+ &
-                                 efr_qs(ix ,iyp,k,itsig)*w01+efr_qs(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_qs(ix ,iy ,k,itsigp)*w00+efr_qs(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_qs(ix ,iyp,k,itsigp)*w01+efr_qs(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            else if (trim(cloud_names(iii))== 'qg' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_qg(ix ,iy ,k,itsig)*w00+efr_qg(ixp,iy ,k,itsig)*w10+ &
-                                 efr_qg(ix ,iyp,k,itsig)*w01+efr_qg(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_qg(ix ,iy ,k,itsigp)*w00+efr_qg(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_qg(ix ,iyp,k,itsigp)*w01+efr_qg(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            else if (trim(cloud_names(iii))== 'qh' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_qh(ix ,iy ,k,itsig)*w00+efr_qh(ixp,iy ,k,itsig)*w10+ &
-                                 efr_qh(ix ,iyp,k,itsig)*w01+efr_qh(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_qh(ix ,iy ,k,itsigp)*w00+efr_qh(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_qh(ix ,iyp,k,itsigp)*w01+efr_qh(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            else  if (trim(cloud_names(iii))== 'qr' ) then
-               do k=1,nsig
-                 cloudefr(k,ii)=(efr_qr(ix ,iy ,k,itsig)*w00+efr_qr(ixp,iy ,k,itsig)*w10+ &
-                                 efr_qr(ix ,iyp,k,itsig)*w01+efr_qr(ixp,iyp,k,itsig)*w11)*dtsig + &
-                                (efr_qr(ix ,iy ,k,itsigp)*w00+efr_qr(ixp,iy ,k,itsigp)*w10+ &
-                                 efr_qr(ix ,iyp,k,itsigp)*w01+efr_qr(ixp,iyp,k,itsigp)*w11)*dtsigp
-                end do
-            end if
-         end if
-
-     end do
-  endif ! <n_clouds>
-
-
-!$omp parallel sections private(k,i)
-
-!$omp section 
-
-!    Set surface type flag.  (Same logic as in subroutine deter_sfc)
-
-  istyp00 = isli2(ix ,iy )
-  istyp10 = isli2(ixp,iy )
-  istyp01 = isli2(ix ,iyp)
-  istyp11 = isli2(ixp,iyp)
-  sno00= sno2(ix ,iy ,itsfc)*dtsfc+sno2(ix ,iy ,itsfcp)*dtsfcp
-  sno01= sno2(ix ,iyp,itsfc)*dtsfc+sno2(ix ,iyp,itsfcp)*dtsfcp
-  sno10= sno2(ixp,iy ,itsfc)*dtsfc+sno2(ixp,iy ,itsfcp)*dtsfcp
-  sno11= sno2(ixp,iyp,itsfc)*dtsfc+sno2(ixp,iyp,itsfcp)*dtsfcp
-  if(istyp00 >= 1 .and. sno00 > minsnow)istyp00 = 3
-  if(istyp01 >= 1 .and. sno01 > minsnow)istyp01 = 3
-  if(istyp10 >= 1 .and. sno10 > minsnow)istyp10 = 3
-  if(istyp11 >= 1 .and. sno11 > minsnow)istyp11 = 3
-
-!  Find delta Surface temperatures for all surface types
-
-  sst00= dsfct(ix ,iy,ntguessfc) ; sst01= dsfct(ix ,iyp,ntguessfc)
-  sst10= dsfct(ixp,iy,ntguessfc) ; sst11= dsfct(ixp,iyp,ntguessfc) 
-  dtsavg=sst00*w00+sst10*w10+sst01*w01+sst11*w11
-
-  dtskin(0:3)=zero
-  wgtavg(0:3)=zero
-
-  if(istyp00 == 1)then
-     wgtavg(1) = wgtavg(1) + w00
-     dtskin(1)=dtskin(1)+w00*sst00
-  else if(istyp00 == 2)then
-     wgtavg(2) = wgtavg(2) + w00
-     dtskin(2)=dtskin(2)+w00*sst00
-  else if(istyp00 == 3)then
-     wgtavg(3) = wgtavg(3) + w00
-     dtskin(3)=dtskin(3)+w00*sst00
-  else
-     wgtavg(0) = wgtavg(0) + w00
-     dtskin(0)=dtskin(0)+w00*sst00
-  end if
-
-  if(istyp01 == 1)then
-     wgtavg(1) = wgtavg(1) + w01
-     dtskin(1)=dtskin(1)+w01*sst01
-  else if(istyp01 == 2)then
-     wgtavg(2) = wgtavg(2) + w01
-     dtskin(2)=dtskin(2)+w01*sst01
-  else if(istyp01 == 3)then
-     wgtavg(3) = wgtavg(3) + w01
-     dtskin(3)=dtskin(3)+w01*sst01
-  else
-     wgtavg(0) = wgtavg(0) + w01
-     dtskin(0)=dtskin(0)+w01*sst01
-  end if
-
-  if(istyp10 == 1)then
-     wgtavg(1) = wgtavg(1) + w10
-     dtskin(1)=dtskin(1)+w10*sst10
-  else if(istyp10 == 2)then
-     wgtavg(2) = wgtavg(2) + w10
-     dtskin(2)=dtskin(2)+w10*sst10
-  else if(istyp10 == 3)then
-     wgtavg(3) = wgtavg(3) + w10
-     dtskin(3)=dtskin(3)+w10*sst10
-  else
-     wgtavg(0) = wgtavg(0) + w10
-     dtskin(0)=dtskin(0)+w10*sst10
-  end if
-
-  if(istyp11 == 1)then
-     wgtavg(1) = wgtavg(1) + w11
-     dtskin(1)=dtskin(1)+w11*sst11
-  else if(istyp11 == 2)then
-     wgtavg(2) = wgtavg(2) + w11
-     dtskin(2)=dtskin(2)+w11*sst11
-  else if(istyp11 == 3)then
-     wgtavg(3) = wgtavg(3) + w11
-     dtskin(3)=dtskin(3)+w11*sst11
-  else
-     wgtavg(0) = wgtavg(0) + w11
-     dtskin(0)=dtskin(0)+w11*sst11
-  end if
-
-  if(wgtavg(0) > zero)then
-     dtskin(0) = dtskin(0)/wgtavg(0)
-  else
-     dtskin(0) = dtsavg
-  end if
-  if(wgtavg(1) > zero)then
-     dtskin(1) = dtskin(1)/wgtavg(1)
-  else
-     dtskin(1) = dtsavg
-  end if
-  if(wgtavg(2) > zero)then
-     dtskin(2) = dtskin(2)/wgtavg(2)
-  else
-     dtskin(2) = dtsavg
-  end if
-  if(wgtavg(3) > zero)then
-     dtskin(3) = dtskin(3)/wgtavg(3)
-  else
-     dtskin(3) = dtsavg
-  end if
-
-!  Interpolate lowest level winds to observation location 
-
-  if (lwind) then
-     uu5=(uges_itsig (ix,iy ,1)*w00+uges_itsig (ixp,iy ,1)*w10+ &
-          uges_itsig (ix,iyp,1)*w01+uges_itsig (ixp,iyp,1)*w11)*dtsig + &
-         (uges_itsigp(ix,iy ,1)*w00+uges_itsigp(ixp,iy ,1)*w10+ &
-          uges_itsigp(ix,iyp,1)*w01+uges_itsigp(ixp,iyp,1)*w11)*dtsigp
-     vv5=(vges_itsig (ix,iy ,1)*w00+vges_itsig (ixp,iy ,1)*w10+ &
-          vges_itsig (ix,iyp,1)*w01+vges_itsig (ixp,iyp,1)*w11)*dtsig + &
-         (vges_itsigp(ix,iy ,1)*w00+vges_itsigp(ixp,iy ,1)*w10+ &
-          vges_itsigp(ix,iyp,1)*w01+vges_itsigp(ixp,iyp,1)*w11)*dtsigp
-  endif
-  if (n_clouds>0) then
-      ps=(psges_itsig (ix,iy )*w00+psges_itsig (ixp,iy )*w10+ &
-          psges_itsig (ix,iyp)*w01+psges_itsig (ixp,iyp)*w11)*dtsig + &
-         (psges_itsigp(ix,iy )*w00+psges_itsigp(ixp,iy )*w10+ &
-          psges_itsigp(ix,iyp)*w01+psges_itsigp(ixp,iyp)*w11)*dtsigp
-  endif
-
-! skip loading surface structure if obstype is modis_aod
-  if (trim(obstype) /= 'modis_aod') then
-
-! Factor for reducing lowest level winds to 10m (f10)
-
-     if (lwind) then
-        f10=data_s(iff10)
-        sfc_speed = f10*sqrt(uu5*uu5+vv5*vv5)
-        wind10    = sfc_speed
-        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 1
-        if (uu5*f10 >= 0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 2
-        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 >= 0.0_r_kind) iquadrant = 4
-        if (uu5*f10 <  0.0_r_kind .and. vv5*f10 <  0.0_r_kind) iquadrant = 3
-        if (abs(vv5*f10) >= windlimit) then
-          windratio = (uu5*f10) / (vv5*f10)
-        else
-          windratio = 0.0_r_kind
-          if (abs(uu5*f10) > windlimit) then
-             windratio = windscale * uu5*f10
-          endif
-        endif
-        windangle        = atan(abs(windratio))   ! wind azimuth is in radians
-        wind10_direction = quadcof(iquadrant, 1) * pi + windangle * quadcof(iquadrant, 2)                          
-     endif
-
-! Load surface structure
-
-! **NOTE:  The model surface type --> CRTM surface type
-!          mapping below is specific to the versions NCEP
-!          GFS and NNM as of September 2005
-
-     itype  = nint(data_s(ivty))
-     istype = nint(data_s(isty))
-     if (regional) then
-        itype  = min(max(1,itype),nvege_type)
-        istype = min(max(1,istype),NAM_SOIL_N_TYPES)
-        surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
-        surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
-        surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
-        lai_type = nmm_to_crtm_mwave(itype)
-     else
-        itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
-        istype = min(max(1,istype),GFS_SOIL_N_TYPES)
-        surface(1)%land_type = gfs_to_crtm(itype)
-        surface(1)%Vegetation_Type = max(1,itype)
-        surface(1)%Soil_Type = istype
-        lai_type = itype
-     end if
-
-     if (lwind) then
-       surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*wind10_direction
-     else !RTodling: not sure the following option makes any sense
-       surface(1)%wind_speed           = zero
-       surface(1)%wind_direction       = zero
-     endif
-
-! CRTM will reject surface coverages if greater than one and it is possible for
-! these values to be larger due to round off.
-
-     surface(1)%water_coverage        = min(max(zero,data_s(ifrac_sea)),one)
-     surface(1)%land_coverage         = min(max(zero,data_s(ifrac_lnd)),one)
-     surface(1)%ice_coverage          = min(max(zero,data_s(ifrac_ice)),one)
-     surface(1)%snow_coverage         = min(max(zero,data_s(ifrac_sno)),one)
-     
-!
-! get vegetation lai from summer and winter values.
-!
-     if(lai_type>0 .AND. surface(1)%land_coverage>zero)then
-       call get_lai(data_s,nchanl,nreal,itime,ilate,lai)
-     endif
-
-     if(lai_type>0 .AND. surface(1)%land_coverage>zero)then                        
-      surface(1)%Lai  = lai( lai_type )   ! LAI  
-     else                                     
-      surface(1)%Lai  = zero
-     endif     
-     
-
-     if (surface(1)%land_coverage>zero) then
-        ! for Glacial land ice soil type and vegetation type
-        if(surface(1)%Soil_Type == 9 .OR. surface(1)%Vegetation_Type == 13) then
-           surface(1)%ice_coverage = min(surface(1)%ice_coverage + surface(1)%land_coverage, one)
-           surface(1)%land_coverage = zero
-        endif
-     endif
-
-     surface(1)%water_temperature     = max(data_s(its_sea)+dtskin(0),270._r_kind)
-     if(nst_gsi>1 .and. surface(1)%water_coverage>zero) then
-        surface(1)%water_temperature  = max(data_s(itref)+data_s(idtw)-data_s(idtc)+dtskin(0),271._r_kind)
-     endif
-     surface(1)%land_temperature      = data_s(its_lnd)+dtskin(1)
-     surface(1)%ice_temperature       = min(data_s(its_ice)+dtskin(2),280._r_kind)
-     surface(1)%snow_temperature      = min(data_s(its_sno)+dtskin(3),280._r_kind)
-     surface(1)%soil_moisture_content = data_s(ism)
-     surface(1)%vegetation_fraction   = data_s(ivfr)
-     surface(1)%soil_temperature      = data_s(istp)
-     surface(1)%snow_depth            = data_s(isn)
-
-! assign tzbgr for Tz retrieval when necessary
-     tzbgr = surface(1)%water_temperature
-
-  endif ! end of loading surface structure
-
-!$omp section 
-
-! Load geometry structure
-
-! skip loading geometry structure if obstype is modis_aod
-! iscan_ang,ilzen_ang,ilazi_ang are not available in the modis aod bufr file
-! also, geometryinfo is not needed in crtm aod calculation
-  if ( trim(obstype) /= 'modis_aod' ) then
-     panglr = data_s(iscan_ang)
-     if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'ahi')panglr = zero
-     geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
-     geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
-     geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle
-     geometryinfo(1)%source_azimuth_angle = data_s(isazi_ang)         ! solar zenith angle
-     geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg             ! scan angle
-     geometryinfo(1)%ifov                = nint(data_s(iscan_pos))    ! field of view position
-
-!  For some microwave instruments the solar and sensor azimuth angles can be
-!  missing  (given a value of 10^11).  Set these to zero to get past CRTM QC.
-
-     if (geometryinfo(1)%source_azimuth_angle > 360.0_r_kind .OR. &
-         geometryinfo(1)%source_azimuth_angle < zero ) &
-         geometryinfo(1)%source_azimuth_angle = zero
-     if (geometryinfo(1)%sensor_azimuth_angle > 360.0_r_kind .OR. &
-         geometryinfo(1)%sensor_azimuth_angle < zero ) &
-         geometryinfo(1)%sensor_azimuth_angle = zero
-
-  endif ! end of loading geometry structure
-
-!       Special block for SSU cell pressure leakage correction.   Need to compute
-!       observation time and load into Time component of geometryinfo structure.
-!       geometryinfo%time is only defined in CFSRR CRTM.
-  if (obstype == 'ssu') then
-
-!    Compute absolute observation time
-
-     anal_time=0
-     obs_time=0
-     tmp_time=zero
-     tmp_time(2)=obstime
-     anal_time(1)=iadate(1)
-     anal_time(2)=iadate(2)
-     anal_time(3)=iadate(3)
-     anal_time(5)=iadate(4)
-
-!external-subroutine w3movdat()
-
-     call w3movdat(tmp_time,anal_time,obs_time)
-
-!    Compute decimal year, for example 1/10/1983
-!    d_year = 1983.0 + 10.0/365.0
-
-     leap_day = 0
-     if( mod(obs_time(1),4)==0 ) then
-        if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
-     endif
-     day_of_year = mday(obs_time(2)) + obs_time(3)
-     if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
-
-     call ssu_input_setvalue( options%SSU, &
-        Time=float(obs_time(1)) + float(day_of_year)/(365.0_r_kind+leap_day))
-
-  endif
-
-! Load surface sensor data structure
-
-  do i=1,nchanl
-
-
-!  Set-up to return Tb jacobians.                                         
-
-     rtsolution_k(i,1)%radiance = zero
-     rtsolution_k(i,1)%brightness_temperature = one
-
-     if (trim(obstype) /= 'modis_aod')then
-
-!  Pass CRTM array of tb for surface emissiviy calculations
-       if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. &
-            crtm_surface_associated(surface(1)) ) &
-         surface(1)%sensordata%tb(i) = data_s(nreal+i)
-
-! set up to return layer_optical_depth jacobians
-        rtsolution_k(i,1)%layer_optical_depth = one
-     endif
-
-  end do
-
-!$omp section 
 
 !  Zero atmosphere jacobian structures
 
@@ -1761,9 +1728,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! Include cloud guess profiles in mw radiance computation
 
      if (n_clouds>0) then
+        kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
         if (lcw4crtm) then
           if (icmask) then 
-              c6(k) = (atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
+              c6(k) = kgkg_kgm2
               auxdp(k)=abs(prsi_rtm(kk+1)-prsi_rtm(kk))*r10
               auxq (k)=q(kk2)
 
@@ -1788,7 +1756,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
           endif   
         else 
-           kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
            do ii=1,n_clouds
               cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2
            end do
@@ -1819,10 +1786,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                              atmosphere(1)%aerosol )
   endif
 
-!$omp end parallel sections
-
 ! Call CRTM K Matrix model
 
+
+  error_status = 0
   if ( trim(obstype) /= 'modis_aod' ) then
      error_status = crtm_k_matrix(atmosphere,surface,rtsolution_k,&
         geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
@@ -1869,7 +1836,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 !$omp parallel do  schedule(dynamic,1) private(i) &
 !$omp private(total_od,k,kk,m,term,ii,cwj)
-
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
       do k=1,nsig
@@ -1935,7 +1901,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end do
 
 !  Load jacobian array
-       m=ich(i)
        do k=1,nsig
 
 !  Small sensitivities for temp
@@ -1949,10 +1914,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           end do ! <nsig>
        endif
        if (iqv>=0) then
+          m=ich(i)
           do k=1,nsig
              jacobian(iqv+k,i)=c5(k)*wmix(k,i)-c4(k)*temp(k,i)        ! moisture sensitivity
-          end do ! <nsig>
-          do k=1,nsig
              if (prsi(k) < trop5) then
                 term = (prsi(k)-trop5)/(trop5-prsi(nsig))
                 jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)
@@ -2060,7 +2024,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !     intresult = intresult * dtsig
 !   end function crtm_interface_interp
   end subroutine call_crtm
-subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
+subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_lai   interpolate vegetation LAI data for call_crtm
@@ -2094,10 +2058,10 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
 ! Declare passed variables
   integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
-  integer(i_kind)                       ,intent(in   ) :: itime, ilate
+  integer(i_kind)                       ,intent(in   ) :: itime, ilate,lai_type
+  real(r_kind)                          ,intent(  out) :: lai
 
 ! Declare local variables
-  integer(i_kind):: i
   integer(i_kind),dimension(8)::obs_time,anal_time
   real(r_kind),dimension(5)     :: tmp_time
   
@@ -2112,8 +2076,7 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
   data lai_max/6.48_r_kind, 3.31_r_kind, 5.50_r_kind, 6.40_r_kind, 5.16_r_kind, &
                3.66_r_kind, 2.90_r_kind, 2.60_r_kind, 3.66_r_kind, 2.60_r_kind, &
                0.75_r_kind, 5.68_r_kind, 0.01_r_kind            /
-  real(r_kind),dimension(13,2):: lai_season
-  real(r_kind),dimension(13)::   lai
+  real(r_kind),dimension(2):: lai_season
   real(r_kind)    wei1s, wei2s
   integer(i_kind) n1, n2, mm, mmm, mmp
 !
@@ -2149,15 +2112,13 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
       WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
       IF(N2.EQ.3) N2=1
 
-      do i =1,13
-        lai_season(i,1) = lai_min(i)
-        lai_season(i,2) = lai_max(i)
-        if(data_s(ilate) < 0.0_r_kind) then
-           lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
-        else
-           lai(i) = wei1s * lai_season(i,n1) + wei2s * lai_season(i,n2)
-        endif
-      enddo
+      lai_season(1) = lai_min(lai_type)
+      lai_season(2) = lai_max(lai_type)
+      if(data_s(ilate) < 0.0_r_kind) then
+         lai = wei1s * lai_season(n2) + wei2s * lai_season(n1)
+      else
+         lai = wei1s * lai_season(n1) + wei2s * lai_season(n2)
+      endif
 
   return
   end subroutine get_lai
