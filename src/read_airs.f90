@@ -1,6 +1,6 @@
 subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_airs                  read bufr format airs data
@@ -90,11 +90,14 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     dval_use - logical for using dval (val_airs)
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR AQUA observations read
 !     ndata    - number of BUFR AQUA profiles retained for further processing
 !     nodata   - number of BUFR AQUA observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -115,6 +118,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
@@ -125,12 +129,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),parameter :: n_hsbchan  =   4
   integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+1
   integer(i_kind),parameter :: n_totchanp4 = n_totchan + 4
-  integer(i_kind),parameter :: maxinfo    =  33
 
 
 ! BUFR format for AQUASPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
   real(r_kind)     ,intent(in   ) :: twind
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
@@ -145,10 +148,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
+  logical          ,intent(in   ) :: dval_use
   
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind)  ,intent(  out) :: ndata,nodata
   
 ! Input/Output variables
@@ -204,7 +209,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
   integer(i_kind):: idomsfc(1)
-  integer(i_kind):: radedge_min, radedge_max
+  integer(i_kind):: radedge_min, radedge_max, maxinfo
 
 
 ! Set standard parameters
@@ -223,8 +228,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Initialize variables
+  maxinfo    =  31
   disterrmax=zero
   ntest=0
+  if(dval_use) maxinfo = maxinfo+2
   nreal  = maxinfo+nstinfo
   ndata = 0
   nodata = 0
@@ -379,8 +386,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   nrec=999999
   next=0
   irec=0
-  do while(ireadmg(lnbufr,subset,idate)>=0)
+  read_msg: do while(ireadmg(lnbufr,subset,idate)>=0)
      irec=irec+1
+     if(irec < nrec_start) cycle read_msg
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -768,8 +776,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
-        data_all(32,itx)= val_airs
-        data_all(33,itx)= itt
+        if(dval_use) then
+           data_all(32,itx)= val_airs
+           data_all(33,itx)= itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref            ! foundation temperature
@@ -785,7 +795,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         nrec(itx)=irec
 
      enddo read_loop
-  enddo
+  enddo read_msg
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
@@ -805,12 +815,16 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-
-        super_val(itt)=super_val(itt)+val_airs
      end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(33,n))
+           super_val(itt)=super_val(itt)+val_airs
+        end do
+     end if
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   

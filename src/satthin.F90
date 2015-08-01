@@ -287,6 +287,7 @@ contains
 !   2004-12-09  treadon - allocate thinning grids consistent with analysis domain
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2015-03-23  zaizhong ma - changed itxmax=1e9 for Himawari-8 ahi read in
 !
 !   input argument list:
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
@@ -321,7 +322,7 @@ contains
     itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
-      itxmax=1e7
+      itxmax=1e9
       allocate(icount(itxmax))
       allocate(score_crit(itxmax))
       do j=1,itxmax
@@ -439,8 +440,8 @@ contains
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
-    use ncepgfs_io, only: read_gfssfc,sfc_interpolate
-    use ncepnems_io, only: read_nemssfc
+    use ncepgfs_io, only: read_gfssfc
+    use ncepnems_io, only: read_nemssfc,sfc_interpolate
     use sfcio_module, only: sfcio_realfill
 
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -488,7 +489,7 @@ contains
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
-    if(use_sfc_any)then
+    if(use_sfc_any .or. mype_io)then
        allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
        allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
        allocate(veg_type_full(nlat_sfc,nlon_sfc))
@@ -552,7 +553,7 @@ contains
              fact10_full,sst_full,sno_full, &
              veg_type_full,veg_frac_full,soil_type_full,soil_temp_full,&
              soil_moi_full,isli_full,sfc_rough_full,zs_full_gfs,use_sfc_any)
-          if(.not. use_sfc .and. use_sfc_any)then
+          if(.not. use_sfc .and. (use_sfc_any .or. mype_io))then
              deallocate(soil_moi_full,soil_temp_full)
              deallocate(veg_frac_full,soil_type_full)
              deallocate(veg_type_full)

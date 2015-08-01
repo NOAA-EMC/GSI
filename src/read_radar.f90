@@ -1,7 +1,7 @@
 !  SUBSET=NC006001 -- level 3 superobs
 !  SUBSET=NC006002 -- level 2.5 superobs
 !  SUBSET=NC006070 -- RADIAL WIND FROM P3 RADAR
-subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_full)
+subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_full,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_radar                    read radar radial winds
@@ -69,6 +69,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !     ndata    - number of doppler lidar wind profiles retained for further processing
 !     nodata   - number of doppler lidar wind observations retained for further processing
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -90,6 +91,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,ges_prslavg
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
+  use mpimod, only: npe
   implicit none 
   
 ! Declare passed variables
@@ -98,6 +100,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   real(r_kind),dimension(nlat,nlon,nsig),intent(in):: hgtl_full
 
 ! Declare local parameters
@@ -2236,6 +2239,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   write(6,*)'READ_RADAR: iimax =',iimax
 
 ! Write observation to scratch file
+  call count_obs(ndata,maxdat,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
   deallocate(cdata_all)
