@@ -296,13 +296,13 @@ subroutine gesinfo(mype)
         end if
 
 !       Check for consistency:  levs, latb,lonb
-        if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
-            gfshead%levs/=nsig ) then
-           write(6,*)'GESINFO:  ***ERROR*** gfshead (latb+2,lonb,levs)=',&
-              gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
-              ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
-           call stop2(99)
-        endif
+!       if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
+!           gfshead%levs/=nsig ) then
+!          write(6,*)'GESINFO:  ***ERROR*** gfshead (latb+2,lonb,levs)=',&
+!             gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
+!             ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
+!          call stop2(99)
+!       endif
      endif
 
 !    Extract header information

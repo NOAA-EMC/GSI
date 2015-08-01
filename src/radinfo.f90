@@ -1296,6 +1296,12 @@ contains
       nstep = 30
       edge1 = 1
       edge2 = 30
+   else if (index(isis,'saphir')/=0) then
+      step  = 0.666_r_kind
+      start = -42.960_r_kind
+      nstep = 130
+      edge1 = 1
+      edge2 = 130
    end if
 
    return
@@ -1316,6 +1322,9 @@ contains
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !   2013-01-03  j.jin   - adding logical tmi for mean_only. (radinfo file not yet ready. JJ)
 !   2013-07-19  zhu  - unify the weight assignments for both active and passive channels
+!   2014-10-01  ejones  - add gmi and amsr2 logical
+!   2015-01-16  ejones  - add saphir logical
+!   2015-03-23  zaizhong ma - added the Himawari-8 ahi
 !
 ! attributes:
 !   language: f90
@@ -1346,9 +1355,9 @@ contains
    logical lverbose 
    logical update
    logical mean_only
-   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi
+   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,gmi,amsr2,saphir
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
-   logical avhrr,avhrr_navy,goessndr,goes_img,seviri
+   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri
 
    character(10):: obstype,platid
    character(20):: satsens,satsens_id
@@ -1451,7 +1460,7 @@ contains
       endif
 
 !     Process file
-      write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
+      if(mype == 0)write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
       satsens = header_fix%isis
       n_chan = header_fix%nchan
 
@@ -1484,6 +1493,7 @@ contains
                    obstype == 'sndrd2'.or. obstype == 'sndrd3' .or.  &
                    obstype == 'sndrd4'
       goes_img   = obstype == 'goes_img'
+      ahi        = obstype == 'ahi'
       avhrr      = obstype == 'avhrr'
       avhrr_navy = obstype == 'avhrr_navy'
       ssmi       = obstype == 'ssmi'
@@ -1499,8 +1509,11 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       tmi        = obstype == 'tmi'
+      gmi        = obstype == 'gmi'
+      saphir     = obstype == 'saphir'
+      amsr2      = obstype == 'amsr2'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. seviri .or. tmi
+                .or. ahi .or. seviri .or. tmi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1
@@ -1720,7 +1733,7 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do
                read(lntemp,210,end=160) iich,(predr(k),k=1,angord+1)
@@ -1744,7 +1757,7 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do 
                read(lntemp,220,end=260) jj,tlaptmp,tsumtmp,counttmp

@@ -1,5 +1,5 @@
 subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
-                        prsl_full)
+                        prsl_full,nobs)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -32,6 +32,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !     nread     - number of type "obstype" observations read
 !     nodata    - number of individual "obstype" observations read
 !     ndata     - number of type "obstype" observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -58,6 +59,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
      use jfunc, only: tsensible
      use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+     use mpimod, only: npe
                                                                                                       
      implicit none
 
@@ -65,6 +67,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      character(len=*), intent(in   ) :: infile,obstype
      character(len=20),intent(in   ) :: sis
      integer(i_kind) , intent(in   ) :: lunout
+     integer(i_kind) , dimension(npe), intent(inout) :: nobs
      integer(i_kind) , intent(inout) :: nread,ndata,nodata
      real(r_kind)    , intent(in   ) :: twind
      real(r_kind)    , intent(in   ) :: gstime 
@@ -972,6 +975,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      deallocate(cdata_all)
      deallocate(etabl)
 
+     call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) cdata_out
      deallocate(cdata_out)
