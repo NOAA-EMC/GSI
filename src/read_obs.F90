@@ -1218,7 +1218,7 @@ subroutine read_obs(ndata,mype)
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
-                        lunout,twind,sis)
+                        lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_NSSTBUFR'
                 elseif ( platid == 'mods') then
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
