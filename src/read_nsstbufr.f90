@@ -1,5 +1,5 @@
 subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
-          twindin,sis)
+          twindin,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  read_nsstbufr                read sst obs from nsstbufr file 
@@ -28,6 +28,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !     ndata    - number of type "obstype" observations retained for further processing
 !     nodata   - number of individual "obstype" observations retained for further processing
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -48,6 +49,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -55,6 +57,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   character(len=*),intent(in):: sis
   integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread,ndata,nodata
+  integer(i_kind),dimension(npe),intent(inout):: nobs
   real(r_kind),intent(in):: gstime,twindin
 
 ! Declare local parameters
@@ -549,6 +552,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 1000 continue
 
 ! Write header record and data to output file for further processing
+  call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((data_all(k,i),k=1,nreal),i=1,ndata)
 
