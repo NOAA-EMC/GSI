@@ -96,10 +96,10 @@ allocate(rcounts(0:numproc-1))
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 do np=0,numproc-1
-   displs(np) = np*npts_max*ndim*nbackgrounds
+   displs(np) = np*npts_max*ndim
 enddo
 if (nproc <= nanals-1) then
-   scounts = npts_max*ndim*nbackgrounds
+   scounts = npts_max*ndim
 else
    scounts = 0
 endif
@@ -107,7 +107,7 @@ endif
 ! task np.
 do np=0,numproc-1
    if (np <= nanals-1) then
-      rcounts(np) = npts_max*ndim*nbackgrounds
+      rcounts(np) = npts_max*ndim
    else
       rcounts(np) = 0
    end if
@@ -116,9 +116,6 @@ enddo
 ! allocate array to hold pieces of state vector on each proc.
 allocate(anal_chunk(nanals,npts_max,ndim,nbackgrounds))
 if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk)
-! send and receive buffers.
-allocate(sendbuf(numproc*npts_max*ndim*nbackgrounds))
-allocate(recvbuf(nanals*npts_max*ndim*nbackgrounds))
 
 ! read in whole state vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
@@ -141,56 +138,59 @@ if (nproc <= nanals-1) then
          grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)/qsat(:,:,nb)
       enddo
    end if
+endif
+call mpi_barrier(mpi_comm_world, ierr)
+
+allocate(anal_chunk_prior(nanals,npts_max,ndim,nbackgrounds))
+allocate(ensmean_chunk(npts_max,ndim,nbackgrounds))
+allocate(ensmean_chunk_prior(npts_max,ndim,nbackgrounds))
+ensmean_chunk = 0.
+allocate(sendbuf(numproc*npts_max*ndim))
+allocate(recvbuf(nanals*npts_max*ndim))
+
+! send and receive buffers.
+do nb=1,nbackgrounds ! loop over time levels in background
+
+if (nproc <= nanals-1) then
    ! fill up send buffer.
    do np=1,numproc
-    do nb=1,nbackgrounds
      do nn=1,ndim
       do i=1,numptsperproc(np)
-       n = ((np-1)*nbackgrounds*ndim + (nb-1)*ndim + (nn-1))*npts_max + i
+       n = ((np-1)*ndim + (nn-1))*npts_max + i
        sendbuf(n) = grdin(indxproc(np,i),nn,nb)
-      enddo
      enddo
     enddo
    enddo
 end if
 call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
                    mpi_real4, mpi_comm_world, ierr)
-deallocate(sendbuf)
-allocate(anal_chunk_prior(nanals,npts_max,ndim,nbackgrounds))
-allocate(ensmean_chunk(npts_max,ndim,nbackgrounds))
-allocate(ensmean_chunk_prior(npts_max,ndim,nbackgrounds))
-ensmean_chunk = 0.
 
-!==> compute ensemble of first guesses, remove mean from anal.
-do nb=1,nbackgrounds
+!==> compute ensemble of first guesses on each task, remove mean from anal.
 !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
 do nn=1,ndim 
    do i=1,numptsperproc(nproc+1)
-
       do nanal=1,nanals
-         n = ((nanal-1)*nbackgrounds*ndim + (nb-1)*ndim + (nn-1))*npts_max + i
+         n = ((nanal-1)*ndim + (nn-1))*npts_max + i
          anal_chunk(nanal,i,nn,nb) = recvbuf(n)
       enddo
       ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
       ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
-
 ! remove mean from ensemble.
       do nanal=1,nanals
          anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
          anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
       end do
-
    end do
 end do
 !$omp end parallel do
-end do
-deallocate(recvbuf)
+
+enddo ! loop over nbackgrounds
+deallocate(sendbuf, recvbuf)
 
 if (nproc == 0) then
   t2 = mpi_wtime()
   print *,'time to scatter state on root',t2-t1,'secs'
 endif
-
 
 end subroutine read_ensemble
 
@@ -315,7 +315,6 @@ end if
 
 deallocate(sendbuf,recvbuf)
 
-! write out state vectors on i/o procs.
 if (nproc <= nanals-1) then
    nanal = nproc + 1
    t1 = mpi_wtime()
