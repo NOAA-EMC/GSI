@@ -107,7 +107,7 @@ implicit none
 ! local variables.
 integer(i_kind) nob,nob1,nob2,nf,nobxx,nskip,&
                 niter,i,nrej,npt,np
-real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
+real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
 real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
@@ -294,7 +294,7 @@ do niter=1,numiter
 
      ! Pick up observations close to current ob (in horizontal).
      ! if ob location is same as previous one, don't recompute.
-     if(.not. samehloc) then
+     if(.not. samehloc .or. .not. allocated(sresults)) then
         if (allocated(sresults)) deallocate(sresults)
         allocate(sresults(nobsgood))
         ! kd-tree fixed range search
@@ -394,13 +394,18 @@ do niter=1,numiter
 !$omp end parallel do
   if (allocated(sresults)) deallocate(sresults)
 
-  t1 = mpi_wtime()
+  tend = mpi_wtime()
+  call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+  tmean = tmean/numproc
+  call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+  call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc .eq. 0) print *,'min/max/mean time to update obs',tmin,tmax,tmean
   if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nskip > 0) print *,nskip,' obs skipped out of',&
                                                               numobsperproc(nproc+1),' on proc',nproc
   if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nrej >  0) print *,nrej,' obs rejected by varqc on proc',&
                                                               numobsperproc(nproc+1)
   t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-  if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',t1-tbegin,t2,t3,t4,t5,nrej
+  if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',t2,t3,t4,t5,nrej
   8003  format(i2,1x,a14,1x,i5,1x,a3,5(f8.2,1x),i4)
 
   allocate(buffertmp(nobsgood))
@@ -450,7 +455,7 @@ t2 = zero
 t3 = zero
 t4 = zero
 t5 = zero
-t6 = mpi_wtime()
+tbegin = mpi_wtime()
 nobslocal_max = -999
 
 ! Update ensemble on model grid.
@@ -629,8 +634,13 @@ end do grdloop
 !$omp end parallel do
 
 tend = mpi_wtime()
+call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,'min/max/mean time to update grid',tmin,tmax,tmean
 t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',tend-t6,t2,t3,t4,t5,' secs'
+if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs'
 call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
 
