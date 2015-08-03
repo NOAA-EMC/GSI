@@ -229,6 +229,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !4   => MetOpA
 !41  => Champ
 !722 => GRACE A
+!723 => GRACE B
 !820 => SACC
 !42  => TerraSAR-X
 !43  => Tandem-X
