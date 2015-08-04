@@ -17,13 +17,13 @@
 #BSUB -J cov_calc
 #BSUB -q dev
 #BSUB -n 1
-#BSUB -W 04:00
+#BSUB -W 01:00
 #BSUB -R affinity[core]
 #BSUB -R span[ptile=1]
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=/scratch1/portfolios/NCEPDEV/da/save/${USER}/trunk/util/Correlated_OBS/
+rundir=/da/save/${USER}/GSI/Desroziers/util/Correlated_OBS/
 cd ${rundir}
 ./run.sh
 

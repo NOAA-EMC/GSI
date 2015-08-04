@@ -1,15 +1,15 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2013102500
+bdate=2014040500
 #date of last radstat file
-edate=2013110500
+edate=2014040600
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
 #location of radstat file
 exp=prCtl
-diagdir=/scratch1/portfolios/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+diagdir=/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch2/portfolios/NCEPDEV/stmp/${USER}/desroziers_${exp}_${bdate}
+wrkdir=/stmpp1/${USER}/desroziers_${exp}_${bdate}
 #location the covariance matrix is saved to
 savdir=$diagdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
@@ -25,14 +25,14 @@ err_out=.true.
 #option to output the correlation matrix
 corr_out=.true.
 
-ndate=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 
 ####################
 
 cdate=$bdate
 [ ! -d ${wrkdir} ] && mkdir ${wrkdir}
 [ ! -d ${savdir} ] && mkdir ${savdir}
-cp cov_calc $wrkdir
+cp fast_cov_calc $wrkdir
 nt=0
 cd $wrkdir
 while [[ $cdate -le $edate ]] ; do
@@ -69,7 +69,7 @@ while [[ $cdate -le $edate ]] ; do
    fi
    cdate=`$ndate +06 $cdate`
 done
-./cov_calc <<EOF
+./fast_cov_calc <<EOF
 $nt $type $cloud $angle $instr $wave_out $err_out $corr_out
 EOF
 
