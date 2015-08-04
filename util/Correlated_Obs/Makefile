@@ -11,7 +11,7 @@ include make.macros
 MAKE_FILE = Makefile
 
 # Executable file
-EXE_FILE = cov_calc
+EXE_FILE = fast_cov_calc
 
 # Source files to link
 SRC_FILES = kinds.f90 \

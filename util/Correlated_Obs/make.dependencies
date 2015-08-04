@@ -1,4 +1,4 @@
-calc_cov.o : calc_cov.f90 kinds.o obs_tools.o RadDiag_IO.o Message_Handler.o RadDiag_Define.o
+fast_cov_calc.o : fast_cov_calc.f90 kinds.o obs_tools.o RadDiag_IO.o Message_Handler.o RadDiag_Define.o
 File_Utility.o : File_Utility.f90 
 Message_Handler.o : Message_Handler.f90 File_Utility.o 
 RadDiag_Data_Define.o : RadDiag_Data_Define.f90 Message_Handler.o kinds.o
