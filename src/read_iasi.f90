@@ -1,6 +1,7 @@
 subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
+     nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_iasi                  read bufr format iasi data
@@ -84,11 +85,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR IASI observations read
 !     ndata    - number of BUFR IASI profiles retained for further processing
 !     nodata   - number of BUFR IASI observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -112,6 +115,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
@@ -119,12 +123,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Number of channels for sensors in BUFR
   integer(i_kind),parameter :: nchanl = 616        !--- 616 subset ch out of 8078 ch for AIRS
   integer(i_kind),parameter :: n_totchan  = 616
-  integer(i_kind),parameter :: maxinfo    =  33
 
 
 ! BUFR format for IASISPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -140,9 +143,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(inout) :: val_iasi
   real(r_kind)     ,intent(in   ) :: gstime
   real(r_kind)     ,intent(in   ) :: rmesh
+  logical          ,intent(in   ) :: dval_use
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind)  ,intent(  out) :: ndata,nodata
   
 
@@ -198,7 +203,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
-  integer(i_kind):: iexponent
+  integer(i_kind):: iexponent,maxinfo
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status
@@ -218,8 +223,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
 
 ! Initialize variables
+  maxinfo    =  31
   disterrmax=zero
   ntest=0
+  if(dval_use) maxinfo=maxinfo+2
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
 
@@ -352,14 +359,20 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   irec=0
   nrec=999999
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
-     next=next+1
      irec=irec+1
+     if(irec < nrec_start) cycle read_subset
+     next=next+1
      if(next == npe_sub)next=0
-     if(next /= mype_sub)cycle
+     if(next /= mype_sub)cycle read_subset
      read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read IASI FOV information
-        call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ MJFC SELV')
+        call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ SELV SAID')
+
+!  Extract satellite id.  If not the one we want, read next subset
+        ksatid=nint(linele(5))
+        if(ksatid /= kidsat) cycle read_subset
+
         if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QGFQ)
 
         if ( bad_line == nint(linele(2))) then
@@ -376,26 +389,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    ifovn below contains the remapped IASI fov.  This value is
 !    passed on to and used in setuprad
         ifovn = (ifov-1)/2 + 1
-        iscn = nint(linele(2))               ! scan line
 
 !    Remove data on edges
         if (.not. use_edges .and. &
              (ifovn < radedge_min .OR. ifovn > radedge_max )) cycle read_loop
 
 !    Check field of view (FOVN) and satellite zenith angle (SAZA)
+        iscn = nint(linele(2))               ! scan line
         if( ifov <= 0 .or. ifov > 120) then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
               ' STRANGE OBS INFO(FOVN,SLNM):', ifov, iscn
            cycle read_loop
         endif
 
+
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
-!  Extract satellite id.  If not the one we want, read next subset
-        ksatid=nint(allspot(1))
-        if(ksatid /= kidsat) cycle read_subset
-        rsat=allspot(1) 
 
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
@@ -504,7 +514,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         piece = -step_adjust
         if ( mod(ifovn,2) == 1) piece = step_adjust
         lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
-        sat_height_ratio = (earth_radius + linele(5))/earth_radius
+        sat_height_ratio = (earth_radius + linele(4))/earth_radius
         lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
         if (abs(sat_zenang - lzaest) > one) then
            write(6,*)' READ_IASI WARNING uncertainty in lza ', &
@@ -513,20 +523,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
-!   Clear Amount  (percent clear)
-        call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
-        clr_amt = cloud_frac(1)
-!       if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
-        clr_amt=max(clr_amt,zero)
-        clr_amt=min(clr_amt,100.0_r_kind)
-     
-!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-        pred = 100.0_r_kind - clr_amt
-
-        crit1 = crit1 + pred
- 
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
 
 !   "Score" observation.  We use this information to identify "best" obs
 !    Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -542,12 +538,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         if (isfcalc == 1) then
            call fov_check(ifov,instr,ichan,valid)
            if (.not. valid) cycle read_loop
-        endif
 
 !    When isfcalc is set to one, calculate surface fields using size/shape of fov.
 !    Otherwise, use bilinear interpolation.
 
-        if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,real(allspot(11),r_kind),dlat_earth_deg, &
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -563,6 +557,20 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
+!   Clear Amount  (percent clear)
+        call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
+        clr_amt = cloud_frac(1)
+!       if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
+        clr_amt=max(clr_amt,zero)
+        clr_amt=min(clr_amt,100.0_r_kind)
+     
+!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+        pred = 100.0_r_kind - clr_amt
+
+        crit1 = crit1 + pred
+ 
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
         call ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
         if(iret /= 10) then
            write(6,*) 'READ_IASI  read scale error ',iret
@@ -640,6 +648,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
         endif
 
+        rsat=allspot(1) 
         data_all(1,itx) = rsat                      ! satellite ID 
         data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
         data_all(3,itx) = dlon                      ! grid relative longitude
@@ -672,8 +681,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(30,itx)= dlon_earth*rad2deg        ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth*rad2deg        ! earth relative latitude (degrees)
 
-        data_all(32,itx)= val_iasi
-        data_all(33,itx)= itt
+        if(dval_use)then
+           data_all(32,itx)= val_iasi
+           data_all(33,itx)= itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
@@ -716,11 +727,16 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_iasi
      end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+          itt=nint(data_all(33,n))
+          super_val(itt)=super_val(itt)+val_iasi
+        end do
+     end if
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   

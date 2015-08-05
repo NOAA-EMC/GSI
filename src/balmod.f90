@@ -747,9 +747,9 @@ contains
 !  pass uvflag=.false.
     if(lsqrtb) then
        call strong_bk_ad(st,vp,p,t,.false.)
-     else
+    else
        if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
-     endif
+    endif
 
 !   REGIONAL BRANCH
     if (regional) then

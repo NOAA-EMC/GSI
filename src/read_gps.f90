@@ -1,5 +1,5 @@
 subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
-             nprof_gps,sis)
+             nprof_gps,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: read_gps                   read in and reformat gps data
@@ -69,6 +69,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !     nread    - number of gps observations read
 !     ndata    - number of gps profiles retained for further processing
 !     nodata   - number of gps observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -83,6 +84,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   use convinfo, only: nconvtype,ctwind,cermax, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use gridmod, only: regional,nlon,nlat,tll2xy,rlats,rlons
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -91,6 +93,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   integer(i_kind) ,intent(inout) :: nprof_gps
 
 ! Declare local parameters  
@@ -435,6 +438,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   enddo                     ! messages
 
 ! Write observation to scratch file
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,nmrecs
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
   deallocate(cdata_all)
