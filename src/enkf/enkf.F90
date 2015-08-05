@@ -110,7 +110,7 @@ use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
-                  covl_minfact,covl_efold,nbackgrounds
+                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -454,7 +454,6 @@ do niter=1,numiter
       corrsqr = corrlengthsq(nob)
       corrlengthinv=one/corrlengthsq(nob)
       lnsiglinv=one/lnsigl(nob)
-      obt = abs(obtime(nob))
       obtimelinv=one/obtimel(nob)
       hpfhtcon=hpfhtoberrinv*r_nanalsm1
 
@@ -533,9 +532,11 @@ do niter=1,numiter
           nn2 = ndim
       end if
       if (nf2 > 0) then
-          taper3=taper(obt*obtimelinv)*hpfhtcon
-!$omp parallel do  schedule(dynamic,1) private(ii,i,nb,nn,nnn,lnsig,kfgain,taper1,taperv)
-          do ii=1,nf2
+!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taperv)
+          do ii=1,nf2 ! loop over nearby horiz grid points
+             do nb=1,nbackgrounds ! loop over background time levels
+             obt = abs(obtime(nob)-(nhr_anal(nb)-fhr_assim))
+             taper3=taper(obt*obtimelinv)*hpfhtcon
              taper1=taper_disgrd(ii)*taper3
              i = sresults1(ii)%idx
              do nn=1,nlevs_pres
@@ -551,16 +552,16 @@ do niter=1,numiter
                 if (taperv(nnn) > zero) then
                     ! gain includes covariance localization.
                     ! update all time levels
-                    do nb=1,nbackgrounds
-                      kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn,nb)*anal_obtmp)
-                      ! update mean.
-                      ensmean_chunk(i,nn,nb) = ensmean_chunk(i,nn,nb) + kfgain*obinc_tmp
-                      ! update perturbations.
-                      anal_chunk(:,i,nn,nb) = anal_chunk(:,i,nn,nb) + kfgain*obganl(:)
-                    enddo
+                    kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn,nb)*anal_obtmp)
+                    ! update mean.
+                    ensmean_chunk(i,nn,nb) = ensmean_chunk(i,nn,nb) + kfgain*obinc_tmp
+                    ! update perturbations.
+                    anal_chunk(:,i,nn,nb) = anal_chunk(:,i,nn,nb) + kfgain*obganl(:)
                 end if
              end do
-          end do
+          end do ! end loop over background time levels. 
+          end do ! end loop over nearby horiz grid points
+!$omp end parallel do
       end if ! if .not. lastiter or no close grid points
 
       t5 = t5 + mpi_wtime() - t1
@@ -657,10 +658,10 @@ if (nproc == 0) print *,'time to broadcast obsprd_post = ',mpi_wtime()-t1
 
 predx = predx + deltapredx ! add increment to bias coeffs.
 
-! free temporary arrays.
+! free local temporary arrays.
 deallocate(taper_disob,taper_disgrd)
-deallocate(anal_obchunk) ! this one is allocated in loadbal
-deallocate(anal_obchunk_prior)
+! these allocated in loadbal, no longer needed
+deallocate(anal_obchunk); deallocate(anal_obchunk_prior)
 deallocate(sresults1,sresults2)
 deallocate(indxassim,buffertmp)
 if (iassim_order == 2) then
