@@ -33,7 +33,8 @@ module letkf
 !  lnsigcutoffsattr, lnsigcutoffsatsh for satellite obs, similar for ps obs)
 !  obtimelnh, obtimeltr, obtimelsh. The length scales should be given in km for the
 !  horizontal, hours for time, and 'scale heights' (units of -log(p/pref)) in the
-!  vertical. The function used for localization (function taper)
+!  vertical. Note however, that time localization *not used in LETKF*. 
+!  The function used for localization (function taper)
 !  is imported from module covlocal. Localization requires that
 !  every observation have an associated horizontal, vertical and temporal location.
 !  For satellite radiance observations the vertical location is given by
@@ -84,7 +85,7 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   biasprednorm, probgrosserr, prpgerr,&
                   corrlengthsq,lnsigl,obtimel,anal_ob,obloclat, obloclon
 use constants, only: pi, one, zero, rad2deg, deg2rad
-use params, only: sprd_tol, ndim, datapath, nanals,&
+use params, only: sprd_tol, ndim, datapath, nanals, &
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,&
                   corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds
@@ -123,8 +124,8 @@ real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
 logical,dimension(nobs_max) :: oupdate
 integer(i_kind),allocatable,dimension(:) :: oindex
-real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel
-real(r_kind) :: vdist, tdist
+real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl
+real(r_kind) :: vdist
 real(r_kind) :: corrlength
 real(r_single) :: deglat, dist, corrsq, eps
 integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
@@ -169,7 +170,6 @@ if (numiter == 0) then
   do nob=1,nobsgood
      invcorlen(nob)=one/corrlengthsq(nob)
      invlnsigl(nob)=one/lnsigl(nob)
-     invobtimel(nob)=one/obtimel(nob)
      oberinv(nob)=one/oberrvaruse(nob)
      obdep(nob)=ob(nob)-ensmean_ob(nob)
   end do
@@ -249,7 +249,6 @@ do niter=1,numiter
   do nob=1,nobsgood
      invcorlen(nob)=one/corrlengthsq(nob)
      invlnsigl(nob)=one/lnsigl(nob)
-     invobtimel(nob)=one/obtimel(nob)
      oberinv(nob)=one/oberrvaruse(nob)
      obdep(nob)=ob(nob)-ensmean_ob(nob)
   end do
@@ -266,7 +265,7 @@ do niter=1,numiter
 !$omp parallel do schedule(dynamic) private(nob,nob1,nob2, &
 !$omp                  nobsl,nobsl2,corrsq,corrlength, &
 !$omp                  hdxf,rdiag,dep,rloc,vdist, &
-!$omp                  tdist,nf,work,trans,sameloc,samehloc,samevloc, &
+!$omp                  nf,work,trans,sameloc,samehloc,samevloc, &
 !$omp                  work2,dist,oindex,oupdate,sresults) &
 !$omp  reduction(+:t1,t2,t3,t4,t5,nskip)
   obsloop: do nob1=1,numobsperproc(nproc+1)
@@ -297,7 +296,6 @@ do niter=1,numiter
      if(.not. samehloc .or. .not. allocated(sresults)) then
         if (allocated(sresults)) deallocate(sresults)
         allocate(sresults(nobsgood))
-        ! kd-tree fixed range search
         call kdtree2_r_nearest(tp=kdtree_obs2,qv=obloc_chunk(:,nob1),&
              r2=corrlengthsq(nob2),&
              nfound=nobsl,nalloc=nobsgood,results=sresults)
@@ -324,14 +322,9 @@ do niter=1,numiter
      nobsl2=1
      do nob=1,nobsl
         nf = sresults(nob)%idx
-        vdist=oblnp_chunk(nob1)-oblnp(nf)
-        if(abs(vdist) >= lnsigl(nf)) cycle
-        tdist=obtime_chunk(nob1)-obtime(nf)
-        if(abs(tdist) >= obtimel(nf)) cycle
-        vdist=vdist*invlnsigl(nf)
-        tdist=tdist*invobtimel(nf)
-        dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+&
-                    vdist*vdist+tdist*tdist)
+        vdist=(oblnp_chunk(nob1)-oblnp(nf))*invlnsigl(nf)
+        if(abs(vdist) >= one) cycle
+        dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
         if (dist >= one) cycle
         rloc(nobsl2)=taper(dist)
         oindex(nobsl2)=nf
@@ -462,7 +455,7 @@ nobslocal_max = -999
 ! Loop for each horizontal grid points on this task.
 !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
 !$omp                  nobsl2,ngrd1,corrlength, &
-!$omp                  nf,vdist,tdist, &
+!$omp                  nf,vdist, &
 !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
 !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
 !$omp  reduction(+:t1,t2,t3,t4,t5) &
@@ -497,13 +490,9 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       nobsl2=1
       do nob=1,nobsl
          nf = sresults(nob)%idx
-         vdist=lnp_chunk(npt,nn)-oblnp(nf)
-         if(abs(vdist) >= lnsigl(nf)) cycle
-         if(abs(obtime(nf)) >= obtimel(nf)) cycle
-         vdist=vdist*invlnsigl(nf)
-         tdist=obtime(nf)*invobtimel(nf)
-         dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+&
-                     vdist*vdist+tdist*tdist)
+         vdist=(lnp_chunk(npt,nn)-oblnp(nf))*invlnsigl(nf)
+         if(abs(vdist) >= one) cycle
+         dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
          if (dist >= one) cycle
          rloc(nobsl2)=taper(dist)
          oindex(nobsl2)=nf
@@ -568,9 +557,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    nobsl2=1
    do nob=1,nobsl
       nf = sresults(nob)%idx
-      if(abs(obtime(nf)) >= obtimel(nf)) cycle
-      tdist = obtime(nf)*invobtimel(nf)
-      dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+tdist*tdist)
+      dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx))
       if (dist >= one) cycle
       rloc(nobsl2)=taper(dist)
       oindex(nobsl2)=nf
@@ -670,7 +657,7 @@ else
 end if
 end if
 
-deallocate(anal_obchunk) ! this one is allocated in loadbal
+deallocate(anal_obchunk) ! these are allocated in loadbal
 
 return
 
