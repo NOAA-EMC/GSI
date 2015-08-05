@@ -330,7 +330,7 @@ if (l4densvar) then
       if (mype==0)  write(6,*)'SETUP_4DVAR: timelevel, ens4d_fhrlevs = ',k,ens4d_fhrlevs(k)
    enddo
 
-   ibin_anl = (nhr_assimilation/2)+1
+   ibin_anl = (nhr_assimilation/(2*nhr_obsbin))+1
    if (mype==0) write(6,*)'SETUP_4DVAR: 4densvar mode, ibin_anl and nobs_bins = ',ibin_anl,nobs_bins
 else
    ntlevs_ens=1
