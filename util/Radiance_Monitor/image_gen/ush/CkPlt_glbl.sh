@@ -152,8 +152,15 @@ if [[ $plot_time != "" ]]; then
 else
    export PDATE=$PRODATE
 fi
-export START_DATE=`$NDATE -720 $PDATE`
+#export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
+
+export NUM_CYCLES=${NUM_CYCLES:-121}
+hrs=`expr $NUM_CYCLES \\* -6`
+echo "hrs = $hrs"
+
+export START_DATE=`$NDATE ${hrs} $PDATE`
+echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
 
 sdate=`echo $PDATE|cut -c1-8`
 export CYA=`echo $PDATE|cut -c9-10`

@@ -1,0 +1,59 @@
+#!/bin/sh
+#------------------------------------------------------------------------------
+#
+#  MinMon_user_settings
+#
+#  Modify this file in order to change behavior of the GMon package 
+#------------------------------------------------------------------------------
+#
+#  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
+#  empty on other platforms.
+#
+export ACCOUNT=${ACCOUNT:-}
+
+#
+#  PROJECT is used on wcoss only with the bjob -P flag.  It is 
+#  empty on other platforms.
+#
+export PROJECT=${PROJECT:-GDAS-T2O}
+
+#
+#  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
+#  empty on other platforms.
+#
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+
+#
+#  RUN_ONLY_ON_DEV  1 = dev machine only, 0 = run anywhere
+#
+export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
+
+#
+#  WORKDIR is working directory (temp space)
+#
+export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${SUFFIX} 
+
+# 
+#  GLB_AREA indicates the valid area of the data source
+#   1 = area is global
+#   0 = area is regional (not global)
+#
+export GLB_AREA=${GLB_AREA:-1}                       
+
+#
+#  DO_ERROR_RPT 1 = mail any error reports to the MAIL_TO and MAIL_CC lists
+#               0 = take no action on any error reports (they will be in the
+#                   ${TANKverf}/${suffix}/minmon_[yyyymmdd]/ directory)
+export DO_ERROR_RPT=${DO_ERROR_RPT:-0}
+
+#
+#  MAIL_TO is the mail recpient list for error reporting
+#
+export MAIL_TO=${MAIL_TO:-""}
+
+#
+#  MAIL_CC is the mail recpient cc list for error reporting
+#
+export MAIL_CC=${MAIL_CC:-""}
+
+

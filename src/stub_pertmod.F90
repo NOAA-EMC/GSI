@@ -32,11 +32,12 @@ implicit none
 integer(i_kind):: ierror
 logical:: already_init_mpi
 character(len=*),parameter:: myname_=MYNAME//'::parallel_init_'
+  ierror=0
   call mpi_initialized(already_init_mpi,ierror)
-  	if(ierror/=0) call die(myname_,'mpi_initialized(), ierror =',ierror)
+  if(ierror/=0) call die(myname_,'mpi_initialized(), ierror =',ierror)
   if(.not.already_init_mpi) then
-  	call mpi_init(ierror)
-  	if(ierror/=0) call die(myname_,'mpi_init(), ierror =',ierror)
+     call mpi_init(ierror)
+     if(ierror/=0) call die(myname_,'mpi_init(), ierror =',ierror)
   endif
 end subroutine parallel_init_
 

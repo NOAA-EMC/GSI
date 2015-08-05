@@ -32,10 +32,10 @@ subroutine obs_para(ndata,mype)
 !                              "call dislag(.....,nobs_s(mm1))"
 !                           nobs_s is an array in current subroutine, but is a
 !                           scalar inside subroutine dislag.
-!   2014-10-03  carley  - add creation mpi subcommunicator needed for
-!                          buddy check QC to distinguish among pe subdomains
-!                          with and without obs (only for t obs and twodvar_regional
-!                          at the moment)
+!   2014-10-03  carley  - add creation mpi subcommunicator needed for 
+!                          buddy check QC to distinguish among pe subdomains 
+!                          with and without obs (only for t obs and twodvar_regional 
+!                          at the moment) 
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -56,9 +56,9 @@ subroutine obs_para(ndata,mype)
   use jfunc, only: factqmin,factqmax
   use mpimod, only: npe,mpi_itype,mpi_comm_world,ierror
   use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
-              obsfile_all,dplat,obs_sub_comm
-  use gridmod, only: twodvar_regional
-  use qcmod, only: buddycheck_t,buddydiag_save
+              obsfile_all,dplat,nobs_sub,obs_sub_comm 
+  use gridmod, only: twodvar_regional 
+  use qcmod, only: buddycheck_t,buddydiag_save 
   implicit none
 
 ! Declare passed variables
@@ -68,8 +68,9 @@ subroutine obs_para(ndata,mype)
 ! Declare local variables
   integer(i_kind) lunout,is,ii
   integer(i_kind) mm1
-  integer(i_kind) ndatax_all,ikey_yes,ikey_no,newprocs,newrank
-  integer(i_kind),dimension(npe):: nobs_s,ikey,icolor
+  integer(i_kind) ndatax_all,ikey_yes,ikey_no,newprocs,newrank 
+  integer(i_kind),dimension(npe):: ikey,icolor 
+  integer(i_kind) nobs_s
 
 !
 !****************************************************************
@@ -77,7 +78,7 @@ subroutine obs_para(ndata,mype)
 !
 ! Distribute observations as a function of pe number.
   nsat1=0
-  obs_sub_comm=0
+  obs_sub_comm=0 
   mype_diaghdr = -999
   mm1=mype+1
   ndatax_all=0
@@ -95,58 +96,60 @@ subroutine obs_para(ndata,mype)
 
         if (dtype(is)=='lag') then    ! lagrangian data
            call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
-                nobs_s(mm1))    !!!!!!! WAS nobs_s), WHICH IS AN ERROR, because inside dislag, nobs_s
-                                !!!!!!! is not dimensioned, but here it has dimension nobs_s(npe)!!!!!!
-                                !!!!!!!! this is not necessarily the proper fix--just gets compile debug
-                                !!!!!!!!! to work!!!!!!!!!!!!!!!!!!!!
-        else                          ! classical observations
-           call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
-                 mype_diaghdr(is),nobs_s)
+                nobs_s) 
+        nsat1(is)= nobs_sub(mm1,is)
+        else 
+           obproc:do ii=1,npe
+             if(nobs_sub(ii,is) > 0)then
+               mype_diaghdr(is) = ii-1
+               exit obproc
+             end if
+           end do obproc
+                
+           if(nobs_sub(mm1,is) > zero)then    ! classical observations
+              call disobs(ndata(is,1),nobs_sub(mm1,is),mm1,lunout, &
+                  obsfile_all(is),dtype(is))
+           end if
         end if
-        nsat1(is)=nobs_s(mm1)
-        if(mm1 == npe)then
-           write(6,1000)dtype(is),dplat(is),(nobs_s(ii),ii=1,npe)
-1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))                 
+        nsat1(is)= nobs_sub(mm1,is)
+        if(mm1 == 1)then
+           write(6,1000)dtype(is),dplat(is),(nobs_sub(ii,is),ii=1,npe)
+1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
         end if
-  
-        
-        ! Simple logic to organize which tasks do and do not have obs.
-        !  Needed for buddy check QC.  
-        if (twodvar_regional .and. dtype(is) == 't' .and. buddycheck_t) then
-           ! Broadcast this obtype's decomposition to all tasks
-           !  Must bcast from the diag PE, which is npe-1  
-           call mpi_bcast(nobs_s,size(nobs_s),mpi_itype,npe-1,mpi_comm_world,ierror)         
-           ikey_yes=0
-           ikey_no=0
-           ikey=0
-           do ii=1,npe
-              if (nobs_s(ii)>0) then
-                 icolor(ii)=1
-                 ikey(ii)=ikey_yes
-                 ikey_yes=ikey_yes+1
-              else
-                 icolor(ii)=2
-                 ikey(ii)=ikey_no
-                 ikey_no=ikey_no+1
-              end if
-           end do
 
-           ! With organized colors and keys, now create the new MPI communicator
-           !   which only talks to pe's who have obs on their subdomains.  This is
-           !   needed for MPI communication within the setup* routines (e.g. a buddy check).
-              
-           call mpi_comm_split(mpi_comm_world,icolor(mm1),ikey(mm1),obs_sub_comm(is),ierror)  
-           CALL MPI_COMM_SIZE(obs_sub_comm(is), newprocs, ierror)
-           CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror)
-           if (buddydiag_save) write(6,'(A,I3,I10,A,I20,A,I3,A,I3)') 'obs_para: mype/myobs=',&
-                              mype,nobs_s(mm1),'newcomm=',obs_sub_comm(is),'newprocs=', &
-                              newprocs,'newrank=',newrank           
-        end if
+        ! Simple logic to organize which tasks do and do not have obs. 
+        !  Needed for buddy check QC.   
+        if (twodvar_regional .and. dtype(is) == 't' .and.  buddycheck_t) then 
+           ikey_yes=0 
+           ikey_no=0 
+           ikey=0 
+           do ii=1,npe 
+              if (nobs_sub(ii,is)>0) then 
+                 icolor(ii)=1 
+                 ikey(ii)=ikey_yes 
+                 ikey_yes=ikey_yes+1 
+              else 
+                 icolor(ii)=2 
+                 ikey(ii)=ikey_no 
+                 ikey_no=ikey_no+1 
+              end if 
+           end do 
+ 
+           ! With organized colors and keys, now create the new MPI communicator 
+           !   which only talks to pe's who have obs on their subdomains.  This is 
+           !   needed for MPI communication within the setup* routines (e.g. a buddy check). 
+               
+           call mpi_comm_split(mpi_comm_world,icolor(mm1),ikey(mm1),obs_sub_comm(is),ierror)   
+           CALL MPI_COMM_SIZE(obs_sub_comm(is), newprocs, ierror) 
+           CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror) 
+           if (buddydiag_save) write(6,'(A,I3,I10,A,I20,A,I3,A,I3)') 'obs_para: mype/myobs=',& 
+                              mype,nobs_sub(mm1,is),'newcomm=',obs_sub_comm(is),'newprocs=', & 
+                              newprocs,'newrank=',newrank            
+        end if 
+        
      end if
 
-
   end do
-
   close(lunout)
 
 
@@ -164,7 +167,7 @@ subroutine obs_para(ndata,mype)
   return
 end subroutine obs_para
 
-subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
+subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -206,28 +209,23 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)               ,intent(in   ) :: ndata,lunout,mm1
-  integer(i_kind),dimension(npe),intent(inout) :: nobs_s
-  integer(i_kind)               ,intent(  out) :: mype_diag
+  integer(i_kind)               ,intent(in   ) :: ndata,lunout,mm1,nobs
   character(len=*)              ,intent(in   ) :: obsfile
   character(len=*)              ,intent(in   ) :: obstypeall
 
 ! Declare local variables
   integer(i_kind) lon,lat,lat_data,lon_data,n,k,lunin
-  integer(i_kind) jj,nreal,nchanl,nn_obs,ndatax
-  integer(i_kind) ndata_s,klim
-  integer(i_kind),dimension(npe):: ibe,ibw,ibn,ibs
-  logical,allocatable,dimension(:):: luse,luse_s
+  integer(i_kind) jj,nreal,nchanl,nn_obs
+  integer(i_kind) ndata_s
+  integer(i_kind),dimension(mm1):: ibe,ibw,ibn,ibs
+  logical,allocatable,dimension(:):: luse_s
   real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
-  integer(i_kind),allocatable,dimension(:):: nprocs
   character(10):: obstype
   character(20):: isis
 
-  mype_diag=npe
-
 ! Read and write header
 
-  do k=1,npe
+  do k=1,mm1
 
 !    ibw,ibe,ibs,ibn west,east,south and north boundaries of total region
      ibw(k)=jstart(k)-1
@@ -250,9 +248,106 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   read(lunin) obs_data
   close(lunin)
 
-  allocate(luse(ndata),nprocs(ndata))
-  luse=.false.
-  nprocs=999999
+  ndata_s=0
+  allocate(data1_s(nn_obs,nobs),luse_s(nobs))
+
+! Loop over all observations.  Locate each observation with respect
+! to subdomains.
+  obs_loop: do n=1,ndata
+     lat=obs_data(lat_data,n)
+     lat=min(max(1,lat),nlat)
+
+     if(lat>=ibs(mm1).and.lat<=ibn(mm1))then
+        lon=obs_data(lon_data,n)
+        lon=min(max(0,lon),nlon)
+        if((lon >= ibw(mm1).and. lon <=ibe(mm1))  .or.  &
+           (lon == 0   .and. ibe(mm1) >=nlon) .or.  &
+           (lon == nlon    .and. ibw(mm1) <=1) .or. periodic_s(mm1)) then
+           ndata_s=ndata_s+1
+           luse_s(ndata_s)= .true.
+           do jj= 1,nn_obs
+              data1_s(jj,ndata_s) = obs_data(jj,n)
+           end do
+          
+           prec_loop: do k=1,mm1-1
+              if(lat>=ibs(k).and.lat<=ibn(k)) then
+                 if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
+                    (lon == 0     .and. ibe(k) >=nlon) .or.  &
+                    (lon == nlon  .and. ibw(k) <=1) .or. periodic_s(k)) then
+                    luse_s(ndata_s)= .false.
+                    exit prec_loop
+                 end if
+              end if
+           end do prec_loop
+           if(nobs == ndata_s) exit obs_loop
+         end if
+     end if
+  end do obs_loop
+  deallocate(obs_data)
+
+! Write observations for given task to output file
+  write(lunout) obstypeall,isis,nreal,nchanl
+  write(lunout) data1_s,luse_s
+  deallocate(data1_s,luse_s)
+
+
+  return
+end subroutine disobs
+subroutine count_obs(ndata,nn_obs,lat_data,lon_data,obs_data,nobs_s)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    count_obs  counts number of observations on each subdomain
+!   prgmmr: derber                                    date: 2014-12-16
+!
+! abstract: count observations in each pe subdomain
+!
+! program history log:
+!   2014-12-16  derber
+!
+!   input argument list:
+!     ndata    - number of observations
+!     nn_obs   - number of an observation data for each ob 
+!     lat_data - location of lattitude
+!     lon_data - location of longitude
+!     obs_data - observation information array
+!
+!   output argument list:
+!     nobs_s   - number of observations on all subdomains
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
+  use mpimod, only: npe
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: ndata,lat_data,lon_data
+  integer(i_kind)               ,intent(in   ) :: nn_obs
+  integer(i_kind),dimension(npe),intent(inout) :: nobs_s
+  real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
+
+! Declare local variables
+  integer(i_kind) lon,lat,n,k
+  integer(i_kind),dimension(npe):: ibe,ibw,ibn,ibs
+
+! Read and write header
+
+  do k=1,npe
+
+!    ibw,ibe,ibs,ibn west,east,south and north boundaries of total region
+     ibw(k)=jstart(k)-1
+     ibe(k)=jstart(k)+jlon1(k)-1
+     ibs(k)=istart(k)-1
+     ibn(k)=istart(k)+ilat1(k)-1
+
+  end do
+
+
   nobs_s=0
 
 ! Loop over all observations.  Locate each observation with respect
@@ -261,58 +356,20 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
      lat=obs_data(lat_data,n)
      lat=min(max(1,lat),nlat)
 
-     klim=max(mm1,mype_diag)
-     do k=1,klim
+     do k=1,npe
         if(lat>=ibs(k).and.lat<=ibn(k)) then
            lon=obs_data(lon_data,n)
            lon=min(max(0,lon),nlon)
            if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
               (lon == 0   .and. ibe(k) >=nlon) .or.  &
               (lon == nlon    .and. ibw(k) <=1) .or. periodic_s(k)) then
-              nobs_s(k)=nobs_s(k)+1
-              nprocs(n)=min(nprocs(n),k)
-              mype_diag=min(mype_diag,k-1)
-              if(k == mm1)luse(n)=.true.
+                 nobs_s(k)=nobs_s(k)+1
            end if
         end if
      end do
   end do 
-  ndata_s = nobs_s(mm1)
-     
-
-  if(ndata_s > 0)then
-     allocate(data1_s(nn_obs,ndata_s),luse_s(ndata_s))
-     ndatax=0
-     do n=1,ndata
-
-        if(luse(n))then
-
-           ndatax=ndatax+1
-           luse_s(ndatax)= mm1 == nprocs(n)
-
-           do jj= 1,nn_obs
-              data1_s(jj,ndatax) = obs_data(jj,n)
-           end do
-
-        end if
-
-     end do
-
-
-
-
-
-
-! Write observations for given task to output file
-     write(lunout) obstypeall,isis,nreal,nchanl
-     write(lunout) data1_s,luse_s
-     deallocate(data1_s,luse_s)
-  endif
-  deallocate(obs_data,luse,nprocs)
-
-
   return
-end subroutine disobs
+end subroutine count_obs
 
 ! ------------------------------------------------------------------------
 subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)

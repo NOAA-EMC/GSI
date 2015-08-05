@@ -501,13 +501,10 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
   dp0 = (/.00415_r_kind,.00473_r_kind,.0107_r_kind,.02612_r_kind,  &
            .0217_r_kind, .01383_r_kind, .01947_r_kind/)
 
-  alg1 = rmis; alg2 = rmis; alg3 = rmis 
-
-! save brightness temperatures at seven window channels
-  tbx(1:7) = tb(12:18)
-
-! get ta2tb coefficients
   do i=1,7
+! save brightness temperatures at seven window channels
+     tbx(i) = tb(11+i)
+! get ta2tb coefficients
      cp(i) = one/( cp0(i)*(one-dp0(i)) )
      dp(i) = cp(i) * dp0(i)
   end do
@@ -528,20 +525,22 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
   end do
 
 ! TA level CLW algorithm
+  alg1 = rmis
   if( tay(2)<r285 .and. tay(3)<r285 ) then
      alg1 = -3.20_r_kind*(  &
           log( r290-tay(2) ) - 2.80_r_kind - 0.42_r_kind*log( r290-tay(3) )  )
   end if
 
-  if( tay(5)<r285 .and. tay(3)<r285 ) then
-     alg2 = -1.66_r_kind*(  &
-          log( r290-tay(5) ) - 2.90_r_kind - 0.349_r_kind*log( r290-tay(3) )  );
-  end if
 
 ! Determine clw
   if( alg1 > 0.70_r_kind ) then 
      clw = alg1
   else
+     alg2=rmis
+     if( tay(5)<r285 .and. tay(3)<r285 ) then
+        alg2 = -1.66_r_kind*(  &
+          log( r290-tay(5) ) - 2.90_r_kind - 0.349_r_kind*log( r290-tay(3) )  );
+     end if
      if( alg2 > 0.28_r_kind ) then 
         clw = alg2
      else
@@ -560,6 +559,7 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
         tpwc = 232.89_r_kind - 0.1486_r_kind*tby(1) - 0.3695_r_kind*tby(4)  & 
             - ( 1.8291_r_kind - 0.006193_r_kind*tby(3) )*tby(3)
         if( tpwc < 30.0_r_kind ) then 
+           alg3=rmis
            if( tay(7)<r285 .and. tay(3)<r285 ) then
               alg3 = -0.44_r_kind*( &
                    log( r290-tay(7) ) + 1.60_r_kind - 1.354_r_kind*log( r290-tay(3) )  )
@@ -1198,7 +1198,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
   real(r_kind)  ev(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),tvmin(nch)
+  real(r_kind)  tauo(nch),kl(nch),tv(nch),tvmin(nch)
 ! real(r_kind)  thmin(nch),eh(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
@@ -1230,11 +1230,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   tl = sst-20.0_r_kind-273.15_r_kind
   if (tl > 10.0_r_kind) tl = 10.0_r_kind
 
-! scatteing correction
-  call TBE_FROM_TBO(tbo,tbe)
+  call TBA_FROM_TBO(tbo,tv)
 
-! Adjust TBE to TBA required in the algorithms
-  call TBA_FROM_TBE(tbe,tv)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
@@ -1255,17 +1252,17 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !    if (th(ich) < thmin(ich)) th(ich) = thmin(ich)
   enddo
 
-! Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
-
-! 18.7 over 23.8 GHz: rain water path
-  a0 = -half*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
-  b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
-  a1 =  kw(3)/kw(4)
-  b1 =  kl(3)/kl(4)
-  a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*log(sst) + log(one-ev(3)) - a1*log(one-ev(4))
-  b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*log(sst) + log(one-ev(3)) - b1*log(one-ev(4))
-
   if ( ( sst-tv(3) > 0.01_r_kind ) .and. ( sst-tv(4) > 0.01_r_kind ) ) then
+!    Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
+
+!    18.7 over 23.8 GHz: rain water path
+!    a0 = -half*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+     b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+!    a1 =  kw(3)/kw(4)
+     b1 =  kl(3)/kl(4)
+!    a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*log(sst) + log(one-ev(3)) - a1*log(one-ev(4))
+     b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*log(sst) + log(one-ev(3)) - b1*log(one-ev(4))
+
 !    rwp = a0*umu*( log(sst-tv(3)) - a1*log(sst-tv(4))-a2)
      vr  = b0*umu*( log(sst-tv(3)) - b1*log(sst-tv(4))-b2)
 
@@ -1279,16 +1276,16 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
      vr  = -999.0_r_kind
   endif
 
-! 36.5 over 23.8 GHz: cloud water path
-  a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-! b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-  a1 =  kw(5)/kw(4)
-! b1 =  kl(5)/kl(4)
-  a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*log(sst) + &
-                           log(one-ev(5)) - a1*log(one-ev(4))
-! b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*log(sst) + &
-!                          log(one-ev(5)) - b1*log(one-ev(4))
   if ( ( sst-tv(4) > 0.01_r_kind ) .and. ( sst-tv(5) > 0.01_r_kind ) ) then
+!    36.5 over 23.8 GHz: cloud water path
+     a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+!    b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+     a1 =  kw(5)/kw(4)
+!    b1 =  kl(5)/kl(4)
+     a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*log(sst) + &
+                           log(one-ev(5)) - a1*log(one-ev(4))
+!    b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*log(sst) + &
+!                          log(one-ev(5)) - b1*log(one-ev(4))
      cwp = a0*umu*( log(sst-tv(5) ) - a1*log(sst-tv(4))-a2)
 !    vc = b0*umu*( log(sst-tv(5)) - b1*log(sst-tv(4))-b2 )
      if(cwp < zero) cwp = zero
@@ -1304,8 +1301,104 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
 end subroutine RCWPS_Alg
 
+subroutine TBA_FROM_TBO(tbo,tvs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: TBE_FROM_TBO
+!
+!   prgrmmr: Banghua Yan      org: NESDIS        date:  2004-04-20
+!
+! abstract:
+!     Perform corrections for scattering effect for AMSR-E measurements (6.9 ~ 36.5 GHz)
+!     Note: Scattering effects on the tbo at 89 GHz are to be corrected
+!
+! program history log:
+!      2005-10-21  kazumori - modified for GSI
+!      2008-04-16  safford  - rm unused uses
+!
+!   input argument list:
+!     tbo(*) : AMSRE measurements
+!
+!   output argument list:
+!     tb(*)  : brightness temperatures with scattering correction
+!
+!   comments:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: three
+  implicit none
+
+  integer(i_kind) nch
+  parameter (nch = 6)
+
+  real(r_kind),intent(in   ) :: tbo(nch*2)
+  real(r_kind),intent(  out) :: tvs(nch)
+! Remove intent(out) for ths since currently not used
+! real(r_kind)               :: ths(nch)
+
+  integer(i_kind) i,j,k
+  real(r_kind) tbe(nch),tv18,tb(nch)
+  real(r_kind),save :: coe_tbs(5,11)
+  data (coe_tbs(1,k),k=1,11)/  &
+    3.700653e+000_r_kind, 1.139987e-002_r_kind, 9.760773e-001_r_kind,-3.792810e-002_r_kind, 6.930733e-002_r_kind,&
+    9.327399e-002_r_kind,-1.626923e-001_r_kind,-1.000955e-001_r_kind, 1.667856e-001_r_kind, 3.836404e-002_r_kind,&
+   -6.907219e-002_r_kind/
+  data (coe_tbs(2,k),k=1,11)/ &
+    -1.341827e+000_r_kind, -2.947993e-002_r_kind, -1.031828e-003_r_kind,  3.924831e-002_r_kind,  9.954801e-001_r_kind, &
+    -2.360948e-002_r_kind,  2.565339e-002_r_kind,  1.999745e-002_r_kind, -2.145227e-002_r_kind, -1.131899e-002_r_kind, &
+    1.201244e-002_r_kind/
+  data (coe_tbs(3,k),k=1,11)/  &
+    2.223694e+000_r_kind,-1.482995e-002_r_kind,-5.777131e-003_r_kind, 2.200880e-003_r_kind, 2.359764e-002_r_kind, &
+    5.473155e-002_r_kind, 9.022181e-001_r_kind,-6.822398e-002_r_kind, 1.177735e-001_r_kind, 2.131365e-002_r_kind, &
+   -4.201306e-002_r_kind/
+  data (coe_tbs(4,k),k=1,11)/  &
+    7.324219e-003_r_kind,-3.075898e-002_r_kind,-2.037739e-003_r_kind, 2.657354e-002_r_kind, 1.731113e-002_r_kind, &
+    3.657620e-002_r_kind,-1.028747e-001_r_kind,-5.361976e-002_r_kind, 1.126930e+000_r_kind, 1.459956e-002_r_kind, &
+   -3.240352e-002_r_kind/
+  data (coe_tbs(5,k),k=1,11)/ &
+    7.333450e+000_r_kind, -1.293110e-001_r_kind,  1.874678e-002_r_kind,  1.842369e-001_r_kind, -2.854594e-002_r_kind,  &
+    8.010966e-002_r_kind, -2.214617e-001_r_kind, -1.830799e-001_r_kind,  3.916801e-001_r_kind,  1.001790e-001_r_kind,  &
+    7.973670e-001_r_kind/
+
+! scattering correction
+  tb(1) = tbo(1)
+  tb(2) = tbo(3)
+  tb(3) = tbo(5)
+  tb(4) = tbo(7)
+  tb(5) = tbo(9)
+  tbe(6) = tbo(11)
+
+! from tbscat to tbemiss
+  do i = 1, 5
+     tbe(i) = coe_tbs(i,1)
+     do j=1,10
+        tbe(i) = tbe(i) + coe_tbs(i,j+1)*tb(j)
+     enddo
+     tbe(5) = tbe(5) + 0.4_r_kind*(tbe(5)-tb(5))
+  enddo
+
+! correction of sea surface roughness
+
+  tv18 = 0.0054_r_kind*tbo(7)*tbo(7) -1.9554_r_kind*tbo(7) +364.71_r_kind
+  if ((tbo(5)-tv18 >= three)  .and. (tbo(2) >= 90.0_r_kind)) &
+     tbe(3) = tbe(3) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-three)
 
 
+! Adjust TBE to TBA required in the algorithms
+  tvs(1) = 6.504761e+000_r_kind + 9.540653e-001_r_kind*tbe(1)
+  tvs(2) = 5.405548e+000_r_kind + 9.632518e-001_r_kind*tbe(2)
+  tvs(3) = 2.251144e+000_r_kind + 9.880477e-001_r_kind*tbe(3)
+  tvs(4) = -3.358444e+000_r_kind + 1.028767e+000_r_kind*tbe(4)
+  tvs(5) = 3.148166e+001_r_kind + 8.714348e-001_r_kind*tbe(5)
+  tvs(6) = 2.861269e+001_r_kind + 9.155271e-001_r_kind*tbe(6)
+
+end subroutine TBA_FROM_TBO
 subroutine TBE_FROM_TBO(tbo,tb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1809,30 +1902,29 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   integer(i_kind)                   ,intent(  out) :: ierrret 
   real(r_kind),optional             ,intent(  out) :: scat
 
-  real(r_kind)                    ::  tpwc_amsua
+! real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare local variables 
-  real(r_kind) :: d0, d1, d2, c0, c1, c2
+  real(r_kind) :: d0, d1, d2, coszat
+! real(r_kind) :: c0, c1, c2
 
-  c0 = 247.92_r_kind - (69.235_r_kind-44.177_r_kind*cos(zasat))*cos(zasat)
-  c1 = -116.27_r_kind
-  c2 = 73.409_r_kind
-
-  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*cos(zasat))*cos(zasat) 
+  
+  coszat=cos(zasat)
+  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*coszat)*coszat
   d1 = 0.754_r_kind
   d2 = -2.265_r_kind
-  
+
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
-     tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
+!    tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      ierrret = 0
   else
      clwp_amsua = r1000  
-     tpwc_amsua = r1000  
+!    tpwc_amsua = r1000  
      ierrret = 1
   endif
 

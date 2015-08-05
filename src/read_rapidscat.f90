@@ -1,5 +1,5 @@
 subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
-     prsl_full)
+     prsl_full,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_rapidscat                    read scatterometer winds
@@ -29,6 +29,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 !     nread    - number of satellite winds read 
 !     ndata    - number of satellite winds retained for further processing
 !     nodata   - number of satellite winds retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -52,6 +53,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -61,11 +63,10 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twind
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Declare local parameters
 
-  integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=10000 ! max message count
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
@@ -102,7 +103,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   character(8) subset
   character(8) c_prvstg,c_sprvstg
 
-  integer(i_kind) ireadmg,ireadsb,iuse
+  integer(i_kind) ireadmg,ireadsb,iuse,mxtb,nmsgmax
   integer(i_kind) i,maxobs,idomsfc,nsattype
   integer(i_kind) nc,nx,isflg,itx,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
@@ -116,7 +117,6 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
-  integer(i_kind) tab(mxtb,3)
   integer(i_kind) qc1
   
   
@@ -125,8 +125,8 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),dimension(nmsgmax):: nrep
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
+  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:,:)::tab
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m
 
@@ -246,7 +246,12 @@ loopd : do
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-  allocate(lmsg(nmsgmax,ntread))
+!! get message and subset counts
+
+  call getcount_bufr(infile,nmsgmax,mxtb)
+
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+
   lmsg = .false.
   maxobs=0
   tab=0
@@ -663,7 +668,7 @@ loopd : do
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
  
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
@@ -689,6 +694,7 @@ loopd : do
   deallocate(etabl)
   
 
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) cdata_out
 
