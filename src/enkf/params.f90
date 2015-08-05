@@ -47,8 +47,10 @@ integer(i_kind), public, parameter :: nsatmax_rad = 200
 integer(i_kind), public, parameter :: nsatmax_oz = 100
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
 character(len=20), public, dimension(nsatmax_oz) ::sattypes_oz
-! forecast times for first-guess forecasts to be updated
+! forecast times for first-guess forecasts to be updated (in hours)
 integer,dimension(7),public ::  nhr_anal = (/6,-1,-1,-1,-1,-1,-1/)
+! forecast hour at middle of assimilation window
+real(r_single),public :: fhr_assim=6.0
 ! character string version of nhr_anal with leading zeros.
 character(len=2),dimension(7),public :: charfhr_anal
 ! prefix for background and analysis file names (mem### appended)
@@ -107,7 +109,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
-                   newpc4pred,nmmb,nhr_anal,nbackgrounds,save_inflation,&
+                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc
 namelist /nam_wrf/arw,nmm,doubly_periodic
 namelist /satobs_enkf/sattypes_rad,dsis
@@ -143,9 +145,9 @@ lnsigcutoffpsnh = -999._r_single  ! value for surface pressure
 lnsigcutoffpstr = -999._r_single  ! value for surface pressure
 lnsigcutoffpssh = -999._r_single  ! value for surface pressure
 ! ob time localization
-obtimelnh = 2800._r_single*1000._r_single/(30._r_single*3600._r_single) ! hours to move 2800 km at 30 ms-1.
-obtimeltr = obtimelnh
-obtimelsh = obtimelnh
+obtimelnh = 1.e10
+obtimeltr = 1.e10
+obtimelsh = 1.e10
 ! min localization reduction factor for adaptive localization
 ! based on HPaHt/HPbHT. Default (1.0) means no adaptive localization.
 ! 0.25 means minimum localization is 0.25*corrlength(nh,tr,sh).
@@ -314,6 +316,10 @@ if (nproc == 0) then
      print *,'univaroz is not supported yet in LETKF!'
      call stop2(19)
    end if
+   if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
+       letkf_flag) then
+     print *,'warning: no time localization in LETKF!'
+   endif
    
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
