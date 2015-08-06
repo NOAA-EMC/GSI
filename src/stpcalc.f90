@@ -551,15 +551,15 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
-        stp(ii)=outstp(4)
-        outpensave=outpen(4)
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
               outpensave=outpen(i)
            end if
         end do
-        if(outpensave < outpen(4))then
+        if(outpensave < outpen(ipenloc))then
            if(mype == 0)write(iout_iter,*) ' early termination due to cx <=0 ',cx,stp(ii)
            cxterm=.true.
          else
@@ -621,8 +621,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
-        stp(ii)=outstp(4)
-        outpensave=outpen(4)
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
