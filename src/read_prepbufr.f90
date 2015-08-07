@@ -223,6 +223,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r0_01_bmiss=r0_01*bmiss
   character(80),parameter:: cspval= '88888888'
 
+  integer(i_kind),parameter:: mxtb=5000000
+  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob
@@ -252,7 +254,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
@@ -274,12 +276,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
   integer(i_kind) iyyyymm
   integer(i_kind) jj,start,next
+  integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
+  integer(i_kind),dimension(nmsgmax):: nrep
   integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm,pmq
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
-  integer(i_kind),allocatable,dimension(:,:):: tab 
+  integer(i_kind),allocatable,dimension(:):: isort,iloc
   integer(i_kind) ibfms,thisobtype_usage
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr2_uv,ierr_pw !  the position of error table collum
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
@@ -296,6 +299,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind) time_correction
+  real(r_kind) obval
   real(r_kind) tcamt,lcbas,ceiling
   real(r_kind) tcamt_oe,lcbas_oe
   real(r_kind) low_cldamt,mid_cldamt,hig_cldamt
@@ -460,12 +464,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if (noiqc) then
      lim_qm=8
      if (psob)         lim_zqm=7
-     if (qob.or.tdob)  lim_tqm=7
+     if (qob)  lim_tqm=7
      if (tob)          lim_qqm=8
   else
      lim_qm=4
      if (psob)         lim_zqm=4
-     if (qob.or.tdob)  lim_tqm=4
+     if (qob)          lim_tqm=4
      if (tob)          lim_qqm=4
   endif
 
@@ -541,9 +545,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !! get message and subset counts
 
-  call getcount_bufr(infile,nmsgmax,mxtb)
+!  call getcount_bufr(infile,nmsgmax,mxtb)
 
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+  allocate(lmsg(nmsgmax,ntread))
 
   lmsg = .false.
   maxobs=0
@@ -636,7 +640,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             iobsub=01
           endif
         endif
-        if(kx == 289) iobsub=hdr(2)
+        if(kx == 289 .or. kx == 290) iobsub=hdr(2)
         if(use_prepb_satwnd .and. (kx >= 240 .and. kx <=260 )) iobsub = hdr(2)
 
 !       For the satellite wind to get quality information and check if it will be used
@@ -2480,7 +2484,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg)
 
 ! Apply hilbert curve for cross validation if requested
 
