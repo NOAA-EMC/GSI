@@ -1,0 +1,94 @@
+#
+#  Conventional Monitor package configuration file
+#
+
+echo "begin CMon_config"
+
+export MY_MACHINE=wcoss
+
+#
+# MY_CMON should point to your working directory which contains the
+# top level directory to the CMon package.  If you checked out the package
+# as part of the GSI point to the GSI's util/Conventional_Monitor directory.
+# if you checked out only the Radiance_Monitor portion of the branch then
+# MY_CMON should point to that.
+#
+
+export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monitor}
+
+#
+#  The CMON_TANKDIR will be the location for the extracted data files and
+#  the control files used for image plotting.  This is the base definition
+#  and the succedding scripts will construct and use subdirectories under
+#  this location.
+#
+
+export CMON_TANKDIR=${CMON_TANKDIR:-/u/${LOGNAME}/nbns}
+export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}	# do I need this?
+
+# I need to remove the convweb directory level and use a cmon_${date} 
+# arrangment like the other monitors.
+export C_TANKDIR=${CMON_TANKDIR}/stats/convweb/${SUFFIX}
+export C_IMGNDIR=${CMON_TANKDIR}/imgn/convweb/${SUFFIX}
+
+
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+   module load GrADS/2.0.1
+   export UTILS_BIN=
+   export LLQ=
+   export SUB="bsub"
+   export NCP=/bin/cp
+   export NWPROD=/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
+   export FIXDIR=/nwprod/fix
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export TIMEX=
+   export GRADS=${GRADS_ROOT}/grads
+   export PROJECT=${PROJECT:-GDAS-T20}
+   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+fi
+ 
+export STMP=${STMP:-/stmpp1/${LOGNAME}}
+export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
+export PTMP=${PTMP:-/ptmpp1/${LOGNAME}}
+export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
+
+export LOGDIR=${PTMP}/logs/conv${SUFFIX}
+export LOGSverf_cmon=${LOGSverf_cmon:-${PTMP}/logs/conv${SUFFIX}}
+
+export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
+
+
+#
+#  Web server resources include the sever name (WEB_SVR), the user name
+#  on the web server (WEB_USER), and location of the top level directory
+#  for the html on the web server (WEBDIR).
+#
+export WEBDIR=${WEBDIR:-}
+export WEBUSER=${WEBUSER:-${LOGNAME}}
+export WEBSVR=${WEBSVR:-emcrzdm}
+
+
+#
+#  Definitions for internal reference
+#
+export CMON_DATA_EXTRACT=${CMON_DATA_EXTRACT:-${MY_CMON}/data_extract}
+export C_DE_EXEC=${C_DE_EXEC:-${CMON_DATA_EXTRACT}/exec}
+export C_DE_PARM=${C_DE_PARM:-${CMON_DATA_EXTRACT}/parm}
+export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CMON_DATA_EXTRACT}/ush}
+
+export CMON_IMAGE_GEN=${CMON_IMAGE_GEN:-${MY_CMON}/image_gen}
+export C_IG_EXEC=${C_IG_EXEC:-${CMON_IMAGE_GEN}/exec}
+export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
+export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
+export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
+
+#export SCRIPTS=${CONVDIR}/scripts
+#export GSCRIPTS=${CONVDIR}/gscripts
+#export CTLDIR=${CONVDIR}/ctldir
+export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
