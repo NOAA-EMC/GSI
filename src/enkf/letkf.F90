@@ -225,8 +225,9 @@ else
   !if (nproc == 0) print *,'time to set indxob_pt',t2-t1
 endif
 
-! initialize obfit_post
+! initialize obfit_post, obsprd_post
 obfit_post(1:nobsgood) = obfit_prior(1:nobsgood)
+obsprd_post(1:nobsgood) = obsprd_prior(1:nobsgood)
 
 do niter=1,numiter
 
@@ -290,10 +291,12 @@ do niter=1,numiter
   ! to grid points on this task).
   if (update_obspace) then
      obfit_post = 0.0
+     obsprd_post = 0.0
      do npt=1,numptsperproc(nproc+1)
         do n=1,numobsperpt(npt)
            nob = indxob_pt(npt,n)
            obfit_post(nob) = obfit_prior(nob)
+           obsprd_post(nob) = obsprd_prior(nob)
         enddo
      enddo
   endif
@@ -432,6 +435,7 @@ do niter=1,numiter
                     call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
                  end if
                  obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+                 obsprd_post(nob) = sum( (work2(1:nanals) + obfit_post(nob) - ob(nob))**2 )*r_nanalsm1
               endif
            enddo
         endif
@@ -521,6 +525,7 @@ do niter=1,numiter
                  call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
               end if
               obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+              obsprd_post(nob) = sum( (work2(1:nanals) + obfit_post(nob) - ob(nob))**2 )*r_nanalsm1
            enddo
         endif
   
@@ -548,6 +553,7 @@ do niter=1,numiter
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
      call mpi_allreduce(mpi_in_place,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+     call mpi_allreduce(mpi_in_place,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   endif
   
   ! satellite bias correction update.
