@@ -416,7 +416,7 @@ do niter=1,numiter
            end do
            end do
         endif
-        ! Update ens mean innov stats 
+        ! Update ob space innov stats (mean and spread)
         ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
         ! grid point (and level).
         ! indxob_pt(n=1,numobsperpt(npt)): ob indices associated with this model
@@ -507,7 +507,7 @@ do niter=1,numiter
            end do
            end do
         endif
-        ! Update ens mean innov stats 
+        ! Update ob space innov stats (mean and spread)
         ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
         ! grid point.
         ! indxob_pt(npt,n=1,numobsperpt(npt)): ob indices associated with this model
