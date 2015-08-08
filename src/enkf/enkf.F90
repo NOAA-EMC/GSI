@@ -213,8 +213,8 @@ else
 end if
 
 ! initialize some arrays with first-guess values.
-obfit_post = obfit_prior
-obsprd_post = obsprd_prior
+obfit_post(1:nobsgood) = obfit_prior(1:nobsgood)
+obsprd_post(1:nobsgood) = obsprd_prior(1:nobsgood)
 anal_obchunk = anal_obchunk_prior
 corrlengthsq_orig = corrlengthsq
 lnsigl_orig = lnsigl
