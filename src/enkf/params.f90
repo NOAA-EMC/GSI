@@ -209,8 +209,10 @@ biasvar = 0.1_r_single
 ! factor to multiply sat radiance errors.
 saterrfact = 1._r_single
 ! number of times to iterate state/bias correction update.
-! (only relevant when satellite radiances assimilated, i.e. nobs_sat>0)
-numiter = 0
+! (numiter = 1 means no iteration, but update done in both observation and model
+! space)
+! (for LETKF, numiter = 0 shuts off update in observation space)
+numiter = 1
 
 ! varqc parameters
 varqc = .false.
