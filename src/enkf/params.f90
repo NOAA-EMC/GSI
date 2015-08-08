@@ -82,7 +82,9 @@ real(r_single),public :: covl_minfact, covl_efold
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
 ! do sat bias correction update.
-logical,public :: lupd_satbiasc = .true.
+logical,public :: lupd_satbiasc = .false.
+! simple_partition=.false. does more sophisticated
+! load balancing for ob space update.
 logical,public :: simple_partition = .true.
 logical,public :: reducedgrid = .false.
 logical,public :: univaroz = .true.
@@ -91,7 +93,6 @@ logical,public :: use_gfs_nemsio = .false.
 logical,public :: arw = .false.
 logical,public :: nmm = .true.
 logical,public :: nmmb = .false.
-logical,public :: doubly_periodic = .true.
 logical,public :: letkf_flag = .false.
 logical,public :: massbal_adjust = .false.
 
@@ -111,7 +112,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc
-namelist /nam_wrf/arw,nmm,doubly_periodic
+namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
@@ -209,7 +210,7 @@ biasvar = 0.1_r_single
 saterrfact = 1._r_single
 ! number of times to iterate state/bias correction update.
 ! (only relevant when satellite radiances assimilated, i.e. nobs_sat>0)
-numiter = 1
+numiter = 0
 
 ! varqc parameters
 varqc = .false.
@@ -240,7 +241,7 @@ if (regional) then
   read(912,nam_wrf)
 endif
 close(912)
-  
+
 ! find number of satellite files
 nsats_rad=0
 do i=1,nsatmax_rad
@@ -275,15 +276,9 @@ delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
 if (.not. letkf_flag .and. numiter < 1) numiter = 1
-
-!! if not performing satellite bias correction update, set iterations to 1
-if (.not. lupd_satbiasc) then 
-   if (numiter > 1) numiter=1
-   if (nproc == 0) then
-     write(6,*) 'PARAMS: NOT UPDATING BIAS CORRECTION COEFFS, SET NUMBER OF ITERATIONS TO 1'
-     write(6,*) 'LUPD_SATBIASC, NUMITER = ',lupd_satbiasc,numiter
-   end if
-end if
+! simple_partition should be true for LETKF
+! (partitioning in ob space only used for serial filter)
+if (letkf_flag .and. .not. simple_partition) simple_partition=.true.
 
 if (nproc == 0) then
 
