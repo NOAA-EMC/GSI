@@ -60,7 +60,7 @@ module loadbal
 !   being updated on this task (expressed as an offset from the analysis time in
 !   hours).
 !  anal_obchunk_prior(nanals,nobs_max): real array of observation prior 
-!   ensemble perturbations to be updated on this task.
+!   ensemble perturbations to be updated on this task (not used in LETKF).
 !  kdtree_grid: pointer to kd-tree structure used for nearest neighbor searches
 !   in grid point space (only searches grid points assigned to this task).
 !  kdtree_obs: pointer to kd-tree structure used for nearest neighbor searches
@@ -96,7 +96,7 @@ private
 public :: load_balance, loadbal_cleanup
 
 real(r_single),public, allocatable, dimension(:,:) :: lnp_chunk, &
-                                                    anal_obchunk_prior
+                                                      anal_obchunk_prior
 ! arrays passed to kdtree2 routines need to be single
 real(r_single),public, allocatable, dimension(:,:) :: obloc_chunk, grdloc_chunk
 real(r_single),public, allocatable, dimension(:) :: oblnp_chunk, &
@@ -104,8 +104,7 @@ real(r_single),public, allocatable, dimension(:) :: oblnp_chunk, &
 integer(i_kind),public, allocatable, dimension(:) :: iprocob, indxob_chunk,&
                           numptsperproc, numobsperproc
 integer(i_kind),public, allocatable, dimension(:,:) :: indxproc, indxproc_obs
-integer(i_kind),public :: npts_min, npts_max, nobs_min, nobs_max, numobsmax1, &
- numobsmax2
+integer(i_kind),public :: npts_min, npts_max, nobs_min, nobs_max
 integer(8) totsize
 ! kd-tree structures.
 type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid, kdtree_obs2
@@ -123,7 +122,7 @@ use random_normal, only : set_random_seed
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 real(r_single), allocatable, dimension(:) :: buffer
-integer(i_kind) np,nob,i,n,nn,nob1,nob2,ierr,nanal
+integer(i_kind) np,i,n,nn,nob1,nob2,ierr,nanal
 real(r_double) t1
 
 ! partition state vector for enkf using Grahams rule..
@@ -223,7 +222,7 @@ if (nproc == 0) then
 end if
 
 ! send out observation priors to be updated on each processor.
-allocate(anal_obchunk_prior(nanals,nobs_max))
+if (.not. letkf_flag) allocate(anal_obchunk_prior(nanals,nobs_max))
 if(nproc == 0) then
    print *,'sending out observation prior ensemble perts from root ...'
    totsize = nobstot
@@ -237,24 +236,15 @@ end if
 if(letkf_flag) then
    ! broadcast entire obs prior ensemble to every task
    !call mpi_bcast(anal_ob,nobstot*nanals,mpi_real4,0,mpi_comm_world,ierr)
-   !do nob1=1,numobsperproc(nproc+1)
-   !   nob2 = indxproc_obs(nproc+1,nob1)
-   !   anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
-   !end do
    ! broadcast one ensemble member at a time.
    allocate(buffer(nobstot))
    do nanal=1,nanals
       buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
       call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
       anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
-      do nob1=1,numobsperproc(nproc+1)
-         nob2 = indxproc_obs(nproc+1,nob1)
-         anal_obchunk_prior(nanal,nob1) = buffer(nob2)
-      enddo
    end do
    deallocate(buffer)
 else
-   !allocate(rtmp(nobs_max))
    if(nproc == 0) then
       ! send one big message to each task.
       do np=1,numproc-1
@@ -277,27 +267,19 @@ else
       call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
            1,mpi_comm_world,mpi_status,ierr)
    end if
-   !deallocate(rtmp)
 end if
 call mpi_barrier(mpi_comm_world, ierr)
 if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
 
 ! setup kdtree pointers for grid and ob locations assigned to this processor.
-allocate(obloc_chunk(3,numobsperproc(nproc+1)))
 allocate(grdloc_chunk(3,numptsperproc(nproc+1)))
 allocate(lnp_chunk(numptsperproc(nproc+1),nlevs_pres))
-do nob=1,numobsperproc(nproc+1)
-   obloc_chunk(:,nob) = obloc(:,indxproc_obs(nproc+1,nob))
-enddo
 do i=1,numptsperproc(nproc+1)
    grdloc_chunk(:,i) = gridloc(:,indxproc(nproc+1,i))
    do nn=1,nlevs_pres
       lnp_chunk(i,nn) = logp(indxproc(nproc+1,i),nn)
    end do
 end do
-! don't need these anymore
-! deallocate here to save memory (allocated in gridinfo).
-deallocate(logp,gridloc)
 
 ! set up kd-trees for serial filter to search only the subset
 ! of gridpoints, obs to be updated on this processor..
@@ -307,23 +289,29 @@ endif
 if (.not. letkf_flag .and. numobsperproc(nproc+1) >= 3) then
    kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
 endif
-! for letkf, search all obs.
-if (letkf_flag) kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
 
-! nob1 is the index of the obs to be processed on this rank
-! nob2 maps nob1 to 1:nobsgood array (nobx)
-allocate(oblnp_chunk(numobsperproc(nproc+1)))
-allocate(obtime_chunk(numobsperproc(nproc+1)))
-allocate(ensmean_obchunk(numobsperproc(nproc+1)))
-allocate(indxob_chunk(nobsgood))
-indxob_chunk = -1
-do nob1=1,numobsperproc(nproc+1)
-   nob2 = indxproc_obs(nproc+1,nob1)
-   oblnp_chunk(nob1) = oblnp(nob2)
-   obtime_chunk(nob1) = obtime(nob2)
-   indxob_chunk(nob2) = nob1
-   ensmean_obchunk(nob1) = ensmean_ob(nob2)
-end do
+! for letkf, search all obs.
+if (letkf_flag) then
+   kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
+   deallocate(iprocob, indxproc_obs, numobsperproc) ! don't need for letkf
+else ! these arrays only needed for serial filter
+   ! nob1 is the index of the obs to be processed on this rank
+   ! nob2 maps nob1 to 1:nobsgood array (nobx)
+   allocate(obloc_chunk(3,numobsperproc(nproc+1)))
+   allocate(oblnp_chunk(numobsperproc(nproc+1)))
+   allocate(obtime_chunk(numobsperproc(nproc+1)))
+   allocate(ensmean_obchunk(numobsperproc(nproc+1)))
+   allocate(indxob_chunk(nobsgood))
+   indxob_chunk = -1
+   do nob1=1,numobsperproc(nproc+1)
+      nob2 = indxproc_obs(nproc+1,nob1)
+      oblnp_chunk(nob1) = oblnp(nob2)
+      obtime_chunk(nob1) = obtime(nob2)
+      indxob_chunk(nob2) = nob1
+      ensmean_obchunk(nob1) = ensmean_ob(nob2)
+      obloc_chunk(:,nob1) = obloc(:,nob2)
+   enddo
+endif
 
 end subroutine load_balance
 
