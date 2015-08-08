@@ -5,6 +5,7 @@ module letkf
 !                                      bias coefficients with the LETKF.
 !
 ! prgmmr: ota              org: np23                   date: 2011-06-01
+!         updates, optimizations by whitaker
 !
 ! abstract: Updates the model state using the LETKF (Hunt et al 2007,
 !  Physica D, 112-126).
@@ -72,11 +73,9 @@ use mpisetup
 use omp_lib, only: omp_get_num_threads
 use covlocal, only:  taper, latval
 use kinds, only: r_double,i_kind,r_kind,r_single
-use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
+use loadbal, only: numptsperproc, &
                    indxproc, lnp_chunk, &
-                   ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
-                   obtime_chunk, grdloc_chunk, obloc_chunk, &
-                   anal_obchunk_prior, kdtree_obs2, kdtree_obs
+                   grdloc_chunk, kdtree_obs2
 use statevec, only: ensmean_chunk, anal_chunk
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobsgood, nobs_conv, nobs_oz, nobs_sat,&
@@ -91,8 +90,9 @@ use params, only: sprd_tol, ndim, datapath, nanals, &
                   corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
-use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd
-use kdtree2_module, only: kdtree2_r_nearest, kdtree2_result
+use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd,logp,npts,gridloc
+use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
+                          kdtree2_result, kdtree2_n_nearest, kdtree2_r_nearest
 
 implicit none
 
@@ -106,42 +106,37 @@ implicit none
 ! LETKF update.
 
 ! local variables.
-integer(i_kind) nob,nob1,nob2,nf,nobxx,nskip,&
-                niter,i,nrej,npt,np
+integer(i_kind) nob,nf,n1,n2,ideln,&
+                niter,i,j,n,nrej,npt
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
-real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
 real(r_kind),dimension(nobsgood):: oberrvaruse
-real(r_single), allocatable, dimension(:) :: buffertmp, buffertmp2
+real(r_kind) oblnp_indx(1)
+real(r_kind) logp_tmp(nlevs)
 integer(i_kind) ierr
 integer(i_kind) nn,nobm,nsame
-logical lastiter, vlocal
+logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
-real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,obdep,oberinv
+real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
-logical,dimension(nobs_max) :: oupdate
-integer(i_kind),allocatable,dimension(:) :: oindex
-real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl
+integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
+integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
+real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, obdep, oberinv
 real(r_kind) :: vdist
 real(r_kind) :: corrlength
-real(r_single) :: deglat, dist, corrsq, eps
+real(r_single) :: deglat, dist, corrsq
 integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
                    nobslocal_max,nobslocal_maxall
 type(kdtree2_result),dimension(:),allocatable :: sresults
-logical :: sameloc,samehloc,samevloc
+type(kdtree2), pointer :: kdtree_grid
 
 !$omp parallel
 nthreads = omp_get_num_threads()
 !$omp end parallel
 if (nproc == 0) print *,'using',nthreads,' openmp threads'
-
-! allocate temporary array.
-allocate(anal_obchunk(nanals,nobs_max))
-allocate(obdep(nobsgood))
-allocate(oberinv(nobsgood))
 
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
@@ -155,14 +150,6 @@ else
 endif
 
 if (numiter == 0) then
-! don't do update in observation space.
-  anal_obchunk = anal_obchunk_prior
-  ! nob1 is the index of the obs to be processed on this rank
-  ! nob2 maps nob1 to 1:nobsgood array (nob)
-  do nob1=1,numobsperproc(nproc+1)
-     nob2 = indxproc_obs(nproc+1,nob1)
-     ensmean_obchunk(nob1) = ensmean_ob(nob2)
-  enddo
   oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
   ! Compute the inverse of cut-off length and 
   ! the observation departure from first guess
@@ -175,24 +162,83 @@ if (numiter == 0) then
   end do
 end if
 
+if (numiter == 0) then
+  update_obspace = .false.
+  if (nproc == 0) print *,'no observation space update will be done'
+  numiter = 1
+else
+  update_obspace = .true.
+  ! for each ob, find horiz grid point and level it is closest to
+  !t1 = mpi_wtime()
+  allocate(sresults(1))
+  allocate(oindex(nobsgood))
+  allocate(oblev(nobsgood))
+  oindex = 0; oblev = 0
+  allocate(indxob_pt(numptsperproc(nproc+1),nobsgood))
+  allocate(numobsperpt(numptsperproc(nproc+1)))
+  kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
+  if (nobsgood > numproc) then
+    ideln = int(real(nobsgood)/real(numproc))
+    n1 = 1 + nproc*ideln
+    n2 = (nproc+1)*ideln
+    if (nproc == numproc-1) n2 = nobsgood
+  else
+    if(nproc < nobsgood)then
+      n1 = nproc+1
+      n2 = n1
+    else
+      n1=1
+      n2=0
+    end if
+  end if
+  do nob=n1,n2
+     call kdtree2_n_nearest(tp=kdtree_grid,qv=obloc(:,nob),nn=1,results=sresults)
+     oindex(nob) = sresults(1)%idx
+     ! find vertical level closest to ob pressure at that grid point.
+     oblnp_indx(1) = oblnp(nob)
+     if (oblnp_indx(1) <= logp(oindex(nob),1)) then
+        oblnp_indx(1) = 1
+     else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
+        oblnp_indx(1) = nlevs_pres-1
+     else
+        logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
+        call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
+     end if
+     oblev(nob) = nint(oblnp_indx(1))
+  enddo
+  call mpi_allreduce(mpi_in_place,oindex,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(mpi_in_place,oblev,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  do n=1,numptsperproc(nproc+1)
+     i = 0
+     do j=1,nobsgood
+        if (oindex(j) .eq. indxproc(nproc+1,n)) then
+           i = i + 1
+           indxob_pt(n,i) = j
+        endif
+     enddo
+     numobsperpt(n) = i
+  enddo
+  deallocate(oindex)
+  deallocate(sresults)
+  call kdtree2_destroy(kdtree_grid)
+  !t2 = mpi_wtime()
+  !if (nproc == 0) print *,'time to set indxob_pt',t2-t1
+endif
+
+! initialize obfit_post
+obfit_post(1:nobsgood) = obfit_prior(1:nobsgood)
+
 do niter=1,numiter
 
+  ! update done only in ob space except if niter == lastiter
   lastiter = niter == numiter
   ! apply bias correction with latest estimate of bias coeffs.
   ! (already done for first iteration)
-  if (nobs_sat > 0 .and. niter > 1 ) call apply_biascorr()
+  if (nobs_sat > 0 .and. niter > 1) call apply_biascorr()
 
   ! reset first guess perturbations at start of each iteration.
   nrej=0
   nsame=0
-  anal_obchunk = anal_obchunk_prior
-  ! ensmean_ob is updated with latest bias coefficient perturbations.
-  ! nob1 is the index of the obs to be processed on this rank
-  ! nob2 maps nob1 to 1:nobsgood array (nob)
-  do nob1=1,numobsperproc(nproc+1)
-     nob2 = indxproc_obs(nproc+1,nob1)
-     ensmean_obchunk(nob1) = ensmean_ob(nob2)
-  enddo
 ! reset ob error to account for gross errors 
   if (niter > 1 .and. varqc) then
     if (huber) then ! "huber norm" QC
@@ -240,6 +286,18 @@ do niter=1,numiter
      oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
   end if
 
+  ! initialize obfit_post (zeros except for obs closest
+  ! to grid points on this task).
+  if (update_obspace) then
+     obfit_post = 0.0
+     do npt=1,numptsperproc(nproc+1)
+        do n=1,numobsperpt(npt)
+           nob = indxob_pt(npt,n)
+           obfit_post(nob) = obfit_prior(nob)
+        enddo
+     enddo
+  endif
+
   nobm = 1
   tbegin = mpi_wtime()
 
@@ -257,407 +315,247 @@ do niter=1,numiter
   t3 = zero
   t4 = zero
   t5 = zero
-  nskip = 0
-  eps = 1.e-5 ! threshold distance for determining if ob is at same location
-  oupdate = .false.
-  ! Update ensemble in observation space.
-  ! Loop for observations on this task.
-!$omp parallel do schedule(dynamic) private(nob,nob1,nob2, &
-!$omp                  nobsl,nobsl2,corrsq,corrlength, &
-!$omp                  hdxf,rdiag,dep,rloc,vdist, &
-!$omp                  nf,work,trans,sameloc,samehloc,samevloc, &
-!$omp                  work2,dist,oindex,oupdate,sresults) &
-!$omp  reduction(+:t1,t2,t3,t4,t5,nskip)
-  obsloop: do nob1=1,numobsperproc(nproc+1)
-
+  tbegin = mpi_wtime()
+  nobslocal_max = -999
+  
+  ! Update ensemble on model grid.
+  ! Loop for each horizontal grid points on this task.
+  !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
+  !$omp                  nobsl2,ngrd1,corrlength, &
+  !$omp                  nf,vdist, &
+  !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
+  !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
+  !$omp  reduction(+:t1,t2,t3,t4,t5) &
+  !$omp  reduction(max:nobslocal_max) 
+  grdloop: do npt=1,numptsperproc(nproc+1)
+  
      t1 = mpi_wtime()
-     nob2=indxproc_obs(nproc+1,nob1)
-
-     ! no need to recompute LETKF transformation matrix (trans)
-     ! if this ob is at same lat/lon/pressure as previous one.
-     if(nob1 .ne. 1) then
-        samehloc = &
-        sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob1-1))) < eps
-        samevloc = abs(oblnp_chunk(nob1)-oblnp_chunk(nob1-1)) < eps
-     else
-        samehloc = .false.
-        samevloc = .false.
-     endif
-     ! if no vertical localization, can use same LETKF transformation
-     ! for all observation variables at the same horizontal location.
-     if (.not. vlocal) samevloc = .true.
-     sameloc = samehloc .and. samevloc
-
-     ! if horiz and vert location is the same as previous one, this ob can be skipped
-     if (sameloc) cycle obsloop
-
-     ! Pick up observations close to current ob (in horizontal).
-     ! if ob location is same as previous one, don't recompute.
-     if(.not. samehloc .or. .not. allocated(sresults)) then
-        if (allocated(sresults)) deallocate(sresults)
-        allocate(sresults(nobsgood))
-        call kdtree2_r_nearest(tp=kdtree_obs2,qv=obloc_chunk(:,nob1),&
-             r2=corrlengthsq(nob2),&
-             nfound=nobsl,nalloc=nobsgood,results=sresults)
-     endif
-
+  
+     ! find obs close to this grid point (using kdtree)
+     ngrd1=indxproc(nproc+1,npt)
+     deglat = latsgrd(ngrd1)*rad2deg
+     corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
+     corrsq = corrlength**2
+     allocate(sresults(nobsgood))
+     ! kd-tree fixed range search
+     call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
+          nfound=nobsl,nalloc=nobsgood,results=sresults)
+  
      t2 = t2 + mpi_wtime() - t1
      t1 = mpi_wtime()
+  
+     ! Skip when no observations in local area
+     if(nobsl == 0) cycle grdloop
+  
+     if (vlocal) then
+     ! Loop for each vertical layers
+     verloop: do nn=1,nlevs_pres
+  
+        ! Pick up variables passed to LETKF core process
+        allocate(rloc(nobsl))
+        allocate(oindex(nobsl))
+        nobsl2=1
+        do nob=1,nobsl
+           nf = sresults(nob)%idx
+           vdist=(lnp_chunk(npt,nn)-oblnp(nf))*invlnsigl(nf)
+           if(abs(vdist) >= one) cycle
+           dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
+           if (dist >= one) cycle
+           rloc(nobsl2)=taper(dist)
+           oindex(nobsl2)=nf
+           if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
+              nobsl2=nobsl2+1
+           end if
+        end do
+        nobsl2=nobsl2-1
+        if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+        if(nobsl2 == 0) then
+           deallocate(rloc,oindex)
+           cycle verloop
+        end if
+        allocate(hdxf(nobsl2,nanals))
+        allocate(rdiag(nobsl2))
+        allocate(dep(nobsl2))
+        do nob=1,nobsl2
+           nf=oindex(nob)
+           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+           rdiag(nob)=oberinv(nf)
+           dep(nob)=obdep(nf)
+        end do
+        deallocate(oindex)
+  
+        t3 = t3 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Compute transformation matrix of LETKF
+        call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
+        deallocate(hdxf,rdiag,dep,rloc)
+  
+        t4 = t4 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Update analysis ensembles (all time levels)
+        if (lastiter) then
+           do nb=1,nbackgrounds
+           do i=1,ndim
+              if(index_pres(i) /= nn) cycle
+              work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+              work2(1:nanals) = ensmean_chunk(npt,i,nb)
+              if(r_kind == kind(1.d0)) then
+                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                      & work2,1)
+              else
+                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                      & work2,1)
+              end if
+              ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+              anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+           end do
+           end do
+        endif
+        ! Update ens mean innov stats 
+        ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
+        ! grid point (and level).
+        ! indxob_pt(n=1,numobsperpt(npt)): ob indices associated with this model
+        ! grid point (and level). 
+        ! obfit_post is what update_biascorr needs (ob - ensmean_ob).
+        ! also used to modify ob error in nonlinear quality control
+        if (update_obspace) then
+           do n=1,numobsperpt(npt)
+              nob = indxob_pt(npt,n)
+              if (oblev(nob) == nn) then
+                 work(1:nanals) = anal_ob(1:nanals,nob)
+                 work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
+                 if(r_kind == kind(1.d0)) then
+                    call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
+                 else
+                    call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
+                 end if
+                 obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+              endif
+           enddo
+        endif
+  
+        t5 = t5 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+     end do verloop
 
-     ! if ob already updated, skip it.
-     if (oupdate(nob1)) then
-         nskip=nskip+1
-         cycle obsloop
-     endif
-     
-     ! Skip when there are observations in range.
-     if(nobsl == 0) then
-         oupdate(nob1) = .true.
-         cycle obsloop
-     end if
-
+     else ! vlocal = .false.: no vertical localization
+  
      ! Pick up variables passed to LETKF core process
      allocate(oindex(nobsl))
      allocate(rloc(nobsl))
      nobsl2=1
      do nob=1,nobsl
         nf = sresults(nob)%idx
-        vdist=(oblnp_chunk(nob1)-oblnp(nf))*invlnsigl(nf)
-        if(abs(vdist) >= one) cycle
-        dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
+        dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx))
         if (dist >= one) cycle
         rloc(nobsl2)=taper(dist)
         oindex(nobsl2)=nf
-        if(rloc(nobsl2) /= zero) then
+        if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
            nobsl2=nobsl2+1
         end if
      end do
-     nobsl2=nobsl2-1
-     allocate(rdiag(nobsl2))
-     allocate(dep(nobsl2))
-     allocate(hdxf(nobsl2,nanals))
-     do nob=1,nobsl2
-        nf = oindex(nob)
-        hdxf(nob,1:nanals)=anal_ob(1:nanals,nf)  ! WE NEED anal_ob (global)
-        rdiag(nob)=oberinv(nf)
-        dep(nob)=obdep(nf)
-     enddo
-     deallocate(oindex)
-
-     t3 = t3 + mpi_wtime() - t1
-     t1 = mpi_wtime()
-
-     if(nobsl2 == 0) then
+     nobsl2=nobsl2-1 ! total number of obs in local volume.
+     if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+  
+     if(nobsl2 > 0) then ! obs in volume
+  
+        allocate(hdxf(nobsl2,nanals))
+        allocate(rdiag(nobsl2))
+        allocate(dep(nobsl2))
+        do nob=1,nobsl2
+           nf=oindex(nob)
+           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+           rdiag(nob)=oberinv(nf)
+           dep(nob)=obdep(nf)
+        end do
+        deallocate(oindex)
+  
+        t3 = t3 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Compute transformation matrix of LETKF
+        call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
         deallocate(hdxf,rdiag,dep,rloc)
-        oupdate(nob1) = .true.
-        cycle obsloop
+  
+        t4 = t4 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Update analysis ensembles (all time levels)
+        ! since there is no vertical localization, weights computed
+        ! for this horizontal grid point can be applied to all points/variables in column.
+        if (lastiter) then
+           do nb=1,nbackgrounds
+           do i=1,ndim
+              work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+              work2(1:nanals) = ensmean_chunk(npt,i,nb)
+              if(r_kind == kind(1.d0)) then
+                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                      & work2,1)
+              else
+                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                      & work2,1)
+              end if
+              ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+              anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+           end do
+           end do
+        endif
+        ! Update ens mean innov stats 
+        ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
+        ! grid point.
+        ! indxob_pt(npt,n=1,numobsperpt(npt)): ob indices associated with this model
+        ! grid point. 
+        ! obfit_post is what update_biascorr needs (ob - ensmean_ob).
+        ! also used to modify ob error in nonlinear quality control
+        if (update_obspace) then
+           do n=1,numobsperpt(npt)
+              nob = indxob_pt(npt,n)
+              work(1:nanals) = anal_ob(1:nanals,nob)
+              work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
+              if(r_kind == kind(1.d0)) then
+                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
+              else
+                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
+              end if
+              obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+           enddo
+        endif
+  
+        t5 = t5 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+     else ! no obs in volume
+        deallocate(rloc,oindex)
      end if
-
-     ! Compute transformation matrix (trans) of LETKF
-     call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-     deallocate(hdxf,rdiag,dep,rloc)
-
-     t4 = t4 + mpi_wtime() - t1
-     t1 = mpi_wtime()
-
-     ! Update observation space ensembles
-     ! loop over all obs not yet processed, update those
-     ! at same horizontal and vertical location.
-     do nob=nob1,numobsperproc(nproc+1)
-        if(oupdate(nob)) cycle
-        samehloc = &
-        sum(abs(obloc_chunk(1:3,nob1)-obloc_chunk(1:3,nob))) < eps
-        samevloc = abs(oblnp_chunk(nob1)-oblnp_chunk(nob)) < eps
-        if (.not. samehloc .or. .not. samevloc) cycle
-        oupdate(nob) = .true.
-        work(1:nanals) = anal_obchunk(1:nanals,nob)
-        work2(1:nanals) = ensmean_obchunk(nob)
-        if(r_kind == kind(1.d0)) then
-           call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
-        else
-           call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
-        end if
-        ensmean_obchunk(nob) = sum(work2(1:nanals)) * r_nanals
-        anal_obchunk(1:nanals,nob) = work2(1:nanals)-ensmean_obchunk(nob)
-     enddo
-
-     t5 = t5 + mpi_wtime() - t1
-
-  end do obsloop
-!$omp end parallel do
-  if (allocated(sresults)) deallocate(sresults)
-
+     end if
+     if (allocated(sresults)) deallocate(sresults)
+  end do grdloop
+  !$omp end parallel do
+  
   tend = mpi_wtime()
   call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
   tmean = tmean/numproc
   call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
   call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,'min/max/mean time to update obs',tmin,tmax,tmean
-  if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nskip > 0) print *,nskip,' obs skipped out of',&
-                                                              numobsperproc(nproc+1),' on proc',nproc
-  if ((nproc == 0 .or. nproc .eq. numproc-1) .and. nrej >  0) print *,nrej,' obs rejected by varqc on proc',&
-                                                              numobsperproc(nproc+1)
+  if (nproc .eq. 0) print *,'min/max/mean time to do letkf update ',tmin,tmax,tmean
   t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-  if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',t2,t3,t4,t5,nrej
-  8003  format(i2,1x,a14,1x,i5,1x,a3,5(f8.2,1x),i4)
-
-  allocate(buffertmp(nobsgood))
-  allocate(buffertmp2(nobsgood))
-! distribute the O-A stats to all processors.
-  buffertmp=zero
-  do nob1=1,numobsperproc(nproc+1)
-    nob2=indxproc_obs(nproc+1,nob1)
-    buffertmp(nob2) = ensmean_obchunk(nob1)
-  end do
-  call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-  obfit_post = obfit_prior
-  do nobxx=1,nobsgood
-      obfit_post(nobxx) = ob(nobxx)-buffertmp2(nobxx)
-  end do
-  deallocate(buffertmp, buffertmp2)
-  t2 = mpi_wtime()
-  if (nproc == 0) print *,'time to broadcast obsprd_post and obfit_post = ',t2-t1,' secs, niter =',niter
-
+  if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs'
+  call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
+  
+  ! distribute the O-A stats to all processors.
+  if (update_obspace) then
+     call mpi_allreduce(mpi_in_place,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+  endif
+  
   ! satellite bias correction update.
-  if (nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
+  if (update_obspace .and. nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
 
 end do ! niter loop
 
-if (numiter > 0) then
-allocate(buffertmp(nobsgood))
-allocate(buffertmp2(nobsgood))
-buffertmp=zero
-do nob1=1,numobsperproc(nproc+1)
-   nob2=indxproc_obs(nproc+1,nob1)
-   buffertmp(nob2) = sum(anal_obchunk(1:nanals,nob1)**2)*r_nanalsm1
-end do
-call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-obsprd_post = 9.9e31
-obsprd_post(1:nobsgood) = buffertmp2(1:nobsgood)
-
-predx = predx + deltapredx ! add increment to bias coeffs.
-t3 = mpi_wtime()
-if (nproc == 0) print *,'time to gather obsprd_post = ',t3-t2,' secs'
-deallocate(buffertmp,buffertmp2)
-end if
-
-! free temporary arrays.
-deallocate(anal_obchunk_prior)
-
-t2 = zero
-t3 = zero
-t4 = zero
-t5 = zero
-tbegin = mpi_wtime()
-nobslocal_max = -999
-
-! Update ensemble on model grid.
-! Loop for each horizontal grid points on this task.
-!$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
-!$omp                  nobsl2,ngrd1,corrlength, &
-!$omp                  nf,vdist, &
-!$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
-!$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
-!$omp  reduction(+:t1,t2,t3,t4,t5) &
-!$omp  reduction(max:nobslocal_max)
-grdloop: do npt=1,numptsperproc(nproc+1)
-
-   t1 = mpi_wtime()
-
-   ! find obs close to this grid point (using kdtree)
-   ngrd1=indxproc(nproc+1,npt)
-   deglat = latsgrd(ngrd1)*rad2deg
-   corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
-   corrsq = corrlength**2
-   allocate(sresults(nobsgood))
-   ! kd-tree fixed range search
-   call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
-        nfound=nobsl,nalloc=nobsgood,results=sresults)
-
-   t2 = t2 + mpi_wtime() - t1
-   t1 = mpi_wtime()
-
-   ! Skip when no observations in local area
-   if(nobsl == 0) cycle grdloop
-
-   if (vlocal) then
-   ! Loop for each vertical layers
-   verloop: do nn=1,nlevs_pres
-
-      ! Pick up variables passed to LETKF core process
-      allocate(rloc(nobsl))
-      allocate(oindex(nobsl))
-      nobsl2=1
-      do nob=1,nobsl
-         nf = sresults(nob)%idx
-         vdist=(lnp_chunk(npt,nn)-oblnp(nf))*invlnsigl(nf)
-         if(abs(vdist) >= one) cycle
-         dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
-         if (dist >= one) cycle
-         rloc(nobsl2)=taper(dist)
-         oindex(nobsl2)=nf
-         if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
-            nobsl2=nobsl2+1
-         end if
-      end do
-      nobsl2=nobsl2-1
-      if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
-      if(nobsl2 == 0) then
-         deallocate(rloc,oindex)
-         cycle verloop
-      end if
-      allocate(hdxf(nobsl2,nanals))
-      allocate(rdiag(nobsl2))
-      allocate(dep(nobsl2))
-      do nob=1,nobsl2
-         nf=oindex(nob)
-         hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-         rdiag(nob)=oberinv(nf)
-         dep(nob)=obdep(nf)
-      end do
-      deallocate(oindex)
-
-      t3 = t3 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-
-      ! Compute transformation matrix of LETKF
-      call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-      deallocate(hdxf,rdiag,dep,rloc)
-
-      t4 = t4 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-
-      ! Update analysis ensembles (all time levels)
-      do nb=1,nbackgrounds
-      do i=1,ndim
-         if(index_pres(i) /= nn) cycle
-         work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
-         work2(1:nanals) = ensmean_chunk(npt,i,nb)
-         if(r_kind == kind(1.d0)) then
-            call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                 & work2,1)
-         else
-            call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                 & work2,1)
-         end if
-         ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
-         anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
-      end do
-      end do
-
-      t5 = t5 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-
-   end do verloop
-   else ! vlocal = .false.: no vertical localization
-
-   ! Pick up variables passed to LETKF core process
-   allocate(oindex(nobsl))
-   allocate(rloc(nobsl))
-   nobsl2=1
-   do nob=1,nobsl
-      nf = sresults(nob)%idx
-      dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx))
-      if (dist >= one) cycle
-      rloc(nobsl2)=taper(dist)
-      oindex(nobsl2)=nf
-      if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
-         nobsl2=nobsl2+1
-      end if
-   end do
-   nobsl2=nobsl2-1 ! total number of obs in local volume.
-   if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
-
-   if(nobsl2 > 0) then ! obs in volume
-
-      allocate(hdxf(nobsl2,nanals))
-      allocate(rdiag(nobsl2))
-      allocate(dep(nobsl2))
-      do nob=1,nobsl2
-         nf=oindex(nob)
-         hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-         rdiag(nob)=oberinv(nf)
-         dep(nob)=obdep(nf)
-      end do
-      deallocate(oindex)
-
-      t3 = t3 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-
-      ! Compute transformation matrix of LETKF
-      call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-      deallocate(hdxf,rdiag,dep,rloc)
-
-      t4 = t4 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-
-      ! Update analysis ensembles (all time levels)
-      ! since there is no vertical localization, weights computed
-      ! for this horizontal grid point can be applied to all points/variables in column.
-      do nb=1,nbackgrounds
-      do i=1,ndim
-         work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
-         work2(1:nanals) = ensmean_chunk(npt,i,nb)
-         if(r_kind == kind(1.d0)) then
-            call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                 & work2,1)
-         else
-            call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                 & work2,1)
-         end if
-         ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
-         anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
-      end do
-      end do
-
-      t5 = t5 + mpi_wtime() - t1
-      t1 = mpi_wtime()
-   else ! no obs in volume
-      deallocate(rloc,oindex)
-   end if
-   end if
-   if (allocated(sresults)) deallocate(sresults)
-end do grdloop
-!$omp end parallel do
-
-tend = mpi_wtime()
-call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
-call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-if (nproc .eq. 0) print *,'min/max/mean time to update grid',tmin,tmax,tmean
-t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs'
-call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
-
-deallocate(obdep,oberinv)
-
-! Gathering updated analysis perturbations projected on the observation space
-if (numiter > 0) then
-if (nproc /= 0) then
-  deallocate(anal_ob)
-  call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real4,0, &
-       1,mpi_comm_world,ierr)
-else
-   allocate(buffertmp3(nanals,nobs_max))
-   do np=1,numproc-1
-      call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_real4,np, &
-           1,mpi_comm_world,mpi_status,ierr)
-      do nob1=1,numobsperproc(np+1)
-         nob2 = indxproc_obs(np+1,nob1)
-         anal_ob(:,nob2) = buffertmp3(:,nob1)
-      end do
-   end do
-   do nob1=1,numobsperproc(1)
-      nob2 = indxproc_obs(1,nob1)
-      anal_ob(:,nob2) = anal_obchunk(:,nob1)
-   end do
-   deallocate(buffertmp3)
-end if
-end if
-
-deallocate(anal_obchunk) ! these are allocated in loadbal
+if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
 
 return
 
