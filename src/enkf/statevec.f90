@@ -210,49 +210,48 @@ integer(i_kind) ierr, np, n, nn, nb
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 if (nproc <= nanals-1) then
-   rcounts = npts_max*ndim*nbackgrounds
+   rcounts = npts_max*ndim
 else
    rcounts = 0
 endif
 do np=0,numproc-1
-   displs(np) = np*npts_max*ndim*nbackgrounds
+   displs(np) = np*npts_max*ndim
    if (np <= nanals-1) then
-      scounts(np) = npts_max*ndim*nbackgrounds
+      scounts(np) = npts_max*ndim
    else
       scounts(np) = 0
    end if
 enddo
-allocate(recvbuf(numproc*npts_max*ndim*nbackgrounds))
-allocate(sendbuf(nanals*npts_max*ndim*nbackgrounds))
+allocate(recvbuf(numproc*npts_max*ndim))
+allocate(sendbuf(nanals*npts_max*ndim))
+
 t1 = mpi_wtime()
-do nb=1,nbackgrounds
- do nn=1,ndim
-  do i=1,numptsperproc(nproc+1)
-   do nanal=1,nanals
-    n = ((nanal-1)*nbackgrounds*ndim + (nb-1)*ndim + (nn-1))*npts_max + i
-    ! add ensemble mean back in.
-    sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
-    ! convert to increment (A-F).
-    sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
-   enddo
-  enddo
- enddo
-enddo
-call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
-                   mpi_real4, mpi_comm_world, ierr)
-if (nproc <= nanals-1) then
-   do np=1,numproc
-    do nb=1,nbackgrounds
-     do nn=1,ndim
-      do i=1,numptsperproc(np)
-       n = ((np-1)*nbackgrounds*ndim + (nb-1)*ndim + (nn-1))*npts_max + i
-       grdin(indxproc(np,i),nn,nb) = recvbuf(n)
-      enddo
-     enddo
+do nb=1,nbackgrounds ! loop over time levels in background
+  do nn=1,ndim
+   do i=1,numptsperproc(nproc+1)
+    do nanal=1,nanals
+      n = ((nanal-1)*ndim + (nn-1))*npts_max + i
+      ! add ensemble mean back in.
+      sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
+      ! convert to increment (A-F).
+      sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
     enddo
    enddo
-   !print *,nproc,'min/max ps',minval(grdin(:,ndim)),maxval(grdin(:,ndim))
-end if
+  enddo
+  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                     mpi_real4, mpi_comm_world, ierr)
+  if (nproc <= nanals-1) then
+     do np=1,numproc
+      do nn=1,ndim
+       do i=1,numptsperproc(np)
+         n = ((np-1)*ndim + (nn-1))*npts_max + i
+         grdin(indxproc(np,i),nn,nb) = recvbuf(n)
+       enddo
+      enddo
+     enddo
+     !print *,nproc,'min/max ps',minval(grdin(:,ndim)),maxval(grdin(:,ndim))
+  end if
+enddo ! end loop over background time levels
 
 if (nproc == 0) then
   t2 = mpi_wtime()
@@ -260,60 +259,63 @@ if (nproc == 0) then
 endif
 
 deallocate(sendbuf,recvbuf)
-allocate(sendbuf(npts_max*ndim*nbackgrounds))
-allocate(recvbuf(npts*ndim*nbackgrounds))
-if (nproc == 0) t1 = mpi_wtime()
-! gather ens. mean anal. increment on root, print out max/mins.
-n = 0
-do nb=1,nbackgrounds
- do nn=1,ndim
-  do i=1,numptsperproc(nproc+1)
-    n = n + 1
-    ! anal. increment.
-    sendbuf(n) = ensmean_chunk(i,nn,nb)-ensmean_chunk_prior(i,nn,nb)
-  enddo
- enddo
-enddo
-do np=0,numproc-1
-   scounts(np) = numptsperproc(np+1)*ndim*nbackgrounds
-   n = 0
-   do nn=1,np
-      n = n + numptsperproc(nn)*ndim*nbackgrounds
-   enddo
-   displs(np) = n
-enddo
-call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim*nbackgrounds, mpi_real4, recvbuf, &
-      scounts, displs, mpi_real4, 0, mpi_comm_world, ierr)
 if (nproc == 0) then
    allocate(ensmean(npts,ndim,nbackgrounds))
-   n = 0
-   do np=1,numproc
-      do nb=1,nbackgrounds
-       do nn=1,ndim
-        do i=1,numptsperproc(np)
-          n = n + 1
-          ensmean(indxproc(np,i),nn,nb) = recvbuf(n)
-        enddo
-       enddo
-      enddo
-   enddo
-   do nb=1,nbackgrounds
+end if
+allocate(sendbuf(npts_max*ndim))
+allocate(recvbuf(npts*ndim))
+if (nproc == 0) t1 = mpi_wtime()
+do nb=1,nbackgrounds
+   if (nproc .eq. 0) then
    print *,'time level ',nb
    print *,'--------------'
-   if (massbal_adjust) then
-     print *,'ens. mean anal. increment min/max ps tend', minval(ensmean(:,ndim-1,nb)),maxval(ensmean(:,ndim-1,nb))
-   endif 
-   print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb))
-   do nvar=1,nvars
-      print *,'ens. mean anal. increment min/max var',nvar,minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+   endif
+   ! gather ens. mean anal. increment on root, print out max/mins.
+   n = 0
+   do nn=1,ndim
+    do i=1,numptsperproc(nproc+1)
+      n = n + 1
+      ! anal. increment.
+      sendbuf(n) = ensmean_chunk(i,nn,nb)-ensmean_chunk_prior(i,nn,nb)
+    enddo
    enddo
+   do np=0,numproc-1
+      scounts(np) = numptsperproc(np+1)*ndim
+      n = 0
+      do nn=1,np
+         n = n + numptsperproc(nn)*ndim
+      enddo
+      displs(np) = n
    enddo
-   deallocate(ensmean)
+   call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim, mpi_real4, recvbuf, &
+         scounts, displs, mpi_real4, 0, mpi_comm_world, ierr)
+   if (nproc == 0) then
+      n = 0
+      do np=1,numproc
+        do nn=1,ndim
+         do i=1,numptsperproc(np)
+           n = n + 1
+           ensmean(indxproc(np,i),nn,nb) = recvbuf(n)
+         enddo
+        enddo
+      enddo
+      if (massbal_adjust) then
+        print *,'ens. mean anal. increment min/max ps tend', minval(ensmean(:,ndim-1,nb)),maxval(ensmean(:,ndim-1,nb))
+      endif 
+      print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb))
+      do nvar=1,nvars
+         print *,'ens. mean anal. increment min/max var',nvar,minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+      enddo
+   end if
+enddo ! end loop over time levels in background
+
+if (nproc .eq. 0) then
    t2 = mpi_wtime()
    print *,'time to gather ens mean increment on root',t2-t1,'secs'
-end if
+endif
 
 deallocate(sendbuf,recvbuf)
+if (nproc == 0) deallocate(ensmean)
 
 if (nproc <= nanals-1) then
    nanal = nproc + 1
@@ -330,7 +332,6 @@ if (nproc <= nanals-1) then
      print *,'time in writegriddata on root',t2-t1,'secs'
    endif 
 end if
-
 
 end subroutine write_ensemble
 
