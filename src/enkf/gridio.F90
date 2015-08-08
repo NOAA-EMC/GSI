@@ -1029,7 +1029,7 @@ module gridio
   use mpisetup, only: nproc
   use netcdf_io
   use params,   only: nlevs, nvars, nlons, nlats, cliptracers, datapath,     &
-       &              arw, nmm, doubly_periodic, datestring, pseudo_rh
+       &              arw, nmm, datestring, pseudo_rh
   use constants, only: zero,one,cp,fv,rd,grav,zero
 
   implicit none
