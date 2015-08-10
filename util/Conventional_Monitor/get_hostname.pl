@@ -48,7 +48,10 @@
          $host = $hostnames[0];
       }
 
-      if( $host =~ /fe/ ) { 
+      if( $host =~ /tfe/ ) {
+         $machine = "theia";
+      } 
+      elsif( $host =~ /fe/ ) { 
          $machine = "zeus";
       } 
       elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
