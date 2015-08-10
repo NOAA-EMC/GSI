@@ -1,11 +1,13 @@
-program cov_calc
+program fast_cov_calc
 !This program computes a covariance matrix based on Desroziers' method
 !Kristen Bathmann
 !5-2015
 
 use kinds, only:             r_kind, i_kind
+use matrix_tools
 use obs_tools
 use pairs
+use constants, only:         zero,one,two,three_int,sixty,threesixty        
 use RadDiag_IO, only:        RadDiag_Hdr_type, &
                              RadDiag_Data_type, &
                              RadDiag_ReadMode, &
@@ -50,6 +52,8 @@ integer(i_kind):: reclen
 logical:: out_wave                                      !option to output channel wavenumbers
 logical:: out_err                                       !option to output assigned obs errors
 logical:: out_corr                                      !option to output correlation matrix
+logical:: mod_Rcov
+
 !Diag data
 integer:: no_chn                                        !number of instrument channels available
 type(RadDiag_Hdr_type):: RadDiag_Hdr                    !header info about the diag data
@@ -84,14 +88,6 @@ real(r_kind), parameter:: ice_threshold=0.99_r_kind     !if using ice data, do n
 real(r_kind), parameter:: snow_threshold=0.99_r_kind    !if using snow data, do not use if below this threshold
 real(r_kind):: satang
 
-!constants
-real(r_kind), parameter:: one=1.0_r_kind                
-real(r_kind), parameter:: zero=0.0_r_kind               
-integer,parameter:: three=3
-real(r_kind), parameter:: sixty=60.0_r_kind
-real(r_kind), parameter:: threesixty=360.0_r_kind
-real(r_kind), parameter:: two=2.0_r_kind
-
 !Data times
 real(r_kind):: time_min                                 !time of obs, relative to time of corresponding diag file
 real(r_kind),dimension(:,:), allocatable:: ges_times    !times of background obs, relative to time of first diag file
@@ -104,14 +100,28 @@ real(r_kind), dimension(2):: anlloc                     !location (lat,lon) of a
 !Covariance Definition
 integer,dimension(:), allocatable:: obs_pairs
 real(r_kind), dimension(:,:), allocatable:: Rcov      !the covariance matrix
+real(r_kind), dimension(:,:), allocatable:: Edbadbo
+real(r_kind), dimension(:,:), allocatable:: Edbodbo
+real(r_kind), dimension(:,:), allocatable:: invE
+real(r_kind), dimension(:,:), allocatable:: Pmult
 real(r_kind), dimension(:,:), allocatable:: Rcorr     !the correlation matrix
 real(r_kind), dimension(:,:), allocatable:: anl_ave   !average value of oma
-real(r_kind), dimension(:,:), allocatable::  ges_ave  !average value of omb
+real(r_kind), dimension(:,:), allocatable:: ges_ave  !average value of omb
+real(r_kind), dimension(:,:), allocatable:: ba_ave
 integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
 real(r_kind):: cov_sum, anl_sum, ges_sum
+real(r_kind):: bobo_sum, babo_sum, ba_sum
 real(r_kind):: val
+real(r_kind),dimension(:), allocatable:: eigs
+real(r_kind),dimension(:,:), allocatable:: eigv
+!Matrix inversion
+integer(i_kind), dimension(:), allocatable:: ipiv, work
+real(r_kind):: info
+real(r_kind), dimension(:,:), allocatable:: Rout
+real(r_kind):: kreq
 
-read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr
+read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, mod_Rcov
+if (mod_Rcov.and.(kreq<0)) kreq=70
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
 cov_file(1:lencov)='Rcov_'
@@ -128,8 +138,8 @@ err_file(lenerr+1:leninstr+lenerr)=instr
 
 ges_stub(1:5)='dges_'
 anl_stub(1:5)='danl_'
-gsize=three
-if (ntimes<=three) gsize=ntimes
+gsize=three_int
+if (ntimes<=three_int) gsize=ntimes
 allocate(gesloc(dsize,2,gsize))
 allocate(ges_times(dsize,gsize))
 do tim=1,ntimes
@@ -200,16 +210,32 @@ do tim=1,ntimes
          allocate(divider(nch_active,nch_active))
          allocate(anl_ave(nch_active,nch_active),ges_ave(nch_active,nch_active))
          allocate(chaninfo(nch_active),errout(nch_active))
+         allocate(obs_pairs(dsize))
+         if (kreq>0) then
+            allocate(eigs(nch_active),eigv(nch_active,nch_active))
+            allocate(Rout(nch_active,nch_active))
+         end if
+         if (mod_Rcov) then
+            allocate(Edbadbo(nch_active,nch_active))
+            allocate(Edbodbo(nch_active,nch_active))
+            allocate(ba_ave(nch_active,nch_active))
+            allocate(Pmult(nch_active,nch_active),invE(nch_active,nch_active))
+            allocate(work(nch_active),ipiv(nch_active))
+         end if
          do r=1,nch_active
             chaninfo(r)=RadDiag_Hdr%Channel(indR(r))%wave
             errout(r)=RadDiag_Hdr%Channel(indR(r))%varch
-         end do
-         allocate(obs_pairs(dsize))               
+         end do               
          Rcov=zero
          Rcorr=zero
          divider=zero
          anl_ave=zero
          ges_ave=zero
+         if (mod_Rcov) then
+            ba_ave=zero
+            Edbadbo=zero
+            Edbodbo=zero
+         end if
       end if !tim=1, ncc=0
       ng(gblock)=0
       ges_read_loop: do 
@@ -367,18 +393,31 @@ do tim=1,ntimes
                   div=zero
                   anl_sum=zero
                   ges_sum=zero
+                  ba_sum=zero
+                  babo_sum=zero
+                  bobo_sum=zero
                   do j=1,n_pair
                      if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
                         cov_sum=cov_sum+(anl(r)*ges(obs_pairs(j),c,i))
                         anl_sum=anl_sum+anl(r)
-                        ges_sum=ges_sum+ges(obs_pairs(j),c,i) 
+                        ges_sum=ges_sum+ges(obs_pairs(j),c,i)
                         div=div+1
+                        if (mod_Rcov) then
+                           ba_sum=ba_sum+(ges(obs_pairs(j),r,i)-anl(r))
+                           babo_sum=babo_sum+((ges(obs_pairs(j),r,i)-anl(r))*(ges(obs_pairs(j),c,i)))
+                           bobo_sum=bobo_sum+(ges(obs_pairs(j),c,i)*ges(obs_pairs(j),r,i))
+                        end if
                      end if  
                   end do
                   Rcov(r,c)=Rcov(r,c)+cov_sum
                   anl_ave(r,c)=anl_ave(r,c)+anl_sum
                   ges_ave(r,c)=ges_ave(r,c)+ges_sum
                   divider(r,c)=divider(r,c)+div
+                  if (mod_Rcov) then
+                     ba_ave(r,c)=ba_ave(r,c)+ba_sum
+                     Edbadbo(r,c)=Edbadbo(r,c)+babo_sum
+                     Edbodbo(r,c)=Edbodbo(r,c)+bobo_sum
+                  end if
                end do
             end do
           end if  
@@ -395,10 +434,18 @@ do r=1,nch_active
       if (divider(r,c)>zero) then
          !the second term here subtracts the biases
          Rcov(r,c)=(Rcov(r,c)/divider(r,c))-((anl_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
+         if (mod_Rcov) then
+            Edbadbo(r,c)=(Edbadbo(r,c)/divider(r,c))-((ba_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
+            Edbodbo(r,c)=(Edbodbo(r,c)/divider(r,c))-((ges_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
+         end if
       else if (r==c) then 
          !if there is no data passing qc for this channel, set Rcov to the
          !orignal obs error
          Rcov(r,c)=errout(r)**2
+         if (mod_Rcov) then
+            Edbadbo(r,c)=errout(r)**2
+            Edbodbo(r,c)=errout(r)**2
+         end if
       end if
    end do
 end do
@@ -414,10 +461,28 @@ do r=1,nch_active
    end do
 end do
 !make covariance matrix symmetric
-Rcov=Rcov+TRANSPOSE(Rcov)
-Rcorr=Rcorr+TRANSPOSE(Rcorr)
-Rcov=Rcov/two
-Rcorr=Rcorr/two
+Rcov=(Rcov+TRANSPOSE(Rcov))/two
+Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
+
+if (kreq>0) then
+   call eigdecomp(Rcov,nch_active,eigs,eigv)
+   call recondition(eigv,eigs,nch_active,kreq,Rout)
+   Rcov=Rout
+end if
+if (mod_Rcov) then
+   Edbadbo=(Edbadbo+TRANSPOSE(Edbadbo))/two
+   Edbodbo=(Edbodbo+TRANSPOSE(Edbodbo))/two
+   call eigdecomp(Edbadbo,nch_active,eigs,eigv)
+   call recondition(eigv,eigs,nch_active,kreq,Rout)
+   Edbadbo=Rout
+   call eigdecomp(Edbodbo,nch_active,eigs,eigv)
+   call recondition(eigv,eigs,nch_active,kreq,Rout)
+   Edbodbo=Rout
+   invE=Edbadbo+Rcov
+   call iminv(invE,nch_active,info,work,ipiv)
+   Pmult=MATMUL(invE,Edbodbo)
+   Rcov=MATMUL(Rcov,Pmult)
+end if
 
 !output
 inquire(iolength=reclen) Rcov(1,1)
@@ -446,4 +511,6 @@ deallocate(indR,Rcorr)
 deallocate(divider)
 deallocate(anl_ave, ges_ave)
 deallocate(obs_pairs)
-end program cov_calc
+if (mod_Rcov) deallocate(Edbadbo, Edbodbo, ba_ave, Pmult, invE, work, ipiv)
+if (kreq>0) deallocate(Rout,eigv, eigs)
+end program fast_cov_calc
