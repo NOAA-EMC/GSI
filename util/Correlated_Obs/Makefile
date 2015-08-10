@@ -11,16 +11,18 @@ include make.macros
 MAKE_FILE = Makefile
 
 # Executable file
-EXE_FILE = fast_cov_calc
+EXE_FILE = cov_calc
 
 # Source files to link
 SRC_FILES = kinds.f90 \
+            constants.f90 \
             File_Utility.f90 \
             Message_Handler.f90 \
             RadDiag_Define.f90 RadDiag_Hdr_Define.f90 RadDiag_Data_Define.f90 \
             RadDiag_IO.f90 \
             pairs.f90 \
-            obs_tools.f90
+            obs_tools.f90 \
+            matrix_tools.f90
 
 # Obj files used in link phase
 OBJ_FILES = $(SRC_FILES:.f90=.o) \

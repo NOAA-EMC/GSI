@@ -24,7 +24,10 @@ wave_out=.true.
 err_out=.true.
 #option to output the correlation matrix
 corr_out=.true.
-
+#condition number to recondition Rcov.  Set <0 to not recondition
+kreq=60
+#logical to use modified Rcov
+mod_Rcov=.true.
 ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 
 ####################
@@ -70,7 +73,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./fast_cov_calc <<EOF
-$nt $type $cloud $angle $instr $wave_out $err_out $corr_out
+$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $mod_Rcov
 EOF
 
 cp Rcov_$instr $savdir
