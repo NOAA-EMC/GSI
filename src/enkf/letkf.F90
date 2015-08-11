@@ -444,7 +444,7 @@ do niter=1,numiter
         if (update_obspace) then
            do n=1,numobsperpt(npt)
               nob = indxob_pt(npt,n)
-              ! if not vlocal, oblev==1
+              ! if not vlocal,nn=oblev==1
               if (oblev(nob) == nn) then
                  work(1:nanals) = anal_ob(1:nanals,nob)
                  work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
