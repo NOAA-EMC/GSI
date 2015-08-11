@@ -166,7 +166,7 @@ else
   allocate(sresults(1))
   allocate(oindex(nobsgood))
   allocate(oblev(nobsgood))
-  oindex = 0; oblev = 1
+  oindex = 0; oblev = 0
   allocate(indxob_pt(numptsperproc(nproc+1),nobsgood))
   allocate(numobsperpt(numptsperproc(nproc+1)))
   kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
@@ -208,7 +208,9 @@ else
            call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
         end if
         oblev(nob) = nint(oblnp_indx(1))
-        !if (nproc .eq. numproc-1) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblnp(nob),logp_tmp(oblev(nob))
+        !if (nproc .eq. 0) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblev(nob),oblnp(nob),logp_tmp(oblev(nob))
+     else
+        oblev(nob) = 1
      endif
   enddo
   call mpi_allreduce(mpi_in_place,oindex,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
@@ -305,6 +307,14 @@ do niter=1,numiter
      enddo
   endif
 
+  if (vlocal) then
+     nnmax = nlevs_pres
+  else
+     ! if no vertical localization, weights
+     ! need only be computed once for each column.
+     nnmax = 1
+  endif
+
   tbegin = mpi_wtime()
 
   ! Compute the inverse of cut-off length and 
@@ -353,14 +363,7 @@ do niter=1,numiter
      ! Skip when no observations in local area
      if(nobsl == 0) cycle grdloop
   
-     ! Loop for each vertical layers
-     if (vlocal) then
-        nnmax = nlevs_pres
-     else
-        ! if no vertical localization, weights
-        ! need only be computed once for each column.
-        nnmax = 1
-     endif
+     ! Loop through vertical levels (nnmax=1 if no vertical localization)
      verloop: do nn=1,nnmax
   
         ! Pick up variables passed to LETKF core process
