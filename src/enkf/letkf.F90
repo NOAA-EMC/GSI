@@ -5,7 +5,6 @@ module letkf
 !                                      bias coefficients with the LETKF.
 !
 ! prgmmr: ota              org: np23                   date: 2011-06-01
-!         updates, optimizations by whitaker
 !
 ! abstract: Updates the model state using the LETKF (Hunt et al 2007,
 !  Physica D, 112-126).
@@ -60,9 +59,13 @@ module letkf
 !               enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
-!   2011-06-01  Created from Whitaker's serial EnSRF core module.
-!   2015-07-25  Modified to use kdtree for range search instead of
-!               original box routine.  Optimizations for no vert localization.
+!   2011-06-01  ota: Created from Whitaker's serial EnSRF core module.
+!   2015-07-25  whitaker: Optimization for case when no vertical localization
+!               is used.  Allow for numiter=0 (skip ob space update). Fixed
+!               missing openmp private declarations in obsloop and grdloop.
+!               Use openmp reductions for profiling openmp loops. Use kdtree
+!               for range search instead of original box routine. Modify
+!               ob space update to use weights computed at nearest grid point.
 !
 ! attributes:
 !   language: f95
@@ -107,15 +110,15 @@ implicit none
 
 ! local variables.
 integer(i_kind) nob,nf,n1,n2,ideln,&
-                niter,i,j,n,nrej,npt
+                ierr,niter,i,j,n,nrej,npt,nnmax,nn, &
+                nobsl, ngrd1, nobsl2, nthreads, nb, &
+                nobslocal_max,nobslocal_maxall
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind) oblnp_indx(1)
 real(r_kind) logp_tmp(nlevs)
-integer(i_kind) ierr
-integer(i_kind) nn,nobm,nsame,nnmax
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
@@ -128,8 +131,6 @@ real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, obdep, oberinv
 real(r_kind) :: vdist
 real(r_kind) :: corrlength
 real(r_single) :: deglat, dist, corrsq
-integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
-                   nobslocal_max,nobslocal_maxall
 type(kdtree2_result),dimension(:),allocatable :: sresults
 type(kdtree2), pointer :: kdtree_grid
 
@@ -243,7 +244,6 @@ do niter=1,numiter
 
   ! reset first guess perturbations at start of each iteration.
   nrej=0
-  nsame=0
 ! reset ob error to account for gross errors 
   if (niter > 1 .and. varqc) then
     if (huber) then ! "huber norm" QC
@@ -305,7 +305,6 @@ do niter=1,numiter
      enddo
   endif
 
-  nobm = 1
   tbegin = mpi_wtime()
 
   ! Compute the inverse of cut-off length and 
@@ -475,13 +474,13 @@ do niter=1,numiter
   if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
   call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
   if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
+  if (nrej > 0)   print *, nrej,' obs rejected by varqc'
   
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
      call mpi_allreduce(mpi_in_place,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
      call mpi_allreduce(mpi_in_place,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   endif
-  
   ! satellite bias correction update.
   if (update_obspace .and. nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
 
@@ -505,11 +504,7 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !
 ! program history log:
 !   2011-06-03  ota: created from miyoshi's LETKF core subroutine
-!   2014-06-20  whitaker: optimization for case when no vertical localization
-!               is used.  Allow for numiter=0 (skip ob space update). Fixed
-!               missing openmp private declarations in obsloop and grdloop.
-!               Use openmp reductions for profiling openmp loops. Use LAPACK
-!               routine for eigenanalysis.
+!   2014-06-20  whitaker: Use LAPACK for eigenanalysis.
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch
