@@ -83,13 +83,14 @@ module loadbal
 !$$$
 
 use mpisetup
-use params, only: ndim, datapath, nanals, simple_partition, letkf_flag
+use params, only: ndim, datapath, nanals, simple_partition, letkf_flag,&
+                  corrlengthnh, corrlengthsh, corrlengthtr
 use enkf_obsmod, only: nobsgood, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq, nobstot
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
 use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
-use constants, only: zero
+use constants, only: zero, rad2deg, deg2rad
 
 implicit none
 private
@@ -124,6 +125,10 @@ integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 real(r_single), allocatable, dimension(:) :: buffer
 integer(i_kind) np,i,n,nn,nob1,nob2,ierr,nanal
 real(r_double) t1
+
+if (letkf_flag) then
+   kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
+endif
 
 ! partition state vector for enkf using Grahams rule..
 ! ("When a new job arrives, allocate it to the server 
@@ -292,7 +297,6 @@ endif
 
 ! for letkf, search all obs.
 if (letkf_flag) then
-   kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
    deallocate(iprocob, indxproc_obs, numobsperproc) ! don't need for letkf
 else ! these arrays only needed for serial filter
    ! nob1 is the index of the obs to be processed on this rank
@@ -318,9 +322,12 @@ end subroutine load_balance
 subroutine estimate_work_enkf1(numobs)
 ! estimate work needed to update each analysis grid
 ! point (considering all the observations within the localization radius).
+use covlocal, only:  latval
 
 implicit none
 integer(i_kind), dimension(:), intent(inout) :: numobs
+real(r_single) :: deglat,corrlength,corrsq
+type(kdtree2_result),dimension(:),allocatable :: sresults
 
 integer nob,n1,n2,i,ideln
 
@@ -328,17 +335,27 @@ ideln = int(real(npts)/real(numproc))
 n1 = 1 + nproc*ideln
 n2 = (nproc+1)*ideln
 if (nproc == numproc-1) n2 = npts
+if (letkf_flag) allocate(sresults(nobsgood))
 
 ! loop over 'good' obs.
 numobs = 1 ! set min # of obs to 1, not 0 (so single ob test behaves)
-!$omp parallel do  schedule(dynamic,1) private(nob,i)
+!$omp parallel do  schedule(dynamic,1) private(nob,i,deglat,corrlength,sresults,corrsq)
 obsloop: do i=n1,n2
-    do nob=1,nobsgood
-       if (sum((obloc(1:3,nob)-gridloc(1:3,i))**2,1) < corrlengthsq(nob)) &
-       numobs(i) = numobs(i) + 1
-    end do ! i
+    if (letkf_flag) then
+       deglat = latsgrd(i)*rad2deg
+       corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
+       corrsq = corrlength**2
+       call kdtree2_r_nearest(tp=kdtree_obs2,qv=gridloc(:,i),r2=corrsq,&
+                              nfound=numobs(i),nalloc=nobsgood,results=sresults)
+    else
+       do nob=1,nobsgood
+          if (sum((obloc(1:3,nob)-gridloc(1:3,i))**2,1) < corrlengthsq(nob)) &
+          numobs(i) = numobs(i) + 1
+       end do 
+    endif
 end do obsloop
 !$omp end parallel do
+if (letkf_flag) deallocate(sresults)
 
 end subroutine estimate_work_enkf1
 
