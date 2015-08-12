@@ -26,47 +26,47 @@ module loadbal
 ! Public Variables (all defined by subroutine load_balance):
 !  npts_min: (integer scalar) smallest number of grid points assigned to a task.
 !  npts_max: (integer scalar) maximum number of grid points assigned to a task.
-!  nobs_min: (integer scalar) smallest number of observation priors assigned to a task.
-!  nobs_max: (integer scalar) maximum number of observation priors assigned to a task.
+!  nobs_min: (integer scalar, serial enkf only) smallest number of observation priors assigned to a task.
+!  nobs_max: (integer scalar, serial enkf only) maximum number of observation priors assigned to a task.
 !  numproc: (integer scalar) total number of MPI tasks (from module mpisetup)
 !  nobsgood: (integer scalar) total number of obs to be assimilated (from module
 !   enkf_obsmod).
-!  numobsperproc(numproc): integer array containing # of ob priors assigned to
-!   each task.
+!  numobsperproc(numproc): (serial enkf only) integer array containing # of ob priors 
+!   assigned to each task.
 !  numptsperproc(numproc): integer array containing # of grid points assigned to
 !   each task.
 !  indxproc(numproc,npts_max): integer array with the indices (1,2,...npts) of 
 !   analysis grid points assigned to each task.
-!  indxproc_obs(numproc,nobs_max): integer array with the indices (1,2,...nobsgood) of 
-!   observation priors assigned to that task.
-!  iprocob(nobsgood): integer array containing the task number that has been
+!  indxproc_obs(numproc,nobs_max): (serial enkf only) integer array with the indices
+!   (1,2,...nobsgood) of observation priors assigned to that task.
+!  iprocob(nobsgood): (serial enkf only) integer array containing the task number that has been
 !   assigned to update each observation prior.
-!  indxob_chunk(nobsgood): integer array that maps the index of the ob priors
+!  indxob_chunk(nobsgood): (serial enkf only) integer array that maps the index of the ob priors
 !   being assimilated (1,2,3...nobsgood) to the index of the obs being 
 !   updated on that task (1,2,3,...numobsperproc(nproc)) - inverse of
 !   indxproc_obs.
-!  ensmean_obchunk(nobs_max): real array of ensemble mean observation priors
+!  ensmean_obchunk(nobs_max): (serial enkf only) real array of ensemble mean observation priors
 !   being updated on that task (use indxproc_obs to find
 !   corresponding index in ensemble_ob).
-!  obloc_chunk(3,nobs_max): real array of spherical cartesian coordinates
+!  obloc_chunk(3,nobs_max): (serial enkf only) real array of spherical cartesian coordinates
 !   of ob priors being updated on this task.
 !  grdloc_chunk(3,npts_max): real array of spherical cartesian coordinates
 !   of analysis grid points being updated on this task.
 !  lnp_chunk(npts_max,ndim): real array of log(pressures) of state variables
 !   being updated on this task.
-!  oblnp_chunk(nobs_max,ndim): real array of log(pressures) of ob priors
+!  oblnp_chunk(nobs_max,ndim): (serial enkf only) real array of log(pressures) of ob priors
 !   being updated on this task.
-!  obtime_chunk(nobs_max): real array of ob times of ob priors
+!  obtime_chunk(nobs_max): (serial enkf only) real array of ob times of ob priors
 !   being updated on this task (expressed as an offset from the analysis time in
 !   hours).
-!  anal_obchunk_prior(nanals,nobs_max): real array of observation prior 
+!  anal_obchunk_prior(nanals,nobs_max): (serial enkf only) real array of observation prior 
 !   ensemble perturbations to be updated on this task (not used in LETKF).
 !  kdtree_grid: pointer to kd-tree structure used for nearest neighbor searches
 !   in grid point space (only searches grid points assigned to this task).
 !  kdtree_obs: pointer to kd-tree structure used for nearest neighbor searches
 !   in observation space (only searches ob locations assigned to this task).
-!  kdtree_obs2: pointer to kd-tree structure used for nearest neighbor searches
-!   for LETKF.
+!  kdtree_obs2: (LETKF only) pointer to kd-tree structure used for nearest neighbor searches
+!   (searches all observations)
 !   
 !
 ! Modules Used: mpisetup, params, kinds, constants, enkf_obsmod, gridinfo,
