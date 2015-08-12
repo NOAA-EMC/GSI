@@ -62,11 +62,11 @@ module loadbal
 !  anal_obchunk_prior(nanals,nobs_max): (serial enkf only) real array of observation prior 
 !   ensemble perturbations to be updated on this task (not used in LETKF).
 !  kdtree_grid: pointer to kd-tree structure used for nearest neighbor searches
-!   in grid point space (only searches grid points assigned to this task).
+!   for model grid points (only searches grid points assigned to this task).
 !  kdtree_obs: pointer to kd-tree structure used for nearest neighbor searches
-!   in observation space (only searches ob locations assigned to this task).
+!   for observations (only searches ob locations assigned to this task).
 !  kdtree_obs2: (LETKF only) pointer to kd-tree structure used for nearest neighbor searches
-!   (searches all observations)
+!   for observations (searches all observations)
 !   
 !
 ! Modules Used: mpisetup, params, kinds, constants, enkf_obsmod, gridinfo,
