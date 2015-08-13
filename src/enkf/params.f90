@@ -54,9 +54,12 @@ real(r_single),public :: fhr_assim=6.0
 ! character string version of nhr_anal with leading zeros.
 character(len=2),dimension(7),public :: charfhr_anal
 ! prefix for background and analysis file names (mem### appended)
-! default is "sfg_"//datestring//"_fhr##_" and
+! For global, default is "sfg_"//datestring//"_fhr##_" and
 ! "sanl_"//datestring//"_fhr##_". If only one time level
 ! in background, default for analysis is "sanl_"//datestring//"_"
+! For regional, default is "firstguess_fhr##." and
+! "analysis_fhr##." If only one time level
+! in background, default is "firstguess." and "analysis.".
 character(len=120),dimension(7),public :: fgfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
 ! analysis date string (YYYYMMDDHH)
@@ -329,19 +332,35 @@ nbackgrounds=0
 do while (nhr_anal(nbackgrounds+1) > 0)
    write(charfhr_anal(nbackgrounds+1),'(i2.2)') nhr_anal(nbackgrounds+1)
    if (trim(fgfileprefixes(nbackgrounds+1)) .eq. "") then
-    ! default first-guess file prefix
-    fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+     ! default first-guess file prefix
+     if (regional) then
+      if (nbackgrounds > 1) then
+        fgfileprefixes(nbackgrounds+1)="firstguess_fhr"//charfhr_anal(nbackgrounds+1)//"."
+      else
+        fgfileprefixes(nbackgrounds+1)="firstguess."
+      endif
+     else  ! global
+      fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+     endif
    endif
    nbackgrounds = nbackgrounds+1
 end do
 do nb=1,nbackgrounds
    if (trim(anlfileprefixes(nb)) .eq. "") then
-    ! default analysis file prefix
-    if (nbackgrounds > 1) then
-      anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
-    else
-      anlfileprefixes(nb)="sanl_"//datestring//"_"
-    endif
+     ! default analysis file prefix
+     if (regional) then
+      if (nbackgrounds > 1) then
+        fgfileprefixes(nbackgrounds+1)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
+      else
+        fgfileprefixes(nbackgrounds+1)="analysis."
+      endif
+     else ! global
+      if (nbackgrounds > 1) then
+        anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+      else
+        anlfileprefixes(nb)="sanl_"//datestring//"_"
+      endif
+     endif
    endif
 enddo
 if (nproc .eq. 0) then
