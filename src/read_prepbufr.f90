@@ -422,11 +422,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(spdob) then
      nreal=24
   else if(psob) then
-     nreal=20
-  else if(qob) then
      nreal=23
+  else if(qob) then
+     nreal=26
   else if(pwob) then
-     nreal=16
+     nreal=20
   else if(sstob) then
      if (nst_gsi > 0) then
         nreal=18 + nstinfo
@@ -464,12 +464,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if (noiqc) then
      lim_qm=8
      if (psob)         lim_zqm=7
-     if (qob)  lim_tqm=7
+     if (qob .or.tdob) lim_tqm=7
      if (tob)          lim_qqm=8
   else
      lim_qm=4
      if (psob)         lim_zqm=4
-     if (qob)          lim_tqm=4
+     if (qob.or.tdob)  lim_tqm=4
      if (tob)          lim_qqm=4
   endif
 
@@ -545,7 +545,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !! get message and subset counts
 
-!  call getcount_bufr(infile,nmsgmax,mxtb)
+  call getcount_bufr(infile,nmsgmax,mxtb)
 
   allocate(lmsg(nmsgmax,ntread))
 
