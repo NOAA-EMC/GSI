@@ -112,25 +112,26 @@ implicit none
 ! local variables.
 integer(i_kind) nob,nf,n1,n2,ideln,&
                 niter,i,j,n,nrej,npt,nn,nnmax,ierr
+integer(i_kind) nobsl, ngrd1, nobsl2, nthreads, nb, &
+                nobslocal_max,nobslocal_maxall
+integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
+integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
+real(r_single) :: deglat, dist, corrsq
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind) oblnp_indx(1)
 real(r_kind) logp_tmp(nlevs)
+real(r_kind) vdist
+real(r_kind) corrlength
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
 real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
-integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
-integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
-real(r_kind) :: vdist
-real(r_kind) :: corrlength
-real(r_single) :: deglat, dist, corrsq
-integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
-                   nobslocal_max,nobslocal_maxall
+! kdtree stuff
 type(kdtree2_result),dimension(:),allocatable :: sresults
 type(kdtree2), pointer :: kdtree_grid
 
@@ -146,14 +147,14 @@ r_nanalsm1=one/float(nanals-1)
 if (minval(lnsigl) > 1.e3) then
    vlocal = .false.
    if (nproc == 0) print *,'no vertical localization in LETKF'
-   ! if vertical localization on, analysis weights
-   ! need to be computed for every vertical level.
-   nnmax = nlevs_pres
-else
-   vlocal = .true.
    ! if no vertical localization, weights
    ! need only be computed once for each column.
    nnmax = 1
+else
+   vlocal = .true.
+   ! if vertical localization on, analysis weights
+   ! need to be computed for every vertical level.
+   nnmax = nlevs_pres
 endif
 
 ! is observation space update requested (yes if numiter !=0)?
