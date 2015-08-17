@@ -5,6 +5,7 @@ module letkf
 !                                      bias coefficients with the LETKF.
 !
 ! prgmmr: ota              org: np23                   date: 2011-06-01
+!         updates, optimizations by whitaker
 !
 ! abstract: Updates the model state using the LETKF (Hunt et al 2007,
 !  Physica D, 112-126).
@@ -59,13 +60,9 @@ module letkf
 !               enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
-!   2011-06-01  ota: Created from Whitaker's serial EnSRF core module.
-!   2015-07-25  whitaker: Optimization for case when no vertical localization
-!               is used.  Allow for numiter=0 (skip ob space update). Fixed
-!               missing openmp private declarations in obsloop and grdloop.
-!               Use openmp reductions for profiling openmp loops. Use kdtree
-!               for range search instead of original box routine. Modify
-!               ob space update to use weights computed at nearest grid point.
+!   2011-06-01  Created from Whitaker's serial EnSRF core module.
+!   2015-07-25  Modified to use kdtree for range search instead of
+!               original box routine.  Optimizations for no vert localization.
 !
 ! attributes:
 !   language: f95
@@ -110,15 +107,15 @@ implicit none
 
 ! local variables.
 integer(i_kind) nob,nf,n1,n2,ideln,&
-                ierr,niter,i,j,n,nrej,npt,nnmax,nn, &
-                nobsl, ngrd1, nobsl2, nthreads, nb, &
-                nobslocal_max,nobslocal_maxall
+                niter,i,j,n,nrej,npt
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind) oblnp_indx(1)
 real(r_kind) logp_tmp(nlevs)
+integer(i_kind) ierr
+integer(i_kind) nn,nobm,nsame
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
@@ -127,10 +124,11 @@ real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
 integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
 integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
-real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, obdep, oberinv
 real(r_kind) :: vdist
 real(r_kind) :: corrlength
 real(r_single) :: deglat, dist, corrsq
+integer(i_kind) :: nobsl, ngrd1, nobsl2, nthreads, nb, &
+                   nobslocal_max,nobslocal_maxall
 type(kdtree2_result),dimension(:),allocatable :: sresults
 type(kdtree2), pointer :: kdtree_grid
 
@@ -150,6 +148,10 @@ else
    vlocal = .true.
 endif
 
+if (numiter == 0) then
+  oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
+end if
+
 ! is observation space update requested (yes if numiter !=0)?
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
@@ -167,7 +169,6 @@ else
   allocate(oindex(nobsgood))
   allocate(oblev(nobsgood))
   oindex = 0; oblev = 0
-  allocate(indxob_pt(numptsperproc(nproc+1),nobsgood))
   allocate(numobsperpt(numptsperproc(nproc+1)))
   kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
   if (nobsgood > numproc) then
@@ -187,34 +188,39 @@ else
   do nob=n1,n2
      call kdtree2_n_nearest(tp=kdtree_grid,qv=obloc(:,nob),nn=1,results=sresults)
      oindex(nob) = sresults(1)%idx
-     if (vlocal) then
-        ! identify ps and surface obs, assign to level nlevs+1 (for ps) or 1.
-        if (obtype(nob)(1:3) == ' ps') then
-           oblev(nob) = nlevs+1
-           cycle
-        else if ((stattype(nob) >= 180 .and. stattype(nob) < 190) .or. &
-                 (stattype(nob) >= 280 .and. stattype(nob) < 290)) then
-           oblev(nob) = 1
-           cycle
-        endif
-        ! find vertical level closest to ob pressure at that grid point.
-        oblnp_indx(1) = oblnp(nob)
-        if (oblnp_indx(1) <= logp(oindex(nob),1)) then
-           oblnp_indx(1) = 1
-        else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
-           oblnp_indx(1) = nlevs_pres-1
-        else
-           logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
-           call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
-        end if
-        oblev(nob) = nint(oblnp_indx(1))
-        !if (nproc .eq. 0) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblev(nob),oblnp(nob),logp_tmp(oblev(nob))
-     else
+     ! identify ps and surface obs, assign to level nlevs+1 (for ps) or 1.
+     if (obtype(nob)(1:3) == ' ps') then
+        oblev(nob) = nlevs+1
+        cycle
+     else if ((stattype(nob) >= 180 .and. stattype(nob) < 190) .or. &
+              (stattype(nob) >= 280 .and. stattype(nob) < 290)) then
         oblev(nob) = 1
+        cycle
      endif
+     ! find vertical level closest to ob pressure at that grid point.
+     oblnp_indx(1) = oblnp(nob)
+     if (oblnp_indx(1) <= logp(oindex(nob),1)) then
+        oblnp_indx(1) = 1
+     else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
+        oblnp_indx(1) = nlevs_pres-1
+     else
+        logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
+        call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
+     end if
+     oblev(nob) = nint(oblnp_indx(1))
+     !if (nproc .eq. numproc-1) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblnp(nob),logp_tmp(oblev(nob))
   enddo
+  deallocate(sresults)
   call mpi_allreduce(mpi_in_place,oindex,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
   call mpi_allreduce(mpi_in_place,oblev,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  do n=1,numptsperproc(nproc+1)
+     i = 0
+     do j=1,nobsgood
+        if (oindex(j) .eq. indxproc(nproc+1,n)) i=i+1
+     enddo
+     numobsperpt(n) = i
+  enddo
+  allocate(indxob_pt(numptsperproc(nproc+1),maxval(numobsperpt)))
   do n=1,numptsperproc(nproc+1)
      i = 0
      do j=1,nobsgood
@@ -223,10 +229,8 @@ else
            indxob_pt(n,i) = j
         endif
      enddo
-     numobsperpt(n) = i
   enddo
   deallocate(oindex)
-  deallocate(sresults)
   call kdtree2_destroy(kdtree_grid)
   !t2 = mpi_wtime()
   !if (nproc == 0) print *,'time to set indxob_pt',t2-t1
@@ -246,6 +250,7 @@ do niter=1,numiter
 
   ! reset first guess perturbations at start of each iteration.
   nrej=0
+  nsame=0
 ! reset ob error to account for gross errors 
   if (niter > 1 .and. varqc) then
     if (huber) then ! "huber norm" QC
@@ -307,25 +312,8 @@ do niter=1,numiter
      enddo
   endif
 
-  if (vlocal) then
-     nnmax = nlevs_pres
-  else
-     ! if no vertical localization, weights
-     ! need only be computed once for each column.
-     nnmax = 1
-  endif
-
+  nobm = 1
   tbegin = mpi_wtime()
-
-  ! Compute the inverse of cut-off length and 
-  ! the observation departure from first guess
-!$omp parallel do private(nob)
-  do nob=1,nobsgood
-     invcorlen(nob)=one/corrlengthsq(nob)
-     invlnsigl(nob)=one/lnsigl(nob)
-     oberinv(nob)=one/oberrvaruse(nob)
-     obdep(nob)=ob(nob)-ensmean_ob(nob)
-  end do
 
   t2 = zero
   t3 = zero
@@ -363,8 +351,9 @@ do niter=1,numiter
      ! Skip when no observations in local area
      if(nobsl == 0) cycle grdloop
   
-     ! Loop through vertical levels (nnmax=1 if no vertical localization)
-     verloop: do nn=1,nnmax
+     if (vlocal) then
+     ! Loop for each vertical layers
+     verloop: do nn=1,nlevs_pres
   
         ! Pick up variables passed to LETKF core process
         allocate(rloc(nobsl))
@@ -372,13 +361,9 @@ do niter=1,numiter
         nobsl2=1
         do nob=1,nobsl
            nf = sresults(nob)%idx
-           if (vlocal) then
-              vdist=(lnp_chunk(npt,nn)-oblnp(nf))*invlnsigl(nf)
-              if(abs(vdist) >= one) cycle
-           else
-              vdist = zero
-           endif
-           dist = sqrt(sresults(nob)%dis*invcorlen(sresults(nob)%idx)+vdist*vdist)
+           vdist=(lnp_chunk(npt,nn)-oblnp(nf))/lnsigl(nf)
+           if(abs(vdist) >= one) cycle
+           dist = sqrt(sresults(nob)%dis/corrlengthsq(sresults(nob)%idx)+vdist*vdist)
            if (dist >= one) cycle
            rloc(nobsl2)=taper(dist)
            oindex(nobsl2)=nf
@@ -398,8 +383,8 @@ do niter=1,numiter
         do nob=1,nobsl2
            nf=oindex(nob)
            hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
-           rdiag(nob)=oberinv(nf)
-           dep(nob)=obdep(nf)
+           rdiag(nob)=one/oberrvaruse(nf)
+           dep(nob)=ob(nf)-ensmean_ob(nf)
         end do
         deallocate(oindex)
   
@@ -417,8 +402,7 @@ do niter=1,numiter
         if (lastiter) then
            do nb=1,nbackgrounds
            do i=1,ndim
-              ! if not vlocal, update all state variables in column.
-              if(vlocal .and. index_pres(i) /= nn) cycle
+              if(index_pres(i) /= nn) cycle
               work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
               work2(1:nanals) = ensmean_chunk(npt,i,nb)
               if(r_kind == kind(1.d0)) then
@@ -434,7 +418,6 @@ do niter=1,numiter
            end do
         endif
         ! Update ob space innov stats (mean and spread)
-        ! see eqn 18 in Hunt et al (2007).
         ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
         ! grid point (and level).
         ! indxob_pt(n=1,numobsperpt(npt)): ob indices associated with this model
@@ -444,7 +427,6 @@ do niter=1,numiter
         if (update_obspace) then
            do n=1,numobsperpt(npt)
               nob = indxob_pt(npt,n)
-              ! if not vlocal,nn=oblev==1
               if (oblev(nob) == nn) then
                  work(1:nanals) = anal_ob(1:nanals,nob)
                  work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
@@ -463,6 +445,97 @@ do niter=1,numiter
         t1 = mpi_wtime()
   
      end do verloop
+
+     else ! vlocal = .false.: no vertical localization
+  
+     ! Pick up variables passed to LETKF core process
+     allocate(oindex(nobsl))
+     allocate(rloc(nobsl))
+     nobsl2=1
+     do nob=1,nobsl
+        nf = sresults(nob)%idx
+        dist = sqrt(sresults(nob)%dis/corrlengthsq(sresults(nob)%idx))
+        if (dist >= one) cycle
+        rloc(nobsl2)=taper(dist)
+        oindex(nobsl2)=nf
+        if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
+           nobsl2=nobsl2+1
+        end if
+     end do
+     nobsl2=nobsl2-1 ! total number of obs in local volume.
+     if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+  
+     if(nobsl2 > 0) then ! obs in volume
+  
+        allocate(hdxf(nobsl2,nanals))
+        allocate(rdiag(nobsl2))
+        allocate(dep(nobsl2))
+        do nob=1,nobsl2
+           nf=oindex(nob)
+           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+           rdiag(nob)=one/oberrvaruse(nf)
+           dep(nob)=ob(nf)-ensmean_ob(nf)
+        end do
+        deallocate(oindex)
+  
+        t3 = t3 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Compute transformation matrix of LETKF
+        call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
+        deallocate(hdxf,rdiag,dep,rloc)
+  
+        t4 = t4 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+  
+        ! Update analysis ensembles (all time levels)
+        ! since there is no vertical localization, weights computed
+        ! for this horizontal grid point can be applied to all points/variables in column.
+        if (lastiter) then
+           do nb=1,nbackgrounds
+           do i=1,ndim
+              work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+              work2(1:nanals) = ensmean_chunk(npt,i,nb)
+              if(r_kind == kind(1.d0)) then
+                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                      & work2,1)
+              else
+                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                      & work2,1)
+              end if
+              ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+              anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+           end do
+           end do
+        endif
+        ! Update ob space innov stats (mean and spread)
+        ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
+        ! grid point.
+        ! indxob_pt(npt,n=1,numobsperpt(npt)): ob indices associated with this model
+        ! grid point. 
+        ! obfit_post is what update_biascorr needs (ob - ensmean_ob).
+        ! also used to modify ob error in nonlinear quality control
+        if (update_obspace) then
+           do n=1,numobsperpt(npt)
+              nob = indxob_pt(npt,n)
+              work(1:nanals) = anal_ob(1:nanals,nob)
+              work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
+              if(r_kind == kind(1.d0)) then
+                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
+              else
+                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
+              end if
+              obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+              obsprd_post(nob) = sum( (work2(1:nanals) + obfit_post(nob) - ob(nob))**2 )*r_nanalsm1
+           enddo
+        endif
+  
+        t5 = t5 + mpi_wtime() - t1
+        t1 = mpi_wtime()
+     else ! no obs in volume
+        deallocate(rloc,oindex)
+     end if
+     end if
      if (allocated(sresults)) deallocate(sresults)
   end do grdloop
   !$omp end parallel do
@@ -477,13 +550,13 @@ do niter=1,numiter
   if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
   call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
   if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
-  if (nrej > 0)   print *, nrej,' obs rejected by varqc'
   
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
      call mpi_allreduce(mpi_in_place,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
      call mpi_allreduce(mpi_in_place,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   endif
+  
   ! satellite bias correction update.
   if (update_obspace .and. nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
 
@@ -507,7 +580,11 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !
 ! program history log:
 !   2011-06-03  ota: created from miyoshi's LETKF core subroutine
-!   2014-06-20  whitaker: Use LAPACK for eigenanalysis.
+!   2014-06-20  whitaker: optimization for case when no vertical localization
+!               is used.  Allow for numiter=0 (skip ob space update). Fixed
+!               missing openmp private declarations in obsloop and grdloop.
+!               Use openmp reductions for profiling openmp loops. Use LAPACK
+!               routine for eigenanalysis.
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch
