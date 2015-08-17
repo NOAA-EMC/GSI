@@ -146,8 +146,14 @@ r_nanalsm1=one/float(nanals-1)
 if (minval(lnsigl) > 1.e3) then
    vlocal = .false.
    if (nproc == 0) print *,'no vertical localization in LETKF'
+   ! if vertical localization on, analysis weights
+   ! need to be computed for every vertical level.
+   nnmax = nlevs_pres
 else
    vlocal = .true.
+   ! if no vertical localization, weights
+   ! need only be computed once for each column.
+   nnmax = 1
 endif
 
 if (numiter == 0) then
@@ -311,14 +317,6 @@ do niter=1,numiter
            obsprd_post(nob) = obsprd_prior(nob)
         enddo
      enddo
-  endif
-
-  if (vlocal) then
-     nnmax = nlevs_pres
-  else
-     ! if no vertical localization, weights
-     ! need only be computed once for each column.
-     nnmax = 1
   endif
 
   tbegin = mpi_wtime()
