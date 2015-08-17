@@ -156,10 +156,6 @@ else
    nnmax = 1
 endif
 
-if (numiter == 0) then
-  oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
-end if
-
 ! is observation space update requested (yes if numiter !=0)?
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
