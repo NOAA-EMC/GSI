@@ -196,27 +196,31 @@ else
   do nob=n1,n2
      call kdtree2_n_nearest(tp=kdtree_grid,qv=obloc(:,nob),nn=1,results=sresults)
      oindex(nob) = sresults(1)%idx
-     ! identify ps and surface obs, assign to level nlevs+1 (for ps) or 1.
-     if (obtype(nob)(1:3) == ' ps') then
-        oblev(nob) = nlevs+1
-        cycle
-     else if ((stattype(nob) >= 180 .and. stattype(nob) < 190) .or. &
-              (stattype(nob) >= 280 .and. stattype(nob) < 290)) then
-        oblev(nob) = 1
-        cycle
-     endif
-     ! find vertical level closest to ob pressure at that grid point.
-     oblnp_indx(1) = oblnp(nob)
-     if (oblnp_indx(1) <= logp(oindex(nob),1)) then
-        oblnp_indx(1) = 1
-     else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
-        oblnp_indx(1) = nlevs_pres-1
+     if (vlocal) then
+        ! identify ps and surface obs, assign to level nlevs+1 (for ps) or 1.
+        if (obtype(nob)(1:3) == ' ps') then
+           oblev(nob) = nlevs+1
+           cycle
+        else if ((stattype(nob) >= 180 .and. stattype(nob) < 190) .or. &
+                 (stattype(nob) >= 280 .and. stattype(nob) < 290)) then
+           oblev(nob) = 1
+           cycle
+        endif
+        ! find vertical level closest to ob pressure at that grid point.
+        oblnp_indx(1) = oblnp(nob)
+        if (oblnp_indx(1) <= logp(oindex(nob),1)) then
+           oblnp_indx(1) = 1
+        else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
+           oblnp_indx(1) = nlevs_pres-1
+        else
+           logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
+           call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
+        end if
+        oblev(nob) = nint(oblnp_indx(1))
+        !if (nproc .eq. 0) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblev(nob),oblnp(nob),logp_tmp(oblev(nob))
      else
-        logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
-        call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
-     end if
-     oblev(nob) = nint(oblnp_indx(1))
-     !if (nproc .eq. numproc-1) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblnp(nob),logp_tmp(oblev(nob))
+        oblev(nob) = 1
+     endif
   enddo
   deallocate(sresults)
   call mpi_allreduce(mpi_in_place,oindex,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
