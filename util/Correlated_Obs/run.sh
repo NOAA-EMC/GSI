@@ -61,7 +61,7 @@ while [[ $cdate -le $edate ]] ; do
       tar -xvf radstat.gdas.$cdate
       gunzip *.gz
       rm radstat.gdas.$cdate
-      if [ -f diag_${instr}_anl.${cdate} ];
+      if [ -f diag_${instr}_ges.${cdate} ];
       then
          mv diag_${instr}_anl.${cdate} danl_${fon}
          mv diag_${instr}_ges.${cdate} dges_${fon}
