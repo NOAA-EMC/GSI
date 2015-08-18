@@ -1,6 +1,7 @@
 subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
+     nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_cris                  read bufr format cris data
@@ -47,11 +48,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     nrec_start - first subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR CRIS observations read
 !     ndata    - number of BUFR CRIS profiles retained for further processing
 !     nodata   - number of BUFR CRIS observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -75,17 +78,17 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
 
 ! Number of channels for sensors in BUFR
-  integer(i_kind),parameter :: maxinfo    =  33
 
 
 ! BUFR format for CRISSPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -101,9 +104,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(inout) :: val_cris
   real(r_kind)     ,intent(in   ) :: gstime
   real(r_kind)     ,intent(in   ) :: rmesh
+  logical          ,intent(in   ) :: dval_use
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread
+  integer(i_kind)  ,dimension(npe), intent(inout) :: nobs
   integer(i_kind)  ,intent(  out) :: ndata,nodata
   
 
@@ -112,7 +117,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)     :: lnbufr = 10
 
 ! Variables for BUFR IO    
-  real(r_double),dimension(7)  :: linele
+  real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
 ! real(r_double),dimension(6):: cloud_frac
@@ -123,7 +128,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=80) :: allspotlist
   integer(i_kind)   :: jstart, kidsat, ksatid
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
-  integer(i_kind)   :: nchanl
+  integer(i_kind)   :: nchanl,maxinfo
   integer(i_kind),allocatable,dimension(:)::nrec
 
 
@@ -176,8 +181,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: rato   = 0.87997285_r_kind 
 
 ! Initialize variables
+  maxinfo    =  31
   disterrmax=zero
   ntest=0
+  if(dval_use) maxinfo = maxinfo + 2
   nreal  = maxinfo + nstinfo
   ndata = 0
   nodata = 0
@@ -313,36 +320,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   irec=0
   message_loop: do while(ireadmg(lnbufr,subset,idate)>=0)
      irec=irec+1
+     if(irec < nrec_start) cycle message_loop
      next=next+1
      if(next == npe_sub)next=0
-     if(next /= mype_sub)cycle
+     if(next /= mype_sub)cycle message_loop
      read_loop: do while (ireadsb(lnbufr)==0)
 
 !    Read CRIS FOV information
-        call ufbint(lnbufr,linele,7,1,iret,'FOVN SLNM QMRKH MJFC HMSL FORN  (CRCHN)')
-
-!    Check that the number of channels in BUFR is what we are expecting
-        if (nint(linele(7)) /= sc(1) % n_channels) then 
-           if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
-                nint(linele(7)),' channels, but CRTM expects ',sc(1) % n_channels
-           exit message_loop
-        endif 
-       
-!    Top level QC check:
-        if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QMRKH)
-                                                 ! May want to eventually set to 
-                                                 ! QMRHK <= 1, as data is, and I
-                                                 ! quote, 'slightly suspect'
-
-        if ( bad_line == nint(linele(2))) then
-!        zenith angle/scan spot mismatch, reject entire line
-           cycle read_loop
-        else
-           bad_line = -1
-        endif
-
-        ifov = nint(linele(1))               ! field of view
-        ifor = nint(linele(6))               ! field of regard
+        call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHN)')
 
 !  CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
 !  per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
@@ -356,16 +341,37 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !  For now, we will simply choose IFOV=5.  See Fig. 58 of CrIS SDR ATBD (Rev. D) for a picture.
 
-
 !    Only use central IFOV
+        ifov = nint(linele(1))               ! field of view
         if (ifov /= 5) cycle read_loop
+
+        ifor = nint(linele(4))               ! field of regard
 
 !    Remove data on edges
         if (.not. use_edges .and. &
              (ifor < radedge_min .OR. ifor > radedge_max )) cycle read_loop
 
-        iscn = nint(linele(2))               ! scan line
+!    Top level QC check:
+        if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QMRKH)
+                                                 ! May want to eventually set to 
+                                                 ! QMRHK <= 1, as data is, and I
+                                                 ! quote, 'slightly suspect'
 
+        if ( bad_line == nint(linele(2))) then
+!        zenith angle/scan spot mismatch, reject entire line
+           cycle read_loop
+        else
+           bad_line = -1
+        endif
+
+!    Check that the number of channels in BUFR is what we are expecting
+        if (nint(linele(5)) /= sc(1) % n_channels) then 
+           if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
+                nint(linele(5)),' channels, but CRTM expects ',sc(1) % n_channels
+           exit message_loop
+        endif 
+       
+        iscn = nint(linele(2))               ! scan line
 !    Check field of view (FOVN), field-of-regard (FORN), and satellite zenith angle (SAZA)
         if( ifov < 1 .or. ifov > 9  .or. & ! FOVN not betw. 1 & 9
             ifor < 1 .or. ifor > 30 )then  ! FORN not betw. 1 & 30
@@ -377,9 +383,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(iret /= 1) cycle read_loop
 
 !       Extract satellite id.  If not the one we want, read next record
-        rsat=allspot(1) 
         ksatid=nint(allspot(1))
         if(ksatid /= kidsat) cycle read_loop
+        rsat=allspot(1) 
 
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
@@ -532,12 +538,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         if (isfcalc == 1) then
            call fov_check(ifov,instr,ichan,valid)
            if (.not. valid) cycle read_loop
-        endif
 
 !    When isfcalc is set to one, calculate surface fields using size/shape of fov.
 !    Otherwise, use bilinear interpolation.
 
-        if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,real(allspot(11),r_kind),dlat_earth_deg, &
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -566,6 +570,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         iskip = 0
         jstart=1
+!$omp parallel do schedule(dynamic,1) private(i,radiance)
         do i=1,nchanl
 !  Check that channel radiance is within reason and channel number is consistent with CRTM initialisation
 !  Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
@@ -575,14 +580,15 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !         radiance to BT calculation
               radiance = allchan(1,i) * 1000.0_r_kind    ! Conversion from W to mW
               call crtm_planck_temperature(sensorindex,i,radiance,temperature(i))
-              if(temperature(i) < tbmin .or. temperature(i) > tbmax ) then
+           else           ! error with channel number or radiance
+              temperature(i) = tbmin
+           endif
+        end do
+        do i=1,nchanl
+              if(temperature(i) <= tbmin .or. temperature(i) > tbmax ) then
                  temperature(i) = min(tbmax,max(zero,temperature(i)))
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
-           else           ! error with channel number or radiance
-              temperature(i) = min(tbmax,max(zero,temperature(i)))
-              if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
-           endif
         end do
 
         if(iskip > 0)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
@@ -627,10 +633,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(8,itx) = ifor                   ! for number
         data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
         data_all(10,itx)= allspot(13)            ! solar azimuth angle (deg)
-        data_all(11,itx) = sfcpct(0)             ! sea percentage of
-        data_all(12,itx) = sfcpct(1)             ! land percentage
-        data_all(13,itx) = sfcpct(2)             ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)             ! snow percentage
+        data_all(11,itx)= sfcpct(0)              ! sea percentage of
+        data_all(12,itx)= sfcpct(1)              ! land percentage
+        data_all(13,itx)= sfcpct(2)              ! sea ice percentage
+        data_all(14,itx)= sfcpct(3)              ! snow percentage
         data_all(15,itx)= ts(0)                  ! ocean skin temperature
         data_all(16,itx)= ts(1)                  ! land skin temperature
         data_all(17,itx)= ts(2)                  ! ice skin temperature
@@ -649,8 +655,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(30,itx)= dlon_earth*rad2deg     ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth*rad2deg     ! earth relative latitude (degrees)
 
-        data_all(32,itx)= val_cris
-        data_all(33,itx)= itt
+        if(dval_use) then
+           data_all(32,itx)= val_cris
+           data_all(33,itx)= itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
@@ -693,11 +701,16 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_cris
      end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(33,n))
+           super_val(itt)=super_val(itt)+val_cris
+        end do
+     end if
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   

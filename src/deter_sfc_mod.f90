@@ -787,7 +787,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
   real(r_kind)                 :: x, xstart, xend, y, ystart, yend
   real(r_kind)                 :: dx_fov, dx_fov_max, dy_fov, power
   real(r_kind)                 :: del, mid, rlon1, rlon2
-  real(r_kind), allocatable    :: y_off(:), x_off(:)
+  real(r_kind), allocatable    :: y_off(:), x_off(:), powerx(:,:)
 
   type surface2
      sequence
@@ -1102,12 +1102,14 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
         enddo
      enddo
   else
+     allocate(powerx(subgrid_lengths_x,subgrid_lengths_y))
      do j = jstart, jend
         jj = j
         if (j > nlat_sfc/2) jj = nlat_sfc - j + 1
         do i = min_i(j), max_i(j)
            call reduce2full(i,j,ifull)
            call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
+!$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
            do jjj = 1, subgrid_lengths_y
               if (y_off(jjj) >= zero) then
                  lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
@@ -1125,18 +1127,23 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                     call inside_fov_crosstrk(instr,ifov,sat_aziang, &
                                             dlat_earth_deg,dlon_earth_deg, &
                                             lat_mdl,    lon_mdl,  &
-                                            expansion, ichan, power )
+                                            expansion, ichan, powerx(iii,jjj) )
                  elseif (fov_flag=="conical")then
                     call inside_fov_conical(instr,ichan,sat_aziang, &
                                            dlat_earth_deg,dlon_earth_deg,&
                                            lat_mdl,    lon_mdl,  &
-                                           expansion, power )
+                                           expansion, powerx(iii,jjj) )
                  endif
-                 call accum_sfc(ifull,j,power,sfc_mdl,sfc_sum)
+              enddo
+           enddo
+           do jjj = 1, subgrid_lengths_y
+              do iii = 1, subgrid_lengths_x
+                 call accum_sfc(ifull,j,powerx(iii,jjj),sfc_mdl,sfc_sum)
               enddo
            enddo
         enddo
      enddo
+     deallocate(powerx)
   endif  ! regional or global
   deallocate (x_off, y_off)
 

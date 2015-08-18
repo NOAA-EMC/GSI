@@ -909,17 +909,17 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
         if(noskip)  call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret,err_aminv)
         noskip=.true.
         if(iret==1) then
-           write(6,*)' det=0 in iterative_improvement0, eigenvalue converged'
+           write(6,*)' det=0 in iterative_improvement0, eigenvalue converged, it = ',j
            exit
         end if
         call iterative_improvement(eigval_this,eigval_next,aminv,aminvt,szzz(:,i),szzzd(:,i),nmat,istop)
         if(eigval_this==eigval_next) then
-           write(6,*)' no change in eigenvalue, convergence to machine precision achieved'
+           write(6,*)' no change in eigenvalue, convergence to machine precision achieved, it = ',j
            exit
         end if
         eigval_this=eigval_next
         if(istop==1) then
-           write(6,*)' eigval relative change less than 10**(-24), no further iteration necessary'
+           write(6,*)' eigval relative change less than 10**(-24), no further iteration necessary, it = ',j
            exit
         end if
      end do

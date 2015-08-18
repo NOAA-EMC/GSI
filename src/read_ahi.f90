@@ -1,6 +1,6 @@
 subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_ahi                    read himawari-8 ahi data
@@ -37,6 +37,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !     nread    - number of BUFR GOES imager observations read
 !     ndata    - number of BUFR GOES imager profiles retained for further processing
 !     nodata   - number of BUFR GOES imager observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -53,12 +54,14 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use file_utility, only : get_lun     
+  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind) ,intent(inout) :: ndata,nodata
   integer(i_kind) ,intent(inout) :: nread
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -420,6 +423,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   end do
 
 ! Write final set of "best" observations to output file
+  call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
