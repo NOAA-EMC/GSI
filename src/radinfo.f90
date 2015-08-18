@@ -1454,7 +1454,7 @@ contains
       endif
 
 !     Process file
-      write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
+      if(mype == 0)write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
       satsens = header_fix%isis
       n_chan = header_fix%nchan
 
@@ -1727,7 +1727,7 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do
                read(lntemp,210,end=160) iich,(predr(k),k=1,angord+1)
@@ -1751,7 +1751,7 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do 
                read(lntemp,220,end=260) jj,tlaptmp,tsumtmp,counttmp

@@ -1,6 +1,6 @@
 subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 
 ! subprogram:    read_amsr2                  read bufr format amsr2 data
 !   prgmmr: ejones         copied from read_amsre.f90         date: 2014-03-15
@@ -39,6 +39,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 !     nread    - number of BUFR AMSR2 observations read
 !     ndata    - number of BUFR AMSR2 profiles retained for further processing
 !     nodata   - number of BUFR AMSR2 observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !     language: f90
@@ -56,6 +57,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
+  use mpimod, only: npe
 
   implicit none
 
@@ -78,6 +80,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread
   integer(i_kind)  ,intent(inout) :: ndata,nodata
+  integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Number of channels for sensors in BUFR
   integer(i_kind),parameter :: N_AMSRCH  =  14  ! only channels 1-14 processed
@@ -544,6 +547,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
      end do
 
 !    Write final set of "best" observations to output file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   endif

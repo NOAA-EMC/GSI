@@ -185,16 +185,16 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
-  integer(i_kind) mm1,nsig_up,ihob,istatus
+  integer(i_kind) mm1,nsig_up,ihob,istatus,nsigstart
   integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
   integer(i_kind),dimension(4) :: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
   real(r_kind),dimension(3,nsig+nsig_ext) :: q_w,q_w_tl
-  real(r_kind),dimension(nsig) :: hges,irefges,zges
+  real(r_kind),dimension(nsig) :: hges,irefges,zges,dhdt,dhdp
   real(r_kind),dimension(nsig+1) :: prsltmp
-  real(r_kind),dimension(nsig,nsig)::dhdp,dndp,dxidp
-  real(r_kind),dimension(nsig,nsig)::dhdt,dndt,dxidt,dndq,dxidq
+  real(r_kind),dimension(nsig,nsig)::dndp,dxidp
+  real(r_kind),dimension(nsig,nsig)::dndt,dxidt,dndq,dxidq
   real(r_kind),dimension(nsig+nsig_ext) :: n_TL
   real(r_kind),dimension(0:nsig+nsig_ext+1) :: ref_rad,xi_TL
   real(r_kind),dimension(nsig+nsig_ext+20) :: ref_rad_out
@@ -273,6 +273,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   nobs_out=0
   hob_s_top=one
   mm1=mype+1
+  nsigstart=min(23,nsig) 
 
 
 ! Allocate arrays for output to diagnostic file
@@ -318,6 +319,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   do j=0,grids_dim-1
      grid_s(j+1)=j*ds
   enddo
+  k4=n_c-n_a
 
 ! A loop over all obs.
   call dtime_setup()
@@ -377,7 +379,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      bot_layer_SR=0
 
      alt=(tpdpres(i)-rocprof)*r1em3
-     do k=nsig,1,-1 
+!$omp parallel do  schedule(dynamic,1) private(k,qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3)
+     do k=1,nsig 
         zges(k) = (termr*hges(k)) / (termrg-hges(k))  ! eq (23) at interface (topo corrected)
         gp2gm(k,i)= termr/(termrg-hges(k))+((termr*hges(k))/(termrg-hges(k))**2)
         rges(k,i) = zges(k) + zsges + unprof + rocprof   ! radius r_i
@@ -393,7 +396,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         qges_o(k)=qmean
         fact=(one+fv*qmean)
         pw=eps+qmean*(one-eps)
-        k4=n_c-n_a
         pressure=ten*exp(prsltmp(k)) ! pressure of interface level in mb
         nrefges1=n_a*(pressure/tmean)*fact
         nrefges2=n_b*qmean*pressure*fact**2/(tmean**2*pw)
@@ -418,8 +420,11 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            (pressure/(tmean**3*pw))-&
            (k4/(tmean**2*pw))*fact*qmean*pressure
 
+     end do
+     alt=(tpdpres(i)-rocprof)*r1em3
+     if (alt<= six) then 
+        do k=nsigstart,1,-1 
 !       check for model SR layer at obs location
-        if ((k<=23) .and. (alt<= six)) then 
            grad_mod=1000.0_r_kind*(nrefges(k+1,i)-nrefges(k,i))/(rges(k+1,i)-rges(k,i))
            if (abs(grad_mod)>= half*crit_grad) then  ! SR - likely, to be used in obs SR qc
               qc_layer_SR=.true.   !SR-likely layer detected
@@ -436,8 +441,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                  bot_layer_SR=top_layer_SR
               endif
            endif
-        endif 
-     end do 
+        end do 
+     endif 
 
 !    locate observation in model vertical grid
      hob=tpdpres(i)
@@ -968,12 +973,12 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
  
 !          Inizialize some variables
            dxidt=zero; dxidp=zero; dxidq=zero
-           dhdp=zero; dhdt=zero       
            dndt=zero; dndq=zero; dndp=zero
 
 !          Set (i,j) indices of guess gridpoint that bound obs location
            call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij)
  
+!$omp parallel do  schedule(dynamic,1) private(k,j,dhdt,dhdp)
            do k=1,nsig
  
               gpstail(ibin)%head%ij(1,k)=gps_ij(1)+(k-1)*latlon11
@@ -981,11 +986,12 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               gpstail(ibin)%head%ij(3,k)=gps_ij(3)+(k-1)*latlon11
               gpstail(ibin)%head%ij(4,k)=gps_ij(4)+(k-1)*latlon11
  
+              dhdp=zero; dhdt=zero       
               if(k > 1) then
                  do j=2,k
-                    dhdt(k,j-1)= rdog*(prsltmp_o(j-1,i)-prsltmp_o(j,i))
-                    dhdp(k,j)= dhdp(k,j)-rdog*(tges_o(j-1,i)/exp(prsltmp_o(j,i)))
-                    dhdp(k,j-1)=dhdp(k,j-1)+rdog*(tges_o(j-1,i)/exp(prsltmp_o(j-1,i)))
+                    dhdt(j-1)= rdog*(prsltmp_o(j-1,i)-prsltmp_o(j,i))
+                    dhdp(j)= dhdp(j)-rdog*(tges_o(j-1,i)/exp(prsltmp_o(j,i)))
+                    dhdp(j-1)=dhdp(j-1)+rdog*(tges_o(j-1,i)/exp(prsltmp_o(j-1,i)))
                  end do
               end if
               if(k == 1)then
@@ -999,15 +1005,12 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                  dndq(k,k-1)=dndq(k,k-1)+half*n_q(k,i)
                  dndp(k,k)=n_p(k,i)
               end if
-           end do
-
-           do k=1,nsig
               irefges(k)=one+r1em6*nrefges(k,i)
               ref_rad(k)=irefges(k)*rges(k,i)
               do j=1,nsig
-                 dxidt(k,j)=r1em6*rges(k,i)*dndt(k,j)+irefges(k)*gp2gm(k,i)*dhdt(k,j)
+                 dxidt(k,j)=r1em6*rges(k,i)*dndt(k,j)+irefges(k)*gp2gm(k,i)*dhdt(j)
                  dxidq(k,j)=r1em6*rges(k,i)*dndq(k,j)
-                 dxidp(k,j)=r1em6*rges(k,i)*dndp(k,j)+irefges(k)*gp2gm(k,i)*dhdp(k,j)
+                 dxidp(k,j)=r1em6*rges(k,i)*dndp(k,j)+irefges(k)*gp2gm(k,i)*dhdp(j)
               end do
            end do
            d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
@@ -1016,6 +1019,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            end do
            ref_rad(0)=ref_rad(3)
            ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
+!$omp parallel do  schedule(dynamic,1) private(kk,k,j,xi_TL,n_TL,q_w,q_w_tl,d_ref_rad_TL,ihob,dw4,dw4_TL,dbetaxi,dbetan)
            do kk=1,nsig
               xi_TL=zero
               xi_TL(kk)=one
@@ -1063,11 +1067,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                     dbenddn(kk)=dbenddn(kk)+two*dbetan
                  end if
               end do intloop2
+              dbenddxi(kk)=-dbenddxi(kk)*ds*tpdpres(i)
+              dbenddn(kk)=-dbenddn(kk)*ds*tpdpres(i)
            end do
-           do k=1,nsig
-              dbenddxi(k)=-dbenddxi(k)*ds*tpdpres(i)
-              dbenddn(k)=-dbenddn(k)*ds*tpdpres(i)
-           end do
+!$omp parallel do  schedule(dynamic,1) private(k,j)
            do k=1,nsig
               gpstail(ibin)%head%jac_t(k)=zero
               gpstail(ibin)%head%jac_q(k)=zero

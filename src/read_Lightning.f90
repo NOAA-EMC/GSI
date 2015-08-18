@@ -1,4 +1,4 @@
-subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
+subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  read_lightning          Reading in lightning data  
@@ -28,6 +28,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
 !   output argument list:
 !     nread    - number of type "obstype" observations read
 !     ndata    - number of type "obstype" observations retained for further processing
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! USAGE:
 !   INPUT FILES:  lghtInGSI
@@ -51,6 +52,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
+  use mpimod, only: npe
 
   implicit none
 !
@@ -58,6 +60,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
   character(10),     intent(in)    :: infile,obstype
   integer(i_kind),   intent(in)    :: lunout
   integer(i_kind),   intent(inout) :: nread,ndata
+  integer(i_kind),dimension(npe),intent(inout) :: nobs
   character(20),     intent(in)    :: sis
   real(r_kind),      intent(in   ) :: twind
 !
@@ -179,12 +182,14 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
       nreal=maxlvl+2
       if(numlight > 0 ) then
           if(nlon==nlon_regional .and. nlat==nlat_regional) then
+             call count_obs(numlight,maxlvl-2,ilat,ilon,lightning_in(1,:),nobs)
              write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
              write(lunout) ((lightning_in(k,i),k=1,maxlvl+2),i=1,numlight)
           else
              call wrfmass_obs_to_a8(lightning_in,nreal,numlight,ilat,ilon,numobsa)
              nread=numobsa
              ndata=numobsa
+             call count_obs(numobsa,maxlvl-2,ilat,ilon,lightning_in(1,:),nobs)
              write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
              write(lunout) ((lightning_in(k,i),k=1,maxlvl+2),i=1,numobsa)
           endif
