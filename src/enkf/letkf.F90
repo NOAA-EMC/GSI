@@ -367,6 +367,8 @@ do niter=1,numiter
         nobsl2=1
         do nob=1,nobsl
            nf = sresults(nob)%idx
+           ! skip 'screened' obs.
+           if (oberrvaruse(nf) > 1.e10_r_single) cycle
            if (vlocal) then
               vdist=(lnp_chunk(npt,nn)-oblnp(nf))/lnsigl(nf)
               if(abs(vdist) >= one) cycle
@@ -392,7 +394,7 @@ do niter=1,numiter
         allocate(dep(nobsl2))
         do nob=1,nobsl2
            nf=oindex(nob)
-           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
+           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! anal_ob is a global array
            rdiag(nob)=one/oberrvaruse(nf)
            dep(nob)=ob(nf)-ensmean_ob(nf)
         end do
@@ -440,7 +442,7 @@ do niter=1,numiter
            do n=1,numobsperpt(npt)
               nob = indxob_pt(npt,n)
               ! if not vlocal,nn=oblev==1
-              if (oblev(nob) == nn) then
+              if (oblev(nob) == nn .and. oberrvaruse(nob) <= 1.e10_r_single) then
                  work(1:nanals) = anal_ob(1:nanals,nob)
                  work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
                  if(r_kind == kind(1.d0)) then
