@@ -266,6 +266,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
+  logical :: cxterm,change_dels
 
 
 !************************************************************************************  
@@ -273,10 +274,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   call timer_ini('stpcalc')
 
 ! Initialize variable
+  cxterm=.false.
   mm1=mype+1
   stp(0)=stpinout
   outpen = zero
   nsteptot=0
+  istp_use=0
   pj=zero_quad
 
 !   Begin calculating contributions to penalty and stepsize for various terms
@@ -379,11 +382,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
+  dels = one_tenth_quad
   stepsize: do ii=1,istp_iter
 
      iis=ii
 !    Delta stepsize
-     dels=one_tenth_quad ** ii
+     change_dels=.true.
   
      sges(1)= stp(ii-1)
      sges(2)=(one_quad-dels)*stp(ii-1)
@@ -538,7 +542,36 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    estimate of stepsize
 
      stp(ii)=stp(ii-1)
-     if(cx > 1.e-20_r_kind) stp(ii)=stp(ii)+bx/cx         ! step size estimate
+     if(cx > 1.e-20_r_kind) then
+         stp(ii)=stp(ii)+bx/cx         ! step size estimate
+     else
+!    Check for cx <= 0. (probable error or large nonlinearity)
+        if(mype == 0) then
+          write(iout_iter,*) ' entering cx <=0 stepsize option',cx,stp(ii)
+          write(iout_iter,105) (bsum(i),i=1,ipen)
+          write(iout_iter,110) (csum(i),i=1,ipen)
+        end if
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
+        do i=1,nsteptot
+           if(outpen(i) < outpensave)then
+              stp(ii)=outstp(i)
+              outpensave=outpen(i)
+           end if
+        end do
+        if(outpensave < outpen(ipenloc))then
+           if(mype == 0)write(iout_iter,*) ' early termination due to cx <=0 ',cx,stp(ii)
+           cxterm=.true.
+         else
+!       Try different (better?) stepsize
+           stp(ii)=max(outstp(1),1.0e-20_r_kind)
+           do i=2,nsteptot
+              if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
+           end do
+           stp(ii)=one_tenth_quad*stp(ii)
+           change_dels=.false.
+        end if
+     end if
 
 !    estimate of change in penalty
      delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
@@ -571,22 +604,25 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
            write(iout_iter,105) (bsum(i),i=1,ipen)
            write(iout_iter,110) (csum(i),i=1,ipen)
+           write(iout_iter,201) (outstp(i),i=1,nsteptot)
+           write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
         end if
         end_iter = .true.
 !       Finalize timer
         call timer_fnl('stpcalc')
-        return
+        istp_use=ii
+        exit stepsize
      end if
 
-!    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
-     if(cx < 1.e-20_r_kind .or. stp(ii) <= zero_quad) then
+!    Check for negative stepsize (probable error or large nonlinearity)
+     if(stp(ii) <= zero_quad) then
         if(mype == 0) then
           write(iout_iter,*) ' entering negative stepsize option',stp(ii)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
-        stp(ii)=outstp(1)
-        outpensave=outpen(1)
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
@@ -600,6 +636,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
               if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
            end do
            stp(ii)=one_tenth_quad*stp(ii)
+           change_dels=.false.
         end if
      end if
 
@@ -620,11 +657,13 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Check for convergence in stepsize estimation
      istp_use=ii
+     if(cxterm) exit stepsize
      stprat(ii)=zero
      if(stp(ii) > zero)then
         stprat(ii)=abs((stp(ii)-stp(ii-1))/stp(ii))
      end if
      if(stprat(ii) < 1.e-4_r_kind) exit stepsize
+     if(change_dels)dels = one_tenth_quad*dels
 
   end do stepsize
   kprt=3
