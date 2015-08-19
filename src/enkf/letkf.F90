@@ -82,7 +82,7 @@ use loadbal, only: numptsperproc, &
                    grdloc_chunk, kdtree_obs2
 use statevec, only: ensmean_chunk, anal_chunk
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
-                  nobsgood, nobs_conv, nobs_oz, nobs_sat,&
+                  nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post,&
                   numobspersat, deltapredx, biaspreds, corrlengthsq,&
                   biasprednorm, probgrosserr, prpgerr, obtype, obpress,&
@@ -120,7 +120,7 @@ real(r_single) :: deglat, dist, corrsq
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
-real(r_kind),dimension(nobsgood):: oberrvaruse
+real(r_kind),dimension(nobstot):: oberrvaruse
 real(r_kind) oblnp_indx(1)
 real(r_kind) logp_tmp(nlevs)
 real(r_kind) vdist
@@ -171,18 +171,18 @@ else
   ! for each ob, find horiz grid point and level it is closest to
   !t1 = mpi_wtime()
   allocate(sresults(1))
-  allocate(oindex(nobsgood))
-  allocate(oblev(nobsgood))
+  allocate(oindex(nobstot))
+  allocate(oblev(nobstot))
   oindex = 0; oblev = 0
   allocate(numobsperpt(numptsperproc(nproc+1)))
   kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
-  if (nobsgood > numproc) then
-    ideln = int(real(nobsgood)/real(numproc))
+  if (nobstot > numproc) then
+    ideln = int(real(nobstot)/real(numproc))
     n1 = 1 + nproc*ideln
     n2 = (nproc+1)*ideln
-    if (nproc == numproc-1) n2 = nobsgood
+    if (nproc == numproc-1) n2 = nobstot
   else
-    if(nproc < nobsgood)then
+    if(nproc < nobstot)then
       n1 = nproc+1
       n2 = n1
     else
@@ -220,11 +220,11 @@ else
      endif
   enddo
   deallocate(sresults)
-  call mpi_allreduce(mpi_in_place,oindex,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
-  call mpi_allreduce(mpi_in_place,oblev,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(mpi_in_place,oindex,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(mpi_in_place,oblev,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
   do n=1,numptsperproc(nproc+1)
      i = 0
-     do j=1,nobsgood
+     do j=1,nobstot
         if (oindex(j) .eq. indxproc(nproc+1,n)) i=i+1
      enddo
      numobsperpt(n) = i
@@ -232,7 +232,7 @@ else
   allocate(indxob_pt(numptsperproc(nproc+1),maxval(numobsperpt)))
   do n=1,numptsperproc(nproc+1)
      i = 0
-     do j=1,nobsgood
+     do j=1,nobstot
         if (oindex(j) .eq. indxproc(nproc+1,n)) then
            i = i + 1
            indxob_pt(n,i) = j
@@ -246,8 +246,8 @@ else
 endif
 
 ! initialize obfit_post, obsprd_post
-obfit_post(1:nobsgood) = obfit_prior(1:nobsgood)
-obsprd_post(1:nobsgood) = obsprd_prior(1:nobsgood)
+obfit_post(1:nobstot) = obfit_prior(1:nobstot)
+obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
 
 do niter=1,numiter
 
@@ -262,7 +262,7 @@ do niter=1,numiter
 ! reset ob error to account for gross errors 
   if (niter > 1 .and. varqc) then
     if (huber) then ! "huber norm" QC
-      do nob=1,nobsgood
+      do nob=1,nobstot
         normdepart = obfit_post(nob)/sqrt(oberrvar(nob))
         ! depends of 2 parameters: zhuberright, zhuberleft.
         if (normdepart < -zhuberleft) then
@@ -283,7 +283,7 @@ do niter=1,numiter
         endif
       end do
     else ! "flat-tail" QC.
-      do nob=1,nobsgood
+      do nob=1,nobstot
         ! original form, gross error cutoff a multiple of ob error st dev.
         ! here gross err cutoff proportional to ensemble spread plus ob error
         ! Dharssi, Lorenc and Inglesby eqn (1) a = grosserrw*sqrt(S+R) 
@@ -303,7 +303,7 @@ do niter=1,numiter
       end do
     endif
   else
-     oberrvaruse(1:nobsgood) = oberrvar(1:nobsgood)
+     oberrvaruse(1:nobstot) = oberrvar(1:nobstot)
   end if
 
   ! initialize obfit_post (zeros except for obs closest
@@ -347,10 +347,10 @@ do niter=1,numiter
      deglat = latsgrd(ngrd1)*rad2deg
      corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
      corrsq = corrlength**2
-     allocate(sresults(nobsgood))
+     allocate(sresults(nobstot))
      ! kd-tree fixed range search
      call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
-          nfound=nobsl,nalloc=nobsgood,results=sresults)
+          nfound=nobsl,nalloc=nobstot,results=sresults)
   
      t2 = t2 + mpi_wtime() - t1
      t1 = mpi_wtime()
@@ -476,8 +476,8 @@ do niter=1,numiter
   
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
-     call mpi_allreduce(mpi_in_place,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-     call mpi_allreduce(mpi_in_place,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+     call mpi_allreduce(mpi_in_place,obfit_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+     call mpi_allreduce(mpi_in_place,obsprd_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   endif
   
   ! satellite bias correction update.

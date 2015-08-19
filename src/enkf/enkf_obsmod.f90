@@ -29,9 +29,6 @@ module enkf_obsmod
 !   nobs_oz (integer scalar): number of sbuv ozone obs.
 !   nobs_sat (integer scalar): number of satellite radiance obs.
 !   nobstot (integer scalar): total number of obs (=nobs_conv+nobs_oz+nobs_sat)
-!   nobsgood (integer scalar):  total number of obs to assimilate (excluding
-!    obs that were screened by subroutine screenobs).
-!    Defined in subroutine screenobs, called by readobs.
 !   jpch_rad: (integer scalar) total number of satellite sensors/channels
 !    (imported from module radinfo).
 !   npred: (integer scalar) total number of adaptive bias correction terms
@@ -75,9 +72,9 @@ module enkf_obsmod
 !     bias correction term in biaspreds(1,1:nobs_sat)).
 !   deltapredx(npred,jpch_rad): real array of bias coefficient increments
 !     (initialized to zero, updated by analysis).
-!   obloc(3,nobsgood): real array of spherical cartesian coordinates
+!   obloc(3,nobstot): real array of spherical cartesian coordinates
 !     (x,y,z) of screened observation locations.
-!   stattype(nobsgood):  integer array containing prepbufr report type
+!   stattype(nobstot):  integer array containing prepbufr report type
 !     (e.g. 120 for radiosonde temp) for "conventional" obs (nob <= nobs_conv)
 !     and satellite channel number for satellite radiance obs (nob >
 !     nobs_conv+nobs_oz). For ozone obs (nobs_conv<nob<nobs_sat), 
@@ -127,7 +124,7 @@ real(r_single), public, allocatable, dimension(:,:) :: obloc
 integer(i_kind), public, allocatable, dimension(:) :: stattype, indxsat
 real(r_single), public, allocatable, dimension(:) :: biasprednorm,biasprednorminv
 character(len=20), public, allocatable, dimension(:) :: obtype
-integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot, nobsgood
+integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot
 
 ! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
 ! for letkf, anal_ob used on all tasks (bcast from root in loadbal).
@@ -197,23 +194,22 @@ call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot, &
                 anal_ob,indxsat,nanals)
 tdiff = mpi_wtime()-t1
 call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
-if (nproc == 0) print *,'max time in mpireadobs  = ',tdiffmax
+if (nproc == 0) then
+ print *,'max time in mpireadobs  = ',tdiffmax
+ print *,'total number of obs ',nobstot
+endif
 allocate(obfit_prior(nobstot))
-! allocate satellite sensor/channel index array.
+! screen out some obs by setting ob error to a very large number
+! set obfit_prior
 call screenobs()
-nobsgood=nobstot
-! 'good' obs are those we have decided to assimilate (not screened out).
-! currently assumed to be all observations. Most obs screened out in read routines
-!Any additional obs screened out have their ob err set to a large number.  
-if(nproc == 0)write(6,*) 'compressed total number of obs ',nobsgood, '(',nobstot,')'
 
-allocate(probgrosserr(nobsgood),prpgerr(nobsgood))
+allocate(probgrosserr(nobstot),prpgerr(nobstot))
 ! initialize prob of gross error to 0.0 (will be reset by analysis if varqc is true)
 probgrosserr = zero
 if (varqc .and. .not. huber) then
    ! for flat-tail VarQC, read in a-prior prob of gross error.
    prpgerr = zero ! initialize to zero
-   do nob=1,nobsgood
+   do nob=1,nobstot
       if (nob <= nobs_conv) then
          ! search for matching record in convinfo file. 
          ! if match found, set prob. of gross error to nonzero value given in
@@ -249,11 +245,11 @@ if (nobs_sat > 0) then
 end if
 
 ! calculate locations of obs that passed initial screening in cartesian coords.
-allocate(obloc(3,nobsgood))
+allocate(obloc(3,nobstot))
 allocate(oblnp(nobstot)) ! log(p) at ob locations.
-allocate(corrlengthsq(nobsgood),lnsigl(nobsgood),obtimel(nobsgood))
+allocate(corrlengthsq(nobstot),lnsigl(nobstot),obtimel(nobstot))
 lnsigl=1.e10
-do nob=1,nobsgood
+do nob=1,nobstot
    oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
    if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_single
    radlon=deg2rad*obloclon(nob)
@@ -277,8 +273,8 @@ end do
 
 ! these allocated here, but not computed till after the state 
 ! update in enkf_update.
-allocate(obfit_post(nobsgood))
-allocate(obsprd_post(nobsgood))
+allocate(obfit_post(nobstot))
+allocate(obsprd_post(nobstot))
 obsprd_post = zero
 end subroutine readobs
 

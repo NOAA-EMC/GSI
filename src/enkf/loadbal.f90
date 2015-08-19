@@ -29,7 +29,7 @@ module loadbal
 !  nobs_min: (integer scalar, serial enkf only) smallest number of observation priors assigned to a task.
 !  nobs_max: (integer scalar, serial enkf only) maximum number of observation priors assigned to a task.
 !  numproc: (integer scalar) total number of MPI tasks (from module mpisetup)
-!  nobsgood: (integer scalar) total number of obs to be assimilated (from module
+!  nobstot: (integer scalar) total number of obs to be assimilated (from module
 !   enkf_obsmod).
 !  numobsperproc(numproc): (serial enkf only) integer array containing # of ob priors 
 !   assigned to each task.
@@ -38,11 +38,11 @@ module loadbal
 !  indxproc(numproc,npts_max): integer array with the indices (1,2,...npts) of 
 !   analysis grid points assigned to each task.
 !  indxproc_obs(numproc,nobs_max): (serial enkf only) integer array with the indices
-!   (1,2,...nobsgood) of observation priors assigned to that task.
-!  iprocob(nobsgood): (serial enkf only) integer array containing the task number that has been
+!   (1,2,...nobstot) of observation priors assigned to that task.
+!  iprocob(nobstot): (serial enkf only) integer array containing the task number that has been
 !   assigned to update each observation prior.
-!  indxob_chunk(nobsgood): (serial enkf only) integer array that maps the index of the ob priors
-!   being assimilated (1,2,3...nobsgood) to the index of the obs being 
+!  indxob_chunk(nobstot): (serial enkf only) integer array that maps the index of the ob priors
+!   being assimilated (1,2,3...nobstot) to the index of the obs being 
 !   updated on that task (1,2,3,...numobsperproc(nproc)) - inverse of
 !   indxproc_obs.
 !  ensmean_obchunk(nobs_max): (serial enkf only) real array of ensemble mean observation priors
@@ -85,7 +85,7 @@ module loadbal
 use mpisetup
 use params, only: ndim, datapath, nanals, simple_partition, letkf_flag,&
                   corrlengthnh, corrlengthsh, corrlengthtr
-use enkf_obsmod, only: nobsgood, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq, nobstot
+use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
@@ -179,9 +179,9 @@ if (simple_partition) then
   deallocate(rtmp)
   t1 = mpi_wtime()
   numobsperproc = 0
-  allocate(iprocob(nobsgood))
+  allocate(iprocob(nobstot))
   np=0
-  do n=1,nobsgood
+  do n=1,nobstot
      np=np+1
      if(np > numproc)np = 1
      numobsperproc(np) = numobsperproc(np)+1
@@ -189,18 +189,18 @@ if (simple_partition) then
   enddo
 else
   ! use graham's rule
-  allocate(numobs(nobsgood))
+  allocate(numobs(nobstot))
   t1 = mpi_wtime()
   call estimate_work_enkf2(numobs) ! fill numobs array with number of obs close to each ob
   ! distribute the results of estimate_work to all processors.
-  call mpi_allreduce(mpi_in_place,numobs,nobsgood,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(mpi_in_place,numobs,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
   if (nproc == 0) print *,'time in estimate_work_enkf2 = ',mpi_wtime()-t1,' secs'
   t1 = mpi_wtime()
   rtmp = 0
   numobsperproc = 0
-  allocate(iprocob(nobsgood))
+  allocate(iprocob(nobstot))
   np=0
-  do n=1,nobsgood
+  do n=1,nobstot
      np = minloc(rtmp,dim=1)
      ! np is processor with the fewest number of close obs to process
      rtmp(np) = rtmp(np)+numobs(n)
@@ -213,7 +213,7 @@ nobs_min = minval(numobsperproc)
 nobs_max = maxval(numobsperproc)
 allocate(indxproc_obs(numproc,nobs_max))
 numobsperproc = 0
-do n=1,nobsgood
+do n=1,nobstot
    np=iprocob(n)+1
    numobsperproc(np) = numobsperproc(np)+1 ! recalculate
    ! indxproc_obs(np,i) is i'th ob index for processor np.
@@ -221,7 +221,7 @@ do n=1,nobsgood
    indxproc_obs(np,numobsperproc(np)) = n
 end do
 if (nproc == 0) then
-    print *,'nobsgood = ',nobsgood
+    print *,'nobstot = ',nobstot
     print *,'min/max number of obs per proc = ',nobs_min,nobs_max
     print *,'time to do ob space decomp = ',mpi_wtime()-t1
 end if
@@ -301,12 +301,12 @@ if (letkf_flag) then
    deallocate(iprocob, indxproc_obs, numobsperproc) ! don't need for letkf
 else ! these arrays only needed for serial filter
    ! nob1 is the index of the obs to be processed on this rank
-   ! nob2 maps nob1 to 1:nobsgood array (nobx)
+   ! nob2 maps nob1 to 1:nobstot array (nobx)
    allocate(obloc_chunk(3,numobsperproc(nproc+1)))
    allocate(oblnp_chunk(numobsperproc(nproc+1)))
    allocate(obtime_chunk(numobsperproc(nproc+1)))
    allocate(ensmean_obchunk(numobsperproc(nproc+1)))
-   allocate(indxob_chunk(nobsgood))
+   allocate(indxob_chunk(nobstot))
    indxob_chunk = -1
    do nob1=1,numobsperproc(nproc+1)
       nob2 = indxproc_obs(nproc+1,nob1)
@@ -336,7 +336,7 @@ ideln = int(real(npts)/real(numproc))
 n1 = 1 + nproc*ideln
 n2 = (nproc+1)*ideln
 if (nproc == numproc-1) n2 = npts
-if (letkf_flag) allocate(sresults(nobsgood))
+if (letkf_flag) allocate(sresults(nobstot))
 
 ! loop over 'good' obs.
 numobs = 1 ! set min # of obs to 1, not 0 (so single ob test behaves)
@@ -347,9 +347,9 @@ obsloop: do i=n1,n2
        corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
        corrsq = corrlength**2
        call kdtree2_r_nearest(tp=kdtree_obs2,qv=gridloc(:,i),r2=corrsq,&
-                              nfound=numobs(i),nalloc=nobsgood,results=sresults)
+                              nfound=numobs(i),nalloc=nobstot,results=sresults)
     else
-       do nob=1,nobsgood
+       do nob=1,nobstot
           if (sum((obloc(1:3,nob)-gridloc(1:3,i))**2,1) < corrlengthsq(nob)) &
           numobs(i) = numobs(i) + 1
        end do 
@@ -369,13 +369,13 @@ integer(i_kind), dimension(:), intent(inout) :: numobs
 
 integer(i_kind)  nob,nob2,n1,n2,ideln
 
-if (nobsgood > numproc) then
-   ideln = int(real(nobsgood)/real(numproc))
+if (nobstot > numproc) then
+   ideln = int(real(nobstot)/real(numproc))
    n1 = 1 + nproc*ideln
    n2 = (nproc+1)*ideln
-   if (nproc == numproc-1) n2 = nobsgood
+   if (nproc == numproc-1) n2 = nobstot
 else
-   if(nproc < nobsgood)then
+   if(nproc < nobstot)then
      n1 = nproc+1
      n2 = n1
    else
@@ -388,7 +388,7 @@ end if
 numobs = 0
 !$omp parallel do  schedule(dynamic,1) private(nob,nob2)
 obsloop: do nob2=n1,n2
-    do nob=1,nobsgood
+    do nob=1,nobstot
     ! find number of obs close to this ob.
        if (sum((obloc(1:3,nob)-obloc(1:3,nob2))**2,1) < corrlengthsq(nob))&
        numobs(nob2) = numobs(nob2) + 1
