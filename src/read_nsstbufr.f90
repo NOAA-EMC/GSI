@@ -525,8 +525,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(8,ndata)  = ts(0)                   ! open water temperature
            data_all(9,ndata)  = zob                     ! depth of measurement
            data_all(10,ndata) = kx                      ! measurement type
-           data_all(11,ndata) = sstq                    ! quality mark
-           data_all(12,ndata) = sfcpct(0)               ! open water percentage 
+           data_all(11,ndata) = sfcpct(0)               ! open water percentage
+           data_all(12,ndata) = sstoe                   ! original sst error
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
            data_all(15,ndata) = tz                      ! Tz: Background temperature at depth of zob
