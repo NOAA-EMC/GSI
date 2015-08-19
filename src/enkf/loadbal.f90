@@ -238,15 +238,16 @@ if(nproc == 0) then
    print *,'npts*ndim',totsize
    t1 = mpi_wtime()
 end if
-if(letkf_flag) then
-   ! broadcast entire obs prior ensemble to every task
-   !call mpi_bcast(anal_ob,nobstot*nanals,mpi_real4,0,mpi_comm_world,ierr)
-   ! broadcast one ensemble member at a time.
+if (letkf_flag) then
+   ! broadcast observation prior ensemble from root one ensemble member at a time.
    allocate(buffer(nobstot))
+   ! allocate anal_ob on non-root tasks
+   if (nproc .ne. 0) allocate(anal_ob(nanals,nobstot))
+   ! bcast anal_ob from root one member at a time.
    do nanal=1,nanals
       buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
       call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
-      anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
+      if (nproc .ne. 0) anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
    end do
    deallocate(buffer)
 else

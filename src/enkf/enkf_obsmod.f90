@@ -129,9 +129,9 @@ real(r_single), public, allocatable, dimension(:) :: biasprednorm,biasprednormin
 character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot, nobsgood
 
-! anal_ob is only used here and in loadbal. It is deallocated in loadbal.
+! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
+! for letkf, anal_ob used on all tasks (bcast from root in loadbal).
 real(r_single), public, allocatable, dimension(:,:) :: anal_ob
-
 
 contains
 
