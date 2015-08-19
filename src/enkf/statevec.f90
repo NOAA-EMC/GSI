@@ -53,7 +53,7 @@ use kinds, only: r_kind, i_kind, r_double, r_single
 use loadbal, only: npts_max,indxproc,numptsperproc
 use gridio, only: readgriddata, writegriddata
 use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
-use enkf_obsmod, only: nobsgood
+use enkf_obsmod, only: nobstot
 implicit none
 private
 public :: read_ensemble, write_ensemble, statevec_cleanup

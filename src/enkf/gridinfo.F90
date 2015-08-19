@@ -356,7 +356,7 @@ module gridinfo
   use constants, only: rearth_equator, omega, pi, deg2rad, zero, rad2deg,    &
                        rearth
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
-  use enkf_obsmod,    only: obloc, obloclat, obloclon, nobsgood
+  use enkf_obsmod,    only: obloc, obloclat, obloclon, nobstot
   use params,    only: datapath, nlevs, nvars, ndim, nlons, nlats,           &
                        arw, nmm
   use mpisetup
