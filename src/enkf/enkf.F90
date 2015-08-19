@@ -145,7 +145,7 @@ real(r_single),dimension(nobstot):: oberrvaruse
 real(r_single) r,paoverpb
 real(r_single) taper1,taper3
 real(r_single),allocatable, dimension(:) :: rannum,corrlengthsq_orig,lnsigl_orig
-integer(i_kind), allocatable, dimension(:) :: indxassim,iassim,iskip,indxassim2,indxassim3
+integer(i_kind), allocatable, dimension(:) :: indxassim,iskip,indxassim2,indxassim3
 real(r_single), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd
 real(r_single), allocatable, dimension(:) :: paoverpb_save
 real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1, paoverpb_chunk
@@ -224,8 +224,6 @@ kdgrid=associated(kdtree_grid)
 kdobs=associated(kdtree_obs)
 
 do niter=1,numiter
-
-  iassim = 0
 
   lastiter = niter == numiter
   ! apply bias correction with latest estimate of bias coeffs.
@@ -465,7 +463,7 @@ do niter=1,numiter
        nobm=nob
        ! determine localization length scales based on latitude of ob.
        nf2=0
-       if (lastiter .and. obt < obtimel(nob)) then
+       if (lastiter) then
         ! search analysis grid points for those within corrlength of 
         ! ob being assimilated (using a kd-tree for speed).
         if (kdgrid) then
@@ -600,6 +598,7 @@ do niter=1,numiter
              end if
            end if
         end do
+!$omp end parallel do
 
       end if ! no close obs.
 
