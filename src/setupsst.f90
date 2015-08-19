@@ -157,8 +157,8 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   itemp=8     ! index of open water temperature (background)
   izob=9      ! index of flag indicating depth of observation
   iotype=10   ! index of measurement type
-  iqc=11      ! index of qulaity mark
-  ipct=12     ! index of open water percentage
+  ipct=11     ! index of open water percentage
+  ier2=12     ! index of original obs error
   iuse=13     ! index of use parameter
   idomsfc=14  ! index of dominant surface type
   itz=15      ! index of temperature at depth z (Tz)
