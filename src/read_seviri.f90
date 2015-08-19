@@ -450,13 +450,17 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   if (mype_sub==mype_root.and.ndata>0) then
 
     do n=1,ndata
-     do k=1,nchanl
-        if(data_all(k+nreal,n) > tbmin .and. &
-           data_all(k+nreal,n) < tbmax)nodata=nodata+1
-     end do
-     itt=nint(data_all(33,n))
-     super_val(itt)=super_val(itt)+val_sev
+       do k=1,nchanl
+          if(data_all(k+nreal,n) > tbmin .and. &
+             data_all(k+nreal,n) < tbmax)nodata=nodata+1
+       end do
     end do
+    if(dval_use .and. assim)then
+       do n=1,ndata
+          itt=nint(data_all(33,n))
+          super_val(itt)=super_val(itt)+val_sev
+       end do
+    end if
 
 !   Write retained data to local file
     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
