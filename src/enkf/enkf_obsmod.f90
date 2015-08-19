@@ -127,7 +127,8 @@ character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot
 
 ! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
-! for letkf, anal_ob used on all tasks (bcast from root in loadbal).
+! for letkf, anal_ob used on all tasks in letkf_update (bcast from root in loadbal), deallocated
+! in letkf_update.
 real(r_single), public, allocatable, dimension(:,:) :: anal_ob
 
 contains

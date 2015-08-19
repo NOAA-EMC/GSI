@@ -486,6 +486,7 @@ do niter=1,numiter
 end do ! niter loop
 
 if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
+deallocate(anal_ob)
 
 return
 
