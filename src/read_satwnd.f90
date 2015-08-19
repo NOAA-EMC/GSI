@@ -251,8 +251,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   disterrmax=zero
   vdisterrmax=zero
-! allocate(etabl(300,33,6))
-  allocate(etabl(302,33,6)) ! add 2 ObsErr profiles for GOES-R IR(itype=301) and WV(itype=300) (not used yet, 2015-07-08, Genkova) 
+  allocate(etabl(300,33,6))
+! allocate(etabl(302,33,6)) ! add 2 ObsErr profiles for GOES-R IR(itype=301) and WV(itype=300) (not used yet, 2015-07-08, Genkova) 
   
   etabl=1.e9_r_kind
   ietabl=19
