@@ -287,15 +287,6 @@ do i=1,numptsperproc(nproc+1)
    end do
 end do
 
-! set up kd-trees for serial filter to search only the subset
-! of gridpoints, obs to be updated on this processor..
-if (.not. letkf_flag .and. numptsperproc(nproc+1) >= 3) then
-   kdtree_grid => kdtree2_create(grdloc_chunk,sort=.false.,rearrange=.true.)
-endif
-if (.not. letkf_flag .and. numobsperproc(nproc+1) >= 3) then
-   kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
-endif
-
 ! for letkf, search all obs.
 if (letkf_flag) then
    deallocate(iprocob, indxproc_obs, numobsperproc) ! don't need for letkf
@@ -316,7 +307,15 @@ else ! these arrays only needed for serial filter
       ensmean_obchunk(nob1) = ensmean_ob(nob2)
       obloc_chunk(:,nob1) = obloc(:,nob2)
    enddo
-endif
+! set up kd-trees for serial filter to search only the subset
+! of gridpoints, obs to be updated on this processor..
+   if (numptsperproc(nproc+1) >= 3) then
+      kdtree_grid => kdtree2_create(grdloc_chunk,sort=.false.,rearrange=.true.)
+   endif
+   if (numobsperproc(nproc+1) >= 3) then
+      kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
+   end if
+end if
 
 end subroutine load_balance
 
