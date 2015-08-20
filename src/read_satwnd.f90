@@ -941,20 +941,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  qify=pccf_dat(1)
                  ee=wspd_dat(2) ! NOTE: GOES-R's ee is in [m/s]
 ! Additional QC introduced by Sharon Nebuda (for GOES-R winds from MSG proxy images)
-                 if (qifn < 80)   qm=15 !reject data with low QI
-                 if (ppb < 12500) qm=15 !reject data above 125hPa: Trop check in setup.f90
-                 experr_norm = 10. - 0.1*ee   ! introduced by Santek/Nebuda 
-                 if (wspd_dat(1) > 0.1) then  ! wspd_dat(1) is the AMV speed
+                 if (qifn < 80_r_kind)   qm=15 !reject data with low QI
+                 if (ppb < 12500_r_kind) qm=15 !reject data above 125hPa: Trop check in setup.f90
+                 experr_norm = 10.0_r_double - 0.1_r_double*ee   ! introduced by Santek/Nebuda 
+                 if (wspd_dat(1) > 0.1_r_double) then  ! wspd_dat(1) is the AMV speed
                     experr_norm = experr_norm/wspd_dat(1)
                  else
-                    experr_norm = 100.
+                    experr_norm = 100.0_r_double
                  end if
-                 if (experr_norm > 0.9) qm=15 ! reject data with EE/SPD>0.9
+                 if (experr_norm > 0.9_r_double) qm=15 ! reject data with EE/SPD>0.9
                  pct1=cvwd_dat(1)             ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
                  if(itype==240 .or. itype==245 .or. itype==246 .or. itype==247 .or. itype==251) then 
                 ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
-           	    if (pct1 < 0.04) qm=15  
-		    if (pct1 > 0.50) qm=15
+           	    if (pct1 < 0.04_r_double) qm=15  
+		    if (pct1 > 0.50_r_double) qm=15
 		 endif
                 ! winds rejected by qc dont get used
                 if (qm == 15) usage=r100
