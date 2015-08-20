@@ -46,16 +46,16 @@
 +     useprocs(nuse) = np
 +   end if
 +enddo
-+if (nproc .eq. 0) then
-+   print *,'nshmemroot',nshmemroot,nuse
-+   print *,useprocs
-+endif
++!if (nproc .eq. 0) then
++!   print *,'nshmemroot',nshmemroot,nuse
++!   print *,useprocs
++!endif
 +deallocate(itasks)
 +call MPI_COMM_GROUP(MPI_COMM_WORLD,old_group,ierr)
 +call MPI_GROUP_INCL(old_group,nuse,useprocs,new_group,ierr)
 +deallocate(useprocs)
 +call MPI_COMM_CREATE(MPI_COMM_WORLD,new_group,mpi_comm_shmemroot,ierr)
-+print *,'ierr from mpi_comm_create',ierr,mpi_comm_shmemroot
++!print *,'ierr from mpi_comm_create',ierr,mpi_comm_shmemroot
 +
 +
  end subroutine mpi_initialize
