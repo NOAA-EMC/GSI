@@ -313,7 +313,7 @@ if (nproc == 0) then
       call stop2(19)
    endif
    if (letkf_flag .and. univaroz) then
-     print *,'univaroz is not supported yet in LETKF!'
+     print *,'univaroz is not supported in LETKF!'
      call stop2(19)
    end if
    if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
