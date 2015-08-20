@@ -307,8 +307,8 @@ else ! these arrays only needed for serial filter
       ensmean_obchunk(nob1) = ensmean_ob(nob2)
       obloc_chunk(:,nob1) = obloc(:,nob2)
    enddo
-! set up kd-trees for serial filter to search only the subset
-! of gridpoints, obs to be updated on this processor..
+   ! set up kd-trees for serial filter to search only the subset
+   ! of gridpoints, obs to be updated on this processor..
    if (numptsperproc(nproc+1) >= 3) then
       kdtree_grid => kdtree2_create(grdloc_chunk,sort=.false.,rearrange=.true.)
    endif
