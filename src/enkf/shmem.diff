@@ -107,7 +107,7 @@
  ! kdtree stuff
  type(kdtree2_result),dimension(:),allocatable :: sresults
  type(kdtree2), pointer :: kdtree_grid
-+! pointers used for MPI-3 shared memory manipulations.
++! pointers and variables used for MPI-3 shared memory manipulations.
 +real(r_single), pointer, dimension(:,:) :: anal_ob_fp ! Fortran pointer
 +type(c_ptr)                             :: anal_ob_cp ! C pointer
 +integer disp_unit, shm_win
