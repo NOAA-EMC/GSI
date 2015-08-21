@@ -103,10 +103,11 @@ contains
      etabl_q=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl_q,100,IOSTAT=iflag,end=120) itypex
+        read(ietabl_q,100,IOSTAT=iflag,end=120) itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3,2x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ietabl_q,105,IOSTAT=iflag,end=120) (isuble_q(itypex,n),n=1,5)
 105     format(8x,5i12)
         do k=1,33
@@ -124,6 +125,7 @@ contains
            write(6,*)'CONVERR_Q:  using observation errors from user provided table'
         endif
         allocate(ptabl_q(34))
+! use the pressure values of itypex, which is the last valid obs. type
         if (itypex .gt. 0 ) then
            ptabl_q=zero
            ptabl_q(1)=etabl_q(itypex,1,1)

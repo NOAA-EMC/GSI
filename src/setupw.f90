@@ -20,7 +20,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: w_ob_type
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds
+  use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds,njqc,vqc
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
@@ -34,6 +34,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use converr_uv, only: ptabl_uv
+  use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsUV, pblH_ration,pps_press_incr
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
@@ -195,6 +196,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
+  real(r_kind),dimension(34)::ptabluv
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype,ijb
@@ -310,8 +312,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
-  var_jb=zero
-
 !  handle multiple-report observations at a station
   dup=one
   do k=1,nobs
@@ -329,8 +329,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end do
   end do
 
-  num_bad_ikx=0
   call dtime_setup()
+  num_bad_ikx=0
   do i=1,nobs
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
@@ -887,11 +887,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         error = zero
         ratio_errors = zero
      else
-        if (dup(i) .lt. r1000) then
-           ratio_errors = ratio_errors/sqrt(dup(i))
-        else
-           ratio_errors=zero
-        endif
+        ratio_errors = ratio_errors/sqrt(dup(i))
      end if
 
      if (lowlevelsat .and. twodvar_regional) then
@@ -944,7 +940,17 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val      = valu*valu+valv*valv
         exp_arg  = -half*val
         rat_err2 = ratio_errors**2
-        if (cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
+        if(njqc==.true. .and. var_jb>tiny_r_kind .and. var_jb<10.0_r_kind .and. error >tiny_r_kind) then
+           if(exp_arg  == zero) then
+              wgt=one
+           else
+              wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error/sqrt(two*var_jb)
+              wgt=tanh(wgt)/wgt
+           endif
+           term=-two*var_jb*ratio_errors*log(cosh((sqrt(val))/sqrt(two*var_jb)))
+           rwgt = wgt/wgtlim
+           valqc = -two*term
+        else if (vqc==.true. .and. cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_w=cvar_b(ikx)
@@ -953,16 +959,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
-        else if(var_jb >tiny_r_kind .and.  var_jb <10.0_r_kind .and. error >tiny_r_kind) then
-           if(exp_arg  == zero) then
-              wgt=one
-           else
-              wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error/sqrt(two*var_jb)
-              wgt=tanh(wgt)/wgt
-           endif
-           term=-two*var_jb*log(cosh(sqrt(val)/sqrt(two*var_jb)))
-           valqc = -two*ratio_errors*term
-           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim
@@ -1056,7 +1052,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         wtail(ibin)%head%luse=luse(i)
         if(luse_obsdiag)then
            wtail(ibin)%head%diagu => obsptr
-
            my_head => wtail(ibin)%head
            my_diag => wtail(ibin)%head%diagu
            if(my_head%idv/=my_diag%idv .or. &
@@ -1087,21 +1082,25 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wtail(ibin)%head%upertb=data(iptrbu,i)/error/ratio_errors
            wtail(ibin)%head%vpertb=data(iptrbv,i)/error/ratio_errors
            wtail(ibin)%head%kx=ikx
-           if(presw > ptabl_uv(2))then
+           if (njqc == .true.) then
+              ptabluv=ptabl_uv
+           else
+             ptabluv=ptabl
+           endif
+           if(presw > ptabluv(2))then
               wtail(ibin)%head%k1=1
-           else if( presw <= ptabl_uv(33)) then
+           else if( presw <= ptabluv(33)) then
               wtail(ibin)%head%k1=33
            else
               k_loop: do k=2,32
-                 if(presw > ptabl_uv(k+1) .and. presw <= ptabl_uv(k)) then
+                 if(presw > ptabluv(k+1) .and. presw <= ptabluv(k)) then
                     wtail(ibin)%head%k1=k
                     exit k_loop
                  endif
               enddo k_loop
            endif
         endif
- 
-     end if
+     endif
 
 !    Save select output for diagnostic file
      if (conv_diagsave .and. luse(i)) then

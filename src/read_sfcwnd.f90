@@ -43,12 +43,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc
+  use qcmod, only: errormod,noiqc,njqc
+
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
-! use converr,only: etabl
+  use converr,only: etabl
   use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
   use convb_uv,only: btabl_uv,bptabl_uv
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
@@ -111,7 +112,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   integer(i_kind),dimension(5):: idate5 
   integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
-  integer(i_kind),allocatable,dimension(:,:)::tab 
+  integer(i_kind),allocatable,dimension(:,:)::tab
 
   integer(i_kind) itypex,lcount,iflag,m,itypey
   real(r_kind) toff,t4dv
@@ -233,7 +234,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
 
-!  allocate(lmsg(nmsgmax,ntread))
   lmsg = .false.
   maxobs=0
   tab=0
@@ -535,7 +535,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   only need read the 4th column for type 291 from the right
  
            ppb=max(zero,min(ppb,r2000))
-           itypey=itype-199
+           itypey=itype
            ierr=index_sub(nc)
            if (ierr >maxsub_uv) ierr=2
            ierr2=ierr-1
@@ -546,25 +546,43 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            endif
 
            ppb=max(zero,min(ppb,r2000))
-           if(ppb>=etabl_uv(itypey,1,1)) k1=1
-           do kl=1,32
-              if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) k1=kl
-           end do
-           if(ppb<=etabl_uv(itypey,33,1)) k1=5
-           k2=k1+1
-           ediff = etabl_uv(itypey,k2,1)-etabl_uv(itypey,k1,1)
-           if (abs(ediff) > tiny_r_kind) then
-              del = (ppb-etabl_uv(itypey,k1,1))/ediff
-           else
-              del = huge_r_kind
-           endif
-           del=max(zero,min(del,one))
-           obserr=(one-del)*etabl_uv(itypey,k1,ierr)+del*etabl_uv(itypey,k2,ierr)
-           obserr=max(obserr,werrmin)
+           if(njqc==.true.) then
+              if(ppb>=etabl_uv(itypey,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) k1=kl
+              end do
+              if(ppb<=etabl_uv(itypey,33,1)) k1=5
+              k2=k1+1
+              ediff = etabl_uv(itypey,k2,1)-etabl_uv(itypey,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl_uv(itypey,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl_uv(itypey,k1,ierr)+del*etabl_uv(itypey,k2,ierr)
+              obserr=max(obserr,werrmin)
 ! get non linear qc parameter from b table
-           var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
-           var_jb=max(var_jb,wjbmin)
-           if (var_jb >10.0_r_kind) var_jb=zero
+              var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
+              var_jb=max(var_jb,wjbmin)
+              if (var_jb >10.0_r_kind) var_jb=zero
+          else
+             if(ppb>=etabl(itype,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
+              end do
+              if(ppb<=etabl(itype,33,1)) k1=5
+              k2=k1+1
+              ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl(itype,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
+              obserr=max(obserr,werrmin)
+           endif
 
 !         Set usage variable
            usage = 0 
@@ -695,7 +713,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg)
  
 
   ! Write header record and data to output file for further processing

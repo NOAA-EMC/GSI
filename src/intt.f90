@@ -14,6 +14,7 @@ module inttmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-09      Su  - add non linear qc from Purser's scheme
+!   2015-02-26      Su   -  add njqc as an option to choose Purse varqc
 !
 ! subroutines included:
 !   sub intt_
@@ -111,7 +112,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -311,18 +312,15 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               p0=wgross/(wgross+exp(-half*tptr%err2*val**2))
               val=val*(one-p0)                  
            endif
-           if ( tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
-!              val=sqrt(two*tptr%jb)*tanh(sqrt(tptr%err2*tptr%raterr2)*val/sqrt(two*tptr%jb))
+           if (njqc ==.true. .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               val=sqrt(two*tptr%jb)*tanh(sqrt(tptr%err2)*val/sqrt(two*tptr%jb))
-           endif
-           if ( tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               grad = val*sqrt(tptr%raterr2*tptr%err2)
            else
               grad = val*tptr%raterr2*tptr%err2
            endif
-           if( ladtest_obs) then
+           if(ladtest_obs) then
               grad = val
-           end if
+           endif
         endif
 !       Adjoint of interpolation
 !       Extract contributions from bias correction terms

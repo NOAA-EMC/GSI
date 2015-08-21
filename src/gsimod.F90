@@ -54,7 +54,7 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save
+      buddycheck_t,buddydiag_save,njqc,vqc
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
@@ -689,10 +689,11 @@
 !     buddycheck_t - When true, run buddy check algorithm on temperature observations
 !     buddydiag_save - When true, output files containing buddy check QC info for all
 !                      obs run through the buddy check
+!     njqc  -  When true, use Purser's non linear QC
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
-       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
        buddycheck_t,buddydiag_save
 
@@ -1265,6 +1266,11 @@
           ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
      call stop2(329)
   endif
+
+! Only allow 4d-ensemble-var in global mode, for now
+  if (l4densvar .and. regional) then
+     call die(myname_,'4d-ensemble-var not yet available for regional applications',99)
+  end if
 
 
   if (l4densvar .and. (.not.ljc4tlevs) ) then

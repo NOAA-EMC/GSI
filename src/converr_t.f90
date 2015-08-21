@@ -102,11 +102,12 @@ contains
      etabl_t=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl_t,100,IOSTAT=iflag,end=120) itypex
-!        print *, 'READ_T_TABLE iflag=, itypex=', iflag,itypex
+        read(ietabl_t,100,IOSTAT=iflag,end=120) itypey
+!        print *, 'READ_T_TABLE iflag=, itypey=', iflag,itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ietabl_t,105,IOSTAT=iflag,end=120) (isuble_t(itypex,n),n=1,5)
 105     format(8x,5i12)
         do k=1,33
@@ -124,6 +125,7 @@ contains
            write(6,*)'CONVERR_T:  using observation errors from user provided table'
         endif
         allocate(ptabl_t(34))
+! use itypex pressure values.  itypex is the last valid observation type
         if (itypex .gt. 0 ) then
            ptabl_t=zero
            ptabl_t(1)=etabl_t(itypex,1,1)

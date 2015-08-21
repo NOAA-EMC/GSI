@@ -92,7 +92,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              huge_r_kind,tiny_r_kind,two,cg_term,huge_single, &
              r1000,wgtlim,tiny_single,r10,three
   use jfunc, only: jiter,last,jiterstart,miter
-  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: dfact,dfact1,npres_print,njqc,vqc
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
 
@@ -470,7 +470,17 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val2     = val*val
         exp_arg  = -half*val2
         rat_err2 = ratio_errors**2
-        if (cvar_pg(ikx) > tiny_r_kind .and. error >tiny_r_kind) then
+        if(njqc==.true. .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
+           if(exp_arg  == zero) then
+              wgt=one
+           else
+              wgt=ddiff*error/sqrt(two*var_jb)
+              wgt=tanh(wgt)/wgt
+           endif
+           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           rwgt = wgt/wgtlim
+           valqc = -two*term
+        else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_ps=cvar_b(ikx)
@@ -479,16 +489,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
-        else if(var_jb >tiny_r_kind .and.  error >tiny_r_kind .and. var_jb < 10.0_r_kind)  then
-           if(exp_arg  == zero) then
-              wgt=one
-           else
-              wgt=ddiff*error/sqrt(two*var_jb)
-              wgt=tanh(wgt)/wgt
-           endif
-           term=-two*var_jb*log(cosh(val/sqrt(two*var_jb)))
-           valqc = -two*ratio_errors*term
-           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim

@@ -96,10 +96,11 @@ contains
      btabl_ps=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ibtabl,100,IOSTAT=iflag,end=120) itypex
+        read(ibtabl,100,IOSTAT=iflag,end=120) itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ibtabl,105,IOSTAT=iflag,end=120) (isuble_bps(itypex,n),n=1,5)
 105     format(8x,5i12)
 !        write(6,*)'CONVB_PS:  read in nlqc b table', itypex, (isuble_bps(itypex,n),n=1,5) 
@@ -117,6 +118,7 @@ contains
         if(mype == 0) then
            write(6,*)'CONVB_PS:  using nlqc b from user provided table'
         endif
+! use the pressure of last obs. type, itypex
         if (itypex .gt. 0 ) then
            bptabl_ps=zero
            bptabl_ps(1)=btabl_ps(itypex,1,1)

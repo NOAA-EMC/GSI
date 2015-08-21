@@ -14,6 +14,7 @@ module stpqmod
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
 !   2014-04-12       su - add non linear qc from Purser's scheme
+!   2015-02-26       su - add njqc as an option to choose Purser's non-linear qc 
 !
 ! subroutines included:
 !   sub stpq
@@ -76,7 +77,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: q_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc
   use gridmod, only: latlon1n
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use jfunc, only: l_foto,dhat_dt,xhat_dt
@@ -174,13 +175,10 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            end do
         endif
      
-        if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+        if(njqc==.true. .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo
-        endif
-
-        if( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
            do kk=2,nstep
               out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)

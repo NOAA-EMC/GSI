@@ -38,6 +38,7 @@ implicit none
 ! set passed variables as public
   public :: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
 
+!RY: itypex and itypey should not be save variable
   integer(i_kind),save:: ietabl_uv,itypex,itypey,lcount,iflag,k,m,n,maxsub_uv
   real(r_single),save,allocatable,dimension(:,:,:) :: etabl_uv
   real(r_kind),save,allocatable,dimension(:)  :: ptabl_uv
@@ -98,11 +99,12 @@ contains
      etabl_uv=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl_uv,100,IOSTAT=iflag,end=120) itypex
+        read(ietabl_uv,100,IOSTAT=iflag,end=120) itypey
         if( iflag /= 0 ) exit loopd
-!        if (mype == 0) write(6,*)'CONVERR_UV:itypex=',itypex
+!        if (mype == 0) write(6,*)'CONVERR_UV:itypey=',itypey
 100     format(1x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ietabl_uv,105,IOSTAT=iflag,end=120) (isuble_uv(itypex,n),n=1,7)
          if (mype == 0) write(6,*)'CONVERR_UV:itypex,itypex=',itypex,itypex
 105     format(8x,7i12)
@@ -123,6 +125,7 @@ contains
         endif
         allocate(ptabl_uv(34))
 
+! use the pressure values of itypex, which is the last valid observation type.
         if (itypex .gt. 0 ) then
            ptabl_uv=zero
            ptabl_uv(1)=etabl_uv(itypex,1,1)

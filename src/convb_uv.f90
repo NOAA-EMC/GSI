@@ -102,10 +102,11 @@ contains
      btabl_uv=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ibtabl_uv,100,IOSTAT=iflag,end=120) itypex
+        read(ibtabl_uv,100,IOSTAT=iflag,end=120) itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ibtabl_uv,105,IOSTAT=iflag,end=120) (isuble_buv(itypex,n),n=1,7)
 105     format(8x,7i12)
         do k=1,33
@@ -115,6 +116,7 @@ contains
      end do   loopd
 120  continue
 
+! use the pressure of last obs. type, itypex
      if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVB_UV:  ***WARNING*** obs b table not available to 3dvar.'
         bflag=.false.
