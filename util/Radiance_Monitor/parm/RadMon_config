@@ -135,7 +135,7 @@ else    # zeus
    /usr/bin/modulecmd $shell load ncep
  
    export SUB=/apps/torque/default/bin/qsub
-   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
 fi

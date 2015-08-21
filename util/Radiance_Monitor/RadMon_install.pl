@@ -5,7 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for zeus and wcoss machines.
+#  executables.  This script works for zeus, theia, and wcoss 
+#  machines.
 #
 #-------------------------------------------------------------------
 
@@ -15,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "zeus" && $machine ne "wcoss" ) {
+   if( $machine ne "zeus" && $machine ne "theia" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -23,14 +24,11 @@
    }
 
    #
-   #  zeus is the only little endian machine
+   #  zeus, theia, and wcoss are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
-   if( $machine eq "zeus" ) {
-      $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";   
-   }
-
    my $my_os = "linux";
+
 
    #
    #  Idenfity basedir location of package
@@ -55,9 +53,12 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $mahine eq "zeus" ) {
+   if( $machine eq "zeus" ) {
       $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
    } 
+   elsif( $machine eq "theia" ){
+      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   }
    else {
       $tankdir = "/global/save/$user_name/nbns";
    }
@@ -146,6 +147,10 @@
    if( $machine eq "zeus" ) {
       $my_ptmp="export PTMP=\${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
       $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
+   }
+   elsif( $machine eq "theia" ){
+      $my_ptmp="export PTMP=\${PTMP:-/scratch4/NCEPDEV/stmp4/$user_name}";
+      $my_stmp="export STMP=\${STMP:-/scratch4/NCEPDEV/stmp3/$user_name}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -199,7 +204,7 @@
    print "Updating parm/RadMon_user_settings\n";
 
    my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
-   if( $machine ne "zeus" ) {
+   if( $machine ne "zeus" && $machine ne "theia" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
