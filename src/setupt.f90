@@ -21,6 +21,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
+  use qcmod, only: njqc,vqc
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -39,6 +40,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr_t, only: ptabl_t 
+  use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
   use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross
@@ -199,10 +201,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(npredt):: predbias
   real(r_kind),dimension(npredt):: pred
   real(r_kind),dimension(npredt):: predcoef
-  real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_kind) tgges,roges
   real(r_kind),dimension(nsig):: tvtmp,qtmp,utmp,vtmp,hsges
   real(r_kind) u10ges,v10ges,t2ges,q2ges,psges2,f10ges
+  real(r_kind),dimension(34) :: ptablt
+  real(r_single),allocatable,dimension(:,:)::rdiagbuf
+
 
   real(r_kind),dimension(nsig):: prsltmp2
 
@@ -336,7 +340,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+! RY: add 3, include one for var_qc
+     if (twodvar_regional) then; nreal=nreal+3; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      rdiagbuf=zero
   end if
@@ -735,7 +740,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val2     = val*val
         exp_arg  = -half*val2
         rat_err2 = ratio_errors**2
-        if (cvar_pg(ikx) > tiny_r_kind .and. error >tiny_r_kind) then
+        if(njqc==.true. .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
+           if(exp_arg  == zero) then
+              wgt=one
+           else
+              wgt=ddiff*error/sqrt(two*var_jb)
+              wgt=tanh(wgt)/wgt
+           endif
+           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           rwgt = wgt/wgtlim
+           valqc = -two*term
+        else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_t=cvar_b(ikx)
@@ -744,16 +759,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
-        else if(var_jb >tiny_r_kind .and.  error >tiny_r_kind .and. var_jb <10.0_r_kind) then
-           if(exp_arg  == zero) then
-              wgt=one
-           else
-              wgt=ddiff*error/sqrt(two*var_jb)
-              wgt=tanh(wgt)/wgt
-           endif
-           term= -two*var_jb*log(cosh(val/sqrt(two*var_jb)))
-           valqc = -two*ratio_errors*term
-           rwgt=wgt
         else
            term = exp_arg
            wgt  = wgtlim
@@ -879,13 +884,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(oberror_tune) then
            ttail(ibin)%head%kx=ikx
            ttail(ibin)%head%tpertb=data(iptrb,i)/error/ratio_errors
-           if(prest > ptabl_t(2))then
+           if (njqc==.true.) then
+              ptablt=ptabl_t
+           else
+              ptablt=ptabl
+           endif
+             
+           if(prest > ptablt(2))then
               ttail(ibin)%head%k1=1
-           else if( prest <= ptabl_t(33)) then
+           else if( prest <= ptablt(33)) then
               ttail(ibin)%head%k1=33
            else
               k_loop: do k=2,32
-                 if(prest > ptabl_t(k+1) .and. prest <= ptabl_t(k)) then
+                 if(prest > ptablt(k+1) .and. prest <= ptablt(k)) then
                     ttail(ibin)%head%k1=k
                     exit k_loop
                  endif
@@ -927,7 +938,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
+!MP: need to keep the data(iqt,i)
+        rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark
+!MP      rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
@@ -991,6 +1004,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (twodvar_regional) then
            rdiagbuf(idia+1,ii) = data(idomsfc,i) ! dominate surface type
            rdiagbuf(idia+2,ii) = data(izz,i)     ! model terrain at observation location
+           rdiagbuf(idia+3,ii) = var_jb          ! var_jb
            r_prvstg            = data(iprvd,i)
            cprvstg(ii)         = c_prvstg        ! provider name
            r_sprvstg           = data(isprvd,i)

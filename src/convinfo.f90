@@ -15,8 +15,6 @@ module convinfo
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
 !   2013-08-20  s.liu - add reflectivity
-!   2013-11-20        su - add ptime_conv as time dimension,and pmot_conv as
-!                           parameter tfor the option to keep thinned data as monitored
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables

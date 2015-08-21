@@ -100,7 +100,7 @@ contains
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3,2x,i3)
         lcount=lcount+1
-        itypex=itypey-149
+        itypex=itypey
         read(ietabl_pw,105,IOSTAT=iflag,end=120) (isuble_pw(itypex,n),n=1,5)
 105     format(8x,5i12)
         do k=1,33
@@ -116,21 +116,23 @@ contains
      else
         if(mype == 0)  then
            write(6,*)'CONVERR_PW:  using observation errors from user provided table'
-           write(6,*)'CONVERR_PW:  end of reading etable_pw',itypey
-           write(6,105) (isuble_pw(20,m),m=1,5)
+           write(6,*)'CONVERR_PW:  end of reading etable_pw',itypex
+           write(6,105) (isuble_pw(itypex,m),m=1,5)
            do k=1,33
-              write(6,110) (etabl_pw(20,k,m),m=1,6)
+              write(6,110) (etabl_pw(itypex,k,m),m=1,6)
            enddo
         endif
         allocate(ptabl_pw(34))
-        ptabl_pw=zero
-        ptabl_pw(1)=etabl_pw(10,1,1)
-        do k=2,33
-           ptabl_pw(k)=half*(etabl_pw(20,k-1,1)+etabl_pw(10,k,1))
-        enddo
-        ptabl_pw(34)=etabl_pw(10,33,1)
+! use itypex pressure values.  itypex is the last valid observation type
+        if (itypex .gt. 0) then
+           ptabl_pw=zero
+           ptabl_pw(1)=etabl_pw(itypex,1,1)
+           do k=2,33
+              ptabl_pw(k)=half*(etabl_pw(itypex,k-1,1)+etabl_pw(itypex,k,1))
+           enddo
+        ptabl_pw(34)=etabl_pw(itypex,33,1)
+        endif
      endif
-
      close(ietabl_pw)
 
      return

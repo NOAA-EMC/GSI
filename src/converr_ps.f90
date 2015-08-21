@@ -102,10 +102,11 @@ contains
      etabl_ps=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl,100,IOSTAT=iflag,end=120) itypex
+        read(ietabl,100,IOSTAT=iflag,end=120) itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
+        itypex=itypey
         read(ietabl,105,IOSTAT=iflag,end=120) (isuble_ps(itypex,n),n=1,5)  
         if(mype==0) write(6,*) 'READIN ERROR _PS', itypex, (isuble_ps(itypex,n),n=1,5)
 
@@ -126,6 +127,7 @@ contains
         endif
         allocate(ptabl_ps(34))
 
+!use the pressure values of itypex, which is the last observation type. 
         if (itypex .gt. 0 ) then
            ptabl_ps=zero
            ptabl_ps(1)=etabl_ps(itypex,1,1)

@@ -56,6 +56,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
 !                        dynamic allocated array 
+!   2015-02-26  su      - add njqc as an option to choose new non linear qc 
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -81,13 +82,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc
+  use qcmod, only: errormod,noiqc,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r100,r2000
-! use converr,only: etabl
+  use converr,only: etabl
   use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
   use convb_uv,only: btabl_uv,isuble_buv
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
@@ -109,7 +110,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
 ! Declare local parameters
-
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
@@ -144,8 +144,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
-
-  integer(i_kind) mxtb,nmsgmax 
+  
+  integer(i_kind) mxtb,nmsgmax
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,nsattype
   integer(i_kind) nc,nx,isflg,itx,j,nchanl
@@ -160,8 +160,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
-  
-  
  
   integer(i_kind),dimension(nconvtype) :: ntxall 
   integer(i_kind),dimension(nconvtype+1) :: ntx  
@@ -169,11 +167,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(5):: idate5 
   integer(i_kind),allocatable,dimension(:):: nrep,isort,iloc
   integer(i_kind),allocatable,dimension(:,:):: tab
- 
+
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m,ntime,itime
-
-  real(r_single),allocatable,dimension(:,:,:) :: etabl
 
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
@@ -526,6 +522,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
+              sstime = real(nmind,r_kind) 
+              tdiff=(sstime-gstime)*r60inv
               if (abs(tdiff)>twind) cycle loop_readsb 
            endif
            iosub=0
@@ -837,51 +835,68 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 !  first to get observation error from PREPBUFR observation error table
            ppb=max(zero,min(ppb,r2000))
-!           itypey=itype-199
-           itypey=itype-0
-           ierr=index_sub(nc)
-           ierr2=ierr-1
-           if (ierr >maxsub_uv) ierr=2
-!           write(6,*)
-!           'READ_SATWND:itypey,ierr2=',itypey,ierr2,ierr,index_sub(nc),isuble_uv(itypey,ierr2)
-           if( iobsub /= isuble_uv(itypey,ierr2)) then
-              write(6,*) ' READ_SATWND: the subtypes do not match subtype &
-              in the errortable,iobsub=',iobsub,isuble_uv(itypey,ierr2),isuble_uv(itypey,ierr2),itype,itypey,nc,ierr
-              call stop2(49)
-           endif
-           if(ppb>=etabl_uv(itypey,1,1)) k1=1
-           do kl=1,32
-              if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) then
-                 k1=kl
-                 exit
+           if (njqc == .true.) then
+              itypey=itype
+              ierr=index_sub(nc)
+              ierr2=ierr-1
+              if (ierr >maxsub_uv) ierr=2
+!             write(6,*) 'READ_SATWND:itypey,ierr2=',itypey,ierr2,ierr,index_sub(nc),isuble_uv(itypey,ierr2)
+              if( iobsub /= isuble_uv(itypey,ierr2)) then
+                 write(6,*) ' READ_SATWND: the subtypes do not match subtype &
+                            in the errortable,iobsub=',iobsub,isuble_uv(itypey,ierr2), &
+                            isuble_uv(itypey,ierr2),itype,itypey,nc,ierr
+                 call stop2(49)
               endif
-           end do
-
-           k2=k1+1
-           if(ppb<=etabl_uv(itypey,33,1)) then
-              k1=33
-              k2=33
-           endif
-           ediff = etabl_uv(itypey,k2,1)-etabl_uv(itypey,k1,1)
-           if (abs(ediff) > tiny_r_kind) then
-              del = (ppb-etabl_uv(itypey,k1,1))/ediff
-           else
-              del = huge_r_kind
-           endif
-           del=max(zero,min(del,one))
-           obserr=(one-del)*etabl_uv(itypey,k1,ierr)+del*etabl_uv(itypey,k2,ierr)
-           obserr=max(obserr,werrmin)
+              if(ppb>=etabl_uv(itypey,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) then
+                    k1=kl
+                    exit
+                 endif
+              end do
+              k2=k1+1
+              if(ppb<=etabl_uv(itypey,33,1)) then
+                 k1=33
+                 k2=33
+              endif
+              ediff = etabl_uv(itypey,k2,1)-etabl_uv(itypey,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl_uv(itypey,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl_uv(itypey,k1,ierr)+del*etabl_uv(itypey,k2,ierr)
+              obserr=max(obserr,werrmin)
 !  get non linear qc parameter from b table
-           var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
-           var_jb=max(var_jb,wjbmin)
-           if (var_jb >10.0_r_kind) var_jb=zero
-!           if (itype ==245 ) then
-!             write(6,*)
-!             'READ_SATWND:obserr,var_jb,ppb,del,one,etabl_uv,btabl_uv=',&
-!             obserr,var_jb,ppb,del,one,etabl_uv(itypey,k1,ierr),btabl_uv(itypey,k1,ierr),wjbmin,werrmin
+              var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
+              var_jb=max(var_jb,wjbmin)
+              if (var_jb >10.0_r_kind) var_jb=zero
+!              if (itype ==245 ) then
+!                write(6,*)
+!                'READ_SATWND:obserr,var_jb,ppb,del,one,etabl_uv,btabl_uv=',&
+!                obserr,var_jb,ppb,del,one,etabl_uv(itypey,k1,ierr),btabl_uv(itypey,k1,ierr),wjbmin,werrmin
 !           endif
+           else
+              if(ppb>=etabl(itype,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
+              end do
+              if(ppb<=etabl(itype,33,1)) k1=33
+              k2=k1+1
+              ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl(itype,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
+              obserr=max(obserr,werrmin)
+           endif
 
-            if(itype==245 .or. itype==246) then
+           if(itype==245 .or. itype==246) then
+
 !  using  Santek quality control method,calculate the original ee value
                if(ee <r105) then
                   ree=(ee-r100)/(-10.0_r_kind)
@@ -1092,7 +1107,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg)
  
 
   ! Write header record and data to output file for further processing

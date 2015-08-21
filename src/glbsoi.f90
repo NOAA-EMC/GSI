@@ -125,6 +125,7 @@ subroutine glbsoi(mype)
       twodvar_regional,wgtlats
   use guess_grids, only: nfldsig
   use obsmod, only: write_diag,perturb_obs,ditype,iadate
+  use qcmod,only: njqc
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
       init_fc_sens, save_fc_sens, lobsensincr, lobsensjb
@@ -135,6 +136,7 @@ subroutine glbsoi(mype)
   use control_vectors, only: dot_product
   use radinfo, only: radinfo_write,passive_bc,newpc4pred
   use pcpinfo, only: pcpinfo_write
+  use converr, only: converr_destroy
   use converr_ps, only: converr_ps_destroy
   use converr_q, only: converr_q_destroy
   use converr_t, only: converr_t_destroy
@@ -380,13 +382,26 @@ subroutine glbsoi(mype)
   endif
 
 ! Deallocate arrays
- if(perturb_obs) then
-     call converr_ps_destroy
-     call converr_q_destroy
-     call converr_t_destroy
-     call converr_uv_destroy
-     call converr_pw_destroy
- endif
+!RY:  in trunk 
+!RY: Q: Is this destroy at the end of the entire analysisi?
+!  if(perturb_obs) call converr_destroy
+!RY:  need to understand the following things
+
+  if(perturb_obs) then
+     if(njqc==.true.) then
+        call converr_ps_destroy
+        call converr_q_destroy
+        call converr_t_destroy
+        call converr_uv_destroy
+        call converr_pw_destroy
+        call convb_ps_destroy
+        call convb_q_destroy
+        call convb_t_destroy
+        call convb_uv_destroy
+     else
+        call converr_destroy
+     endif  
+  endif
 
   if (regional) then
      if(anisotropic) then

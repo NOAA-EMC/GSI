@@ -538,12 +538,13 @@ subroutine read_obs(ndata,mype)
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common,reduce_diag
+    use qcmod, only: njqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero
-!   use converr, only: converr_read
+    use converr, only: converr_read
     use converr_ps, only: converr_ps_read
     use converr_q, only: converr_q_read
     use converr_t, only: converr_t_read
@@ -627,10 +628,7 @@ subroutine read_obs(ndata,mype)
     npem1=npe-1
     nprof_gps1=0
 
-!    if(oberrflg .or. perturb_obs) then
-!        call converr_read(mype)
-!    endif
-
+    if(njqc == .true.) then
        call converr_ps_read(mype)
        call converr_q_read(mype)
        call converr_t_read(mype)
@@ -640,6 +638,9 @@ subroutine read_obs(ndata,mype)
        call convb_q_read(mype)
        call convb_t_read(mype)
        call convb_uv_read(mype)
+    else
+       call converr_read(mype)
+    endif
 
 !   Optionally set random seed to perturb observations
     if (perturb_obs) then
@@ -982,8 +983,8 @@ subroutine read_obs(ndata,mype)
           obstype=dtype(i)
           if (obstype == 't' .or. obstype == 'q'  .or. &
               obstype == 'uv') then
-             use_prsl_full=.true.
-             if(belong(i))use_prsl_full_proc=.true.
+              use_prsl_full=.true.
+              if(belong(i))use_prsl_full_proc=.true.
           else
             do j=1,nconvtype
                if(obstype == trim(ioctype(j)) .and. ithin_conv(j) > 0)then
@@ -997,9 +998,7 @@ subroutine read_obs(ndata,mype)
              if(belong(i))use_hgtl_full_proc=.true.
           end if
        else if(ditype(i) == 'rad' )then
-          if(belong(i))then
-            use_sfc=.true.
-          end if
+          if(belong(i)) use_sfc=.true.
        end if
     end do
     use_sfc_any=.false.

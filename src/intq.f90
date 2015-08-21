@@ -14,6 +14,7 @@ module intqmod
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-04-14      Su   -  add another non linear qc(purser's scheme) 
+!   2015-02-26      Su   -  add njqc as an option to choose Purser's varqc
 !
 ! subroutines included:
 !   sub intq_
@@ -86,7 +87,7 @@ subroutine intq_(qhead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -178,21 +179,9 @@ subroutine intq_(qhead,rval,sval)
               p0=wgross/(wgross+exp(-half*qptr%err2*val**2))  ! p0 is P in the reference by Enderson
               val=val*(one-p0)                         ! term is Wqc in the referenc by Enderson
            endif
-           if ( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
-!              val=sqrt(two*qptr%jb)*tanh(sqrt(qptr%err2*qptr%raterr2)*val/sqrt(two*qptr%jb))
+
+           if (njqc == .true. .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
               val=sqrt(two*qptr%jb)*tanh(sqrt(qptr%err2)*val/sqrt(two*qptr%jb))
-           endif
-           if ( qptr%jb  > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
-!-------------------------------------------------------------------------
-!RY:  in intt,intps,intq,intw
-!     two ways to use the raterr2:
-! (1) inconsistence in using ratio-errors between the penalty and grad
-!            grad = val*sqrt(psptr%raterr2*psptr%err2)
-! KEEP this for a running time check
-! (2): consistence in using ratio_errors between the penalty and grad
-!            grad = val*psptr%raterr2*psptr%err2
-! test (1)
-!-------------------------------------------------------------------------
               grad = val*sqrt(qptr%raterr2*qptr%err2)
            else
               grad = val*qptr%raterr2*qptr%err2
