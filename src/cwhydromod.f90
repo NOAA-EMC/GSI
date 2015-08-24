@@ -103,7 +103,7 @@ return
 end subroutine cw2hydro
 
 
-subroutine cw2hydro_tl(sval,wbundle,sv_tsen,clouds,nclouds)
+subroutine cw2hydro_tl(sval,wbundle,clouds,nclouds)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cw2hydro_tl
@@ -131,7 +131,7 @@ implicit none
 type(gsi_bundle),intent(inout):: sval
 type(gsi_bundle),intent(in):: wbundle
 integer(i_kind),intent(in) :: nclouds
-real(r_kind),intent(in) :: sv_tsen(lat2,lon2,nsig)
+!real(r_kind),intent(in) :: sv_tsen(lat2,lon2,nsig)
 character(len=max_varname_length),intent(in):: clouds(nclouds)
 
 ! Declare local variables
@@ -150,9 +150,9 @@ do k=1,nsig
          work0(i,j,k)=max(zero,work0(i,j,k))
          work0(i,j,k)=min(one,work0(i,j,k))
 
-         work(i,j,k)=-r0_05*sv_tsen(i,j,k)
-         if (work0(i,j,k)<=zero) work(i,j,k)=zero
-         if (work0(i,j,k)>=one)  work(i,j,k)=zero
+!         work(i,j,k)=-r0_05*sv_tsen(i,j,k)
+!         if (work0(i,j,k)<=zero) work(i,j,k)=zero
+!         if (work0(i,j,k)>=one)  work(i,j,k)=zero
       end do
    end do
 end do
