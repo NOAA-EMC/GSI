@@ -20,6 +20,7 @@ module general_commvars_mod
 !   def s2g_cv  - used in bkerror.f90 (full control vector without motley variables)
 !   def s2g2    - used in getprs.f90
 !   def s2g4    - used in get_derivatives2.f90
+!   def s1g4    - used in get_derivatives2.f90 (uv versions)
 !   def s2guv   - used in getuv.f90
 !   def s2g_d   - used in get_derivatives.f90
 !   def g1      - used in get_derivatives.f90
@@ -48,6 +49,7 @@ module general_commvars_mod
    public :: s2g_cv                  !  structure used in bkerror.f90
    public :: s2g2                    !  structure used in getprs.f90
    public :: s2g4                    !  structure used in get_derivatives2.f90
+   public :: s1g4                    !  structure used in get_derivatives2.f90 (uv version)
    public :: s2guv                   !  structure used in getuv.f90
    public :: s2g_d                   !  structure used in get_derivatives.f90
    public :: g1                      !  structure used in get_derivatives.f90
@@ -55,7 +57,9 @@ module general_commvars_mod
    public :: g33p1                   !  for 3 3d fields + 1 2d field, no particular order
 
    public :: fill_ns
+   public :: fill2_ns
    public :: filluv_ns
+   public :: filluv2_ns
    public :: load_grid
    public :: ltosj_s,ltosi_s,ltosj,ltosi
 
@@ -66,7 +70,7 @@ module general_commvars_mod
 
 ! Declare types
 
-   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s2g4,s2guv,s2g_d,g1,g3,g33p1
+   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s1q4,s1g4,s2g4,s2guv,s2g_d,g1,g3,g33p1
 
 contains
 
@@ -113,6 +117,8 @@ contains
 !     character(len=8) names(4*nsig+2)
       character(len=64) names2(2,2*nsig+1)
       integer(i_kind) lnames2(2,2*nsig+1)
+      character(len=64) names3(1,4*nsig+1)
+      integer(i_kind) lnames3(1,4*nsig+1)
 
 
 !  create general_sub2grid structure variable s2g_raf, which is used in sub2grid.f90
@@ -260,22 +266,49 @@ contains
          lnames2(1,kk)=k
          lnames2(2,kk)=k
       end do
-         kk=kk+1
-         names2(1,kk)='prse'
-         names2(2,kk)='X'
-         lnames2(1,kk)=k
-         lnames2(2,kk)=0
+      kk=kk+1
+      names2(1,kk)='prse'
+      names2(2,kk)='X'
+      lnames2(1,kk)=nsig+1
+      lnames2(2,kk)=0
 
       call general_sub2grid_create_info(s2g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
                                 names=names2,lnames=lnames2,s_ref=s2g_raf)
+
+!  create general_sub2grid structure variable s1g4, which is used in get_derivatives2.f90 (uv version)
+
+      num_fields=4*nsig+1
+      inner_vars=1
+      kk=0
+      do k=1,nsig
+         kk=kk+1
+         names3(1,kk)='u'
+         lnames3(1,kk)=k
+      end do
+      do k=1,nsig
+         kk=kk+1
+         names3(1,kk)='v'
+         lnames3(1,kk)=k
+      end do
+      do k=1,nsig
+         kk=kk+1
+         names3(1,kk)='t'
+         lnames3(1,kk)=k
+      end do
+      do k=1,nsig+1
+         kk=kk+1
+         names3(1,kk)='prse'
+         lnames3(1,kk)=k
+      end do
+      call general_sub2grid_create_info(s1g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+                                names=names3,lnames=lnames3,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2g2, used in getprs.f90
 
       num_fields=nsig+1
       inner_vars=1
-    ! nskip=2
-      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
-    !                                   nskip=nskip)
+      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+                              s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2guv
 
@@ -371,26 +404,18 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-   integer(i_kind) i,j,k,nlatm1,jj
-   real(r_kind),dimension(nlon,nlat):: grid
+   integer(i_kind) i,j,k
 
 !  Transfer input grid from 1d to 2d local array.  As loading
 !  local array, reverse direction of latitude index.  Coming
 !  into the routine the order is south --> north.  On exit
 !  the order is north --> south
    do k=1,iglobal
-      i=nlat-ltosi(k)+1
-      j=ltosj(k)
-      grid(j,i)=grid_in(k)
-   end do
-   
-!  Transfer contents of local array to output array.
-   nlatm1=nlat-1
-   do j=2,nlatm1
-      jj=j-1
-      do i=1,nlon
-         grid_out(i,jj)=grid(i,j)
-      end do
+      i=nlat-ltosi(k)
+      if(i >= 1 .and. i <= nlat-2)then
+         j=ltosj(k)
+         grid_out(j,i)=grid_in(k)
+      end if
    end do
    
    return
@@ -501,6 +526,111 @@ contains
    
    return
  end subroutine fill_ns
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  fill2_ns --- add southern/northern latitude rows output 2d array
+!
+! !INTERFACE:
+!
+ subroutine fill2_ns(grid_in,grid_out,nlat,nlon)
+
+! !USES:
+
+   use constants, only: zero,one
+   implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                    ,intent(in   ) :: nlat,nlon
+   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: grid_in  ! input grid
+   real(r_kind),dimension(nlat,nlon)  ,intent(  out) :: grid_out ! output grid
+
+! !DESCRIPTION: This routine adds a southern and northern latitude
+!               row to the input grid.  The southern row contains
+!               the longitudinal mean of the adjacent latitude row.
+!               The northern row contains the longitudinal mean of
+!               the adjacent northern row.
+!               
+!               The added rows correpsond to the south and north poles.
+!
+!               In addition to adding latitude rows corresponding to the
+!               south and north poles, the routine reorder the output 
+!               array so that it is consistent with that assumed for total domain
+!               gsi grids.
+!
+!               The assumed order for the input grid is longitude as
+!               the first dimension with array index increasing from 
+!               east to west.  The second dimension is latitude with
+!               the index increasing from north to south.  This ordering
+!               differs from that used in the GSI.  
+!
+!               The GSI ordering is latitude first with the index 
+!               increasing from south to north.  The second dimension is
+!               longitude with the index increasing from east to west.
+!
+!               Thus, the code below also rearranges the indexing and
+!               order of the dimensions to make the output grid 
+!               consistent with that which is expected in the rest of
+!               gsi.
+!               
+!
+! !REVISION HISTORY:
+!   2004-08-27  treadon
+!   2013-10-25  todling - move from gridmod to this module
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000
+!
+! !AUTHOR:
+!   treadon          org: np23                date: 2004-08-27
+!
+!EOP
+!-------------------------------------------------------------------------
+!  Declare local variables
+   integer(i_kind) i,j,jj,nlatm2
+   real(r_kind) rnlon,sumn,sums
+   real(r_kind),dimension(nlon,nlat):: grid
+
+!  Transfer contents of input grid to local work array
+!  Reverse ordering in j direction from n-->s to s-->n
+   do j=2,nlat-1
+      jj=nlat-j
+      do i=1,nlon
+         grid(i,j)=grid_in(i,jj)
+      end do
+   end do
+   
+!  Compute mean along southern and northern latitudes
+   sumn=zero
+   sums=zero
+   nlatm2=nlat-2
+   do i=1,nlon
+      sumn=sumn+grid_in(i,1)
+      sums=sums+grid_in(i,nlatm2)
+   end do
+   rnlon=one/float(nlon)
+   sumn=sumn*rnlon
+   sums=sums*rnlon
+
+!  Load means into local work array
+   do i=1,nlon
+      grid(i,1)   =sums
+      grid(i,nlat)=sumn
+   end do
+   
+!  Transfer local work array to output grid
+   do j=1,nlon
+      do i=1,nlat
+        grid_out(i,j)=grid(j,i)
+      end do
+   end do
+   
+   return
+ end subroutine fill2_ns
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -615,4 +745,117 @@ contains
    
    return
  end subroutine filluv_ns
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  filluv2_ns --- add southern/northern latitude rows
+!
+! !INTERFACE:
+!
+ subroutine filluv2_ns(gridu_in,gridv_in,gridu_out,gridv_out,nlat,nlon,sinlon,coslon)
+
+! !USES:
+
+   use constants, only: zero
+   implicit none
+
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                    ,intent(in   ) :: nlat,nlon
+   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: gridu_in,gridv_in   ! input grid
+   real(r_kind),dimension(nlat,nlon)  ,intent(  out) :: gridu_out,gridv_out ! output grid
+   real(r_kind),dimension(nlon)       ,intent(in   ) :: sinlon,coslon
+
+! !DESCRIPTION: This routine adds a southern and northern latitude
+!               row to the input grid.  The southern row contains
+!               the longitudinal mean of the adjacent latitude row.
+!               The northern row contains the longitudinal mean of
+!               the adjacent northern row.
+!               
+!               The added rows correpsond to the south and north poles.
+!
+!               In addition to adding latitude rows corresponding to the
+!               south and north poles, the routine reorder the output 
+!               array so that it is in
+!               an order consistent with that assumed for total domain
+!               gsi grids.
+!
+!               The assumed order for the input grid is longitude as
+!               the first dimension with array index increasing from 
+!               east to west.  The second dimension is latitude with
+!               the index increasing from north to south.  This ordering
+!               differs from that used in the GSI.  
+!
+!               The GSI ordering is latitude first with the index 
+!               increasing from south to north.  The second dimension is
+!               longitude with the index increasing from east to west.
+!
+!               Thus, the code below also rearranges the indexing and
+!               order of the dimensions to make the output grid 
+!               consistent with that which is expected in the rest of
+!               gsi.
+!               
+!
+! !REVISION HISTORY:
+!   2004-08-27  treadon
+!   2013-10-25  todling - move from gridmod to this module
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000
+!
+! !AUTHOR:
+!   treadon          org: np23                date: 2004-08-27
+!
+!EOP
+!-------------------------------------------------------------------------
+!  Declare local variables
+   integer(i_kind) i,j,jj
+   real(r_kind) polnu,polnv,polsu,polsv
+   real(r_kind),dimension(nlon,nlat):: grid,grid2
+
+!  Transfer contents of input grid to local work array
+!  Reverse ordering in j direction from n-->s to s-->n
+   do j=2,nlat-1
+      jj=nlat-j
+      do i=1,nlon
+         grid(i,j)=gridu_in(i,jj)
+         grid2(i,j)=gridv_in(i,jj)
+      end do
+   end do
+   
+!  Compute mean along southern and northern latitudes
+   polnu=zero
+   polnv=zero
+   polsu=zero
+   polsv=zero
+   do i=1,nlon
+      polnu=polnu+grid(i,nlat-1)*coslon(i)-grid2(i,nlat-1)*sinlon(i)
+      polnv=polnv+grid(i,nlat-1)*sinlon(i)+grid2(i,nlat-1)*coslon(i)
+      polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
+      polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
+   end do
+   polnu=polnu/float(nlon)
+   polnv=polnv/float(nlon)
+   polsu=polsu/float(nlon)
+   polsv=polsv/float(nlon)
+   do i=1,nlon
+      grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
+      grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
+      grid (i,1   )= polsu*coslon(i)+polsv*sinlon(i)
+      grid2(i,1   )= polsu*sinlon(i)-polsv*coslon(i)
+   end do
+
+!  Transfer local work array to output grid
+   do j=1,nlon
+      do i=1,nlat
+         gridu_out(i,j)=grid(j,i)
+         gridv_out(i,j)=grid2(j,i)
+      end do
+   end do
+   
+   return
+ end subroutine filluv2_ns
 end module general_commvars_mod

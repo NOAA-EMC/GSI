@@ -115,7 +115,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc
   integer(i_kind) ier2,iuse,izob,itref,idtw,idtc,itz_tr,iotype,ilate,ilone,istnelv
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
-  integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
+  integer(i_kind) l,mm1
   integer(i_kind) istat,id_qc
   integer(i_kind) idomsfc,itz
   integer(i_kind) idatamax

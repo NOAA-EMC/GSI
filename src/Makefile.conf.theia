@@ -8,33 +8,34 @@
 
 BACIO_VER = 2.0.1
 BUFR_VER = 10.2.5
-CRTM_VER = 2.2.1
+CRTM_VER = 2.2.3
 NEMSIO_VER = 2.2.1
-SFCIO_VER = 1.1.0
+SFCIO_VER = 1.0.0
 SIGIO_VER = 2.0.1
 SP_VER = 2.0.2
 W3EMC_VER = 2.0.5
 W3NCO_VER = 2.0.6
 
-CORELIB  = /scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
+CORELIB  = /scratch3/NCEPDEV/nwprod/lib
+CORECRTM = /scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
 
-INCsfcio = $(CORELIB)/sfcio/$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)
-INCsigio = $(CORELIB)/sigio/$(SIGIO_VER)/incmod/sigio_v$(SIGIO_VER)
-INCnemsio= $(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_v$(NEMSIO_VER)
-INCw3    = $(CORELIB)/w3emc/$(W3EMC_VER)/incmod/w3emc_v$(W3EMC_VER)_d
-INCcrtm=$(CORELIB)/crtm/$(CRTM_VER)/incmod/crtm_v$(CRTM_VER)
+INCsfcio = $(CORELIB)/sfcio/v$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)_4
+INCsigio = $(CORELIB)/sigio/v$(SIGIO_VER)/incmod/sigio_v$(SIGIO_VER)_4
+INCnemsio= $(CORELIB)/nemsio/v$(NEMSIO_VER)/incmod/nemsio_v$(NEMSIO_VER)
+INCw3    = $(CORELIB)/w3emc/v$(W3EMC_VER)/incmod/w3emc_v$(W3EMC_VER)_d
+INCcrtm  = $(CORECRTM)/crtm/$(CRTM_VER)/incmod/crtm_v$(CRTM_VER)
 
-BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_v$(BACIO_VER)_4.a
-BUFR_LIBd=$(CORELIB)/bufr/$(BUFR_VER)/libbufr_v$(BUFR_VER)_d_64.a
-CRTM_LIB=$(CORELIB)/crtm/$(CRTM_VER)/libcrtm_v$(CRTM_VER).a
-NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_v$(NEMSIO_VER).a
-SFCIO_LIB=$(CORELIB)/sfcio/$(SFCIO_VER)/libsfcio_v$(SFCIO_VER).a
-SIGIO_LIB=$(CORELIB)/sigio/$(SIGIO_VER)/libsigio_v$(SIGIO_VER).a
-SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_v$(SP_VER)_d.a
-W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/libw3emc_v$(W3EMC_VER)_d.a
-W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_d.a
+BACIO_LIB4=$(CORELIB)/bacio/v$(BACIO_VER)/libbacio_v$(BACIO_VER)_4.a
+BUFR_LIBd=$(CORELIB)/bufr/v$(BUFR_VER)/libbufr_v$(BUFR_VER)_d_64.a
+CRTM_LIB=$(CORECRTM)/crtm/$(CRTM_VER)/libcrtm_v$(CRTM_VER).a
+NEMSIO_LIB=$(CORELIB)/nemsio/v$(NEMSIO_VER)/libnemsio_v$(NEMSIO_VER).a
+SFCIO_LIB=$(CORELIB)/sfcio/v$(SFCIO_VER)/libsfcio_v$(SFCIO_VER)_4.a
+SIGIO_LIB=$(CORELIB)/sigio/v$(SIGIO_VER)/libsigio_v$(SIGIO_VER)_4.a
+SP_LIBd=$(CORELIB)/sp/v$(SP_VER)/libsp_v$(SP_VER)_d.a
+W3EMC_LIBd=$(CORELIB)/w3emc/v$(W3EMC_VER)/libw3emc_v$(W3EMC_VER)_d.a
+W3NCO_LIBd=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_d.a
 
-WRFPATH = /scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/nam_nmm_real_fcst.fd
+WRFPATH = /scratch3/NCEPDEV/nceplibs/ext/WRF/3.7/WRFV3
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
@@ -62,7 +63,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Fortran compiler and options
 # ----------------------------
 
-  CF            = mpif90
+  CF            = mpif90 -f90=ifort
   FC            = $(CF)
 
 #--- Normal mode options

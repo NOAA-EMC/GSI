@@ -46,7 +46,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
-!     conv_diagsave - logical to save innovation dignostics
+!     conv_diagsave - logical to save innovation diagnostics
 !     mype          - mpi task id
 !
 !   output argument list:

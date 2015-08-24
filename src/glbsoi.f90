@@ -157,6 +157,7 @@ subroutine glbsoi(mype)
 
   implicit none
 
+
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
@@ -166,6 +167,7 @@ subroutine glbsoi(mype)
   integer(i_kind) jiterlast
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
+
 
 !*******************************************************************************************
 !
@@ -449,7 +451,7 @@ subroutine glbsoi(mype)
     call destroy_ensemble
   endif
 
- if(mype==0) write(6,*) 'glbsoi: complete'
+  if(mype==0) write(6,*) 'glbsoi: complete'
 
 ! Finalize timer for this procedure
   call timer_fnl('glbsoi')
