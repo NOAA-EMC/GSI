@@ -394,8 +394,6 @@ subroutine init_rjlists
  call readin_rjlists(clistname,listexist,cprovider,500,nprov)
  if(verbose)&
  print*,'mesonetuselist: listexist,nprov=',listexist,nprov
-
-
  
 !==> Read in station names from the reject list for wind
  clistname='w_rejectlist'

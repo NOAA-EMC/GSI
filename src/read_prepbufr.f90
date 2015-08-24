@@ -1,5 +1,5 @@
 subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
-     prsl_full)
+     prsl_full,nobs,nrec_start)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  read_prepbuf                read obs from prepbufr file
@@ -135,6 +135,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !     obstype  - observation type to process
 !     lunout   - unit to which to write data for further processing
 !     prsl_full- 3d pressure on full domain grid
+!     nrec_start - number of subsets without useful information
 !
 !   output argument list:
 !     nread    - number of type "obstype" observations read
@@ -142,6 +143,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !     ndata    - number of type "obstype" observations retained for further processing
 !     twindin  - input group time window (hours)
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -191,6 +193,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
+  use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist
 
   implicit none
@@ -198,8 +201,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
   character(len=20)                     ,intent(in   ) :: sis
-  integer(i_kind)                       ,intent(in   ) :: lunout
+  integer(i_kind)                       ,intent(in   ) :: lunout,nrec_start
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe)        ,intent(inout) :: nobs
   real(r_kind)                          ,intent(in   ) :: twindin
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
@@ -264,7 +268,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) ntmp,iout
-  integer(i_kind) pflag
+  integer(i_kind) pflag,irec
   integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub,iobsub
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k1_pw,k2_q,k2_t,k2_uv,k2_pw,k2_ps
   integer(i_kind) itypex,itypey
@@ -455,7 +459,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(lcbasob) then
      nreal=23
   else 
-     write(6,*) ' illegal obs type in READ_PREPBUFR '
+     write(6,*) ' illegal obs type in READ_PREPBUFR ',obstype
      call stop2(94)
   end if
 
@@ -554,7 +558,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   nmsg=0
   nrep=0
   ntb = 0
+  irec = 0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
+     irec = irec + 1
+     if(irec < nrec_start) cycle msg_report
      if(.not.use_prepb_satwnd .and. trim(subset) == 'SATWND') cycle msg_report
      if (aircraft_t_bc) then
         aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
@@ -786,7 +793,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      icntpnt=0
      icntpnt2=0
      disterrmax=-9999.0_r_kind
+     irec = 0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
+        irec = irec + 1
+        if(irec < nrec_start) cycle loop_msg
         if(.not.use_prepb_satwnd .and. trim(subset) =='SATWND') cycle loop_msg
         if (aircraft_t_bc) then
            aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
@@ -2553,13 +2563,18 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      allocate(cdata_all(nreal,maxobs))
      call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
      ndata=iout
-     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-     write(lunout) ((cdata_all(i,j),i=1,nreal),j=1,ndata)
+     deallocate(cdata_out)
+     allocate(cdata_out(nreal,ndata))
+     do i=1,nreal
+        do j=1,ndata
+          cdata_out(i,j)=cdata_all(i,j)
+        end do
+     end do
      deallocate(cdata_all)
-  else
-     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-     write(lunout) cdata_out
   endif
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
+  write(lunout) cdata_out
 
   deallocate(cdata_out)
   call destroy_rjlists

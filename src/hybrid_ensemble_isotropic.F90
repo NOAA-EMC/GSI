@@ -1736,7 +1736,7 @@ end subroutine normal_new_factorization_rf_y
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model'
     logical nogood
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
-    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
     im=cvec%grid%im
     jm=cvec%grid%jm
@@ -1763,8 +1763,7 @@ end subroutine normal_new_factorization_rf_y
       call stop2(999)
     endif
  
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
 
 !$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic)
     do k=1,km
@@ -1894,7 +1893,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipic,ipx
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),istatus
 
 !   Request ensemble-corresponding fields from control vector
 !    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
@@ -1926,8 +1925,7 @@ end subroutine normal_new_factorization_rf_y
     endif
 
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
     im=work_ens%grid%im
     jm=work_ens%grid%jm
     km=work_ens%grid%km
@@ -2069,7 +2067,7 @@ end subroutine normal_new_factorization_rf_y
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad'
     logical nogood
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
-    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
     im=cvec%grid%im
     jm=cvec%grid%jm
@@ -2095,8 +2093,7 @@ end subroutine normal_new_factorization_rf_y
       call stop2(999)
     endif
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
 !$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic)
     do n=1,n_ens
        do ic3=1,nc3d
@@ -2206,7 +2203,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3,ipx,ipic
     type(gsi_grid)  :: grid_ens,grid_anl
     type(gsi_bundle)  :: work_ens,work_anl
-    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),istatus
 
 !   Request ensemble-corresponding fields from control vector
 !    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
@@ -2251,8 +2248,7 @@ end subroutine normal_new_factorization_rf_y
        call stop2(999)
     endif
 
-    ipe(1)=1
-    ipx=ipe(1)
+    ipx=1
     im=a_en(1)%grid%im
     jm=a_en(1)%grid%jm
     km=a_en(1)%grid%km
@@ -2646,7 +2642,7 @@ subroutine beta12mult(grady)
        write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
        call stop2(999)
     endif
-!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,nn,k,j,i)
+!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,k,j,i)
     do j=1,lon2
        do ii=1,nsubwin
   
@@ -2862,7 +2858,7 @@ subroutine init_sf_xy(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,jcap
+  integer(i_kind) i,ii,j,k,l,n,jcap,kk,nsigend
   real(r_kind),allocatable::g(:),gsave(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
@@ -2874,6 +2870,7 @@ subroutine init_sf_xy(jcap_in)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
   logical make_test_maps
+  logical,allocatable,dimension(:)::ksame
   integer(i_kind) nord_sploc2ens
   integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
 
@@ -2924,24 +2921,28 @@ subroutine init_sf_xy(jcap_in)
 
   call general_init_spec_vars(sp_loc,jcap,jcap,nlat_sploc,nlon_sploc,eqspace=use_sp_eqspace)
   if(mype==0) then
-     do j=1,grd_ens%nlon
-        if(j.le.nlon_sploc) then
-           write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
-               j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
-        else
-           write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
-               j,rad2deg*sp_ens%rlons(j)
-        end if
-     end do
-     do i=1,grd_ens%nlat
-        if(i.le.nlat_sploc) then
-           write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
-               i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
-        else
-           write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
-               i,rad2deg*sp_ens%rlats(i)
-        end if
-     end do
+     if( grd_ens%nlon == nlon_sploc .and. grd_ens%nlat == nlat_sploc)then
+        write(6,*)' ensemble and analysis nlat,nlon are the same '
+     else
+        do j=1,grd_ens%nlon
+           if(j.le.nlon_sploc) then
+              write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
+                  j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
+           else
+              write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
+                  j,rad2deg*sp_ens%rlons(j)
+           end if
+        end do
+        do i=1,grd_ens%nlat
+           if(i.le.nlat_sploc) then
+              write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
+                  i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
+           else
+              write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
+                  i,rad2deg*sp_ens%rlats(i)
+           end if
+        end do
+     end if
   end if
 
 !   regardless of whether or not nlat_sploc=grd_ens%nlat and nlon_sploc=grd_ens%nlon, compute
@@ -2949,7 +2950,7 @@ subroutine init_sf_xy(jcap_in)
 !   if they are identical, then the interpolation is just an identity op.
   call g_create_egrid2agrid(grd_ens%nlat,rlats_ens_local,grd_ens%nlon,rlons_ens_local,&
                             nlat_sploc,sp_loc%rlats,nlon_sploc,sp_loc%rlons, &
-                            nord_sploc2ens,p_sploc2ens,eqspace=use_sp_eqspace)
+                            nord_sploc2ens,p_sploc2ens,.true.,eqspace=use_sp_eqspace)
 
 !    the following code is used to compute the desired spectrum to get a
 !     gaussian localization of desired length-scale.
@@ -3018,64 +3019,87 @@ subroutine init_sf_xy(jcap_in)
   allocate(sqrt_spectral_filter(sp_loc%nc,grd_sploc%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
+  allocate(ksame(grd_sploc%nsig))
+  ksame=.false.
+  do k=2,grd_sploc%nsig
+     if(s_ens_hv(k) == s_ens_hv(k-1))ksame(k)=.true.
+  end do
   do k=1,grd_sploc%nsig
-     do i=1,grd_sploc%nlat
-        f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
-     end do
-
-     do j=2,grd_sploc%nlon
+     if(ksame(k))then
+        spectral_filter(:,k)=spectral_filter(:,k-1)
+     else
         do i=1,grd_sploc%nlat
-           f0(i,j)=f0(i,1)
+           f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
         end do
-     end do
 
-     call general_g2s0(grd_sploc,sp_loc,g,f0)
+        do j=2,grd_sploc%nlon
+           do i=1,grd_sploc%nlat
+              f0(i,j)=f0(i,1)
+           end do
+        end do
 
-     call general_s2g0(grd_sploc,sp_loc,g,f)
+        call general_g2s0(grd_sploc,sp_loc,g,f0)
 
-!    adjust so value at np = 1
-     f=f/f(grd_sploc%nlat,1)
-     call general_g2s0(grd_sploc,sp_loc,g,f)
-     call general_s2g0(grd_sploc,sp_loc,g,f)
-     if(mype == 0) write(6,*)' in init_sf_xy, jcap,s_ens_hv(',k,'), max diff(f0-f)=', &
-                                        sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+
+!       adjust so value at np = 1
+        f=f/f(grd_sploc%nlat,1)
+        f0=f
+        call general_g2s0(grd_sploc,sp_loc,g,f)
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+        if(mype == 0)then
+           nsigend=k
+           do kk=k+1,grd_sploc%nsig
+              if(s_ens_hv(kk) /= s_ens_hv(k))exit
+              nsigend=nsigend+1
+           end do
+           write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
+  900      format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
+                                        i10,f10.2,e20.10)
+        end if
 
 !            correct spectrum by dividing by pn0_npole
-     gsave=g
+        gsave=g
 
-!    obtain pn0_npole
-     do n=0,sp_loc%jcap
-        g=zero
-        g(2*n+1)=one
-        call general_s2g0(grd_sploc,sp_loc,g,f)
-        pn0_npole(n)=f(grd_sploc%nlat,1)
-     end do
-
-     g=zero
-     do n=0,sp_loc%jcap
-        g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
-     end do
-
-!    obtain spectral_filter
-
-     ii=0
-     do l=0,sp_loc%jcap
-        factor=one
-        if(l >  0) factor=half
-        do n=l,sp_loc%jcap
-           ii=ii+1
-           spectral_filter(ii,k)=factor*g(2*n+1)
-           ii=ii+1
-           if(l == 0) then
-              spectral_filter(ii,k)=zero
-           else
-              spectral_filter(ii,k)=factor*g(2*n+1)
-           end if
+!       obtain pn0_npole
+        do n=0,sp_loc%jcap
+           g=zero
+           g(2*n+1)=one
+           call general_s2g0(grd_sploc,sp_loc,g,f)
+           pn0_npole(n)=f(grd_sploc%nlat,1)
         end do
-     end do
+   
+        g=zero
+        do n=0,sp_loc%jcap
+           g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
+        end do
+
+!       obtain spectral_filter
+
+        ii=0
+        do l=0,sp_loc%jcap
+           factor=one
+           if(l >  0) factor=half
+           do n=l,sp_loc%jcap
+              ii=ii+1
+              if(sp_loc%factsml(ii)) then
+                 spectral_filter(ii,k)=zero
+              else
+                 spectral_filter(ii,k)=factor*g(2*n+1)
+              end if
+              ii=ii+1
+              if(l == 0 .or. sp_loc%factsml(ii)) then
+                 spectral_filter(ii,k)=zero
+              else
+                 spectral_filter(ii,k)=factor*g(2*n+1)
+              end if
+           end do
+        end do
+     end if
   end do
+  deallocate(g,gsave,pn0_npole,ksame)
+
   sqrt_spectral_filter=sqrt(spectral_filter)
-  deallocate(g,gsave,pn0_npole)
 
 !  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
 
@@ -3886,7 +3910,7 @@ subroutine hybens_grid_setup
   if(.not.regional) then
      call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon,eqspace=use_sp_eqspace)
      call g_create_egrid2agrid(nlat,rlats,nlon,rlons,grd_ens%nlat,sp_ens%rlats,grd_ens%nlon,sp_ens%rlons, &
-                               nord_e2a,p_e2a,eqspace=use_sp_eqspace)
+                               nord_e2a,p_e2a,.true.,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)

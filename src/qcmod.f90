@@ -838,7 +838,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 ! Declare local variables
   integer(i_kind), dimension(nchanl) :: irday
   integer(i_kind) :: l,i
-  real(r_kind) :: efact,vfact,dtempf,fact,dtbf,term
+  real(r_kind) :: efact,vfact,dtempf,dtbf,term
   real(r_kind),dimension(nchanl) :: demisf_mi,clwcutofx 
   real(r_kind) :: pred9,pred10,pred11
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
@@ -894,9 +894,11 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
            aivals(8) = aivals(8) + one
            
            do i=1,nchanl
-              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_qc
-              if( id_qc(i)== igood_qc .and. ierrret > 0)   id_qc(i)=ifail_ierrret_qc
-              if( id_qc(i)== igood_qc .and. tpwc< zero )   id_qc(i)=ifail_tpwc_qc
+              if( id_qc(i)== igood_qc )then
+                 if( kraintype/= 0) id_qc(i)=ifail_krain_qc
+                 if( ierrret > 0)   id_qc(i)=ifail_ierrret_qc
+                 if( tpwc< zero )   id_qc(i)=ifail_tpwc_qc
+              end if
            end do 
         end if
      else if (ssmis) then  ! in case of ssmis bad data or cloud-contaminated data
@@ -970,47 +972,47 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
            if(id_qc(i)== igood_qc ) id_qc(i)=ifail_surface_qc
         end do
 
-        if (sfchgt > r2000) then
-           fact = r2000/sfchgt
-           efact = fact*efact
-           vfact = fact*vfact
-        end if
+!       if (sfchgt > r2000) then
+!          fact = r2000/sfchgt
+!          efact = fact*efact
+!          vfact = fact*vfact
+!       end if
 
      else  ! for ssmis 
-       !Use dtbc at 52.8 GHz to detect cloud-affected data
-        if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
-           do i =1,2
-              varinv(i)  = zero
-              if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
-           end do
-           do i =12,16
-              varinv(i)  = zero
-              if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
-           end do
-        endif
-       !General qc criteria for all channels
-        do i = 1,24
-           if( abs(tbcnob(i)) >= 3.5_r_kind) then
-              varinv(i) = zero
-              if(id_qc(i)== igood_qc ) id_qc(i)=ifail_gross_routine_qc
-           end if
-        enddo
-
-        if(mixed) then
-           do i=1,3
-              varinv(i)=zero
-              if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
-           end do
-           do i=8,18
-              varinv(i)=zero
-              if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
-           end do
-        end if
         if (sfchgt > r2000) then
            do i=1,24
               varinv(i)=zero
               if(id_qc(i)== igood_qc) id_qc(i)=ifail_topo_ssmi_qc
            enddo
+        else
+       !Use dtbc at 52.8 GHz to detect cloud-affected data
+           if(mixed) then
+              do i=1,3
+                 varinv(i)=zero
+                 if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
+              end do
+              do i=8,18
+                 varinv(i)=zero
+                 if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
+              end do
+           else if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
+              do i =1,2
+                 varinv(i)  = zero
+                 if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
+              end do
+              do i =12,16
+                 varinv(i)  = zero
+                 if(id_qc(i)== igood_qc ) id_qc(i)=ifail_ch2_qc
+              end do
+           endif
+       !General qc criteria for all channels
+           do i = 1,24
+              if( abs(tbcnob(i)) >= 3.5_r_kind) then
+                 varinv(i) = zero
+                 if(id_qc(i)== igood_qc ) id_qc(i)=ifail_gross_routine_qc
+              end if
+           enddo
+
         end if
 !        if (sfchgt > r2000) then
 !           varinv(9)=zero
@@ -1047,26 +1049,28 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !
 !    Apply Tz retrieval
 !
-     dtz = rmiss_single
-     if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-     endif
+     if(nst_tzr > 0)then
+        dtz = rmiss_single
+        if (luse .and. sea ) then
+           call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+        endif
 !
-!    Apply QC with Tz retrieval
+!       Apply QC with Tz retrieval
 !
-     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
-       do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
-           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-           tzchks = tzchk*(half)**xindx
+        if (dtz /= rmiss_single ) then
+          do i = 1, nchanl
+            if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
+              xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+              tzchks = tzchk*(half)**xindx
 
-           if ( abs(dtz) > tzchks ) then
-              varinv(i) = zero
-              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              aivals(13) = aivals(13) + one
-           endif
-         endif
-       enddo
+              if ( abs(dtz) > tzchks ) then
+                 varinv(i) = zero
+                 if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+                 aivals(13) = aivals(13) + one
+              endif
+            endif
+          enddo
+        endif
      endif
 
 ! Generate q.c. bounds and modified variances.
@@ -1703,8 +1707,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         varinv(i)=zero
         varinv_use(i)=zero
      end if
-     varinv(i) = varinv(i)*(one-(one-sfchgtfact)*ptau5(1,i))
-     varinv_use(i) = varinv_use(i)*(one-(one-sfchgtfact)*ptau5(1,i))
+     tmp=one-(one-sfchgtfact)*ptau5(1,i)
+     varinv(i) = varinv(i)*tmp
+     varinv_use(i) = varinv_use(i)*tmp
 
 !    Modify error based on transmittance at top of model
      varinv(i)=varinv(i)*ptau5(nsig,i)
@@ -1721,14 +1726,18 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
   do k=1,nsig
      if(prsltmp(k) > trop5)then
+        do i=1,nchanl
+           dtb(i)=(tvp(k)-tsavg5)*ts(i)
+        end do
+        do kk=1,k-1
+           do i=1,nchanl
+              dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
+           end do
+        end do
         sum=zero
         sum2=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-              dtb(i)=(tvp(k)-tsavg5)*ts(i)
-              do kk=1,k-1
-                 dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
-              end do
               sum=sum+tbc(i)*dtb(i)*varinv_use(i)
               sum2=sum2+dtb(i)*dtb(i)*varinv_use(i)
            end if
@@ -1829,40 +1838,42 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !
 ! Apply Tz retrieval
 !
-  dtz = rmiss_single
-  if ( nst_tzr > 0 .and. luse .and. sea ) then
-     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-  endif
+  if(nst_tzr > 0)then
+     dtz = rmiss_single
+     if (luse .and. sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+     endif
 !
 ! Apply QC with Tz retrieval
 !
-  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
-    do i = 1, nchanl
-      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
-        xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-        tzchks = tzchk*(half)**xindx
-
-        if ( abs(dtz) > tzchks ) then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-           aivals(13,is) = aivals(13,is) + one
-        endif
-      endif
-    enddo
-  endif
+     if (dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
+   
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+              aivals(13,is) = aivals(13,is) + one
+           endif
+         endif
+       enddo
+     endif
+  end if
 
   cenlatx=abs(cenlat)*r0_04     
   if (cenlatx < one) then
      if(luse)aivals(6,is) = aivals(6,is) + one
      efact   = half*(cenlatx+one)
-  else
-     efact = one
+     do i=1,nchanl
+        if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
+     end do
   endif
 
 ! Generate q.c. bounds and modified variances.
   do i=1,nchanl
      if(varinv(i) > tiny_r_kind)then
-        errf(i)=efact*errf(i)
         dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term = dtbf*dtbf
         if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
@@ -2118,40 +2129,42 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! Apply Tz retrieval
 !
-  dtz = rmiss_single
-  if ( nst_tzr > 0 .and. luse .and. sea ) then
-     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-  endif
+  if(nst_tzr > 0)then
+     dtz = rmiss_single
+     if (luse .and. sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+     endif
 !
-! Apply QC with Tz retrieval
+!    Apply QC with Tz retrieval
 !
-  if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
-    do i = 1, nchanl
-      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk) then
-        xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-        tzchks = tzchk*(half)**xindx
-
-        if ( abs(dtz) > tzchks ) then
-           varinv(i) = zero
+     if (dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
+   
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-           aivals(13,is) = aivals(13,is) + one
-        endif
-      endif
-    enddo
-  endif
+                 aivals(13,is) = aivals(13,is) + one
+           endif
+         endif
+       enddo
+     endif
+  end if
 
   cenlatx=abs(cenlat)*r0_04     
   if (cenlatx < one) then
      if(luse)aivals(6,is) = aivals(6,is) + one
      efact   = half*(cenlatx+one)
-  else
-     efact = one
+     do i=1,nchanl
+        if(varinv(i) > tiny_r_kind)errf(i)=efact*errf(i)
+     end do
   endif
 
 ! Generate q.c. bounds and modified variances.
   do i=1,nchanl
      if(varinv(i) > tiny_r_kind)then
-        errf(i)=efact*errf(i)
         dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term = dtbf*dtbf
         if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
@@ -3025,14 +3038,14 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
   if (cenlatx < one) then
      if(luse)aivals(6,is) = aivals(6,is) + one
      efact = half*(cenlatx+one)
-  else
-     efact = one
+     do i=1,nchanl
+        if(varinv(i) > tiny_r_kind)errf(i)=efact*errf(i)
+     end do
   endif
 
 ! Generate q.c. bounds and modified variances.
   do i=1,nchanl
      if(varinv(i) > tiny_r_kind)then
-        errf(i)=efact*errf(i)
         dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term = dtbf*dtbf
         if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
@@ -3311,26 +3324,28 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 !    Apply Tz retrieval
 !
-     dtz = rmiss_single
-     if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-     endif
+     if(nst_tzr > 0)then
+        dtz = rmiss_single
+        if (luse .and. sea ) then
+           call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+        endif
 !
-!    Apply QC with Tz retrieval
+!       Apply QC with Tz retrieval
 !
-     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
-       do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
-           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-           tzchks = tzchk*(half)**xindx
+        if (dtz /= rmiss_single ) then
+          do i = 1, nchanl
+            if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
+              xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+              tzchks = tzchk*(half)**xindx
 
-           if ( abs(dtz) > tzchks ) then
-              varinv(i) = zero
-              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              aivals(13,is) = aivals(13,is) + one
-           endif
-         endif
-       enddo
+              if ( abs(dtz) > tzchks ) then
+                 varinv(i) = zero
+                 if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+                 aivals(13,is) = aivals(13,is) + one
+              endif
+            endif
+          enddo
+        endif
      endif
 
    do i = 1, nchanl
@@ -3535,7 +3550,7 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !    Reduce weight for obs over higher topography
      if (zsges > r2000) then
         fact    = r2000/zsges
-        efact   = fact*efact
+        efact   = fact
         vfact   = fact*vfact
 !       QC2 in statsrad
         if(luse)aivals(9,is)= aivals(9,is) + one
@@ -3546,26 +3561,28 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !
 !    Apply Tz retrieval
 !
-     dtz = rmiss_single
-     if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-     endif
+     if(nst_tzr > 0)then
+        dtz = rmiss_single
+        if (luse .and. sea ) then
+           call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+        endif
 !
-!    Apply QC with Tz retrieval
+!       Apply QC with Tz retrieval
 !
-     if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
-       do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
-           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-           tzchks = tzchk*(half)**xindx
+        if (dtz /= rmiss_single ) then
+          do i = 1, nchanl
+            if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
+              xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+              tzchks = tzchk*(half)**xindx
 
-           if ( abs(dtz) > tzchks ) then
-              varinv(i) = zero
-              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              aivals(13,is) = aivals(13,is) + one
-           endif
-         endif
-       enddo
+              if ( abs(dtz) > tzchks ) then
+                 varinv(i) = zero
+                 if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+                 aivals(13,is) = aivals(13,is) + one
+              endif
+            endif
+          enddo
+        endif
      endif
 
 ! Generate q.c. bounds and modified variances.

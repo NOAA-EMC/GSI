@@ -43,6 +43,7 @@ module ncepnems_io
 !   sub write_nemssfc   - gather/write on grid ncep surface analysis file
 !   sub read_nemsnst    - read ncep nst file, scatter on grid to analysis subdomains
 !   sub write_nemssfc_nst - gather/write on grid ncep surface & nst analysis file
+!   sub sfc_interpolate   - interpolate from gfs atm grid to gfs sfc grid
 !
 ! Variable Definitions:
 !   The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
@@ -112,11 +113,12 @@ module ncepnems_io
   public read_nems_chem
   public read_nemsatm
   public read_nemssfc
-  public write_nems
   public write_nemsatm
   public write_nemssfc
   public read_nemsnst
   public write_nemssfc_nst
+  public sfc_interpolate
+  public error_msg
 
   interface read_nems
      module procedure read_
@@ -138,10 +140,6 @@ module ncepnems_io
      module procedure read_sfc_nst_
   end interface
 
-  interface write_nems
-     module procedure write_
-  end interface
-
   interface write_nemsatm
      module procedure write_atm_
   end interface
@@ -155,7 +153,7 @@ module ncepnems_io
   end interface
 
   interface error_msg
-     module procedure error_msg
+     module procedure error_msg_
   end interface
 
   character(len=*),parameter::myname='ncepnems_io'
@@ -189,17 +187,19 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a
+    use gridmod, only: sp_a,grd_a,jcap_b
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
+    use mpimod, only: npe
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
-    integer(i_kind):: it, iret, ier
+    integer(i_kind):: it, iret, ier, inner_vars, num_fields
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -210,6 +210,17 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+
+    type(sub2grid_info) :: grd_t
+    logical regional
+
+    regional=.false.
+    inner_vars=1
+    num_fields=min(8*grd_a%nsig+2,npe)
+!  Create temporary communication information fore read routines
+    call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
+          grd_a%nsig,num_fields,regional)
+
 
     do it=1,nfldsig
 
@@ -238,13 +249,21 @@ contains
        if (ier/=0) cycle ! this allows code to be free from met-fields
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
-       call read_atm_ (filename,mype,sp_a,&
+       
+       call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
             ges_z_it,ges_ps_it,&
             ges_vor_it,ges_div_it,&
             ges_u_it,ges_v_it,&
             ges_tv_it,ges_q_it,&
-            ges_cwmr_it,ges_oz_it)
+            ges_cwmr_it,ges_oz_it,.true.,ier)
+!      call read_atm_ (grd_a,filename,mype,sp_a,.true.,.true.,.true.,&
+!           ges_z_it,ges_ps_it,&
+!           ges_vor_it,ges_div_it,&
+!           ges_u_it,ges_v_it,&
+!           ges_tv_it,ges_q_it,&
+!           ges_cwmr_it,ges_oz_it)
     end do
+    call general_sub2grid_destroy_info(grd_t)
   end subroutine read_
 
   subroutine read_chem_ ( iyear, month,idd )
@@ -324,7 +343,8 @@ contains
 
   end subroutine read_chem_
 
-  subroutine read_atm_ (filename,mype,sp,g_z,g_ps,g_vor,g_div,g_u,g_v,&
+  subroutine read_atm_ (grd,filename,mype,sp_a,uvflag,vordivflag,zflag, &
+       g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -346,7 +366,17 @@ contains
 !   2013-10-25 todling  reposition fill_ns,filluv_ns to commvars
 !
 !   input argument list:
+!     grd      - structure variable containing information about grid
+!                    (initialized by general_sub2grid_create_info, located in
+!                    general_sub2grid_mod.f90)
+!     sp_a     - structure variable containing spectral information for analysis
+!                    (initialized by general_init_spec_vars, located in
+!                    general_specmod.f90)
 !     mype     - mpi task id
+!     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
+!     vordivflag - logical to determine if routine should output vorticity and
+!                  divergence
+!     zflag    - logical to determine if surface height field should be output
 !
 !   output argument list:
 !     g_*      - guess fields
@@ -357,133 +387,206 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: displs_s,irc_s,ijn_s,&
-         ird_s,nsig,nlat,nlon,lat2,lon2,&
-         itotsub,ntracer,ncloud,reload
-    use general_commvars_mod, only: fill_ns,filluv_ns
+    use gridmod, only: ntracer,ncloud,reload,itotsub,jcap_b
+    use general_commvars_mod, only: fill_ns,filluv_ns,fill2_ns,filluv2_ns,ltosj_s,ltosi_s
     use general_specmod, only: spec_vars
+    use general_sub2grid_mod, only: sub2grid_info
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
-
+    use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
+    use constants, only: two,pi,half,deg2rad
     implicit none
     
 !   Declare local parameters
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
 
 !   Declare passed variables
+    type(sub2grid_info)                   ,intent(in   ) :: grd
     character(LEN=24)                     ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
-    real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
-    real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: g_u,g_v,&
+    logical                               ,intent(in   ) :: uvflag,vordivflag,zflag
+    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_z,g_ps
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
-    type(spec_vars)                       ,intent(in   ) :: sp
+    type(spec_vars)                       ,intent(in   ) :: sp_a
     
 !   Declare local variables
     character(len=120) :: my_name = 'READ_NEMSATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: iret,nlatm2
-    integer(i_kind) :: k,icount,icount_prev,mm1
-    integer(i_kind) :: mype_hs, mype_ps
+    integer(i_kind) :: iret,nlatm2,nflds
+    integer(i_kind) :: k,icount,icount_prev,mm1,i,j,kk
+    integer(i_kind) :: mype_hs, mype_ps,nord_int
     integer(i_kind) :: latb, lonb, levs, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 101
     real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
-         grid_vor, grid_div
+         grid_vor, grid_div, grid_b, grid_b2
+    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid2, grid_c2
     real(r_kind),allocatable,dimension(:)   :: work, work_vor, work_div, &
          work_v
     real(r_kind),allocatable,dimension(:,:) :: sub, sub_vor, sub_div, &
          sub_v
-    real(r_kind),dimension(sp%nc):: spec_vor,spec_div
+    real(r_kind),dimension(sp_a%nc):: spec_vor,spec_div
     real(r_kind),allocatable,dimension(:) :: rwork1d0, rwork1d1, rwork1d2
+    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
+    real(4),allocatable,dimension(:) :: r4lats,r4lons
     real(r_kind) :: fhour
     type(nemsio_gfile) :: gfile
+    logical diff_res,eqspace
+    logical,dimension(1) :: vector
+    type(egrid2agrid_parm) :: p_high
+    
 !******************************************************************************  
 !   Initialize variables used below
     mm1=mype+1
-    mype_hs=npe-2
-    mype_ps=npe-1
-    nlatm2=nlat-2
+    mype_hs=min(1,npe-1)
+    mype_ps=0
+    nlatm2=grd%nlat-2
+    nflds=5*grd%nsig+1
+    if(zflag) nflds=nflds+1
+    if(vordivflag .or. .not. uvflag)nflds=nflds+2*grd%nsig
+!   nflds=npe
+    nflds=grd%nsig
+    levs=grd%nsig
 
-    call nemsio_init(iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
+    allocate( work(grd%itotsub),work_v(grd%itotsub) )
+    work=zero
+    work_v=zero
+    allocate( sub(grd%lat2*grd%lon2,max(grd%nsig,npe)),sub_v(grd%lat2*grd%lon2,max(grd%nsig,npe)) )
+    allocate( sub_div(grd%lat2*grd%lon2,max(grd%nsig,npe)),sub_vor(grd%lat2*grd%lon2,max(grd%nsig,npe)) )
+    if(mype < nflds)then
 
-    call nemsio_open(gfile,filename,'READ',iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
+      call nemsio_init(iret=iret)
+      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
 
-    call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
-         nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-         idate=idate, dimx=lonb, dimy=latb,dimz=levs)
+      call nemsio_open(gfile,filename,'READ',iret=iret)
+      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop+1,iret)
 
-    if( nframe /= 0 ) then
-       if ( mype == 0 ) &
-       write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
-       call stop2(101)
-    end if
+      call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
+           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
+           idate=idate, dimx=lonb, dimy=latb,dimz=levs)
+  
+      if( nframe /= 0 ) then
+         if ( mype == 0 ) &
+         write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
+         call stop2(101)
+      end if
 
-    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-    odate(1) = idate(4)  !hour
-    odate(2) = idate(2)  !month
-    odate(3) = idate(3)  !day
-    odate(4) = idate(1)  !year
+      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+      odate(1) = idate(4)  !hour
+      odate(2) = idate(2)  !month
+      odate(3) = idate(3)  !day
+      odate(4) = idate(1)  !year
 !
 !  g_* array already pre-allocate as (lat2,lon2,<nsig>) => 2D and <3D> array
 !
-    if(latb /= nlatm2) then
-       if ( mype == 0 ) write(6, &
-          '(a,'': inconsistent spatial dimension nlatm2 = '',i4,tr1,''latb = '',i4)') &
-          trim(my_name),nlatm2,latb
-       call stop2(101)
-    end if
-    if(lonb /= nlon) then
-       if ( mype == 0 ) write(6, &
-          '(a,'': inconsistent spatial dimension nlon   = '',i4,tr1,''lonb = '',i4)') &
-          trim(my_name),nlon,lonb
-       call stop2(101)
-    end if
-    if(levs /= nsig)then
-       if ( mype == 0 ) write(6, &
-          '(a,'': inconsistent spatial dimension nsig   = '',i4,tr1,''levs = '',i4)') &
-          trim(my_name),nsig,levs
-       call stop2(101)
-    end if
+      diff_res=.false.
+      if(latb /= nlatm2) then
+         diff_res=.true.
+         if ( mype == 0 ) write(6, &
+            '(a,'': different spatial dimension nlatm2 = '',i4,tr1,''latb = '',i4)') &
+            trim(my_name),nlatm2,latb
+  !      call stop2(101)
+      end if
+      if(lonb /= grd%nlon) then
+         diff_res=.true.
+         if ( mype == 0 ) write(6, &
+            '(a,'': different spatial dimension nlon   = '',i4,tr1,''lonb = '',i4)') &
+            trim(my_name),grd%nlon,lonb
+  !      call stop2(101)
+      end if
+      if(levs /= grd%nsig)then
+         if ( mype == 0 ) write(6, &
+            '(a,'': inconsistent spatial dimension nsig   = '',i4,tr1,''levs = '',i4)') &
+            trim(my_name),grd%nsig,levs
+         call stop2(101)
+      end if
 !
-    allocate( grid(nlon,nlatm2), grid_v(nlon,nlatm2) )
-    allocate( grid_vor(nlon,nlatm2), grid_div(nlon,nlatm2) )
-    allocate( work(itotsub),work_v(itotsub) )
-    allocate( work_vor(itotsub),work_div(itotsub) )
-    allocate( sub(lat2*lon2,max(2*nsig,npe)),sub_v(lat2*lon2,max(2*nsig,npe)) )
-    allocate( sub_div(lat2*lon2,max(2*nsig,npe)),sub_vor(lat2*lon2,max(2*nsig,npe)) )
-    allocate( rwork1d0(latb*lonb) )
+      allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
+      if(diff_res)then
+         allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
+         allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
+      end if
+      allocate( rwork1d0(latb*lonb) )
+      allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
+      allocate(rwork1d1(latb*lonb))
+      call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
+      call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
+      do j=1,latb
+        rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
+      end do
+      do j=1,lonb
+        rlons(j)=deg2rad*r4lons(j)
+      end do
+      deallocate(r4lats,r4lons)
+      rlats(1)=-half*pi
+      rlats(latb+2)=half*pi
+      do j=1,lonb
+         clons(j)=cos(rlons(j))
+         slons(j)=sin(rlons(j))
+      end do
+
+      nord_int=4
+      eqspace=.false.
+      call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
+                              latb+2,rlats,lonb,rlons,&
+                              nord_int,p_high,.true.,eqspace)
+      deallocate(rlats,rlons)
+    end if
 !
 !   Load values into rows for south and north pole before scattering
 !
 !   Terrain:  scatter to all mpi tasks
 !
-    if (mype==mype_hs) then
-       call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
-       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'hgt','read',istop,iret)
-       grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-       call fill_ns(grid,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_z,ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
+    if(zflag)then
+       if (mype==mype_hs) then
+          call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'hgt','read',istop+2,iret)
+          if(diff_res)then
+             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+             end do
+          else
+             grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+             call fill_ns(grid,work)
+          end if
+       endif
+       call mpi_scatterv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+          g_z,grd%ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
+    end if
 
 !   Surface pressure:  same procedure as terrain, but handled by task mype_ps
 !
     if (mype==mype_ps) then
-       allocate(rwork1d1(latb*lonb))
        call nemsio_readrecv(gfile,'pres','sfc',1,rwork1d0,iret=iret)
-       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop+3,iret)
        rwork1d1 = r0_001*rwork1d0
-       grid=reshape(rwork1d1,(/size(grid,1),size(grid,2)/)) ! convert Pa to cb
-       call fill_ns(grid,work)
-       deallocate(rwork1d1)
+       if(diff_res)then
+          vector(1)=.false.
+          grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+          call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+          call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+          do kk=1,itotsub
+            i=ltosi_s(kk)
+            j=ltosj_s(kk)
+            work(kk)=grid2(i,j,1)
+          end do
+       else
+          grid=reshape(rwork1d1,(/size(grid,1),size(grid,2)/)) ! convert Pa to cb
+          call fill_ns(grid,work)
+       endif
     endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-       g_ps,ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
+    call mpi_scatterv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+       g_ps,grd%ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
 
 !   Divergence and voriticity.  Compute u and v from div and vor
     sub_vor=zero
@@ -492,51 +595,90 @@ contains
     sub_v  =zero
     icount     =0
     icount_prev=1
+    allocate( work_vor(grd%itotsub),work_div(grd%itotsub) )
     do k=1,levs
        icount=icount+1
        if (mype==mod(icount-1,npe)) then
           ! Convert grid u,v to div and vor
           call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop,iret)
-          grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
+          call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
+          if(diff_res)then
+             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+             grid_b2=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.true.
+             call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+             end do
+             do j=1,grd%nlon
+               do i=2,grd%nlat-1
+                 grid(j,grd%nlat-i)=grid2(i,j,1)
+               end do
+             end do
+             call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work_v(kk)=grid2(i,j,1)
+             end do
+             do j=1,grd%nlon
+               do i=2,grd%nlat-1
+                 grid_v(j,grd%nlat-i)=grid2(i,j,1)
+               end do
+             end do
+          else
+             grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+             grid_v=reshape(rwork1d1,(/size(grid_v,1),size(grid_v,2)/))
+             call filluv_ns(grid,grid_v,work,work_v)
+          end if
 
-          call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d0,iret=iret)
-          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop,iret)
-          grid_v=reshape(rwork1d0,(/size(grid_v,1),size(grid_v,2)/))
-
-          call general_sptez_v(sp,spec_div,spec_vor,grid,grid_v,-1)
-          call general_sptez_s(sp,spec_div,grid_div,1)
-          call general_sptez_s(sp,spec_vor,grid_vor,1)
+          if(vordivflag .or. .not. uvflag)then
+             
+             allocate( grid_vor(grd%nlon,nlatm2), grid_div(grd%nlon,nlatm2) )
+             call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
+             call general_sptez_s_b(sp_a,sp_a,spec_div,grid_div,1)
+             call general_sptez_s_b(sp_a,sp_a,spec_vor,grid_vor,1)
 
           ! Load values into rows for south and north pole
-          call fill_ns(grid_div,work_div)
-          call fill_ns(grid_vor,work_vor)
-          call filluv_ns(grid,grid_v,work,work_v)
+             call fill_ns(grid_div,work_div)
+             call fill_ns(grid_vor,work_vor)
+             deallocate(grid_vor,grid_div)
+          end if
        endif
        ! Scatter to sub
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work_vor,ijn_s,displs_s,mpi_rtype,&
-             sub_vor(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work_div,ijn_s,displs_s,mpi_rtype,&
-             sub_div(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-          call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
-             sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-             mpi_comm_world,ierror)
+          if(vordivflag .or. .not. uvflag)then
+             call mpi_alltoallv(work_vor,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_vor(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+             call mpi_alltoallv(work_div,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_div(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+          end if
+          if(uvflag)then
+             call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+             call mpi_alltoallv(work_v,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub_v(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
+                mpi_comm_world,ierror)
+          end if
           icount_prev=icount+1
        endif
     end do
+    deallocate(work_vor,work_div)
 
     ! Transfer vor,div,u,v into real(r_kind) guess arrays
     call reload(sub_vor,g_vor)
     call reload(sub_div,g_div)
     call reload(sub,g_u)
     call reload(sub_v,g_v)
-    deallocate(sub_vor,sub_div,work_vor,work_div)
+    deallocate(sub_vor,sub_div)
 
 !   Thermodynamic variable and Specific humidity:  communicate to all tasks
 !
@@ -546,30 +688,52 @@ contains
     do k=1,levs
        icount=icount+1
        if (mype==mod(icount-1,npe)) then
-          allocate(rwork1d1(latb*lonb))
-          allocate(rwork1d2(latb*lonb))
 
           call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d0,iret=iret)
-          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'spfh','read',istop,iret)
-          grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-          call fill_ns(grid,work)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'spfh','read',istop+6,iret)
+          if(diff_res)then
+             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+             end do
+          else
+             grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+             call fill_ns(grid,work)
+          end if
 
           call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d1,iret=iret)
-          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'tmp','read',istop,iret)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'tmp','read',istop+7,iret)
+          allocate(rwork1d2(latb*lonb))
           rwork1d2 = rwork1d1*(one+fv*rwork1d0)
-          grid_v=reshape(rwork1d2,(/size(grid_v,1),size(grid_v,2)/))
-          call fill_ns(grid_v,work_v)
+          if(diff_res)then
+             grid_b=reshape(rwork1d2,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work_v(kk)=grid2(i,j,1)
+             end do
+          else
+             grid_v=reshape(rwork1d2,(/size(grid_v,1),size(grid_v,2)/))
+             call fill_ns(grid_v,work_v)
+          end if
 
-          deallocate(rwork1d1)
           deallocate(rwork1d2)
        endif
 
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
-             sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work_v,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub_v(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
           icount_prev=icount+1
        endif
@@ -585,13 +749,25 @@ contains
        icount=icount+1
        if (mype==mod(icount-1,npe)) then
           call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d0,iret=iret)
-          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'o3mr','read',istop,iret)
-          grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-          call fill_ns(grid,work)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'o3mr','read',istop+8,iret)
+          if(diff_res)then
+             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,itotsub
+               i=ltosi_s(kk)
+               j=ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+             end do
+          else
+             grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+             call fill_ns(grid,work)
+          end if
        endif
        if (mod(icount,npe)==0 .or. icount==levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-             sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+          call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+             sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
              mpi_comm_world,ierror)
           icount_prev=icount+1
        endif
@@ -608,13 +784,25 @@ contains
           icount=icount+1
           if (mype==mod(icount-1,npe)) then
              call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
-             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'clwmr','read',istop,iret)
-             grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-             call fill_ns(grid,work)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
+             if(diff_res)then
+                grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,itotsub
+                  i=ltosi_s(kk)
+                  j=ltosj_s(kk)
+                  work(kk)=grid2(i,j,1)
+                end do
+             else
+                grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+                call fill_ns(grid,work)
+             end if
           endif
           if (mod(icount,npe)==0 .or. icount==levs) then
-             call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-                sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
+             call mpi_alltoallv(work,grd%ijn_s,grd%displs_s,mpi_rtype,&
+                sub(1,icount_prev),grd%irc_s,grd%ird_s,mpi_rtype,&
                 mpi_comm_world,ierror)
              icount_prev=icount+1
           endif
@@ -624,10 +812,16 @@ contains
        g_cwmr = zero
     endif
 
-    deallocate(rwork1d0)
-    deallocate(grid,work,sub)
-    call nemsio_close(gfile,iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop,iret)
+    if(mype < nflds)then
+       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid2)
+       call destroy_egrid2agrid(p_high)
+       deallocate(rwork1d1,clons,slons)
+       deallocate(rwork1d0)
+       deallocate(grid,grid_v)
+       call nemsio_close(gfile,iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop+9,iret)
+    end if
+    deallocate(work,sub)
 
 !   Print date/time stamp 
     if ( mype == 0 ) write(6, &
@@ -1057,120 +1251,9 @@ contains
 
 
 
-  subroutine write_ (increment,mype,mype_atm,mype_sfc)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    write_nems
-!
-!   prgmmr: Huang            org: np23                date: 2010-02-22
-!
-! abstract:
-!
-! program history log:
-!   2010-02-22  Huang    Initial version.  Based on write_gfs
-!   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
-!   2013-10-19  todling - metguess now holds background
-!
-!   input argument list:
-!     increment          - when >0 will write increment from increment-index slot
-!     mype               - mpi task id
-!     mype_atm,mype_sfc  -
-!
-!   output argument list:
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-    use kinds, only: i_kind,r_kind
-    use guess_grids, only: ges_prsl,ges_prsi,dsfct 
-    use guess_grids, only: ntguessig,ntguessfc
-    use gsi_metguess_mod, only: gsi_metguess_bundle
-    use gsi_bundlemod, only: gsi_bundlegetpointer
-    use radinfo, only: nst_gsi
-
-    implicit none
-
-    integer(i_kind),intent(in   ) :: increment
-    integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
-
-    character(len=*),parameter::myname_=myname//'*write_'
-    character(len=24)             :: filename, file_nst
-    integer(i_kind)               :: itoutsig, iret, ier
-    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
-
-!   Write atmospheric analysis file
-    if (increment>0) then
-       filename='siginc'
-       itoutsig=increment
-    else
-       filename='siganl'
-       itoutsig=ntguessig
-    endif
-
-!   Get pointers to guess fields
-    ier=0
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ps',ges_ps_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'z',ges_z_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'u',ges_u_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'v',ges_v_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'div',ges_div_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'vor',ges_vor_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'tv',ges_tv_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'q',ges_q_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'oz',ges_oz_it,iret)
-    ier=ier+iret
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,iret)
-    ier=ier+iret
-
-    if (ier==0) then ! simply return when pointers are not found (could
-                     ! indivialize write for more flexible choices)
-       call write_atm_ (filename,mype,mype_atm,&
-            ges_z_it,ges_ps_it,&
-            ges_tv_it,ges_q_it,&
-            ges_oz_it,ges_cwmr_it,&
-            ges_prsl(1,1,1,itoutsig),ges_u_it,&
-            ges_v_it,ges_prsi(1,1,1,itoutsig))
-    endif
-
-!   Write surface analysis file
-    if (increment>0) then
-       filename='sfcinc.gsi'
-    else
-       if ( nst_gsi > 0 ) then
-          filename = 'sfcanl'
-          file_nst = 'nstanl'
-          call write_sfc_nst_(filename,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
-       else
-          filename='sfcanl.gsi'
-          call write_sfc_ (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
-       endif
-    endif
-  end subroutine write_
-
-
-  subroutine write_atm_ (filename,mype,mype_out,sub_z,sub_ps,&
+  subroutine write_atm_ (grd,sp_a,filename,mype,mype_out,sub_ps,&
        sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
-       sub_u,sub_v,sub_prsi)
+       sub_u,sub_v,sub_prsi,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1193,7 +1276,6 @@ contains
 !     filename  - file to open and write to
 !     mype      - mpi task number
 !     mype_out  - mpi task to write output file
-!     sub_z     - NEMS terrain field on subdomains
 !     sub_ps    - surface pressure on subdomains
 !     sub_tv    - virtual temperature on subdomains
 !     sub_q     - specific humidity on subdomains
@@ -1203,6 +1285,7 @@ contains
 !     sub_u     - zonal wind
 !     sub_v     - meridional wind
 !     sub_prsi  - interface  pressure
+!     ibin      - time bin
 !
 !   output argument list:
 !
@@ -1224,24 +1307,21 @@ contains
     
     use guess_grids, only: ntguessig, ifilesig
     
-    use gridmod, only: nlat, nlon     ! no. lat/lon on analysis grid
-    use gridmod, only: lat1, lon1     ! no. lat/lon on subdomain (no buffer)
-    use gridmod, only: lat2, lon2     ! no. lat/lon on subdomain (buffer pnts on ends)
-    use gridmod, only: nsig           ! no. levels
-    use gridmod, only: iglobal        ! no. of horizontal points on global grid
-    use gridmod, only: ijn            ! no. of horiz. pnts for each subdomain (no buffer)
-    use gridmod, only: displs_g       ! comm. array, displacement for receive on global grid
-    use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
     use gridmod, only: ntracer
     use gridmod, only: ncloud
-    use gridmod, only: strip
+    use gridmod, only: strip,itotsub,iglobal,jcap_b
     
-    use general_commvars_mod, only: load_grid
+    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns,ltosj_s,ltosi_s,ltosj,ltosi
+    use general_specmod, only: spec_vars
 
     use obsmod, only: iadate
     
     use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_init,&
-         nemsio_getfilehead,nemsio_close,nemsio_writerecv
+         nemsio_getfilehead,nemsio_close,nemsio_writerecv,nemsio_readrecv
+    use gsi_4dvar, only: ibdate,nhr_obsbin
+    use general_sub2grid_mod, only: sub2grid_info
+    use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
+    use constants, only: two,pi,half,deg2rad
   
     implicit none
 
@@ -1251,17 +1331,20 @@ contains
 
     integer(i_kind)                            ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                            ,intent(in   ) :: mype_out  ! mpi task to write output file
+    integer(i_kind)                            ,intent(in   ) :: ibin      ! time bin
     
-    real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
-    real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_u    ! zonal wind
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_v    ! meridional wind
-    real(r_kind),dimension(lat2,lon2,nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
+    real(r_kind),parameter:: r0_001 = 0.001_r_kind
+    type(sub2grid_info)                    ,intent(in   ) :: grd
+    real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_u    ! zonal wind
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_v    ! meridional wind
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
+    type(spec_vars)                        ,intent(in   ) :: sp_a
 
 !-------------------------------------------------------------------------
 
@@ -1270,41 +1353,44 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: k, mm1, nlatm2
+    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
+    integer(i_kind),dimension(5):: mydate
+    integer(i_kind),dimension(8) :: ida,jda
+    real(r_kind),dimension(5)    :: fha
     real(r_kind)    :: fhour
     
-    real(r_kind),dimension(lat1*lon1)     :: hsm, psm
-    real(r_kind),dimension(lat2,lon2,nsig):: sub_dp
-    real(r_kind),dimension(lat1*lon1,nsig):: tvsm,prslm, usm, vsm
-    real(r_kind),dimension(lat1*lon1,nsig):: dpsm, qsm, ozsm, cwsm
-    real(r_kind),dimension(max(iglobal,itotsub))     :: work1
-    real(r_kind),dimension(nlon,nlat-2):: grid, grid2
-    real(r_kind),allocatable,dimension(:) :: rwork1d
+    real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm, cwsm
+    real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1,work2
+    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
+    real(r_kind),allocatable,dimension(:) :: rwork1d,rwork1d1,rlats,rlons,clons,slons
+    real(4),allocatable,dimension(:) :: r4lats,r4lons
+    real(r_kind),allocatable,dimension(:,:) :: grid_b,grid_b2
+    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2
 
     type(nemsio_gfile) :: gfile,gfileo
+    logical diff_res,eqspace
+    logical,dimension(1) :: vector
+    type(egrid2agrid_parm) :: p_low,p_high
+
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+1
-    nlatm2=nlat-2
+    nlatm2=grd%nlat-2
+    diff_res=.false.
 
-    do k=1,nsig
-       sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
-    end do
+    if(sp_a%jcap /= jcap_b) then
+       if ( mype == 0 ) write(6, &
+          '('' dual resolution for nems sp_a%jcap,jcap_b = '',2i6)') &
+          sp_a%jcap,jcap_b
+        diff_res=.true.
+    end if
 
-!   Strip off boundary points from subdomains
-    call strip(sub_z   ,hsm)
-    call strip(sub_ps  ,psm)
-    call strip(sub_tv  ,tvsm  ,nsig)
-    call strip(sub_q   ,qsm   ,nsig)
-    call strip(sub_oz  ,ozsm  ,nsig)
-    call strip(sub_cwmr,cwsm  ,nsig)
-    call strip(sub_dp  ,dpsm  ,nsig)
-    call strip(sub_prsl,prslm ,nsig)
-    call strip(sub_u   ,usm   ,nsig)
-    call strip(sub_v   ,vsm   ,nsig)
 
 !   Single task writes analysis data to analysis file
     if (mype==mype_out) then
@@ -1324,19 +1410,31 @@ contains
           write(6,*)trim(my_name),': problem with nemsio_getfilehead, Status = ',iret
           call stop2(103)
        end if
-       if(levs/=nsig) then
-          write(6,*)trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',nsig
+       if(levs/=grd%nsig) then
+          write(6,*)trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',grd%nsig
           call stop2(103)
        end if
 
 !      copy input header info to output header info
        gfileo=gfile
  
-!      Update header information (with iadate) and write it to analysis file (w/ _open statement).
-       jdate(1) = iadate(1)  ! analysis year
-       jdate(2) = iadate(2)  ! analysis month
-       jdate(3) = iadate(3)  ! analysis day
-       jdate(4) = iadate(4)  ! analysis hour
+!      Update header information (with ibdate) and write it to analysis file (w/ _open statement).
+       mydate=ibdate
+       fha(:)=zero ; ida=0; jda=0
+       fha(2)=real(nhr_obsbin*(ibin-1))  ! relative time interval in hours
+       ida(1)=mydate(1) ! year
+       ida(2)=mydate(2) ! month
+       ida(3)=mydate(3) ! day
+       ida(4)=0         ! time zone
+       ida(5)=mydate(4) ! hour
+
+   ! Move date-time forward by nhr_assimilation hours
+       call w3movdat(fha,ida,jda)
+
+       jdate(1) = jda(1)     ! analysis year
+       jdate(2) = jda(2)     ! analysis month
+       jdate(3) = jda(3)     ! analysis day
+       jdate(4) = jda(5)     ! analysis hour
        jdate(5) = iadate(5)  ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
        jdate(7) = idate(7)   ! analysis seconds multiplier
@@ -1361,9 +1459,61 @@ contains
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),null,'open',istop,iret)
 
 !      Allocate structure arrays to hold data
-       allocate(rwork1d(latb*lonb))
+       allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
+       if(diff_res)then
+          allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid3(grd%nlat,grd%nlon,1))
+          allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
+          allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
+          call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
+          call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
+          do j=1,latb
+            rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
+          end do
+          rlats(1)=-half*pi
+          rlats(latb+2)=half*pi
+          do j=1,lonb
+            rlons(j)=deg2rad*r4lons(j)
+          end do
+          do j=1,lonb
+             clons(j)=cos(rlons(j))
+             slons(j)=sin(rlons(j))
+          end do
 
-    endif
+          nord_int=4
+          eqspace=.false.
+          call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
+                                latb+2,rlats,lonb,rlons,&
+                                nord_int,p_low,.false.,eqspace=eqspace)
+          call g_create_egrid2agrid(latb+2,rlats,lonb,rlons, &
+                                grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons,&
+                                nord_int,p_high,.false.,eqspace=eqspace)
+
+          deallocate(rlats,rlons,r4lats,r4lons)
+       end if
+
+!   Terrain
+!   Write out input file surface height
+
+       call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','writeread',istop,iret)
+       call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','write',istop,iret)
+    end if
+
+    do k=1,grd%nsig
+       sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
+    end do
+
+!   Strip off boundary points from subdomains
+    call strip(sub_ps  ,psm)
+    call strip(sub_tv  ,tvsm  ,grd%nsig)
+    call strip(sub_q   ,qsm   ,grd%nsig)
+    call strip(sub_oz  ,ozsm  ,grd%nsig)
+    call strip(sub_cwmr,cwsm  ,grd%nsig)
+    call strip(sub_dp  ,dpsm  ,grd%nsig)
+    call strip(sub_prsl,prslm ,grd%nsig)
+    call strip(sub_u   ,usm   ,grd%nsig)
+    call strip(sub_v   ,vsm   ,grd%nsig)
 !
 !   Thermodynamic variable
 !   The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
@@ -1371,119 +1521,270 @@ contains
 !
 !   Convert Tv to T
     tvsm = tvsm/(one+fv*qsm)
-
 !   Generate and write analysis fields
-!   Terrain
-    call mpi_gatherv(hsm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
-    if (mype==mype_out) then
-       call load_grid(work1,grid)
-       rwork1d = reshape(grid,(/size(rwork1d)/))
-       call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','write',istop,iret)
-    endif
 
 !   Surface pressure.  
-    call mpi_gatherv(psm,ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
+    call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
     if (mype==mype_out) then
-       call load_grid(work1,grid)
-       grid2 = grid*r1000
-       rwork1d = reshape(grid2,(/size(rwork1d)/))
+       if(diff_res)then
+          call nemsio_readrecv(gfile,'pres','sfc',1,rwork1d,iret=iret)
+          if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+          rwork1d1 = r0_001*rwork1d
+          grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+          vector(1)=.false.
+          call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+          call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+          do kk=1,grd%iglobal
+             i=grd%ltosi(kk)
+             j=grd%ltosj(kk)
+             grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+          end do
+
+          call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+          do j=1,latb
+             do i=1,lonb
+                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+             end do
+          end do
+          rwork1d = reshape(grid_b,(/size(rwork1d)/))
+       else
+          call load_grid(work1,grid)
+          grid = grid*r1000
+          rwork1d = reshape(grid,(/size(rwork1d)/))
+       end if
        call nemsio_writerecv(gfileo,'pres','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'psfc','write',istop,iret)
     endif
 
 !   Pressure depth
-    do k=1,nsig
-       call mpi_gatherv(dpsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(dpsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
-          call load_grid(work1,grid)
-          grid2 = grid*r1000
-          rwork1d = reshape(grid2,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+             rwork1d1 = r0_001*rwork1d
+             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+          else
+             call load_grid(work1,grid)
+             grid = grid*r1000
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+          end if
           call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'dpres','write',istop,iret)
        endif
     end do
 
 !   Layer mean pressure
-    do k=1,nsig
-       call mpi_gatherv(prslm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(prslm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
-          call load_grid(work1,grid)
-          grid2 = grid*r1000
-          rwork1d = reshape(grid2,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+             rwork1d1 = r0_001*rwork1d
+             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+          else
+             call load_grid(work1,grid)
+             grid = grid*r1000
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+          end if
           call nemsio_writerecv(gfileo,'pres','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'pres','write',istop,iret)
        endif
     end do
 
-!   Zonal wind
-    do k=1,nsig
-       call mpi_gatherv(usm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       call mpi_gatherv(vsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work2,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d,iret=iret)
+             call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+             grid_b2=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.true.
+             call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
+             end do
+             call g_egrid2agrid(p_low,grid_c2,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work2(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+             rwork1d1 = reshape(grid_b2,(/size(rwork1d1)/))
+
+          else
+             call load_grid(work1,grid)
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+             call load_grid(work2,grid)
+             rwork1d1 = reshape(grid,(/size(rwork1d1)/))
+          end if
+
+!   Zonal wind
           call nemsio_writerecv(gfileo,'ugrd','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'ugrd','write',istop,iret)
-       endif
-    end do
-
 !   Meridional wind
-    do k=1,nsig
-       call mpi_gatherv(vsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
-          call nemsio_writerecv(gfileo,'vgrd','mid layer',k,rwork1d,iret=iret)
+          call nemsio_writerecv(gfileo,'vgrd','mid layer',k,rwork1d1,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'vgrd','write',istop,iret)
        endif
     end do
 
 !   Thermodynamic variable
-    do k=1,nsig
-       call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(tvsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+          else
+             call load_grid(work1,grid)
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+          end if
           call nemsio_writerecv(gfileo,'tmp','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'tmp','write',istop,iret)
        endif
     end do
 
 !   Specific humidity
-    do k=1,nsig
-       call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+          else
+             call load_grid(work1,grid)
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+          end if
           call nemsio_writerecv(gfileo,'spfh','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'spfh','write',istop,iret)
        endif
     end do
 
 !   Ozone
-    do k=1,nsig
-       call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,&
+    do k=1,grd%nsig
+       call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
-          call load_grid(work1,grid)
-          rwork1d = reshape(grid,(/size(rwork1d)/))
+          if(diff_res)then
+             call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+             grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+             vector(1)=.false.
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             end do
+             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                end do
+             end do
+             rwork1d = reshape(grid_b,(/size(rwork1d)/))
+          else
+             call load_grid(work1,grid)
+             rwork1d = reshape(grid,(/size(rwork1d)/))
+          end if
           call nemsio_writerecv(gfileo,'o3mr','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'o3mr','write',istop,iret)
        endif
@@ -1491,22 +1792,44 @@ contains
        
 !   Cloud condensate mixing ratio
     if (ntracer>2 .or. ncloud>=1) then
-       do k=1,nsig
-          call mpi_gatherv(cwsm(1,k),ijn(mm1),mpi_rtype,&
-               work1,ijn,displs_g,mpi_rtype,&
+       do k=1,grd%nsig
+          call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
+               work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
-             call load_grid(work1,grid)
-             rwork1d = reshape(grid,(/size(rwork1d)/))
+             if(diff_res)then
+                call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
+                grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
+                do kk=1,grd%iglobal
+                   i=grd%ltosi(kk)
+                   j=grd%ltosj(kk)
+                   grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+                end do
+                call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+                do j=1,latb
+                   do i=1,lonb
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   end do
+                end do
+                rwork1d = reshape(grid_b,(/size(rwork1d)/))
+             else
+                call load_grid(work1,grid)
+                rwork1d = reshape(grid,(/size(rwork1d)/))
+             endif
              call nemsio_writerecv(gfileo,'clwmr','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'clwmr','write',istop,iret)
-          endif
+          end if
        end do
     endif
 !
 ! Deallocate local array
 !
     if (mype==mype_out) then
+       if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
        call nemsio_close(gfile,iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges),null,'close',istop,iret)
 
@@ -1515,7 +1838,7 @@ contains
 !
 ! Deallocate local array
 !
-       deallocate(rwork1d)
+       deallocate(rwork1d,rwork1d1)
 !
        write(6,'(a,'': atm anal written for lonb,latb,levs= '',3i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,levs,fhour,odate
@@ -1589,9 +1912,6 @@ contains
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
     use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
 
-!! should be remove if subroutine sfc_interpolate move to this module
-    use ncepgfs_io, only :  sfc_interpolate
-    
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1828,9 +2148,6 @@ contains
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
     use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
 
-!! should be remove if subroutine sfc_interpolate move to this module
-    use ncepgfs_io, only :  sfc_interpolate
-    
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2126,7 +2443,7 @@ contains
 
 
 
-  subroutine error_msg(mype,sub_name,file_name,var_name,action,stop_code,error_code)
+  subroutine error_msg_(mype,sub_name,file_name,var_name,action,stop_code,error_code)
     use kinds, only: i_kind
     implicit none
 
@@ -2150,7 +2467,100 @@ contains
        end select
      end if
      if ( stop_code /= 0 ) call stop2(stop_code)
-  end subroutine error_msg
+  end subroutine error_msg_
 
+
+  subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    sfc_interpolate --- interpolates from analysis grid to 
+!                                    surface grid
+!   prgrmmr:     derber -  initial version; org: np2
+!
+! abstract:      This routine interpolates a on analysis grid to b on 
+!                surface grid
+!
+! program history log:
+!   2008-02-26  derber  - original routine
+!   2008-05-28  safford - add subprogram doc block, rm unused uses
+!   2011-04-01  li - change kind of output field (b: single to r_kind)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!
+!   input argument list:
+!     na_lon  - number of longitude grid analysis 
+!     na_lat  - number of latitude grid analysis
+!     ns_lon  - number of longitude grid sfc 
+!     ns_lat  - number of latitude grid sfc
+!     a       - analysis values
+!
+!   output argument list:
+!     b       - surface values
+!
+! attributes:
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!$$$ end documentation block
+
+! !USES:
+    use kinds, only: r_kind,i_kind,r_single
+    use constants, only: zero,one
+    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
+    
+    implicit none
+
+! !INPUT PARAMETERS:
+    integer(i_kind)                        ,intent(in   ) :: na_lon  ! number of longitude grid analysis 
+    integer(i_kind)                        ,intent(in   ) :: na_lat  ! number of latitude grid analysis
+    integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
+    integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
+
+    real(r_kind), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
+
+! !OUTPUT PARAMETERS:
+    real(r_kind), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
+
+
+!   Declare local variables
+    integer(i_kind) i,j,ix,iy,ixp,iyp
+    real(r_kind) dx1,dy1,dx,dy,w00,w01,w10,w11,bout,dlat,dlon
+
+!*****************************************************************************
+
+    b=zero
+!   Loop over all points to get interpolated value
+    do j=1,ns_lat
+       dlat=rlats_sfc(j)
+       call grdcrd1(dlat,rlats,na_lat,1)
+       iy=int(dlat)
+       iy=min(max(1,iy),na_lat)
+       dy  =dlat-iy
+       dy1 =one-dy
+       iyp=min(na_lat,iy+1)
+
+
+       do i=1,ns_lon
+          dlon=rlons_sfc(i)
+          call grdcrd1(dlon,rlons,na_lon,1)
+          ix=int(dlon)
+          dx  =dlon-ix
+          dx=max(zero,min(dx,one))
+          dx1 =one-dx
+          w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+          ix=min(max(0,ix),na_lon)
+          ixp=ix+1
+          if(ix==0) ix=na_lon
+          if(ixp==na_lon+1) ixp=1
+          bout=w00*a(ix,iy)+w01*a(ix,iyp)+w10*a(ixp,iy)+w11*a(ixp,iyp)
+          b(i,j)=bout
+
+       end do
+    end do
+
+    
+!   End of routine
+    return
+  end subroutine sfc_interpolate
 end module ncepnems_io
 

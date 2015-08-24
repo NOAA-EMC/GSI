@@ -70,9 +70,8 @@ CONTAINS
     integer(i_kind), ALLOCATABLE ::  scanline_back(:,:)
 
     real(r_kind) :: sampling_dist, beamwidth(nchanl) 
-    real(r_kind) :: newwidth(nchanl), cutoff(nchanl)
+    real(r_kind) :: newwidth(nchanl), cutoff(nchanl),err(nchanl)
     real(r_kind), allocatable, target :: bt_image(:,:,:)
-    real(r_kind), pointer :: bt_image1(:,:)
 
     Error_Status=0
 
@@ -153,22 +152,22 @@ CONTAINS
        Scanline_Back(FOV(I),Scanline(I))=I
     END DO
 
+!$omp parallel do schedule(dynamic,1) private(ichan,iscan,ios,ifov)
     DO IChan=1,nchanl
     
+       err(ichan)=0
    
-       bt_image1 => bt_image(:,:,ichan)
-
        ! Set all scan positions to missing in a scanline if one is missing
        do iscan=1,max_scan
-          if (ANY(bt_image1(:,iscan) > 500.0_r_kind)) &
-             bt_image1(:,iscan)=1000.0_r_kind
+          if (ANY(bt_image(:,iscan,ichan) > 500.0_r_kind)) &
+             bt_image(:,iscan,ichan)=1000.0_r_kind
        enddo
 
        ! If the channel number is present in the channelnumber array we should process it 
        ! (otherwise bt_inout just keeps the same value):
        IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
 
-          CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image1, &
+          CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image(:,:,ichan), &
                sampling_dist, beamwidth(ichan), newwidth(ichan), &
                cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
                qc_dist(ichan), MinBT(Ichan), MaxBT(IChan), IOS)
@@ -178,19 +177,23 @@ CONTAINS
                 do ifov=1,max_fov
                    IF (Scanline_Back(IFov, IScan) > 0) &
                         bt_inout(channelnumber(ichan),Scanline_Back(IFov, IScan)) = &
-                        BT_Image1(ifov,iscan)
+                        BT_Image(ifov,iscan,ichan)
                 end do
              end do
           ELSE
-             Error_Status=1
-             RETURN
+             err(ichan)=1
           END IF
        END IF
 
     END DO
+    do ichan=1,nchanl
+      if(err(ichan) >= 1)then
+         error_status = 1
+         return
+      end if
+    end do
 
     DEALLOCATE(BT_Image, Scanline_Back)
-    NULLIFY(BT_Image1)
     
 END Subroutine ATMS_Spatial_Average
 
@@ -272,7 +275,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       REAL(R_KIND) :: mtfin,mtfout,mtf_constant
       REAL(R_KIND), ALLOCATABLE :: mtfpad(:,:)
       REAL(R_KIND), ALLOCATABLE :: imagepad(:,:)
-      REAL(R_KIND), ALLOCATABLE :: work(:)
       REAL(R_KIND) :: f,df,factor
       REAL(R_KIND) :: PI, LN2, LNcsquared
       LOGICAL :: missing
@@ -317,7 +319,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       ALLOCATE(mtfyin(nypad),mtfyout(nypad))
       ALLOCATE(mtfpad(nxpad,nypad))
       ALLOCATE(imagepad(nxpad,nypad))
-      ALLOCATE(work(nypad))
       ALLOCATE(gooddata_map(nxmax,nymax))
 
 !Loop over scan positions
@@ -434,33 +435,18 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         ENDDO
 
         DO i=1,nxpad
-           DO j=1,nypad
-              work(j) = imagepad(i,j)
-           ENDDO
-           CALL SFFTCF(work,nypad,ypow2)
-           DO j=1,nypad
-              imagepad(i,j) = work(j)
-           ENDDO
-        ENDDO
+           CALL SFFTCF(imagepad(i,:),nypad,ypow2)
 
 !4) Multiply the spectrum by the MTF factor
-
-        DO j=1,nypad
-           DO i=1,nxpad
-            imagepad(i,j) = imagepad(i,j)*mtfpad(i,j)
-          ENDDO
+           DO j=1,nypad
+              imagepad(i,j) = imagepad(i,j)*mtfpad(i,j)
+           ENDDO
         ENDDO
 
 !5) Inverse Fourier transform, column by column then line by line 
 
         DO i=1,nxpad
-          DO j=1,nypad
-            work(j) = imagepad(i,j)
-          ENDDO
-          CALL SFFTCB(work,nypad,ypow2)
-          DO j=1,nypad
-            imagepad(i,j) = work(j)
-          ENDDO
+          CALL SFFTCB(imagepad(i,:),nypad,ypow2)
         ENDDO
 
         DO j=1,nypad
@@ -521,7 +507,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      DEALLOCATE(mtfyin,mtfyout)
      DEALLOCATE(mtfpad)
      DEALLOCATE(imagepad)
-     DEALLOCATE(work)
      DEALLOCATE(gooddata_map)
 
      RETURN
