@@ -201,8 +201,8 @@
       $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
    }
    elsif( $machine eq "theia" ){
-      $my_ptmp="export PTMP=\${PTMP:-/scratch4/NCEPDEV/stmp4/$user_name}";
-      $my_stmp="export STMP=\${STMP:-/scratch4/NCEPDEV/stmp3/$user_name}";
+      $my_ptmp="export PTMP=\${PTMP:-/scratch4/NCEPDEV/stmp4}";
+      $my_stmp="export STMP=\${STMP:-/scratch4/NCEPDEV/stmp3}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
