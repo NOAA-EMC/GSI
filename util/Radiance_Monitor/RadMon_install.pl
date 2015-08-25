@@ -142,9 +142,61 @@
    #
    #  Set up ptmp and stmp locations according to $arch.
    #
-   my $my_ptmp="export PTMP=\${PTMP:-/ptmpp1}";
-   my $my_stmp="export STMP=\${STMP:-/stmpp1}";
-   if( $machine eq "zeus" ) {
+   #
+   my $my_ptmp;
+   my $my_stmp;
+
+   if( $machine eq "wcoss" ) {
+      $ptmp = "/ptmpd1";
+      print "Please specify PTMP location.  This is used for temporary work space.\n";
+      print "  Available options are: \n";
+      print "      /ptmpd1  (default)\n";
+      print "      /ptmpd2\n";
+      print "      /ptmpd3\n";
+      print "      /ptmpp1\n";
+      print "      /ptmpp2\n";
+   
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default PTMP:  $ptmp \n";
+      print "     ?\n";
+      my $new_ptmp = <>;
+      $new_ptmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_ptmp ) > 0 ) {
+         $ptmp = $new_ptmp;
+      }
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-$ptmp}";
+      print "my_ptmp = $my_ptmp\n";
+      print "\n\n";
+      sleep( 1 );
+
+      $stmp = "/stmpd1";
+      print "Please specify STMP location.  This is used for temporary work space.\n";
+      print "  Available options are: \n";
+      print "      /stmpd1  (default)\n";
+      print "      /stmpd2\n";
+      print "      /stmpd3\n";
+      print "      /stmpp1\n";
+      print "      /stmpp2\n";
+
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default STMP:  $stmp \n";
+      print "     ?\n";
+      my $new_stmp = <>;
+      $new_stmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_stmp ) > 0 ) {
+         $stmp = $new_stmp;
+      }
+      $my_stmp="export MY_STMP=\${MY_STMP:-$stmp}";
+      print "my_stmp = $my_stmp\n";
+      print "\n\n";
+      sleep( 1 );
+
+   }
+   elsif( $machine eq "zeus" ) {
       $my_ptmp="export PTMP=\${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
       $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
    }
