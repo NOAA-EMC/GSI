@@ -648,10 +648,6 @@ contains
        rstats = zero_quad
 
        inquire(file='satbias_pc',exist=pcexist)
-!RY TEST
-         write(6,*) '***IN RADINFO: PCEXIST***=', pcexist
-!       pcexist=.false.
-!RY TEST
        if (pcexist) then
           open(lunin,file='satbias_pc',form='formatted')
           nfound = .false.

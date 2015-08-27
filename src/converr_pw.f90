@@ -61,6 +61,9 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
+!   2015-03-06  yang    -- add ld, the total number of the conventional obs.
+!                          types (corresponding to convinfo table). Currently, 
+!                          ld=300 is sufficient. 
 !
 !   input argument list:
 !
@@ -73,13 +76,13 @@ contains
 !$$$ end documentation block
      use constants, only: half
      implicit none
-
+     integer(i_kind),parameter :: ld=300  ! maximum number of conventionalintent(in   ) :: mype
      integer(i_kind),intent(in   ) :: mype
 
      integer(i_kind):: ier
 
      maxsub_pw=5
-     allocate(etabl_pw(50,33,6),isuble_pw(50,5))
+     allocate(etabl_pw(ld,33,6),isuble_pw(ld,5))
 
      etabl_pw=1.e9_r_kind
       
@@ -97,8 +100,11 @@ contains
      lcount=0
      loopd : do 
         read(ietabl_pw,100,IOSTAT=iflag,end=120) itypey
-        if( iflag /= 0 ) exit loopd
-100     format(1x,i3,2x,i3)
+        if( iflag /= 0 ) then
+           write(6,*)'CONVERR_PW:  READING ERROR'
+        exit loopd
+        endif
+100     format(1x,i3)
         lcount=lcount+1
         itypex=itypey
         read(ietabl_pw,105,IOSTAT=iflag,end=120) (isuble_pw(itypex,n),n=1,5)
