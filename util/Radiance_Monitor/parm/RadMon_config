@@ -62,10 +62,10 @@ export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 #
 #  Log and work space definitions
 #
-export PTMP=${PTMP:-/ptmpp1}
-export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
-export STMP=${STMP:-/stmpp1}
-export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
+export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
+export MY_STMP=${MY_STMP:-/stmpp1}
+export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
 export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
