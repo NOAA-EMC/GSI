@@ -843,10 +843,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ierr=index_sub(nc)
               ierr2=ierr-1
               if (ierr >maxsub_uv) ierr=2
-!             write(6,*) 'READ_SATWND:itypey,ierr2=',itypey,ierr2,ierr,index_sub(nc),isuble_uv(itypey,ierr2)
+!                 write(6,*) '**********************READ_SATWND:'
+!                 write(6,*) 'READ_SATWND:itypey,nc,ierr=index_sub(nc), ierr2=,iobsub,isuble_uv(itypey,ierr2)'
+!                 write(6,*) itypey,nc,index_sub(nc), iobsub,isuble_uv(itypey,ierr2)
+!                 write(6,*) '**********************READ_SATWND:'
               if( iobsub /= isuble_uv(itypey,ierr2)) then
                  write(6,*) ' READ_SATWND: the subtypes do not match subtype &
-                            in the errortable,iobsub=',iobsub,isuble_uv(itypey,ierr2), &
+                            in errortable,iobsub NE isuble_uv(itypey,ierr2)',iobsub,isuble_uv(itypey,ierr2), &
                             isuble_uv(itypey,ierr2),itype,itypey,nc,ierr
                  call stop2(49)
               endif
@@ -880,7 +883,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                'READ_SATWND:obserr,var_jb,ppb,del,one,etabl_uv,btabl_uv=',&
 !                obserr,var_jb,ppb,del,one,etabl_uv(itypey,k1,ierr),btabl_uv(itypey,k1,ierr),wjbmin,werrmin
 !           endif
-           else
+           else                         ! else use the ONE error table
               if(ppb>=etabl(itype,1,1)) k1=1
               do kl=1,32
                  if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
@@ -896,7 +899,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               del=max(zero,min(del,one))
               obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
               obserr=max(obserr,werrmin)
-           endif
+           endif                    ! end of njqc
 
            if(itype==245 .or. itype==246) then
 

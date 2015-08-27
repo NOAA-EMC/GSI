@@ -1077,7 +1077,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     enddo
                  endif
                  if (qob) then
-                    itypex=itypey-99
+                    itypex=itypey
                     ierr_q=index_sub(nc)
                     if(ierr_q >maxsub_q) ierr_q=2
                     if( icsubtype(nc) /= isuble_q(itypex,ierr_q-1)) then

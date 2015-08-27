@@ -103,7 +103,7 @@ contains
      lcount=0
      loopd : do 
         read(ietabl_t,100,IOSTAT=iflag,end=120) itypey
-!        print *, 'READ_T_TABLE iflag=, itypey=', iflag,itypey
+!        write(6,*) 'READ_T_TABLE iflag=, itypey=', iflag,itypey
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1

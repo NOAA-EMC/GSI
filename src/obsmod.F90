@@ -1494,7 +1494,7 @@ module obsmod
 
   logical, save :: obs_instr_initialized_=.false.
 
-  logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on,dval_use
+  logical oberrflg,bflag,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on,dval_use
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
