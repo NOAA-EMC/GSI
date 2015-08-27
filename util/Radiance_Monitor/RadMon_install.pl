@@ -197,12 +197,12 @@
 
    }
    elsif( $machine eq "zeus" ) {
-      $my_ptmp="export PTMP=\${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
-      $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
    }
    elsif( $machine eq "theia" ){
-      $my_ptmp="export PTMP=\${PTMP:-/scratch4/NCEPDEV/stmp4}";
-      $my_stmp="export STMP=\${STMP:-/scratch4/NCEPDEV/stmp3}";
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch4/NCEPDEV/stmp4}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch4/NCEPDEV/stmp3}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -234,10 +234,10 @@
       elsif( $_ =~ "MY_MACHINE=" ) {
          print $out "$my_machine\n";
       }
-      elsif( $_ =~ "PTMP=" ) {
+      elsif( $_ =~ "MY_PTMP=" ) {
          print $out "$my_ptmp\n";
       }
-      elsif( $_ =~ "STMP=" ) {
+      elsif( $_ =~ "MY_STMP=" ) {
          print $out "$my_stmp\n";
       }
       else {
@@ -265,7 +265,7 @@
       $project="export PROJECT=";
    } 
 
-   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev}";
+   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
    if( $machine ne "wcoss" ) {
       $job_queue="export JOB_QUEUE=";
    } 
