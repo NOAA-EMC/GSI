@@ -767,26 +767,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(qifn <85.0_r_kind )  then
                     qm=15
                  endif
-                 if((itype==245 .or. itype==246)) then 
-!  using Santek quality control method,calculate the original ee value:
-!  NOTE: Up until GOES-R winds algorithm, EE (expected error, ee) is reported as percent 0-100% (the higher the ee, the better the wind quality)
-!  NOTE: In the new GOES-R BUFR, EE (expected error, ee) is reported in m/s (the smaller the ee, the better the wind quality)
-                    if(ee <r105) then
-                       ree=(ee-r100)/(-10.0_r_kind)
-                       if(obsdat(4) >zero) then
-                         ree=ree/obsdat(4)
-                       else
-                         ree=two
-                       endif
-                    else
-                       ree=0.2_r_kind
-                    endif
-                    if( ppb >= 800.0_r_kind .and. ree >0.55_r_kind) then
-                       qm=15
-                     else if (ree >0.8_r_kind) then
-                       qm=15
-                    endif
-                 endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -1054,6 +1034,27 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            del=max(zero,min(del,one))
            obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
            obserr=max(obserr,werrmin)
+           if((itype==245 .or. itype==246) &
+              .and. (trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. trim(subset) == 'NC005012' )) then !only applies to AMVs from legacy algorithm (pre GOES-R)
+!  using Santek quality control method,calculate the original ee value:
+!  NOTE: Up until GOES-R winds algorithm, EE (expected error, ee) is reported as percent 0-100% (the higher the ee, the better the wind quality)
+!  NOTE: In the new GOES-R BUFR, EE (expected error, ee) is reported in m/s (the smaller the ee, the better the wind quality)
+              if(ee <r105) then
+                 ree=(ee-r100)/(-10.0_r_kind)
+                 if(obsdat(4) >zero) then
+                    ree=ree/obsdat(4)
+                 else
+                    ree=two
+                 endif
+              else
+                 ree=0.2_r_kind
+              endif
+              if( ppb >= 800.0_r_kind .and. ree >0.55_r_kind) then
+                  qm=15
+              else if (ree >0.8_r_kind) then
+                  qm=15
+              endif
+           endif
 
 ! Reduce OE for the GOES-R winds by half following Sharon Nebuda's work
 ! GOES-R wind are identified/recognised here by subset, but it could be done by itype or SAID
