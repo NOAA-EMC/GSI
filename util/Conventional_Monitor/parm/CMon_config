@@ -53,13 +53,13 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 fi
  
-export STMP=${STMP:-/stmpp1/${LOGNAME}}
-export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
-export PTMP=${PTMP:-/ptmpp1/${LOGNAME}}
-export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
+export C_STMP=${C_STMP:-/stmpp1}
+export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
+export C_PTMP=${C_PTMP:-/ptmpp1}
+export C_PTMP_USER=${C_PTMP_USER:-${C_MY_PTMP}/${LOGNAME}}
 
-export LOGDIR=${PTMP}/logs/conv${SUFFIX}
-export LOGSverf_cmon=${LOGSverf_cmon:-${PTMP}/logs/conv${SUFFIX}}
+export LOGDIR=${C_PTMP}/logs/conv${SUFFIX}
+export LOGSverf_cmon=${LOGSverf_cmon:-${MY_PTMP}/logs/conv${SUFFIX}}
 
 export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
 
