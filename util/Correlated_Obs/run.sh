@@ -58,7 +58,7 @@ while [[ $cdate -le $edate ]] ; do
    if [ ! -f danl_${fon} ];
    then
       cp $diagdir/radstat.gdas.$cdate .
-      tar -xvf radstat.gdas.$cdate
+      tar --extract --file=radstat.gdas.${cdate} diag_${instr}_ges.${cdate}.gz diag_${instr}_anl.${cdate}.gz
       gunzip *.gz
       rm radstat.gdas.$cdate
       if [ -f diag_${instr}_ges.${cdate} ];
@@ -68,7 +68,6 @@ while [[ $cdate -le $edate ]] ; do
       else
          nt=`expr $nt - 1`
       fi
-      rm diag*
    fi
    cdate=`$ndate +06 $cdate`
 done

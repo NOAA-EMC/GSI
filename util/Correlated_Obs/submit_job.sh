@@ -11,7 +11,6 @@
 #PBS -V
 
 #WCOSS Job options
-#BSUB -a poe
 #BSUB -e comperr
 #BSUB -o compout
 #BSUB -J cov_calc
