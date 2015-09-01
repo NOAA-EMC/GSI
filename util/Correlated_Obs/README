@@ -9,4 +9,8 @@ To use the computed covariance matrix in the GSI:
 1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90
 2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.
 
-To run cov_calc, edit the parameters in the first few lines of run.sh and submit_job.sh. Compile by typing 'make'. Then submit the job by typing 'qsub submit_job.sh' (zeus) or 'bsub < submit_job.sh' (WCOSS).  It may be necessary to change the requested compute time.  For 10 days of radstats, 2.5 hours should be sufficient. 
+Before running, compile the program by typing 'make'.
+
+There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it.  This script has not yet been tested on WCOSS.
+
+If the amount of radstat files is small, or they have already been processed, then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job.
