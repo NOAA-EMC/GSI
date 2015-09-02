@@ -11,6 +11,6 @@ To use the computed covariance matrix in the GSI:
 
 Before running, compile the program by typing 'make'.
 
-There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it.  This script has not yet been tested on WCOSS.
+There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it. 
 
 If the amount of radstat files is small, or they have already been processed, then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job.
