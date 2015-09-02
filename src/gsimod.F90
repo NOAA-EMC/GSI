@@ -1266,13 +1266,6 @@
           ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
      call stop2(329)
   endif
-
-! Only allow 4d-ensemble-var in global mode, for now
-  if (l4densvar .and. regional) then
-     call die(myname_,'4d-ensemble-var not yet available for regional applications',99)
-  end if
-
-
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
         if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time', &
