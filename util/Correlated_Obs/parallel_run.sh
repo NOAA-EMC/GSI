@@ -1,16 +1,16 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2013102500
+bdate=2014040106
 #date of last radstat file
 #edate=2013102506
-edate=2013103006
+edate=2014040918
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
 #location of radstat file
-exp=prexoz
-diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+exp=prCtl
+diagdir=/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasidir
+wrkdir=/stmpp1/${USER}/iasidir
 #location the covariance matrix is saved to
 savdir=$diagdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
@@ -20,29 +20,29 @@ cloud=1
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=20
 #option to output the channel wavenumbers
-wave_out=.true.
+wave_out=.false.
 #option to output the assigned observation errors
-err_out=.true.
+err_out=.false.
 #option to output the correlation matrix
-corr_out=.true.
+corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=60
+kreq=-60
 #logical to use modified Rcov
-mod_Rcov=.true.
+mod_Rcov=.false.
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=10
+num_proc=11
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
-unpack_walltime=00:15:00
+unpack_walltime=00:15
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=04:00:00
+wall_time=04:00
 #job account name (needed on theia only)
 account=cloud
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
-machine=theia
+machine=wcoss
 
-ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
+ndate=/da/save/Kristen.Bathmann/ndate
 
 ####################################################################
 
@@ -157,8 +157,7 @@ cd $wrkdir
 echo ${LSB_JOBINDEX}
 ./jobchoice.sh \${LSB_JOBINDEX} 
 EOF
-jobid=$(bsub < jobarray.sh)
-echo $jobid
+bsub < jobarray.sh
 else
    echo cannot submit job, not on theia or wcoss
    exit 1
@@ -185,7 +184,7 @@ mv params.sh sort_diags.sh
 
 jobid=$(qsub sort_diags.sh )
 echo $jobid
-elif [ $machine -eq wcoss ] ; then
+elif [ $machine = wcoss ] ; then
 cat << EOF > params.sh
 #!/bin/sh
 #BSUB -o sort_out
@@ -203,8 +202,7 @@ EOF
 chmod +rwx params.sh
 cat sort_diags.sh >> params.sh
 mv params.sh sort_diags.sh
-jobid2=$(bsub -w "done($jobid)" < sort_diags.sh)
-echo $jobid2
+bsub -w "done(unpack)" < sort_diags.sh
 else
    exit 1
 fi
@@ -271,7 +269,7 @@ EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
 mv params.sh par_run.sh
-bsub -w "done($jobid2)" < par_run
+bsub -w "done(sort_diag)" < par_run.sh
 else 
    exit 1
 fi
