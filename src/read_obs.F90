@@ -730,7 +730,8 @@ subroutine read_obs(ndata,mype)
                obstype == 'ahi'       .or. avhrr                  .or.  &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
-               obstype == 'cris'      .or. obstype == 'amsr2'     .or.  &
+               obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
+               obstype == 'amsr2'     .or.  &
                obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
@@ -818,7 +819,7 @@ subroutine read_obs(ndata,mype)
 !               parallel_read(i)= .true.  
              else if(seviri)then
                 parallel_read(i)= .true.
-             else if(obstype == 'cris' )then
+             else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
              else if(avhrr)then
                 parallel_read(i)= .true.
@@ -1354,7 +1355,7 @@ subroutine read_obs(ndata,mype)
                 string='READ_IASI'
 
 !            Process cris data
-             else if(obstype == 'cris')then
+             else if(obstype == 'cris' .or. obstype =='cris-fsr' )then
                 call read_cris(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &

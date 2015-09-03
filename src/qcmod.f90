@@ -65,7 +65,7 @@ module qcmod
 !   sub qc_avhrr        - qc avhrr data
 !   sub qc_goesimg      - qc goesimg data
 !   sub qc_msu          - qc msu data
-!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs,cris)
+!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs,cris, cris-fsr)
 !   sub qc_amsua        - qc amsua data
 !   sub qc_mhs          - qc msu, amsub and hsb data
 !   sub qc_atms         - qc atms data
@@ -464,7 +464,7 @@ contains
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
               obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
               obstype == 'goes_img' .or. obstype == 'ahi' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
-              obstype == 'cris' .or. obstype == 'seviri' ) then
+              obstype == 'cris' .or. obstype == 'cris-fsr' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
 
