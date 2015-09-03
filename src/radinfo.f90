@@ -1284,7 +1284,7 @@ contains
       nstep = 60
       edge1 = 5
       edge2 = 56
-   else if (index(isis,'cris')/=0) then
+   else if (index(isis,'cris-fsr')/=0 .or. index(isis,'cris')/=0) then
       step  = 3.322_r_kind
       start = -51.675_r_kind
       nstep = 30
@@ -1539,7 +1539,6 @@ contains
             exit 
          endif
       end do
-
 
 !     Loop to read diagnostic file
       istatus = 0

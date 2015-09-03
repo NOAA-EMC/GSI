@@ -47,7 +47,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
     crtm_surface_create,crtm_k_matrix,crtm_forward, &   
     ssu_input_setvalue, &
-    crtm_channelinfo_type, &
+    crtm_channelinfo_type, crtm_channelinfo_subset,crtm_channelinfo_n_channels, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
     crtm_atmosphere_associated, &
     crtm_atmosphere_destroy,crtm_atmosphere_zero, &
@@ -278,10 +278,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_metguess_mod,  only: gsi_metguess_bundle    ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
-      toa_pressure,max_n_layers, &
+      crtm_channelinfo_subset, toa_pressure,max_n_layers, &
       volume_mixing_ratio_units,h2o_id,ch4_id,n2o_id,co_id
   use radinfo, only: crtm_coeffs_path
-  use radinfo, only: radjacindxs,radjacnames
+  use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs,aerojacnames
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use control_vectors, only: cvars3d
@@ -302,6 +302,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! local variables
   integer(i_kind) :: ier,ii,error_status,iderivative
+  integer(i_kind) :: k, subset_start, subset_end
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm,icount
@@ -557,10 +558,37 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     sensorindex = 1
 ! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
 ! and BUFR files is checked in read_cris:
- else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') THEN
-    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
-    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
-    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
+ else if (channelinfo(1)%sensor_id(1:8) == 'cris-fsr' .AND. isis(1:8) == 'cris-fsr') then
+    sensorindex = 1
+    subset_start = 0
+    subset_end = 0
+    do k=1, jpch_rad
+      if (isis == nusis(k)) then
+        if (subset_start == 0) subset_start = k
+        subset_end = k
+      endif
+    end do
+
+    error_status = crtm_channelinfo_subset(channelinfo(1), &
+         channel_subset = nuchan(subset_start:subset_end))
+
+ else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') then
+    sensorindex = 1
+    subset_start = 0
+    subset_end = 0
+    do k=1, jpch_rad
+      if (isis == nusis(k)) then
+        if (subset_start == 0) subset_start = k
+        subset_end = k
+      endif
+    end do
+
+    error_status = crtm_channelinfo_subset(channelinfo(1), &
+         channel_subset = nuchan(subset_start:subset_end))
+
+!JAJ    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
+!JAJ    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
+!JAJ    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
  endif 
  if (sensorindex == 0 ) then
     write(6,*)myname_,':  ***WARNING*** problem with sensorindex=',isis,&
@@ -573,9 +601,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 ! and those defined by CRTM channelinfo structure.   Return to calling
 ! routine if there is a mismatch.
 
- if (nchanl /= channelinfo(sensorindex)%n_channels) then
+ if (nchanl /= crtm_channelinfo_n_channels(channelinfo(sensorindex))) then
     write(6,*)myname_,':  ***WARNING*** mismatch between nchanl=',&
-       nchanl,' and n_channels=',channelinfo(sensorindex)%n_channels,&
+       nchanl,' and n_channels=',crtm_channelinfo_n_channels(channelinfo(sensorindex)),&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION'
     call stop2(71)
  endif
@@ -642,8 +670,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Check for consistency with information in crtm for number of channels
 
- if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)myname_,'***ERROR** nchanl,n_channels ', &
-    nchanl,channelinfo(sensorindex)%n_channels
+! if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)myname_,'***ERROR** nchanl,n_channels ', &
+!    nchanl,channelinfo(sensorindex)%n_channels
 
 ! Load surface sensor data structure
 
