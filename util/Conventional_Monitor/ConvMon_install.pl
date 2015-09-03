@@ -144,14 +144,14 @@
    #
    #  Set up ptmp and stmp locations according to $arch.
    #
-   my $ptmp = "/ptmpd1";
-   my $stmp = "/stmpd1";
-   my $my_ptmp="export PTMP=/ptmp/${user_name}";
-   my $my_stmp="export STMP=/stmp/${user_name}";
+   my $ptmp    = "/ptmpd1";
+   my $stmp    = "/stmpd1";
+   my $my_ptmp = "export C_PTMP=\${C_PTMP:-$ptmp}";
+   my $my_stmp = "export C_STMP=\${C_STMP:-$stmp}";
 
-   if( $machine eq "zeus" ) {
-      $my_ptmp="export PTMP=/scratch2/portfolios/NCEPDEV/ptmp";
-      $my_stmp="export STMP=/scratch2/portfolios/NCEPDEV/stmp";
+   if( $machine eq "theia" ) {
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/scratch4/NCEPDEV/stmp4}";
+      $my_stmp="export C_STMP=\${C_STMP:-/scratch4/NCEPDEV/stmp3}";
    } else {
       print "Please specify PTMP location.  This is used for temporary work space.\n";
       print "  Available options are: \n";
@@ -171,7 +171,7 @@
       if( length($new_ptmp ) > 0 ) {
          $ptmp = $new_ptmp;
       }
-      my $my_ptmp="export MY_PTMP=\${MY_PTMP:-$ptmp}";
+      my $my_ptmp="export C_PTMP=\${C_PTMP:-$ptmp}";
 #      print "my_ptmp = $my_ptmp\n";
       print "\n\n";
       sleep( 1 );
@@ -194,7 +194,7 @@
       if( length($new_stmp ) > 0 ) {
          $stmp = $new_stmp;
       }
-      my $my_stmp="export MY_STMP=\${MY_STMP:-$stmp}";
+      my $my_stmp="export C_STMP=\${C_STMP:-$stmp}";
       print "my_stmp = $my_stmp\n";
       print "\n\n";
       sleep( 1 );
@@ -237,10 +237,10 @@
       elsif( $_ =~ "MY_MACHINE=" ) {
          print $out "$my_machine\n";
       }
-      elsif( $_ =~ "PTMP=" ) {
+      elsif( $_ =~ "C_PTMP=" ) {
          print $out "$my_ptmp\n";
       }
-      elsif( $_ =~ "STMP=" ) {
+      elsif( $_ =~ "C_STMP=" ) {
          print $out "$my_stmp\n";
       }
       else {
