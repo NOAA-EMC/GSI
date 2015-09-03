@@ -106,7 +106,7 @@ if [[ ! -d ${IMGNDIR} ]]; then
    mkdir -p ${IMGNDIR}
 fi
 
-tmpdir=${STMP}/check_conv${SUFFIX}
+tmpdir=${C_STMP_USER}/check_conv${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -122,10 +122,14 @@ if [[ $count -ne 0 ]] ; then
 fi
 
 #--------------------------------------------------------------------
-# Get date of cycle to process.
+# Get date of cycle to process and/or previous cycle processed.
 #
-GDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
-PDATE=`$NDATE +06 $GDATE`
+if [[ $PDATE = "" ]]; then
+   GDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+   PDATE=`$NDATE +06 $GDATE`
+else
+   GDATE=`$NDATE -06 $PDATE`
+fi
 
 sdate=`echo $PDATE|cut -c1-8`
 export CYA=`echo $PDATE|cut -c9-10`
@@ -148,19 +152,34 @@ export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$gydat}
 # grib2 will be the only standard with the next major release of 
 # GSI. 
 
-if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
+#if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
+#   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
+#   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
+#   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+#else
+#   export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
+#   export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
+#   export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
+#fi
+
+export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
+if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
-   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
-   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-else
-   export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
-   export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
-   export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
 fi
 
+export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
+if [[ ! -s ${pgrbanl} ]]; then
+   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
+fi
+
+export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
+if [[ ! -s ${pgrbf06} ]]; then
+   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+fi
 
 if [ -s $cnvstat  -a -s $pgrbanl ]; then
    if [ -s $pgrbf06 ]; then
+      echo firing convcopr.sh
       /bin/sh $SCRIPTS/convcopr.sh
    else
       echo data not available, missing $pgrbf06 file
