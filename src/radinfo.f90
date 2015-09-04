@@ -1198,6 +1198,9 @@ contains
 !
 !   output argument list:
 !
+! program history log:
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
+
 ! attributes:
 !   language: f90
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP

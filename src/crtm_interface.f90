@@ -255,6 +255,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !                         qi are separate control variables for all-sky MW radiance DA   
 !   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
 !                         clear-sky Tb under all-sky condition 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR) and 
+!                          CRTM subset code for CrIS. 
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -586,10 +588,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     error_status = crtm_channelinfo_subset(channelinfo(1), &
          channel_subset = nuchan(subset_start:subset_end))
 
-!JAJ    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
-!JAJ    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
-!JAJ    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
  endif 
+
  if (sensorindex == 0 ) then
     write(6,*)myname_,':  ***WARNING*** problem with sensorindex=',isis,&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION found ',&

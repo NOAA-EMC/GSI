@@ -166,6 +166,7 @@
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
 !                         change quality control interface for AMSUA and ATMS.
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR).
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
