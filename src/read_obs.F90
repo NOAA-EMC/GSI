@@ -555,6 +555,7 @@ subroutine read_obs(ndata,mype)
 !                        surface fields
 !   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR)
 !   
 !
 !   input argument list:

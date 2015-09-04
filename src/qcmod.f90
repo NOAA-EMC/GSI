@@ -51,6 +51,7 @@ module qcmod
 !                         speed for AMSUA/ATMS cloudy radiance assimilation
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
 !
 ! subroutines included:
 !   sub init_qcvars

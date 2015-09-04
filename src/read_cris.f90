@@ -27,6 +27,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR).
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -216,15 +217,16 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   radedge_min = 0
   radedge_max = 1000
 
-!      find the 'cris' offset in the jpch_rad list.  This is for the iuse flag
+! Find the 'cris' offset in the jpch_rad list.  This is for the iuse flag
+! and count the number of cahnnels in the satinfo file for this sensor (cris, cris-fsr)
   ioff=jpch_rad
-!      count the number of cahnnels in the satinfo file for this sensor (cris, cris-fsr)
   subset_start = 0
   subset_end = 0
+  assim = .false.
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
         ioff = min(ioff,i)    ! cris offset
-        if (subset_start ==0 ) then
+        if (subset_start == 0) then
           step  = radstep(i)
           start = radstart(i)
           if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
@@ -233,6 +235,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
           endif
           subset_start = i
         endif 
+        if (iuse_rad(i) >0) assim = .true.  ! Are any of the CrIS channels being used?
         subset_end = i
      endif
   end do
@@ -240,15 +243,21 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(channel_number(satinfo_nchan))
   allocate(sc_index(satinfo_nchan))
   ioff=ioff-1
-  if (mype_sub==mype_root)write(6,*)'READ_CRIS:  ',nusis(ioff+1),' offset ',ioff
-    write(*,*)'JAJ sis ',sis, trim(sis),satinfo_nchan, subset_start, subset_end
 
- senname = 'CRIS'
+! If all channels of a given sensor are set to monitor or not
+! assimilate mode (iuse_rad<1), reset relative weight to zero.
+! We do not want such observations affecting the relative
+! weighting between observations within a given thinning group.
+  if (.not. assim) val_cris=zero
+
+  if (mype_sub==mype_root)write(6,*)'READ_CRIS:  ',nusis(ioff+1),' offset ',ioff
+
+  senname = 'CRIS'
   
   allspotlist= &
      'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
 
-!    Load spectral coefficient structure  
+! Load spectral coefficient structure  
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root) write(6,*)'READ_CRIS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
@@ -264,52 +273,29 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      call stop2(71)
   endif
 
-!    Find the channels being used (from satinfo file) in the spectral coef. structure.
+! Find the channels being used (from satinfo file) in the spectral coef. structure.
   do i=subset_start,subset_end
-    channel_number(i -subset_start +1) = nuchan(i)
+     channel_number(i -subset_start +1) = nuchan(i)
   end do
   sc_index(:) = 0
   satinfo_chan: do i=1,satinfo_nchan
-    spec_coef: do l=1,sc(1)%n_channels
-      if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
-         sc_index(i) = l
-         exit spec_coef
-      endif
-    end do spec_coef
+     spec_coef: do l=1,sc(1)%n_channels
+        if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
+           sc_index(i) = l
+           exit spec_coef
+        endif
+     end do spec_coef
   end do  satinfo_chan
 
-!  find CRIS sensorindex.  This should not be necessary as the if statement calling this subroutine requires 'cris'
-!JAJ  sensorindex = 0
-!JAJ  if ( sc(1)%sensor_id(1:4) == 'cris' )then
+!  find CRIS sensorindex.  This should not be necessary as the if statement in read_obs.f90 calling this subroutine requires 'cris'
+!  sensorindex = 0
+!  if ( sc(1)%sensor_id(1:4) == 'cris' )then
      sensorindex = 1
-!JAJ  else
-!JAJ     write(6,*)'READ_CRIS: sensorindex not set  NO CRIS DATA USED'
-!JAJ     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id
-!JAJ     return
-!JAJ  end if
-
-!  find the 'cris' offset in the jpch_rad list.  This is for the iuse flag
-!JAJ  ioff=jpch_rad
-!JAJ  do i=1,jpch_rad
-!JAJ     if(nusis(i)==sis)ioff=min(ioff,i)
-!JAJ  end do
-!JAJ  ioff=ioff-1
-!JAJ  if (mype_sub==mype_root)write(6,*)'READ_CRIS:  cris offset ',ioff
-
-! If all channels of a given sensor are set to monitor or not
-! assimilate mode (iuse_rad<1), reset relative weight to zero.
-! We do not want such observations affecting the relative
-! weighting between observations within a given thinning group.
-
-!   are any of the cris channels being used?
-  assim=.false.
-  search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
-        assim=.true.
-        exit search
-     endif
-  end do search
-  if (.not.assim) val_cris=zero
+!  else
+!     write(6,*)'READ_CRIS: sensorindex not set  NO CRIS DATA USED'
+!     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id
+!     return
+!  end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -430,14 +416,16 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                                                  ! QMRHK <= 1, as data is, and I
                                                  ! quote, 'slightly suspect'
 
+!       Zenith angle/scan spot mismatch, reject entire line
         if ( bad_line == nint(linele(2))) then
-!        zenith angle/scan spot mismatch, reject entire line
            cycle read_loop
         else
            bad_line = -1
         endif
 
-!       Check that the number of channels in BUFR is what we are expecting
+!       Check that the number of channels in the BUFR file is what we are expecting
+!       Number of channels in the BUFR file must be less than or equal to the number of channels
+!       in the spectral coefficient file.
         if (nint(linele(5)) > sc(1) % n_channels) then 
            if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
                 nint(linele(5)),' channels, but CRTM expects ',sc(1) % n_channels
@@ -649,11 +637,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
         channel_loop: do i=1,satinfo_nchan
            sc_chan = sc_index(i)
+           if ( bufr_index(i) == 0 ) cycle channel_loop
            bufr_chan = bufr_index(i)
-           if ( bufr_chan == 0 ) cycle channel_loop
-!  Check that channel radiance is within reason and channel number is consistent with CRTM initialisation
-!  Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
-!  now such spectra are rejected.  
+!          Check that channel radiance is within reason and channel number is consistent with CRTM initialisation
+!          Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
+!          now such spectra are rejected.  
            if (( allchan(1,bufr_chan) > zero .and. allchan(1,bufr_chan) < 99999._r_kind)) then    ! radiance bounds
               radiance = allchan(1,bufr_chan) * 1000.0_r_kind    ! Conversion from W to mW
               call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))  ! radiance to BT calculation
@@ -748,7 +736,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
         endif
 
-!  Put "used" channel temperatures into data array
+!       Put "used" channel temperatures into data array
         do l=1,satinfo_nchan
            i = bufr_index(l)
            if ( bufr_index(l) /= 0 ) then
@@ -765,7 +753,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      deallocate(bufr_index)
      deallocate(temperature)
      deallocate(allchan)
+
   enddo message_loop
+
   call closbf(lnbufr)
 
 ! deallocate crtm info
@@ -785,19 +775,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
-
-!     do n=1,ndata
-!        do i=1,nchanl
-!           if(data_all(i+nreal,n) > tbmin .and. &
-!              data_all(i+nreal,n) < tbmax)nodata=nodata+1
-!        end do
-!     end do
      do n=1,ndata
         do i=1,satinfo_nchan
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
      end do
+
      if(dval_use .and. assim)then
         do n=1,ndata
            itt=nint(data_all(33,n))
@@ -818,9 +802,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.
-  if(isfcalc == 1) then
-     call fov_cleanup
-  endif
+  if(isfcalc == 1) call fov_cleanup
 
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
      write(6,*)'READ_CRIS:  mype,ntest,disterrmax=',&
