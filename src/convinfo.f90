@@ -15,6 +15,10 @@ module convinfo
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
 !   2013-08-20  s.liu - add reflectivity
+!   2013-11-20     su - add ptime_conv as time dimension,and pmot_conv as
+!                           parameter for the option to keep thinned data as
+!                           monitored
+
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -306,14 +310,14 @@ contains
 
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
-          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc)
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
           if(nc > 1 .and. trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
              index_sub(nc)=index_sub(nc-1)+1
           endif
        if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
-          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),index_sub(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,i5)
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc),index_sub(nc)
+1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,i5)
        if (npred_conv_max > 0 ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
           if (ier /= 0 ) then
