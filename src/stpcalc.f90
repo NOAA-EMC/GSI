@@ -203,12 +203,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind,r_quad,r_single
   use mpimod, only: mype
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       l_foto,xhat_dt,dhat_dt,nvals_len
+       l_foto,xhat_dt,dhat_dt,nvals_len,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
@@ -222,6 +222,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
   use mpeu_util, only: getindex
+  use intradmod, only: setrad
   use timermod, only: timer_ini,timer_fnl
   implicit none
 
@@ -239,7 +240,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: n0=11
+  integer(i_kind),parameter:: n0 = 11
   integer(i_kind),parameter:: ipen = n0+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
@@ -248,31 +249,38 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 ! Declare local variables
   integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
-  integer(i_kind) istp_use,nstep,nsteptot
+  integer(i_kind) istp_use,nstep,nsteptot,kprt
   real(r_quad),dimension(4,ipen):: pbc
-  real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
-  real(r_quad),dimension(4):: pbcqmin,pbcqmax,pbcqmini,pbcqmaxi
-  real(r_quad) :: dirx_yhat,diry_xhat,xhat_yhat,dirx_diry
+  real(r_quad),dimension(4,nobs_type):: pbcjo 
+  real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
+  real(r_quad),dimension(4,nobs_bins):: pbcqmin,pbcqmax
+  real(r_quad) :: pen_est(n0+nobs_type)
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
   real(r_kind),dimension(istp_iter):: stprat
-  real(r_quad),dimension(ipen):: bsum,csum,psum
+  real(r_quad),dimension(ipen):: bsum,csum,bsum_save,csum_save,pen_save
+  real(r_quad),dimension(ipen,nobs_bins):: pj
   real(r_kind) delpen
   real(r_kind) outpensave
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
+  logical :: cxterm,change_dels
+
 
 !************************************************************************************  
 ! Initialize timer
   call timer_ini('stpcalc')
 
 ! Initialize variable
+  cxterm=.false.
   mm1=mype+1
   stp(0)=stpinout
   outpen = zero
   nsteptot=0
+  istp_use=0
+  pj=zero_quad
 
 !   Begin calculating contributions to penalty and stepsize for various terms
 !
@@ -337,23 +345,20 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   pstart=zero_quad
   pbc=zero_quad
 
+
 ! penalty, b and c for background terms
-!$omp parallel sections
 
-!$omp section
-  xhat_yhat=qdot_prod_sub(xhatsave,yhatsave)
-!$omp section
-  dirx_yhat=qdot_prod_sub(dirx,yhatsave)
-!$omp section
-  diry_xhat=qdot_prod_sub(diry,xhatsave)
-!$omp section
-  dirx_diry=qdot_prod_sub(dirx,diry)
-!$omp end parallel sections
+  pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
+  pj(1,1)=pstart(1,1)
 
-  pstart(1,1) = xhat_yhat
+  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
+
+! Penalty, b, c for JcDFI
+  pstart(3,1) = qdot_prod_sub(dirx,diry)
+
+! Penalty, b, c for dry pressure
+
 !  two terms in next line should be the same, but roundoff makes average more accurate.
-  pstart(2,1) =-0.5_r_quad*(dirx_yhat+diry_xhat)
-  pstart(3,1) = dirx_diry
 
 ! Contraint and 3dvar terms
   if(l_foto )then
@@ -362,26 +367,27 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      call stp3dvar(dval(1),dhat_dt)
   end if
 
-! Penalty, b, c for JcDFI
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
+    pj(2,1)=pstart(1,2)
   end if
 
-! Penalty, b, c for dry pressure
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
        call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3),1)
     else
        call stpjcpdry(dval,sval,pstart(1,3),pstart(2,3),pstart(3,3),nobs_bins)
     end if
+    pj(3,1)=pstart(1,3)
   end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
+  dels = one_tenth_quad
   stepsize: do ii=1,istp_iter
 
      iis=ii
 !    Delta stepsize
-     dels=one_tenth_quad ** ii
+     change_dels=.true.
   
      sges(1)= stp(ii-1)
      sges(2)=(one_quad-dels)*stp(ii-1)
@@ -415,63 +421,88 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(.not. ltlint)then
         if(.not.ljc4tlevs) then
            call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
+           if(ii == 1)then
+               pj(4,1)=pbc(1,4)+pbc(ipenloc,4)
+               pj(5,1)=pbc(1,5)+pbc(ipenloc,5)
+           end if
         else 
-           pbcqmin=zero_quad ; pbcqmax=zero_quad
            do ibin=1,nobs_bins
               if (nobs_bins /= nfldsig) then
                  it=ntguessig
               else
                  it=ibin
               end if
-              pbcqmini=zero_quad ; pbcqmaxi=zero_quad
-              call stplimq(dval(ibin),sval(ibin),sges,pbcqmini,pbcqmaxi,nstep,it)
+              call stplimq(dval(ibin),sval(ibin),sges,pbcqmin(1,ibin),pbcqmax(1,ibin),nstep,it)
+           end do
+           pbc(:,4)=zero_quad
+           pbc(:,5)=zero_quad
+           do ibin=1,nobs_bins
               do j=1,nstep
-                pbcqmin(j) = pbcqmin(j) + pbcqmini(j)
-                pbcqmax(j) = pbcqmax(j) + pbcqmaxi(j)
+                 pbc(j,4) = pbc(j,4)+pbcqmin(j,ibin)
+                 pbc(j,5) = pbc(j,5)+pbcqmax(j,ibin)
               end do
            end do
-           do j=1,nstep
-              pbc(j,4) = pbcqmin(j)
-              pbc(j,5) = pbcqmax(j)
-           end do
+           if(ii == 1)then
+              do ibin=1,nobs_bins
+                 pj(4,ibin)=pj(4,ibin)+pbcqmin(1,ibin)+pbcqmin(ipenloc,ibin)
+                 pj(5,ibin)=pj(5,ibin)+pbcqmax(1,ibin)+pbcqmax(ipenloc,ibin)
+              end do
+           end if
         end if
 
 !       penalties for gust constraint
         if(getindex(cvars2d,'gust')>0) & 
         call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
+        if(ii == 1)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
 
 !       penalties for vis constraint
         if(getindex(cvars2d,'vis')>0) &
         call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
+        if(ii == 1)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
 
 !       penalties for pblh constraint
         if(getindex(cvars2d,'pblh')>0) &
         call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
+        if(ii == 1)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
 
 !       penalties for wspd10m constraint
         if(getindex(cvars2d,'wspd10m')>0) & 
         call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
+        if(ii == 1)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
 
 !       penalties for howv constraint
         if(getindex(cvars2d,'howv')>0) & 
         call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
+        if(ii == 1)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
 
 !       penalties for lcbas constraint
         if(getindex(cvars2d,'lcbas')>0) &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
+        if(ii == 1)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
      end if
 
+!       penalties for gust constraint
+
+     call setrad(sval(1))
+
 !    penalties for Jo
+     pbcjoi=zero_quad 
+     call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 
      pbcjo=zero_quad
      do ibin=1,nobs_bins
-        pbcjoi=zero_quad 
-        call stpjo(yobs(ibin),dval(ibin),dbias,sval(ibin),sbias,sges,pbcjoi,nstep) 
         do j=1,nobs_type 
            do i=1,nstep 
-              pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j) 
+              pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j,ibin) 
            end do 
         end do 
      enddo
+     if(ii == 1)then
+        do ibin=1,nobs_bins
+           do j=1,nobs_type 
+              pj(n0+j,ibin)=pj(n0+j,ibin)+pbcjoi(ipenloc,j,ibin)+pbcjoi(1,j,ibin)
+           end do 
+        enddo
+     endif
      do j=1,nobs_type 
         do i=1,nstep 
            pbc(i,n0+j)=pbcjo(i,j) 
@@ -481,7 +512,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
   
-
 !    save penalty  and stepsizes
      nsteptot=nsteptot+1
      do j=1,ipen
@@ -512,13 +542,47 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    estimate of stepsize
 
      stp(ii)=stp(ii-1)
-     if(cx > 1.e-20_r_kind) stp(ii)=stp(ii)+bx/cx         ! step size estimate
+     if(cx > 1.e-20_r_kind) then
+         stp(ii)=stp(ii)+bx/cx         ! step size estimate
+     else
+!    Check for cx <= 0. (probable error or large nonlinearity)
+        if(mype == 0) then
+          write(iout_iter,*) ' entering cx <=0 stepsize option',cx,stp(ii)
+          write(iout_iter,105) (bsum(i),i=1,ipen)
+          write(iout_iter,110) (csum(i),i=1,ipen)
+        end if
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
+        do i=1,nsteptot
+           if(outpen(i) < outpensave)then
+              stp(ii)=outstp(i)
+              outpensave=outpen(i)
+           end if
+        end do
+        if(outpensave < outpen(ipenloc))then
+           if(mype == 0)write(iout_iter,*) ' early termination due to cx <=0 ',cx,stp(ii)
+           cxterm=.true.
+         else
+!       Try different (better?) stepsize
+           stp(ii)=max(outstp(1),1.0e-20_r_kind)
+           do i=2,nsteptot
+              if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
+           end do
+           stp(ii)=one_tenth_quad*stp(ii)
+           change_dels=.false.
+        end if
+     end if
 
 !    estimate of change in penalty
      delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
+        do i=1,ipen
+           pen_save(i)=pbc(1,i)
+           bsum_save(i)=bsum(i)
+           csum_save(i)=csum(i)
+        end do
         pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                   ! Jb
         pjcost(2) = zero_quad
         do i=1,nobs_type
@@ -540,22 +604,25 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
            write(iout_iter,105) (bsum(i),i=1,ipen)
            write(iout_iter,110) (csum(i),i=1,ipen)
+           write(iout_iter,201) (outstp(i),i=1,nsteptot)
+           write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
         end if
         end_iter = .true.
 !       Finalize timer
         call timer_fnl('stpcalc')
-        return
+        istp_use=ii
+        exit stepsize
      end if
 
-!    Check for negative stepsize or cx <= 0. (probable error or large nonlinearity)
-     if(cx < 1.e-20_r_kind .or. stp(ii) <= zero_quad) then
+!    Check for negative stepsize (probable error or large nonlinearity)
+     if(stp(ii) <= zero_quad) then
         if(mype == 0) then
           write(iout_iter,*) ' entering negative stepsize option',stp(ii)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
-        stp(ii)=outstp(1)
-        outpensave=outpen(1)
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
@@ -569,6 +636,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
               if(outstp(i) < stp(ii) .and. outstp(i) > 1.0e-20_r_kind)stp(ii)=outstp(i)
            end do
            stp(ii)=one_tenth_quad*stp(ii)
+           change_dels=.false.
         end if
      end if
 
@@ -589,32 +657,39 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Check for convergence in stepsize estimation
      istp_use=ii
+     if(cxterm) exit stepsize
      stprat(ii)=zero
      if(stp(ii) > zero)then
         stprat(ii)=abs((stp(ii)-stp(ii-1))/stp(ii))
      end if
      if(stprat(ii) < 1.e-4_r_kind) exit stepsize
+     if(change_dels)dels = one_tenth_quad*dels
 
   end do stepsize
+  kprt=3
+  if(kprt >= 2 .and. iter == 0)then
+     call mpl_allreduce(ipen,nobs_bins,pj)
+     if(mype == 0)call prnt_j(pj,ipen,kprt)
+  end if
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
   do i=1,ipen
-      psum(i)=pbc(1,i)+(stp(iis-1)-stp(iis))*(2.0_r_quad*bsum(i)+ &
-                       (stp(iis-1)-stp(iis))*csum(i))
+      pen_est(i)=pen_save(i)-(stp(ii-1)-stp(0))*(2.0_r_quad*bsum_save(i)- &
+                       (stp(ii-1)-stp(0))*csum_save(i))
   end do
   if(mype == 0)then
-    write(iout_iter,101) (psum(i),i=1,ipen)
+     write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
   end if
-  pjcostnew(1) = psum(1)                                 ! Jb
-  pjcostnew(3) = psum(2)+psum(3)                         ! Jc
+  pjcostnew(1) = pbc(1,1)                                  ! Jb
+  pjcostnew(3) = pbc(1,2)+pbc(1,3)                         ! Jc
   pjcostnew(4)=zero
   do i=4,n0
-     pjcostnew(4) =  pjcostnew(4) + psum(i) ! Jl
+     pjcostnew(4) =  pjcostnew(4) + pbc(1,i) ! Jl
   end do
   pjcostnew(2) = zero 
   do i=1,nobs_type
-     pjcostnew(2) = pjcostnew(2)+psum(n0+i)               ! Jo
+     pjcostnew(2) = pjcostnew(2)+pbc(1,n0+i)               ! Jo
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
@@ -624,6 +699,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         write(iout_iter,130) ii,bx,cx,stp(ii)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
+        write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
      end if
      end_iter = .true.
   end if
@@ -633,6 +709,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
      write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
   end if
+  do i=1,ipen
+      pen_est(i)=pbc(1,i)
+  end do
 199 format(' stepsize stprat    = ',6(e25.18,1x))
 200 format(' stepsize estimates = ',6(e25.18,1x))
 201 format(' stepsize guesses   = ',(10(e13.6,1x)))
@@ -645,6 +724,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   endif
 
 ! Update solution
+!DIR$ IVDEP
   do i=1,nclen
      xhat%values(i)=xhat%values(i)+stpinout*dirx%values(i)
      xhatsave%values(i)=xhatsave%values(i)+stpinout*dirx%values(i)
@@ -669,10 +749,100 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      call deallocate_state(dhat_dt)
   end if
 
+
 ! Finalize timer
   call timer_fnl('stpcalc')
 
   return
 end subroutine stpcalc
+
+subroutine prnt_j(pj,ipen,kprt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prnt_j
+!   prgmmr: derber
+!
+! abstract: prints J components
+!
+! program history log:
+!   2015=03-06  derber
+!
+!   input argument list:
+!   pj   - array containing contributions to penalty
+!   ipen - number of penalty terms
+!   kprt - print type flag
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+  use kinds, only: r_kind,i_kind,r_quad
+  use gsi_4dvar, only: nobs_bins
+  use constants, only: zero_quad
+  use jfunc, only: jiter,iter
+  use mpimod, only: mype
+  use obsmod, only: cobstype,nobs_type
+  real(r_quad),dimension(ipen,nobs_bins),intent(in   ) :: pj
+  integer(i_kind)                       ,intent(in   ) :: ipen,kprt
+
+  real(r_quad),dimension(ipen) :: zjt
+  real(r_quad)                 :: zj
+  integer(i_kind)              :: ii,jj
+  character(len=20) :: ctype(ipen)
+
+  if(kprt <=0 .or. mype /=0)return
+  ctype(1)='background          '
+  ctype(2)='                    '
+  ctype(3)='dry mass constraint '
+  ctype(4)='negative moisture   '
+  ctype(5)='excess   moisture   '
+  ctype(6)='negative gust       '
+  ctype(7)='negative visability '
+  ctype(8)='negative boundary Lr'
+  ctype(9)='negative 10m wind ssp'
+  ctype(10)='negative howv       '
+  ctype(11)='negative lcbas      '
+  do ii=1,nobs_type
+    ctype(11+ii)=cobstype(ii)
+  end do
+
+  zjt=zero_quad
+  do ii=1,nobs_bins
+     zjt(:)=zjt(:)+pj(:,ii)
+  end do
+
+  zj=zero_quad
+  do ii=1,ipen
+     zj=zj+zjt(ii)
+  end do
+
+! Prints
+  if (kprt>=2) write(6,*)'Begin J table inner/outer loop',iter,jiter
+
+   if (kprt>=3.and.nobs_bins>1) then
+      write(6,410)'J contribution  ',(jj,jj=1,nobs_bins)
+      do ii=1,ipen
+         if (zjt(ii)>zero_quad) then
+            write(6,100)ctype(ii),(real(pj(ii,jj),r_kind),jj=1,nobs_bins)
+         endif
+      enddo
+   endif
+   write(6,400)' J term         ',' ',' J  '
+   do ii=1,ipen
+      if (zjt(ii)>zero_quad) then
+         write(6,200)ctype(ii),real(zjt(ii),r_kind)
+      endif
+   enddo
+
+   write(6,*)'----------------------------------------------------- '
+   write(6,200)"J Global           ",real(zj,r_kind)
+
+   write(6,*)'End Jo table inner/outer loop',iter,jiter
+
+100 format(a20,2x,10es14.6)
+410 format(a20,2x,10I14)
+200 format(a20,2x,3x,2x,es24.16)
+400 format(a20,2x,a3,2x,a24)
+   end subroutine prnt_j
 
 end module stpcalcmod

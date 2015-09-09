@@ -299,6 +299,7 @@ use constants, only: zero_quad
 use mpimod, only: mype
 use obsmod, only: yobs
 use intjomod, only: intjo
+use intradmod, only: setrad
 use mpl_allreducemod, only: mpl_allreduce
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 
@@ -375,6 +376,7 @@ rbias=zero
 do ii=1,nsubwin
    mval(ii)=zero
 end do
+call setrad(rval(1))
 
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)

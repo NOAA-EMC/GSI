@@ -120,7 +120,7 @@ subroutine pcgsoi()
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
-  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag
+  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag,yobs
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,diag_precon,step_start, &
@@ -242,6 +242,7 @@ subroutine pcgsoi()
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   if ( ltlint ) nlnqc_iter=.false.
+  call stpjo_setup(yobs,nobs_bins)
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -261,9 +262,10 @@ subroutine pcgsoi()
      gradx=zero
      llprt=(mype==0).and.(iter<=1)
 
+!    Convert from control space directly to physical
+!    space for comparison with obs.
+     call control2state(xhat,mval,sbias)
      if (l4dvar) then
-!       Convert from control space to model space
-        call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
            call ensctl2state(xhat,mval(1),eval)
            mval(1)=eval(1)
@@ -275,9 +277,6 @@ subroutine pcgsoi()
 !       Run TL model to fill sval
         call model_tl(mval,sval,llprt)
      else
-!       Convert from control space directly to physical
-!       space for comparison with obs.
-        call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
            call ensctl2state(xhat,mval(1),eval)
            do ii=1,nobs_bins
@@ -313,8 +312,6 @@ subroutine pcgsoi()
            eval(1)=mval(1)
            call ensctl2state_ad(eval,mval(1),gradx)
         end if
-!       Adjoint of convert control var to physical space
-        call control2state_ad(mval,rbias,gradx)
      else
 
 !       Convert to control space directly from physical space.
@@ -331,9 +328,10 @@ subroutine pcgsoi()
               enddo
            end if
         end if
-        call control2state_ad(mval,rbias,gradx)
 
      end if
+!    Adjoint of convert control var to physical space
+     call control2state_ad(mval,rbias,gradx)
 
 !    Print initial Jo table
      if (iter==0 .and. print_diag_pcg .and. luse_obsdiag) then
@@ -478,9 +476,9 @@ subroutine pcgsoi()
         stp=one
      endif
 
+!    Convert search direction form control space to physical space
+     call control2state(dirx,mval,rbias)
      if (l4dvar) then
-!       Convert from control space to model space
-        call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
            call ensctl2state(dirx,mval(1),eval)
            mval(1)=eval(1)
@@ -493,8 +491,6 @@ subroutine pcgsoi()
         call model_tl(mval,rval,llprt)
      else
 
-!       Convert search direction form control space to physical space
-        call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
            call ensctl2state(dirx,mval(1),eval)
            do ii=1,nobs_bins
@@ -633,15 +629,14 @@ subroutine pcgsoi()
   if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
   llprt=(mype==0)
+  call control2state(xhat,mval,sbias)
   if (l4dvar) then
-    call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
        call ensctl2state(xhat,mval(1),eval)
        mval(1)=eval(1)
     end if
     call model_tl(mval,sval,llprt)
   else
-    call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
        call ensctl2state(xhat,mval(1),eval)
        do ii=1,nobs_bins
@@ -670,7 +665,6 @@ subroutine pcgsoi()
           eval(1)=mval(1)
           call ensctl2state_ad(eval,mval(1),gradx)
        end if
-       call control2state_ad(mval,rbias,gradx)
      else
        if (l_hyb_ens) then
           do ii=1,nobs_bins
@@ -685,8 +679,8 @@ subroutine pcgsoi()
              enddo
           end if
        end if
-       call control2state_ad(mval,rbias,gradx)
      end if
+     call control2state_ad(mval,rbias,gradx)
   
 !    Add contribution from background term
      do i=1,nclen

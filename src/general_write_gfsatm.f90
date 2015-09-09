@@ -1,5 +1,5 @@
-  subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype,mype_out,sub_z,sub_ps,&
-       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,ibin,iret_write)
+  subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype,mype_out,sub_ps,&
+       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,ibin,inithead,iret_write)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_write_gfsatm  adaptation of write_gfsatm for general resolutions
@@ -17,6 +17,9 @@
 !
 !   input argument list:
 !
+!     inithead - logical to read header record.  Usually .true. unless
+!                repeatedly reading similar files(e.g., ensembles)
+
 !   output argument list:
 !
 ! attributes:
@@ -36,7 +39,7 @@
     use general_specmod, only: spec_vars
     use gridmod, only: ntracer,ncepgfs_head,idpsfc5,idthrm5,cp5,idvc5,idvm5
     use general_commvars_mod, only: load_grid
-    use ncepgfs_io, only: sigio_cnvtdv8
+    use ncepgfs_io, only: sigio_cnvtdv8,sighead
     use constants, only: zero,zero_single,one,fv
     use gsi_4dvar, only: ibdate,nhr_obsbin,lwrite4danl
     implicit none
@@ -48,9 +51,10 @@
     type(sub2grid_info)                    ,intent(in   ) :: grd
     type(spec_vars)                        ,intent(in   ) :: sp_a,sp_b
 
-    real(r_kind),dimension(grd%lat2,grd%lon2)      ,intent(in   ) :: sub_z, sub_ps  !2d
+    real(r_kind),dimension(grd%lat2,grd%lon2)      ,intent(in   ) :: sub_ps  !2d
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) ,intent(in   ) :: sub_vor,sub_div,sub_tv,sub_q,sub_oz, &
                                                              sub_cwmr
+    logical,                                intent(in   ) :: inithead
 
     integer(i_kind), intent(in)::   ibin
     integer(i_kind), intent(out)::  iret_write
@@ -69,14 +73,13 @@
     real(r_kind),dimension(sp_a%nc):: spec_work_sm
     real(r_kind),dimension(sp_b%nc),target ::  specges_4
 
-    integer nlatm2,icount,itotflds,i,j,iret,kvar,klev,k
+    integer nlatm2,icount,itotflds,i,j,iret,kvar,klev,k,l,n,ks1,ks2
     integer(i_kind),dimension(npe)::ilev,ivar
     integer(i_kind),dimension(5):: mydate
 
     integer(i_kind),dimension(8) :: ida,jda
     real(r_kind),dimension(5)    :: fha
 
-    type(sigio_head):: sigges_head,siganl_head
     type(sigio_dbti):: sigdati
 
     logical lloop
@@ -97,15 +100,14 @@
 ! Have all files open ges and read header for now with RanRead
     if(mype < itotflds .or. mype == mype_out)then
       call sigio_rropen(lunges,fname_ges,iret)
-      call sigio_rrhead(lunges,sigges_head,iret)
+      if(inithead)call sigio_rrhead(lunges,sighead,iret)
 
 ! All tasks should also open output file for random write
       call sigio_rwopen(lunanl,filename,iret_write)
-      call sigio_alhead(siganl_head,iret,levs=sigges_head%levs, &
-         nvcoord=sigges_head%nvcoord,ntrac=sigges_head%ntrac,idvm=sigges_head%idvm)
       if (iret_write /=0) goto 1000
     end if
 
+    if (mype==mype_out) then
 ! Load date
        if (.not.lwrite4danl) then
           mydate=iadate
@@ -130,19 +132,17 @@
 
 !    if (mype==mype_out) then
 !      Replace header record date with analysis time
-       siganl_head = sigges_head
-       siganl_head%fhour    = zero_single
-       siganl_head%idate(1) = mydate(4) !hour
-       siganl_head%idate(2) = mydate(2) !month
-       siganl_head%idate(3) = mydate(3) !day
-       siganl_head%idate(4) = mydate(1) !year
+       sighead%fhour    = zero_single
+       sighead%idate(1) = mydate(4) !hour
+       sighead%idate(2) = mydate(2) !month
+       sighead%idate(3) = mydate(3) !day
+       sighead%idate(4) = mydate(1) !year
 
 !      Load grid dimension and other variables used below
 !      into local header structure
 
 !      Write header to analysis file
-    if (mype==mype_out) then
-       call sigio_rwhead(lunanl,siganl_head,iret)
+       call sigio_rwhead(lunanl,sighead,iret)
        iret_write=iret_write+iret
     end if
 
@@ -197,7 +197,7 @@
     gfsfields:  do while (lloop)
 
 ! First, perform sub2grid for up to npe
-       call general_gather(grd,sub_z,work_ps,work_tv,sub_vor,sub_div,sub_q,sub_oz,&
+       call general_gather(grd,work_ps,work_tv,sub_vor,sub_div,sub_q,sub_oz,&
               sub_cwmr,icount,ivar,ilev,work)
 
        do k=1,npe  ! loop over pe distributed data
@@ -216,39 +216,51 @@
                sigdati%i = 2+klev                                   ! temperature
 !  Z
             else if ( kvar==4 ) then
-               sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 2      ! vorticity
+               sigdati%i = sighead%levs + 2 + (klev-1) * 2 + 2      ! vorticity
 !  D
             else if ( kvar==5 ) then
-               sigdati%i = siganl_head%levs + 2 + (klev-1) * 2 + 1      ! divergence
+               sigdati%i = sighead%levs + 2 + (klev-1) * 2 + 1      ! divergence
 !  Q
             else if ( kvar==6 ) then
-               sigdati%i = siganl_head%levs * (2+1) + 2 + klev          ! q
+               sigdati%i = sighead%levs * (2+1) + 2 + klev          ! q
 ! OZ
             else if ( kvar==7 ) then
-               sigdati%i = siganl_head%levs * (2+2) + 2 + klev          ! oz
+               sigdati%i = sighead%levs * (2+2) + 2 + klev          ! oz
 ! CW
             else if ( kvar==8 ) then
-               sigdati%i = siganl_head%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
+               sigdati%i = sighead%levs * (2+3) + 2 + klev       ! cw, 3rd tracer
             end if
 
             if ( klev>0 ) then
                 sigdati%f => specges_4
-                call sigio_rrdbti(lunges,sigges_head,sigdati,iret)
+!    Read in full resolution guess spectral coefficients
+                call sigio_rrdbti(lunges,sighead,sigdati,iret)
+                do i=1,sp_b%nc 
+                    spec_work(i) = specges_4(i) 
+                end do 
+!    Ensure coefficients that must be zero are zero 
+                do i=1,sp_b%nc 
+                  if(sp_b%factsml(i))spec_work(i)=zero 
+                end do 
                 if(kvar /= 1)then                      ! if sfc elevation field just write out
+!    Put current analysis on 2d (full level) grid
                   call load_grid(work,grid)
-                  do i=1,sp_b%nc
-                     spec_work(i) = specges_4(i)
-                  end do
-                  do i=1,sp_b%nc
-                     if(sp_b%factsml(i))spec_work(i)=zero
-                  end do
+!   Convert full resolution guess to analysis grid
                   call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
+!   Calculation grid increment on analysis grid
                   grid=grid-grid2
+!   Convert grid increment to spectral space
                   call general_sptez_s(sp_a,spec_work_sm,grid,-1)
-                  call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
-                  do i=1,sp_b%nc
-                     specges_4(i)=specges_4(i)+spec_work(i)
-                  end do
+!   Add increment in spectral space (possibly lower resolution) to guess (taken
+!   from sppad) 
+                  do l=0,min(sp_b%jcap,sp_a%jcap) 
+                     do n=l,min(sp_b%jcap,sp_a%jcap) 
+                       ks2=l*(2*sp_b%jcap+1-l)+2*n 
+                       ks1=l*(2*sp_a%jcap+1-l)+2*n 
+                       specges_4(ks2+1)=specges_4(ks2+1)+spec_work_sm(ks1+1) 
+                       specges_4(ks2+2)=specges_4(ks2+2)+spec_work_sm(ks1+2) 
+                     end do 
+                  end do 
                   if (kvar/=4 .and. kvar/=5) then
                      do i=1,sp_b%nc
                         if(sp_b%factsml(i))specges_4(i)=zero_single
@@ -262,7 +274,7 @@
 
 
 ! Write out using RanWrite
-                call sigio_rwdbti(lunanl,siganl_head,sigdati,iret)
+                call sigio_rwdbti(lunanl,sighead,sigdati,iret)
                 iret_write=iret_write+iret
 
             endif ! end if pe and ivar check
@@ -279,14 +291,13 @@
 
 !   Print date/time stamp
     if (mype==mype_out) then
-       write(6,700) siganl_head%jcap,grd%nlon,nlatm2,siganl_head%levs,&
-            siganl_head%fhour,siganl_head%idate
+       write(6,700) sighead%jcap,grd%nlon,nlatm2,sighead%levs,&
+            sighead%fhour,sighead%idate
 700    format('GENERAL_WRITE_GFSATM:  anl write, jcap,lonb,latb,levs=',&
             4i6,', hour=',f10.1,', idate=',4i5)
     endif
 
     if(mype < itotflds .or. mype == mype_out)then
-       deallocate(siganl_head%vcoord,siganl_head%cfvars)
        call sigio_rclose(lunges,iret)
        call sigio_rclose(lunanl,iret)
        iret_write=iret_write+iret
@@ -303,9 +314,8 @@
 
 end subroutine general_write_gfsatm
 
-
-subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
-           icount,ivar,ilev,work)
+subroutine general_gather(grd,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
+           icountx,ivar,ilev,work)
 
 ! !USES:
 
@@ -313,18 +323,19 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
   use general_sub2grid_mod, only: sub2grid_info
   use gridmod, only: strip
+  use constants, only: zero
   implicit none
 
 ! !INPUT PARAMETERS:
 
   type(sub2grid_info)                   ,intent(in   ) :: grd
-  integer(i_kind),intent(inout) :: icount
+  integer(i_kind),intent(inout) :: icountx
   integer(i_kind),dimension(npe),intent(inout):: ivar,ilev
   real(r_kind),dimension(grd%itotsub),intent(out) :: work
 
 ! !OUTPUT PARAMETERS:
 
-  real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  in) :: g_z,g_ps
+  real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  in) :: g_ps
   real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  in) :: g_tv,&
        g_vor,g_div,g_q,g_oz,g_cwmr
 
@@ -345,16 +356,17 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
 !EOP
 !-------------------------------------------------------------------------
 
-  integer(i_kind) klev,k
+  integer(i_kind) klev,k,icount
   real(r_kind),dimension(grd%lat1*grd%lon1,npe):: sub
 
+!$omp parallel do  schedule(dynamic,1) private(k,klev,icount)
   do k=1,npe
-     icount=icount+1     
+     icount=icountx+k     
 
      if(icount == 1)then
         ivar(k)=1
         ilev(k)=1
-        call strip(g_z ,sub(:,k))
+        sub(:,k)=zero
 
      else if(icount == 2)then
         ivar(k)=2
@@ -402,6 +414,7 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
         ilev(k)=-1    
      end if
   end do
+  icountx=icountx+npe
 
   call mpi_alltoallv(sub,grd%isc_g,grd%isd_g,mpi_rtype,&
        work,grd%ijn,grd%displs_g,mpi_rtype,&
@@ -409,3 +422,4 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
 
   return
 end subroutine general_gather
+

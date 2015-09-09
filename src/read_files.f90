@@ -278,7 +278,7 @@ subroutine read_files(mype)
            lpl_dum=0
            lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
            call sfcio_sclose(lunsfc,iret)
-           write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
+           if(i == 1)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
         else
            call nemsio_init(iret=iret)
            call nemsio_open(gfile_sfc,filename,'READ',iret=iret)
