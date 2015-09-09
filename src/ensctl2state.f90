@@ -75,7 +75,9 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
+logical :: do_tlnmc
 logical :: do_cw_to_hydro
+
 ! ****************************************************************************
 
 ! Initialize timer
@@ -131,6 +133,9 @@ end do
 
 do jj=1,ntlevs_ens 
 
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) )
+
 !  Initialize work bundle to first component 
 !  For 4densvar, this is the "3D/Time-invariant contribution from static B"
 
@@ -165,18 +170,18 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
+   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
 !  Get 3d pressure
    if(do_getprs_tl) then
-      call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
       call getprs_tl(sv_ps,sv_tv,sv_prse)
    end if
 
 !  Convert RH to Q
    if(do_normal_rh_to_q) then
-      call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
       call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
    else
 !  Else copy directly
@@ -184,9 +189,9 @@ do jj=1,ntlevs_ens
    end if
 
 !  Calculate sensible temperature
-   if(do_tv_to_tsen) then
-      call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-      call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+   call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
+   if(do_tv_to_tsen .and. .not. do_tlnmc) then
+     call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
 
    if (do_cw_to_hydro) then
@@ -224,19 +229,16 @@ do jj=1,ntlevs_ens
    call self_add(eval(jj),mval)
 
 ! Call strong constraint if necessary
-   if(lstrong_bk_vars) then
-      if ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) ) then
+   if(do_tlnmc) then
 
-         call strong_bk(sv_u,sv_v,sv_ps,sv_tv,.true.)
+      call strong_bk(sv_u,sv_v,sv_ps,sv_tv,.true.)
 
 !  Need to update 3d pressure and sensible temperature again for consistency
 !  Get 3d pressure
-         if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
+      if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
 !  Calculate sensible temperature 
-         if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
-      end if
+      if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
 
 

@@ -1084,10 +1084,10 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
  
   inside = zero
 
-  fovanglesize = fovangle(ichan,minstr)
 
   if (d<r) then
 
+     fovanglesize = fovangle(ichan,minstr)
      rat = d / r * expansion * fovanglesize * half
 
      x = rat * cos(psi)

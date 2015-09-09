@@ -16,6 +16,9 @@
 !   sub ret_ssmis       - calculates clw for ssmis
 !   sub ret_amsua       - calculates clw for amsua 
 !   sub retrieval_amsre - calculates clw for amsre
+!   sub retrieval_gmi   - calculates clw and gwp for gmi
+!   sub retrieval_amsr2 - calculates clw for amsr2
+!   sub retrieval_saphir- calculates gwp for saphir
 !   sub rcwps_alg       - makes retrieval for AMSR-E observation
 !   sub tbe_from_tbo    - perform corrections for scattering effect in amsr-e obs
 !   sub tba_from_tbe    - adjust amsr-e obs to algorithm based brightness temperature
@@ -41,7 +44,7 @@ contains
 
 
  subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &   
-          tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
+          amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   calc_clw    estimates cloud liquid water for micro. QC
@@ -56,6 +59,10 @@ contains
 !   2013-01-22  zhu - add adp_anglebc option
 !   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
 !   2013-11-25  kim - revisit logic of frozen points
+!   2014-12-03  ejones- added GMI and AMSR2, variable for gwp, and call to
+!               retrieval_gmi subroutine.
+!   2015-03-11  ejones- added call to retrieval_amsr2 subroutine
+!   2015-03-23  ejones- added call to retrieval_saphir subroutine
 !
 !  input argument list:
 !     nadir     - scan position
@@ -69,12 +76,16 @@ contains
 !     ssmis     - flag for ssmis data
 !     amsre     - flag for amsre data
 !     atms      - flag for atms data
+!     amsr2     - flag for amsr2 data
+!     gmi       - flag for gmi data
+!     saphir    - flag for saphir data
 !     tsavg5    - Surface temperature value
 !     sfc_speed - surface wind speed (10m)
 !     zasat     - satellite zenith angle
 !
 !   output argument list:
-!     clw       - cloud liquid water                                                   
+!     clw       - cloud liquid water
+!     gwp       - graupel water path                                                   
 !     tpwc      - total column water vapor                                           
 !     kraintype - rain type
 !     ierrret   - return flag
@@ -91,9 +102,9 @@ contains
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
-  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms
+  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms,amsr2,gmi,saphir
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
-  real(r_kind)                      ,intent(  out) :: clw,tpwc
+  real(r_kind)                      ,intent(  out) :: clw,tpwc,gwp
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
 
 
@@ -148,6 +159,22 @@ contains
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
      clw = max(zero,clw)
+
+  else if (gmi) then           ! call retrieval_gmi
+
+       call retrieval_gmi(tb_obs,nchanl,clw,gwp,kraintype,ierrret)
+       clw=max(zero,clw)
+       gwp=max(zero,gwp)
+
+  else if (amsr2) then        ! call retrieval_amsr2
+
+     call retrieval_amsr2(tb_obs,nchanl,clw,kraintype,ierrret)
+     clw=max(zero,clw)
+
+  else if (saphir) then       ! call retrieval_saphir
+    
+     call retrieval_saphir(tb_obs,zasat,nchanl,gwp,kraintype,ierrret)
+     gwp=max(zero,gwp)
 
   endif
 
@@ -474,13 +501,10 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
   dp0 = (/.00415_r_kind,.00473_r_kind,.0107_r_kind,.02612_r_kind,  &
            .0217_r_kind, .01383_r_kind, .01947_r_kind/)
 
-  alg1 = rmis; alg2 = rmis; alg3 = rmis 
-
-! save brightness temperatures at seven window channels
-  tbx(1:7) = tb(12:18)
-
-! get ta2tb coefficients
   do i=1,7
+! save brightness temperatures at seven window channels
+     tbx(i) = tb(11+i)
+! get ta2tb coefficients
      cp(i) = one/( cp0(i)*(one-dp0(i)) )
      dp(i) = cp(i) * dp0(i)
   end do
@@ -501,20 +525,22 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
   end do
 
 ! TA level CLW algorithm
+  alg1 = rmis
   if( tay(2)<r285 .and. tay(3)<r285 ) then
      alg1 = -3.20_r_kind*(  &
           log( r290-tay(2) ) - 2.80_r_kind - 0.42_r_kind*log( r290-tay(3) )  )
   end if
 
-  if( tay(5)<r285 .and. tay(3)<r285 ) then
-     alg2 = -1.66_r_kind*(  &
-          log( r290-tay(5) ) - 2.90_r_kind - 0.349_r_kind*log( r290-tay(3) )  );
-  end if
 
 ! Determine clw
   if( alg1 > 0.70_r_kind ) then 
      clw = alg1
   else
+     alg2=rmis
+     if( tay(5)<r285 .and. tay(3)<r285 ) then
+        alg2 = -1.66_r_kind*(  &
+          log( r290-tay(5) ) - 2.90_r_kind - 0.349_r_kind*log( r290-tay(3) )  );
+     end if
      if( alg2 > 0.28_r_kind ) then 
         clw = alg2
      else
@@ -533,6 +559,7 @@ subroutine ret_ssmis(tb,nchanl,tpwc,clw,ierr)
         tpwc = 232.89_r_kind - 0.1486_r_kind*tby(1) - 0.3695_r_kind*tby(4)  & 
             - ( 1.8291_r_kind - 0.006193_r_kind*tby(3) )*tby(3)
         if( tpwc < 30.0_r_kind ) then 
+           alg3=rmis
            if( tay(7)<r285 .and. tay(3)<r285 ) then
               alg3 = -0.44_r_kind*( &
                    log( r290-tay(7) ) + 1.60_r_kind - 1.354_r_kind*log( r290-tay(3) )  )
@@ -652,6 +679,430 @@ subroutine retrieval_amsre(tb,degre,  &
   return
 end subroutine retrieval_amsre
 
+subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: retrieval_gmi   make retrieval from GMI observation
+!   prgmmr: ejones            org: jcsda                date: 2014-11-15
+!
+! abstract: algorithm developped by kgarrett to retrieve clw and gwp for GPM GMI
+!   observations. Retrieved clw and gwp used in qc_gmi to filter out obs
+!   contaminated by cloud and precip.
+!
+!   NOTE: regressions assume ocean-only surface
+!   NOTE: regressions are valid only for points where all channels are present
+!   (i.e. not at the edges of swath1, where no observations from ch10-13 can be
+!   co-registered with observations from ch1-9)
+!
+! program history log:
+!   2014-11-15  ejones
+!   2015-02-13  ejones - set clw high over swath1 edges so these points can be
+!                        reliably filtered out in QC
+!
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     nchanl  - number of channels per obs
+!
+!   output argument list:
+!     clw     - column water vapor over ocean  [kg/m2]
+!     gwp     - column ice over ocean          [kg/m2]
+!     kraintype-rain type
+!        [0]no rain or undefine
+!        [1]retrieve by emission -> not available now
+!        [2]by scattering
+!     ierr    - error flag
+!        [0]pass or escape this subroutine without doing anything
+!        [1]tbb gross error
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: clw,gwp
+
+! Declare local variables
+  integer(i_kind)::tb_index(9)
+  integer(i_kind)::nchan_reg,nvar_clw,nvar_gwp
+  real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
+  real(r_kind)::regr_coeff_gwp(10),pred_var_gwp(2)
+  real(r_kind)::a0_clw,a0_gwp
+  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb37v,tb37h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
+
+  integer(i_kind)::i,idx,diff_var
+! ---------- Initialize some variables ---------------------
+
+  kraintype = 0
+  ierr = 0
+
+  tb10v=tb(1); tb10h=tb(2); tb18v=tb(3); tb18h=tb(4)
+  tb23v=tb(5); tb37v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
+  tb166v=tb(10); tb166h=tb(11); tb183v=tb(12); tb183h=tb(13)
+
+  ! intercepts
+  a0_clw = -0.61127_r_kind
+  a0_gwp = -3541.46329_r_kind
+
+  nchan_reg = 9       ! number of channels used in regression
+  nvar_clw = 11       ! number of independent variables in clw regression
+  nvar_gwp = 10       ! number of independent variables in gwp regression
+
+  ! channels used in regression
+  tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 12, 13 /)
+
+  ! regression coefficients
+  regr_coeff_clw = (/ 0.00378_r_kind, -0.00149_r_kind, -0.03438_r_kind, 0.01670_r_kind,&
+                      0.00228_r_kind, 0.03884_r_kind, -0.02345_r_kind, -0.00036_r_kind,&
+                      0.00044_r_kind, 1.95559_r_kind, -2.15143_r_kind /)
+
+  regr_coeff_gwp = (/ 0.00393_r_kind, 0.00088_r_kind, -0.00063_r_kind, -0.00683_r_kind,&
+                      0.00333_r_kind, -0.00382_r_kind, 0.00452_r_kind, 0.04765_r_kind,&
+                     -0.00491_r_kind, 11.98897_r_kind /)
+
+! ---------- Calculate predictors ---------------------------
+
+  pred_var_clw(1) = log(tb18v - tb18h)
+  pred_var_clw(2) = log(tb37v - tb37h)
+
+  pred_var_gwp(1) = 300.0_r_kind-log(tb166v)
+  pred_var_gwp(2) = 300.0_r_kind-log(tb183v)
+
+! ---------- Gross check ------------------------------------
+! Gross error check on all channels.  If there are any
+! bad channels, skip this obs.
+
+  if ( any(tb(1:9) < 50.0_r_kind) .or. any(tb(10:13) < 70.0_r_kind ) ) then
+     ierr = 1
+     return
+  end if
+
+! ---------- Apply regression to calculate clw and gwp ------
+
+  ! calculate clw first
+  clw = a0_clw
+  diff_var = nvar_clw - nchan_reg  ! difference in number of channels used
+                                   ! and independent variables
+
+  ! loop over variables
+  ! start with spectral independent variables
+  if ( nchan_reg > 0 )then
+    do i=1,nchan_reg
+      idx = tb_index(i)
+      clw = clw + ( tb(idx) * regr_coeff_clw(i) )
+    enddo
+  endif
+  ! weight by non-spectral independent variables
+  if ( nvar_clw > nchan_reg ) then
+    do i=1,diff_var
+      clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
+    enddo
+  endif
+
+  ! set maximum for clw at 6.0 kg/m2
+  clw = min(clw,6.0_r_kind)
+
+  ! if the observation is on a swath edge (where ch10-13 don't have
+  ! values in the data, but are assigned high TBs (500K) in the reader), set clw
+  ! to 999.0
+  ! so these observations can be flagged for swath edge in qc_gmi
+
+  if((tb(10) > 490.0_r_kind) .and. (tb(11) > 490.0_r_kind) .and. (tb(12) > 490.0_r_kind) &
+     .and. (tb(13) > 490.0_r_kind)) then
+     clw=999.0_r_kind
+  end if
+
+  ! calculate gwp
+  gwp = a0_gwp
+  diff_var = nvar_gwp - nchan_reg
+
+  ! loop over variables
+  ! spectral independent variables
+  if ( nchan_reg > 0 )then
+    do i=1,nchan_reg
+      idx = tb_index(i)
+      gwp = gwp + ( tb(idx) * regr_coeff_gwp(i) )
+    enddo
+  endif
+  ! weight by non-spectral independent variables
+  if ( nvar_gwp > nchan_reg ) then
+    do i=1,diff_var
+      gwp = gwp + ( pred_var_gwp(i) * regr_coeff_gwp(i+nchan_reg) )
+    enddo
+  endif
+
+  ! flag convective precip
+  if ( gwp > 0.05_r_kind) then
+    kraintype = 2
+  endif
+
+  return
+end subroutine retrieval_gmi
+
+
+subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: retrieval_amsr2   make retrieval from AMSR2 observation
+!   prgmmr: ejones            org: jcsda                date: 2015-03-06
+!
+! abstract: algorithm developed by kgarrett to retrieve clw and gwp for
+!   GCOMW1 AMSR2 observations. Retrieved clw and gwp used in qc_amsr2 to
+!   filter out obs contaminated by cloud and precip.
+!
+!   NOTE: regressions assume ocean-only surface
+!   NOTE: regressions are valid only for AMSR2 channels 1-14 (15-16 contain
+!   redundant info)
+!
+! program history log:
+!   2014-11-15  ejones
+!
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     nchanl  - number of channels per obs
+!
+!   output argument list:
+!     clw     - column water vapor over ocean  [kg/m2]
+!     kraintype-rain type
+!        [0]no rain or undefine
+!        [1]retrieve by emission -> not available now
+!        [2]by scattering
+!     ierr    - error flag
+!        [0]pass or escape this subroutine without doing anything
+!        [1]tbb gross error
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: clw  !gwp
+
+! Declare local variables
+  integer(i_kind)::tb_index(14)
+  integer(i_kind)::nchan_reg,nvar_clw   !nvar_gwp
+  real(r_kind)::regr_coeff_clw(16),pred_var_clw(2)
+  real(r_kind)::a0_clw
+  real(r_kind)::tb6v,tb6h,tb7v,tb7h,tb10v,tb10h,tb18v,tb18h,tb23v,tb23h,tb36v,tb36h,tb89v,tb89h
+
+  integer(i_kind)::i,idx,diff_var
+! ---------- Initialize some variables ---------------------
+
+  kraintype = 0
+  ierr = 0
+
+  tb6v=tb(1); tb6h=tb(2); tb7v=tb(3); tb7h=tb(4); tb10v=tb(5); tb10h=tb(6)
+  tb18v=tb(7); tb18h=tb(8); tb23v=tb(9); tb23h=tb(10); tb36v=tb(11)
+  tb36h=tb(12); tb89v=tb(13); tb89h=tb(14)
+
+  tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /)
+
+  ! intercepts
+  a0_clw = 6.74205_r_kind
+
+  nchan_reg = 14       ! number of channels used in regression
+  nvar_clw = 16        ! number of independent variables in clw regression
+
+  ! regression coefficients
+  regr_coeff_clw = (/ -1.39909_r_kind, -0.07375_r_kind, 1.49488_r_kind, 0.07072_r_kind, &
+                      0.00611_r_kind, -0.06722_r_kind, -0.18259_r_kind, 0.07976_r_kind, &
+                      0.03946_r_kind, -0.01740_r_kind, 0.05922_r_kind, -0.02742_r_kind, &
+                      -0.00091_r_kind, 0.00009_r_kind, 0.00864_r_kind, -1.64131_r_kind /)
+
+! ---------- Calculate predictors ---------------------------
+
+  pred_var_clw(1) = log(tb18v - tb18h)
+  pred_var_clw(2) = log(tb36v - tb36h)
+
+! ---------- Gross check ------------------------------------
+! Gross error check on all channels.  If there are any
+! bad channels, skip this obs.
+
+  if ( any(tb(1:14) < 2.7_r_kind) .or. any(tb(1:14) > 340.0_r_kind ) ) then
+     ierr = 1
+     return
+  end if
+
+! ---------- Apply regression to calculate clw --------------
+
+  ! calculate clw first
+  clw = a0_clw
+  diff_var = nvar_clw - nchan_reg  ! difference in number of channels used
+                                   ! and independent variables
+
+  ! loop over variables
+  ! start with spectral independent variables
+  if ( nchan_reg > 0 )then
+    do i=1,nchan_reg
+      idx = tb_index(i)
+      clw = clw + ( tb(idx) * regr_coeff_clw(i) )
+    enddo
+  endif
+  ! weight by non-spectral independent variables
+  if ( nvar_clw > nchan_reg ) then
+    do i=1,diff_var
+      clw = clw + ( pred_var_clw(i) * regr_coeff_clw(i+nchan_reg) )
+    enddo
+  endif
+
+  ! set maximum for clw at 6.0 kg/m2
+  clw = min(clw,6.0_r_kind)
+
+! ---------- Apply regression to calculate gwp ------------
+! Still need to work on this
+
+  return
+end subroutine retrieval_amsr2
+
+subroutine retrieval_saphir(tb,iang,nchanl,gwp,kraintype,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: retrieval_saphir   make retrieval from SAPHIR observation
+!   prgmmr: ejones            org: jcsda                date: 2015-03-23
+!
+! abstract: algorithm developped by kgarrett to retrieve clw and gwp for
+!   Megha-Tropiques SAPHIR observations, by angle bin. Retrieved gwp is
+!   used for screening observations for precipitation.
+!
+!   NOTE: regressions assume ocean-only surface
+!
+! program history log:
+!   2015-03-23  ejones
+!
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     nchanl  - number of channels per obs
+!     iang    - incidence angle
+!
+!   output argument list:
+!     gwp     - column ice over ocean          [kg/m2]
+!     kraintype-rain type
+!        [0]no rain or undefine
+!        [1]retrieve by emission -> not available now
+!        [2]by scattering
+!     ierr    - error flag
+!        [0]pass or escape this subroutine without doing anything
+!        [1]tbb gross error
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: nchanl
+  real(r_kind)                  ,intent(in   ) :: iang
+  real(r_kind),dimension(nchanl),intent(in   ) :: tb
+
+  integer(i_kind)               ,intent(  out) :: kraintype,ierr
+  real(r_kind)                  ,intent(  out) :: gwp
+
+! Declare local variables
+  real(r_kind)         ::abs_iang
+  integer(i_kind)      ::tb_index(6)
+  integer(i_kind)      ::nchan_reg,nvar_gwp,bin_no
+  real(r_kind)         ::a0_gwp(5)
+  real(r_kind)         ::angle_bin(6)
+  real(r_kind)         ::regr_coeff_gwp(5,6)
+
+  integer(i_kind)      ::i,idx
+! ---------- Initialize some variables ---------------------
+
+  kraintype = 0
+  ierr = 0
+
+  abs_iang = abs(iang)    ! make sure the incidence angle is positive
+  bin_no = 0
+
+  ! intercepts
+  a0_gwp = (/ 4.04166_r_kind, 3.86160_r_kind, 3.37189_r_kind, &
+              2.33067_r_kind, 1.95102_r_kind /)
+
+  nchan_reg = 6       ! number of channels used in regression
+  nvar_gwp = 6        ! number of independent variables in gwp regression
+
+  ! channels used in regression
+  tb_index = (/ 1, 2, 3, 4, 5, 6 /)
+
+  ! angle bins used in regression
+  angle_bin = (/ 0.0_r_kind, 10.0_r_kind, 20.0_r_kind, 30.0_r_kind, &
+                 40.0_r_kind, 50.0_r_kind /)
+
+  ! regression coefficients, one set for each angle bin
+  regr_coeff_gwp(1,:) = (/ -0.00085_r_kind, -0.00938_r_kind, 0.04594_r_kind, &
+                           -0.05311_r_kind, 0.00345_r_kind, -0.00110_r_kind /)
+  regr_coeff_gwp(2,:) = (/ -0.00478_r_kind, -0.00388_r_kind, 0.06688_r_kind, &
+                           -0.11137_r_kind, 0.06239_r_kind, -0.02363_r_kind /)
+  regr_coeff_gwp(3,:) = (/ 0.00041_r_kind, -0.01416_r_kind, 0.08750_r_kind, &
+                           -0.13836_r_kind, 0.08119_r_kind, -0.02905_r_kind /)
+  regr_coeff_gwp(4,:) = (/ 0.00344_r_kind, -0.01420_r_kind, 0.08930_r_kind, &
+                           -0.14820_r_kind, 0.09556_r_kind, -0.03418_r_kind /)
+  regr_coeff_gwp(5,:) = (/ 0.00913_r_kind, -0.02569_r_kind, 0.11245_r_kind, &
+                           -0.17690_r_kind, 0.11369_r_kind, -0.03943_r_kind /)
+
+! ----------- Loop over bins and apply regression to calculate gwp -----------
+
+  ! get bin number
+  if ( (abs_iang >= angle_bin(1)) .and. (abs_iang < angle_bin(2)) ) then
+    bin_no = 1
+  else if ( (abs_iang >= angle_bin(2)) .and. (abs_iang < angle_bin(3)) ) then
+    bin_no = 2
+  else if ( (abs_iang >= angle_bin(3)) .and. (abs_iang < angle_bin(4)) ) then
+    bin_no = 3
+  else if ( (abs_iang >= angle_bin(4)) .and. (abs_iang < angle_bin(5)) ) then
+    bin_no = 4
+  else if ( (abs_iang >= angle_bin(5)) .and. (abs_iang < angle_bin(6)) ) then
+    bin_no = 5
+  else if ( (abs_iang < 0.0_r_kind) .or. (abs_iang > 50.0_r_kind) ) then
+    write(6,*)'retrieval_saphir: could not determine angle bin.'
+  endif
+
+  ! calculate gwp
+  gwp = a0_gwp(bin_no)
+
+  ! loop over variables
+  ! spectral independent variables
+  if ( (nchan_reg > 0) .and. (bin_no /= 0) )then
+    do i=1,nchan_reg
+      idx = tb_index(i)
+      gwp = gwp + ( tb(idx) * regr_coeff_gwp(bin_no,i) )
+    enddo
+  endif
+
+  ! flag convective precip
+  if ( gwp > 0.05_r_kind) then
+    kraintype = 2
+  endif
+
+  return
+end subroutine retrieval_saphir
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$  subprogram documentation block
@@ -747,7 +1198,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
   real(r_kind)  ev(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),tvmin(nch)
+  real(r_kind)  tauo(nch),kl(nch),tv(nch),tvmin(nch)
 ! real(r_kind)  thmin(nch),eh(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
@@ -779,11 +1230,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   tl = sst-20.0_r_kind-273.15_r_kind
   if (tl > 10.0_r_kind) tl = 10.0_r_kind
 
-! scatteing correction
-  call TBE_FROM_TBO(tbo,tbe)
+  call TBA_FROM_TBO(tbo,tv)
 
-! Adjust TBE to TBA required in the algorithms
-  call TBA_FROM_TBE(tbe,tv)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
@@ -804,17 +1252,17 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !    if (th(ich) < thmin(ich)) th(ich) = thmin(ich)
   enddo
 
-! Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
-
-! 18.7 over 23.8 GHz: rain water path
-  a0 = -half*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
-  b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
-  a1 =  kw(3)/kw(4)
-  b1 =  kl(3)/kl(4)
-  a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*log(sst) + log(one-ev(3)) - a1*log(one-ev(4))
-  b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*log(sst) + log(one-ev(3)) - b1*log(one-ev(4))
-
   if ( ( sst-tv(3) > 0.01_r_kind ) .and. ( sst-tv(4) > 0.01_r_kind ) ) then
+!    Calculate a0, a1, a2 and b0, b1 and b2 at 18.7 GHz over 23.8 GHz
+
+!    18.7 over 23.8 GHz: rain water path
+!    a0 = -half*kw(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+     b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
+!    a1 =  kw(3)/kw(4)
+     b1 =  kl(3)/kl(4)
+!    a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*log(sst) + log(one-ev(3)) - a1*log(one-ev(4))
+     b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*log(sst) + log(one-ev(3)) - b1*log(one-ev(4))
+
 !    rwp = a0*umu*( log(sst-tv(3)) - a1*log(sst-tv(4))-a2)
      vr  = b0*umu*( log(sst-tv(3)) - b1*log(sst-tv(4))-b2)
 
@@ -828,16 +1276,16 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
      vr  = -999.0_r_kind
   endif
 
-! 36.5 over 23.8 GHz: cloud water path
-  a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-! b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
-  a1 =  kw(5)/kw(4)
-! b1 =  kl(5)/kl(4)
-  a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*log(sst) + &
-                           log(one-ev(5)) - a1*log(one-ev(4))
-! b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*log(sst) + &
-!                          log(one-ev(5)) - b1*log(one-ev(4))
   if ( ( sst-tv(4) > 0.01_r_kind ) .and. ( sst-tv(5) > 0.01_r_kind ) ) then
+!    36.5 over 23.8 GHz: cloud water path
+     a0 = -half*kw(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+!    b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
+     a1 =  kw(5)/kw(4)
+!    b1 =  kl(5)/kl(4)
+     a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*log(sst) + &
+                           log(one-ev(5)) - a1*log(one-ev(4))
+!    b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*log(sst) + &
+!                          log(one-ev(5)) - b1*log(one-ev(4))
      cwp = a0*umu*( log(sst-tv(5) ) - a1*log(sst-tv(4))-a2)
 !    vc = b0*umu*( log(sst-tv(5)) - b1*log(sst-tv(4))-b2 )
      if(cwp < zero) cwp = zero
@@ -853,8 +1301,104 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
 end subroutine RCWPS_Alg
 
+subroutine TBA_FROM_TBO(tbo,tvs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: TBE_FROM_TBO
+!
+!   prgrmmr: Banghua Yan      org: NESDIS        date:  2004-04-20
+!
+! abstract:
+!     Perform corrections for scattering effect for AMSR-E measurements (6.9 ~ 36.5 GHz)
+!     Note: Scattering effects on the tbo at 89 GHz are to be corrected
+!
+! program history log:
+!      2005-10-21  kazumori - modified for GSI
+!      2008-04-16  safford  - rm unused uses
+!
+!   input argument list:
+!     tbo(*) : AMSRE measurements
+!
+!   output argument list:
+!     tb(*)  : brightness temperatures with scattering correction
+!
+!   comments:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: three
+  implicit none
+
+  integer(i_kind) nch
+  parameter (nch = 6)
+
+  real(r_kind),intent(in   ) :: tbo(nch*2)
+  real(r_kind),intent(  out) :: tvs(nch)
+! Remove intent(out) for ths since currently not used
+! real(r_kind)               :: ths(nch)
+
+  integer(i_kind) i,j,k
+  real(r_kind) tbe(nch),tv18,tb(nch)
+  real(r_kind),save :: coe_tbs(5,11)
+  data (coe_tbs(1,k),k=1,11)/  &
+    3.700653e+000_r_kind, 1.139987e-002_r_kind, 9.760773e-001_r_kind,-3.792810e-002_r_kind, 6.930733e-002_r_kind,&
+    9.327399e-002_r_kind,-1.626923e-001_r_kind,-1.000955e-001_r_kind, 1.667856e-001_r_kind, 3.836404e-002_r_kind,&
+   -6.907219e-002_r_kind/
+  data (coe_tbs(2,k),k=1,11)/ &
+    -1.341827e+000_r_kind, -2.947993e-002_r_kind, -1.031828e-003_r_kind,  3.924831e-002_r_kind,  9.954801e-001_r_kind, &
+    -2.360948e-002_r_kind,  2.565339e-002_r_kind,  1.999745e-002_r_kind, -2.145227e-002_r_kind, -1.131899e-002_r_kind, &
+    1.201244e-002_r_kind/
+  data (coe_tbs(3,k),k=1,11)/  &
+    2.223694e+000_r_kind,-1.482995e-002_r_kind,-5.777131e-003_r_kind, 2.200880e-003_r_kind, 2.359764e-002_r_kind, &
+    5.473155e-002_r_kind, 9.022181e-001_r_kind,-6.822398e-002_r_kind, 1.177735e-001_r_kind, 2.131365e-002_r_kind, &
+   -4.201306e-002_r_kind/
+  data (coe_tbs(4,k),k=1,11)/  &
+    7.324219e-003_r_kind,-3.075898e-002_r_kind,-2.037739e-003_r_kind, 2.657354e-002_r_kind, 1.731113e-002_r_kind, &
+    3.657620e-002_r_kind,-1.028747e-001_r_kind,-5.361976e-002_r_kind, 1.126930e+000_r_kind, 1.459956e-002_r_kind, &
+   -3.240352e-002_r_kind/
+  data (coe_tbs(5,k),k=1,11)/ &
+    7.333450e+000_r_kind, -1.293110e-001_r_kind,  1.874678e-002_r_kind,  1.842369e-001_r_kind, -2.854594e-002_r_kind,  &
+    8.010966e-002_r_kind, -2.214617e-001_r_kind, -1.830799e-001_r_kind,  3.916801e-001_r_kind,  1.001790e-001_r_kind,  &
+    7.973670e-001_r_kind/
+
+! scattering correction
+  tb(1) = tbo(1)
+  tb(2) = tbo(3)
+  tb(3) = tbo(5)
+  tb(4) = tbo(7)
+  tb(5) = tbo(9)
+  tbe(6) = tbo(11)
+
+! from tbscat to tbemiss
+  do i = 1, 5
+     tbe(i) = coe_tbs(i,1)
+     do j=1,10
+        tbe(i) = tbe(i) + coe_tbs(i,j+1)*tb(j)
+     enddo
+     tbe(5) = tbe(5) + 0.4_r_kind*(tbe(5)-tb(5))
+  enddo
+
+! correction of sea surface roughness
+
+  tv18 = 0.0054_r_kind*tbo(7)*tbo(7) -1.9554_r_kind*tbo(7) +364.71_r_kind
+  if ((tbo(5)-tv18 >= three)  .and. (tbo(2) >= 90.0_r_kind)) &
+     tbe(3) = tbe(3) - 5.5_r_kind*(tbo(5)-tv18)/(10.0_r_kind-three)
 
 
+! Adjust TBE to TBA required in the algorithms
+  tvs(1) = 6.504761e+000_r_kind + 9.540653e-001_r_kind*tbe(1)
+  tvs(2) = 5.405548e+000_r_kind + 9.632518e-001_r_kind*tbe(2)
+  tvs(3) = 2.251144e+000_r_kind + 9.880477e-001_r_kind*tbe(3)
+  tvs(4) = -3.358444e+000_r_kind + 1.028767e+000_r_kind*tbe(4)
+  tvs(5) = 3.148166e+001_r_kind + 8.714348e-001_r_kind*tbe(5)
+  tvs(6) = 2.861269e+001_r_kind + 9.155271e-001_r_kind*tbe(6)
+
+end subroutine TBA_FROM_TBO
 subroutine TBE_FROM_TBO(tbo,tb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1358,30 +1902,29 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   integer(i_kind)                   ,intent(  out) :: ierrret 
   real(r_kind),optional             ,intent(  out) :: scat
 
-  real(r_kind)                    ::  tpwc_amsua
+! real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare local variables 
-  real(r_kind) :: d0, d1, d2, c0, c1, c2
+  real(r_kind) :: d0, d1, d2, coszat
+! real(r_kind) :: c0, c1, c2
 
-  c0 = 247.92_r_kind - (69.235_r_kind-44.177_r_kind*cos(zasat))*cos(zasat)
-  c1 = -116.27_r_kind
-  c2 = 73.409_r_kind
-
-  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*cos(zasat))*cos(zasat) 
+  
+  coszat=cos(zasat)
+  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*coszat)*coszat
   d1 = 0.754_r_kind
   d2 = -2.265_r_kind
-  
+
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
-     tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
+!    tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      ierrret = 0
   else
      clwp_amsua = r1000  
-     tpwc_amsua = r1000  
+!    tpwc_amsua = r1000  
      ierrret = 1
   endif
 

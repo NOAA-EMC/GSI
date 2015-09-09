@@ -333,7 +333,8 @@ subroutine sfilter(grd,sp,filter,grid)
   real(r_kind),intent(inout) :: grid(grd%nlat,grd%nlon)
 
   real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
-  integer(i_kind) i,j,jj
+  real(r_kind) gnlon
+  integer(i_kind) i,j,jj,imod
 
 
 !  Reverse ordering in j direction from n-->s to s-->n
@@ -345,23 +346,32 @@ subroutine sfilter(grd,sp,filter,grid)
      end do
   end do
 
-  do j=sp%jb,sp%je-mod(grd%nlat,2)
-     do i=1,grd%nlon
-        work(i,j)=work(i,j)/sp%wlat(j)
-        work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)/sp%wlat(j)
+  imod=mod(grd%nlat,2)
+  if (imod /= 0) then
+     do j=sp%jb,sp%je-1
+           do i=1,grd%nlon
+           work(i,j)=work(i,j)/sp%wlat(j)
+           work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)/sp%wlat(j)
+        end do
      end do
-  end do
-
-  if (mod(grd%nlat,2) /= 0) then
      do i=1,grd%nlon
         work(i,sp%je)=work(i,sp%je)/(two*sp%wlat(sp%je))
+     end do
+  else
+     do j=sp%jb,sp%je
+           do i=1,grd%nlon
+           work(i,j)=work(i,j)/sp%wlat(j)
+           work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)/sp%wlat(j)
+        end do
      end do
   endif
 
   call general_sptez_s(sp,spec_work,work,-1)
 
+  gnlon=float(grd%nlon)
+! gnlon=real(grd%nlon,r_kind)
   do i=1,sp%nc
-     spec_work(i)=spec_work(i)*float(grd%nlon)
+     spec_work(i)=spec_work(i)*gnlon
   end do
   do i=2*sp%jcap+3,sp%nc
      spec_work(i)=two*spec_work(i)
@@ -371,7 +381,6 @@ subroutine sfilter(grd,sp,filter,grid)
 
   do i=1,sp%nc
      spec_work(i)=spec_work(i)*filter(i)
-     if(sp%factsml(i))spec_work(i)=zero
   end do
  
 !  fill in pole points using spectral coefficients
