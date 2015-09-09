@@ -18,7 +18,7 @@ LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
-CRTMLIB   = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/CRTM_REL-2.2.1/crtm_v2.2.1/lib/libcrtm.a
+CRTMLIB   = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/lib/libcrtm.a
 GSILIBS   = -L$(CORELIB) -lw3emc_d -lbufr_d_64 $(CRTMLIB) $(WRFLIB)
 
 # Empty out definition of libs use by GMAO EnKF building structure
