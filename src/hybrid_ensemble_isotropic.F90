@@ -3948,139 +3948,123 @@ subroutine hybens_localization_setup
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
-         n_ens,vvlocal,&
-         s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
-         readin_localization,nval_lenz_en,readin_beta,betas_inv,betae_inv,beta1_inv,&
-         regional_ensemble_option
-  use gridmod,only: regional
-  use constants, only: one,zero
-  use mpimod, only: mype
-  use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
-  implicit none
+   use kinds, only: r_kind,i_kind
+   use constants, only: one,zero
+   use mpimod, only: mype
+   use gridmod,only: regional
+   use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
+   use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
+                                         nval_lenz_en,regional_ensemble_option
+   use hybrid_ensemble_parameters, only: readin_beta,betas_inv,betae_inv,beta1_inv
+   use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
+                                         vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
 
-  character(len=40)  :: fname = 'hybens_locinfo'
-  character(len=40)  :: fname2= 'hybens_betainfo'
-  integer(i_kind) k,msig,istat,nz,kl
-  integer(i_kind)    :: lunin = 47 , lunin2 = 48
-  logical            :: lexist
-  real(r_kind),allocatable:: s_ens_h_gu_x(:),s_ens_h_gu_y(:)
+   implicit none
 
-! Allocate
-  call create_hybens_localization_parameters
+   integer(i_kind),parameter   :: lunin = 47
+   character(len=40),parameter :: fname = 'hybens_info'
+   integer(i_kind) :: k,msig,istat,nz,kl
+   logical         :: lexist
+   real(r_kind),allocatable:: s_ens_h_gu_x(:),s_ens_h_gu_y(:)
 
-! if readin_beta is true, read in k-vertical levels of the betas_inv and betae_inv parameters
-  if (readin_beta) then
-     inquire(file=trim(fname2),exist=lexist)
-     if ( lexist ) then 
-        open(lunin2,file=trim(fname2),form='formatted')
-        rewind(lunin2)
-        read(lunin2,*)
-        read(lunin2,100,iostat=istat) msig
-        if ( msig /= grd_ens%nsig ) then 
-           write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  ***ERROR*** error in ',trim(fname2)
-           write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
-           close(lunin2)
-          call stop2(123)
-        endif
-        do k=1,grd_ens%nsig
-           read(lunin2,101) betas_inv(k), betae_inv(k)
-        enddo
-      else 
-        write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  ***ERROR*** INPUT FILE MISSING -- ',trim(fname2)
-        call stop2(999)
-     endif 
-102 format(F6.2,3x,F6.2) 
-  else 
-     do k=1,grd_ens%nsig
-        betas_inv(k) = beta1_inv
-        betae_inv(k) = one - beta1_inv
-     enddo
-  endif 
+   ! Allocate
+   call create_hybens_localization_parameters
 
-  if(regional_ensemble_option == 2 .and. use_gfs_stratosphere)then
-     do k=1,grd_ens%nsig
-        betae_inv(k) = betae_inv(k) * blend_rm(k)
-        betas_inv(k) = one - betae_inv(k)
-        if(mype == 0)write(6,*)'betas_inv, betae_inv=', &
-                     k,betas_inv(k),betae_inv(k)
-     end do
-  end if
+   if ( readin_localization .or. readin_beta ) then ! read info from file
 
-! Set up localization parameters as function of level
+      inquire(file=trim(fname),exist=lexist)
+      if ( lexist ) then 
+         open(lunin,file=trim(fname),form='formatted')
+         rewind(lunin)
+         read(lunin,100,iostat=istat) msig
+         if ( istat /= 0 ) then
+            write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
+            write(6,*) 'HYBENS_LOCALIZATION_SETUP:  error reading file, iostat = ',istat
+            stop(123)
+         endif
+         if ( msig /= grd_ens%nsig ) then 
+            write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
+            write(6,*) 'HYBENS_LOCALIZATION_SETUP:  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
+            close(lunin)
+            call stop2(123)
+         endif
+         do k = 1,grd_ens%nsig
+            read(lunin,101) s_ens_hv(k), s_ens_vv(k), betas_inv(k), betae_inv(k)
+         enddo
+         close(lunin)
 
-! if horizontal parameter is set <= 0, read in k-levels of localization parameters
-  if (readin_localization) then
+      else
 
-!   Check the status of input file
-    inquire(file=trim(fname),exist=lexist)
-    if ( lexist ) then
-       vvlocal=.true.
-       open(lunin,file=trim(fname),form='formatted')
-       rewind(lunin)
-       read(lunin,100,iostat=istat) msig
-       if ( msig /= grd_ens%nsig ) then
-          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
-          write(6,*) 'HYBENS_LOCALIZATION_SETUP:  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
-          close(lunin)
-          call stop2(123)
-       endif
-       do k=1,grd_ens%nsig
-         read(lunin,101) s_ens_hv(k),s_ens_vv(k)
-       end do
-       close(lunin)
-      nz=msig
-     kl=grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-     allocate( s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
-    else 
-      write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
-      call stop2(999)
-    end if 
- 100 format(I4)
- 101 format(F8.1,3x,F5.1)
+         write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
+         call stop2(999)
 
-  else
-!          assign all levels to same value, s_ens_h  (ran with this on 20100702 and reproduced results from
-!                                                      rungsi62_hyb_dualres.sh)
-     kl=1
-     allocate( s_ens_h_gu_x(1),s_ens_h_gu_y(1))
-     s_ens_hv=s_ens_h
-     s_ens_vv=s_ens_v
-     nz=1
-  end if
+      endif
 
-! Set up localization filters
+      if ( readin_localization ) then
+         vvlocal = .true.
+         nz = msig
+         kl = grd_loc%kend_alloc-grd_loc%kbegin_loc+1
+         allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
+      endif
 
-  call init_rf_z(s_ens_vv)
-  call normal_new_factorization_rf_z
+   endif
 
-  if(regional) then
-!     convert s_ens_h from km to grid units.
-        call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
-     if(vvlocal)then
-        call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
-        call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
-     else
-        call init_rf_x(s_ens_h_gu_x,kl)
-        call init_rf_y(s_ens_h_gu_y,kl)
-     endif
-        call normal_new_factorization_rf_x
-        call normal_new_factorization_rf_y
-  else
-     call init_sf_xy(jcap_ens)
-  end if
+100 format(I4)
+101 format(F8.1,3x,F5.1,2(3x,F8.4))
 
-  call setup_ens_pwgt
+   if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
+      betas_inv = beta1_inv
+      betae_inv = one - beta1_inv
+   endif
 
-!  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
-!     and triggered by lsqrtb.
-  if(regional) then
-     nval_lenz_en=grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-  else
-     nval_lenz_en=sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-  end if
-  return
+   if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere ) then
+      do k = 1,grd_ens%nsig
+         betae_inv(k) = betae_inv(k) * blend_rm(k)
+         betas_inv(k) = one - betae_inv(k)
+         if ( mype == 0 ) write(6,*)'betas_inv, betae_inv=', &
+                          k,betas_inv(k),betae_inv(k)
+      enddo
+   endif
+
+   if ( .not. readin_localization ) then ! assign all levels to same value, s_ens_h, s_ens_v
+      nz = 1
+      kl = 1
+      allocate(s_ens_h_gu_x(1),s_ens_h_gu_y(1))
+      s_ens_hv = s_ens_h
+      s_ens_vv = s_ens_v
+   endif
+
+   ! Set up localization filters
+
+   call init_rf_z(s_ens_vv)
+   call normal_new_factorization_rf_z
+
+   if ( regional ) then ! convert s_ens_h from km to grid units.
+      call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
+      if ( vvlocal ) then
+         call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
+         call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
+      else
+         call init_rf_x(s_ens_h_gu_x,kl)
+         call init_rf_y(s_ens_h_gu_y,kl)
+      endif
+      call normal_new_factorization_rf_x
+      call normal_new_factorization_rf_y
+   else
+      call init_sf_xy(jcap_ens)
+   endif
+
+   call setup_ens_pwgt
+
+   !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
+   !     and triggered by lsqrtb.
+   if ( regional ) then
+      nval_lenz_en = grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+   else
+      nval_lenz_en = sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+   endif
+
+   return
 
 end subroutine hybens_localization_setup
 
