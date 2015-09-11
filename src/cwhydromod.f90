@@ -136,7 +136,8 @@ character(len=max_varname_length),intent(in):: clouds(nclouds)
 
 ! Declare local variables
 integer(i_kind) i,j,k,ic,istatus
-real(r_kind),dimension(lat2,lon2,nsig) :: work0,work
+real(r_kind),dimension(lat2,lon2,nsig) :: work0
+! real(r_kind),dimension(lat2,lon2,nsig) :: work
 real(r_kind),pointer,dimension(:,:,:) :: cv_cw
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
