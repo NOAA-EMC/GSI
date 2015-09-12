@@ -99,7 +99,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -311,7 +311,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 
 !  Modify penalty term if nonlinear QC
 
-        if (nlnqc_iter .and. tptr%pg > tiny_r_kind .and. tptr%b >tiny_r_kind) then
+        if(vqc==.true. .and. nlnqc_iter .and. tptr%pg > tiny_r_kind .and. tptr%b >tiny_r_kind) then
            t_pg=tptr%pg*varqc_iter
            cg_t=cg_term/tptr%b
            wnotgross= one-t_pg
@@ -330,7 +330,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*tptr%jb*log(cosh(sqrt(pen(kk)/(two*tptr%jb))))
            enddo
-
            out(1) = out(1)+pen(1)*sqrt(tptr%raterr2)
            do kk=2,nstep
               out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(tptr%raterr2)
