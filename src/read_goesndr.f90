@@ -1,7 +1,7 @@
 subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
      lunout,obstype,nread,ndata,nodata,twind,gstime,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,dval_use)
+     nrec_start,dval_use,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_goesndr                   read goes sounder data
@@ -58,6 +58,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                          causes integer overflow with current logic.  Made quick fix, but needs review.
 !   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -100,6 +101,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -116,6 +118,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   logical         ,intent(in   ) :: dval_use
+  type(rad_obs_type),intent(in ) :: radmod
 
 
 ! Declare local parameters

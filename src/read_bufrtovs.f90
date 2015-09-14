@@ -3,7 +3,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub, &
      llb,lll,nobs, &
-     nrec_start,nrec_start_ears,dval_use)
+     nrec_start,nrec_start_ears,dval_use,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bufrtovs                  read bufr tovs 1b data
@@ -86,6 +86,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
 !   2014-04-27  eliu/zhu - add thinning options for AMSU-A under allsky condition 
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-08-20  zhu - use centralized radmod for all-sky and aerosol usages in radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -141,10 +142,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use antcorr_application, only: remove_antcorr
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
-  use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
   implicit none
 
 ! Declare passed variables
@@ -164,6 +165,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   integer(i_kind) ,intent(in   ) :: lll,llb
   logical,         intent(in   ) :: dval_use
+  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
 
@@ -192,7 +194,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm
+  integer(i_kind) instr,ichan
   integer(i_kind) error_status,ier,irecx
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -239,9 +241,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
-
-! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -776,7 +775,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
                  qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                 if (icw4crtm>10) then
+                 if (radmod%lcloud_forward) then
                   ! no preference in selecting clouds/precipitation
                   ! qval=zero 
                   ! favor non-precipitating clouds                                                   

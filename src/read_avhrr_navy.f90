@@ -1,7 +1,7 @@
 subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
      gstime,infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,& 
-     nrec_start,dval_use)
+     nrec_start,dval_use,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_avhrr_navy                  read navy avhrr data
@@ -49,6 +49,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -86,6 +87,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
   implicit none
 
 
@@ -103,7 +105,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   logical         ,intent(in   ) :: dval_use
-
+  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
