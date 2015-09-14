@@ -60,8 +60,9 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !                         because load_prsges is called after this subroutine is called.                       
 !   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
 !   2013-10-30  todling - ltosj/i now live in commvars
-!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
+!   2014-06-27  S.Liu   - detach use_reflectivity from nclouds_actual
 !   2015_05_12  wu      - bug fixes for FGAT
+!   2015-09-10  zhu     - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !     mype     - pe number
@@ -100,12 +101,12 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
-  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: die,getindex
-  use control_vectors, only: cvars3d
+  use mpeu_util, only: die
   use native_endianness, only: byte_swap
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
+  use radiance_mod, only: nclouds_actual,icloud_forward
 
   implicit none
 
@@ -160,8 +161,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   character(132) memoryorder
 
 ! variables for cloud info
-  integer(i_kind) n_actual_clouds,istatus,ier,iret
-  integer(i_kind) iqtotal,icw4crtm
+  integer(i_kind) istatus,ier,iret
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
@@ -196,20 +196,11 @@ subroutine read_wrf_nmm_binary_guess(mype)
         nsig_read=nsig_save
      endif
 
-!    Inquire about cloud guess fields
-     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
-
-!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-     icw4crtm=getindex(cvars3d,'cw')
-
-!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-     iqtotal=getindex(cvars3d,'qt')
-
 
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=20+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
+     if (nclouds_actual>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
      num_loc_groups=num_nmm_fields/npe
 
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, update_pint   =",l6)')update_pint   
@@ -432,7 +423,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
         if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            i_cwm=i+1
            read(lendian_in) n_position,memoryorder
            do k=1,lm
@@ -492,7 +483,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
               offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
               if(mype == 0.and.k==1) write(6,*)' f_rimef i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
            end do
-        end if  ! end of n_actual_clouds>0
+        end if  ! end of nclouds_actual>0
 
 !       bring in z0 (roughness length)
         mm1=mype+1
@@ -670,7 +661,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            deallocate(jbuf)
         end if
 
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
 !                                    read cwm
            if(kord(i_cwm)/=1) then
               allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -779,7 +770,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !       Get pointer to cloud water mixing ratio
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -792,7 +783,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         kq=i_q-1
         ku=i_u-1
         kv=i_v-1
-        if (n_actual_clouds>0) then 
+        if (nclouds_actual>0) then 
            kcwm=i_cwm-1
            kf_ice=i_f_ice-1
            kf_rain=i_f_rain-1
@@ -803,7 +794,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (n_actual_clouds>0) then
+           if (nclouds_actual>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -816,7 +807,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
 
-                 if (n_actual_clouds>0) then
+                 if (nclouds_actual>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -824,7 +815,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end if
               end do
            end do
-           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+           if (nclouds_actual>0 .and. (icloud_forward) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -846,7 +837,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  ges_v(j,i,k)    = zero
                  ges_q(j,i,k)    = zero
                  ges_tsen(j,i,k,it) = zero
-                 if (n_actual_clouds>0) then
+                 if (nclouds_actual>0) then
                     clwmr(j,i,k)  = zero
                     fice(j,i,k)   = zero
                     frain(j,i,k)  = zero
@@ -856,7 +847,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            end do
         end do
 
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
@@ -1020,6 +1011,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !   2012-11-30  tong  - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
 !                       because load_prsges is called after this subroutine is called.
 !   2013-10-13  todling - efr_q vars now in cloud_efr module (update mod name too)
+!   2015-09-10  zhu     - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !     mype     - pe number
@@ -1057,10 +1049,10 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
-  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: die,getindex
-  use control_vectors, only: cvars3d
+  use mpeu_util, only: die
+  use radiance_mod, only: nclouds_actual,icloud_forward
   implicit none
 
 ! Declare passed variables here
@@ -1096,8 +1088,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
 
 ! variables for cloud info
-  integer(i_kind) n_actual_clouds,istatus,ier,iret
-  integer(i_kind) iqtotal,icw4crtm
+  integer(i_kind) istatus,ier,iret
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
@@ -1138,19 +1129,10 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         lm=nsig
      end if
 
-!    Inquire about cloud guess fields
-     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
-
-!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-     icw4crtm=getindex(cvars3d,'cw')
-
-!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-     iqtotal=getindex(cvars3d,'qt')
-
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=14+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm
+     if (nclouds_actual>0) num_nmm_fields=num_nmm_fields+4*lm
      num_all_fields=num_nmm_fields*nfldsig
      num_loc_groups=num_all_fields/npe
 
@@ -1260,7 +1242,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
-     if (n_actual_clouds>0) then
+     if (nclouds_actual>0) then
         i_cwm=i+1
         do k=1,lm
            i=i+1                                                   ! cwm(k)
@@ -1289,7 +1271,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            jsig_skip(i)=0
            igtype(i)=1
         end do
-     end if  ! end of n_actual_clouds>0
+     end if  ! end of nclouds_actual>0
 
 !    End of stuff from NMM restart file
 
@@ -1384,7 +1366,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !       Get pointer to cloud water mixing ratio
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -1398,7 +1380,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         kq=i_0+i_q-1
         ku=i_0+i_u-1
         kv=i_0+i_v-1
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            kcwm=i_0+i_cwm-1
            kf_ice=i_0+i_f_ice-1
            kf_rain=i_0+i_f_rain-1
@@ -1410,7 +1392,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (n_actual_clouds>0) then
+           if (nclouds_actual>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -1425,7 +1407,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
                  ges_oz(j,i,k) = zero                  ! set to zero for now 
 
-                 if (n_actual_clouds>0) then
+                 if (nclouds_actual>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -1433,7 +1415,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end if
               end do
            end do
-           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+           if (nclouds_actual>0 .and. (icloud_forward) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -1457,7 +1439,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ges_tsen(j,i,k,it) = zero
                  ges_oz(j,i,k)   = zero 
 
-                 if (n_actual_clouds>0) then
+                 if (nclouds_actual>0) then
                     clwmr(j,i,k)  = zero 
                     fice(j,i,k)   = zero 
                     frain(j,i,k)  = zero
@@ -1466,7 +1448,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               enddo
            enddo
         enddo
-        if (n_actual_clouds>0) then
+        if (nclouds_actual>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
@@ -1637,6 +1619,7 @@ subroutine read_nems_nmmb_guess(mype)
 !   2012-12-16  s.liu   - add gsd cloud analysis variables.
 !   2013-10-19  todling - efr fields now live in cloud_efr_mod
 !   2013-02-26  zhu - add cold_start option when the restart file is from the GFS
+!   2015-09-10  zhu - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !     mype     - pe number
@@ -1672,12 +1655,12 @@ subroutine read_nems_nmmb_guess(mype)
   use regional_io, only: update_pint, cold_start
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr
-  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: die,getindex
-  use control_vectors, only: cvars3d
+  use mpeu_util, only: die
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
   use derivsmod, only: cwgues0
+  use radiance_mod, only: nclouds_actual,icloud_forward
   implicit none
 
 ! Declare passed variables here
@@ -1698,7 +1681,7 @@ subroutine read_nems_nmmb_guess(mype)
 
 ! variables for cloud info
   logical good_fice, good_frain, good_frimef
-  integer(i_kind) iqtotal,icw4crtm,ier,iret,n_actual_clouds,istatus,ierr
+  integer(i_kind) ier,iret,istatus,ierr
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
@@ -1736,15 +1719,6 @@ subroutine read_nems_nmmb_guess(mype)
   end if
       write(6,*) ' in read_nems_nmmb_guess, nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps=', &
                                             nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps
-
-! Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-  icw4crtm=getindex(cvars3d,'cw')
-
-! Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-  iqtotal=getindex(cvars3d,'qt')
-
-! Inquire about cloud guess fields
-  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
 ! do serial input for now, with mpi_send to put on appropriate processor.
 
@@ -1821,7 +1795,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
-     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+     if (nclouds_actual>0 .and. (.not.use_reflectivity)) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
@@ -1830,7 +1804,7 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
-        if ((icw4crtm>0 .or. iqtotal>0) .and. ier==0) then
+        if ((icloud_forward) .and. ier==0) then
            ges_ql=zero; ges_qi=zero; ges_qr=zero; ges_qs=zero; ges_qg=zero; ges_qh=zero
            efr_ql=zero; efr_qi=zero; efr_qr=zero; efr_qs=zero; efr_qg=zero; efr_qh=zero
            do kr=1,nsig_read
@@ -1859,11 +1833,11 @@ subroutine read_nems_nmmb_guess(mype)
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 
-        end if  ! icw4crtm>10 .or. iqtotal>0
-     end if    ! end of (n_actual_clouds>0)
+        end if  ! icloud_forward
+     end if    ! end of (nclouds_actual>0)
 
 
-!    if (n_actual_clouds>0 .and. use_reflectivity) then
+!    if (nclouds_actual>0 .and. use_reflectivity) then
      if (use_reflectivity) then
 
 !       Get pointer to cloud water mixing ratio

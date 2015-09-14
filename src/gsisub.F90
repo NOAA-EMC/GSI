@@ -59,6 +59,8 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2012-06-12  parrish - remove init_commvars (replaced in gsimod.F90 with general_commvars).
 !   2013-05-19  zhu     - add aircraft temperature bias correction
 !   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
+!   2015-07-20  zhu     - centralize radiance info for the usages of clouds & aerosols
+!                       - add radiance_obstype_init 
 !
 !   input argument list:
 !     mype - mpi task id
@@ -89,6 +91,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use oneobmod, only: oneobtest,oneobmakebufr
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
      aircraft_t_bc_ext
+  use radiance_mod, only: radiance_obstype_init
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -139,6 +142,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   if (init_pass) then
      if (.not.twodvar_regional) then
         call radinfo_read
+        call radiance_obstype_init
         call ozinfo_read
         call coinfo_read
         call pcpinfo_read

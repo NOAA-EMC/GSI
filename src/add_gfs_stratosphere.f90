@@ -22,6 +22,7 @@ subroutine add_gfs_stratosphere
 !                         transformed to a coarser resolution grid
 !   2014-12-03  derber  - modify call to general_read_gfsatm to reduce reading
 !                         of unused variables
+!   2015-08-20  zhu  - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !
@@ -63,8 +64,7 @@ subroutine add_gfs_stratosphere
   use gfs_stratosphere, only: good_o3mr
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: getindex
-  use control_vectors, only: cvars3d
+  use radiance_mod, only: icloud_forward
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -109,7 +109,6 @@ subroutine add_gfs_stratosphere
 
 ! variables for cloud info
   integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh
-  integer(i_kind) iqtotal,icw4crtm
   real(r_kind) worktmp
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
   real(r_kind),pointer,dimension(:,:,:):: ges_ql
@@ -137,14 +136,8 @@ subroutine add_gfs_stratosphere
 !    Inquire about cloud guess fields
      call gsi_metguess_get('dim',nguess,istatus)
 
-!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-     icw4crtm=getindex(cvars3d,'cw')
-
-!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-     iqtotal=getindex(cvars3d,'qt')
-
 !    Get pointer to cloud water mixing ratio
-     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     if (nguess>0 .and. (icloud_forward)) then
         allocate(ges_cw_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_ql_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_qi_r_g(lat2,lon2,nsig,nfldsig))
@@ -189,7 +182,7 @@ subroutine add_gfs_stratosphere
         end do
      end do
 
-     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     if (nguess>0 .and. (icloud_forward)) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -567,7 +560,7 @@ subroutine add_gfs_stratosphere
   allocate(ttsen(lat2,lon2,nsig))
   allocate(qt(lat2,lon2,nsig))
   allocate(ozt(lat2,lon2,nsig))
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+  if (nguess>0 .and. (icloud_forward)) then
      allocate(qlt(lat2,lon2,nsig))
      allocate(qit(lat2,lon2,nsig))
      allocate(qrt(lat2,lon2,nsig))
@@ -735,7 +728,7 @@ subroutine add_gfs_stratosphere
         end do
      
 
-        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        if (nguess>0 .and. (icloud_forward)) then
 
            if (ier_ql==0) then
 !    ql  -- regional contribution
@@ -914,7 +907,7 @@ subroutine add_gfs_stratosphere
   call general_sub2grid_destroy_info(grd_gfst)
   call general_sub2grid_destroy_info(grd_mix)
   deallocate(ut,vt,tt,ttsen,qt,ozt)
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+  if (nguess>0 .and. (icloud_forward)) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -972,7 +965,7 @@ subroutine add_gfs_stratosphere
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
 ! deallocate(pri_m)  
   deallocate(vector) 
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) deallocate(qlt,qit,qrt,qst,qgt,qht)
+  if (nguess>0 .and. (icloud_forward)) deallocate(qlt,qit,qrt,qst,qgt,qht)
 
 
   enddo it_loop       
@@ -995,6 +988,7 @@ subroutine revert_to_nmmb
 !   2012-09-06  parrish, initial documentation
 !   2013-02-08  zhu  - add cloud hydrometeros
 !   2013-10-19  todling - metguess now holds background
+!   2015-08-20  zhu  - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !
@@ -1024,9 +1018,8 @@ subroutine revert_to_nmmb
   use gfs_stratosphere, only: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: getindex
   use mpeu_util, only: die
-  use control_vectors, only: cvars3d
+  use radiance_mod, only: icloud_forward
   implicit none
 
   character(len=*),parameter::myname='revert_to_nmmb'
@@ -1037,7 +1030,6 @@ subroutine revert_to_nmmb
 
 ! variables for cloud info
   integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh,iret
-  integer(i_kind) iqtotal,icw4crtm
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_ql =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qi =>NULL()
@@ -1103,13 +1095,7 @@ subroutine revert_to_nmmb
 !  Inquire about cloud guess fields
    call gsi_metguess_get('dim',nguess,istatus)
 
-!  Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-   icw4crtm=getindex(cvars3d,'cw')
-
-!  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-   iqtotal=getindex(cvars3d,'qt')
-
-   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+   if (nguess>0 .and. (icloud_forward)) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
@@ -1199,7 +1185,7 @@ subroutine revert_to_nmmb
         end do
 
 
-        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        if (nguess>0 .and. (icloud_forward)) then
 !  ql:
            if (ier_ql==0) then
               do k=1,nsig
@@ -1307,7 +1293,7 @@ subroutine revert_to_nmmb
                  ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
               end do
            end if
-        end if ! end of (nguess>0 .and. (icw4crtm .or. iqtotal))
+        end if ! end of (nguess>0 .and. (icloud_forward))
 
      end do
   end do
@@ -1326,6 +1312,7 @@ subroutine restore_nmmb_gfs
 !   2012-09-06  parrish, initial documentation
 !   2013-02-09  zhu - add cloud hydrometeros
 !   2013-10-19  todling - metguess now holds background
+!   2015-09-10  zhu - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
 !   input argument list:
 !
@@ -1347,9 +1334,8 @@ subroutine restore_nmmb_gfs
   use gfs_stratosphere, only: ges_cw_r_g,ges_ql_r_g,ges_qi_r_g,ges_qr_r_g,ges_qs_r_g,ges_qg_r_g,ges_qh_r_g
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: getindex
   use mpeu_util, only: die
-  use control_vectors, only: cvars3d
+  use radiance_mod, only: icloud_forward
   implicit none
 
   character(len=*),parameter::myname='restore_nmmb_gfs'
@@ -1361,7 +1347,6 @@ subroutine restore_nmmb_gfs
 
 ! variables for cloud info
   integer(i_kind) nguess,ier_cw,ier_ql,ier_qi,ier_qr,ier_qs,ier_qg,ier_qh,iret
-  integer(i_kind) iqtotal,icw4crtm
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_ql =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qi =>NULL()
@@ -1397,13 +1382,7 @@ subroutine restore_nmmb_gfs
 !  Inquire about cloud guess fields
    call gsi_metguess_get('dim',nguess,istatus)
 
-!  Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
-   icw4crtm=getindex(cvars3d,'cw')
-
-!  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
-   iqtotal=getindex(cvars3d,'qt')
-
-   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+   if (nguess>0 .and. (icloud_forward)) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret

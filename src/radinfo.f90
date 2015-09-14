@@ -39,6 +39,7 @@ module radinfo
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
+!   2015-7-10   zhu     - add two additional columns to satinfo file: icloud4crtm & iaerosol4crtm
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -93,6 +94,7 @@ module radinfo
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
+  public :: icloud4crtm,iaerosol4crtm
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -165,6 +167,8 @@ module radinfo
   logical,allocatable,dimension(:):: inew_rad  ! indicator if it needs initialized for satellite radiance data
   logical,allocatable,dimension(:):: update_tlapmean ! indicator if tlapmean update is needed
 
+  integer(i_kind),allocatable,dimension(:):: icloud4crtm  ! provide cloud info to crtm if icloud4crtm=0 & 1
+  integer(i_kind),allocatable,dimension(:):: iaerosol4crtm  ! provide aerosol info to crtm if iaerosol4crtm=0 & 1
   integer(i_kind),allocatable,dimension(:):: ifactq    ! scaling parameter for d(Tb)/dq sensitivity
 
   character(len=20),allocatable,dimension(:):: nusis   ! sensor/instrument/satellite indicator
@@ -511,6 +515,9 @@ contains
 !                         additional SSMIS bias correction coefficients)
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !   2014-04-13  todling - add initialization of correlated R-covariance
+!   2015-07-10  zhu     - read in and determine icloud4crtm & iaerosol4crtm for all channels
+!                         (in some current IR cloudy researches, all-sky is enabled for only 
+!                          some of the channels of an instrument)
 !
 !   input argument list:
 !
@@ -535,7 +542,7 @@ contains
 
 
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
-    integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate
+    integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate,icw,iaeros
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
     real(r_kind) tsum
@@ -595,14 +602,13 @@ contains
          ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad),&
-         icld_det(jpch_rad))
+         icld_det(jpch_rad),icloud4crtm(jpch_rad),iaerosol4crtm(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
     inew_rad=.true.
     ifactq=15
     air_rad=one
     ang_rad=one
-
 
 !   All mpi tasks open and read radiance information file.
 !   Task mype_rad writes information to radiance runtime file
@@ -618,24 +624,27 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        j=j+1
-       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),varch(j), &
+            varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j),icw,iaeros
        if(istat/=0) then
           call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
           call perr('radinfo_read','                 istat =',istat)
           call  die('radinfo_read')
        endif
+
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
+       icloud4crtm(j)=icw
+       iaerosol4crtm(j)=iaeros
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
-            b_rad(j),pg_rad(j),icld_det(j)
+            b_rad(j),pg_rad(j),icld_det(j),icloud4crtm(j),iaerosol4crtm(j)
     end do
     close(lunin)
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
-          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2)
+          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2,' icloud=',I2,' iaeros=',I2)
 
 
 !   Allocate arrays for additional preconditioning info
@@ -1020,7 +1029,7 @@ contains
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
-         ifactq,varch,varch_cld,inew_rad,icld_det)
+         ifactq,varch,varch_cld,inew_rad,icld_det,icloud4crtm,iaerosol4crtm)
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)

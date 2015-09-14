@@ -131,6 +131,7 @@
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
+  use radiance_mod, only: radiance_mode_init,radiance_mode_destroy,radiance_obstype_destroy
 
   implicit none
 
@@ -304,6 +305,8 @@
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
 !  05-13-2015 wu        remove check to turn off regional 4densvar
+!  07-20-2015 zhu       re-structure codes for enabling all-sky/aerosol radiance assimilation, 
+!                       add radiance_mode_init, radiance_mode_destroy & radiance_obstype_destroy
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -961,6 +964,7 @@
   call gsi_chemguess_init
   call init_anasv
   call init_anacv
+  call radiance_mode_init
 
   call init_constants_derived
   call init_oneobmod
@@ -1443,6 +1447,7 @@
      call final_fgrid2agrid(pf2aP2)
      call final_fgrid2agrid(pf2aP1)
   endif
+  call radiance_obstype_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call destroyobs_passive
@@ -1450,6 +1455,7 @@
   call destroy_general_commvars
   call final_grid_vars
 !_TBDone  call final_reg_glob_ll ! gridmod
+  call radiance_mode_destroy
   call final_anacv
   call final_anasv
   call obsmod_final_instr_table
