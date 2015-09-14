@@ -258,6 +258,7 @@ end subroutine read_bal
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
+      use radiance_mod, only: nclouds_for,cloud_for_names
 
       implicit none
 
@@ -294,6 +295,8 @@ end subroutine read_bal
 !       05Feb14 - Todling - Allow for overwrite of cw with q cov
 !       07Jun14 - Zhu - set up new error variance and corr. lengths 
 !                       of cw for allsky radiance
+!       09Sept15 - Zhu - use centralized cloud_for_names and nclouds_for to add 
+!                        flexibility for all-sky radiance assimilation
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -302,7 +305,7 @@ end subroutine read_bal
   real(r_single),dimension(nlat,nsig,nsig):: agvin
   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
  
-  integer(i_kind) :: i,n,k,iq,icw
+  integer(i_kind) :: i,n,k,iq,icw,ivar,ic
   integer(i_kind) :: inerr,istat,ier
   integer(i_kind) :: nsigstat,nlatstat
   integer(i_kind) :: isig
@@ -488,6 +491,23 @@ end subroutine read_bal
         hwll(:,:,icw)=0.5_r_kind*hwll(:,:,iq)
         vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
      end if 
+
+     if (nclouds_for>0 .and. icw<=0) then
+        do n=1,size(cvars3d)
+           do ic=1,nclouds_for
+              if(trim(cvars3d(n))==trim(cloud_for_names(ic))) then
+                 ivar=n
+                 do k=1,nsig
+                    do i=1,nlat
+                       corz(i,k,ivar)=one
+                    end do
+                 end do
+                 hwll(:,:,ivar)=0.5_r_kind*hwll(:,:,iq)
+                 vz  (:,:,ivar)=0.5_r_kind*vz  (:,:,iq)
+              end if   
+           end do
+        end do
+     end if
   endif
 
 ! need simliar general template for undefined 2d variables ...
