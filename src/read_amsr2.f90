@@ -1,6 +1,6 @@
 subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
 
 ! subprogram:    read_amsr2                  read bufr format amsr2 data
 !   prgmmr: ejones         copied from read_amsre.f90         date: 2014-03-15
@@ -14,6 +14,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
 !
 ! program history log:
 !   2014-03-15  ejones   - read amsr2
+!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 ! 
 !
 ! input argument list:
@@ -58,6 +59,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -76,6 +78,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub
+  type(rad_obs_type),intent(in  ) :: radmod
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

@@ -1,6 +1,6 @@
 subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_gmi           read  GMI  bufr data
@@ -33,6 +33,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         in the GSI, allowing the observations from ch1-9
 !                         through. If the logical is set to false, the swath
 !                         edge obs are skipped in the read loop. 
+!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -78,6 +79,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -94,6 +96,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),intent(inout)  :: nread
   integer(i_kind),intent(inout)  :: ndata,nodata
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
+  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
   logical                   :: use_swath_edge

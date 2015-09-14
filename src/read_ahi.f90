@@ -1,6 +1,6 @@
 subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_ahi                    read himawari-8 ahi data
@@ -19,7 +19,8 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2014-12-12 zaizhong done the first version of this subroutine
 !   2014-12-23 zaizhong cleaned up and finalized with the proxy data
 !   2015-03-23 zaizhong cleaned up and finalized with the real sample data
-
+!   2015-08-20 zhu - add radmod for all-sky and aerosol usages in radiance assimilation 
+!
 !   input argument list:
 !     mype     - mpi task id
 !     val_img  - weighting factor applied to super obs
@@ -55,6 +56,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use file_utility, only : get_lun     
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
   implicit none
 
 ! Declare passed variables
@@ -70,6 +72,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
   integer(i_kind),parameter:: nimghdr=13

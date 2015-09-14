@@ -1,6 +1,6 @@
 subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use,radmod)
 
 ! subprogram:    read_amsre                  read bufr format amsre data
 ! prgmmr :   okamoto         org: np20                date: 2004-10-12
@@ -62,6 +62,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2013-02-13  eliu    - bug fix for solar zenith calculation 
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -106,6 +107,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -125,6 +127,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub
   logical          ,intent(in   ) :: dval_use
+  type(rad_obs_type),intent(in  ) :: radmod
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

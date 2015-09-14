@@ -1,7 +1,7 @@
 subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
 ! subprogram:    read_saphir                 read bufr format saphir data
 ! prgmmr :   ejones          org: jcsda               date: 2015-01-02
 ! code copied from read_atms.f90
@@ -15,6 +15,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2015-01-02  ejones  - adapted from read_atms.f90
+!  2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -59,10 +60,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
-  use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -79,6 +80,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  type(rad_obs_type),intent(in ) :: radmod
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Declare local parameters
@@ -112,7 +114,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: lnbufr,ksatid,isflg  
   integer(i_kind)       :: ilat,ilon,nadir
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
+  integer(i_kind)       :: instr,ichan
   integer(i_kind)       :: ier
   integer(i_kind)       :: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
@@ -168,10 +170,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
-
-! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
-  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
