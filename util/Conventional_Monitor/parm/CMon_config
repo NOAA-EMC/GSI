@@ -58,8 +58,8 @@ export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
 export C_PTMP=${C_PTMP:-/ptmpp1}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
-export LOGDIR=${C_PTMP}/logs/conv${SUFFIX}
-export LOGSverf_cmon=${LOGSverf_cmon:-${C_PTMP}/logs/conv${SUFFIX}}
+export C_LOGDIR=${C_PTMP}/logs/conv${SUFFIX}
+export LOGSverf_cmon=${LOGSverf_cmon:-${C_PTMP}/logs/cmon_${SUFFIX}}
 
 export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
 
