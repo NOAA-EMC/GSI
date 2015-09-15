@@ -1,21 +1,22 @@
 #! /usr/bin/perl
 
 #-------------------------------------------------------------------
-#  ConvMon_install.pl
+#  CMon_install.pl
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for wcoss and zeus machines.
+#  executables.  This script works for wcoss and theia machines.
 #
 #-------------------------------------------------------------------
 
    use IO::File;
    use File::Copy qw(move);
 
+   print "--> CMon_install.sh\n";
    my $machine = `/usr/bin/perl ./get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "zeus" && $machine ne "theia" && $machine ne "wcoss" ) {
+   if( $machine ne "theia" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -23,11 +24,10 @@
    }
 
    #
-   #  zeus is the only little endian machine
+   #  wcoss and theia are both little endian machine
+   #    and does this matter any more?
    #    
-   my $little_endian = "export LITTLE_ENDIAN=0";
-   if( $machine eq "zeus" ) {      $little_endian = "export LITTLE_ENDIAN=1";
-   }
+   my $little_endian = "export LITTLE_ENDIAN=1";
 
    my $os = "linux";
    my $my_os = "export MY_OS=$os";
@@ -37,7 +37,7 @@
    #  Idenfity basedir location of package
    #
    print "\n";
-   print "locating and saving ConvMon package location\n";
+   print "locating and saving CMon package location\n";
    my $cmondir;
    $cmondir = `dirname $0`;
    $cmondir =~ s/^\s+|\s+$//g;
@@ -55,90 +55,90 @@
    #
    #  TANKDIR location
    #
-#   my $user_name = $ENV{ 'USER' };
-#   if( $mahine eq "zeus" ) {
-#      $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
-#   }
-#   else {
-#      $tankdir = "/global/save/$user_name/nbns";
-#   }
-#
-#   print "Please specify TANKDIR location for storage of data and image files.\n";
-#   print "  Return to accept default location or enter new location now.\n";
-#   print "\n";
-#   print "  Default TANKDIR:  $tankdir \n";
-#   print "     ?\n";
-#   my $new_tankdir = <>;
-#   $new_tankdir =~ s/^\s+|\s+$//g;
-#
-#   if( length($new_tankdir ) > 0 ) {
-#      $tankdir = $new_tankdir;
-#   }
-#   my $my_tankdir="export MY_TANKDIR=$tankdir";
-#   print "my_tankdir = $my_tankdir\n";
-#   print "\n\n";
-#   sleep( 1 );
-#
-#
-#   #
-#   #  Web sever name
-#   #
-#   my $server = "emcrzdm";
-#   print "Please specify web server name.\n";
-#   print "  Return to accept default server name or enter new server name.\n";
-#   print " \n";
-#   print "  Default web server:  $server\n";
-#   print "    ?\n";
-#   my $new_server =<>;
-#   $new_server =~ s/^\s+|\s+$//g;
-#   if( length($new_server ) > 0 ) {
-#      $server = $new_server;
-#   }
-#   my $my_server="export WEBSVR=$server";
-#   print "my_server = $my_server\n";
-#   print "\n\n";
-#   sleep( 1 );
-#
-#
-#   #
-#   #  Web server user name 
-#   #
-#   my $webuser = $ENV{ 'USER' };
-#   print "Please specify your user name on the $server server.\n";
-#   print "  Return to accept default user name or enter new user name.\n";
-#   print " \n";
-#   print "  Default user name on $server:  $webuser\n";
-#   print "    ?\n";
-#   my $new_webuser =<>;
-#   $new_webuser =~ s/^\s+|\s+$//g;
-#   if( length($new_webuser ) > 0 ) {
-#      $webuser = $new_webuser;
-#   }
-#   my $my_webuser="export WEBUSER=$webuser";
-#   print "my_webuser = $my_webuser\n";
-#   print "\n\n";
-#   sleep( 1 );
-#
-#
-#   #
-#   #  Web directory
-#   #
-#   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/radiance/${webuser}";
-#   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas";
-#   print "Please specify the top level web site directory $server.\n";
-#   print "  Return to accept default directory location or enter new location.\n";
-#   print " \n";
-#   print "  Default directory on $server:  $webdir\n";
-#   print "    ?\n";
-#   my $new_webdir =<>;
-#   $new_webdir =~ s/^\s+|\s+$//g;
-#   if( length($new_webdir ) > 0 ) {
-#      $webdir = $new_webdir;
-#   }
-#   my $my_webdir="export WEBDIR=$webdir";
-#   print "my_webdir = $my_webdir\n";
-#   print "\n\n";
-#   sleep( 1 );
+   my $user_name = $ENV{ 'USER' };
+   if( $machine eq "theia" ) {
+      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   }
+   else {
+      $tankdir = "/global/save/$user_name/nbns";
+   }
+
+   print "Please specify TANKDIR location for storage of data and image files.\n";
+   print "  Return to accept default location or enter new location now.\n";
+   print "\n";
+   print "  Default TANKDIR:  $tankdir \n";
+   print "     ?\n";
+   my $new_tankdir = <>;
+   $new_tankdir =~ s/^\s+|\s+$//g;
+
+   if( length($new_tankdir ) > 0 ) {
+      $tankdir = $new_tankdir;
+   }
+   my $my_tankdir="export CMON_TANKDIR=$tankdir";
+   print "my_tankdir = $my_tankdir\n";
+   print "\n\n";
+   sleep( 1 );
+
+
+   #
+   #  Web sever name
+   #
+   my $server = "emcrzdm";
+   print "Please specify web server name.\n";
+   print "  Return to accept default server name or enter new server name.\n";
+   print " \n";
+   print "  Default web server:  $server\n";
+   print "    ?\n";
+   my $new_server =<>;
+   $new_server =~ s/^\s+|\s+$//g;
+   if( length($new_server ) > 0 ) {
+      $server = $new_server;
+   }
+   my $my_server="export WEBSVR=$server";
+   print "my_server = $my_server\n";
+   print "\n\n";
+   sleep( 1 );
+
+
+   #
+   #  Web server user name 
+   #
+   my $webuser = $ENV{ 'USER' };
+   print "Please specify your user name on the $server server.\n";
+   print "  Return to accept default user name or enter new user name.\n";
+   print " \n";
+   print "  Default user name on $server:  $webuser\n";
+   print "    ?\n";
+   my $new_webuser =<>;
+   $new_webuser =~ s/^\s+|\s+$//g;
+   if( length($new_webuser ) > 0 ) {
+      $webuser = $new_webuser;
+   }
+   my $my_webuser="export WEBUSER=$webuser";
+   print "my_webuser = $my_webuser\n";
+   print "\n\n";
+   sleep( 1 );
+
+
+   #
+   #  Web directory
+   #
+   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/radiance/${webuser}";
+   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas";
+   print "Please specify the top level web site directory $server.\n";
+   print "  Return to accept default directory location or enter new location.\n";
+   print " \n";
+   print "  Default directory on $server:  $webdir\n";
+   print "    ?\n";
+   my $new_webdir =<>;
+   $new_webdir =~ s/^\s+|\s+$//g;
+   if( length($new_webdir ) > 0 ) {
+      $webdir = $new_webdir;
+   }
+   my $my_webdir="export WEBDIR=$webdir";
+   print "my_webdir = $my_webdir\n";
+   print "\n\n";
+   sleep( 1 );
 
 
    #
@@ -172,7 +172,6 @@
          $ptmp = $new_ptmp;
       }
       my $my_ptmp="export C_PTMP=\${C_PTMP:-$ptmp}";
-#      print "my_ptmp = $my_ptmp\n";
       print "\n\n";
       sleep( 1 );
 
@@ -216,7 +215,7 @@
       if( $_ =~ "MY_CMON=" ) {
          print $out "$my_cmon\n";
       }
-      elsif( $_ =~ "MY_TANKDIR=" ) {
+      elsif( $_ =~ "CMON_TANKDIR=" ) {
          print $out "$my_tankdir\n";
       }
       elsif( $_ =~ "WEBSVR=" ) {
@@ -252,8 +251,8 @@
    move "$conv_conf.new", $conv_conf;
 
    print "building executables\n"; 
-#   `./makeall.sh clean`;
-#   `./makeall.sh`;
+   `./makeall.sh clean`;
+   `./makeall.sh`;
 
    #     
    #   Update the default account settings in the data_map.xml file.
@@ -268,5 +267,8 @@
 #   }
 
 #   `/usr/bin/perl ./scripts/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`;
+
+
+   print "<-- CMon_install.sh\n";
 
 exit 0;

@@ -1,26 +1,24 @@
 # This config file contains the compile options for compilation
-# of the ConvMon code on the CCS.
+# of the RadMon code on Zeus. 
 
 # ----------------------------------
-# Redefine variables for CCS
+# Redefine variables for Zeus
 # ----------------------------------
-#  CORELIB  = /nwprod/lib
-
+  CORELIB  = /scratch3/NCEPDEV/nwprod/lib 
+  
 # ----------------------------
 # Fortran compiler and options
 # ----------------------------
 
-  CF            = xlf95
+  CF            = ifort
   FC            = $(CF)
 
-  FFLAGS = -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g
-
+  FFLAGS        = -O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl
 
 # ------------------
 # Linker and options
 # ------------------
 
-#  LIBS          = -L$(CORELIB) -lw3_4
-  LIBS          =
-  LDFLAGS       =
+  LIBS          = -L$(CORELIB) -lw3nco_4
+  LDFLAGS       = 
 
