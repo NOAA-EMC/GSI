@@ -20,7 +20,7 @@ echo machine = $machine
 
 executables="conv_time grads_sfc make_t read_q grads_lev grads_sfctime read_ps read_uv grads_mandlev grads_sig read_pw"
 
-if [[ ${machine} = "wcoss" || ${machine} = "theia" || ${machine} = "zeus" ]]; then
+if [[ ${machine} = "wcoss" || ${machine} = "theia" ]]; then
    cd ./sorc
    rm -f Makefile.conf
    cp -f ../parm/Makefile.conf.${machine} Makefile.conf
