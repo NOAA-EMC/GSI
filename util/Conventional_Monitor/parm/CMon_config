@@ -59,6 +59,8 @@ elif [[ $MY_MACHINE = "theia" ]]; then
 fi
 
 export NDATE=${NWPROD}/util/exec/ndate
+
+export ACCOUNT=${ACCOUNT:-}
  
 export C_STMP=${C_STMP:-/stmpp1}
 export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
