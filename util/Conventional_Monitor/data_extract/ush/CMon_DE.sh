@@ -96,14 +96,17 @@ fi
 #--------------------------------------------------------------------
 # Create any missing directories
 
-if [[ ! -d ${TANKDIR} ]]; then
-   mkdir -p ${TANKDIR}
+echo "C_TANKDIR = ${C_TANKDIR}"
+echo "C_LOGDIR  = ${C_LOGDIR}"
+echo "C_IMGNDIR = ${C_IMGNDIR}"
+if [[ ! -d ${C_TANKDIR} ]]; then
+   mkdir -p ${C_TANKDIR}
 fi
-if [[ ! -d ${LOGDIR} ]]; then
-   mkdir -p ${LOGDIR}
+if [[ ! -d ${C_LOGDIR} ]]; then
+   mkdir -p ${C_LOGDIR}
 fi
-if [[ ! -d ${IMGNDIR} ]]; then
-   mkdir -p ${IMGNDIR}
+if [[ ! -d ${C_IMGNDIR} ]]; then
+   mkdir -p ${C_IMGNDIR}
 fi
 
 tmpdir=${C_STMP_USER}/check_conv${SUFFIX}
@@ -137,8 +140,12 @@ export CYA=`echo $PDATE|cut -c9-10`
 export GCYA=`echo $GDATE|cut -c9-10`
 export gydat=`echo $GDATE|cut -c1-8`
 
-export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$sdate}
-export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$gydat}
+#export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$sdate}
+#export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$gydat}
+
+# testing only:
+export DATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prslh4d
+export GDATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prslh4d
 
 
 #--------------------------------------------------------------------
@@ -162,25 +169,44 @@ export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$gydat}
 #   export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
 #fi
 
-export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
+#export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
+export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
 export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
 if [[ ! -s ${pgrbanl} ]]; then
-   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
+#   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
+   export pgrbanl=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
 fi
 
 export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
 if [[ ! -s ${pgrbf06} ]]; then
-   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+#   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+   export pgrbf06=${DATDIR}/pgbh06.gdas.${GDATE}.grib2
 fi
 
 if [ -s $cnvstat  -a -s $pgrbanl ]; then
+   #------------------------------------------------------------------
+   #   Submit data extraction job.
+   #------------------------------------------------------------------
    if [ -s $pgrbf06 ]; then
-      echo firing convcopr.sh
-      /bin/sh $SCRIPTS/convcopr.sh
+      jobname=CMon_de_${SUFFIX}
+
+      if [[ $MY_MACHINE = "wcoss" ]]; then
+        echo "job for wcoss goes here"
+#        $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+
+      elif [[ $MY_MACHINE = "theia" ]]; then
+         echo "ACCOUNT = $ACCOUNT"
+         echo "jobname = $jobname"
+         echo "LOGdir  = $LOGdir" 
+#        $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+      fi
+
+#      echo firing convcopr.sh
+#      /bin/sh $SCRIPTS/convcopr.sh
    else
       echo data not available, missing $pgrbf06 file
    fi
