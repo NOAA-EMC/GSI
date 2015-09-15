@@ -4996,12 +4996,12 @@ subroutine setup_ens_wgt
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
 
-  pwgtflg_cond: if ( pwgtflg ) then
+  if ( pwgtflg ) then
 
      if ( .not. regional ) then
-        if( mype == 0 ) then
+        if ( mype == 0 ) &
             write(6,*) 'SETUP_ENS_WGT: routine not built for vertical integration function on ensemble contribution of surface pressure for global application, using defaults'
-        exit pwgtflg_cond
+        goto 199
      endif
 
      allocate ( wgvk_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
@@ -5028,15 +5028,17 @@ subroutine setup_ens_wgt
      enddo
      deallocate(wgvk_ens,wgvk_anl)
 
-  endif pwgtflg_cond
+  endif
+
+199 continue
 
 !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
-  betaflg_cond: if ( betaflg ) then
+  if ( betaflg ) then
 
      if ( .not. regional ) then
-        if( mype == 0 ) then
+        if ( mype == 0 ) &
             write(6,*) 'SETUP_ENS_WGT: routine not built for smoothing vertical beta weights for global application, using defaults'
-        exit betaflg_cond
+        goto 299
      endif
 
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus )
@@ -5083,7 +5085,9 @@ subroutine setup_ens_wgt
         beta1wgt(k) = one - beta2wgt(k)
      enddo
 
-  endif betaflg_cond
+  endif
+
+299 continue
 
   return
 
