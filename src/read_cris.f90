@@ -139,7 +139,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: idate
   integer(i_kind)   :: idate5(5)
   real(r_kind)      :: sstime, tdiff, t4dv
-  integer(i_kind)   :: nmind
+  integer(i_kind)   :: nmind, sfc_channel_index
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
 
@@ -369,15 +369,23 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
 
 !    Coordinate bufr channels with satinfo file channels
+     sfc_channel_index = 0
      bufr_index(:) = 0
      satinfo_chans: do i=1,satinfo_nchan
         bufr_chans: do l=1,bufr_nchan
            if ( channel_number(i) == int(allchan(2,l)) ) then
               bufr_index(i) = l
+              if ( channel_number(i) == 501 ) sfc_channel_index = l
               exit bufr_chans
            endif
         end do bufr_chans
      end do  satinfo_chans
+
+     if ( sfc_channel_index == 0 ) then
+        write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
+        cycle message_loop
+     endif
+      
 
      read_loop: do while (ireadsb(lnbufr)==0)
 
@@ -402,7 +410,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Only use central IFOV
         ifov = nint(linele(1))               ! field of view
-!JAJ        if (ifov /= 5) cycle read_loop
+        if (ifov /= 5) cycle read_loop
 
         ifor = nint(linele(4))               ! field of regard
 
@@ -531,8 +539,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
-!       Increment nread counter by bufr_nchan    (should be changed to channel number in satinfo file? (satinfo_nchan))
-        nread = nread + bufr_nchan
+!       Increment nread counter by bufr_nchan    (should be changed to number of channels in satinfo file? (satinfo_nchan))
+!JAJ        nread = nread + bufr_nchan
+        nread = nread + satinfo_nchan
 
         if (thin4d) then
            crit1 = 0.01_r_kind
@@ -564,12 +573,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
           cycle read_loop
         end if
 
-!JAJ        if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
-!JAJ           write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
-!JAJ               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
-!JAJ           bad_line = iscn
-!JAJ           cycle read_loop
-!JAJ        endif
+        if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
+           write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
+               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
+           bad_line = iscn
+           cycle read_loop
+        endif
 
 !   Clear Amount  (percent clear) 
 
@@ -672,7 +681,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! This is moved to below where the radiances are read in.
 
      if (sfcpct(0)+sfcpct(1) > 0.9) &
-          crit1=crit1+(320.0_r_kind-temperature(127))
+          crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
 
 
 !    Map obs to grids
