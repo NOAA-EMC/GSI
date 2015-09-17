@@ -45,18 +45,31 @@ public :: read_namelist
 !   part of the diag* filename).
 integer(i_kind), public, parameter :: nsatmax_rad = 200
 integer(i_kind), public, parameter :: nsatmax_oz = 100
-! forecast time for first-guess forecast
-integer,public :: nhr_anal=6
-character(len=2), public :: charfhr_anal
-logical, public :: iau=.false. 
-character(len=10), public ::  datestring
-character(len=500),public :: datapath
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
 character(len=20), public, dimension(nsatmax_oz) ::sattypes_oz
-logical, public :: deterministic, sortinc, pseudo_rh,&
+! forecast times for first-guess forecasts to be updated (in hours)
+integer,dimension(7),public ::  nhr_anal = (/6,-1,-1,-1,-1,-1,-1/)
+! forecast hour at middle of assimilation window
+real(r_single),public :: fhr_assim=6.0
+! character string version of nhr_anal with leading zeros.
+character(len=2),dimension(7),public :: charfhr_anal
+! prefix for background and analysis file names (mem### appended)
+! For global, default is "sfg_"//datestring//"_fhr##_" and
+! "sanl_"//datestring//"_fhr##_". If only one time level
+! in background, default for analysis is "sanl_"//datestring//"_"
+! For regional, default is "firstguess_fhr##." and
+! "analysis_fhr##." If only one time level
+! in background, default is "firstguess." and "analysis.".
+character(len=120),dimension(7),public :: fgfileprefixes
+character(len=120),dimension(7),public :: anlfileprefixes
+! analysis date string (YYYYMMDDHH)
+character(len=10), public ::  datestring
+! filesystem path to input files (first-guess, GSI diagnostic files).
+character(len=500),public :: datapath
+logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
-                           nlons,nlats,ndim
+                           nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
@@ -68,10 +81,13 @@ real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
 real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
-real(r_single),public :: boxsize
+real(r_single),public :: covl_minfact, covl_efold
 logical,public :: params_initialized = .true.
+logical,public :: save_inflation = .false.
 ! do sat bias correction update.
-logical,public :: lupd_satbiasc = .true.
+logical,public :: lupd_satbiasc = .false.
+! simple_partition=.false. does more sophisticated
+! load balancing for ob space update.
 logical,public :: simple_partition = .true.
 logical,public :: reducedgrid = .false.
 logical,public :: univaroz = .true.
@@ -80,7 +96,6 @@ logical,public :: use_gfs_nemsio = .false.
 logical,public :: arw = .false.
 logical,public :: nmm = .true.
 logical,public :: nmmb = .false.
-logical,public :: doubly_periodic = .true.
 logical,public :: letkf_flag = .false.
 logical,public :: massbal_adjust = .false.
 
@@ -93,12 +108,14 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
+                   covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
-                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,newpc4pred,&
-                   nmmb,iau,nhr_anal,letkf_flag,boxsize,massbal_adjust,use_edges,emiss_bc
-namelist /nam_wrf/arw,nmm,doubly_periodic
+                   lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
+                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc
+namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
@@ -106,7 +123,7 @@ namelist /ozobs_enkf/sattypes_oz
 contains
 
 subroutine read_namelist()
-integer i
+integer i,nb
 ! have all processes read namelist from file enkf.nml
 
 ! defaults
@@ -132,9 +149,19 @@ lnsigcutoffpsnh = -999._r_single  ! value for surface pressure
 lnsigcutoffpstr = -999._r_single  ! value for surface pressure
 lnsigcutoffpssh = -999._r_single  ! value for surface pressure
 ! ob time localization
-obtimelnh = 2800._r_single*1000._r_single/(30._r_single*3600._r_single) ! hours to move 2800 km at 30 ms-1.
-obtimeltr = obtimelnh
-obtimelsh = obtimelnh
+obtimelnh = 1.e10
+obtimeltr = 1.e10
+obtimelsh = 1.e10
+! min localization reduction factor for adaptive localization
+! based on HPaHt/HPbHT. Default (1.0) means no adaptive localization.
+! 0.25 means minimum localization is 0.25*corrlength(nh,tr,sh).
+covl_minfact = 1.0
+! efolding distance for adapative localization.
+! Localization reduction factor is 1. - exp( -((1.-paoverpb)/covl_efold) )
+! When 1-pavoerpb=1-HPaHt/HPbHt=cov_efold localization scales reduced by
+! factor of 1-1/e ~ 0.632. When paoverpb==>1, localization scales go to zero.
+! When paoverpb==>1, localization scales not reduced.
+covl_efold = 1.e-10
 ! path to data directory (include trailing slash)
 datapath = " " ! mandatory
 ! tolerance for background check.
@@ -181,13 +208,13 @@ nvars = 5
 ! analysis error variance from the previous cycle is used instead
 ! (same as in the GSI).
 biasvar = 0.1_r_single
-! Observation box size for LETKF (deg)
-boxsize = 90._r_single
 
 ! factor to multiply sat radiance errors.
 saterrfact = 1._r_single
 ! number of times to iterate state/bias correction update.
-! (only relevant when satellite radiances assimilated, i.e. nobs_sat>0)
+! (numiter = 1 means no iteration, but update done in both observation and model
+! space)
+! (for LETKF, numiter = 0 shuts off update in observation space)
 numiter = 1
 
 ! varqc parameters
@@ -206,6 +233,10 @@ sattypes_rad=' '
 sattypes_oz=' '
 dsis=' '
 
+! Initialize first-guess and analysis file name prefixes.
+! (blank means use default names)
+fgfileprefixes = ''; anlfileprefixes=''
+
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
 read(912,nam_enkf)
@@ -215,7 +246,7 @@ if (regional) then
   read(912,nam_wrf)
 endif
 close(912)
-  
+
 ! find number of satellite files
 nsats_rad=0
 do i=1,nsatmax_rad
@@ -248,14 +279,11 @@ latboundmp=-latbound+p5delat
 latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
-!! if not performing satellite bias correction update, set iterations to 1
-if (.not. lupd_satbiasc) then 
-   numiter=1
-   if (nproc == 0) then
-     write(6,*) 'PARAMS: NOT UPDATING BIAS CORRECTION COEFFS, SET NUMBER OF ITERATIONS TO 1'
-     write(6,*) 'LUPD_SATBIASC, NUMITER = ',lupd_satbiasc,numiter
-   end if
-end if
+! have to do ob space update for serial filter (not for LETKF).
+if (.not. letkf_flag .and. numiter < 1) numiter = 1
+! simple_partition should be true for LETKF
+! (partitioning in ob space only used for serial filter)
+if (letkf_flag .and. .not. simple_partition) simple_partition=.true.
 
 if (nproc == 0) then
 
@@ -285,9 +313,13 @@ if (nproc == 0) then
       call stop2(19)
    endif
    if (letkf_flag .and. univaroz) then
-     print *,'univaroz is not supported yet in LETKF!'
+     print *,'univaroz is not supported in LETKF!'
      call stop2(19)
    end if
+   if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
+       letkf_flag) then
+     print *,'warning: no time localization in LETKF!'
+   endif
    
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
@@ -296,9 +328,45 @@ if (nproc == 0) then
 end if
 
 ! background forecast time for analysis
-write(charfhr_anal,'(i2.2)') nhr_anal
+nbackgrounds=0
+do while (nhr_anal(nbackgrounds+1) > 0)
+   write(charfhr_anal(nbackgrounds+1),'(i2.2)') nhr_anal(nbackgrounds+1)
+   if (trim(fgfileprefixes(nbackgrounds+1)) .eq. "") then
+     ! default first-guess file prefix
+     if (regional) then
+      if (nbackgrounds > 1) then
+        fgfileprefixes(nbackgrounds+1)="firstguess_fhr"//charfhr_anal(nbackgrounds+1)//"."
+      else
+        fgfileprefixes(nbackgrounds+1)="firstguess."
+      endif
+     else  ! global
+      fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+     endif
+   endif
+   nbackgrounds = nbackgrounds+1
+end do
+do nb=1,nbackgrounds
+   if (trim(anlfileprefixes(nb)) .eq. "") then
+     ! default analysis file prefix
+     if (regional) then
+      if (nbackgrounds > 1) then
+        fgfileprefixes(nbackgrounds+1)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
+      else
+        fgfileprefixes(nbackgrounds+1)="analysis."
+      endif
+     else ! global
+      if (nbackgrounds > 1) then
+        anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+      else
+        anlfileprefixes(nb)="sanl_"//datestring//"_"
+      endif
+     endif
+   endif
+enddo
 if (nproc .eq. 0) then
-  print *,'first-guess forecast hour for analysis = ',charfhr_anal
+  print *,'number of background forecast times to be updated = ',nbackgrounds
+  print *,'first-guess forecast hours for analysis = ',&
+  charfhr_anal(1:nbackgrounds)
 endif
 
 ! total number of 2d grids to update.

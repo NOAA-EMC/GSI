@@ -31,7 +31,6 @@ module mpi_readobs
 !$$$
   
 use kinds, only: r_kind, r_single, i_kind
-use params, only: letkf_flag
 use radinfo, only: npred
 use readconvobs
 use readsatobs
@@ -49,7 +48,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                       sprd_ob, ensmean_ob, ensmean_obbc, ob, &
                       oberr, oblon, oblat, obpress, &
                       obtime, oberrorig, obcode, obtype, &
-                      biaspreds, anal_ob,indxsat,nanals)
+                      biaspreds, anal_ob, indxsat, nanals)
     character*500, intent(in) :: obspath
     character*10, intent(in) :: datestring
     character(len=10) :: id,id2
@@ -79,9 +78,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     nobs_tot = nobs_conv + nobs_oz + nobs_sat
 ! if nobs_tot != 0 (there were some obs to read)
     if (nobs_tot > 0) then
-       if (letkf_flag .or. nproc == 0) then
+       if (nproc == 0) then
           ! this array only needed on root.
-          ! needed on all tasks for LETKF.
           allocate(anal_ob(nanals,nobs_tot))
        end if
        ! these arrays needed on all processors.
@@ -171,10 +169,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         call mpi_send(h_xnobc,nobs_tot,mpi_real4,0,1,mpi_comm_world,ierr)
        end if ! if nanal == 0
     end if ! nproc <= nanals
-    ! For LETKF, anal_ob will be needed in all processors
-    if(letkf_flag) then
-       call mpi_bcast(anal_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
-    end if
     call mpi_bcast(ensmean_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     call mpi_bcast(sprd_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     deallocate(h_xnobc)
