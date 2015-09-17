@@ -29,9 +29,6 @@ module enkf_obsmod
 !   nobs_oz (integer scalar): number of sbuv ozone obs.
 !   nobs_sat (integer scalar): number of satellite radiance obs.
 !   nobstot (integer scalar): total number of obs (=nobs_conv+nobs_oz+nobs_sat)
-!   nobsgood (integer scalar):  total number of obs to assimilate (excluding
-!    obs that were screened by subroutine screenobs).
-!    Defined in subroutine screenobs, called by readobs.
 !   jpch_rad: (integer scalar) total number of satellite sensors/channels
 !    (imported from module radinfo).
 !   npred: (integer scalar) total number of adaptive bias correction terms
@@ -75,31 +72,20 @@ module enkf_obsmod
 !     bias correction term in biaspreds(1,1:nobs_sat)).
 !   deltapredx(npred,jpch_rad): real array of bias coefficient increments
 !     (initialized to zero, updated by analysis).
-!   obloc(3,nobsgood): real array of spherical cartesian coordinates
+!   obloc(3,nobstot): real array of spherical cartesian coordinates
 !     (x,y,z) of screened observation locations.
-!   stattype(nobsgood):  integer array containing prepbufr report type
+!   stattype(nobstot):  integer array containing prepbufr report type
 !     (e.g. 120 for radiosonde temp) for "conventional" obs (nob <= nobs_conv)
 !     and satellite channel number for satellite radiance obs (nob >
 !     nobs_conv+nobs_oz). For ozone obs (nobs_conv<nob<nobs_sat), 
 !     set to 700 + k, where k is the  level index of the ozone retrieval.
-!   nlocconv(blatnum+1,blonnum+1): integer array indicating the number of
-!     conventional observations included in this and the previous
-!     observation boxes.
-!   nlocoz(blatnum+1,blonnum+1): integer array indicating the number of
-!     ozone observations included in this and the previous observation boxes.
-!   nlocsat(blatnum+1,blonnum+1): integer array indicating the number of
-!     satellite radiance observations included in this and the previous
-!     observation boxes.
-!   boxlat(blatnum): real array containing the latitude of border of
-!     observation boxes.
-!   boxlon(blonnum): real array containing the longitude of border of
-!     observation boxes.
 !
 ! Modules Used: mpisetup, params, kinds, constants, mpi_readobs
 !
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-20  Added the option of observation box for LETKF.
+!   2015=07-25  Removed observation boxes for LETKF (use kdtree instead)
 !
 ! attributes:
 !   language: f95
@@ -115,19 +101,19 @@ use params, only: &
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
       varqc, huber, zhuberleft, zhuberright,&
-      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, boxsize, letkf_flag
+      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr
 
 use mpi_readobs, only:  mpi_getobs
 
 implicit none
 private
-public :: readobs, obsmod_cleanup, boxsort
+public :: readobs, obsmod_cleanup
 
 real(r_single), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnobc,&
  ensmean_ob, ob, oberrvar, obloclon, obloclat, &
  obpress, obtime, oberrvar_orig,&
  oblnp, obfit_prior, prpgerr, oberrvarmean, probgrosserr, &
- lnsigl,corrlengthsq,obtimel, boxlat, boxlon
+ lnsigl,corrlengthsq,obtimel
 integer(i_kind), public, allocatable, dimension(:) :: numobspersat
 ! posterior stats computed in enkf_update
 real(r_single), public, allocatable, dimension(:) :: obfit_post, obsprd_post
@@ -138,17 +124,16 @@ real(r_single), public, allocatable, dimension(:,:) :: obloc
 integer(i_kind), public, allocatable, dimension(:) :: stattype, indxsat
 real(r_single), public, allocatable, dimension(:) :: biasprednorm,biasprednorminv
 character(len=20), public, allocatable, dimension(:) :: obtype
-integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot, nobsgood
+integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot
 
-! anal_ob is only used here and in loadbal. It is deallocated in loadbal.
+! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
+! for letkf, anal_ob used on all tasks in letkf_update (bcast from root in loadbal), deallocated
+! in letkf_update.
 real(r_single), public, allocatable, dimension(:,:) :: anal_ob
-integer(i_kind), public, allocatable, dimension(:,:) :: nlocconv,nlocsat,nlocoz
-integer(i_kind), public :: blatnum, blonnum, boxmax
-
 
 contains
 
-subroutine readobs(npts,lonsgrd,latsgrd)
+subroutine readobs()
 ! reads obs, obs priors and associated metadata from 
 ! diag* files output from GSI forward operator, distributes data to 
 ! all tasks.  Ob prior perturbations for each ensemble member
@@ -159,13 +144,9 @@ use convinfo, only: convinfo_read, init_convinfo, cvar_pg, nconvtype, ictype,&
                     ioctype
 use ozinfo, only: init_oz, ozinfo_read, pg_oz, jpch_oz, nusis_oz, nulev
 use covlocal, only: latval
-integer(i_kind),intent(in) :: npts
-real(r_single),intent(in) :: lonsgrd(npts)
-real(r_single),intent(in) :: latsgrd(npts)
 integer nob,n,j,ierr
 real(r_double) t1
 real(r_single) tdiff,tdiffmax,deglat,radlat,radlon
-integer(i_kind) imin,imax,jmin,jmax
 ! read in conv data info
 call init_convinfo()
 call convinfo_read()
@@ -214,68 +195,22 @@ call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot, &
                 anal_ob,indxsat,nanals)
 tdiff = mpi_wtime()-t1
 call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
-if (nproc == 0) print *,'max time in mpireadobs  = ',tdiffmax
+if (nproc == 0) then
+ print *,'max time in mpireadobs  = ',tdiffmax
+ print *,'total number of obs ',nobstot
+endif
 allocate(obfit_prior(nobstot))
-! allocate satellite sensor/channel index array.
+! screen out some obs by setting ob error to a very large number
+! set obfit_prior
 call screenobs()
-nobsgood=nobstot
-! 'good' obs are those we have decided to assimilate (not screened out).
-! currently assumed to be all observations. Most obs screened out in read routines
-!Any additional obs screened out have their ob err set to a large number.  
-if(nproc == 0)write(6,*) 'compressed total number of obs ',nobsgood, '(',nobstot,')'
 
-! Observation box partition for LETKF
-if(letkf_flag) then
-   ! Create observation box
-   jmax=ceiling(maxval(latsgrd(1:npts))*rad2deg/boxsize)+1
-   jmin=int(minval(latsgrd(1:npts))*rad2deg/boxsize)-1
-   imax=ceiling(maxval(lonsgrd(1:npts))*rad2deg/boxsize)+1
-   imin=int(minval(lonsgrd(1:npts))*rad2deg/boxsize)-1
-   blatnum=jmax-jmin
-   blonnum=imax-imin
-   allocate(boxlat(blatnum))
-   allocate(boxlon(blonnum))
-   allocate(nlocconv(blatnum+1,blonnum+1))
-   allocate(nlocsat (blatnum+1,blonnum+1))
-   allocate(nlocoz  (blatnum+1,blonnum+1))
-   boxlat(1)=real(jmin,r_single)*boxsize
-   do j=2,blatnum
-      boxlat(j) = boxlat(1)+real(j-1,r_single)*boxsize
-   end do
-   boxlon(1)=real(imin,r_single)*boxsize
-   do j=2,blonnum
-      boxlon(j) = boxlon(1)+real(j-1,r_single)*boxsize
-   end do
-   ! Sorting with each observation box
-   boxmax=0
-   if(nobs_conv /= 0) then
-      call boxsort(1,nobs_conv,.false.,nlocconv)
-   else
-      nlocconv(:,:)=0
-   end if
-   if(nobs_oz /= 0) then
-      call boxsort(nobs_conv+1,nobs_conv+nobs_oz,.false.,nlocoz)
-   else
-      nlocoz(:,:)=nobs_conv
-   end if
-   if(nobs_sat /= 0) then
-      call boxsort(nobs_conv+nobs_oz+1,nobs_conv+nobs_oz+nobs_sat,.true.,nlocsat)
-   else
-      nlocsat(:,:)=nobs_conv+nobs_oz
-   end if
-   if(nproc == 0) print *,'Max number of observations in the box:',boxmax
-   ! deg -> radian for observation box latitude and longitude
-   boxlat(1:blatnum)=boxlat(1:blatnum)*deg2rad
-   boxlon(1:blonnum)=boxlon(1:blonnum)*deg2rad
-end if
-
-allocate(probgrosserr(nobsgood),prpgerr(nobsgood))
+allocate(probgrosserr(nobstot),prpgerr(nobstot))
 ! initialize prob of gross error to 0.0 (will be reset by analysis if varqc is true)
 probgrosserr = zero
 if (varqc .and. .not. huber) then
    ! for flat-tail VarQC, read in a-prior prob of gross error.
    prpgerr = zero ! initialize to zero
-   do nob=1,nobsgood
+   do nob=1,nobstot
       if (nob <= nobs_conv) then
          ! search for matching record in convinfo file. 
          ! if match found, set prob. of gross error to nonzero value given in
@@ -311,10 +246,11 @@ if (nobs_sat > 0) then
 end if
 
 ! calculate locations of obs that passed initial screening in cartesian coords.
-allocate(obloc(3,nobsgood))
+allocate(obloc(3,nobstot))
 allocate(oblnp(nobstot)) ! log(p) at ob locations.
-allocate(corrlengthsq(nobsgood),lnsigl(nobsgood),obtimel(nobsgood))
-do nob=1,nobsgood
+allocate(corrlengthsq(nobstot),lnsigl(nobstot),obtimel(nobstot))
+lnsigl=1.e10
+do nob=1,nobstot
    oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
    if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_single
    radlon=deg2rad*obloclon(nob)
@@ -334,13 +270,12 @@ do nob=1,nobsgood
    end if
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
-
 end do
 
 ! these allocated here, but not computed till after the state 
 ! update in enkf_update.
-allocate(obfit_post(nobsgood))
-allocate(obsprd_post(nobsgood))
+allocate(obfit_post(nobstot))
+allocate(obsprd_post(nobstot))
 obsprd_post = zero
 end subroutine readobs
 
@@ -435,243 +370,6 @@ enddo
 
 end subroutine channelstats
 
-subroutine boxsort(ns,ne,satflag,box)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    boxsort
-!
-!   prgmmr: ota
-!
-! abstract:  sorting observations into the observation boxes. observations
-!            will be sorted along latitudinal direction first, and
-!            longitudinal direction next.
-!
-! program history log:
-!   2011-06-20  ota
-!
-!   input argument list:
-!     ns, ne    - range of input observation indices
-!     satflag   - true when input observations are satellite radiances
-!
-!   output argument list:
-!     box       - number of observations included in this and the previous
-!                 observation boxes
-!
-! attributes:
-!   language:  f95
-!   machine:
-!
-!$$$ end documentation block
-  use radinfo,only: npred
-  implicit none
-  integer(i_kind),intent(in) :: ns
-  integer(i_kind),intent(in) :: ne
-  logical,intent(in) :: satflag
-  integer(i_kind),intent(out) :: box(blatnum+1,blonnum+1)
-  real(r_single),dimension(nanals,ne-ns+1) :: tmpanal_ob
-  real(r_single),dimension(ne-ns+1) :: tmpsprd, tmpmean, tmpmean_nobc, tmpob
-  real(r_single),dimension(ne-ns+1) :: tmplon, tmplat, tmpstattype, tmppres
-  real(r_single),dimension(ne-ns+1) :: tmptime, tmperr, tmperr_orig, tmpfit
-  real(r_single),allocatable :: tmpbpred(:,:)
-  integer(i_kind),allocatable :: tmpindxsat(:)
-  character(len=20) :: tmptype(ne-ns+1)
-  integer(i_kind) :: njs(blatnum+1)
-  integer(i_kind) :: nj(blatnum+1)
-  integer(i_kind) :: i,j,nob,nn,nn0
-  ! Count the number of observations in each latitude band
-  nj(1:blatnum+1)=0
-  do nob=ns,ne
-     if(obloclat(nob) >= boxlat(1)) cycle
-     nj(1) = nj(1)+1
-  end do
-  do j=2,blatnum
-     do nob=ns,ne
-        if(obloclat(nob) >= boxlat(j) .or. obloclat(nob) < boxlat(j-1)) cycle
-        nj(j) = nj(j)+1
-     end do
-  end do
-  do nob=ns,ne
-     if(obloclat(nob) < boxlat(blatnum)) cycle
-     nj(blatnum+1) = nj(blatnum+1)+1
-  end do
-  njs(1)=0
-  do j=2,blatnum+1
-     njs(j) = njs(j-1)+nj(j-1)
-  end do
-  ! Allocate variables for satellite radiance observations
-  if(satflag) then
-     allocate(tmpbpred(npred,ne-ns+1))
-     allocate(tmpindxsat(ne-ns+1))
-  end if
-  ! Sorting observations with latitude bands
-  nn=0
-  do nob=ns,ne
-     if(obloclat(nob) >= boxlat(1)) cycle
-     nn=nn+1
-     tmpfit(nn)      =obfit_prior(nob)
-     tmpsprd(nn)     =obsprd_prior(nob)
-     tmpmean_nobc(nn)=ensmean_obnobc(nob)
-     tmpmean(nn)     =ensmean_ob(nob)
-     tmpob(nn)       =ob(nob)
-     tmperr(nn)      =oberrvar(nob)
-     tmplon(nn)      =obloclon(nob)
-     tmplat(nn)      =obloclat(nob)
-     tmppres(nn)     =obpress(nob)
-     tmptime(nn)     =obtime(nob)
-     tmperr_orig(nn) =oberrvar_orig(nob)
-     tmpstattype(nn) =stattype(nob)
-     tmptype(nn)     =obtype(nob)
-     tmpanal_ob(:,nn)=anal_ob(:,nob)
-     if(satflag) then
-        tmpbpred(:,nn)=biaspreds(:,nob-ns+1)
-        tmpindxsat(nn)=indxsat(nob-ns+1)
-     end if
-  end do
-  do j=2,blatnum
-     nn=njs(j)
-     do nob=ns,ne
-        if(obloclat(nob) >= boxlat(j) .or. obloclat(nob) < boxlat(j-1)) cycle
-        nn=nn+1
-        tmpfit(nn)      =obfit_prior(nob)
-        tmpsprd(nn)     =obsprd_prior(nob)
-        tmpmean_nobc(nn)=ensmean_obnobc(nob)
-        tmpmean(nn)     =ensmean_ob(nob)
-        tmpob(nn)       =ob(nob)
-        tmperr(nn)      =oberrvar(nob)
-        tmplon(nn)      =obloclon(nob)
-        tmplat(nn)      =obloclat(nob)
-        tmppres(nn)     =obpress(nob)
-        tmptime(nn)     =obtime(nob)
-        tmperr_orig(nn) =oberrvar_orig(nob)
-        tmpstattype(nn) =stattype(nob)
-        tmptype(nn)     =obtype(nob)
-        tmpanal_ob(:,nn)=anal_ob(:,nob)
-        if(satflag) then
-           tmpbpred(:,nn)=biaspreds(:,nob-ns+1)
-           tmpindxsat(nn)=indxsat(nob-ns+1)
-        end if
-     end do
-  end do
-  nn=njs(blatnum+1)
-  do nob=ns,ne
-     if(obloclat(nob) < boxlat(blatnum)) cycle
-     nn=nn+1
-     tmpfit(nn)      =obfit_prior(nob)
-     tmpsprd(nn)     =obsprd_prior(nob)
-     tmpmean_nobc(nn)=ensmean_obnobc(nob)
-     tmpmean(nn)     =ensmean_ob(nob)
-     tmpob(nn)       =ob(nob)
-     tmperr(nn)      =oberrvar(nob)
-     tmplon(nn)      =obloclon(nob)
-     tmplat(nn)      =obloclat(nob)
-     tmppres(nn)     =obpress(nob)
-     tmptime(nn)     =obtime(nob)
-     tmperr_orig(nn) =oberrvar_orig(nob)
-     tmpstattype(nn) =stattype(nob)
-     tmptype(nn)     =obtype(nob)
-     tmpanal_ob(:,nn)=anal_ob(:,nob)
-     if(satflag) then
-        tmpbpred(:,nn)=biaspreds(:,nob-ns+1)
-        tmpindxsat(nn)=indxsat(nob-ns+1)
-     end if
-  end do
-  ! Sorting observations with each observation box
-  do j=1,blatnum+1
-     if(nj(j) == 0) then
-        box(j,:)=ns-1+njs(j)
-        cycle
-     end if
-     nn=ns-1+njs(j)
-     nn0=njs(j)
-     do nob=njs(j)+1,njs(j)+nj(j)
-        if(tmplon(nob) >= boxlon(1)) cycle
-        nn=nn+1
-        obfit_prior(nn)   =tmpfit(nob)
-        obsprd_prior(nn)  =tmpsprd(nob)
-        ensmean_obnobc(nn)=tmpmean_nobc(nob)
-        ensmean_ob(nn)    =tmpmean(nob)
-        ob(nn)            =tmpob(nob)
-        oberrvar(nn)      =tmperr(nob)
-        obloclon(nn)      =tmplon(nob)
-        obloclat(nn)      =tmplat(nob)
-        obpress(nn)       =tmppres(nob)
-        obtime(nn)        =tmptime(nob)
-        oberrvar_orig(nn) =tmperr_orig(nob)
-        stattype(nn)      =tmpstattype(nob)
-        obtype(nn)        =tmptype(nob)
-        anal_ob(:,nn)     =tmpanal_ob(:,nob)
-        if(satflag) then
-           nn0=nn0+1
-           biaspreds(:,nn0)=tmpbpred(:,nob)
-           indxsat(nn0)    =tmpindxsat(nob)
-        end if
-     end do
-     box(j,1)=nn
-     boxmax=max(boxmax,box(j,1)-ns-njs(j)+1)
-     do i=2,blonnum
-        do nob=njs(j)+1,njs(j)+nj(j)
-           if(tmplon(nob) >= boxlon(i) .or. tmplon(nob) < boxlon(i-1)) cycle
-           nn=nn+1
-           obfit_prior(nn)   =tmpfit(nob)
-           obsprd_prior(nn)  =tmpsprd(nob)
-           ensmean_obnobc(nn)=tmpmean_nobc(nob)
-           ensmean_ob(nn)    =tmpmean(nob)
-           ob(nn)            =tmpob(nob)
-           oberrvar(nn)      =tmperr(nob)
-           obloclon(nn)      =tmplon(nob)
-           obloclat(nn)      =tmplat(nob)
-           obpress(nn)       =tmppres(nob)
-           obtime(nn)        =tmptime(nob)
-           oberrvar_orig(nn) =tmperr_orig(nob)
-           stattype(nn)      =tmpstattype(nob)
-           obtype(nn)        =tmptype(nob)
-           anal_ob(:,nn)     =tmpanal_ob(:,nob)
-           if(satflag) then
-              nn0=nn0+1
-              biaspreds(:,nn0)=tmpbpred(:,nob)
-              indxsat(nn0)    =tmpindxsat(nob)
-           end if
-        end do
-        box(j,i)=nn
-        boxmax=max(boxmax,box(j,i)-box(j,i-1))
-     end do
-     do nob=njs(j)+1,njs(j)+nj(j)
-        if(tmplon(nob) < boxlon(blonnum)) cycle
-        nn=nn+1
-        obfit_prior(nn)   =tmpfit(nob)
-        obsprd_prior(nn)  =tmpsprd(nob)
-        ensmean_obnobc(nn)=tmpmean_nobc(nob)
-        ensmean_ob(nn)    =tmpmean(nob)
-        ob(nn)            =tmpob(nob)
-        oberrvar(nn)      =tmperr(nob)
-        obloclon(nn)      =tmplon(nob)
-        obloclat(nn)      =tmplat(nob)
-        obpress(nn)       =tmppres(nob)
-        obtime(nn)        =tmptime(nob)
-        oberrvar_orig(nn) =tmperr_orig(nob)
-        stattype(nn)      =tmpstattype(nob)
-        obtype(nn)        =tmptype(nob)
-        anal_ob(:,nn)     =tmpanal_ob(:,nob)
-        if(satflag) then
-           nn0=nn0+1
-           biaspreds(:,nn0)=tmpbpred(:,nob)
-           indxsat(nn0)    =tmpindxsat(nob)
-        end if
-     end do
-     box(j,blonnum+1)=nn
-     boxmax=max(boxmax,box(j,blonnum+1)-box(j,blonnum))
-     ! Check consistency of the sort
-     if(nn /= ns-1+njs(j)+nj(j)) then
-        if(nproc == 0) print *,'Error in sort process: ',nn,ns-1+njs(j)+nj(j)
-        call stop2(999)
-     end if
-  end do
-
-  ! Deallocate variables for satellite radiance observations
-  if(satflag) deallocate(tmpbpred,tmpindxsat)
-  return
-end subroutine boxsort
-
 subroutine obsmod_cleanup()
 ! deallocate module-level allocatable arrays
 if (allocated(obsprd_prior)) deallocate(obsprd_prior)
@@ -700,11 +398,6 @@ if (allocated(prpgerr)) deallocate(prpgerr)
 if (allocated(biasprednorm)) deallocate(biasprednorm)
 if (allocated(biasprednorminv)) deallocate(biasprednorminv)
 if (allocated(anal_ob)) deallocate(anal_ob)
-if (allocated(boxlat)) deallocate(boxlat)
-if (allocated(boxlon)) deallocate(boxlon)
-if (allocated(nlocconv)) deallocate(nlocconv)
-if (allocated(nlocsat)) deallocate(nlocsat)
-if (allocated(nlocoz)) deallocate(nlocoz)
 end subroutine obsmod_cleanup
 
 
