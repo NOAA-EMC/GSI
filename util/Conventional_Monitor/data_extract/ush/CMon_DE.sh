@@ -92,6 +92,7 @@ fi
 
 
 
+jobname=CMon_de_${CMON_SUFFIX}
 
 #--------------------------------------------------------------------
 # Create any missing directories
@@ -118,10 +119,12 @@ cd $tmpdir
 # Check status of monitoring job.  Is it already running?  If so, exit
 # this script and wait for job to finish.
 
-count=`bjobs -u ${LOGNAME} -p -r -J "cmon_*_${SUFFIX}" | wc -l`
-if [[ $count -ne 0 ]] ; then
-   echo "Previous cmon jobs are still running for ${SUFFIX}" 
-   exit
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
+   if [[ $count -ne 0 ]] ; then
+      echo "Previous cmon jobs are still running for ${SUFFIX}" 
+      exit
+   fi
 fi
 
 #--------------------------------------------------------------------
@@ -192,7 +195,6 @@ if [ -s $cnvstat  -a -s $pgrbanl ]; then
    #   Submit data extraction job.
    #------------------------------------------------------------------
    if [ -s $pgrbf06 ]; then
-      jobname=CMon_de_${SUFFIX}
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
         echo "job for wcoss goes here"
