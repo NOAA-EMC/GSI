@@ -63,7 +63,7 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only: max_varname_length
+use constants, only: max_varname_length,zero
 
 implicit none
 
@@ -256,9 +256,6 @@ do jj=1,nsubwin
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
       call cw2hydro_ad(rval(jj),wbundle,clouds,nclouds)
-      if(.not. do_tv_to_tsen_ad) then
-         call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-      end if
    else
 !     Case when cloud-vars map one-to-one, take care of them together
 !     e.g. cw-to-cw
@@ -275,7 +272,10 @@ do jj=1,nsubwin
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
+   if(do_normal_rh_to_q_ad) then
+     call normal_rh_to_q_ad(cv_rh,cv_t,rv_prse,rv_q)
+     rv_q=zero
+   end if
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_prse)

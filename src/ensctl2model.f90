@@ -26,7 +26,7 @@ use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
-use hybrid_ensemble_parameters, only: nval_lenz_en,n_ens
+use hybrid_ensemble_parameters, only: nval_lenz_en,n_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult, &
         ckgcov_a_en_new_factorization
@@ -76,6 +76,7 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
+logical :: do_tlnmc,do_q_copy
 ! ****************************************************************************
 
 ! Initialize timer
@@ -103,11 +104,18 @@ ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars  =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
 do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
-do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
+do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.(.not. q_hyb_ens)
+do_q_copy=.false.
+if(.not. do_normal_rh_to_q) then
+  do_q_copy = lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.q_hyb_ens
+end if
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
 do jj=1,ntlevs_ens 
+
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) )
 
    allocate(ebundle(n_ens))
    do nn=1,n_ens
@@ -161,14 +169,20 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,ebundle,jj)
    end if
 
-!  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_prse)
+   sv_q=zero
+   if(do_q_copy) call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
+   if(.not. do_tlnmc)then
+!     Get 3d pressure
+      if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_prse)
 
-!  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_tv,sv_prse,sv_q)
+!     Convert input normalized RH to q
+      if(do_normal_rh_to_q) then
+         call normal_rh_to_q(cv_rh,cv_tv,sv_prse,sv_q)
+      end if
 
-!  Calculate sensible temperature
-   if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
+!     Calculate sensible temperature
+      if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
+   end if
 
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
@@ -199,19 +213,21 @@ do jj=1,ntlevs_ens
    call self_add(eval(jj),mval)
 
 !  Call strong constraint if necessary
-   if(lstrong_bk_vars) then
-      if ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) ) then
+   if(do_tlnmc) then
 
-         call strong_bk(sv_u,sv_v,sv_ps,sv_tv,.true.)
+      call strong_bk(sv_u,sv_v,sv_ps,sv_tv,.true.)
 
-!        Need to update 3d pressure and sensible temperature again for consistency
-!        Get 3d pressure
-         if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
+!     Need to update 3d pressure and sensible temperature again for consistency
+!     Get 3d pressure
+      if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
-!        Calculate sensible temperature 
-         if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+!     Convert input normalized RH to q
+      if(do_normal_rh_to_q) then
+         call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
       end if
+
+!     Calculate sensible temperature 
+      if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
 
    call gsi_bundledestroy(wbundle_c,istatus)
