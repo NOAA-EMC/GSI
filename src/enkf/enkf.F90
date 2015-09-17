@@ -101,18 +101,20 @@ use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    npts_max, anal_obchunk_prior
 use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
-                  nobsgood, nobs_conv, nobs_oz, nobs_sat,&
+                  nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
                   obtype, oberrvarmean, numobspersat, deltapredx, biaspreds,&
                   biasprednorm, oberrvar_orig, probgrosserr, prpgerr,&
-                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon
+                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype
 use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
-                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz
+                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
+                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
+use sorting, only: quicksort, isort
 
 implicit none
 
@@ -127,26 +129,26 @@ use random_normal, only : rnorm, set_random_seed
 
 ! local variables.
 integer(i_kind) nob,nob1,nob2,nob3,npob,nf,nf2,ii,nobx,nskip,&
-                niter,i,nrej,npt
+                niter,i,nrej,npt,nuse,ncount,nb
 integer(i_kind) indxens1(nanals),indxens2(nanals)
 real(r_single) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
              dist,lnsig,obt,&
              sqrtoberr,corrlengthinv,lnsiglinv,obtimelinv
-real(r_single) corrsqr ! single required by kdtree2
+real(r_single) corrsqr,covl_fact
 real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
 real(r_single) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
 real(r_single) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
 real(r_single) normdepart, pnge, width
 real(r_single) buffer(nanals+2)
 real(r_single),allocatable, dimension(:,:) :: anal_obchunk
-real(r_single),dimension(nobsgood):: oberrvaruse
+real(r_single),dimension(nobstot):: oberrvaruse
 real(r_single) r,paoverpb
 real(r_single) taper1,taper3
-real(r_single),allocatable, dimension(:) :: rannum
-integer(i_kind), allocatable, dimension(:) :: indxassim,iassim
-real(r_single), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd,&
-  paoverpb_chunk
-real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1
+real(r_single),allocatable, dimension(:) :: rannum,corrlengthsq_orig,lnsigl_orig
+integer(i_kind), allocatable, dimension(:) :: indxassim,iskip,indxassim2,indxassim3
+real(r_single), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd
+real(r_single), allocatable, dimension(:) :: paoverpb_save
+real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1, paoverpb_chunk
 integer(i_kind) ierr
 ! kd-tree search results
 type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2 
@@ -158,12 +160,11 @@ logical lastiter, kdgrid, kdobs
 allocate(anal_obchunk(nanals,nobs_max))
 allocate(sresults1(numptsperproc(nproc+1)),taper_disgrd(numptsperproc(nproc+1)))
 allocate(sresults2(numobsperproc(nproc+1)),taper_disob(numobsperproc(nproc+1)))
-allocate(buffertmp(nobsgood))
+allocate(buffertmp(nobstot))
 ! index array that controls assimilation order
-allocate(indxassim(nobsgood))
-allocate(paoverpb_min(2),paoverpb_min1(2))
-allocate(paoverpb_chunk(numobsperproc(nproc+1)))
-allocate(iassim(numobsperproc(nproc+1)))
+allocate(indxassim(nobstot),iskip(nobstot))
+allocate(paoverpb_save(nobstot))
+allocate(corrlengthsq_orig(nobstot),lnsigl_orig(nobstot))
 
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
@@ -171,7 +172,7 @@ r_nanalsm1=one/float(nanals-1)
 
 ! default is to assimilate in order they are read in.
 
-do nob=1,nobsgood
+do nob=1,nobstot
    indxassim(nob) = nob
 end do
 
@@ -179,32 +180,50 @@ if (iassim_order == 1) then
   ! create random index array so obs are assimilated in random order.
   if (nproc == 0) then
       print *,'assimilate obs in random order'
-      allocate(rannum(nobsgood))
+      allocate(rannum(nobstot))
       call set_random_seed(0, nproc)
       call random_number(rannum)
-      call quicksort(nobsgood,rannum,indxassim)
+      call quicksort(nobstot,rannum,indxassim)
       deallocate(rannum)
   end if
-  call mpi_bcast(indxassim,nobsgood,mpi_integer,0, &
+  call mpi_bcast(indxassim,nobstot,mpi_integer,0, &
        mpi_comm_world,ierr)
 else if (iassim_order .eq. 2) then
   if (nproc .eq. 0) print *,'assimilate obs in order of increasing HPaHT/HPbHT'
+  allocate(paoverpb_chunk(numobsperproc(nproc+1)))
+  allocate(indxassim2(nobstot),indxassim3(nobstot))
+  allocate(paoverpb_min(2),paoverpb_min1(2))
+  ! don't try to get all the obs - stop when paoverpb
+  ! very close to 1.0.  If paoverpb_thresh is set to 1.0,
+  ! there are precision issues in the sorting, and duplicated
+  ! are found (resulting in obs being assimlated more than once).
+  if (paoverpb_thresh .gt. 0.999) paoverpb_thresh = 0.999
+  ! if obs to be assimilated in order of increasing HPaHT/HPbHT,
+  ! paoverpb_chunk holds latest estimate of obsdprd_post on each task.
+  do nob=1,numobsperproc(nproc+1)
+     nob1 = indxproc_obs(nproc+1,nob)
+     paoverpb_chunk(nob) = oberrvar(nob1)/(oberrvar(nob1)+obsprd_prior(nob1))
+  enddo
+  do nob=1,nobstot
+      indxassim2(nob) = nob
+  enddo
+  indxassim = 0
 else
   if (nproc .eq. 0) print *,'assimilate obs in order they were read in'
 end if
 
 ! initialize some arrays with first-guess values.
-obfit_post = obfit_prior
-obsprd_post = obsprd_prior
+obfit_post(1:nobstot) = obfit_prior(1:nobstot)
+obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
 anal_obchunk = anal_obchunk_prior
+corrlengthsq_orig = corrlengthsq
+lnsigl_orig = lnsigl
 
 ! Check to see if kdtree structures are associated
 kdgrid=associated(kdtree_grid)
 kdobs=associated(kdtree_obs)
 
 do niter=1,numiter
-
-  iassim = 0
 
   lastiter = niter == numiter
   ! apply bias correction with latest estimate of bias coeffs.
@@ -217,7 +236,7 @@ do niter=1,numiter
   anal_obchunk = anal_obchunk_prior
   ! ensmean_ob is updated with latest bias coefficient perturbations.
   ! nob1 is the index of the obs to be processed on this rank
-  ! nob2 maps nob1 to 1:nobsgood array (nob)
+  ! nob2 maps nob1 to 1:nobstot array (nob)
   do nob1=1,numobsperproc(nproc+1)
      nob2 = indxproc_obs(nproc+1,nob1)
      ensmean_obchunk(nob1) = ensmean_ob(nob2)
@@ -225,7 +244,7 @@ do niter=1,numiter
 ! reset ob error to account for gross errors 
   if (niter > 1 .and. varqc) then
     if (huber) then ! "huber norm" QC
-      do nob=1,nobsgood
+      do nob=1,nobstot
         normdepart = obfit_post(nob)/sqrt(oberrvar(nob))
         ! depends of 2 parameters: zhuberright, zhuberleft.
         if (normdepart < -zhuberleft) then
@@ -246,7 +265,7 @@ do niter=1,numiter
         endif
       end do
     else ! "flat-tail" QC.
-      do nob=1,nobsgood
+      do nob=1,nobstot
         ! original form, gross error cutoff a multiple of ob error st dev.
         ! here gross err cutoff proportional to ensemble spread plus ob error
         ! Dharssi, Lorenc and Inglesby eqn (1) a = grosserrw*sqrt(S+R) 
@@ -266,94 +285,132 @@ do niter=1,numiter
       end do
     endif
   else
-    do nob=1,nobsgood
+    do nob=1,nobstot
       oberrvaruse(nob) = oberrvar(nob)
     end do
   end if
 
-  ! if obs to be assimilated in order of increasing HPaHT/HPbHT,
-  ! paoverpb_chunk holds latest estimate of obsdprd_post on each task.
-  if (iassim_order == 2) then
-      do nob1=1,numobsperproc(nproc+1)
-         nob2 = indxproc_obs(nproc+1,nob1)
-         paoverpb_chunk(nob1) = oberrvaruse(nob2)/(oberrvaruse(nob2)+obsprd_prior(nob2))
-      enddo
-  endif
-
+  if (niter == 1) iskip = 0
   nobm = 1
+  ncount = 0
   t2 = zero
   t3 = zero
   t4 = zero
   t5 = zero
   t6 = zero
-  nskip = 0
   nf    = 0
   nf2   = 0
   tbegin = mpi_wtime()
   ! loop over 'good' obs.
-  obsloop: do nobx=1,nobsgood
+  obsloop: do nobx=1,nobstot
 
       t1 = mpi_wtime()
 
       ! which ob to assimilate next?
-      if (iassim_order == 2 .and. niter == 1) then
-         ! find ob with min HPaHT/HPbHT
-         nob1 = minloc(paoverpb_chunk,1)
-         paoverpb_min1(1) = paoverpb_chunk(nob1)
-         paoverpb_min1(2) = indxproc_obs(nproc+1,nob1)
-         call mpi_allreduce(paoverpb_min1,paoverpb_min,1,&
-                            mpi_2real,mpi_minloc,mpi_comm_world,ierr)
-         !if (nproc .eq. 0) print *,'nobx,nob,paoverpb_min',nobx,nob,paoverpb_min(1)
-         nob = paoverpb_min(2); indxassim(nobx) = nob
+      if (iassim_order == 2) then
+         if (niter == 1) then
+            ! find ob with min HPaHT/HPbHT
+            nob1 = minloc(paoverpb_chunk,1)
+            paoverpb_min1(1) = paoverpb_chunk(nob1)
+            paoverpb_min1(2) = indxproc_obs(nproc+1,nob1)
+            call mpi_allreduce(paoverpb_min1,paoverpb_min,1,&
+                               mpi_2real,mpi_minloc,mpi_comm_world,ierr)
+            if (paoverpb_min(1) >= paoverpb_thresh) then
+                if (nproc .eq. 0) &
+                print *,'exiting obsloop after ',nobx,' obs processed' 
+                nob1 = count(indxassim2 /= 0)
+                if (nobx-1+nob1 /= nobstot) then
+                    if (nproc .eq. 0) then
+                       print *,'error: not all obs accounted for!'
+                       print *,'count indxassim2 nonzero',nob1
+                       print *,'nobx,nobstot,nobx+nobstot',nobx,nobstot,nobx-1+nob1
+                    endif
+                    call stop2(91)
+                endif
+                ! fill rest of indxassim array with un-assimilated obs
+                indxassim(nobx:nobstot) = pack(indxassim2,indxassim2 /= 0)
+                do nob=nobx,nobstot
+                   nob1 = indxassim(nob)
+                   paoverpb_save(nob1) = paoverpb_thresh + tiny(paoverpb_thresh)
+                   iskip(nob1) = 1
+                enddo
+                ! check to see that all obs accounted for.
+                if (nproc .eq. 0) then
+                   do nob=1,nobstot
+                      indxassim2(nob) = nob
+                   enddo
+                   indxassim3 = indxassim
+                   call isort(indxassim3, nobstot)
+                   ! if indxassim2 != indxassim3 there are duplicates
+                   nob1 = count(indxassim2-indxassim3 /= 0)
+                   if (nob1 /= 0) then
+                      if (nproc .eq. 0) then
+                         print *,'error: not all obs accounted for!'
+                         print *,'count nonzero',nob1
+                      endif
+                      call stop2(92)
+                   endif
+                endif
+                exit obsloop
+            endif 
+            nob = paoverpb_min(2); indxassim(nobx) = nob
+            if (indxassim2(nob) == 0) then
+               if (nproc .eq. 0) then
+                  print *,'error: this ob already assimilated!'
+                  print *,'nobx,nob,paoverpb',nobx,nob,paoverpb_min(1),oberrvaruse(nob)
+               endif
+               call stop2(93)
+            else
+               indxassim2(nob) = 0
+            endif
+         else ! niter > 1
+            nob = indxassim(nobx)
+         endif
       else
          nob = indxassim(nobx)
       endif
 
-      if(oberrvar(nob) > 1.e10_r_single)then
-        nskip = nskip + 1
-        cycle obsloop
-      end if
-
-      ! what processor is this ob on?
-      npob = iprocob(nob)
+      npob = iprocob(nob) ! what task is this ob on?
   
       ! get ob priors, ob increment from that processor,
       ! send to other processors.
       if (nproc == npob) then
-          nob1 = indxob_chunk(nob)
-          iassim(nob1) = 1 ! flag as assimilated.
+          nob1 = indxob_chunk(nob); 
           hpfht = sum(anal_obchunk(:,nob1)**2)*r_nanalsm1
-          ! only thin obs on last iteration (when grids updated).
-          if (lastiter .and. oberrvaruse(nob) > paoverpb_thresh*(hpfht+oberrvaruse(nob))) then
-            buffer(nanals+2)=-100._r_single
-          else
-            buffer(1:nanals) = anal_obchunk(:,nob1)
-            buffer(nanals+1) = ob(nob)-ensmean_obchunk(nob1)
-            buffer(nanals+2) = hpfht
-          end if
+          buffer(1:nanals) = anal_obchunk(:,nob1)
+          buffer(nanals+1) = ob(nob)-ensmean_obchunk(nob1)
+          buffer(nanals+2) = hpfht
       end if
       call mpi_bcast(buffer,nanals+2,mpi_real4,npob,mpi_comm_world,ierr)
-      ! compute ob prior variance.
-      hpfht = buffer(nanals+2)
 
       t2 = t2 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
-      ! posterior variance over prior variance for ob prior.
-      if (hpfht < zero) then
-          nskip = nskip + 1
-          cycle obsloop
-      end if
-
       anal_obtmp = buffer(1:nanals)
       obinc_tmp = buffer(nanals+1)
+      hpfht = buffer(nanals+2)
 
       hpfhtoberrinv=one/(hpfht+oberrvaruse(nob))
-      paoverpb = oberrvaruse(nob)*hpfhtoberrinv
+      paoverpb = oberrvar(nob)/(hpfht + oberrvar(nob))
+      if (niter == 1) paoverpb_save(nob) = paoverpb
+
+      if (paoverpb_save(nob) >= paoverpb_thresh .or. &
+          oberrvaruse(nob) > 1.e10_r_single) then
+          iskip(nob) = 1
+          if (iassim_order == 2) then
+             if (nproc .eq. 0) &
+             print *,'exiting obsloop after ',nobx,' obs processed' 
+             exit obsloop
+          else
+             cycle obsloop ! skip to next ob
+          endif
+      else
+          iskip(nob) = 0
+      end if
 
       if (deterministic) then
          ! EnSRF.
-         obganl = -anal_obtmp/(one+sqrt(paoverpb))
+         obganl = -anal_obtmp/(one+sqrt(oberrvaruse(nob)*hpfhtoberrinv))
       else
          ! perturbed obs EnKF.
          sqrtoberr=sqrt(oberrvaruse(nob))
@@ -383,8 +440,16 @@ do niter=1,numiter
       t3 = t3 + mpi_wtime() - t1
       t1 = mpi_wtime()
 
-      corrsqr=corrlengthsq(nob)
-      obt = abs(obtime(nob))
+      if (covl_minfact < 0.99) then
+! modify localization based on HPaHT/HPbHT
+         covl_fact = 1. - exp( -((1.-paoverpb_save(nob))/covl_efold) )
+         if (covl_fact .lt. covl_minfact) covl_fact = covl_minfact
+         corrlengthsq(nob) = (covl_fact*sqrt(corrlengthsq_orig(nob)))**2
+         lnsigl(nob) = covl_fact*lnsigl_orig(nob)
+      endif
+
+      lnsiglinv = one/lnsigl(nob)
+      corrsqr = corrlengthsq(nob)
       corrlengthinv=one/corrlengthsq(nob)
       lnsiglinv=one/lnsigl(nob)
       obtimelinv=one/obtimel(nob)
@@ -398,7 +463,7 @@ do niter=1,numiter
        nobm=nob
        ! determine localization length scales based on latitude of ob.
        nf2=0
-       if (lastiter .and. obt < obtimel(nob)) then
+       if (lastiter) then
         ! search analysis grid points for those within corrlength of 
         ! ob being assimilated (using a kd-tree for speed).
         if (kdgrid) then
@@ -465,9 +530,11 @@ do niter=1,numiter
           nn2 = ndim
       end if
       if (nf2 > 0) then
-          taper3=taper(obt*obtimelinv)*hpfhtcon
-!$omp parallel do  schedule(dynamic,1) private(ii,i,nn,nnn,lnsig,kfgain,taper1,taperv)
-          do ii=1,nf2
+!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taperv)
+          do ii=1,nf2 ! loop over nearby horiz grid points
+             do nb=1,nbackgrounds ! loop over background time levels
+             obt = abs(obtime(nob)-(nhr_anal(nb)-fhr_assim))
+             taper3=taper(obt*obtimelinv)*hpfhtcon
              taper1=taper_disgrd(ii)*taper3
              i = sresults1(ii)%idx
              do nn=1,nlevs_pres
@@ -479,17 +546,20 @@ do niter=1,numiter
                end if
              end do
              do nn=nn1,nn2
-                 nnn=index_pres(nn)
-                 if (taperv(nnn) > zero) then
-                     ! gain includes covariance localization.
-                     kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn)*anal_obtmp)
-                     ! update mean.
-                     ensmean_chunk(i,nn) = ensmean_chunk(i,nn) + kfgain*obinc_tmp
-                     ! update perturbations.
-                     anal_chunk(:,i,nn) = anal_chunk(:,i,nn) + kfgain*obganl(:)
-                 end if
+                nnn=index_pres(nn)
+                if (taperv(nnn) > zero) then
+                    ! gain includes covariance localization.
+                    ! update all time levels
+                    kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn,nb)*anal_obtmp)
+                    ! update mean.
+                    ensmean_chunk(i,nn,nb) = ensmean_chunk(i,nn,nb) + kfgain*obinc_tmp
+                    ! update perturbations.
+                    anal_chunk(:,i,nn,nb) = anal_chunk(:,i,nn,nb) + kfgain*obganl(:)
+                end if
              end do
-          end do
+          end do ! end loop over background time levels. 
+          end do ! end loop over nearby horiz grid points
+!$omp end parallel do
       end if ! if .not. lastiter or no close grid points
 
       t5 = t5 + mpi_wtime() - t1
@@ -500,7 +570,7 @@ do niter=1,numiter
 !$omp parallel do  schedule(dynamic,1) private(nob1,nob2,nob3,lnsig,obt,kfgain)
         do nob1=1,nf
            ! Note: only really need to do obs that have not yet been processed unless sat data
-           ! for bias correction update,i.e. could skip if iassim(nob2)==1.
+           ! for bias correction update.
            nob2 = sresults2(nob1)%idx
            lnsig = abs(oblnp(nob)-oblnp_chunk(nob2))
            if (lnsig < lnsigl(nob) .and. taper_disob(nob1) > zero) then
@@ -514,34 +584,49 @@ do niter=1,numiter
                ensmean_obchunk(nob2) = ensmean_obchunk(nob2) + kfgain*obinc_tmp
                ! update perturbations.
                anal_obchunk(:,nob2) = anal_obchunk(:,nob2) + kfgain*obganl
-               ! recompute ob space spread ratio if needed.
-               if (iassim_order == 2 .and. iassim(nob2) == 0 .and. niter == 1) then
-                 ! recompute HPaHT/HPbHT for unassimilated obs on this task.
-                 paoverpb_chunk(nob2) = sum(anal_obchunk(:,nob2)**2)*r_nanalsm1
-                 nob3 = indxproc_obs(nproc+1,nob2) ! index in 1,....,nobsgood
-                 paoverpb_chunk(nob2) = &
-                 oberrvaruse(nob3)/(oberrvaruse(nob3)+paoverpb_chunk(nob2))
+               nob3 = indxproc_obs(nproc+1,nob2) ! index in 1,....,nobstot
+               ! recompute ob space spread ratio  for unassimlated obs
+               if (iassim_order == 2 .and. niter == 1) then
+                 if (indxassim2(nob3) /= 0) then
+                   paoverpb_chunk(nob2) = &
+                   oberrvar(nob3)/(oberrvar(nob3)+&
+                   sum(anal_obchunk(:,nob2)**2)*r_nanalsm1)
+                 else
+                   paoverpb_chunk(nob2) = 1.e10
+                 endif
                endif
              end if
            end if
         end do
+!$omp end parallel do
 
       end if ! no close obs.
 
-      if (iassim_order == 2 .and. nproc == npob .and. niter == 1) then
-         ! set HPaHT/HPbHT for just assimilated ob, so it will not be used again.
-         paoverpb_chunk(indxob_chunk(nob)) = one
-      endif
-
       t6 = t6 + mpi_wtime() - t1
+      ncount = ncount + 1
 
   end do obsloop ! loop over obs to assimilate
 
   tend = mpi_wtime()
-  if (nproc == 0 .and. nskip > 0) print *,nskip,' out of',nobsgood,'obs skipped'
-  if (nproc == 0 .and. nsame > 0) print *,nsame,' out of', nobsgood-nskip,' same lat/long'
-  if (nproc == 0 .and. nrej >  0) print *,nrej,' obs rejected by varqc'
-  if (nproc == 0 .or. nproc == numproc-1) write(6,8003) niter,'timing on proc',nproc,' = ',tend-tbegin,t2,t3,t4,t5,t6,nrej
+  if (nproc .eq. 0) then
+      write(6,8003) niter,'timing on proc',nproc,' = ',tend-tbegin,t2,t3,t4,t5,t6,nrej
+
+      nuse = 0; covl_fact = 0.
+      do nob1=1,ncount
+         nob = indxassim(nob1)
+         if (iskip(nob) .ne. 1) then
+            covl_fact = covl_fact + sqrt(corrlengthsq(nob)/corrlengthsq_orig(nob))
+            nuse = nuse + 1
+         endif
+      enddo
+      nskip = nobstot-nuse
+      covl_fact = covl_fact/float(nuse)
+
+      if (covl_fact < 0.99) print *,'mean covl_fact = ',covl_fact
+      if (nskip > 0) print *,nskip,' out of',nobstot,'obs skipped,',nuse,' used'
+      if (nsame > 0) print *,nsame,' out of', nobstot-nskip,' same lat/long'
+      if (nrej >  0) print *,nrej,' obs rejected by varqc'
+  endif
   8003  format(i2,1x,a14,1x,i5,1x,a3,6(f7.2,1x),i4)
 
   t1 = mpi_wtime()
@@ -551,7 +636,7 @@ do niter=1,numiter
     nob2=indxproc_obs(nproc+1,nob1)
     buffertmp(nob2) = ensmean_obchunk(nob1)
   end do
-  call mpi_allreduce(buffertmp,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(buffertmp,obfit_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   obfit_post = ob - obfit_post
   if (nproc == 0) print *,'time to broadcast obfit_post = ',mpi_wtime()-t1,' secs, niter =',niter
 
@@ -567,18 +652,24 @@ do nob1=1,numobsperproc(nproc+1)
   nob2=indxproc_obs(nproc+1,nob1)
   buffertmp(nob2) = sum(anal_obchunk(:,nob1)**2)*r_nanalsm1
 end do
-call mpi_allreduce(buffertmp,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+call mpi_allreduce(buffertmp,obsprd_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
 if (nproc == 0) print *,'time to broadcast obsprd_post = ',mpi_wtime()-t1
 
 predx = predx + deltapredx ! add increment to bias coeffs.
 
-! free temporary arrays.
+! free local temporary arrays.
 deallocate(taper_disob,taper_disgrd)
-deallocate(anal_obchunk) ! this one is allocated in loadbal
-deallocate(anal_obchunk_prior)
+! these allocated in loadbal, no longer needed
+deallocate(anal_obchunk); deallocate(anal_obchunk_prior)
 deallocate(sresults1,sresults2)
-deallocate(indxassim,buffertmp,paoverpb_chunk,iassim)
-deallocate(paoverpb_min,paoverpb_min1)
+deallocate(indxassim,buffertmp)
+if (iassim_order == 2) then
+   deallocate(paoverpb_chunk)
+   deallocate(indxassim2,indxassim3)
+   deallocate(paoverpb_min,paoverpb_min1)
+endif
+deallocate(paoverpb_save)
+deallocate(corrlengthsq_orig,lnsigl_orig)
 
 end subroutine enkf_update
 

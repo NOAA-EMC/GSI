@@ -204,6 +204,11 @@
    print "\n";
 
 
+   my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
+   if( $machine ne "theia" ) {
+      $account = "export ACCOUNT=\${ACCOUNT:-}";
+   }
+
    #
    #  Update the conv_conf with the configuration information
    #
@@ -214,6 +219,9 @@
    while( <$in> ) {
       if( $_ =~ "MY_CMON=" ) {
          print $out "$my_cmon\n";
+      }
+      elsif( $_ =~ "ACCOUNT=" ) {
+         print $out "$account\n";
       }
       elsif( $_ =~ "CMON_TANKDIR=" ) {
          print $out "$my_tankdir\n";
