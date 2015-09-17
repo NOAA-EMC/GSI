@@ -1037,6 +1037,7 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
             x_errorig(nob) = 1.e10_r_kind
           end if
           x_err(nob) = (one/rdiagbuf(16,n))**2
+          if (x_errorig(nob) .gt. 1.e9) x_errorig(nob)=x_err(nob)
           x_obs(nob) = rdiagbuf(17,n)
 
 ! Convert to innovation (as pointed out by Lidia)
