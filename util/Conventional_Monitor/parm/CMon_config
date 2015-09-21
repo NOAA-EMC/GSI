@@ -26,10 +26,8 @@ export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monit
 export CMON_TANKDIR=${CMON_TANKDIR:-/u/${LOGNAME}/nbns}
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
-# I need to remove the convweb directory level and use a cmon_${date} 
-# arrangment like the other monitors.
-export C_TANKDIR=${CMON_TANKDIR}/stats/convweb/${SUFFIX}
-export C_IMGNDIR=${CMON_TANKDIR}/imgn/convweb/${SUFFIX}
+export C_TANKDIR=${CMON_TANKDIR}/stats/${SUFFIX}
+export C_IMGNDIR=${CMON_TANKDIR}/imgn/${SUFFIX}
 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
