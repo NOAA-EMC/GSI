@@ -15,10 +15,10 @@ INCnemsio = $(COREINC)/nemsio
 INCw3emc = $(COREINC)/w3emc_d
 INCw3nco = $(COREINC)/w3nco_d
 #INCw3lib = $(COREINC)/w3lib-2.0_d
-CRTMpath = ../lib/CRTM_REL-2.2.1
+CRTMpath = ../lib/CRTM_REL-2.2.3
 
-INCcrtm = $(CRTMpath)/include
-LIBcrtm = $(CRTMpath)/lib/libCRTM.a
+INCcrtm = $(CRTMpath)/crtm_v2.2.3/incmod/crtm_v2.2.3
+LIBcrtm = $(CRTMpath)/crtm_v2.2.3/libcrtm_v2.2.3.a
 
 WRFPATH=$(CORE)/sorc/nam_nmm_real_fcst.fd
 
