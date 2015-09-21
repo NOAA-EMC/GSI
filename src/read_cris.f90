@@ -354,8 +354,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Check for data / sensor resolution mis-match 
      call ufbint(lnbufr,rchar_mtyp,1,1,iret,'MTYP')
      char_mtyp = transfer(rchar_mtyp,char_mtyp)
-     if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
-     if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
+     if ( char_mtyp == 'NOR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
+     if ( char_mtyp /= 'NOR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
+!     if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
+!     if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
 
 !    Get the size of the channels and radiance (allchan) array
      call ufbint(lnbufr,crchn_reps,1,1,iret,'CHNM')
