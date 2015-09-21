@@ -26,8 +26,8 @@ export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monit
 export CMON_TANKDIR=${CMON_TANKDIR:-/u/${LOGNAME}/nbns}
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
-export C_TANKDIR=${CMON_TANKDIR}/stats/${SUFFIX}
-export C_IMGNDIR=${CMON_TANKDIR}/imgn/${SUFFIX}
+export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
+export C_IMGNDIR=${CMON_TANKDIR}/imgn/${CMON_SUFFIX}
 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
@@ -66,7 +66,7 @@ export C_PTMP=${C_PTMP:-/ptmpp1}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs
-export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}/cmon_${SUFFIX}}
+export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}/cmon_${CMON_SUFFIX}}
 export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
 
 export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
