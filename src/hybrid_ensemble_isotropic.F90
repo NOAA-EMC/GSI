@@ -99,7 +99,7 @@ module hybrid_ensemble_isotropic
 
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use hybrid_ensemble_parameters, only: nval_lenz_en
-  use string_util, only: StrUppCase
+  use string_utility, only: StrUpCase
 
   implicit none
 
@@ -2610,7 +2610,7 @@ subroutine beta12mult(grady)
      do ii=1,nsubwin
         do ic3=1,nc3d
            ! check for ozone and skip if oz_univ_static = true
-           if ( trim(StrUppCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+           if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
            do k=1,nsig
               do i=1,lat2
                  grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
@@ -2619,7 +2619,7 @@ subroutine beta12mult(grady)
         enddo
         do ic2=1,nc2d
            ! Default to static B estimate for SST
-           if ( trim(StrUppCase(cvars2d(ic2))) == 'SST' ) cycle
+           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
            do i=1,lat2
               grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
            enddo

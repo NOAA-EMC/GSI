@@ -506,7 +506,6 @@ clean:
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
-	string_util.f90 \
 	sub2fslab_mod.f90 \
 	support_2dvar.f90 \
         stub_ensmod.f90 \
