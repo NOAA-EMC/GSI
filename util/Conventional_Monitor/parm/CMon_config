@@ -24,7 +24,7 @@ export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monit
 #
 
 export CMON_TANKDIR=${CMON_TANKDIR:-/u/${LOGNAME}/nbns}
-export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}	# do I need this?
+export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
 # I need to remove the convweb directory level and use a cmon_${date} 
 # arrangment like the other monitors.
@@ -69,6 +69,7 @@ export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs
 export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}/cmon_${SUFFIX}}
+export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
 
 export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
 
