@@ -184,6 +184,7 @@ clean:
 # ------------
 
   SRCSF90C = \
+	common_mtx.f90 \
 	covlocal.f90 \
 	enkf.F90 \
 	enkf_main.f90 \
@@ -199,9 +200,10 @@ clean:
 	mpi_readobs.f90 \
 	mpisetup.f90 \
 	netcdf_io_wrf.f90 \
+	netlib.f90 \
 	enkf_obsmod.f90 \
 	params.f90 \
-	sorting.f90 \
+	quicksort.f90 \
 	radbias.f90 \
 	read_locinfo.f90 \
 	readconvobs.f90 \

@@ -24,7 +24,6 @@
 !
 ! program history log:
 !   2009-02-23  Initial version.
-!   2015-06-29  Add ability to read/write multiple time levels
 !
 ! attributes:
 !   language: f95
@@ -32,8 +31,7 @@
 !$$$
  use constants, only: zero,one,cp,fv,rd,grav,zero
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
-                   cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,&
-                   nbackgrounds,charfhr_anal,fgfileprefixes,anlfileprefixes
+                   cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal,iau
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts,ptop  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -56,8 +54,8 @@
   character(len=500) :: filename
   character(len=3) charnanal
   integer, intent(in) :: nanal
-  real(r_double), dimension(npts,nlevs,nbackgrounds), intent(out) :: qsat
-  real(r_single), dimension(npts,ndim,nbackgrounds), intent(out) :: grdin
+  real(r_double), dimension(npts,nlevs), intent(out) :: qsat
+  real(r_single), dimension(npts,ndim), intent(out) :: grdin
 
   real(r_kind) kap,kapr,kap1,clip
 
@@ -72,15 +70,15 @@
   type(nemsio_gfile) :: gfile
 
 
-  integer(i_kind) k,nt,iunitsig,iret,nb
+  integer(i_kind) k,nt,iunitsig,iret
   logical ice
 
-  backgroundloop: do nb=1,nbackgrounds
 
   write(charnanal,'(i3.3)') nanal
   iunitsig = 77
-  filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
   if (use_gfs_nemsio) then
+     filename =&
+     trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_init, iret=',iret
@@ -92,6 +90,8 @@
         call stop2(23)
      endif
   else
+     filename =&
+     trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
      call sigio_srohdc(iunitsig,trim(filename), &
                        sighead,sigdata,iret)
      if (iret /= 0) then
@@ -151,15 +151,10 @@
          call stop2(23)
      end if
      !==> pressure at interfaces.
-     if (nanal .eq. 1) then
-        print *,'time level ',nb
-        print *,'---------------'
-     endif
      do k=1,nlevs+1
         pressi(:,k)=ak(k)+bk(k)*psg
         if (nanal .eq. 1) print *,'min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
-     deallocate(ak,bk)
   endif
 
   !==> get U,V,temp,q,ps on gaussian grid.
@@ -180,11 +175,11 @@
         endif
         vg = nems_wrk
         if (reducedgrid) then
-           call regtoreduced(ug,grdin(:,k,nb))
-           call regtoreduced(vg,grdin(:,nlevs+k,nb))
+           call regtoreduced(ug,grdin(:,k))
+           call regtoreduced(vg,grdin(:,nlevs+k))
         else
-           grdin(:,k,nb) = ug
-           grdin(:,nlevs+k,nb) = vg
+           grdin(:,k) = ug
+           grdin(:,nlevs+k) = vg
         endif
         ! calculate vertical integral of mass flux div (ps tendency)
         ! this variable is analyzed in order to enforce mass balance in the analysis
@@ -209,11 +204,11 @@
         ug = nems_wrk
         vg = nems_wrk2
         if (reducedgrid) then
-           call regtoreduced(ug,grdin(:,2*nlevs+k,nb))
-           call regtoreduced(vg,grdin(:,3*nlevs+k,nb))
+           call regtoreduced(ug,grdin(:,2*nlevs+k))
+           call regtoreduced(vg,grdin(:,3*nlevs+k))
         else
-           grdin(:,2*nlevs+k,nb) = ug
-           grdin(:,3*nlevs+k,nb) = vg
+           grdin(:,2*nlevs+k) = ug
+           grdin(:,3*nlevs+k) = vg
         endif
         if (nvars .eq. 5) then
            call nemsio_readrecv(gfile,'o3mr','mid layer',k,nems_wrk2,iret=iret)
@@ -224,9 +219,9 @@
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
            if (reducedgrid) then
-              call regtoreduced(ug,grdin(:,4*nlevs+k,nb))
+              call regtoreduced(ug,grdin(:,4*nlevs+k))
            else
-              grdin(:,4*nlevs+k,nb) = ug
+              grdin(:,4*nlevs+k) = ug
            endif
         endif
         if (nvars .eq. 6) then
@@ -238,9 +233,9 @@
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
            if (reducedgrid) then
-              call regtoreduced(ug,grdin(:,5*nlevs+k,nb))
+              call regtoreduced(ug,grdin(:,5*nlevs+k))
            else
-              grdin(:,5*nlevs+k,nb) = ug
+              grdin(:,5*nlevs+k) = ug
            endif
         endif
      enddo
@@ -251,10 +246,10 @@
         vrtspec = sigdata%z(:,k); divspec = sigdata%d(:,k)
         call sptezv_s(divspec,vrtspec,ug,vg,1)
         if (reducedgrid) then
-           call regtoreduced(ug,grdin(:,k,nb))
-           call regtoreduced(vg,grdin(:,nlevs+k,nb))
+           call regtoreduced(ug,grdin(:,k))
+           call regtoreduced(vg,grdin(:,nlevs+k))
         else
-           grdin(:,k,nb) = ug; grdin(:,nlevs+k,nb) = vg
+           grdin(:,k) = ug; grdin(:,nlevs+k) = vg
         endif
 
 ! calculate vertical integral of mass flux div (ps tendency)
@@ -269,18 +264,18 @@
         divspec = sigdata%t(:,k)
         call sptez_s(divspec,ug,1)
         if (reducedgrid) then
-           call regtoreduced(ug,grdin(:,2*nlevs+k,nb))
+           call regtoreduced(ug,grdin(:,2*nlevs+k))
         else
-           grdin(:,2*nlevs+k,nb) = ug
+           grdin(:,2*nlevs+k) = ug
         endif
 
         do nt=1,nvars-3
            divspec = sigdata%q(:,k,nt)
            call sptez_s(divspec,ug,1)
            if (reducedgrid) then
-              call regtoreduced(ug,grdin(:,(3+nt-1)*nlevs+k,nb))
+              call regtoreduced(ug,grdin(:,(3+nt-1)*nlevs+k))
            else
-              grdin(:,(3+nt-1)*nlevs+k,nb) = ug
+              grdin(:,(3+nt-1)*nlevs+k) = ug
            endif
         enddo
 
@@ -290,9 +285,9 @@
 
   ! surface pressure is last grid.
   if (reducedgrid) then
-     call regtoreduced(psg,grdin(:,ndim,nb))
+     call regtoreduced(psg,grdin(:,ndim))
   else
-     grdin(:,ndim,nb) = psg
+     grdin(:,ndim) = psg
   endif
   if (.not. use_gfs_nemsio) call sigio_axdata(sigdata,iret)
 
@@ -302,9 +297,9 @@
      if (nanal .eq. 1) &
      print *,nanal,'min/max first-guess ps tend',minval(pstend),maxval(pstend)
      if (reducedgrid) then
-        call regtoreduced(pstend,grdin(:,ndim-1,nb))
+        call regtoreduced(pstend,grdin(:,ndim-1))
      else
-        grdin(:,ndim-1,nb) = pstend
+        grdin(:,ndim-1) = pstend
      endif
   endif
 
@@ -320,17 +315,15 @@
     endif
   end do
   if (pseudo_rh) then
-     call genqsat1(grdin(:,3*nlevs+1:4*nlevs,nb),qsat(:,:,nb),pslg,grdin(:,2*nlevs+1:3*nlevs,nb),ice,npts,nlevs)
+     call genqsat1(grdin(:,3*nlevs+1:4*nlevs),qsat,pslg,grdin(:,2*nlevs+1:3*nlevs),ice,npts,nlevs)
   else
-     qsat(:,:,nb) = 1._r_double
+     qsat = 1._r_double
   end if
   
   deallocate(pressi,pslg)
   deallocate(psg,pstend)
   if (massbal_adjust) deallocate(vmassdiv)
   if (use_gfs_nemsio) call nemsio_close(gfile,iret=iret)
-
-  end do backgroundloop ! loop over backgrounds to read in
 
  end subroutine readgriddata
 
@@ -346,7 +339,7 @@
 
   character(len=500):: filenamein, filenameout
   integer, intent(in) :: nanal
-  real(r_single), dimension(npts,ndim,nbackgrounds), intent(inout) :: grdin
+  real(r_single), dimension(npts,ndim), intent(inout) :: grdin
   real(r_kind), allocatable, dimension(:,:) :: vmassdiv,dpanl,dpfg,pressi
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
@@ -370,7 +363,7 @@
   type(sigio_data) sigdata
   type(nemsio_gfile) :: gfilein,gfileout
 
-  integer k,nt,ierr,iunitsig,nb
+  integer k,nt,ierr,iunitsig
 
   iunitsig = 78
   kapr = cp/rd
@@ -378,12 +371,26 @@
   kap1 = kap+one
   write(charnanal,'(i3.3)') nanal
 
-  backgroundloop: do nb=1,nbackgrounds
-
-  filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
-  ! for nemsio, analysis file must be copied from first guess at scripting
-  ! level.  This file is read in and modified.
+  if (use_gfs_nemsio) then
+     ! for nemsio, analysis file must be copied from first guess at scripting
+     ! level.  This file is read in and modified.
+     if (iau) then
+        filenameout = &
+        trim(adjustl(datapath))//"sanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+     else
+        filenameout = trim(adjustl(datapath))//"sanl_"//datestring//"_mem"//charnanal
+     endif
+     filenamein = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+  else
+     if (iau) then
+        filenameout = &
+        trim(adjustl(datapath))//"sanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+     else
+        filenameout = trim(adjustl(datapath))//"sanl_"//datestring//"_mem"//charnanal
+     endif
+     filenamein = &
+     trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+  endif
 
   if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
@@ -490,25 +497,25 @@
 !$omp parallel do private(k,nt,ug,vg,divspec,vrtspec)  shared(grdin,sigdata_inc)
      do k=1,nlevs
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,k,nb),ug)
-           call reducedtoreg(grdin(:,nlevs+k,nb),vg)
+           call reducedtoreg(grdin(:,k),ug)
+           call reducedtoreg(grdin(:,nlevs+k),vg)
         else
-           ug = grdin(:,k,nb); vg = grdin(:,nlevs+k,nb)
+           ug = grdin(:,k); vg = grdin(:,nlevs+k)
         endif
         call sptezv_s(divspec,vrtspec,ug,vg,-1)
         sigdata_inc%d(:,k) = divspec; sigdata_inc%z(:,k) = vrtspec
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,2*nlevs+k,nb),ug)
+           call reducedtoreg(grdin(:,2*nlevs+k),ug)
         else
-           ug = grdin(:,2*nlevs+k,nb)
+           ug = grdin(:,2*nlevs+k)
         endif
         call sptez_s(divspec,ug,-1)
         sigdata_inc%t(:,k) = divspec
         do nt=1,nvars-3
             if (reducedgrid) then
-               call reducedtoreg(grdin(:,(3+nt-1)*nlevs+k,nb),ug)
+               call reducedtoreg(grdin(:,(3+nt-1)*nlevs+k),ug)
             else
-               ug = grdin(:,(3+nt-1)*nlevs+k,nb)
+               ug = grdin(:,(3+nt-1)*nlevs+k)
             endif
             call sptez_s(divspec,ug,-1)
             sigdata_inc%q(:,k,nt) = divspec
@@ -520,9 +527,9 @@
      call sptez_s(divspec,vg,1)
      ! increment (in hPa) to reg grid.
      if (reducedgrid) then
-       call reducedtoreg(grdin(:,ndim,nb),ug)
+       call reducedtoreg(grdin(:,ndim),ug)
      else
-       ug = grdin(:,ndim,nb)
+       ug = grdin(:,ndim)
      endif
      psfg = 10._r_kind*exp(vg)
      vg = psfg + ug ! first guess + increment
@@ -600,9 +607,9 @@
      psfg = 0.01*nems_wrk ! convert ps to millibars.
      ! increment (in hPa) to reg grid.
      if (reducedgrid) then
-       call reducedtoreg(grdin(:,ndim,nb),ug)
+       call reducedtoreg(grdin(:,ndim),ug)
      else
-       ug = grdin(:,ndim,nb)
+       ug = grdin(:,ndim)
      endif
      !print *,'nanal,min/max psfg,min/max inc',nanal,minval(psfg),maxval(psfg),minval(ug),maxval(ug)
      psg = psfg + ug ! first guess + increment
@@ -675,15 +682,13 @@
 
      ! analyzed ps tend increment
      if (reducedgrid) then
-        call reducedtoreg(grdin(:,ndim-1,nb),pstend2)
+        call reducedtoreg(grdin(:,ndim-1),pstend2)
      else
-        pstend2 = grdin(:,ndim-1,nb)
+        pstend2 = grdin(:,ndim-1)
      endif
      pstendfg = sum(vmassdiv,2)
      vmassdivinc = vmassdiv
      if (nanal .eq. 1) then
-     print *,'time level ',nb
-     print *,'--------------------'
      print *,nanal,'min/max pstendfg',minval(pstendfg),maxval(pstendfg)
      print *,nanal,'min/max pstend inc',minval(pstend2),maxval(pstend2)
      endif
@@ -731,9 +736,9 @@
            call stop2(23)
         endif
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,k,nb),ug)
+           call reducedtoreg(grdin(:,k),ug)
         else
-           ug = grdin(:,k,nb)
+           ug = grdin(:,k)
         endif
         ug =  nems_wrk + ug
         if (.not. massbal_adjust) then
@@ -753,9 +758,9 @@
            call stop2(23)
         endif
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,nlevs+k,nb),vg)
+           call reducedtoreg(grdin(:,nlevs+k),vg)
         else
-           vg = grdin(:,nlevs+k,nb)
+           vg = grdin(:,nlevs+k)
         endif
         vg =  nems_wrk + vg
         if (.not. massbal_adjust) then
@@ -787,11 +792,11 @@
            call stop2(23)
         endif
         if (reducedgrid) then
-           call reducedtoreg(grdin(:,2*nlevs+k,nb),ug)
-           call reducedtoreg(grdin(:,3*nlevs+k,nb),vg)
+           call reducedtoreg(grdin(:,2*nlevs+k),ug)
+           call reducedtoreg(grdin(:,3*nlevs+k),vg)
         else
-           ug = grdin(:,2*nlevs+k,nb)
-           vg = grdin(:,3*nlevs+k,nb)
+           ug = grdin(:,2*nlevs+k)
+           vg = grdin(:,3*nlevs+k)
         endif
         ! ug is Tv increment, nems_wrk is background T, nems_wrk2 is background spfh
         ug = ug + nems_wrk * ( 1.0 + fv*nems_wrk2 )
@@ -818,9 +823,9 @@
         endif
         if (nvars .eq. 5) then
            if (reducedgrid) then
-              call reducedtoreg(grdin(:,4*nlevs+k,nb),ug)
+              call reducedtoreg(grdin(:,4*nlevs+k),ug)
            else
-              ug = grdin(:,4*nlevs+k,nb)
+              ug = grdin(:,4*nlevs+k)
            endif
         else
            ug = 0.
@@ -840,9 +845,9 @@
         endif
         if (nvars .eq. 6) then
            if (reducedgrid) then
-              call reducedtoreg(grdin(:,5*nlevs+k,nb),ug)
+              call reducedtoreg(grdin(:,5*nlevs+k),ug)
            else
-              ug = grdin(:,5*nlevs+k,nb)
+              ug = grdin(:,5*nlevs+k)
            endif
         else
            ug = 0.
@@ -989,8 +994,6 @@
      deallocate(vmassdivinc)
   endif
 
-  end do backgroundloop ! loop over backgrounds to write out
-
  end subroutine writegriddata
 
  end module gridio
@@ -1029,7 +1032,7 @@ module gridio
   use mpisetup, only: nproc
   use netcdf_io
   use params,   only: nlevs, nvars, nlons, nlats, cliptracers, datapath,     &
-       &              arw, nmm, datestring, pseudo_rh
+       &              arw, nmm, doubly_periodic, datestring, pseudo_rh
   use constants, only: zero,one,cp,fv,rd,grav,zero
 
   implicit none
@@ -1047,9 +1050,9 @@ module gridio
 contains
 
   subroutine readgriddata(nanal,vargrid,qsat)
-   integer,                                                   intent(in)  :: nanal
-   real(r_single), dimension(npts,nvars*nlevs+1,nbackgrounds), intent(out) :: vargrid
-   real(r_double), dimension(npts,nlevs,nbackgrounds),         intent(out) :: qsat
+   integer,                                                         intent(in)  :: nanal
+   real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+   real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
    if (arw) then
      call readgriddata_arw(nanal,vargrid,qsat)
    else
@@ -1084,8 +1087,8 @@ contains
 
     ! Define variables returned by subroutine
 
-    real(r_single), dimension(npts,nvars*nlevs+1,nbackgrounds), intent(out) :: vargrid
-    real(r_double), dimension(npts,nlevs,nbackgrounds),         intent(out) :: qsat
+    real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+    real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
 
     ! Define variables computed within subroutine
 
@@ -1121,7 +1124,7 @@ contains
 
     ! Define counting variables
 
-    integer                                                                      :: i, j, k, l, nb
+    integer                                                                      :: i, j, k, l
     integer                                                                      :: counth, countv
     integer                                                                      :: count
 
@@ -1145,12 +1148,6 @@ contains
 
     !----------------------------------------------------------------------
 
-    if (nbackgrounds > 1) then
-       write(6,*)'gridio/readgriddata: reading multiple backgrounds not yet supported'
-       call stop2(23)
-    endif
-    backgroundloop: do nb=1,nbackgrounds
-
     ! Initialize counting variable
 
     countv = 1
@@ -1158,7 +1155,7 @@ contains
     ! Define character string for ensemble member file
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//"firstguess.mem"//charnanal
 
     !----------------------------------------------------------------------
 
@@ -1294,7 +1291,7 @@ contains
 
                    ! Assign values to output variable array
              
-                   vargrid(counth,countv,nb) = workgrid(i,j,k)
+                   vargrid(counth,countv) = workgrid(i,j,k)
 
                    ! Update counting variable
 
@@ -1308,8 +1305,8 @@ contains
 
              if (nproc .eq. 0)                                               &
                   write(6,*) 'READGRIDDATA_ARW: ', trim(gridvarstring(l)),   &
-                  & countv, minval(vargrid(:,countv,nb)),                       &
-                  & maxval(vargrid(:,countv,nb))
+                  & countv, minval(vargrid(:,countv)),                       &
+                  & maxval(vargrid(:,countv))
 
              ! Update counting variable
 
@@ -1466,10 +1463,10 @@ contains
     ! Compute the saturation specific humidity
 
     if (pseudo_rh) then
-       call genqsat1(enkf_spechumd,qsat(:,:,nb),enkf_pressure/100.0,enkf_virttemp,ice,  &
+       call genqsat1(enkf_spechumd,qsat,enkf_pressure/100.0,enkf_virttemp,ice,  &
                      npts,nlevs)
     else
-       qsat(:,:,nb) = 1._r_double
+       qsat = 1._r_double
     endif
           
 
@@ -1495,8 +1492,6 @@ contains
     if(allocated(enkf_virttemp))       deallocate(enkf_virttemp)
     if(allocated(enkf_pressure))       deallocate(enkf_pressure)
     if(allocated(enkf_spechumd))       deallocate(enkf_spechumd)
-
-    end do backgroundloop ! loop over backgrounds to read in
 
     !======================================================================
 
@@ -1534,8 +1529,8 @@ contains
 
     ! Define variables returned by subroutine
 
-    real(r_single),  dimension(npts,nvars*nlevs+1,nbackgrounds),  intent(out) :: vargrid
-    real(r_double),  dimension(npts,nlevs,nbackgrounds),          intent(out) :: qsat
+    real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+    real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
 
     ! Define variables computed within subroutine
 
@@ -1573,7 +1568,7 @@ contains
 
     ! Define counting variables
 
-    integer                                                                      :: i, j, k, l, nb
+    integer                                                                      :: i, j, k, l
     integer                                                                      :: counth, countv
     integer                                                                      :: count
 
@@ -1596,11 +1591,6 @@ contains
     ! dimensions, and allocate memory for NMM dynamical core
 
     !----------------------------------------------------------------------
-    if (nbackgrounds > 1) then
-       write(6,*)'gridio/readgriddata: reading multiple backgrounds not yet supported'
-       call stop2(23)
-    endif
-    backgroundloop: do nb=1,nbackgrounds
 
     ! Initialize counting variable
 
@@ -1609,7 +1599,7 @@ contains
     ! Define character string for ensemble member file
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//"firstguess.mem"//charnanal
 
     !----------------------------------------------------------------------
 
@@ -1745,7 +1735,7 @@ contains
 
                    ! Assign values to output variable array
              
-                   vargrid(counth,countv,nb) = workgrid(i,j,k)
+                   vargrid(counth,countv) = workgrid(i,j,k)
 
                    ! Update counting variable
 
@@ -1759,8 +1749,8 @@ contains
 
              if (nproc .eq. 0)                                               &
                   write(6,*) 'READGRIDDATA_NMM: ', trim(gridvarstring(l)),   &
-                  & countv, minval(vargrid(:,countv,nb)),                    &
-                  & maxval(vargrid(:,countv,nb))
+                  & countv, minval(vargrid(:,countv)),                       &
+                  & maxval(vargrid(:,countv))
 
              ! Update counting variable
 
@@ -1981,10 +1971,10 @@ contains
     ! Compute the saturation specific humidity
 
     if (pseudo_rh) then
-       call genqsat1(enkf_spechumd,qsat(:,:,nb),enkf_pressure/100.0,enkf_virttemp,ice,  &
+       call genqsat1(enkf_spechumd,qsat,enkf_pressure/100.0,enkf_virttemp,ice,  &
                     npts,nlevs)
     else
-       qsat(:,:,nb) = 1._r_double
+       qsat = 1._r_double
     endif
 
     !----------------------------------------------------------------------
@@ -2014,7 +2004,6 @@ contains
     if(allocated(enkf_spechumd))       deallocate(enkf_spechumd)
 
     !======================================================================
-    end do backgroundloop ! loop over backgrounds to read in
 
     ! Return calculated values
 
@@ -2042,7 +2031,7 @@ contains
 
     ! Define variables passed to subroutine
 
-    real(r_single),    dimension(npts,nvars*nlevs+1,nbackgrounds),               intent(in)    :: vargrid
+    real(r_single),    dimension(npts,nvars*nlevs+1),                            intent(in)    :: vargrid
     integer,                                                                     intent(in)    :: nanal                                                
 
     !----------------------------------------------------------------------
@@ -2085,7 +2074,7 @@ contains
 
     ! Define counting variables
 
-    integer                                                                                    :: i, j, k, l, nb
+    integer                                                                                    :: i, j, k, l
     integer                                                                                    :: counth, countv
 
     !----------------------------------------------------------------------
@@ -2101,13 +2090,6 @@ contains
     xdim = dimensions%xdim
     ydim = dimensions%ydim
     zdim = dimensions%zdim
-
-    if (nbackgrounds > 1) then
-       write(6,*)'gridio/writegriddata: writing multiple backgrounds not yet supported'
-       call stop2(23)
-    endif
-
-    backgroundloop: do nb=1,nbackgrounds
 
     ! Allocate memory for local variable
 
@@ -2136,7 +2118,7 @@ contains
     ! level; only variables updated by EnKF are changed
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//"analysis.mem"//charnanal
 
     !----------------------------------------------------------------------
 
@@ -2322,7 +2304,7 @@ contains
 
                 ! Assign values to local array
 
-                workgrid(i,j,k) = vargrid(counth,countv,nb)
+                workgrid(i,j,k) = vargrid(counth,countv)
 
                 ! Update counting variable
 
@@ -2442,7 +2424,6 @@ contains
     ! update respective analysis (e.g., prognostic model) variables
 
     !======================================================================
-    end do backgroundloop ! loop over backgrounds to read in
 
     ! Return calculated values
 
@@ -2463,7 +2444,7 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_getheadvar,nemsio_realkind,nemsio_intkind,&
                          nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
 use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,pseudo_rh, &
-                   cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal
+                   cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal,iau
 use kinds, only: i_kind,r_double,r_kind,r_single
 use constants, only: zero,one,cp,fv,rd,grav,zero
 use gridinfo, only: nvarozone,npts,wind2mass,mass2wind
@@ -2479,8 +2460,8 @@ implicit none
 character(len=500) :: filename
 character(len=3) charnanal
 integer, intent(in) :: nanal
-real(r_double), dimension(npts,nlevs,nbackgrounds), intent(out) :: qsat
-real(r_single), dimension(npts,ndim,nbackgrounds), intent(out) :: grdin
+real(r_double), dimension(npts,nlevs), intent(out) :: qsat
+real(r_single), dimension(npts,ndim), intent(out) :: grdin
 real(r_single), allocatable, dimension(:,:) :: pslg
 real(r_kind), allocatable, dimension(:) :: psg
 real(r_kind) clip
@@ -2489,12 +2470,11 @@ real(nemsio_realkind) nems_wrk(nlons*nlats), nems_wrk2(nlons*nlats), field1(nlev
 real(r_single) aeta1(nlevs),aeta2(nlevs),pt,pdtop
 type(nemsio_gfile) :: gfile
 logical ice
-integer(i_kind) iret,k,kk,nb
-
-backgroundloop: do nb=1,nbackgrounds
+integer(i_kind) iret,k,kk
 
 write(charnanal,'(i3.3)') nanal
-filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+filename =&
+trim(adjustl(datapath))//"sfg_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
 
 call nemsio_init(iret=iret)
 if(iret/=0) then
@@ -2528,7 +2508,7 @@ if (iret/=0) then
 endif
 allocate(psg(nlons*nlats),pslg(nlons*nlats,nlevs))
 psg = 0.01*nems_wrk + pt ! surface pressure, units of hPa
-grdin(:,ndim,nb) = psg
+grdin(:,ndim) = psg
 ! pressure on model levels
 do k=1,nlevs
    pslg(:,k) = aeta1(k)*pdtop + aeta2(k)*(psg - pdtop - pt) + pt
@@ -2542,17 +2522,17 @@ do k=1,nlevs
       write(6,*)'gridio/readgriddata: nmmb model: problem with nemsio_readrecv(ugrd), iret=',iret
       call stop2(23)
    endif
-   grdin(:,k,nb) = nems_wrk
+   grdin(:,k) = nems_wrk
    call nemsio_readrecv(gfile,'vgrd','mid layer',kk,nems_wrk,iret=iret)
    call wind2mass(nems_wrk,nlons,nlats)
    if (iret/=0) then
       write(6,*)'gridio/readgriddata: nmmb model: problem with nemsio_readrecv(vgrd), iret=',iret
       call stop2(23)
    endif
-   grdin(:,k+nlevs,nb) = nems_wrk
+   grdin(:,k+nlevs) = nems_wrk
 enddo
 ice = .false. ! calculate qsat w/resp to ice?
-clip = tiny(grdin(1,1,1))
+clip = tiny(grdin(1,1))
 ! get sensible temperature and humidity
 do k=1,nlevs
    kk = nlevs+1-k ! grids ordered from top to bottom in NMMB
@@ -2567,14 +2547,14 @@ do k=1,nlevs
       call stop2(23)
    endif
    if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
-   grdin(:,k+2*nlevs,nb) = nems_wrk*(1. + fv*nems_wrk2)
-   if (nvars .gt. 3) grdin(:,k+3*nlevs,nb) = nems_wrk2
+   grdin(:,k+2*nlevs) = nems_wrk*(1. + fv*nems_wrk2)
+   if (nvars .gt. 3) grdin(:,k+3*nlevs) = nems_wrk2
 enddo
 ! compute qsat
 if (pseudo_rh) then
-   call genqsat1(grdin(:,3*nlevs+1:4*nlevs,nb),qsat(:,:,nb),pslg,grdin(:,2*nlevs+1:3*nlevs,nb),ice,npts,nlevs)
+   call genqsat1(grdin(:,3*nlevs+1:4*nlevs),qsat,pslg,grdin(:,2*nlevs+1:3*nlevs),ice,npts,nlevs)
 else
-   qsat(:,:,nb) = 1._r_double
+   qsat = 1._r_double
 end if
 ! other tracers
 !if nvars == 5 and nvarozone == 5, o3mr is nvar 5
@@ -2587,7 +2567,7 @@ if (nvars == 5 .and. nvarozone == 5) then
           call stop2(23)
        endif
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
-       grdin(:,k+4*nlevs,nb) = nems_wrk
+       grdin(:,k+4*nlevs) = nems_wrk
     enddo
 endif
 !if nvars == 5 and nvarozone == 0; clwmr is nvar 5
@@ -2600,7 +2580,7 @@ if (nvars == 5 .and. nvarozone == 0) then
           call stop2(23)
        endif
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
-       grdin(:,k+4*nlevs,nb) = nems_wrk
+       grdin(:,k+4*nlevs) = nems_wrk
     enddo
 endif
 !if nvars == 6 and nvarozone == 5, clwmr is nvar=6
@@ -2613,14 +2593,12 @@ if (nvars == 6 .and. nvarozone == 5) then
           call stop2(23)
        endif
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
-       grdin(:,k+5*nlevs,nb) = nems_wrk
+       grdin(:,k+5*nlevs) = nems_wrk
     enddo
 endif
   
 deallocate(psg,pslg)
 call nemsio_close(gfile, iret=iret)
-
-end do backgroundloop ! loop over backgrounds to read in
 
 end subroutine readgriddata
 
@@ -2630,10 +2608,10 @@ implicit none
 
 character(len=500):: filename
 integer, intent(in) :: nanal
-real(r_single), dimension(npts,ndim,nbackgrounds), intent(inout) :: grdin
+real(r_single), dimension(npts,ndim), intent(inout) :: grdin
 character(len=3) charnanal
 integer(nemsio_intkind) iret,nfhour,jdate(7),idat(3),ihrst,nfminute,ntimestep,nfsecond
-integer iadate(4),idate(4),k,kk,nb
+integer iadate(4),idate(4),k,kk
 integer,dimension(8):: ida,jda
 real(r_double),dimension(5):: fha
 real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk,nems_wrk2,psg
@@ -2641,14 +2619,18 @@ real(r_single) pdtop,pt
 real(r_kind) clip
 type(nemsio_gfile) :: gfile
 
-clip = tiny(grdin(1,1,1))
+clip = tiny(grdin(1,1))
 
 ! First guess file should be copied to analysis file at scripting
 ! level; only variables updated by EnKF are changed
-backgroundloop: do nb=1,nbackgrounds
 
 write(charnanal,'(i3.3)') nanal
-filename = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+if (iau) then
+   filename = &
+   trim(adjustl(datapath))//"sanl_"//datestring//"_fhr"//charfhr_anal//"_mem"//charnanal
+else
+   filename = trim(adjustl(datapath))//"sanl_"//datestring//"_mem"//charnanal
+endif
 
 call nemsio_init(iret=iret)
 if(iret/=0) then
@@ -2751,7 +2733,7 @@ if (iret/=0) then
    call stop2(23)
 endif
 psg = 0.01*nems_wrk + pt ! surface pressure, units of hPa
-psg = psg + grdin(:,ndim,nb) ! add increment
+psg = psg + grdin(:,ndim) ! add increment
 nems_wrk = 100.*(psg - pt)
 call nemsio_writerecv(gfile,'dpres','hybrid sig lev',1,nems_wrk,iret=iret)
 if (iret/=0) then
@@ -2767,7 +2749,7 @@ do k=1,nlevs
       write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(ugrd), iret=',iret
       call stop2(23)
    endif
-   nems_wrk2 = grdin(:,k,nb)
+   nems_wrk2 = grdin(:,k)
    call mass2wind(nems_wrk2,nlons,nlats)
    nems_wrk = nems_wrk + nems_wrk2
    call nemsio_writerecv(gfile,'ugrd','mid layer',kk,nems_wrk,iret=iret)
@@ -2781,7 +2763,7 @@ do k=1,nlevs
       write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(vgrd), iret=',iret
       call stop2(23)
    endif
-   nems_wrk2 = grdin(:,k+nlevs,nb)
+   nems_wrk2 = grdin(:,k+nlevs)
    call mass2wind(nems_wrk2,nlons,nlats)
    nems_wrk = nems_wrk + nems_wrk2
    call nemsio_writerecv(gfile,'vgrd','mid layer',kk,nems_wrk,iret=iret)
@@ -2791,7 +2773,7 @@ do k=1,nlevs
    endif
 enddo
 
-clip = tiny(grdin(1,1,1))
+clip = tiny(grdin(1,1))
 ! update sensible temperature and humidity
 do k=1,nlevs
    kk = nlevs+1-k ! grids ordered from top to bottom in NMMB
@@ -2805,8 +2787,8 @@ do k=1,nlevs
       write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(spfh), iret=',iret
       call stop2(23)
    endif
-   nems_wrk = nems_wrk*(1. + fv*nems_wrk2) + grdin(:,k+2*nlevs,nb)
-   nems_wrk2 = nems_wrk2 + grdin(:,k+3*nlevs,nb)
+   nems_wrk = nems_wrk*(1. + fv*nems_wrk2) + grdin(:,k+2*nlevs)
+   nems_wrk2 = nems_wrk2 + grdin(:,k+3*nlevs)
    if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
    ! nems_wrk is now updated Tv, convert back to T
    nems_wrk = nems_wrk/(1. + fv*nems_wrk2)
@@ -2831,7 +2813,7 @@ if (nvars == 5 .and. nvarozone == 5) then
           write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(o3mr), iret=',iret
           call stop2(23)
        endif
-       nems_wrk = nems_wrk + grdin(:,k+4*nlevs,nb)
+       nems_wrk = nems_wrk + grdin(:,k+4*nlevs)
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
        call nemsio_writerecv(gfile,'o3mr','mid layer',kk,nems_wrk,iret=iret)
        if (iret/=0) then
@@ -2849,7 +2831,7 @@ if (nvars == 5 .and. nvarozone == 0) then
           write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(clwmr), iret=',iret
           call stop2(23)
        endif
-       nems_wrk = nems_wrk + grdin(:,k+4*nlevs,nb)
+       nems_wrk = nems_wrk + grdin(:,k+4*nlevs)
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
        call nemsio_writerecv(gfile,'clwmr','mid layer',kk,nems_wrk,iret=iret)
        if (iret/=0) then
@@ -2867,7 +2849,7 @@ if (nvars == 6 .and. nvarozone == 5) then
           write(6,*)'gridio/writegriddata: nmmb model: problem with nemsio_readrecv(clwmr), iret=',iret
           call stop2(23)
        endif
-       nems_wrk = nems_wrk + grdin(:,k+5*nlevs,nb)
+       nems_wrk = nems_wrk + grdin(:,k+5*nlevs)
        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
        call nemsio_writerecv(gfile,'clwmr','mid layer',kk,nems_wrk,iret=iret)
        if (iret/=0) then
@@ -2877,8 +2859,6 @@ if (nvars == 6 .and. nvarozone == 5) then
     enddo
 endif
 call nemsio_close(gfile, iret=iret)
-
-end do backgroundloop ! loop over backgrounds to read in
 
 end subroutine writegriddata
 
