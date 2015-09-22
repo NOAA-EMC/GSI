@@ -99,6 +99,8 @@ module hybrid_ensemble_isotropic
 
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use hybrid_ensemble_parameters, only: nval_lenz_en
+  use string_utility, only: StrUpCase
+
   implicit none
 
 ! set default to private
@@ -2534,7 +2536,7 @@ subroutine beta12mult(grady)
 !            adjusting beta1_inv between 0 and 1 allows tuning for optimal
 !            blend between information provided by static background B and
 !            ensemble based background.  beta1_inv=1 gives full weight to B
-!            and betainv=0 gives full weight to ensemble.
+!            and beta1_inv=0 gives full weight to ensemble.
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
@@ -2576,106 +2578,59 @@ subroutine beta12mult(grady)
   integer(i_kind) i,j,k
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
-! Initialize timer
+  ! Initialize timer
   call timer_ini('beta12mult')
-  if(regional .and. betaflg) then
-!   Request CV pointers to vars pertinent to ensemble
-    call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
-    if(istatus/=0) then
-       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
-       call stop2(999)
-    endif
-    call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
-    if(istatus/=0) then
-       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
-       call stop2(999)
-    endif
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
-    do j=1,lon2
-       do ii=1,nsubwin
 
-!    multiply by beta1_inv first:
-          do ic3=1,nc3d
-!    check for ozone and skip if oz_univ_static = true
-             if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-             do k=1,nsig
-                do i=1,lat2
-                   grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) =beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
-                enddo
-             enddo
-          enddo
-          do ic2=1,nc2d
-! Default to static B estimate for SST
-             if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle
-             do i=1,lat2
-                grady%step(ii)%r2(ipc2d(ic2))%q(i,j) =beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
-             enddo
-          enddo
-       enddo
-    end do
+  ! Request CV pointers to vars pertinent to ensemble
+  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+     call stop2(999)
+  endif
+  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+     call stop2(999)
+  endif
+
+!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
+  ! first multiply by beta1wgt
+  do j=1,lon2
+     do ii=1,nsubwin
+        do ic3=1,nc3d
+           ! check for ozone and skip if oz_univ_static = true
+           if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+           do k=1,nsig
+              do i=1,lat2
+                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+              enddo
+           enddo
+        enddo
+        do ic2=1,nc2d
+           ! Default to static B estimate for SST
+           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
+           do i=1,lat2
+              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+           enddo
+        enddo
+     enddo
+  enddo
 
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
-!      next multiply by beta2inv:
-    do j=1,grd_ens%lon2
-       do ii=1,nsubwin
-          do nn=1,n_ens
-             do k=1,grd_ens%nsig
-                do i=1,grd_ens%lat2
-                   grady%aens(ii,nn)%r3(1)%q(i,j,k) =beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
-                enddo
-             enddo
-          enddo
-       enddo
-  
+  ! next multiply by beta2wgt
+  do j=1,grd_ens%lon2
+     do ii=1,nsubwin
+        do nn=1,n_ens
+           do k=1,grd_ens%nsig
+              do i=1,grd_ens%lat2
+                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
+              enddo
+           enddo
+        enddo
+     enddo
+  enddo
 
-    end do
-  else
-
-!   Request CV pointers to vars pertinent to ensemble
-    call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
-    if(istatus/=0) then
-       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
-       call stop2(999)
-    endif
-    call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
-    if(istatus/=0) then
-       write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
-       call stop2(999)
-    endif
-!$omp parallel do schedule(dynamic,1) private(ii,ic3,ic2,k,j,i)
-    do j=1,lon2
-       do ii=1,nsubwin
-  
-!      multiply by betas_inv first:
-         do ic3=1,nc3d
-!    check for ozone and skip if oz_univ_static = true
-          if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-            do k=1,nsig
-              grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,j,k)
-            enddo
-         enddo
-         do ic2=1,nc2d
-! Default to static B estimate for SST
-            if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-            grady%step(ii)%r2(ipc2d(ic2))%q(:,j) =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q(:,j)
-         enddo
-
-       end do
-    end do
-!$omp parallel do schedule(dynamic,1) private(ii,nn,k,j,i)
-    do j=1,grd_ens%lon2
-       do ii=1,nsubwin
-!      next multiply by betae_inv:
-         do nn=1,n_ens
-          do k=1,nsig
-             grady%aens(ii,nn)%r3(1)%q(:,j,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,j,k)
-          enddo
-         enddo
-     
- 
-       end do
-    end do
-  endif ! regional
+  ! Finalize timer
   call timer_fnl('beta12mult')
 
   return
@@ -3933,10 +3888,10 @@ subroutine hybens_localization_setup
 !
 ! program history log:
 !   2010-07-30  kleist
-!   2011-10-03  wu - add call to setup_ens_pwgt, which computes vertical weighting for ensemble contribution
+!   2011-10-03  wu - add call to setup_ens_wgt, which computes vertical weighting for ensemble contribution
 !                     to psfc.
 !   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
-!   2012-10-16  wu - only call setup_ens_pwgt if necessary
+!   2012-10-16  wu - only call setup_ens_wgt if necessary
 !   2014-05-22  wu  modification to allow vertically varying localization scales in regional
 !
 !   input argument list:
@@ -4054,7 +4009,7 @@ subroutine hybens_localization_setup
       call init_sf_xy(jcap_ens)
    endif
 
-   call setup_ens_pwgt
+   call setup_ens_wgt
 
    !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
    !     and triggered by lsqrtb.
@@ -4974,6 +4929,161 @@ subroutine acceptable_for_essl_fft(nin,nout)
     return
 
 end subroutine acceptable_for_essl_fft
+
+subroutine setup_ens_wgt 
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    setup_ens_wgt
+!   prgmmr: wu               org: np22                date: 2011-06-14
+!
+! abstract: setup pwgt and beta1wgt, beta2wgt
+!           pwgt : vertical projection of control variable A for Psfc
+!           beta1wgt, beta2wgt : vertical smoothing of hybridization
+!           coefficients 
+!
+! program history log:
+!   2011_06_14  wu- initial documentation
+!   2012-10-16  wu- only setup if the options are on
+!   2013-10-19  todling - all guess variables in met-guess
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a,coef_bw
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig,regional
+  use general_sub2grid_mod, only: general_suba2sube
+  use guess_grids, only: ges_prsl,ntguessig
+  use balmod, only: wgvk
+  use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
+  use constants,only: zero,one,ten,two,half
+  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res,betas_inv,betae_inv
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use mpeu_util, only: die
+
+  implicit none
+
+  character(len=*),parameter::myname='setup_ens_wgt::'
+  integer(i_kind) :: k,i,j,istatus
+  real(r_kind) :: tmp_sum
+  integer(i_kind) :: k8,k1
+  real(r_kind) :: pih
+  real(r_kind) :: beta2_inv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
+  real(r_kind) :: rk81(2),rk810(2)
+  real(r_kind),pointer :: ges_ps(:,:) => NULL()
+
+!!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
+!!!! weigh with balanced projection for pressure
+
+  if ( pwgtflg ) then
+
+     if ( .not. regional ) then
+        if ( mype == 0 ) &
+            write(6,*) 'SETUP_ENS_WGT: routine not built for vertical integration function on ensemble contribution of surface pressure for global application, using defaults'
+        goto 199
+     endif
+
+     allocate ( wgvk_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+     allocate ( wgvk_anl(lat2,lon2,nsig,1) )
+     if ( dual_res ) then
+        wgvk_anl(:,:,:,1) = wgvk(:,:,:)
+        call general_suba2sube(grd_a1,grd_e1,p_e2a,wgvk_anl,wgvk_ens,regional)
+     else
+        wgvk_ens(:,:,:,1) = wgvk(:,:,:)
+     endif
+
+     pwgt = zero
+     do j=1,grd_ens%lon2
+        do i=1,grd_ens%lat2
+           tmp_sum = zero
+           do k=1,grd_ens%nsig
+              tmp_sum = tmp_sum + wgvk_ens(i,j,k,1)
+           enddo
+           if ( tmp_sum /= zero ) tmp_sum = one / tmp_sum
+           do k=1,grd_ens%nsig
+              pwgt(i,j,k)= tmp_sum * wgvk_ens(i,j,k,1)
+           enddo
+        enddo
+     enddo
+     deallocate(wgvk_ens,wgvk_anl)
+
+  endif ! if ( pwgtflg )
+
+199 continue
+
+!!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
+
+  ! Set defaults
+  beta1wgt = betas_inv
+  beta2wgt = betae_inv
+  if ( betaflg ) then
+
+     if ( .not. regional ) then
+        if ( mype == 0 ) &
+            write(6,*) 'SETUP_ENS_WGT: routine not built for smoothing vertical beta weights for global application, using defaults'
+        goto 299
+     endif
+
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus )
+     if ( istatus /= 0 ) call die(trim(myname),'cannot get pointers for met-fields, ier =',istatus)
+
+     i = lat2 / 2
+     j = lon2 / 2
+
+     k8_loop: do k=1,nsig
+        if ( ges_prsl(i,j,k,ntguessig)/ges_ps(i,j) < .85_r_kind ) then
+           rk81(1) = k
+           exit k8_loop
+        endif
+     enddo k8_loop
+
+     k1_loop: do k=nsig,1,-1
+        if ( ges_prsl(i,j,k,ntguessig) > ten ) then
+           rk81(2) = k
+           exit k1_loop
+        endif
+     enddo k1_loop
+
+! get domain mean k8 and k1
+     call mpi_allreduce(rk81,rk810,2,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+     k8 = int(rk810(1)/float(npe))
+     k1 = int(rk810(2)/float(npe))
+
+     beta2wgt = one
+     pih = atan(one) * two / float(k8-1)
+
+!!! hardwired numbers for beta profile; can be tuned differently  !!!!!!!!!!!!
+     do k=1,k8-1
+        beta2wgt(k) = ( one - coef_bw ) + coef_bw * sin(pih*float(k-1))
+     enddo
+     pih = one / ( log(ges_prsl(i,j,k1,ntguessig)) - log(ges_prsl(i,j,nsig,ntguessig)) )
+     do k=k1+1,nsig
+        beta2wgt(k) = one - coef_bw * pih * ( log(ges_prsl(i,j,k1,ntguessig)) - log(ges_prsl(i,j,k,ntguessig)) )
+     enddo
+
+     beta2_inv = one - beta1_inv
+     beta2wgt  = beta2wgt * beta2_inv
+
+     do k=1,nsig
+        beta1wgt(k) = one - beta2wgt(k)
+     enddo
+
+  endif ! if ( betaflg )
+
+299 continue
+
+  return
+
+end subroutine setup_ens_wgt
 
 end module hybrid_ensemble_isotropic
 
