@@ -449,6 +449,7 @@ clean:
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
+        read_mitm_mxtm.f90 \
 	read_obsdiags.F90 \
 	read_wrf_mass_files.F90 \
 	read_wrf_mass_guess.F90 \
