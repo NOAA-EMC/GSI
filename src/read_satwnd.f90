@@ -381,6 +381,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               exit matchloop
            else
 !  Find convtype which match ob type and subtype group (isubtype == ?*)
+!       where ? specifies the group and icsubtype = ?0)
               ixsub=icsubtype(nc)/10
               iosub=iobsub/10
               isubsub=icsubtype(nc)-ixsub*10
@@ -821,6 +822,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !          if(hdrdat(1) >=r200 .and. hdrdat(1) <= r299 ) then
 !             call ufbseq(lunin,heightdat,3,5,iret,heightr)         
 !             call ufbseq(lunin,derdwdat,6,4,iret,derdwtr)         
+!             write(99,*) 'heightdat ',itype
+!             write(99,101) heightdat(2,1),heightdat(2,2),heightdat(2,3),heightdat(2,4),heightdat(2,5)
+!101 format(5e10.2)
 !             uob1=-derdwdat(6,2)*sin(derdwdat(5,2)*deg2rad)    ! get originial wind info
 !             vob1=-derdwdat(6,2)*cos(derdwdat(5,2)*deg2rad)    ! get originial wind info
 !             if(itype == 245 ) then
@@ -839,6 +843,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ierr=index_sub(nc)
               ierr2=ierr-1
               if (ierr >maxsub_uv) ierr=2
+!                 write(6,*) '**********************READ_SATWND:'
+!                 write(6,*) 'READ_SATWND:itypey,nc,ierr=index_sub(nc), ierr2=,iobsub,isuble_uv(itypey,ierr2)'
+!                 write(6,*) itypey,nc,index_sub(nc), iobsub,isuble_uv(itypey,ierr2)
+!                 write(6,*) '**********************READ_SATWND:'
               if( iobsub /= isuble_uv(itypey,ierr2)) then
                  write(6,*) ' READ_SATWND: the subtypes do not match subtype &
                             in errortable,iobsub NE isuble_uv(itypey,ierr2)',iobsub,isuble_uv(itypey,ierr2), &
@@ -870,6 +878,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
               var_jb=max(var_jb,wjbmin)
               if (var_jb >10.0_r_kind) var_jb=zero
+!              if (itype ==245 ) then
+!                write(6,*)
+!                'READ_SATWND:obserr,var_jb,ppb,del,one,etabl_uv,btabl_uv=',&
+!                obserr,var_jb,ppb,del,one,etabl_uv(itypey,k1,ierr),btabl_uv(itypey,k1,ierr),wjbmin,werrmin
+!           endif
            else                         ! else use the ONE error table
               if(ppb>=etabl(itype,1,1)) k1=1
               do kl=1,32
