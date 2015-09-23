@@ -2574,9 +2574,8 @@ subroutine beta12mult(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*beta12mult'
-  integer(i_kind) ii,nn,ic2,ic3
-  integer(i_kind) i,j,k
-  integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
+  integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
+  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
 
   ! Initialize timer
   call timer_ini('beta12mult')
@@ -2676,37 +2675,37 @@ subroutine sqrt_beta1mult(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta1mult'
-  integer(i_kind) ic2,ic3
-  real(r_kind) sqrt_beta1_inv
-  integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
+  real(r_kind) :: sqrt_beta1_inv
+  integer(i_kind) :: ic2,ic3,istatus
+  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
 
 ! Initialize timer
   call timer_ini('sqrt_beta1mult')
 
 ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady, cvars3d, ipc3d, istatus )
-  if(istatus/=0) then
+  if ( istatus /= 0 ) then
      write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
      call stop2(999)
   endif
   call gsi_bundlegetpointer ( grady, cvars2d, ipc2d, istatus )
-  if(istatus/=0) then
+  if( istatus /= 0 ) then
      write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
      call stop2(999)
   endif
 
-  sqrt_beta1_inv=sqrt(beta1_inv)
+  sqrt_beta1_inv = sqrt(beta1_inv)
 
-! multiply by beta1_inv first:
+  ! multiply by beta1_inv first:
   do ic3=1,nc3d
-!    check for ozone and skip if oz_univ_static = true
-if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-     grady%r3(ipc3d(ic3))%q =sqrt_beta1_inv*grady%r3(ipc3d(ic3))%q
+     ! check for ozone and skip if oz_univ_static = true
+     if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+     grady%r3(ipc3d(ic3))%q = sqrt_beta1_inv*grady%r3(ipc3d(ic3))%q
   enddo
   do ic2=1,nc2d
-! Default to static B estimate for SST
-     if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-     grady%r2(ipc2d(ic2))%q =sqrt_beta1_inv*grady%r2(ipc2d(ic2))%q
+     ! Default to static B estimate for SST
+     if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle 
+     grady%r2(ipc2d(ic2))%q = sqrt_beta1_inv*grady%r2(ipc2d(ic2))%q
   enddo
 
   call timer_fnl('sqrt_beta1mult')
@@ -2752,18 +2751,18 @@ subroutine sqrt_beta2mult(aens)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta2mult'
-  integer(i_kind) nn
-  real(r_kind) sqrt_beta2_inv
+  real(r_kind) :: sqrt_beta2_inv
+  integer(i_kind) :: nn
 
 ! Initialize timer
   call timer_ini('sqrt_beta2mult')
 
-  sqrt_beta2_inv=sqrt(one-beta1_inv)
+  sqrt_beta2_inv = sqrt(one-beta1_inv)
 
 ! multiply by beta2inv:
 !$omp parallel do schedule(dynamic,1) private(nn)
   do nn=1,n_ens
-     aens(nn)%values(:)=sqrt_beta2_inv*aens(nn)%values(:)
+     aens(nn)%values(:) = sqrt_beta2_inv*aens(nn)%values(:)
   enddo
 
   call timer_fnl('sqrt_beta2mult')
