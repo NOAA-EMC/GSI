@@ -560,7 +560,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     sensorindex = 1
 ! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
 ! and BUFR files is checked in read_cris:
- else if (channelinfo(1)%sensor_id(1:8) == 'cris-fsr' .AND. isis(1:8) == 'cris-fsr') then
+ else if (channelinfo(1)%sensor_id(1:12) == 'cris-fsr2211' .AND. isis(1:8) == 'cris-fsr') then
     sensorindex = 1
     subset_start = 0
     subset_end = 0
@@ -574,7 +574,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     error_status = crtm_channelinfo_subset(channelinfo(1), &
          channel_subset = nuchan(subset_start:subset_end))
 
- else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') then
+ else if (channelinfo(1)%sensor_id(1:8) == 'cris1305' .AND. isis(1:4) == 'cris') then
     sensorindex = 1
     subset_start = 0
     subset_end = 0

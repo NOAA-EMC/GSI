@@ -288,14 +288,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do  satinfo_chan
 
 !  find CRIS sensorindex.  This should not be necessary as the if statement in read_obs.f90 calling this subroutine requires 'cris'
-!  sensorindex = 0
-!  if ( sc(1)%sensor_id(1:4) == 'cris' )then
+  sensorindex = 0
+  if ( sc(1)%sensor_id(1:8) == 'cris1305' .or. sc(1)%sensor_id(1:12) == 'cris-fsr2211' )then
      sensorindex = 1
-!  else
-!     write(6,*)'READ_CRIS: sensorindex not set  NO CRIS DATA USED'
-!     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id
-!     return
-!  end if
+  else
+     write(6,*)'READ_CRIS: sensorindex not set  NO CRIS DATA USED'
+     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id
+     return
+  end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -354,10 +354,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Check for data / sensor resolution mis-match 
      call ufbint(lnbufr,rchar_mtyp,1,1,iret,'MTYP')
      char_mtyp = transfer(rchar_mtyp,char_mtyp)
-     if ( char_mtyp == 'NOR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
-     if ( char_mtyp /= 'NOR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
-!     if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
-!     if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
+     if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
+     if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
 
 !    Get the size of the channels and radiance (allchan) array
      call ufbint(lnbufr,crchn_reps,1,1,iret,'CHNM')
