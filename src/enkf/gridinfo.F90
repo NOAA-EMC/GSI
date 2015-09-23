@@ -30,7 +30,8 @@ module gridinfo
 !   ptop: (real scalar) pressure (hPa) at top model layer interface.
 !   lonsgrd(npts): real array of analysis grid longitudes (radians).
 !   latsgrd(npts): real array of analysis grid latitudes (radians).
-!   logp(npts,ndim):  -log(press) for all 2d analysis grids.
+!   logp(npts,ndim):  -log(press) for all 2d analysis grids. Assumed invariant
+!   in assimilation window, computed fro ensemble mean at middle of window.
 !   gridloc(3,npts): spherical cartesian coordinates (x,y,z) for analysis grid.
 !   
 ! Modules Used: mpisetup, params, kinds
@@ -44,8 +45,9 @@ module gridinfo
 !$$$
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
-use params, only: datapath,nlevs,nvars,ndim,datestring,&
-                  nlons,nlats,reducedgrid,massbal_adjust,use_gfs_nemsio
+use params, only: datapath,nlevs,nvars,ndim,datestring,charfhr_anal,&
+                  nlons,nlats,nbackgrounds,reducedgrid,massbal_adjust,use_gfs_nemsio,&
+                  fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -98,7 +100,7 @@ nvarhumid = 4
 nvarozone = 5
 if (nproc .eq. 0) then
 if (use_gfs_nemsio) then
-     filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+     filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_init, iret=',iret
@@ -123,7 +125,7 @@ if (use_gfs_nemsio) then
        call stop2(23)
      end if
 else
-     filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+     filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
      ! define sighead on all tasks.
      call sigio_sropen(iunit,trim(filename),iret)
      if (iret /= 0) then
@@ -278,7 +280,10 @@ if (nproc .ne. 0) then
       call reducedgrid_init(nlons,nlats,asin_gaulats)
    end if
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+!call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+do k=1,nlevs_pres
+  call mpi_bcast(logp(1,k),npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
@@ -351,9 +356,9 @@ module gridinfo
   use constants, only: rearth_equator, omega, pi, deg2rad, zero, rad2deg,    &
                        rearth
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
-  use enkf_obsmod,    only: obloc, obloclat, obloclon, nobsgood
+  use enkf_obsmod,    only: obloc, obloclat, obloclon, nobstot
   use params,    only: datapath, nlevs, nvars, ndim, nlons, nlats,           &
-                       arw, nmm, doubly_periodic
+                       arw, nmm
   use mpisetup
   use netcdf_io
 
@@ -680,14 +685,6 @@ contains
   ! and log(pressure) values which is currently defaulted to the
   ! ensemble mean in the EnKF implication of J. Whitaker
 
-  ! NOTE: This subroutine is capable of computing the geographical
-  ! position (i.e., longitude and latitude) grid for doubly-periodic
-  ! WRF ARW grid configurations; the horizontal grid configuration is
-  ! declared by the namelist variable 'doubly_periodic'; if
-  ! doubly_periodic = .true., the radial distances required for the
-  ! covariance localization is also computed accordingly within this
-  ! routine
-
   ! NOTE: the EnKF assumes all variables are defined along mass (i.e.,
   ! unstaggered grid points) and thus we statically assign array
   ! dimensions during allocation process
@@ -754,7 +751,7 @@ contains
 
     ! Build the ensemble mean filename expected by routine
 
-    filename = trim(adjustl(datapath))//"firstguess.ensmean"
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
 
     ! Obtain unstaggered grid dimensions from ingested variable file
 
@@ -867,185 +864,89 @@ contains
 
     !----------------------------------------------------------------------
 
-       ! If the simulation grid is not doubly periodic, ingest
-       ! geographical position variables (and grids) accordingly
 
-       if(.not. doubly_periodic) then
+       ! Allocate memory for local variable grid
 
-          ! Allocate memory for local variable grid
+       if(.not. allocated(workgrid)) allocate(workgrid(dimensions%xdim,  &
+            & dimensions%ydim,1))
 
-          if(.not. allocated(workgrid)) allocate(workgrid(dimensions%xdim,  &
-               & dimensions%ydim,1))
+       ! Ingest variable from external file
 
-          ! Ingest variable from external file
+       varstringname = 'XLONG'
+       call readnetcdfdata(filename,workgrid,varstringname,              &
+            & dimensions%xdim,dimensions%ydim,1)
 
-          varstringname = 'XLONG'
-          call readnetcdfdata(filename,workgrid,varstringname,              &
-               & dimensions%xdim,dimensions%ydim,1)
+       ! Initialize counting variable
 
-          ! Initialize counting variable
+       count = 1
 
-          count = 1
+       ! Loop through meridional horizontal coordinate
 
-          ! Loop through meridional horizontal coordinate
+       do j = 1, dimensions%ydim
 
-          do j = 1, dimensions%ydim
+          ! Loop through zonal horizontal coordinate
 
-             ! Loop through zonal horizontal coordinate
-
-             do i = 1, dimensions%xdim
-          
-                ! Convert from degrees to radians and update the
-                ! global longitude array
-
-                lonsgrd(count) = workgrid(i,j,1)*deg2rad
-             
-                ! Update counting variable
-
-                count = count + 1
-
-             end do ! do i = 1, dimensions%xdim
-
-          end do ! do j = 1, dimensions%ydim
-
-          ! Deallocate memory for local variable grid
-
-          if(allocated(workgrid)) deallocate(workgrid)
-
-          ! Allocate memory for local variable grid
-
-          if(.not. allocated(workgrid)) allocate(workgrid(dimensions%xdim,  &
-               & dimensions%ydim,1))
+          do i = 1, dimensions%xdim
        
-          ! Ingest variable from external file
+             ! Convert from degrees to radians and update the
+             ! global longitude array
 
-          varstringname = 'XLAT'
-          call readnetcdfdata(filename,workgrid,varstringname,              &
-               & dimensions%xdim,dimensions%ydim,1)
-
-          ! Initialize counting variable
-
-          count = 1
-
-          ! Loop through meridional horizontal coordinate
-
-          do j = 1, dimensions%ydim
-
-             ! Loop through zonal horizontal coordinate
-
-             do i = 1, dimensions%xdim
+             lonsgrd(count) = workgrid(i,j,1)*deg2rad
           
-                ! Convert from degrees to radians and update the
-                ! global latitude array
-                
-                latsgrd(count) = workgrid(i,j,1)*deg2rad
+             ! Update counting variable
 
-                ! Update counting variable
+             count = count + 1
 
-                count = count + 1
+          end do ! do i = 1, dimensions%xdim
 
-             end do ! do i = 1, dimensions%xdim
+       end do ! do j = 1, dimensions%ydim
 
-          end do ! do j = 1, dimensions%ydim
+       ! Deallocate memory for local variable grid
 
-          ! Deallocate memory for local variable grid
+       if(allocated(workgrid)) deallocate(workgrid)
 
-          if(allocated(workgrid)) deallocate(workgrid)
+       ! Allocate memory for local variable grid
 
-       end if ! if(.not. doubly_periodic)
+       if(.not. allocated(workgrid)) allocate(workgrid(dimensions%xdim,  &
+            & dimensions%ydim,1))
+       
+       ! Ingest variable from external file
+
+       varstringname = 'XLAT'
+       call readnetcdfdata(filename,workgrid,varstringname,              &
+            & dimensions%xdim,dimensions%ydim,1)
+
+       ! Initialize counting variable
+
+       count = 1
+
+       ! Loop through meridional horizontal coordinate
+
+       do j = 1, dimensions%ydim
+
+          ! Loop through zonal horizontal coordinate
+
+          do i = 1, dimensions%xdim
+       
+             ! Convert from degrees to radians and update the
+             ! global latitude array
+             
+             latsgrd(count) = workgrid(i,j,1)*deg2rad
+
+             ! Update counting variable
+
+             count = count + 1
+
+          end do ! do i = 1, dimensions%xdim
+
+       end do ! do j = 1, dimensions%ydim
+
+       ! Deallocate memory for local variable grid
+
+       if(allocated(workgrid)) deallocate(workgrid)
 
     !----------------------------------------------------------------------
 
-       ! Perform check for whether latitude and longiture values are
-       ! zero (meaning they are defined for a WRF-ARW f-plane
-       ! simulation); if they are zero, define latitude and longitude
-       ! points relative to the f-plane value and an arbitrary
-       ! longitude coordinate
-
-       if(doubly_periodic) then
-       
-          ! Allocate memory for local variable grid
-       
-          if(.not. allocated(workgrid)) allocate(workgrid(dimensions%xdim,  &
-               & dimensions%ydim,1))
-
-          ! Ingest variable from external file
-       
-          varstringname = 'F'
-          call readnetcdfdata(filename,workgrid,varstringname,              &
-               & dimensions%xdim,dimensions%ydim,1)
-
-          ! Ingest attribute from external fle
-       
-          attstringname = 'DX'
-          call globalattribute_real(filename,attstringname,recenter_dx)
-       
-          ! Compute the latitude coordinate about which the grid is to
-          ! be centered
-
-          recenter_xlat = asin(workgrid(1,1,1))/(2.0*omega) 
-
-          ! Print message to user
-
-          write(6,*) 'The doubly periodic grid spacing is ', recenter_dx,   &
-               & ' meters.'
-          write(6,*) 'The doubly periodic grid center latitude ',           &
-               & 'coordinate is ', recenter_xlat*rad2deg
-
-          ! Compute local variables
-
-          dlon = recenter_dx/rearth_equator
-          dlat = dlon
-
-          ! Print message to user
-
-          write(6,*) 'The longitude and latidue grid spacing (degrees) ',   &
-               & ' for the doubly periodic grid is ', dlon*rad2deg,         &
-               & dlat*rad2deg
-
-          ! Deallocate memory for local variable grid
-
-          if(allocated(workgrid)) deallocate(workgrid)
-       
-          ! Initialize counting variable
-
-          count = 1
-
-          ! Loop through meridional horizontal coordinate
-
-          do j = 1, dimensions%ydim
-
-             ! Loop through zonal horizontal coordinate
-
-             do i = 1, dimensions%xdim
-
-                ! Compute the values for the respective geographic
-                ! (i.e., longitude and latitude coordinate) values
-
-                lonsgrd(count) = float(i-1)*dlon
-                latsgrd(count) = float(j-1)*dlat
-
-                ! Update counting variable
-
-                count = count + 1
-                
-             end do ! do i = 1, dimensions%xdim
-             
-          end do ! do j = 1, dimensions%ydim
-
-          ! Compute local variables
-          
-          dlon = 0.5*maxval(lonsgrd)
-          lonsgrd = lonsgrd - dlon
-
-          ! Compute local variables
-
-          dlat = 0.5*maxval(latsgrd)
-          latsgrd = latsgrd - dlat + recenter_xlat
-
-       end if ! if(doubly_periodic)
-
-    !----------------------------------------------------------------------
 
        ! Ingest surface pressure grid from external file
 
@@ -1268,128 +1169,29 @@ contains
 
     !----------------------------------------------------------------------
 
-    ! If the WRF-ARW grid is doubly periodic, recompute cartesian
-    ! coords of analysis grid points for the covariance localization
 
-    if(doubly_periodic) then
-       
-       ! Allocate memory for local variable
+    ! Allocate memory for local variable
 
-       if(.not. allocated(gridloc)) allocate(gridloc(4,npts))
+    if(.not. allocated(gridloc)) allocate(gridloc(3,npts))
 
-       ! Deallocate memory for local variable
+    ! Loop through each grid coordinate and perform the coordinate
+    ! transform for regular simulation domains 
 
-       if(allocated(obloc))         deallocate(obloc)
+    do nn = 1, npts
 
-       ! Allocate memory for local variable
+       ! Compute local variable
 
-       if(.not. allocated(obloc))   allocate(obloc(4,nobsgood))
+       gridloc(1,nn) = cos(latsgrd(nn))*cos(lonsgrd(nn))
 
-       ! Define local variables
+       ! Compute local variable
 
-       lonsgrdmin = minval(lonsgrd); lonsgrdmax = maxval(lonsgrd)
-       latsgrdmin = minval(latsgrd); latsgrdmax = maxval(latsgrd)
+       gridloc(2,nn) = cos(latsgrd(nn))*sin(lonsgrd(nn))
 
-       ! Loop through each grid coordinate and perform the coordinate
-       ! transform for doubly periodic domain; this is just used for
-       ! computing distances and is only accurate up to about 1/4 of
-       ! domain size
+       ! Compute local variable
 
-       do nn=1,npts
+       gridloc(3,nn) = sin(latsgrd(nn))
 
-          ! Compute local variable
-          
-          gridloc(1,nn) =                                                   &
-               & 0.5*(lonsgrdmax-lonsgrdmin)*cos(2.*pi*(lonsgrd(nn)-        &
-               & lonsgrdmin)/(lonsgrdmax-lonsgrdmin))/pi
-
-          ! Compute local variable
-
-          gridloc(2,nn) =                                                   &
-               & 0.5*(lonsgrdmax-lonsgrdmin)*sin(2.*pi*(lonsgrd(nn)-        &
-               & lonsgrdmin)/(lonsgrdmax-lonsgrdmin))/pi
-
-          ! Compute local variable
-
-          gridloc(3,nn) =                                                   &
-               & 0.5*(latsgrdmax-latsgrdmin)*cos(2.*pi*(latsgrd(nn)-        &
-               & latsgrdmin)/(latsgrdmax-latsgrdmin))/pi
-
-          ! Compute local variable
-
-          gridloc(4,nn) =                                                   &
-               & 0.5*(latsgrdmax-latsgrdmin)*sin(2.*pi*(latsgrd(nn)-        &
-               & latsgrdmin)/(latsgrdmax-latsgrdmin))/pi
-
-       end do ! do nn=1,npts
-
-       ! Loop through each grid coordinate and define coordinates of
-       ! observations for doubly periodic domain.
-
-       do nob = 1, nobsgood
-
-          ! Define local variable
-
-          radlon = obloclon(nob)
-          if (radlon .gt. 180.) radlon = radlon-360.
-          radlon=deg2rad*radlon
-
-          ! Define local variable
-
-          radlat=deg2rad*obloclat(nob)
-
-          ! Compute local variable
-
-          obloc(1,nob) =                                                    &
-               & 0.5*(lonsgrdmax-lonsgrdmin)*cos(2.*pi*(radlon-lonsgrdmin)  &
-               & /(lonsgrdmax-lonsgrdmin))/pi
-
-          ! Compute local variable
-
-          obloc(2,nob) =                                                    &
-               & 0.5*(lonsgrdmax-lonsgrdmin)*sin(2.*pi*(radlon-lonsgrdmin)/ &
-               & (lonsgrdmax-lonsgrdmin))/pi
-
-          ! Compute local variable
-
-          obloc(3,nob) =                                                    &
-               & 0.5*(latsgrdmax-latsgrdmin)*cos(2.*pi*(radlat-latsgrdmin)/ &
-               & (latsgrdmax-latsgrdmin))/pi
-
-          ! Compute local variable
-
-          obloc(4,nob) =                                                    &
-               & 0.5*(latsgrdmax-latsgrdmin)*sin(2.*pi*(radlat-latsgrdmin)/ &
-               & (latsgrdmax-latsgrdmin))/pi
-
-       enddo ! do nob = 1, nobsgood
-
-    else ! if(doubly_periodic) 
-
-       ! Allocate memory for local variable
-
-       if(.not. allocated(gridloc)) allocate(gridloc(3,npts))
-
-       ! Loop through each grid coordinate and perform the coordinate
-       ! transform for regular simulation domains 
-
-       do nn = 1, npts
-
-          ! Compute local variable
-
-          gridloc(1,nn) = cos(latsgrd(nn))*cos(lonsgrd(nn))
-
-          ! Compute local variable
-
-          gridloc(2,nn) = cos(latsgrd(nn))*sin(lonsgrd(nn))
-
-          ! Compute local variable
-
-          gridloc(3,nn) = sin(latsgrd(nn))
-
-       end do ! do nn = 1, npts
-
-    endif ! if(doubly_periodic)
+    end do ! do nn = 1, npts
 
   end subroutine getgridinfo_arw
 
@@ -1456,7 +1258,7 @@ contains
 
     ! Build the ensemble mean filename expected by routine
 
-    filename = trim(adjustl(datapath))//"firstguess.ensmean"
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
 
     ! Obtain unstaggered grid dimensions from ingested variable file
 
@@ -1983,22 +1785,14 @@ contains
        varout(2:sxdim-1,:,:) = 0.5*(varin(1:xdim-1,:,:) + varin(2:xdim,:,:))
        varout(1,:,:) = 1.5*varin(1,:,:) - 0.5*varin(2,:,:)
        ! linear extrapolation to outer points (outside of mass grid)
-       if (.not. doubly_periodic) then
        varout(sxdim,:,:)  = 1.5*varin(xdim,:,:) - 0.5*varin(xdim-1,:,:)
-       else
-       varout(sxdim,:,:)  = 0.5*(varin(xdim,:,:) + varin(1,:,:))
-       end if
 
     else if(sydim .gt. ydim) then
        ! inverse of:
        ! varout = 0.5*(varin(:,1:ydim,:)+varin(:,2:ydim+1,:))
        varout(:,2:sydim-1,:) = 0.5*(varin(:,1:ydim-1,:) + varin(:,2:ydim,:))
        varout(:,1,:) = 1.5*varin(:,1,:) - 0.5*varin(:,2,:)
-       if (.not. doubly_periodic) then
        varout(:,sydim,:)  = 1.5*varin(:,ydim,:) - 0.5*varin(:,ydim-1,:)
-       else
-       varout(:,sydim,:)  = 0.5*(varin(:,ydim,:) + varin(:,1,:))
-       endif
     
     else if(szdim .gt. zdim) then
 
@@ -2095,7 +1889,7 @@ if (nproc .eq. 0) then
 
    ! Build the ensemble mean filename expected by routine
   
-   filename = trim(adjustl(datapath))//"sfg_"//datestring//"_fhr06_ensmean"
+   filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"_ensmean"
   
    call nemsio_init(iret=iret)
    if(iret/=0) then
@@ -2202,7 +1996,10 @@ if (nproc .ne. 0) then
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+!call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+do k=1,nlevs_pres
+  call mpi_bcast(logp(1,k),npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)

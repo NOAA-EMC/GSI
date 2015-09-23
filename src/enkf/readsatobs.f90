@@ -202,7 +202,7 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
          call read_radiag_data(iunit2,header_fix2,lretrieval,data_fix2,data_chan2,data_extra2,iflag2 )
         if( header_fix1%nchan /= header_fix2%nchan .or. abs(data_fix1%lat-data_fix2%lat) .gt. 1.e-5 .or.  &
             abs(data_fix1%lon-data_fix2%lon) .gt. 1.e-5 .or. abs(data_fix1%obstime-data_fix2%obstime) .gt. 1.e-5) then
-           write(6,*) 'inconsistent files'
+           write(6,*) 'inconsistent files',trim(obsfile2)
            write(6,*) 'nchan',header_fix1%nchan,header_fix2%nchan
            write(6,*) 'lat',data_fix1%lat,data_fix2%lat
            write(6,*) 'lon',data_fix1%lon,data_fix2%lon

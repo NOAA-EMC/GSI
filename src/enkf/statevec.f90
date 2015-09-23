@@ -22,14 +22,15 @@ module statevec
 !  nlevs: number of analysis vertical levels (from module params).
 !  nvars: number of 3d 'non-tracer' variables updated by analysis (from module params).
 !  ndim: (nvars + ntrac_update) * nlevs (from module params).
-!  anal_chunk(nanals,npts_max,ndim): real array of ensemble perturbations 
+!  nbackgrounds:  number of time levels in background
+!  anal_chunk(nanals,npts_max,ndim,nbackgrounds): real array of ensemble perturbations 
 !   updated on each task.
-!  anal_chunk_prior(nanals,npts_max,ndim): real array of prior ensemble 
+!  anal_chunk_prior(nanals,npts_max,ndim,nbackgrounds): real array of prior ensemble 
 !   perturbations.  Before analysis anal_chunk=anal_chunk_prior, after
 !   analysis anal_chunk contains posterior perturbations.
-!  ensmean_chunk(npts_max,ndim): real array containing pieces of ensemble 
+!  ensmean_chunk(npts_max,ndim,nbackgrounds): real array containing pieces of ensemble 
 !   mean to be updated on each task.
-!  ensmean_chunk_prior(npts_max,ndim): as above, for ensemble mean prior.
+!  ensmean_chunk_prior(npts_max,ndim,nbackgrounds): as above, for ensemble mean prior.
 !   Before analysis ensmean_chunk=ensmean_chunk_prior, after analysis
 !   ensmean_chunk contains posterior ensemble mean.
 !   
@@ -38,6 +39,7 @@ module statevec
 ! program history log:
 !   2009-02-23  Initial version.
 !   2009-11-28  revamped to improve IO speed
+!   2015-06-29  add multiple time levels to background
 !
 ! attributes:
 !   language: f95
@@ -45,20 +47,20 @@ module statevec
 !$$$
 
 use mpisetup
-use params, only: nlevs,nvars,ndim,&
+use params, only: nlevs,nvars,ndim,nbackgrounds,&
                   nanals,pseudo_rh,massbal_adjust
 use kinds, only: r_kind, i_kind, r_double, r_single
 use loadbal, only: npts_max,indxproc,numptsperproc
 use gridio, only: readgriddata, writegriddata
 use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
-use enkf_obsmod, only: nobsgood
+use enkf_obsmod, only: nobstot
 implicit none
 private
 public :: read_ensemble, write_ensemble, statevec_cleanup
-real(r_single),public, allocatable, dimension(:,:,:) :: anal_chunk, anal_chunk_prior
-real(r_single),public, allocatable, dimension(:,:) :: ensmean_chunk, ensmean_chunk_prior
-real(r_single),public, allocatable, dimension(:,:) :: grdin
-real(r_double),public, allocatable, dimension(:,:) :: qsat
+real(r_single),public, allocatable, dimension(:,:,:,:) :: anal_chunk, anal_chunk_prior
+real(r_single),public, allocatable, dimension(:,:,:) :: ensmean_chunk, ensmean_chunk_prior
+real(r_single),public, allocatable, dimension(:,:,:) :: grdin
+real(r_double),public, allocatable, dimension(:,:,:) :: qsat
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
 
 contains
@@ -70,7 +72,7 @@ subroutine read_ensemble()
 implicit none
 real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
 real(r_double) t1,t2
-integer(i_kind) nanal,nn,i,n
+integer(i_kind) nanal,nn,i,n,nb
 ! npts,nlevs,ntrac arrays
 integer(i_kind) ierr, np
 
@@ -112,17 +114,14 @@ do np=0,numproc-1
 enddo
 
 ! allocate array to hold pieces of state vector on each proc.
-allocate(anal_chunk(nanals,npts_max,ndim))
+allocate(anal_chunk(nanals,npts_max,ndim,nbackgrounds))
 if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk)
-! send and receive buffers.
-allocate(sendbuf(numproc*npts_max*ndim))
-allocate(recvbuf(nanals*npts_max*ndim))
 
 ! read in whole state vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
 if (nproc <= nanals-1) then
-   allocate(grdin(npts,ndim))
-   allocate(qsat(npts,nlevs))
+   allocate(grdin(npts,ndim,nbackgrounds))
+   allocate(qsat(npts,nlevs,nbackgrounds))
    nanal = nproc + 1
    t1 = mpi_wtime()
    call readgriddata(nanal,grdin,qsat)
@@ -132,56 +131,66 @@ if (nproc <= nanals-1) then
      t1 = mpi_wtime()
    end if
    !print *,'min/max ps ens mem',nanal,'=',&
-   !         minval(grdin(:,ndim)),maxval(grdin(:,ndim))
+   !         minval(grdin(:,ndim,nbackgrounds/2+1)),maxval(grdin(:,ndim,nbackgrounds/2+1))
    if (pseudo_rh .and. nvarhumid > 0) then
-      ! create normalized humidity analysis variable.
-      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)/qsat
+      do nb=1,nbackgrounds
+         ! create normalized humidity analysis variable.
+         grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)/qsat(:,:,nb)
+      enddo
    end if
+endif
+call mpi_barrier(mpi_comm_world, ierr)
+
+allocate(anal_chunk_prior(nanals,npts_max,ndim,nbackgrounds))
+allocate(ensmean_chunk(npts_max,ndim,nbackgrounds))
+allocate(ensmean_chunk_prior(npts_max,ndim,nbackgrounds))
+ensmean_chunk = 0.
+allocate(sendbuf(numproc*npts_max*ndim))
+allocate(recvbuf(nanals*npts_max*ndim))
+
+! send and receive buffers.
+do nb=1,nbackgrounds ! loop over time levels in background
+
+if (nproc <= nanals-1) then
    ! fill up send buffer.
    do np=1,numproc
-    do nn=1,ndim
-     do i=1,numptsperproc(np)
-      n = ((np-1)*ndim + (nn-1))*npts_max + i
-      sendbuf(n) = grdin(indxproc(np,i),nn)
+     do nn=1,ndim
+      do i=1,numptsperproc(np)
+       n = ((np-1)*ndim + (nn-1))*npts_max + i
+       sendbuf(n) = grdin(indxproc(np,i),nn,nb)
      enddo
     enddo
    enddo
 end if
 call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
                    mpi_real4, mpi_comm_world, ierr)
-deallocate(sendbuf)
-allocate(anal_chunk_prior(nanals,npts_max,ndim))
-allocate(ensmean_chunk(npts_max,ndim))
-allocate(ensmean_chunk_prior(npts_max,ndim))
-ensmean_chunk = 0.
 
-!==> compute ensemble of first guesses, remove mean from anal.
+!==> compute ensemble of first guesses on each task, remove mean from anal.
 !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
 do nn=1,ndim 
    do i=1,numptsperproc(nproc+1)
-
       do nanal=1,nanals
          n = ((nanal-1)*ndim + (nn-1))*npts_max + i
-         anal_chunk(nanal,i,nn) = recvbuf(n)
+         anal_chunk(nanal,i,nn,nb) = recvbuf(n)
       enddo
-      ensmean_chunk(i,nn) = sum(anal_chunk(:,i,nn))/float(nanals)
-      ensmean_chunk_prior(i,nn) = ensmean_chunk(i,nn)
-
+      ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
+      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
 ! remove mean from ensemble.
       do nanal=1,nanals
-         anal_chunk(nanal,i,nn) = anal_chunk(nanal,i,nn)-ensmean_chunk(i,nn)
-         anal_chunk_prior(nanal,i,nn)=anal_chunk(nanal,i,nn)
+         anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
+         anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
       end do
-
    end do
 end do
-deallocate(recvbuf)
+!$omp end parallel do
+
+enddo ! loop over nbackgrounds
+deallocate(sendbuf, recvbuf)
 
 if (nproc == 0) then
   t2 = mpi_wtime()
   print *,'time to scatter state on root',t2-t1,'secs'
 endif
-
 
 end subroutine read_ensemble
 
@@ -191,10 +200,10 @@ subroutine write_ensemble()
 ! for now, first nanals tasks are IO tasks.
 implicit none
 real(r_single), allocatable, dimension(:) :: sendbuf, recvbuf
-real(r_single), allocatable, dimension(:,:) :: ensmean
+real(r_single), allocatable, dimension(:,:,:) :: ensmean
 real(r_double) t1,t2
 integer(i_kind) nanal,i,nvar
-integer(i_kind) ierr, np, n, nn
+integer(i_kind) ierr, np, n, nn, nb
 
 ! all tasks send data, but only IO tasks receive any data.
 ! scounts is number of data elements to send to processor np.
@@ -215,31 +224,34 @@ do np=0,numproc-1
 enddo
 allocate(recvbuf(numproc*npts_max*ndim))
 allocate(sendbuf(nanals*npts_max*ndim))
+
 t1 = mpi_wtime()
-do nn=1,ndim
- do i=1,numptsperproc(nproc+1)
-  do nanal=1,nanals
-   n = ((nanal-1)*ndim + (nn-1))*npts_max + i
-   ! add ensemble mean back in.
-   sendbuf(n) = anal_chunk(nanal,i,nn)+ensmean_chunk(i,nn)
-   ! convert to increment (A-F).
-   sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn)+ensmean_chunk_prior(i,nn))
-  enddo
- enddo
-enddo
-call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
-                   mpi_real4, mpi_comm_world, ierr)
-if (nproc <= nanals-1) then
-   do np=1,numproc
-    do nn=1,ndim
-     do i=1,numptsperproc(np)
-      n = ((np-1)*ndim + (nn-1))*npts_max + i
-      grdin(indxproc(np,i),nn) = recvbuf(n)
-     enddo
+do nb=1,nbackgrounds ! loop over time levels in background
+  do nn=1,ndim
+   do i=1,numptsperproc(nproc+1)
+    do nanal=1,nanals
+      n = ((nanal-1)*ndim + (nn-1))*npts_max + i
+      ! add ensemble mean back in.
+      sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
+      ! convert to increment (A-F).
+      sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
     enddo
    enddo
-   !print *,nproc,'min/max ps',minval(grdin(:,ndim)),maxval(grdin(:,ndim))
-end if
+  enddo
+  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                     mpi_real4, mpi_comm_world, ierr)
+  if (nproc <= nanals-1) then
+     do np=1,numproc
+      do nn=1,ndim
+       do i=1,numptsperproc(np)
+         n = ((np-1)*ndim + (nn-1))*npts_max + i
+         grdin(indxproc(np,i),nn,nb) = recvbuf(n)
+       enddo
+      enddo
+     enddo
+     !print *,nproc,'min/max ps',minval(grdin(:,ndim)),maxval(grdin(:,ndim))
+  end if
+enddo ! end loop over background time levels
 
 if (nproc == 0) then
   t2 = mpi_wtime()
@@ -247,60 +259,72 @@ if (nproc == 0) then
 endif
 
 deallocate(sendbuf,recvbuf)
+if (nproc == 0) then
+   allocate(ensmean(npts,ndim,nbackgrounds))
+end if
 allocate(sendbuf(npts_max*ndim))
 allocate(recvbuf(npts*ndim))
 if (nproc == 0) t1 = mpi_wtime()
-! gather ens. mean anal. increment on root, print out max/mins.
-n = 0
-do nn=1,ndim
- do i=1,numptsperproc(nproc+1)
-   n = n + 1
-   ! anal. increment.
-   sendbuf(n) = ensmean_chunk(i,nn)-ensmean_chunk_prior(i,nn)
- enddo
-enddo
-do np=0,numproc-1
-   scounts(np) = numptsperproc(np+1)*ndim
+do nb=1,nbackgrounds
+   if (nproc .eq. 0) then
+   print *,'time level ',nb
+   print *,'--------------'
+   endif
+   ! gather ens. mean anal. increment on root, print out max/mins.
    n = 0
-   do nn=1,np
-      n = n + numptsperproc(nn)*ndim
+   do nn=1,ndim
+    do i=1,numptsperproc(nproc+1)
+      n = n + 1
+      ! anal. increment.
+      sendbuf(n) = ensmean_chunk(i,nn,nb)-ensmean_chunk_prior(i,nn,nb)
+    enddo
    enddo
-   displs(np) = n
-enddo
-call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim, mpi_real4, recvbuf, &
-      scounts, displs, mpi_real4, 0, mpi_comm_world, ierr)
-if (nproc == 0) then
-   allocate(ensmean(npts,ndim))
-   n = 0
-   do np=1,numproc
-      do nn=1,ndim
-       do i=1,numptsperproc(np)
-         n = n + 1
-         ensmean(indxproc(np,i),nn) = recvbuf(n)
-       enddo
+   do np=0,numproc-1
+      scounts(np) = numptsperproc(np+1)*ndim
+      n = 0
+      do nn=1,np
+         n = n + numptsperproc(nn)*ndim
       enddo
+      displs(np) = n
    enddo
-   if (massbal_adjust) then
-     print *,'ens. mean anal. increment min/max ps tend', minval(ensmean(:,ndim-1)),maxval(ensmean(:,ndim-1))
-   endif 
-   print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim)),maxval(ensmean(:,ndim))
-   do nvar=1,nvars
-      print *,'ens. mean anal. increment min/max var',nvar,minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs))
-   enddo
-   deallocate(ensmean)
+   call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim, mpi_real4, recvbuf, &
+         scounts, displs, mpi_real4, 0, mpi_comm_world, ierr)
+   if (nproc == 0) then
+      n = 0
+      do np=1,numproc
+        do nn=1,ndim
+         do i=1,numptsperproc(np)
+           n = n + 1
+           ensmean(indxproc(np,i),nn,nb) = recvbuf(n)
+         enddo
+        enddo
+      enddo
+      if (massbal_adjust) then
+        print *,'ens. mean anal. increment min/max ps tend', minval(ensmean(:,ndim-1,nb)),maxval(ensmean(:,ndim-1,nb))
+      endif 
+      print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb))
+      do nvar=1,nvars
+         print *,'ens. mean anal. increment min/max var',nvar,minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+      enddo
+   end if
+enddo ! end loop over time levels in background
+
+if (nproc .eq. 0) then
    t2 = mpi_wtime()
    print *,'time to gather ens mean increment on root',t2-t1,'secs'
-end if
+endif
 
 deallocate(sendbuf,recvbuf)
+if (nproc == 0) deallocate(ensmean)
 
-! write out state vectors on i/o procs.
 if (nproc <= nanals-1) then
    nanal = nproc + 1
    t1 = mpi_wtime()
    if (pseudo_rh .and. nvarhumid > 0) then
+      do nb=1,nbackgrounds
       ! re-scale normalized spfh with sat. sphf of first guess
-      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)*qsat
+      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)*qsat(:,:,nb)
+      enddo
    end if
    call writegriddata(nanal,grdin)
    if (nproc == 0) then
@@ -308,7 +332,6 @@ if (nproc <= nanals-1) then
      print *,'time in writegriddata on root',t2-t1,'secs'
    endif 
 end if
-
 
 end subroutine write_ensemble
 
