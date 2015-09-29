@@ -289,11 +289,11 @@ contains
     implicit none
 
     integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
-    integer(i_kind) nvarjac,n_meteo,n_clouds,n_aeros
+    integer(i_kind) nvarjac,n_meteo,n_clouds_jac,n_aeros_jac
     integer(i_kind),allocatable,dimension(:)::aux,all_levels
     character(len=20),allocatable,dimension(:)::meteo_names
-    character(len=20),allocatable,dimension(:)::clouds_names
-    character(len=20),allocatable,dimension(:)::aeros_names
+    character(len=20),allocatable,dimension(:)::clouds_names_jac
+    character(len=20),allocatable,dimension(:)::aeros_names_jac
 
 !   the following vars are wired-in until MetGuess handles all guess fiedls
 !   character(len=3),parameter :: wirednames(6) = (/ 'tv ','q  ','oz ', 'u  ', 'v  ', 'sst' /)
@@ -342,14 +342,14 @@ contains
     endif
 
 !   inquire number of clouds to participate in CRTM calculations
-    call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds, ier )
-    n_clouds=max(0,n_clouds)
+    call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds_jac, ier )
+    n_clouds_jac=max(0,n_clouds_jac)
 
 !   inquire number of aerosols to participate in CRTM calculations
-    call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros, ier )
-    n_aeros=max(0,n_aeros)
+    call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros_jac, ier )
+    n_aeros_jac=max(0,n_aeros_jac)
 
-    nvarjac=size(wirednames)+n_meteo+n_clouds+n_aeros
+    nvarjac=size(wirednames)+n_meteo+n_clouds_jac+n_aeros_jac
     allocate(radjacnames(nvarjac))
     allocate(radjacindxs(nvarjac))
 
@@ -371,31 +371,31 @@ contains
     endif
 !   Fill in clouds next 
     jj=0
-    if (n_clouds>0) then
-       allocate(clouds_names(n_clouds))
-       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
+    if (n_clouds_jac>0) then
+       allocate(clouds_names_jac(n_clouds_jac))
+       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names_jac, ier )
        ib=size(wirednames)+n_meteo+1
-       ie=ib+n_clouds-1
+       ie=ib+n_clouds_jac-1
        do ii=ib,ie
           jj=jj+1
-          radjacnames(ii) = trim(clouds_names(jj))
+          radjacnames(ii) = trim(clouds_names_jac(jj))
           radjacindxs(ii) = mxlvs
        enddo
-       deallocate(clouds_names)
+       deallocate(clouds_names_jac)
     endif
 !   Fill in aerosols next 
     jj=0
-    if (n_aeros>0) then
-        allocate(aeros_names(n_aeros))
-        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
-       ib=size(wirednames)+n_meteo+n_clouds+1
-       ie=ib+n_aeros-1
+    if (n_aeros_jac>0) then
+        allocate(aeros_names_jac(n_aeros_jac))
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names_jac, ier )
+       ib=size(wirednames)+n_meteo+n_clouds_jac+1
+       ie=ib+n_aeros_jac-1
        do ii=ib,ie
           jj=jj+1
-          radjacnames(ii) = trim(aeros_names(jj))
+          radjacnames(ii) = trim(aeros_names_jac(jj))
           radjacindxs(ii) = mxlvs
        enddo
-       deallocate(aeros_names)
+       deallocate(aeros_names_jac)
     endif
 
 !   Overwrite levels for certain fields (this must be revisited)
@@ -567,7 +567,8 @@ contains
 !============================================================================
 
 !   Determine number of entries in satellite information file
-    open(lunin,file='satinfo',form='formatted')
+!   open(lunin,file='satinfo',form='formatted')
+    open(lunin,file='satinfo.new',form='formatted')
     j=0
     nlines=0
     read1:  do

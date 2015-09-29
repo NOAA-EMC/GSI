@@ -131,7 +131,8 @@
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
-  use radiance_mod, only: radiance_mode_init,radiance_mode_destroy,radiance_obstype_destroy
+  use radiance_mod, only: radiance_mode_init,radiance_mode_destroy, &
+       radiance_obstype_destroy,radiance_parameter_cloudy_destroy
 
   implicit none
 
@@ -1448,6 +1449,7 @@
      call final_fgrid2agrid(pf2aP1)
   endif
   call radiance_obstype_destroy
+  call radiance_parameter_cloudy_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call destroyobs_passive

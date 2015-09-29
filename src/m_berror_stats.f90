@@ -258,7 +258,7 @@ end subroutine read_bal
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use radiance_mod, only: nclouds_for,cloud_for_names
+      use radiance_mod, only: n_clouds_for,cloud_names_for
 
       implicit none
 
@@ -295,7 +295,7 @@ end subroutine read_bal
 !       05Feb14 - Todling - Allow for overwrite of cw with q cov
 !       07Jun14 - Zhu - set up new error variance and corr. lengths 
 !                       of cw for allsky radiance
-!       09Sept15 - Zhu - use centralized cloud_for_names and nclouds_for to add 
+!       09Sept15 - Zhu - use centralized cloud_names_for and n_clouds_for to add 
 !                        flexibility for all-sky radiance assimilation
 !EOP ___________________________________________________________________
 
@@ -492,10 +492,10 @@ end subroutine read_bal
         vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
      end if 
 
-     if (nclouds_for>0 .and. icw<=0) then
+     if (n_clouds_for>0 .and. icw<=0) then
         do n=1,size(cvars3d)
-           do ic=1,nclouds_for
-              if(trim(cvars3d(n))==trim(cloud_for_names(ic))) then
+           do ic=1,n_clouds_for
+              if(trim(cvars3d(n))==trim(cloud_names_for(ic))) then
                  ivar=n
                  do k=1,nsig
                     do i=1,nlat
