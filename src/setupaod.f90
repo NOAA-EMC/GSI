@@ -12,6 +12,8 @@
 !   2010-10-20  hclin - modified from setuprad for aod
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance
+!                      assimilation. Use radiance_obstype_search & type extentions
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -54,6 +56,7 @@
   use obsmod, only: i_aero_ob_type, aerohead, aerotail, aero_ob_type
   use obsmod, only: rmiss_single
   use qcmod, only: ifail_crtm_qc
+  use radiance_mod, only: rad_obs_type,radiance_obstype_search
 
   implicit none
 
@@ -117,6 +120,7 @@
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(aero_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(rad_obs_type) :: radmod
   character(len=*),parameter:: myname="setupaod"
 
   real(r_kind), dimension(nchanl) :: total_aod, aod_obs, aod
@@ -155,6 +159,9 @@
   isazi_ang = 9  ! index of solar azimuth angle (degrees)
   istyp     = 10 ! index of surface type
   idbcf     = 11 ! index of deep blue confidence flag
+
+! Determine cloud & aerosol usages in radiance assimilation
+  call radiance_obstype_search(obstype,radmod)
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -210,7 +217,7 @@
   endif
 
 ! Initialize radiative transfer
-  call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,isis,obstype)
+  call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,isis,obstype,radmod)
 
 ! If diagnostic file requested, open unit to file and write header.
   if (aero_diagsave) then

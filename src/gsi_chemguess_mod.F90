@@ -726,7 +726,7 @@ end subroutine final_
      istatus=0
   else if(trim(desc)=='aerosols_4crtm::3d') then
      do ii=1,ng3d
-        if (i4crtm3d(ii)==11) ivar=ivar+1
+        if (i4crtm3d(ii)>=11) ivar=ivar+1
      enddo
      istatus=0
   else if(trim(desc)=='aerosols_4crtm_jac::3d') then
@@ -974,7 +974,7 @@ end subroutine final_
      if(nvar>=0) then
         ii=0
         do i=1,ng3d
-           if(i4crtm3d(i)==11) then
+           if(i4crtm3d(i)>=11) then
               ii=ii+1
               if(ii>nvar)then
                  ii=-1 ! user did not allocate enough space

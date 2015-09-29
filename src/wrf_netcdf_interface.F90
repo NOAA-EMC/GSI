@@ -72,7 +72,7 @@ subroutine convert_netcdf_mass
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
  
-  integer(i_kind) :: nclouds_actual, ierr, Status, Status_next_time, n
+  integer(i_kind) :: n_actual_clouds, ierr, Status, Status_next_time, n
   integer(i_kind) :: iv, n_gocart_var, ier
   
 ! binary stuff
@@ -96,7 +96,7 @@ subroutine convert_netcdf_mass
   start_index=0
   
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('clouds::3d',nclouds_actual,ierr)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,ierr)
 
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file
 ! to temporary binary format
@@ -767,7 +767,7 @@ subroutine convert_netcdf_mass
         write(iunit)field2   !TH2
      endif
 
-     if(l_cloud_analysis .or. nclouds_actual>0) then
+     if(l_cloud_analysis .or. n_actual_clouds>0) then
        rmse_var='QCLOUD'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
@@ -1066,7 +1066,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,guess)
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
 
-  integer(i_kind) :: nclouds_actual, ierr, Status, Status_next_time, n
+  integer(i_kind) :: n_actual_clouds, ierr, Status, Status_next_time, n
   integer(i_kind) :: nlp
 
 ! binary stuff
@@ -1099,7 +1099,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,guess)
   end_index1=0
 
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('clouds::3d',nclouds_actual,ierr)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,ierr)
 
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file
 ! to temporary binary format
@@ -1870,7 +1870,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,guess)
         write(iunit)field2   !TSK
      end if
    
-     if (nclouds_actual>0) then! Read in cloud related fields
+     if (n_actual_clouds>0) then! Read in cloud related fields
         rmse_var='CWM' ! cloud water mixing ratio    
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
@@ -1938,7 +1938,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0,guess)
                 field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RIMEF
         end do
-     end if ! end of nclouds_actual>0
+     end if ! end of n_actual_clouds>0
      
      deallocate(field1,field2,field2b,ifield2,field3)
      close(iunit)
@@ -2018,7 +2018,7 @@ subroutine update_netcdf_mass
   character (len=80), dimension(3)  ::  dimnames
 
 
-  integer(i_kind) :: it, nclouds_actual, ierr, istatus, Status, Status_next_time
+  integer(i_kind) :: it, n_actual_clouds, ierr, istatus, Status, Status_next_time
   real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_qi(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_qr(:,:,:)=>NULL()
@@ -2043,8 +2043,8 @@ subroutine update_netcdf_mass
   end_index1=0
 
 ! Inquire about guess fields
-  call gsi_metguess_get('clouds::3d',nclouds_actual,ierr)
-  if (nclouds_actual>0) then
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,ierr)
+  if (n_actual_clouds>0) then
 !    get pointer to relevant instance of cloud-related backgroud
      it=ntguessig
      ierr=0
@@ -2053,7 +2053,7 @@ subroutine update_netcdf_mass
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ierr=ierr+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ierr=ierr+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ierr=ierr+istatus
-     if (ierr/=0) nclouds_actual=0
+     if (ierr/=0) n_actual_clouds=0
   end if
 
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file
@@ -2455,7 +2455,7 @@ subroutine update_netcdf_mass
           ierr                                 )
   endif
 
-  if (l_cloud_analysis .or. nclouds_actual>0) then
+  if (l_cloud_analysis .or. n_actual_clouds>0) then
     do k=1,nsig_regional
        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   !  Qc
        write(6,*)' k,max,min,mid Qc=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
@@ -2747,7 +2747,7 @@ subroutine update_netcdf_nmm
   use mpeu_util, only: die
   use guess_grids, only: ntguessig
   use obsmod, only: iadate
-  use radiance_mod, only: nclouds_actual,iallsky
+  use radiance_mod, only: n_actual_clouds,iallsky
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -2796,7 +2796,7 @@ subroutine update_netcdf_nmm
   end_index1=0
 
 ! Inquire about cloud guess fields
-  if (nclouds_actual>0) then
+  if (n_actual_clouds>0) then
      it=ntguessig
 !    Get pointer to cloud water mixing ratio
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
@@ -2806,7 +2806,7 @@ subroutine update_netcdf_nmm
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if (ier/=0 .or. (.not. iallsky)) nclouds_actual=0
+     if (ier/=0 .or. (.not. iallsky)) n_actual_clouds=0
   end if
 
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file
@@ -3016,7 +3016,7 @@ subroutine update_netcdf_nmm
      write(6,*)'read max,min REST',k,maxval(field2),minval(field2)
   end do
 
-  if (nclouds_actual>0) then
+  if (n_actual_clouds>0) then
      do k=1,nsig_regional
         read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! CWM
         write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &

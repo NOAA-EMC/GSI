@@ -51,6 +51,7 @@ module qcmod
 !                         speed for AMSUA/ATMS cloudy radiance assimilation
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
+!   2015-09-20  zhu     - use radmod to generalize cloud and aerosol usages in radiance assimilation
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -105,6 +106,7 @@ module qcmod
   use constants, only: deg2rad,rad2deg,t0c,one_tenth
   use obsmod, only: rmiss_single
   use radinfo, only: iuse_rad,nst_tzr,passive_bc
+  use radiance_mod, only: rad_obs_type
   implicit none
 
 ! set default to private
@@ -719,7 +721,7 @@ end subroutine tz_retrieval
 subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
      temp,wmix,ts,pems,ierrret,kraintype,tpwc,clw,sgagl,tzbgr,   &
      tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-     varinv,errf,aivals,id_qc )
+     varinv,errf,aivals,id_qc,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -752,6 +754,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !      6) realx the qc criteria for the data at channels from 1 to 2
 !      7) add two references
 !     2013-02-13  eliu     - tighten up the qc criteria for ssmis
+!     2015-09-25  zhu      - use rad_obs_type/radmod to enable all-sky radiance
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
@@ -828,6 +831,8 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems,tnoise
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbc,tbcnob,tb_ges
   real(r_kind),dimension(nsig,nchanl),intent(in ) :: temp,wmix
+
+  type(rad_obs_type)               ,intent(in   ) :: radmod
 
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv,errf
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
@@ -1092,7 +1097,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 end subroutine qc_ssmi
 
 subroutine qc_gmi(nchanl,sfchgt,luse,sea, &
-     kraintype,clw,tsavg5,tbobs,gmi,varinv,aivals,id_qc)
+     kraintype,clw,tsavg5,tbobs,gmi,varinv,aivals,id_qc,radmod)
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_gmi     QC for gmi TBs
@@ -1107,6 +1112,7 @@ subroutine qc_gmi(nchanl,sfchgt,luse,sea, &
 !     2015-01-16  ejones  - copied and modified qc_ssmi
 !     2015-02-13  ejones  - added swath edge check
 !     2015-02-17  ejones  - added emissivity regression and check
+!     2015-09-25  zhu     - use rad_obs_type/radmod to enable all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1143,6 +1149,8 @@ subroutine qc_gmi(nchanl,sfchgt,luse,sea, &
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,clw,tsavg5
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs
+
+  type(rad_obs_type)               ,intent(in   ) :: radmod
 
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
@@ -1311,7 +1319,7 @@ subroutine qc_gmi(nchanl,sfchgt,luse,sea, &
 end subroutine qc_gmi
 
 subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
-     kraintype,clw,amsr2,varinv,aivals,id_qc)
+     kraintype,clw,amsr2,varinv,aivals,id_qc,radmod)
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_amsr2     QC for amsr2 TBs
@@ -1324,6 +1332,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 !
 ! program history log:
 !     2015-01-16  ejones
+!     2015-09-25  zhu      - use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1356,6 +1365,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
   logical                          ,intent(in   ) :: sea,luse
   logical                          ,intent(in   ) :: amsr2
 
+  type(rad_obs_type)               ,intent(in   ) :: radmod
   real(r_kind)                     ,intent(in   ) :: sfchgt,clw
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
@@ -1436,7 +1446,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 end subroutine qc_amsr2
 
 subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
-     kraintype,varinv,aivals,id_qc)
+     kraintype,varinv,aivals,id_qc,radmod)
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_saphir     QC for SAPHIR TBs
@@ -1447,6 +1457,7 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
 !
 ! program history log:
 !     2015-03-23  ejones
+!     2015-09-25  zhu      - use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1481,6 +1492,7 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
 
   real(r_kind)                     ,intent(in   ) :: sfchgt
 
+  type(rad_obs_type)               ,intent(in   ) :: radmod
   real(r_kind)   ,dimension(nchanl),intent(inout) :: varinv !,errf
   real(r_kind)   ,dimension(40)    ,intent(inout) :: aivals
 
@@ -1530,7 +1542,7 @@ end subroutine qc_saphir
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1545,6 +1557,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     2010-08-10  derber transfered from setuprad
 !     2011-08-20  zhu    add cloud qc for passive channels based on the cloud
 !                        level determined by channels with irad_use=1 and 0
+!     2015-09-25  zhu    use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1619,6 +1632,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
+  type(rad_obs_type),                 intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -1884,7 +1898,7 @@ end subroutine qc_irsnd
 subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1896,6 +1910,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2011-04-08  li modified from qc_irsnd
+!     2015-09-25  zhu - use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1963,6 +1978,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
+  type(rad_obs_type),                 intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -2174,7 +2190,7 @@ end subroutine qc_avhrr
 subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
      pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-     cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
+     cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2200,6 +2216,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2015-03-31  zhu     - observation error adjustments based on mis-matched
 !                           cloud info, diff_clw, scattering and surface wind
 !                           speed for AMSUA/ATMS cloudy radiance assimilation
+!     2015-09-20  zhu     - add radmod to generalize all-sky condition for radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2266,6 +2283,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
   real(r_kind),dimension(nchanl),      intent(in   ) :: error0
   real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
+  type(rad_obs_type),                  intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -2283,8 +2301,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind)    :: ework,clwtmp
   real(r_kind)    :: icol
   integer(i_kind) :: i,icw4crtm,ier
-  logical lcw4crtm
   logical qc4emiss
+  logical eff_area
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
@@ -2330,10 +2348,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      dtempf = 4.5_r_kind
   end if
 
-! Determine whether or not CW fed into CRTM
-  lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm_jac::3d', icw4crtm, ier)
-  if(icw4crtm >0) lcw4crtm = .true.
   
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
@@ -2372,10 +2386,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !                  available for ATMS).
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
-  if (latms) lcw4crtm=.false.  !assimilate clear ATMS (for now)
 
 ! QC for all-sky condition
-  if (lcw4crtm) then
+  if (radmod%lcloud_forward) then
      qc4emiss=.false.
      if(.not. sea) then  
        if(factch6 >= one .or. latms_surfaceqc) then   
@@ -2490,7 +2503,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
         endif
      endif  ! if sea
 ! QC for clear condition
-  else  ! <lcw4crtm>
+  else  ! <lcloud_forward>
      qc4emiss=.false.
      if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
@@ -2585,7 +2598,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
            end if
         end if
      end if
-  endif ! <lcw4crtm>
+  endif ! <lcloud_forward>
 
   if (qc4emiss) then
 ! QC2 in statsrad
@@ -2660,7 +2673,11 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 ! Observation error adjustment for cloudy radiance based on mis-matched cloud, 
 ! diff_clw, scattering index, surface wind speed. The coefficient 13.0 for 
 ! clwtmp may be re-tuned with model physics changes. 
-  if (lcw4crtm .and. sea) then
+  eff_area=.false.
+  if (radmod%lcloud_forward) then
+     eff_area=(radmod%cld_sea_only .and. sea) .or. (.not. radmod%cld_sea_only)
+  end if
+  if (radmod%lcloud_forward .and. eff_area) then
      icol=one
      if (any(cld_rbc_idx==zero)) icol=zero
      do i=1,nchanl
@@ -2683,7 +2700,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 end subroutine qc_amsua
 subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
      zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
-     id_qc,aivals,errf,varinv,dsi,fact1)
+     id_qc,aivals,errf,varinv,dsi,fact1,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2695,6 +2712,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2015-09-25  zhu    use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2744,6 +2762,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,tb_obs,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv
+  type(rad_obs_type),                 intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -2837,7 +2856,7 @@ end subroutine qc_mhs
 subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2855,6 +2874,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2015-03-31  zhu     - observation error adjustments based on mis-matched
 !                           cloud info, diff_clw, scattering and surface wind
 !                           speed for AMSUA/ATMS cloudy radiance assimilation
+!     2015-09-20  zhu     - use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2917,12 +2937,13 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
   real(r_kind),dimension(nchanl),      intent(in   ) :: error0
   real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
+  type(rad_obs_type),                  intent(in   ) :: radmod
 
 ! For now, just pass all channels to qc_amsua
   call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &   
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                    
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 
   return
 
@@ -3054,7 +3075,7 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 end subroutine qc_ssu
 subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
      zsges,cenlat,tbc,ptau5,emissivity_k,ts,      &
-     id_qc,aivals,errf,varinv)
+     id_qc,aivals,errf,varinv,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3066,6 +3087,7 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2015-09-25  zhu    use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3110,6 +3132,7 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv
+  type(rad_obs_type),                 intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -3186,7 +3209,7 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 end subroutine qc_msu
 subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
-     id_qc,aivals,errf,varinv)
+     id_qc,aivals,errf,varinv,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3198,6 +3221,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2015-09-25  zhu    use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3248,6 +3272,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   real(r_kind),dimension(nchanl),   intent(in   ) :: tbc,tnoise,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl),intent(in ) :: temp,wmix
   real(r_kind),dimension(nchanl),   intent(inout) :: errf,varinv
+  type(rad_obs_type)               ,intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -3363,7 +3388,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 end subroutine qc_seviri
 subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
      zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
-     id_qc,aivals,errf,varinv)
+     id_qc,aivals,errf,varinv,radmod)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3375,6 +3400,7 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2015-09-25  zhu    use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3429,6 +3455,7 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
   real(r_kind),dimension(nchanl),   intent(in   ) :: tb_obs,tb_obs_sdv,tbc,tnoise,emissivity_k,ts
   real(r_kind),dimension(nchanl),   intent(inout) :: errf,varinv
   character(10),                    intent(in   ) :: dplat
+  type(rad_obs_type)               ,intent(in   ) :: radmod
 
 ! Declare local parameters
 

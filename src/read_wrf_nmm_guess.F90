@@ -60,7 +60,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !                         because load_prsges is called after this subroutine is called.                       
 !   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
 !   2013-10-30  todling - ltosj/i now live in commvars
-!   2014-06-27  S.Liu   - detach use_reflectivity from nclouds_actual
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !   2015_05_12  wu      - bug fixes for FGAT
 !   2015-09-10  zhu     - use centralized radiance_mod for all-sky & aerosol usages in radiances
 !
@@ -106,7 +106,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use mpeu_util, only: die
   use native_endianness, only: byte_swap
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
-  use radiance_mod, only: nclouds_actual,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_forward
 
   implicit none
 
@@ -200,7 +200,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=20+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (nclouds_actual>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
      num_loc_groups=num_nmm_fields/npe
 
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, update_pint   =",l6)')update_pint   
@@ -423,7 +423,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
         if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            i_cwm=i+1
            read(lendian_in) n_position,memoryorder
            do k=1,lm
@@ -483,7 +483,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
               offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
               if(mype == 0.and.k==1) write(6,*)' f_rimef i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
            end do
-        end if  ! end of nclouds_actual>0
+        end if  ! end of n_actual_clouds>0
 
 !       bring in z0 (roughness length)
         mm1=mype+1
@@ -661,7 +661,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            deallocate(jbuf)
         end if
 
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
 !                                    read cwm
            if(kord(i_cwm)/=1) then
               allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -770,7 +770,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !       Get pointer to cloud water mixing ratio
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -783,7 +783,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         kq=i_q-1
         ku=i_u-1
         kv=i_v-1
-        if (nclouds_actual>0) then 
+        if (n_actual_clouds>0) then 
            kcwm=i_cwm-1
            kf_ice=i_f_ice-1
            kf_rain=i_f_rain-1
@@ -794,7 +794,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (nclouds_actual>0) then
+           if (n_actual_clouds>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -807,7 +807,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
 
-                 if (nclouds_actual>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -815,7 +815,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end if
               end do
            end do
-           if (nclouds_actual>0 .and. (icloud_forward) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icloud_forward) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -837,7 +837,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  ges_v(j,i,k)    = zero
                  ges_q(j,i,k)    = zero
                  ges_tsen(j,i,k,it) = zero
-                 if (nclouds_actual>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k)  = zero
                     fice(j,i,k)   = zero
                     frain(j,i,k)  = zero
@@ -847,7 +847,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            end do
         end do
 
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
@@ -1052,7 +1052,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use radiance_mod, only: nclouds_actual,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_forward
   implicit none
 
 ! Declare passed variables here
@@ -1132,7 +1132,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=14+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (nclouds_actual>0) num_nmm_fields=num_nmm_fields+4*lm
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm
      num_all_fields=num_nmm_fields*nfldsig
      num_loc_groups=num_all_fields/npe
 
@@ -1242,7 +1242,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
-     if (nclouds_actual>0) then
+     if (n_actual_clouds>0) then
         i_cwm=i+1
         do k=1,lm
            i=i+1                                                   ! cwm(k)
@@ -1271,7 +1271,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            jsig_skip(i)=0
            igtype(i)=1
         end do
-     end if  ! end of nclouds_actual>0
+     end if  ! end of n_actual_clouds>0
 
 !    End of stuff from NMM restart file
 
@@ -1366,7 +1366,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !       Get pointer to cloud water mixing ratio
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -1380,7 +1380,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         kq=i_0+i_q-1
         ku=i_0+i_u-1
         kv=i_0+i_v-1
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            kcwm=i_0+i_cwm-1
            kf_ice=i_0+i_f_ice-1
            kf_rain=i_0+i_f_rain-1
@@ -1392,7 +1392,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (nclouds_actual>0) then
+           if (n_actual_clouds>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -1407,7 +1407,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
                  ges_oz(j,i,k) = zero                  ! set to zero for now 
 
-                 if (nclouds_actual>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -1415,7 +1415,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end if
               end do
            end do
-           if (nclouds_actual>0 .and. (icloud_forward) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icloud_forward) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -1439,7 +1439,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ges_tsen(j,i,k,it) = zero
                  ges_oz(j,i,k)   = zero 
 
-                 if (nclouds_actual>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k)  = zero 
                     fice(j,i,k)   = zero 
                     frain(j,i,k)  = zero
@@ -1448,7 +1448,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               enddo
            enddo
         enddo
-        if (nclouds_actual>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
@@ -1660,7 +1660,7 @@ subroutine read_nems_nmmb_guess(mype)
   use mpeu_util, only: die
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
   use derivsmod, only: cwgues0
-  use radiance_mod, only: nclouds_actual,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_forward
   implicit none
 
 ! Declare passed variables here
@@ -1795,7 +1795,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
-     if (nclouds_actual>0 .and. (.not.use_reflectivity)) then
+     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
@@ -1834,10 +1834,10 @@ subroutine read_nems_nmmb_guess(mype)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 
         end if  ! icloud_forward
-     end if    ! end of (nclouds_actual>0)
+     end if    ! end of (n_actual_clouds>0)
 
 
-!    if (nclouds_actual>0 .and. use_reflectivity) then
+!    if (n_actual_clouds>0 .and. use_reflectivity) then
      if (use_reflectivity) then
 
 !       Get pointer to cloud water mixing ratio
