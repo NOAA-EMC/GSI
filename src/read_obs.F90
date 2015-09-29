@@ -171,6 +171,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   return
 #endif
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
+  if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -555,6 +556,7 @@ subroutine read_obs(ndata,mype)
 !                        surface fields
 !   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
 !   
 !
 !   input argument list:
@@ -1168,7 +1170,7 @@ subroutine read_obs(ndata,mype)
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'wspd10m' .or. obstype == 'td2m' .or. &
-                 obstype=='mxtm' .or. obstype == 'mitm' .or. &
+!                obstype=='mxtm' .or. obstype == 'mitm' .or. &
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
                  obstype == 'lcbas'  ) then
@@ -1184,6 +1186,28 @@ subroutine read_obs(ndata,mype)
                    string='READ_PREPBUFR'
 
                 endif
+
+             else if(obstype == 'mitm') then
+                if ( index(infile,'mitmdat') /=0) then
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, & 
+                                       nobs_sub1(1,i))
+                   string='READ_ASCII_MITM'
+                 else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_PREPBUFR'
+                 endif
+
+             else if(obstype == 'mxtm') then
+                if ( index(infile,'mxtmdat') /=0) then
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, & 
+                                       nobs_sub1(1,i))
+                   string='READ_ASCII_MXTM'
+                 else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_PREPBUFR'
+                 endif
 
 !            Process total cloud amount (tcamt) in prepbufr -or- from goes imager sky cover products
              else if(obstype == 'tcamt') then

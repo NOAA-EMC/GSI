@@ -121,11 +121,11 @@ contains
         write(6,*)'CONVB_T:  ***WARNING*** obs b table not available to 3dvar.'
         bflag=.false.
      else
-!        if(mype == 0) then
+         if(mype == 0) then
 ! check T188
-!           write(6,*)'CONVB_T: parameter b from the provided stable: type 188'
+!           write(6,*)'CONVB_T: parameter b from the provided table'
 !           write(6,105) (isuble_bt(188,m),m=1,5)
-!        endif
+         endif
 ! use the pressure values of last obs. type, itypex
         if (itypex .gt. 0 ) then
            bptabl_t=zero
