@@ -75,7 +75,7 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
-logical :: do_tlnmc
+logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro
 
 ! ****************************************************************************
@@ -103,10 +103,14 @@ ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
-lstrong_bk_vars     =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
+lstrong_bk_vars  =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
 do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
 do_normal_rh_to_q=(.not.q_hyb_ens).and.&
                   lc_rh.and.lc_t .and.ls_prse.and.ls_q
+do_q_copy=.false.
+if(.not. do_normal_rh_to_q) then
+  do_q_copy = lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.q_hyb_ens
+end if
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 !  Create a temporary bundle similar to xhat, and copy contents of xhat into it
@@ -145,13 +149,20 @@ do jj=1,ntlevs_ens
       call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
    end if
 
+!  Get pointers to required state variables
+   call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
+   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
+   call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
+   call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
+   call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
 !$omp parallel sections private(ic,id,istatus)
 
 !$omp section
 
 !  Get pointers to required state variables
-   call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
-   call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
       if(uv_hyb_ens) then
@@ -166,42 +177,28 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
-!  Get pointers to required state variables
-   call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
-   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
 !  Get 3d pressure
-   if(do_getprs_tl) then
-      call getprs_tl(sv_ps,sv_tv,sv_prse)
-   end if
+   sv_q=zero
+   if(do_q_copy) call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
+   if(.not. do_tlnmc)then
+      if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
 
 !  Convert RH to Q
-   if(do_normal_rh_to_q) then
-      call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
-   else
-!  Else copy directly
-      if(q_hyb_ens) call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
-   end if
+      if(do_normal_rh_to_q) then
+         call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
+      end if
 
-!  Calculate sensible temperature
-   call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-   if(do_tv_to_tsen .and. .not. do_tlnmc) then
-     call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+!     Calculate sensible temperature
+      if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
 
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
-      if (.not. do_tv_to_tsen) then
-         call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-         call tv_to_tsen(sv_tv,sv_q,sv_tsen)
-      end if
-      call cw2hydro_tl(eval(jj),wbundle_c,sv_tsen,clouds,nclouds)
+      call cw2hydro_tl(eval(jj),wbundle_c,clouds,nclouds)
    else
 !  Since cloud-vars map one-to-one, take care of them together
       do ic=1,nclouds
@@ -237,6 +234,12 @@ do jj=1,ntlevs_ens
 !  Get 3d pressure
       if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
+!  Convert RH to Q
+      if(do_normal_rh_to_q) then
+!  sv_tsen is used as a temporary array in this if statement
+         call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
+      end if
+
 !  Calculate sensible temperature 
       if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
