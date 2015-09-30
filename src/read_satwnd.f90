@@ -1023,7 +1023,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 !  first to get observation error from PREPBUFR observation error table
            ppb=max(zero,min(ppb,r2000))
-<<<<<<< .working
            if (njqc == .true.) then
               itypey=itype
               ierr=index_sub(nc)
@@ -1093,7 +1092,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                if(ee <r105) then
                   ree=(ee-r100)/(-10.0_r_kind)
                   if(obsdat(4) >zero) then
-=======
            if(ppb>=etabl(itype,1,1)) k1=1          
            do kl=1,32
               if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
