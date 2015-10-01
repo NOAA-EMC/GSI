@@ -252,36 +252,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   vdisterrmax=zero
   wjbmin=zero
   wjbmax=5.0_r_kind
-  allocate(etabl(300,33,6))
 ! allocate(etabl(302,33,6)) ! add 2 ObsErr profiles for GOES-R IR(itype=301) and WV(itype=300) (not used yet, 2015-07-08, Genkova) 
   
-  etabl=1.e9_r_kind
-  ietabl=19
-  open(ietabl,file='errtable',form='formatted')
-  rewind ietabl
-  etabl=1.e9_r_kind
-  lcount=0
-  pflag=0
-  loopd : do
-     read(ietabl,100,IOSTAT=iflag) itypex
-     if( iflag /= 0 ) exit loopd
-     lcount=lcount+1
-     do k=1,33
-        read(ietabl,110)(etabl(itypex,k,m),m=1,6)
-     end do
-  end do   loopd
-100     format(1x,i3)
-110        format(1x,6e12.5)
-  if(lcount<=0 ) then
-     write(6,*)'READ_SATWND:obs error table not available to 3dvar. the program will stop'
-     call stop2(49) 
-  else
-     write(6,*)'READ_SATWND:  observation errors provided by local file errtable'
-  endif
-
-  close(ietabl)
-
->>>>>>> .merge-right.r62347
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
@@ -629,8 +601,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
-              sstime = real(nmind,r_kind) 
-              tdiff=(sstime-gstime)*r60inv
               if (abs(tdiff)>twind) cycle loop_readsb 
            endif
            iosub=0
@@ -1086,27 +1056,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               obserr=max(obserr,werrmin)
            endif                    ! end of njqc
 
-           if(itype==245 .or. itype==246) then
-
-!  using  Santek quality control method,calculate the original ee value
-               if(ee <r105) then
-                  ree=(ee-r100)/(-10.0_r_kind)
-                  if(obsdat(4) >zero) then
-           if(ppb>=etabl(itype,1,1)) k1=1          
-           do kl=1,32
-              if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
-           end do
-           if(ppb<=etabl(itype,33,1)) k1=33
-           k2=k1+1
-           ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
-           if (abs(ediff) > tiny_r_kind) then
-              del = (ppb-etabl(itype,k1,1))/ediff
-           else
-              del = huge_r_kind
-           endif
-           del=max(zero,min(del,one))
-           obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
-           obserr=max(obserr,werrmin)
            if((itype==245 .or. itype==246) &
               .and. (trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. trim(subset) == 'NC005012' )) then !only applies to AMVs from legacy algorithm (pre GOES-R)
 !  using Santek quality control method,calculate the original ee value:
@@ -1115,7 +1064,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(ee <r105) then
                  ree=(ee-r100)/(-10.0_r_kind)
                  if(obsdat(4) >zero) then
->>>>>>> .merge-right.r62347
                     ree=ree/obsdat(4)
                  else
                     ree=two

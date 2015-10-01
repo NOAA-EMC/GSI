@@ -265,7 +265,7 @@ contains
        pmot_conv(i)=zero
        ptime_conv(i)=zero
     enddo
-    nc=zero
+    nc=0
 
     if(nconvtype*npred_conv_max>0) then
        allocate(predx_conv (nconvtype,npred_conv_max))
@@ -311,8 +311,10 @@ contains
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
           ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
-          if(nc > 1 .and. trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
-             index_sub(nc)=index_sub(nc-1)+1
+          if(nc >=2 )then
+            if(trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
+               index_sub(nc)=index_sub(nc-1)+1
+            endif
           endif
        if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
