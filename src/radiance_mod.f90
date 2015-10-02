@@ -262,6 +262,7 @@ contains
     if(allocated(cloud_names_jac)) deallocate(cloud_names_jac)
   
     if(allocated(aero_names)) deallocate(aero_names)
+    if(allocated(aero_names_for)) deallocate(aero_names_for)
     if(allocated(aero_names_jac)) deallocate(aero_names_jac)
 
   end subroutine radiance_mode_destroy
@@ -311,6 +312,7 @@ contains
        end if
     end do
 
+!   determine rads type
     drtype='other'
     do i=1,ndat
        rtype(i)=dtype(i)                   !     rtype  - observation types to process
@@ -333,6 +335,7 @@ contains
        end if
     end do
  
+!   Determine total rad types
     k=0
     k2i=0
     first=.true.
@@ -371,12 +374,19 @@ contains
        rad_type_info(k)%ex_obserr=.false.
        rad_type_info(i)%ex_biascor=.false.
        rad_type_info(i)%cld_effect=.false.
+       rad_type_info(k)%lcloud_forward=.false.
+       rad_type_info(k)%lallsky=.false.
+       rad_type_info(k)%laerosol_forward=.false.
+       rad_type_info(k)%laerosol=.false.
 
        ii=k2i(k)
        first=.true.
+       nn1=0
+       nn2=0
        do j=1,jpch_rad
           diffistr = j==jpch_rad .or. trim(nusis(j))/=trim(nusis(j+1))
-          if (trim(dsis(ii))==trim(nusis(j))) then
+!         if (trim(dsis(ii))==trim(nusis(j))) then
+          if (index(trim(nusis(j)),trim(rrtype(k))) /= 0) then
              if (first) then
                 nn1=j
                 first=.false.
@@ -386,15 +396,15 @@ contains
              if (diffistr) exit
           end if
        end do
-       rad_type_info(k)%nchannel=nn2-nn1+1
+       if (nn1/=0 .and. nn2/=0) then
+          rad_type_info(k)%nchannel=nn2-nn1+1
+       else
+          cycle
+       end if
 
 !      determine usages of cloud and aerosol in each type
        allocate(rad_type_info(k)%lcloud4crtm(rad_type_info(k)%nchannel)) 
        allocate(rad_type_info(k)%laerosol4crtm(rad_type_info(k)%nchannel)) 
-       rad_type_info(k)%lcloud_forward=.false.
-       rad_type_info(k)%lallsky=.false.
-       rad_type_info(k)%laerosol_forward=.false.
-       rad_type_info(k)%laerosol=.false.
        nn=0
        do j=nn1,nn2
           nn=nn+1
@@ -461,8 +471,9 @@ contains
     integer i,j
     
     do i=1,total_rad_type
-       if (index(obstype,rad_type_info(i)%rtype) /= 0) then
-          if (mype==0) write(6,*) 'radiance_obstype_search: i=',i,' obstype=',obstype
+       if (index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0) then
+          if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
+                                  ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
           radmod%nchannel = rad_type_info(i)%nchannel
           radmod%cld_sea_only = rad_type_info(i)%cld_sea_only
@@ -510,8 +521,8 @@ contains
     integer(i_kind) :: k
 
     do k=1, total_rad_type
-       deallocate(rad_type_info(k)%lcloud4crtm)
-       deallocate(rad_type_info(k)%laerosol4crtm)
+       if(associated(rad_type_info(k)%lcloud4crtm)) deallocate(rad_type_info(k)%lcloud4crtm)
+       if(associated(rad_type_info(k)%laerosol4crtm)) deallocate(rad_type_info(k)%laerosol4crtm)
     end do
     if(allocated(rad_type_info)) deallocate(rad_type_info)
 

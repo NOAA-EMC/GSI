@@ -154,7 +154,6 @@ subroutine compute_qvar3d
   deallocate(rhgues)
 
   if (nrf3_cw>0) then 
-     if (n_clouds_for<=0) return
 
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,istatus);ier=istatus
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,istatus);ier=ier+istatus
@@ -197,7 +196,6 @@ subroutine compute_qvar3d
 
 ! for individual hydrometeors
   else  
-     if (n_clouds_for<=0) return
      if (cwoption/=3) return
      do n=1,size(cvars3d)
         do ic=1,n_clouds_for
