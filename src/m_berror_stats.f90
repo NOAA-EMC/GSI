@@ -504,6 +504,7 @@ end subroutine read_bal
                  end do
                  hwll(:,:,ivar)=0.5_r_kind*hwll(:,:,iq)
                  vz  (:,:,ivar)=0.5_r_kind*vz  (:,:,iq)
+                 exit
               end if   
            end do
         end do
