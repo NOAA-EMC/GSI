@@ -122,7 +122,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-! real(r_double),dimension(6):: cloud_frac
+  real(r_double),dimension(6):: cloud_frac
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -580,23 +580,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
-!   Clear Amount  (percent clear) 
-
-!xxx        call ufbrep(lnbufr,cloud_frac,1,6,iret,'TOCC')
-!xxx!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-!xxx        pred = cloud_frac(1)
-            pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
-
-! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
-! non ice surfaces.  Fixed channels (assuming the 399 set) for now.
-! This is moved to below where the radiances are read in.
-
-        if ( pred < zero .or. pred > 100.0_r_kind ) pred = 100.0_r_kind
-        crit1 = crit1 + pred
- 
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
-
 !   "Score" observation.  We use this information to identify "best" obs
 !    Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !    mask.  
@@ -674,17 +657,28 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         crit1=crit1 + ten*float(iskip)
 
-! (Comment copied from above:)
-! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
-! non ice surfaces.  Fixed channels (assuming the 399 set) for now with
-! channel 127 at 962.5 wavenumbers assumed.
-! This is moved to below where the radiances are read in.
+!       Cloud / clear tests.
+!       Cloud information may be missing depending on how the VIIRS granules align
+!       with the CrIS granules.  
+!       Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
+!JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
+!JAJ        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
+!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+!JAJ           pred = cloud_frac(1) / 10.0_r_kind
+!           pred = cloud_frac(2) / 100.0_r_kind
+!JAJ           crit1 = crit1 + pred
 
-     if (sfcpct(0)+sfcpct(1) > 0.9) &
-          crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
+!JAJ        else
+!       If cloud_frac is missing from BUFR, use proxy of warmest fov over 
+!       non ice surfaces.  Fixed channels (assuming the 399 set) for now.
+!       This is moved to below where the radiances are read in.
 
+!JAJ           if (sfcpct(0)+sfcpct(1) > 0.9) &
+!JAJ              crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
+ 
+!JAJ        endif ! clearest FOV check
 
-!    Map obs to grids
+!       Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
@@ -708,7 +702,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(5,itx) = sat_zenang*deg2rad     ! satellite zenith angle (rad)
         data_all(6,itx) = allspot(11)            ! satellite azimuth angle (deg)
         data_all(7,itx) = sat_look_angle         ! look angle (rad)
-        data_all(8,itx) = ifor                   ! for number
+        data_all(8,itx) = ifor                   ! field of regard
         data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
         data_all(10,itx)= allspot(13)            ! solar azimuth angle (deg)
         data_all(11,itx)= sfcpct(0)              ! sea percentage of
@@ -745,7 +739,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
         endif
 
-!       Put "used" channel temperatures into data array
+!       Put satinfo defined channel temperatures into data array
         do l=1,satinfo_nchan
            i = bufr_index(l)
            if ( bufr_index(l) /= 0 ) then
