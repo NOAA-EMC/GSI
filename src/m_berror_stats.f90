@@ -482,12 +482,12 @@ end subroutine read_bal
      end if
   end if
   if (cwoption==1 .or. cwoption==3) then
-     do k=1,nsig
-        do i=1,nlat
-           corz(i,k,icw)=one
-        end do
-     end do
      if (iq>0.and.icw>0) then
+        do k=1,nsig
+           do i=1,nlat
+              corz(i,k,icw)=one
+           end do
+        end do
         hwll(:,:,icw)=0.5_r_kind*hwll(:,:,iq)
         vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
      end if 

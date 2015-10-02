@@ -342,9 +342,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   if (n_clouds_jac>0) then
      allocate(icw(max(n_clouds_jac,1)))
      icw=-1
+     icount=0
      do ii=1,n_clouds_jac
         indx=getindex(radjacnames,trim(cloud_names_jac(ii)))
-        icw(n_clouds_jac)=radjacindxs(indx)
+        if (indx>0) then
+           icount=icount+1
+           icw(icount)=radjacindxs(indx)
+        end if
      end do
   end if
 
@@ -384,7 +388,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
     allocate(cloud(nsig,n_clouds_for))
     allocate(cloudefr(nsig,n_clouds_for))
     allocate(icloud(n_actual_clouds))
-    allocate(cloud_names(n_actual_clouds))
     cloud_cont=zero
     cloud_efr =zero
     cloud     =zero
@@ -400,7 +403,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
           jcloud(iii)=ii
        endif
     end do
-     print*, 'crtm_init: iii=',iii,' n_clouds_for=',n_clouds_for
     if(iii/=n_clouds_for) call die(myname_,'inconsistent cloud count',1)
 
     n_actual_clouds_wk = n_actual_clouds
@@ -754,7 +756,6 @@ subroutine destroy_crtm
   if (n_clouds_for_wk>0) &         
   deallocate(rtsolution0) 
   if(n_actual_aerosols_wk>0)then
-     deallocate(aero_names)
      deallocate(aero,aero_conc,auxrh)
      if(n_aerosols_jac_wk>0) deallocate(iaero_jac)
   endif
@@ -764,7 +765,6 @@ subroutine destroy_crtm
   if(allocated(icloud)) deallocate(icloud)
   if(allocated(cloud)) deallocate(cloud)
   if(allocated(cloudefr)) deallocate(cloudefr)
-  if(allocated(cloud_names)) deallocate(cloud_names)
   if(allocated(jcloud)) deallocate(jcloud)
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
@@ -1725,7 +1725,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                  if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
                     cloud_cont(k,2)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,2))
               end do
-
           endif   
         else 
            if (icmask) then
@@ -1930,7 +1929,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           endif
        endif
 
-
        if (ius>=0) then
            jacobian(ius+1,i)=uwind_k(i)         ! surface u wind sensitivity
        endif
@@ -1962,8 +1960,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            if(present(layer_od)) then
               layer_od(kk,i) = layer_od(kk,i) + rtsolution(i,1)%layer_optical_depth(k)
            endif
-           do ii=1,n_aerosols_jac
-              if ( n_aerosols_jac > n_aerosols_for .and. ii == indx_p25 ) then
+           do ii=1,n_aerosols_jac_wk
+              if ( n_aerosols_jac_wk > n_aerosols_for_wk .and. ii == indx_p25 ) then
                  jaero(kk,i,ii) = jaero(kk,i,ii) + &
                                   (0.5_r_kind*(0.78_r_kind*atmosphere_k(i,1)%aerosol(indx_dust1)%concentration(k) + &
                                                0.22_r_kind*atmosphere_k(i,1)%aerosol(indx_dust2)%concentration(k)) )
@@ -1974,7 +1972,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         enddo
         if (present(jacobian_aero)) then
            do k=1,nsig
-              do ii=1,n_aerosols_jac
+              do ii=1,n_aerosols_jac_wk
                  jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k)
               end do
            enddo

@@ -1000,6 +1000,7 @@
            errf0(i) = error0(i)
         end do
 
+!       Assign observation error for all-sky radiances 
         if (radmod%lcloud_forward .and. radmod%ex_obserr .and. eff_area)  then   
            call radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval,tnoise,tnoise_cld,error0)
         end if
