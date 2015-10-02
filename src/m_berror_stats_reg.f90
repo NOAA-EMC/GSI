@@ -32,6 +32,9 @@
 !                     - extract from rdgstat_reg
 !                     - change sructure of error file
 !                     - make changes for generalized control variables
+!       01Oct15   Zhu - use centralized cloud_names_for and n_clouds_for to add 
+!                       flexibility for clouds (either cw or individual hydrometeros) 
+!                       variances/correlations for all-sky radiance assimilation  
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
@@ -275,6 +278,7 @@ end subroutine berror_read_bal_reg
       use guess_grids, only:  ges_psfcavg,ges_prslavg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
+      use radiance_mod, only: icloud_cv,n_clouds_for,cloud_names_for
 
       implicit none
 
@@ -315,6 +319,9 @@ end subroutine berror_read_bal_reg
 !       10Jun14 Zhu - tune error variance and correlation lengths of cw for
 !                     all-sky radiance assimilation
 !       19Jun14 carley/zhu - add tcamt and lcbas
+!       01Oct15 Zhu - use centralized cloud_names_for and n_clouds_for to add 
+!                     flexibility for clouds (either cw or individual hydrometeros) 
+!                     variances/correlations for all-sky radiance assimilation
 !
 !EOP ___________________________________________________________________
 
@@ -345,7 +352,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,m1,m,i,n,j,k,n0
+  integer(i_kind) :: loc,m1,m,i,n,j,k,n0,ivar,ic
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux
@@ -562,6 +569,7 @@ end subroutine berror_read_bal_reg
      hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
      vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
   end if
+
   if ((.not. cwcoveqqcov_) .and. nrf3_cw>0) then
      corz(:,:,nrf3_cw)=zero
      if (cwoption==2) then
@@ -574,6 +582,7 @@ end subroutine berror_read_bal_reg
            end if
         enddo
      end if
+
      if (cwoption==1 .or. cwoption==3) then
         do k=1,nsig
            if (ges_prslavg(k)>15.0_r_kind) then
@@ -582,10 +591,28 @@ end subroutine berror_read_bal_reg
               end do
            end if
         end do
+        hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
+        vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
      end if
-     hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
   end if
+
+  if (icloud_cv .and. n_clouds_for>0 .and. nrf3_cw<=0 .and. cwoption==3) then
+     do n=1,size(cvars3d)
+        do ic=1,n_clouds_for
+           if(trim(cvars3d(n))==trim(cloud_names_for(ic))) then
+              ivar=n
+              do k=1,nsig
+                 do i=1,nlat
+                    corz(i,k,ivar)=one
+                 end do
+              end do
+              hwll(:,:,ivar)=0.5_r_kind*hwll(:,:,nrf3_q)
+              vz  (:,:,ivar)=0.5_r_kind*vz  (:,:,nrf3_q)
+              exit
+           end if
+        end do
+     end do
+  end if ! n_clouds_for>0 .and. nrf3_cw<=0 .and. cwoption==3
 
 
   if (nrf3_sfwter>0) then
