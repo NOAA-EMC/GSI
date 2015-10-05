@@ -13,4 +13,6 @@ Before running, compile the program by typing 'make'.
 
 There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it. 
 
-If the amount of radstat files is small, or they have already been processed, then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job.
+If the amount of radstat files is small, or they have already been processed (see below), then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job.
+
+cov_calc requires the files diag_$instr_anl.$date and diag and diag_$instr_ges.$date from the radstat files.  The first analysis diag file must be renamed danl_0001, the second renamed danl_0002, etc, while the first background file must be renamed dges_0001 and so on.  Even if a diag file is missing, the danl and dges files count up by one each time.  The scripts parallel_run.sh and run.sh process the radstat files in this manner.  
