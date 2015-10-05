@@ -218,7 +218,7 @@
       isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
       ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
-      isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
+      isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr 
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms,qc_gmi,qc_amsr2,qc_saphir
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
@@ -258,6 +258,8 @@
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
+!here isfctype
+  integer(i_kind) isfctype
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) node 
@@ -267,7 +269,7 @@
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
 ! real(r_kind) wltm1,wltm2,wltm3  
-  real(r_kind) ys_bias_sst,cosza,val_obs
+  real(r_kind) ys_bias_sst,cosza,val_obs, cosza2 !here cosza2
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
@@ -298,7 +300,7 @@
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
-  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf
+  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf,wgtjo !here wgtjo
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -326,6 +328,8 @@
 
   logical channel_passive
   logical,dimension(nobs):: luse
+!here, next line
+  integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
   character(10) filex
   character(12) string
@@ -687,7 +691,7 @@
   endif
 
 ! Load data array for current satellite
-  read(lunin) data_s,luse
+  read(lunin) data_s,luse !here ioid added
 
   if (nobskeep>0) then
      write(6,*)'setuprad: nobskeep',nobskeep
@@ -743,6 +747,18 @@
         snow = data_s(ifrac_sno,n)  >= 0.99_r_kind
         mixed = .not. sea  .and. .not. ice .and.  &
                 .not. land .and. .not. snow
+!here, added if statements
+       if(sea) then
+          isfctype=0
+       else if(land) then
+          isfctype=1
+       else if(ice) then
+          isfctype=2
+       else if(snow) then
+          isfctype=3
+       else if(mixed) then
+          isfctype=4
+       endif
          
 !       Count data of different surface types
         if(luse(n))then
@@ -1329,6 +1345,7 @@
            end if
         end if
 
+
 !       If requested, generate SST retrieval (output)
         if(retrieval) then
            if(avhrr_navy .or. avhrr) then
@@ -1458,6 +1475,8 @@
               nchan_total=nchan_total+icc
  
               if(.not. associated(radhead(ibin)%head))then
+!here, radhead=0
+                 radhead(ibin)%n_alloc = 0
                  allocate(radhead(ibin)%head,stat=istat)
                  if(istat /= 0)write(6,*)' failure to write radhead '
                  radtail(ibin)%head => radhead(ibin)%head
@@ -1466,28 +1485,42 @@
                  if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
                  radtail(ibin)%head => radtail(ibin)%head%llpoint
               end if
+!here, next two lines
+              radhead(ibin)%n_alloc = radhead(ibin)%n_alloc +1
+              radtail(ibin)%n_alloc = radhead(ibin)%n_alloc
 
               m_alloc(ibin) = m_alloc(ibin) +1
               my_head => radtail(ibin)%head
               my_head%idv = is
-              my_head%iob = n
+              my_head%iob = (n) !here, changed n to ioid(n)
+!here, next four lines-consistent with new obsmod
+!              my_head%elat= data_s(ilate,n)
+!              my_head%elon= data_s(ilone,n)
+!              my_head%dlat= data_s(ilat ,n)
+!              my_head%dlon= data_s(ilon ,n)
+
 
               allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
                        radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
                        radtail(ibin)%head%dtb_dvar(nsigradjac,icc), &
-                       radtail(ibin)%head%ich(icc),&
+                       radtail(ibin)%head%ich(icc),&  !here, commented out
                        radtail(ibin)%head%icx(icc))
-              if(luse_obsdiag)allocate(radtail(ibin)%head%diags(icc))
+              if(luse_obsdiag) allocate(radtail(ibin)%head%diags(icc))
 
               call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
               radtail(ibin)%head%time=dtime
               radtail(ibin)%head%luse=luse(n)
-              radtail(ibin)%head%ich(:)=-1
+              radtail(ibin)%head%ich(:)=-1  !here, commented out
 
               utbc=tbc
+ !here, added wgtjo
+              wgtjo= varinv     ! weight used in Jo term
               adaptinf = error0 ! on input
-              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
-                                                              utbc,obvarinv,adaptinf,jacobian)
+!here, channged this function call
+               account_for_corr_obs = radinfo_adjust_jacobian(isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+                                                             utbc,obvarinv,adaptinf,wgtjo,jacobian)
+!              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
+!                                                              utbc,obvarinv,adaptinf,jacobian)
 
               iii=0
               do ii=1,nchanl
@@ -1583,6 +1616,8 @@
           if (luse_obsdiag) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
+!here, added obsdiag line
+                 obsdiags(i_rad_ob_type,ibin)%n_alloc = 0
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
                  if (istat/=0) then
                     write(6,*)'setuprad: failure to allocate obsdiags',istat
@@ -1597,11 +1632,13 @@
                  end if
                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
               end if
+!here, added obsdiag line
+              obsdiags(i_rad_ob_type,ibin)%n_alloc = obsdiags(i_rad_ob_type,ibin)%n_alloc +1
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+1))
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%tldepart(miter))
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_rad_ob_type,ibin)%tail%indxglb=(n-1)*nchanl+ii
+              obsdiags(i_rad_ob_type,ibin)%tail%indxglb=((n)-1)*nchanl+ii !here n changed to ioid
               obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs=-99999
               obsdiags(i_rad_ob_type,ibin)%tail%luse=.false.
               obsdiags(i_rad_ob_type,ibin)%tail%muse(:)=.false.
@@ -1613,15 +1650,26 @@
               n_alloc(ibin) = n_alloc(ibin) +1
               my_diag => obsdiags(i_rad_ob_type,ibin)%tail
               my_diag%idv = is
-              my_diag%iob = n
+              my_diag%iob = (n) !here, changed n to ioid(n)
               my_diag%ich = ii
+!here, added next four lines
+!              my_diag%elat= data_s(ilate,n)
+!              my_diag%elon= data_s(ilone,n)
+!              my_diag%dlat= data_s(ilat ,n)
+!              my_diag%dlon= data_s(ilon ,n)
+
            else
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
               else
                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
               end if
-              if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(n-1)*nchanl+ii) then
+!here, added next if statement
+              if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
+                 call die(myname,'.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)')
+              end if
+
+              if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=((n)-1)*nchanl+ii) then !here changed n to ioid
                  write(6,*)'setuprad: index error'
                  call stop2(278)
               endif
@@ -1676,6 +1724,9 @@
         if(in_curbin) then
            if(iccm > 0)then
               if(.not. associated(radheadm(ibin)%head))then
+!here, added radheadm line
+                 radheadm(ibin)%n_alloc = 0
+
                  allocate(radheadm(ibin)%head,stat=istat)
                  if(istat /= 0)write(6,*)' failure to write radheadm '
                  radtailm(ibin)%head => radheadm(ibin)%head
@@ -1684,14 +1735,22 @@
                  if(istat /= 0)write(6,*)' failure to write radtailm%llpoint '
                  radtailm(ibin)%head => radtailm(ibin)%head%llpoint
               end if
+!here, added next two lines
+              radheadm(ibin)%n_alloc = radheadm(ibin)%n_alloc +1
+              radtailm(ibin)%n_alloc = radheadm(ibin)%n_alloc
 
               my_headm => radtailm(ibin)%head
               my_headm%idv = is
-              my_headm%iob = n
+              my_headm%iob = (n) !here, changed n to ioid(n)
+!here, added next four line
+!              my_headm%elat= data_s(ilate,n)
+!              my_headm%elon= data_s(ilone,n)
+!              my_headm%dlat= data_s(ilat ,n)
+!              my_headm%dlon= data_s(ilon ,n)
 
               allocate(radtailm(ibin)%head%res(iccm),radtailm(ibin)%head%err2(iccm), &
                        radtailm(ibin)%head%raterr2(iccm),radtailm(ibin)%head%pred(npred,iccm), &
-                       radtailm(ibin)%head%ich(iccm), &
+                       radtailm(ibin)%head%ich(iccm), & !here, commented this  line
                        radtailm(ibin)%head%icx(iccm))
 
               radtailm(ibin)%head%nchan  = iccm        ! profile observation count
@@ -1713,7 +1772,7 @@
                        radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
                     end do
 
-                    my_headm%ich(iii)=ii
+                    my_headm%ich(iii)=ii !here, commented this line
 
 !                   compute hessian contribution,
 !                   skip rstats accumulation for channels without coef. initialization
@@ -1874,7 +1933,7 @@
                        write(6,*)'setuprad: error obsptr'
                        call stop2(280)
                     end if
-                    if (obsptr%indxglb/=(n-1)*nchanl+ii) then
+                    if (obsptr%indxglb/=((n)-1)*nchanl+ii) then !here changed n to ioid
                        write(6,*)'setuprad: error writing diagnostics'
                        call stop2(281)
                     end if

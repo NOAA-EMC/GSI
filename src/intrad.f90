@@ -287,6 +287,12 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
+!next three lines here
+  use radinfo, only: radinfo_scl_bias,radinfo_get_rsqrtinv
+  use mpimod, only: mype
+  use timermod, only:  timer_ini, timer_fnl
+
+
   implicit none
 
 ! Declare passed variables
@@ -306,6 +312,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
   type(rad_ob_type), pointer :: radptr
 
+!next three lines here
+  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+  logical do_scl_bias
+  integer(i_kind) iinstr,ic1,ix1
+
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -318,7 +329,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 ! Set required parameters
   if(lgoback) return
 
-
+!here timer
+  call timer_ini('intrad')
+ 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0
   if(luseu)then
@@ -520,6 +533,14 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         endif
  
      endif
+     ! here if statement
+     do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
+     if(do_scl_bias)then
+        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+        rsqrtinv=zero
+        call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%icx, & !  need to talk to Jing!
+                                  radptr%err2,rsqrtinv)
+     endif
 
 !  For all other configurations
 !  begin channel specific calculations
@@ -537,11 +558,29 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end do
 
 !       Include contributions from remaining bias correction terms
+! change if statement here
         if( .not. ladtest_obs) then
-           do n=1,npred
-              val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
-           end do
+           if(do_scl_bias)then
+              do n=1,npred
+                 do mm=1,radptr%nchan
+                    ic1=radptr%icx(mm)
+                    ix1=(ic1-1)*npred
+                    val(nn)=val(nn)+rsqrtinv(nn,mm)*spred(ix1+n)*radptr%pred(n,mm)
+                 enddo
+              enddo
+           else
+              do n=1,npred
+                 val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
+              end do
+           endif
         end if
+!        if( .not. ladtest_obs) then
+!           do n=1,npred
+!              val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
+!           end do
+!        end if
+
+
 
         if(luse_obsdiag)then
            if (lsaveobsens) then
@@ -573,13 +612,29 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !          use compensated summation
            if( .not. ladtest_obs) then
               if(radptr%luse)then
-                 do n=1,npred
-                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
-                 end do
+!extra if here, if (do_scl_bias)
+                 if(do_scl_bias)then
+                    do n=1,npred
+                       do mm=1,radptr%nchan
+                          ic1=radptr%icx(mm)
+                          ix1=(ic1-1)*npred
+                          rpred(ix1+n)=rpred(ix1+n)+rsqrtinv(nn,mm)*radptr%pred(n,mm)*val(nn)
+                       enddo
+                    enddo
+                 else
+                    do n=1,npred
+                       rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
+                    end do
+                 end if
               end if
            end if ! not ladtest_obs
         end if
      end do
+!extra deallocate here
+     if(do_scl_bias) then      
+        deallocate(rsqrtinv)
+     endif
+
 !          Begin adjoint
 
      if (l_do_adjoint) then
@@ -739,6 +794,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
      radptr => radptr%llpoint
   end do
+
+  call timer_fnl('intrad')
 
   return
 end subroutine intrad_
