@@ -398,7 +398,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
     iii=0
     do ii=1,n_actual_clouds
        call gsi_metguess_get ( 'i4crtm::'//trim(cloud_names(ii)), icloud4crtm, ier )
-       if (icloud4crtm==12) then
+       if (icloud4crtm>10) then
           iii=iii+1
           jcloud(iii)=ii
        endif
