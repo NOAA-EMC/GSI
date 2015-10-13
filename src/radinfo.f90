@@ -1856,6 +1856,6 @@ contains
    adjust_jac_ = corr_ob_scale_jac (depart,obvarinv,adaptinf,jacobian,nchanl,jpch_rad,varinv, &
                                     iuse_rad,ich,GSI_BundleErrorCov(iinstr))
 
-end function adjust_jac_
+   end function adjust_jac_
  
 end module radinfo

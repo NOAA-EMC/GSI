@@ -1921,7 +1921,6 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
      clwp_amsua=cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
-     clwp_amsua=max(zero,clwp_amsua)
 !    tpwc_amsua=cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      ierrret = 0
      clwp_amsua=max(zero,clwp_amsua)

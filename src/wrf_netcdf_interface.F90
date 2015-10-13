@@ -2747,7 +2747,7 @@ subroutine update_netcdf_nmm
   use mpeu_util, only: die
   use guess_grids, only: ntguessig
   use obsmod, only: iadate
-  use radiance_mod, only: n_actual_clouds,iallsky
+  use radiance_mod, only: n_actual_clouds,icloud_cv
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -2806,7 +2806,7 @@ subroutine update_netcdf_nmm
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if (ier/=0 .or. (.not. iallsky)) n_actual_clouds=0
+     if (ier/=0 .or. (.not. icloud_cv)) n_actual_clouds=0
   end if
 
 ! transfer code from diffwrf for converting netcdf wrf nmm restart file

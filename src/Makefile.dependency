@@ -183,7 +183,7 @@ loglcbas_to_lcbas.o : loglcbas_to_lcbas.f90 constants.o derivsmod.o gridmod.o ki
 logvis_to_vis.o : logvis_to_vis.f90 constants.o derivsmod.o gridmod.o kinds.o 
 looplimits.o : looplimits.f90 kinds.o 
 m_berror_stats.o : m_berror_stats.f90 gsi_chemguess_mod.o gsi_metguess_mod.o gsi_bundlemod.o guess_grids.o mpimod.o gridmod.o mpeu_util.o radiance_mod.o control_vectors.o constants.o kinds.o 
-m_berror_stats_reg.o : m_berror_stats_reg.f90 mpeu_util.o control_vectors.o guess_grids.o chemmod.o gridmod.o constants.o kinds.o 
+m_berror_stats_reg.o : m_berror_stats_reg.f90 mpeu_util.o radiance_mod.o control_vectors.o guess_grids.o chemmod.o gridmod.o constants.o kinds.o 
 m_dgeevx.o : m_dgeevx.F90 constants.o kinds.o 
 m_distance.o : m_distance.f90 kinds.o constants.o 
 m_dtime.o : m_dtime.F90 mpeu_util.o guess_grids.o kinds.o 
