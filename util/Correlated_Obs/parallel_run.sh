@@ -1,22 +1,22 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040800
+bdate=2014040200
 #date of last radstat file
 #edate=2013102506
 edate=2014041418
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-a
+instr=iasi_metop-b
 #location of radstat file
-exp=prexoz
-diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+exp=prCtlold
+diagdir=/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasidir
+wrkdir=/stmpp1/${USER}/iasib_sea
 #location the covariance matrix is saved to
 savdir=$diagdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
-type=2
+type=1
 #cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
-cloud=1
+cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=20
 #option to output the channel wavenumbers
@@ -30,19 +30,19 @@ kreq=-60
 #logical to use modified Rcov
 mod_Rcov=.false.
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=7
+num_proc=13
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
-unpack_walltime=00:15:00
+unpack_walltime=01:15
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=04:00:00
+wall_time=04:00
 #job account name (needed on theia only)
 account=cloud
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
-machine=theia
+machine=wcoss
 
-ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
+ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 
 ####################################################################
 
