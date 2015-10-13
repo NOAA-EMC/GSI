@@ -396,6 +396,8 @@ contains
     total_rad_type=k
     if (mype==0) write(6,*) 'radiance_obstype_init: total_rad_type=', k,' types are: ', rrtype(1:total_rad_type)
 
+    if (total_rad_type<=0) return
+
     allocate(rad_type_info(total_rad_type)) 
 
     do k=1, total_rad_type
