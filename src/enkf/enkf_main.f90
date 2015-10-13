@@ -66,7 +66,8 @@ program enkf_main
 
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
- use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc
+ use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
+                    numiter
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_cleanup, nproc, numproc, mpi_wtime
  ! obs and ob priors, associated metadata.
@@ -115,7 +116,7 @@ program enkf_main
 
  ! read obs, initial screening.
  t1 = mpi_wtime()
- call readobs(npts,lonsgrd,latsgrd)
+ call readobs()
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in read_obs =',t2-t1,'on proc',nproc
 
@@ -159,7 +160,7 @@ program enkf_main
  if (nproc == 0) print *,'time in inflate_ens =',t2-t1,'on proc',nproc
 
  ! print innovation statistics for posterior on root task.
- if (nproc == 0) then
+ if (nproc == 0 .and. numiter > 0) then
     print *,'innovation statistics for posterior:'
     call print_innovstats(obfit_post, obsprd_post)
  ! write out bias coeffs on root.
