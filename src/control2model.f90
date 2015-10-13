@@ -63,7 +63,7 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only: max_varname_length
+use constants, only: max_varname_length,zero
 implicit none
   
 ! Declare passed variables  
@@ -218,7 +218,10 @@ do jj=1,nsubwin
    if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
 
 !  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(workrh,sv_tv,sv_prse,sv_q)
+   sv_q=zero
+   if(do_normal_rh_to_q) then
+      call normal_rh_to_q(workrh,sv_tv,sv_prse,sv_q)
+   end if
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
@@ -229,12 +232,7 @@ do jj=1,nsubwin
    if (nclouds>0) then
       if (cw_to_hydro) then
 !        Case when cw is generated from hydrometeors
-         if (.not. do_tv_to_tsen) then 
-            allocate(sv_tsen(lat2,lon2,nsig))
-            call tv_to_tsen(sv_tv,sv_q,sv_tsen)
-         end if
-         call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
-         if (.not. do_tv_to_tsen) deallocate(sv_tsen)
+         call cw2hydro_tl(sval(jj),wbundle,clouds,nclouds)
       else
 !        Case when cloud-vars map one-to-one, take care of them together
          do ic=1,nclouds
