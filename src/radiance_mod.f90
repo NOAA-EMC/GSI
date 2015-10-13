@@ -131,9 +131,9 @@ contains
     iallsky=.false.
     cw_cv=.false.
 
+    n_actual_clouds=0
     n_clouds_for=0 
     n_clouds_jac=0
-    n_actual_clouds=0
 
     iaerosol_forward=.false.
     iaerosol_cv=.false.
@@ -297,10 +297,10 @@ contains
 
     logical :: first,diffistr,found
     integer(i_kind) :: i,j,k,ii,nn1,nn2,nn
-    integer(i_kind) :: total_type
     integer(i_kind),dimension(ndat) :: k2i
     character(10),dimension(ndat) :: rtype,rrtype,drtype
 
+!   Cross-check 
     do j=1,jpch_rad
        if (icloud4crtm(j)>=0) then
           if (.not. iallsky) icloud4crtm(j)=0
@@ -311,6 +311,36 @@ contains
           if (.not. iaerosol_forward) iaerosol4crtm(j)=-1
        end if
     end do
+
+    if (icloud_forward .and. all(icloud4crtm<0)) then 
+       icloud_forward=.false.
+       iallsky=.false.
+       n_clouds_for=0
+       n_clouds_jac=0       
+       cloud_names_for=' '
+       cloud_names_jac=' '
+    end if
+
+    if (iaerosol_forward .and. all(iaerosol4crtm<0)) then
+       iaerosol_forward=.false.
+       iaerosol=.false.
+       n_aerosols_for=0
+       n_aerosols_jac=0   
+       aero_names_for=' '
+       aero_names_jac=' '
+    end if
+
+    if (iallsky .and. all(icloud4crtm<1)) then
+       iallsky=.false.
+       n_clouds_jac=0
+       cloud_names_jac=' '
+    end if
+
+    if (iaerosol .and. all(iaerosol4crtm<1)) then
+       iaerosol=.false.
+       n_aerosols_jac=0
+       aero_names_jac=' '
+    end if
 
 !   determine rads type
     drtype='other'
@@ -370,10 +400,10 @@ contains
 
     do k=1, total_rad_type
        rad_type_info(k)%rtype=rrtype(k)
-       rad_type_info(i)%cld_sea_only=.false.
+       rad_type_info(k)%cld_sea_only=.false.
        rad_type_info(k)%ex_obserr=.false.
-       rad_type_info(i)%ex_biascor=.false.
-       rad_type_info(i)%cld_effect=.false.
+       rad_type_info(k)%ex_biascor=.false.
+       rad_type_info(k)%cld_effect=.false.
        rad_type_info(k)%lcloud_forward=.false.
        rad_type_info(k)%lallsky=.false.
        rad_type_info(k)%laerosol_forward=.false.
@@ -559,12 +589,15 @@ contains
     character(len=10) :: obsname
     character(len=10) :: obsloc   ! global, sea, or, land ...
     logical :: obserr,biascor,cldeff
+    logical :: pcexist
 
     integer(i_kind) i
     character(len=20) :: filename
 
     namelist/obs_amsua/obsname,obsloc,obserr,biascor,cldeff
 
+    inquire(file='cloudy_radiance_info.txt',exist=pcexist)
+    if (.not. pcexist) return
     lunin=11
     open(lunin,file='cloudy_radiance_info.txt',form='formatted')
 

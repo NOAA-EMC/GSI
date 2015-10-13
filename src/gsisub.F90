@@ -144,11 +144,11 @@ subroutine gsisub(mype,init_pass,last_pass)
         call radinfo_read
         call radiance_obstype_init
         call radiance_parameter_cloudy_init
-        call radiance_parameter_aero_init
         call ozinfo_read
         call coinfo_read
         call pcpinfo_read
         call aeroinfo_read
+        call radiance_parameter_aero_init
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
            call aircraftinfo_read
      endif

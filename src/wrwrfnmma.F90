@@ -60,7 +60,7 @@ subroutine wrwrfnmma_binary(mype)
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
-  use radiance_mod, only: n_actual_clouds,iallsky
+  use radiance_mod, only: n_actual_clouds,icloud_cv
 
   implicit none
 
@@ -175,7 +175,7 @@ subroutine wrwrfnmma_binary(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if ((.not. iallsky) .or. ier/=0) n_actual_clouds=0
+     if ((.not. icloud_cv) .or. ier/=0) n_actual_clouds=0
   end if
 
 
@@ -1099,7 +1099,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
   use gsi_4dvar, only: nhr_assimilation
-  use radiance_mod, only: n_actual_clouds,iallsky
+  use radiance_mod, only: n_actual_clouds,icloud_cv
 
   implicit none
 
@@ -1199,7 +1199,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_cloud=ier_cloud+iret
 
-     if ((.not. iallsky) .or. ier_cloud/=0) n_actual_clouds=0
+     if ((.not. icloud_cv) .or. ier_cloud/=0) n_actual_clouds=0
 
   else if (use_reflectivity)then
     
@@ -1687,7 +1687,7 @@ subroutine wrwrfnmma_netcdf(mype)
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save
-  use radiance_mod, only: n_actual_clouds,iallsky
+  use radiance_mod, only: n_actual_clouds,icloud_cv
 
   implicit none
 
@@ -1778,7 +1778,7 @@ subroutine wrwrfnmma_netcdf(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-     if ((.not. iallsky) .or. ier/=0) n_actual_clouds=0
+     if ((.not. icloud_cv) .or. ier/=0) n_actual_clouds=0
   end if
 
   num_nmm_fields=3+4*lm
