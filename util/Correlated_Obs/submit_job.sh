@@ -22,7 +22,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=/da/save/${USER}/GSI/Desroziers/util/Correlated_OBS/
+rundir=/da/save/${USER}/GSI/Desroziers/util/Correlated_Obs/
 cd ${rundir}
 ./run.sh
 
