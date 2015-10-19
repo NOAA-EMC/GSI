@@ -49,7 +49,7 @@ subroutine get_gefs_ensperts_dualres
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
-  use hybrid_ensemble_parameters, only: betas_inv,betae_inv
+  use hybrid_ensemble_parameters, only: betas_inv,betae_inv,ensemble_path
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -133,10 +133,10 @@ subroutine get_gefs_ensperts_dualres
           ! read pre-processed ensemble data (one file for each bin that has all
           ! the ensemble members for a subdomain).
           if(l4densvar) then
-             write(filename,103) n, ens4d_fhrlevs(m), mype
- 103         format('ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
+             write(filename,103) trim(ensemble_path), n, ens4d_fhrlevs(m), mype
+ 103         format(a,'ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
           else
-             write(filename,103) n, 6, mype
+             write(filename,103) trim(ensemble_path), n, 6, mype
           end if
           if (mype==npe)write(6,*) 'READ PRE-PROCESSED ENS FILE: ',trim(filename)
           open(lunges,file=filename,form='unformatted',iostat=iret)
@@ -161,10 +161,10 @@ subroutine get_gefs_ensperts_dualres
        else
           ! read from spectral file on root task, broadcast to other tasks.
           if (l4densvar) then
-             write(filename,106) ens4d_fhrlevs(m), n
- 106         format('sigf',i2.2,'_ens_mem',i3.3)
+             write(filename,106) trim(ensemble_path), ens4d_fhrlevs(m), n
+ 106         format(a,'sigf',i2.2,'_ens_mem',i3.3)
           else
-             write(filename,106) 6, n
+             write(filename,106) trim(ensemble_path), 6, n
           endif
           if (use_gfs_ens) then
              if (mype==npe)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
