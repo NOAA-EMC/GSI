@@ -1322,6 +1322,8 @@ contains
 !   2014-10-01  ejones  - add gmi and amsr2 logical
 !   2015-01-16  ejones  - add saphir logical
 !   2015-03-23  zaizhong ma - added the Himawari-8 ahi
+!   2015-10-22  jung    - changed from using satinfo information in the radstat file to
+!                         using information from the satinfo file.
 !
 ! attributes:
 !   language: f90
@@ -1356,19 +1358,18 @@ contains
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
    logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri
 
-   character(10):: obstype,platid
-   character(20):: satsens,satsens_id
-   character(50):: fdiag_rad,dname,fname
+   character(len=20):: obstype,platid
+   character(len=20):: satsens,satsens_id
+   character(len=50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
    integer(i_kind):: i,j,jj,n_chan,k,lunout
    integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
-   integer(i_kind):: counttmp
+   integer(i_kind):: counttmp, jjstart
    integer(i_kind):: radedge_min, radedge_max
    integer(i_kind),dimension(maxchn):: ich
-   integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
  
    real(r_kind):: bias,scan,errinv,rnad,atiny
@@ -1473,14 +1474,23 @@ contains
 !     Extract satinfo relative index and get new_chan
       new_chan=0
       update=.false.
-      do j=1,n_chan
-         io_chan(j) = real( header_chan(j)%iochan, 4 )
-         if (inew_rad(io_chan(j))) then
-            new_chan=new_chan+1
-            ich(new_chan) = io_chan(j)
-         end if
-         if (update_tlapmean(io_chan(j))) update=.true.
-      end do
+
+      jjstart = 1
+      loop_a: do j=1,n_chan
+         do jj=jjstart,jpch_rad
+            if ( trim(nusis(jj)) == trim(satsens_id) .and. &
+                 nuchan(jj) == header_chan(j)%nuchan ) then
+               jjstart = jj + 1
+               if (inew_rad(jj)) then
+                  new_chan=new_chan+1
+                  ich(new_chan) = jj
+               end if
+               if (update_tlapmean(jj)) update=.true.
+               cycle loop_a
+            endif
+         end do 
+      end do loop_a
+       
       if (.not. update .and. new_chan==0) then 
          close(lndiag)
          cycle loopf
@@ -1561,24 +1571,27 @@ contains
 
 !        Channel loop
          nc=0
+         jjstart = 1
          loopc:  do j = 1, n_chan
-            jj=io_chan(j)
-            if (inew_rad(jj)) nc = nc+1
-            
+            do jj=jjstart,jpch_rad
+               if ( trim(nusis(jj)) == trim(satsens_id) .and. &
+                    nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+                  if (inew_rad(jj)) nc = nc+1
 
-            if ((.not. inew_rad(jj)) .and.  &
-                (.not. update_tlapmean(jj))) cycle loopc
+                  if ((.not. inew_rad(jj)) .and.  &
+                     (.not. update_tlapmean(jj))) cycle loopc
 
 !           Check for reasonable obs-ges and observed Tb.
 !           If the o-g difference is too large (> 200 K, very genereous!)
 !           of the observation is too cold (<50 K) or too warm (>500 K),
 !           do not use this observation in computing the update to the
 !           angle dependent bias.
-            if( ( abs(data_chan(j)%omgnbc) > 200. .or. &
-                 data_chan(j)%tbobs < 50. .or. &
-                 data_chan(j)%tbobs > 500. ) ) then
-               cycle loopc
-            end if
+                  if( ( abs(data_chan(j)%omgnbc) > 200. .or. &
+                       data_chan(j)%tbobs < 50. .or. &
+                       data_chan(j)%tbobs > 500. ) ) then
+                     cycle loopc
+                  end if
  
 !           if errinv= (1 /(obs error)) is small (small = less than 1.e-6)
 !           the observation did not pass quality control.  In this
@@ -1588,41 +1601,42 @@ contains
 
 !           errinv=data_chan(j)%errinv
 !           if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
-            errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+                  errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
-            if (update_tlapmean(jj)) then
-               tlaptmp=data_chan(j)%tlap
-               if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
-               tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
-               tsum(jj) =tsum(jj)+errinv
-               tcnt(jj) =tcnt(jj)+one
-            end if
+                  if (update_tlapmean(jj)) then
+                     tlaptmp=data_chan(j)%tlap
+                     if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
+                     tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
+                     tsum(jj) =tsum(jj)+errinv
+                     tcnt(jj) =tcnt(jj)+one
+                  end if
 
-            if (inew_rad(jj)) then
+                  if (inew_rad(jj)) then
+!                    Define predictor
+                     pred=zero
+                     pred(1) = one
+                     if (.not. mean_only) then
+                        rnad = rnad_pos(satsens,ispot,jj)*deg2rad
+                        do i=1,angord
+                           pred(i+1) = rnad**i
+                        end do
+                     end if
 
-!              Define predictor
-               pred=zero
-               pred(1) = one
-               if (.not. mean_only) then
-                  rnad = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
-                  do i=1,angord
-                     pred(i+1) = rnad**i
-                  end do
+!                    Add values to running sums.
+                     iobs(nc) = iobs(nc)+one
+                     bias = data_chan(j)%omgnbc
+                     do i=1,np
+                        b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
+                     end do
+                     do k=1,np
+                        do i=1,np
+                           A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
+                        end do
+                     end do
+                  end if
+                  cycle loopc
                end if
-
-!              Add values to running sums.
-               iobs(nc) = iobs(nc)+one
-               bias = data_chan(j)%omgnbc
-               do i=1,np
-                  b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
-               end do
-               do k=1,np
-                  do i=1,np
-                     A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
-                  end do
-               end do
-            end if
-        
+           end do   
          enddo loopc ! channel loop
 
 !     End of loop over diagnostic file
@@ -1632,40 +1646,56 @@ contains
 
 !     Compute tlapmean
       if (update) then
-         do j = 1,n_chan
-            jj=io_chan(j)
-!           wgtlap=one
-            if (update_tlapmean(jj)) then
-               if(tcnt(jj) >= nthreshold)  then
-                  tsum(jj)=tsum(jj)+tsum0(jj)
-!                 tlap2(jj) = tlap0(jj) + wgtlap*tlap1(jj)/tsum(jj)
-                  tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
-                  count_tlapmean(jj)=count_tlapmean(jj)+one
-               elseif (tcnt(jj)>0) then
-                  ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
-                  tsum(jj)=ratio*tsum(jj)+tsum0(jj)
-!                 tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
-                  tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)
-                  count_tlapmean(jj)=count_tlapmean(jj)+one
-               else
-                  tsum(jj)=tsum0(jj)
-                  tlap2(jj) = tlap0(jj)
-                  count_tlapmean(jj)=count_tlapmean(jj)
-               endif
-               tsum_tlapmean(jj)=tsum(jj)
-               tlapmean(jj)=tlap2(jj)
-               if (.not. newpc4pred) tlapmean(jj)=0.01_r_kind*tlapmean(jj)
-            end if
-         end do
+         jjstart = 1
+         loop_b: do j = 1,n_chan
+            do jj=jjstart,jpch_rad
+               if ( trim(nusis(jj)) == trim(satsens_id) .and. &
+                    nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+!                 wgtlap=one
+                  if (update_tlapmean(jj)) then
+                     if(tcnt(jj) >= nthreshold)  then
+                        tsum(jj)=tsum(jj)+tsum0(jj)
+!                       tlap2(jj) = tlap0(jj) + wgtlap*tlap1(jj)/tsum(jj)
+                        tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)+one
+                     elseif (tcnt(jj)>0) then
+                        ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
+                        tsum(jj)=ratio*tsum(jj)+tsum0(jj)
+!                       tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
+                        tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)+one
+                     else
+                        tsum(jj)=tsum0(jj)
+                        tlap2(jj) = tlap0(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)
+                     endif
+                     tsum_tlapmean(jj)=tsum(jj)
+                     tlapmean(jj)=tlap2(jj)
+                     if (.not. newpc4pred) tlapmean(jj)=0.01_r_kind*tlapmean(jj)
+                  endif
+                  cycle loop_b
+               endif 
+            end do
+         end do loop_b
+
 
 !        Write updated tlapmean and sample size to scratch files
          dname = 'update_' // trim(obstype) // '_' // trim(platid)
          open(lntemp,file=dname,form='formatted')
-         do j=1,n_chan
-            jj=io_chan(j)
-            write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
-220         format(I5,1x,2e15.6,1x,I5)
-         end do
+
+         jjstart = 1
+         loop_c: do j=1,n_chan
+            do jj=jjstart,jpch_rad
+               if ( trim(nusis(jj)) == trim(satsens_id) .and. &
+                    nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+                  write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
+220               format(I5,1x,2e15.6,1x,I5)
+                  cycle loop_c
+               endif
+            end do
+         end do loop_c
          close(lntemp)
       end if
 
@@ -1711,7 +1741,6 @@ contains
 
 !  End of loop over satellite/sensor types
    end do loopf
-
 
 !  Wait for all mpi tasks to finish processing the
 !  satellite/sensors assigned to them.

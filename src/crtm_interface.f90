@@ -554,6 +554,21 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  sensorindex = 0
  if (channelinfo(1)%sensor_id == isis) then
     sensorindex = 1
+
+    if (channelinfo(1)%sensor_id(1:4) == 'iasi') then
+       subset_start = 0
+       subset_end = 0
+       do k=1, jpch_rad
+         if (isis == nusis(k)) then
+           if (subset_start == 0) subset_start = k
+           subset_end = k
+         endif
+       end do
+
+       error_status = crtm_channelinfo_subset(channelinfo(1), &
+           channel_subset = nuchan(subset_start:subset_end))
+    endif
+
 ! Added a fudge in here to prevent multiple script changes following change of AIRS naming
 ! convention in CRTM:
  else if (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. isis == 'airs281SUBSET_aqua') then
