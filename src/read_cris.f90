@@ -27,7 +27,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR).
+!   2015-09-04  Jung    - Added mods for CrIS full spectral resolution (FSR).
 !
 !   input argument list:
 !     mype     - mpi task id
