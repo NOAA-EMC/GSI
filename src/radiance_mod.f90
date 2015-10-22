@@ -223,12 +223,18 @@ contains
     if (mype==0) then
        write(6,*) 'radiance_mode_init: icloud_forward=',icloud_forward,' iallsky=',iallsky, &
                   ' cw_cv=',cw_cv,' iaerosol_forward=',iaerosol_forward,' iaerosol=',iaerosol
-       write(6,*) 'radiance_mode_init: n_actual_clouds=',n_actual_clouds,' cloud_names=',cloud_names 
-       write(6,*) 'radiance_mode_init: n_clouds_for=',n_clouds_for,' cloud_names_for=',cloud_names_for 
-       write(6,*) 'radiance_mode_init: n_clouds_jac=',n_clouds_jac,' cloud_names_jac=',cloud_names_jac 
-       write(6,*) 'radiance_mode_init: n_actual_aerosols=',n_actual_aerosols,' aero_names=',aero_names 
-       write(6,*) 'radiance_mode_init: n_aerosols_for=',n_aerosols_for,' aero_names_for=',aero_names_for 
-       write(6,*) 'radiance_mode_init: n_aerosols_jac=',n_aerosols_jac,' aero_names_jac=',aero_names_jac 
+       write(6,*) 'radiance_mode_init: n_actual_clouds=',n_actual_clouds
+       if (n_actual_clouds>0) write(6,*) 'radiance_mode_init: cloud_names=',cloud_names  
+       write(6,*) 'radiance_mode_init: n_clouds_for=',n_clouds_for
+       if (n_clouds_for>0) write(6,*) 'radiance_mode_init: cloud_names_for=',cloud_names_for
+       write(6,*) 'radiance_mode_init: n_clouds_jac=',n_clouds_jac
+       if (n_clouds_jac>0) write(6,*) 'radiance_mode_init: cloud_names_jac=',cloud_names_jac
+       write(6,*) 'radiance_mode_init: n_actual_aerosols=',n_actual_aerosols
+       if (n_actual_aerosols>0) write(6,*) 'radiance_mode_init: aero_names=',aero_names
+       write(6,*) 'radiance_mode_init: n_aerosols_for=',n_aerosols_for
+       if (n_aerosols_for>0) write(6,*) 'radiance_mode_init: aero_names_for=',aero_names_for
+       write(6,*) 'radiance_mode_init: n_aerosols_jac=',n_aerosols_jac
+       if (n_aerosols_jac>0) write(6,*) 'radiance_mode_init: aero_names_jac=',aero_names_jac
     end if
     
   end subroutine radiance_mode_init
@@ -416,7 +422,11 @@ contains
        nn1=0
        nn2=0
        do j=1,jpch_rad
-          diffistr = j==jpch_rad .or. trim(nusis(j))/=trim(nusis(j+1))
+          if (j==jpch_rad) then
+             diffistr = .true.
+          else
+             diffistr = trim(nusis(j))/=trim(nusis(j+1))
+          end if
 !         if (trim(dsis(ii))==trim(nusis(j))) then
           if (index(trim(nusis(j)),trim(rrtype(k))) /= 0) then
              if (first) then
