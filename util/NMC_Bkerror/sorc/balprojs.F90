@@ -18,11 +18,11 @@ subroutine balprojs(numcases,mype)
   real(r_kind),dimension(lat1,lon1,nsig):: sf3,vp3,t3
 
   real(r_kind),dimension(lat1,lon1,nsig,nsig):: zzcor3,ztcor3
-  real(r_kind),dimension(lat1,lon1,nsig):: zdcor2,zzcor2
-  real(r_kind),dimension(lat1,lon1):: zpcor2
+  real(r_kind),dimension(lat1,lon1,nsig):: zdcor2,zzcor2,zpcor2
+!  real(r_kind),dimension(lat1,lon1):: zpcor2
   real(r_kind),dimension(nlat,nsig,nsig):: zz3_av,zt3_av
-  real(r_kind),dimension(nlat,nsig):: zd2_av,zz2_av
-  real(r_kind),dimension(nlat):: zp2_av
+  real(r_kind),dimension(nlat,nsig):: zd2_av,zz2_av,zp2_av
+!  real(r_kind),dimension(nlat):: zp2_av
   real(r_kind),dimension(iglobal):: work1
   real(r_kind),dimension(nlat,nlon):: workgrd
 
@@ -145,13 +145,9 @@ subroutine balprojs(numcases,mype)
           zdcor2(i,j,k)=zdcor2(i,j,k)+sf1(i,j,k)*vp1(i,j,k)
 ! streamfunction-streamfunction
           zzcor2(i,j,k)=zzcor2(i,j,k)+sf1(i,j,k)*sf1(i,j,k)
-        end do
-      end do
-    end do
-    do j=1,lon1
-      do i=1,lat1
 ! streamfunction-surface pressure
-        zpcor2(i,j)=zpcor2(i,j)+sf1(i,j,1)*ps1(i,j)
+          zpcor2(i,j,k)=zpcor2(i,j,k)+sf1(i,j,k)*ps1(i,j)
+        end do
       end do
     end do
   end do ! end do n cases
@@ -236,27 +232,29 @@ subroutine balprojs(numcases,mype)
     end if
   end do
 
-  call mpi_gatherv(zpcor2(1,1),ijn(mm1),mpi_rtype,&
-         work1,ijn,displs_g,mpi_rtype,&
-         mype_work,mpi_comm_world,ierror)
-  if (mype==mype_work) then
-    do kk=1,iglobal
-      ni1=ltosi(kk) ; ni2=ltosj(kk)
-      workgrd(ni1,ni2) = work1(kk)
-    end do
-    do i=1,nlat
-      do j=1,nlon
-        zp2_av(i) = zp2_av(i) + workgrd(i,j)/float(nlon)
+  do k=1,nsig
+    call mpi_gatherv(zpcor2(1,1,k),ijn(mm1),mpi_rtype,&
+           work1,ijn,displs_g,mpi_rtype,&
+           mype_work,mpi_comm_world,ierror)
+    if (mype==mype_work) then
+      do kk=1,iglobal
+        ni1=ltosi(kk) ; ni2=ltosj(kk)
+        workgrd(ni1,ni2) = work1(kk)
       end do
-    end do
-  end if
+      do i=1,nlat
+        do j=1,nlon
+          zp2_av(i,k) = zp2_av(i,k) + workgrd(i,j)/float(nlon)
+        end do
+      end do
+    end if
+  end do
 
 ! Smooth correlation matrices in latitudinal direction
   call smoothlat(zz3_av,nsig*nsig,smoothdeg)
   call smoothlat(zt3_av,nsig*nsig,smoothdeg)
   call smoothlat(zd2_av,nsig,smoothdeg)
   call smoothlat(zz2_av,nsig,smoothdeg)
-  call smoothlat(zp2_av,1,smoothdeg)
+  call smoothlat(zp2_av,nsig,smoothdeg)
 
 
 ! Have matrices loaded with zonal means only on task=mype_work 
@@ -372,11 +370,13 @@ subroutine balprojs(numcases,mype)
     end do
 
     pscon=zero
-    do i=1,nlat
-      pscon(i,1)=pscon(i,1)+zp2_av(i)/zz2_av(i,1)
+    do k=1,nsig
+      do i=1,nlat
+        pscon(i,k)=pscon(i,k)+zp2_av(i,k)/zz2_av(i,k)
+      end do
+      pscon(1,k)=pscon(2,k)
+      pscon(nlat,k)=pscon(nlat-1,k)
     end do
-    pscon(1,1)=pscon(2,1)
-    pscon(nlat,1)=pscon(nlat-1,1)
 
   end if  !END IF mype
 

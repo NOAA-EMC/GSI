@@ -38,7 +38,7 @@ LIBmpi = -lmpi
 # need to know what compiling options to use
 #------------
 
-include Makefile.conf.zeus
+include Makefile.conf
 
 
 # -------------
@@ -117,6 +117,8 @@ clean:
 # ------------
 
   SRCSF90C = \
+    kinds.f90 \
+    specgrid.f90 \
     balprojs.f90 \
     biascor.f90 \
     comm_mod.f90 \
@@ -129,13 +131,11 @@ clean:
     init_commvars.f90 \
     initvars.f90 \
     isrchfge.f90 \
-    kinds.f90 \
     mat.f90 \
     postmod.f90 \
     readpairs.f90 \
     smoothz.f90 \
     smooth2d.f90 \
-    specgrid.f90 \
     sstmod.f90 \
     statsmain.f90 \
     variables.f90 \
