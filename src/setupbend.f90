@@ -227,6 +227,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !4   => MetOpA
 !41  => Champ
 !722 => GRACE A
+!723 => GRACE B
 !820 => SACC
 !42  => TerraSAR-X
 !43  => Tandem-X
@@ -236,6 +237,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !440 => Megha-Tropiques
 !821 => SACD
 !44  => PAZ
+!750-755 => COSMIC-2 Equatorial
+!724-729 => COSMIC-2 Polar
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)

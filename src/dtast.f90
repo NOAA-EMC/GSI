@@ -70,7 +70,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
      cline(k) = '-'
   end do
   imsg=max(1,index(mesage,'$')-1)
-  ilin=max(imsg,min(nlev*8+28,240))
+  ilin=max(imsg,min(nlev*9+34,240))
   write(iout,505) mesage(1:imsg)
   if (nlev > 1) then
      write(iout,510)'                              ptop  ',(ptop(k),k=1,nlev)
@@ -79,7 +79,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   write(iout,500) (cline(i),i=1,ilin)
 500 format(240a1)
 505 format(a)
-510 format(a36,11(f6.1,1x),1x,f6.1)
+510 format(a35,12(f8.1,1x))
 
 ! Transfer to local work arrays.  Compute statistics
   do j = 1,nconvtype
@@ -212,7 +212,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 
      end do
 100  format('o-g ',i2.2,1x,a7)
-720  format(1x,a14,1x,a4,a8,1x,a5,1x,i8,1x,10(i7,1x),i8)
+720  format(1x,a14,1x,a4,a8,1x,a5,1x,i8,1x,10(i8,1x),i8)
 800  format(1x,a14,1x,a4,a8,1x,a5,1x,f8.2,1x,10(f8.2,1x),f8.2)
      
   endif

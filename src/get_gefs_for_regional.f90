@@ -35,7 +35,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
-  use hybrid_ensemble_parameters, only: ntlevs_ens
+  use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -319,7 +319,7 @@ subroutine get_gefs_for_regional
   inithead=.true.
   do n=1,n_ens
      read(10,'(a)',err=20,end=20)filename 
-     filename=trim(filename)
+     filename=trim(ensemble_path) // trim(filename)
 !     write(filename,100) n
 !100  format('sigf06_ens_mem',i3.3)
 
