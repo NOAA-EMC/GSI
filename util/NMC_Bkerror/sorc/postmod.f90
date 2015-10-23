@@ -98,6 +98,7 @@ contains
    real(r_single),allocatable,dimension(:,:):: nrhvar4, &
         vpcon4,pscon4,varsst4,corlsst4,varsst4_grads,corlsst4_grads
    real(r_single),allocatable,dimension(:):: psvar4,pshln4
+   real(r_kind),dimension(nlat):: slat,glat
 
    integer i,j,k,m,outf,ncfggg,iret,isig,n
    character(255) grdfile
@@ -260,6 +261,50 @@ contains
    call wryte(22,4*nlat*nsig,pscon4)
    call baclose(22,iret)
 
+   call splat(4,nlat,slat,glat)
+   slat = 180.0_r_single / acos(-1.0_r_single) * asin(slat(nlat:1:-1))
+
+! ALSO CREATE GRADS CTL FILE
+   open(24,file='bgstats_sp.ctl',form='formatted',status='replace',iostat=iret)
+   write(24,'("DSET ",a)') trim(grdfile)
+   write(24,'("UNDEF -9.99E+33")')
+   write(24,'("TITLE bgstats_sp")')
+   write(24,'("OPTIONS yrev")')
+   write(24,'("XDEF 1 LINEAR 1 1")')
+   write(24,'("YDEF",i6," LEVELS")') nlat
+   write(24,'(5f12.6)') slat
+   write(24,'("ZDEF",i6," LINEAR 1 1")') nsig
+   write(24,'("TDEF",i6,1x,"LINEAR",1x,"00Z01Jan2000",1x,i3,"hr")') 1,12
+   write(24,'("VARS",i6)') 87
+   write(24,'("SF    ",i3," 0 SF VAR")') nsig
+   write(24,'("VP    ",i3," 0 VP VAR")') nsig
+   write(24,'("T     ",i3," 0 T  VAR")') nsig
+   write(24,'("Q     ",i3," 0 Q  VAR")') nsig
+   write(24,'("RH    ",i3," 0 RH VAR")') nsig
+   write(24,'("OZ    ",i3," 0 OZ VAR")') nsig
+   write(24,'("CW    ",i3," 0 CW VAR")') nsig
+   write(24,'("PS    ",i3," 0 PS VAR")') 1
+   write(24,'("HSF   ",i3," 0 SF HCOR")') nsig
+   write(24,'("HVP   ",i3," 0 VP HCOR")') nsig
+   write(24,'("HT    ",i3," 0 T  HCOR")') nsig
+   write(24,'("HQ    ",i3," 0 Q  HCOR")') nsig
+   write(24,'("HOZ   ",i3," 0 OZ HCOR")') nsig
+   write(24,'("HCW   ",i3," 0 CW HCOR")') nsig
+   write(24,'("HPS   ",i3," 0 PS HCOR")') 1
+   write(24,'("VSF   ",i3," 0 SF VCOR")') nsig
+   write(24,'("VVP   ",i3," 0 VP VCOR")') nsig
+   write(24,'("VT    ",i3," 0 T  VCOR")') nsig
+   write(24,'("VQ    ",i3," 0 Q  VCOR")') nsig
+   write(24,'("VOZ   ",i3," 0 OZ VCOR")') nsig
+   write(24,'("VCW   ",i3," 0 CW VCOR")') nsig
+   do n=1,nsig
+      write(24,'("AG",i3.3," ",i3," 0 BP Z",i3.3)') n,nsig,n
+   enddo
+   write(24,'("BG    ",i3," 0 STPS BP")') nsig
+   write(24,'("WG    ",i3," 0 PSSF BP")') nsig
+   write(24,'(a)') 'ENDVARS'
+   close(24)
+
 ! CREATE SINGLE PRECISION BYTE-ADDRESSABLE FILE FOR GRADS
 ! OF SST STATISTICS
    grdfile='sststats_sp.grd'
@@ -269,7 +314,23 @@ contains
    call wryte(23,4*nlat*nlon,corlsst4_grads)
    call baclose(23,iret)
 
-   deallocate(tcon4)
+! ALSO CREATE GRADS CTL FILE
+   open(25,file='sststats_sp.ctl',form='formatted',status='replace',iostat=iret)
+   write(25,'("DSET ",a)') trim(grdfile)
+   write(25,'("UNDEF -9.99E+33")')
+   write(25,'("TITLE bgstats_sp")')
+   write(25,'("OPTIONS yrev")')
+   write(25,'("XDEF 1 LINEAR 1 1")')
+   write(25,'("YDEF",i6," LEVELS")') nlat
+   write(25,'(5f12.6)') slat
+   write(25,'("ZDEF 1 LINEAR 1 1")')
+   write(25,'("TDEF",i6,1x,"LINEAR",1x,"00Z01Jan2000",1x,i3,"hr")') 1,12
+   write(25,'("VARS",i6)') 2
+   write(25,'("SST   ",i3," 0 SST VAR")') 1
+   write(25,'("HSST  ",i3," 0 SST HCOR")') 1
+   write(25,'(a)') 'ENDVARS'
+   close(25)
+
    deallocate(stdev3d4,nrhvar4,hscale3d4,vscale3d4,&
               tcon4,vpcon4,pscon4,varsst4,corlsst4,&
               varsst4_grads,corlsst4_grads)
