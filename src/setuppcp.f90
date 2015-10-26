@@ -50,7 +50,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use obsmod, only: pcp_ob_type
   use obsmod, only: obs_diag,luse_obsdiag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -149,6 +149,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2013-10-19  todling - metguess now holds background
 !                         tendencies now in bundle
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-08-31  thomas - Added 4DEnVar to logical to exclude downweighting of
+!                        obs away from center of window 
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -901,7 +903,7 @@ endif
         end if
 !
 !       Reduce weight and tighten obs-ges bound as function of obs time.
-        if(.not. l4dvar)then
+        if(.not.(l4dvar.or.l4densvar))then
            term  = cos(sixthpi*(dtime-half*hr_obsbin))
            term  = term**3
            term  = max(zero,min(term,one))
