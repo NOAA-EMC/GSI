@@ -126,7 +126,7 @@ contains
         allocate(ptabl_uv(34))
 
 ! use the pressure values of itypex, which is the last valid observation type.
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            ptabl_uv=zero
            ptabl_uv(1)=etabl_uv(itypex,1,1)
            do k=2,33

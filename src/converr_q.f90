@@ -126,7 +126,7 @@ contains
         endif
         allocate(ptabl_q(34))
 ! use the pressure values of itypex, which is the last valid obs. type
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            ptabl_q=zero
            ptabl_q(1)=etabl_q(itypex,1,1)
            do k=2,33

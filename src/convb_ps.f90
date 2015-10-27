@@ -119,17 +119,17 @@ contains
            write(6,*)'CONVB_PS:  using nlqc b from user provided table'
         endif
 ! use the pressure of last obs. type, itypex
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            bptabl_ps=zero
            bptabl_ps(1)=btabl_ps(itypex,1,1)
            do k=2,33
               bptabl_ps(k)=half*(btabl_ps(itypex,k-1,1)+btabl_ps(itypex,k,1))
            enddo
            bptabl_ps(34)=btabl_ps(itypex,33,1)
-         else
+        else
             write(6,*)'ERROR IN CONVB_PS: NO OBSERVATION TYPE READ IN'
             return
-         endif
+        endif
      endif
 
      close(ibtabl)

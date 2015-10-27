@@ -127,17 +127,17 @@ contains
            write(6,*)'CONVB_Q: NLQC b from user provided table'
 !           write(6,105) (isuble_bq(itypex,m),m=1,5)
         endif
-        if (itypey .gt. 0 ) then
+        if (itypex > 0 ) then
            bptabl_q=zero
            bptabl_q(1)=btabl_q(itypex,1,1)
            do k=2,33
               bptabl_q(k)=half*(btabl_q(itypex,k-1,1)+btabl_q(itypex,k,1))
            enddo
            bptabl_q(34)=btabl_q(itypex,33,1)
-         else
-            write(6,*)'ERROR IN CONVERR_Q: NO OBSERVATION TYPE READ IN'
-            return
-         endif
+        else
+           write(6,*)'ERROR IN CONVERR_Q: NO OBSERVATION TYPE READ IN'
+           return
+        endif
      endif
 
      close(ibtabl_q)
