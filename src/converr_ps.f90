@@ -128,7 +128,7 @@ contains
         allocate(ptabl_ps(34))
 
 !use the pressure values of itypex, which is the last observation type. 
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            ptabl_ps=zero
            ptabl_ps(1)=etabl_ps(itypex,1,1)
            do k=2,33

@@ -121,7 +121,7 @@ contains
         write(6,*)'CONVB_UV:  ***WARNING*** obs b table not available to 3dvar.'
         bflag=.false.
      else
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            bptabl_uv=zero
            bptabl_uv(1)=btabl_uv(itypex,1,1)
            do k=2,33

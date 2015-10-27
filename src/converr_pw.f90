@@ -130,7 +130,7 @@ contains
         endif
         allocate(ptabl_pw(34))
 ! use itypex pressure values.  itypex is the last valid observation type
-        if (itypex .gt. 0) then
+        if (itypex > 0) then
            ptabl_pw=zero
            ptabl_pw(1)=etabl_pw(itypex,1,1)
            do k=2,33

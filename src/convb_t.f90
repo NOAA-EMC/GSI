@@ -127,7 +127,7 @@ contains
 !           write(6,105) (isuble_bt(188,m),m=1,5)
          endif
 ! use the pressure values of last obs. type, itypex
-        if (itypex .gt. 0 ) then
+        if (itypex > 0 ) then
            bptabl_t=zero
            bptabl_t(1)=btabl_t(itypex,1,1)
            do k=2,33
