@@ -1189,7 +1189,7 @@ subroutine read_obs(ndata,mype)
 
              else if(obstype == 'mitm') then
                 if ( index(infile,'mitmdat') /=0) then
-                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, & 
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,sis, & 
                                        nobs_sub1(1,i))
                    string='READ_ASCII_MITM'
                  else
@@ -1200,7 +1200,7 @@ subroutine read_obs(ndata,mype)
 
              else if(obstype == 'mxtm') then
                 if ( index(infile,'mxtmdat') /=0) then
-                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, & 
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,sis, & 
                                        nobs_sub1(1,i))
                    string='READ_ASCII_MXTM'
                  else

@@ -117,7 +117,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
   integer(i_kind),allocatable,dimension(:,:)::tab
 
-  integer(i_kind) itypex,lcount,iflag,m,itypey
+! integer(i_kind) itypex,lcount,iflag,m
+  integer(i_kind) itypey
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -125,7 +126,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
-  real(r_kind) del,werrmin,obserr,ppb1,wjbmin,wjbmax
+  real(r_kind) del,werrmin,obserr,ppb1,wjbmin
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl

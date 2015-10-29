@@ -174,7 +174,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),allocatable,dimension(:,:):: tab
 
 
-  integer(i_kind) ietabl,itypex,lcount,iflag,m,ntime,itime
+  integer(i_kind) ntime,itime
 
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
@@ -199,7 +199,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
 ! GOES-R new BUFR related variables
-  character(70)               :: goesr_str,eham_str,prlc_str,wdir_str,wspd_str,pccf_str,solc_str,cvwd_str,cloud1_str,cloud2_str
+  character(70)               :: eham_str,prlc_str,wdir_str,wspd_str,pccf_str,solc_str,cvwd_str,cloud1_str,cloud2_str
   real(r_double),dimension(4) :: eham_dat 
   real(r_double),dimension(4) :: prlc_dat 
   real(r_double),dimension(4) :: wspd_dat 
