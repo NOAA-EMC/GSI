@@ -302,7 +302,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind) time_correction
-  real(r_kind) obval
   real(r_kind) tcamt,lcbas,ceiling
   real(r_kind) tcamt_oe,lcbas_oe
   real(r_kind) low_cldamt,mid_cldamt,hig_cldamt

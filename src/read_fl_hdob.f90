@@ -103,7 +103,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind), parameter :: mxib  = 31
      integer(i_kind), parameter :: ietabl= 19 
 
-     integer(i_kind) :: i,k,m,kl,k1,k2 
+     integer(i_kind) :: i,k,kl,k1,k2 
      integer(i_kind) :: lunin 
      integer(i_kind) :: ireadmg,ireadsb
      integer(i_kind) :: idate
@@ -121,7 +121,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: qcm,lim_qm
      integer(i_kind) :: p_qm,g_qm,t_qm,q_qm,uv_qm,wspd_qm,ps_qm
      integer(i_kind) :: ntest,nvtest
-     integer(i_kind) :: itypex,lcount,iflag
+!    integer(i_kind) :: m,itypex,lcount,iflag
      integer(i_kind) :: nlevp   ! vertical level for thinning
      integer(i_kind) :: pflag   
      integer(i_kind) :: ntmp,iiout,igood

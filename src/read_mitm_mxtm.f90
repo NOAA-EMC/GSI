@@ -1,4 +1,4 @@
-subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,nobs)
+subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_mitm_mxtm.f90
@@ -14,7 +14,6 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 !     infile   - unit from which to read data
 !     lunout   - unit to which to write data for further processing
 !     obstype  - observation type to process
-!     twind    - input group time window (hours)
 !     sis      - satellite/instrument/sensor indicator
 !
 !   output argument list:
@@ -54,7 +53,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
-  real(r_kind)                          ,intent(in   ) :: twind,gstime
+  real(r_kind)                          ,intent(in   ) :: gstime
   integer(i_kind),dimension(npe),intent(inout) :: nobs
 
 ! Declare local parameters
@@ -78,14 +77,12 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind) cat,mxtmqm,mitmqm
   integer(i_kind) :: kx,idomsfc
   integer(i_kind) :: nc,k,ilat,ilon,nchanl
-  integer(i_kind) :: idate,iout,maxobs,icount,itx,iuse,ierr
+  integer(i_kind) :: idate,iout,maxobs,icount,ierr
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
-  real(r_kind) :: dx,dx1,dy,dy1,w00,w10,w01,w11,crit1,timedif,tdiff
   real(r_kind) :: rminobs,pob,dlnpob,obval
   real(r_kind) :: stnelev
   real(r_kind) :: usage,tsavg,ff10,sfcr,zz
   real(r_kind) :: mxtmoe,mitmoe,oberr,qtflg
-  real(r_kind),dimension(nsig):: presl
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
   integer(i_kind) :: ikx(100:199) !order number of report type in convinfo file
@@ -96,11 +93,8 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_single)  :: rkx,tank,rlon4,rlat4,stnelev4,obval4
   real(r_single)  :: maxtmint_oberrors(100:199)
 
-  character(10) date
-
   real(r_double) :: udbl,vdbl
   logical mxtmob,mitmob
-  logical sfctype
   logical :: outside
   logical lhilbert
   logical  linvalidkx, linvalidob
@@ -390,7 +384,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 
   write(6,*)myname,': ob counts by report type'
   do kx=100,199
-     if (ikx(kx) .ne. -1) then
+     if (ikx(kx) /= -1) then
         write(6,*) '     kx, number of obs: ',kx,kxall(kx)
      endif
   enddo

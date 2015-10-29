@@ -53,7 +53,7 @@ subroutine penal(xhat)
 ! Declare local variables
   real(r_kind) err2
 
-  integer(i_kind) i,n,k,l,m,ibin,ier,istatus
+  integer(i_kind) i,n,k,ibin,ier,istatus
   real(r_kind) tpenalty(33,nconvtype),ttrace(33,nconvtype)
   real(r_kind) valu,valv,val,so(33,nconvtype),cat_num(33,nconvtype),sosum,tcat_num(33,nconvtype)
   integer(i_kind) itype,ncat,k1
@@ -321,6 +321,8 @@ subroutine penal(xhat)
            sosum=sosum+(so(i,1)-one)**2
         enddo
         write(235,*)'sosum=',sosum
+     endif ! mype
+
      call mpi_finalize(ierror)
      stop
   endif ! jiter
