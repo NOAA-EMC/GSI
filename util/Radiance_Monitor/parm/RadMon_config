@@ -130,10 +130,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
-else    # zeus 
-   shell=sh
-   /usr/bin/modulecmd $shell load ncep
- 
+else    # theia 
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export COMPRESS=gzip
