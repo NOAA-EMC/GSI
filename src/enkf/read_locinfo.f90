@@ -2,7 +2,7 @@ subroutine read_locinfo()
    ! read localization scales from text file (hybens_locinfo)
    use kinds, only : r_kind,i_kind,r_single
    use params, only : nlevs,corrlengthnh,corrlengthtr,corrlengthsh,letkf_flag
-   use enkf_obsmod, only: obloc, oblnp, corrlengthsq, lnsigl, nobstot, nobsgood, &
+   use enkf_obsmod, only: obloc, oblnp, corrlengthsq, lnsigl, nobstot, &
    obpress, obtype, nobs_conv, nobs_oz, oberrvar
    use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                              kdtree2_result, kdtree2_n_nearest
@@ -25,7 +25,7 @@ subroutine read_locinfo()
    inquire(file=trim(fname),exist=lexist)
    if ( lexist ) then
       allocate(hlength(nlevs),vlength(nlevs))
-      allocate(corrlengthsq1(nobsgood),lnsigl1(nobsgood))
+      allocate(corrlengthsq1(nobstot),lnsigl1(nobstot))
       open(iunit,file=trim(fname),form='formatted')
       rewind(iunit)
       read(iunit,100) msig
@@ -52,13 +52,13 @@ subroutine read_locinfo()
    101 format(F8.1,3x,F6.2)
     kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
     allocate(sresults(1))
-    if (nobsgood > numproc) then
-       ideln = int(real(nobsgood)/real(numproc))
+    if (nobstot > numproc) then
+       ideln = int(real(nobstot)/real(numproc))
        n1 = 1 + nproc*ideln
        n2 = (nproc+1)*ideln
-       if (nproc == numproc-1) n2 = nobsgood
+       if (nproc == numproc-1) n2 = nobstot
     else
-       if(nproc < nobsgood)then
+       if(nproc < nobstot)then
          n1 = nproc+1
          n2 = n1
        else
@@ -100,8 +100,8 @@ subroutine read_locinfo()
     enddo
     if (nproc .eq. 0) close(iunit)
     ! distribute the results to all processors.
-    call mpi_allreduce(lnsigl1,lnsigl,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-    call mpi_allreduce(corrlengthsq1,corrlengthsq,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+    call mpi_allreduce(lnsigl1,lnsigl,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+    call mpi_allreduce(corrlengthsq1,corrlengthsq,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
     call kdtree2_destroy(kdtree_grid)
     ! For LETKF, modify values of corrlengthnh,tr,sh for use in observation box
     ! calculation to be equal to maximum value for any level.

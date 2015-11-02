@@ -175,7 +175,10 @@ do jj=1,nsubwin
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(workrh,rv_tv,rv_prse,rv_q)
+   if(do_normal_rh_to_q_ad) then
+      call normal_rh_to_q_ad(workrh,rv_tv,rv_prse,rv_q)
+      rv_q=zero
+   end if
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
@@ -208,12 +211,7 @@ do jj=1,nsubwin
    if (nclouds>0) then
       if (cw_to_hydro_ad) then
 !        Case when cw is generated from hydrometeors
-         if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
          call cw2hydro_ad(rval(jj),wbundle,clouds,nclouds)
-         if(.not. do_tv_to_tsen_ad) then 
-            call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
-            deallocate(rv_tsen)
-         end if
       else
 !        Case when cloud-vars map one-to-one, take care of them together
          do ic=1,nclouds

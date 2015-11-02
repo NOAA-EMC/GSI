@@ -23,7 +23,7 @@ subroutine ensctl2model_ad(eval,mval,grad)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
@@ -75,7 +75,8 @@ real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 
-logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
+logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad
+logical :: do_tlnmc,lstrong_bk_vars,do_q_copy
 
 !****************************************************************************
 
@@ -105,13 +106,20 @@ ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
-do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_prse.and.ls_q
+do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_prse.and.ls_q.and.(.not.q_hyb_ens)
+do_q_copy=.false.
+if(.not. do_normal_rh_to_q_ad) then
+  do_q_copy = lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.q_hyb_ens
+end if
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 ! Initialize
 mval%values=zero
 
 do jj=1,ntlevs_ens
+
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) )
 
    !allocate(grade(nval_lenz_en))
    allocate(ebundle(n_ens))
@@ -157,20 +165,24 @@ do jj=1,ntlevs_ens
    if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
 
 !  If calling TLNMC, already have u,v (so set last argument to true)
-   if(lstrong_bk_vars) then
-      if ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) ) then
+   if(do_tlnmc) then
 
-!        Adjoint of consistency for 3d pressure and sensible temperature
-!        Calculate sensible temperature
-         if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
+!     Adjoint of consistency for 3d pressure and sensible temperature
+!     Calculate sensible temperature
+      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
-!        Adjoint to convert ps to 3-d pressure
-         if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
-
-!        Adjoint of strong_bk
-         call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
+!     Adjoint of convert input normalized RH to q to add contribution of moisture
+!     to t, p , and normalized rh
+      if(do_normal_rh_to_q_ad) then
+         call normal_rh_to_q_ad(cv_rh,rv_tv,rv_prse,rv_q)
       end if
+
+
+!     Adjoint to convert ps to 3-d pressure
+      if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+
+!     Adjoint of strong_bk
+      call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
    end if
 
    call self_add(mval,eval(jj))
@@ -200,15 +212,20 @@ do jj=1,ntlevs_ens
       end if
    end if
 
-!  Calculate sensible temperature
-   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
+   if(.not. do_tlnmc)then
+!     Calculate sensible temperature
+      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
 
-!  Adjoint of convert input normalized RH to q to add contribution of moisture
-!  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
+!     Adjoint of convert input normalized RH to q to add contribution of moisture
+!     to t, p , and normalized rh
+      if(do_normal_rh_to_q_ad) then
+         call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
+      end if
 
-!  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
+!     Adjoint to convert ps to 3-d pressure
+      if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
+   end if
+   if(do_q_copy) call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
 
    do nn=1,n_ens
       ebundle(nn)%values=grad%aens(jj,nn)%values

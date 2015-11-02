@@ -109,6 +109,7 @@ module hybrid_ensemble_parameters
 !                      files already subsetted for subdomains on each task).
 !     vvlocal:  logical variable, if .true., then horizontal localization length
 !               function of z, default = .false. 
+!     ensemble_path: path to ensemble members; default './'
 !=====================================================================================================
 !
 !
@@ -225,6 +226,7 @@ module hybrid_ensemble_parameters
 !                                      can be used for hybrid. (default)
 !                             =true: ensembles available time can be different
 !                                      from analysis time in hybrid analysis
+!   def ensemble_path        - path to ensemble members; default './'
 !
 ! attributes:
 !   language: f90
@@ -273,6 +275,7 @@ module hybrid_ensemble_parameters
   public :: enspreproc
   public :: i_en_perts_io
   public :: l_ens_in_diff_time
+  public :: ensemble_path
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
   logical enspreproc
@@ -309,6 +312,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) nval_lenz_en
   integer(i_kind) ntlevs_ens
   integer(i_kind) regional_ensemble_option
+  character(len=512),save :: ensemble_path
 
 contains
 
@@ -379,6 +383,7 @@ subroutine init_hybrid_ensemble_parameters
   nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
   i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
+  ensemble_path = './'       ! default for path to ensemble members
 
 end subroutine init_hybrid_ensemble_parameters
 
