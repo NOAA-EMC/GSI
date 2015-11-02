@@ -994,10 +994,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     type(spec_vars):: sp_b
 
 !   Write atmospheric analysis file
-    if (.not.lwrite4danl) then
-       ntlevs=1
-    else
+    if ( lwrite4danl ) then
        ntlevs=nfldsig
+    else
+       ntlevs=1
     end if
 
     aux_ps=zero
@@ -1016,15 +1016,20 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
           filename='siginc'
           itoutsig=increment
           if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
-       else if (.not.lwrite4danl) then
-          filename='siganl'
-          itoutsig=ntguessig
-          if(mype==0) write(6,*) 'WRITE_GFS: writing single analysis state for F ', itoutsig
        else
-          write(filename,100) ifilesig(it)
-100       format('siga',i2.2)
-          itoutsig=it
-          if(mype==0) write(6,*) 'WRITE_GFS: writing full analysis state for F ', itoutsig
+          if ( lwrite4danl ) then
+             if ( it == ntguessig ) then
+                filename='siganl'
+             else
+                write(filename,"('siga',i2.2)") ifilesig(it)
+             endif
+             itoutsig=it
+             if(mype==0) write(6,*) 'WRITE_GFS: writing full analysis state for F ', itoutsig
+          else
+             filename='siganl'
+             itoutsig=ntguessig
+             if(mype==0) write(6,*) 'WRITE_GFS: writing single analysis state for F ', itoutsig
+          endif
        endif
 
        call set_analysis_(itoutsig)
