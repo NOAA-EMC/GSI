@@ -577,7 +577,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
   
 !          Get observation error from error table
            ppb = max(zero,min(pob_mb,r2000))
-           if(njqc==.false.) then
+           if(.not. njqc) then
               if(ppb >= etabl(itype,1,1)) k1 = 1
               do kl = 1,32
                  if(ppb >= etabl(itype,kl+1,1) .and. ppb <= etabl(itype,kl,1)) k1 = kl
@@ -607,7 +607,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               psob_cb = obspsf(1,1)*r0_001  ! convert [Pa] to [cb]
               dlnpsob = log(psob_cb)        ! [cb]
 !             Get observation error from error table
-              if (njqc == .true.) then
+              if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
                  ierr_ps=index_sub(nc)
@@ -676,7 +676,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                  tob = tob*(1.0_r_kind+0.61_r_kind*qob)  ! conver t to tv
               endif
 !             Get observation error from error table
-              if (njqc == .true.) then
+              if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
                  ierr_t=index_sub(nc)
@@ -738,7 +738,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !             write(4000,1004) nread,pob_mb,tob,tdob,qob,qsat,rhob,q_qm,usage 
 !1004         format(i6,6(1x,e20.12),1x,i5,1x,f5.0)
 !             Get observation error from error table
-              if (njqc == .true.) then
+              if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
                  ierr_q=index_sub(nc)
@@ -795,7 +795,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
            endif
            if( lspdob .or. luvob) then             
 !             Get observation error from error table
-              if ( njqc == .true.) then
+              if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
                  ierr_uv=index_sub(nc)

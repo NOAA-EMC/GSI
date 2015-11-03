@@ -162,7 +162,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
         endif
 
 !   for Dr. Jim purser' non liear quality control
-        if(njqc ==.true. .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
+        if(njqc .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)/(two*psptr%jb))))
            enddo

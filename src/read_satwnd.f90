@@ -996,7 +996,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 !  first to get observation error from PREPBUFR observation error table
            ppb=max(zero,min(ppb,r2000))
-           if (njqc == .true.) then
+           if (njqc) then
               itypey=itype
               ierr=index_sub(nc)
               ierr2=ierr-1

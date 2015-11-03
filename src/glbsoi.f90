@@ -390,7 +390,7 @@ subroutine glbsoi(mype)
 !RY:  need to understand the following things
 
   if(perturb_obs) then
-     if(njqc==.true.) then
+     if(njqc) then
         call converr_ps_destroy
         call converr_q_destroy
         call converr_t_destroy

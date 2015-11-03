@@ -674,7 +674,7 @@ subroutine read_obs(ndata,mype)
     npem1=npe-1
     nprof_gps1=0
 
-    if(njqc == .true.) then
+    if(njqc) then
        call converr_ps_read(mype)
        call converr_q_read(mype)
        call converr_t_read(mype)

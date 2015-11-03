@@ -470,7 +470,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val2     = val*val
         exp_arg  = -half*val2
         rat_err2 = ratio_errors**2
-        if(njqc==.true. .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
+        if(njqc .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
            if(exp_arg  == zero) then
               wgt=one
            else

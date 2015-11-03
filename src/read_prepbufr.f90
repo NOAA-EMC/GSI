@@ -994,7 +994,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               wjbmin=zero
               pjbmin=zero
               itypey=kx
-              if( njqc == .true. ) then
+              if( njqc) then
                  if (psob)  then
                     itypex=itypey
                     ierr_ps=index_sub(nc)

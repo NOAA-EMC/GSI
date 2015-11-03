@@ -168,7 +168,7 @@ subroutine intps_(pshead,rval,sval)
               p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
               val=val*(one-p0)                                ! term is Wqc in Enderson
            endif
-           if (njqc ==.true. .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
+           if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
               val=sqrt(two*psptr%jb)*tanh(sqrt(psptr%err2)*val/sqrt(two*psptr%jb))
               grad = val*sqrt(psptr%raterr2*psptr%err2)
            else
