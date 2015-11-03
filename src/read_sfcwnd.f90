@@ -550,7 +550,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            endif
 
            ppb=max(zero,min(ppb,r2000))
-           if(njqc==.true.) then
+           if(njqc) then
               if(ppb>=etabl_uv(itypey,1,1)) k1=1
               do kl=1,32
                  if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) k1=kl

@@ -180,7 +180,7 @@ subroutine intq_(qhead,rval,sval)
               val=val*(one-p0)                         ! term is Wqc in the referenc by Enderson
            endif
 
-           if (njqc == .true. .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+           if (njqc .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
               val=sqrt(two*qptr%jb)*tanh(sqrt(qptr%err2)*val/sqrt(two*qptr%jb))
               grad = val*sqrt(qptr%raterr2*qptr%err2)
            else

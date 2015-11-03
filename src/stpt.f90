@@ -326,7 +326,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 
 !  Jim Purse's non linear QC scheme
 
-        if(njqc ==.true. .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
+        if(njqc .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*tptr%jb*log(cosh(sqrt(pen(kk)/(two*tptr%jb))))
            enddo
