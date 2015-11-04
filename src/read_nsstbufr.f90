@@ -228,8 +228,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
         elseif ( trim(subset) == 'NC031001' ) then            ! BATHY
            msst = 13.0_r_kind                                 ! for BATHY, assign to be 13
            call ufbint(lunin,tpf2,2,65535,klev,'DBSS STMP')   ! read T_Profile
+
            if ( tpf2(1,1) < 5.0_r_kind ) then
-              sst = tpf(2,1)
+              sst = tpf2(2,1)
            else
               sst = bmiss
            endif
@@ -261,8 +262,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !          Extract type, date, and location information
            if(clonh >= r360)  clonh = clonh - r360
            if(clonh <  zero)  clonh = clonh + r360
-
-!          write(*,'(a,1x,a9,1x,3F8.2)') 'subset,lon,lat,SST : ',subset,clonh,clath,sst
 
            dlon_earth=clonh*deg2rad
            dlat_earth=clath*deg2rad
