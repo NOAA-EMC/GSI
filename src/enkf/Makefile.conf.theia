@@ -126,7 +126,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # LIBS_N        = $(LIBnemsio) -L$(CORELIB) -lsp_d -lsigio_4 \
 #      -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBbacio) -L$(NETCDF)/lib -lnetcdf
 
-  LDFLAGS_N     = -mkl=sequential $(OMP)
+  LDFLAGS_N     = -mkl -openmp
 
   LDFLAGS       = $(LDFLAGS_N)
 
