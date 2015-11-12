@@ -658,7 +658,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         crit1=crit1 + ten*float(iskip)
 
 !       Cloud / clear tests.
-!       Cloud information may be missing depending on how the VIIRS granules align
+!       Cloud information  may be missing depending on how the VIIRS granules align
 !       with the CrIS granules.  
 !       Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
 !JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')

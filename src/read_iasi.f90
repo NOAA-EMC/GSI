@@ -172,8 +172,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: idate5(5)
   real(r_kind)      :: sstime, tdiff, t4dv
   integer(i_kind)   :: nmind
-  integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
-  integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
 
 
 ! Other work variables
@@ -192,12 +190,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(10) :: sscale
   real(crtm_kind),allocatable,dimension(:) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
-  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi
 
-  integer(i_kind)  :: ifov, instr, iscn, ioff, ilat, ilon, sensorindex
+  integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
@@ -206,6 +204,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: ntest
   integer(i_kind):: error_status
   integer(i_kind):: radedge_min, radedge_max
+  integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
+  integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   character(len=20),dimension(1):: sensorlist
 
 
@@ -219,6 +219,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
+  integer(i_kind),parameter :: ilon = 3
+  integer(i_kind),parameter :: ilat = 4
+
 
 ! Initialize variables
   maxinfo    =  31
@@ -230,10 +233,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   ndata = 0
   nodata = 0
   iasi=      obstype == 'iasi'
-  r01=0.01_r_kind
 
-  ilon=3
-  ilat=4
   bad_line=-1
 
   if (nst_gsi > 0 ) then
@@ -528,13 +528,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         t4dv = (real(nmind-iwinbgn,r_kind) + real(allspot(7),r_kind)*r60inv)*r60inv ! add in seconds
         sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
         tdiff = (sstime - gstime)*r60inv
+
         if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
-!       Increment nread counter by bufr_nchan
+!       Increment nread counter by satinfo_nchan
         nread = nread + satinfo_nchan
 
         if (thin4d) then
@@ -598,7 +599,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
 !       Set common predictor parameters
-
         crit1 = crit1 + rlndsea(isflg)
  
         call checkob(dist1,crit1,itx,iuse)
