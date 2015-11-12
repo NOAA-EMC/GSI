@@ -581,8 +581,8 @@ contains
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis_temp,nuchan_temp,iuse_rad_temp,&
             varch_temp,varch_cld_temp,ermax_rad_temp,b_rad_temp,pg_rad_temp,icld_det_temp
-       if ( .not. diag_rad .and. iuse_rad_temp <= 0 .and. &
-          ( nusis_temp(1:4) == 'cris' .or. nusis_temp(1:4) == 'iasi' )) cycle
+       if ( .not. diag_rad .and. iuse_rad_temp < 0 .and. icld_det_temp < 0 .and. &
+          ( nusis_temp(1:4) == 'cris' .or. nusis_temp(1:4) == 'iasi' .or. nusis_temp(1:4) == 'airs')) cycle
        j=j+1
     end do read1
     if (istat>0) then
@@ -641,8 +641,8 @@ contains
           call  die('radinfo_read')
        endif
 
-       if ( .not. diag_rad .and. iuse_rad(j) <= 0 .and. &
-          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:4) == 'iasi' )) cycle
+       if ( .not. diag_rad .and. iuse_rad(j) < 0 .and. icld_det(j) < 0 .and. &
+          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:4) == 'iasi' .or. nusis(j)(1:4) == 'airs')) cycle
 
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2) air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3) ang_rad(j)=zero
@@ -1387,7 +1387,7 @@ contains
    integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
-   integer(i_kind):: counttmp, jjstart
+   integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
    integer(i_kind):: radedge_min, radedge_max
    integer(i_kind),dimension(maxchn):: ich
    integer(i_kind),dimension(maxdat):: ipoint
@@ -1490,23 +1490,32 @@ contains
          stop 98
       endif
 
+!     Define sensor_satellite channel range from satinfo file
+      sensor_start = 0
+      sensor_end = 0
+      do j = 1, jpch_rad
+         if ( trim(nusis(j)) == trim(satsens_id)) then
+            if ( sensor_start == 0 ) sensor_start = j
+            sensor_end = j
+         endif
+      end do
+      if ( sensor_start == 0 ) cycle loopf
+
 !     Extract satinfo relative index and get new_chan
       new_chan=0
       update=.false.
 
-      jjstart = 1
+      jjstart = sensor_start
       loop_a: do j=1,n_chan
-         do jj=jjstart,jpch_rad
-            if ( trim(nusis(jj)) == trim(satsens_id)) then
-               if ( nuchan(jj) == header_chan(j)%nuchan ) then
-                  jjstart = jj + 1
-                  if (inew_rad(jj)) then
-                     new_chan=new_chan+1
-                     ich(new_chan) = jj
-                  end if
-                  if (update_tlapmean(jj)) update=.true.
-                  cycle loop_a
-               endif
+         do jj=jjstart, sensor_end
+            if ( nuchan(jj) == header_chan(j)%nuchan ) then
+               jjstart = jj + 1
+               if (inew_rad(jj)) then
+                  new_chan=new_chan+1
+                  ich(new_chan) = jj
+               end if
+               if (update_tlapmean(jj)) update=.true.
+               cycle loop_a
             endif
          end do 
       end do loop_a
@@ -1563,14 +1572,12 @@ contains
 
       radedge_min = 0
       radedge_max = 1000
-      do i=1,jpch_rad
-         if (trim(nusis(i))==trim(satsens_id)) then
-            if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
-               radedge_min=radedge1(i)
-               radedge_max=radedge2(i)
-            end if
-            exit 
-         endif
+      do i=sensor_start, sensor_end
+         if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+            radedge_min=radedge1(i)
+            radedge_max=radedge2(i)
+         end if
+         exit 
       end do
 
 !     Loop to read diagnostic file
@@ -1591,27 +1598,24 @@ contains
 
 !        Channel loop
          nc=0
-         jjstart = 1
+         jjstart = sensor_start
          loopc:  do j = 1, n_chan
-            do jj=jjstart,jpch_rad
-               if ( trim(nusis(jj)) == trim(satsens_id)) then
-                  if ( nuchan(jj) == header_chan(j)%nuchan ) then
-                     jjstart = jj + 1
-                     if (inew_rad(jj)) nc = nc+1
+            do jj=jjstart, sensor_end
+               if ( nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+                  if (inew_rad(jj)) nc = nc+1
 
-                     if ((.not. inew_rad(jj)) .and.  &
-                        (.not. update_tlapmean(jj))) cycle loopc
+                  if ((.not. inew_rad(jj)) .and.  &
+                     (.not. update_tlapmean(jj))) cycle loopc
 
 !           Check for reasonable obs-ges and observed Tb.
 !           If the o-g difference is too large (> 200 K, very genereous!)
 !           of the observation is too cold (<50 K) or too warm (>500 K),
 !           do not use this observation in computing the update to the
 !           angle dependent bias.
-                     if( ( abs(data_chan(j)%omgnbc) > 200. .or. &
-                          data_chan(j)%tbobs < 50. .or. &
-                          data_chan(j)%tbobs > 500. ) ) then
-                        cycle loopc
-                     end if
+                  if( ( abs(data_chan(j)%omgnbc) > 200. .or. &
+                       data_chan(j)%tbobs < 50. .or. &
+                       data_chan(j)%tbobs > 500. ) ) cycle loopc
  
 !           if errinv= (1 /(obs error)) is small (small = less than 1.e-6)
 !           the observation did not pass quality control.  In this
@@ -1621,42 +1625,41 @@ contains
 
 !           errinv=data_chan(j)%errinv
 !           if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
-                     errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+                  errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
-                     if (update_tlapmean(jj)) then
-                        tlaptmp=data_chan(j)%tlap
-                        if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
-                        tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
-                        tsum(jj) =tsum(jj)+errinv
-                        tcnt(jj) =tcnt(jj)+one
+                  if (update_tlapmean(jj)) then
+                     tlaptmp=data_chan(j)%tlap
+                     if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
+                     tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
+                     tsum(jj) =tsum(jj)+errinv
+                     tcnt(jj) =tcnt(jj)+one
+                  end if
+
+                  if (inew_rad(jj)) then
+!                    Define predictor
+                     pred=zero
+                     pred(1) = one
+                     if (.not. mean_only) then
+                        rnad = rnad_pos(satsens,ispot,jj)*deg2rad
+                        do i=1,angord
+                           pred(i+1) = rnad**i
+                        end do
                      end if
-
-                     if (inew_rad(jj)) then
-!                       Define predictor
-                        pred=zero
-                        pred(1) = one
-                        if (.not. mean_only) then
-                           rnad = rnad_pos(satsens,ispot,jj)*deg2rad
-                           do i=1,angord
-                              pred(i+1) = rnad**i
-                           end do
-                        end if
 
 !                    Add values to running sums.
-                        iobs(nc) = iobs(nc)+one
-                        bias = data_chan(j)%omgnbc
+                     iobs(nc) = iobs(nc)+one
+                     bias = data_chan(j)%omgnbc
+                     do i=1,np
+                        b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
+                     end do
+                     do k=1,np
                         do i=1,np
-                           b(i,nc) = b(i,nc)+bias*pred(i)*errinv**2
+                           A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
                         end do
-                        do k=1,np
-                           do i=1,np
-                              A(i,k,nc) = A(i,k,nc)+pred(i)*pred(k)*errinv**2
-                           end do
-                        end do
-                     end if
-                     cycle loopc
+                     end do
                   end if
-               endif
+                  cycle loopc
+               end if
             end do   
          enddo loopc ! channel loop
 
@@ -1667,36 +1670,34 @@ contains
 
 !     Compute tlapmean
       if (update) then
-         jjstart = 1
+         jjstart = sensor_start
          loop_b: do j = 1,n_chan
-            do jj=jjstart,jpch_rad
-               if ( trim(nusis(jj)) == trim(satsens_id)) then
-                  if ( nuchan(jj) == header_chan(j)%nuchan ) then
-                     jjstart = jj + 1
-                     if (update_tlapmean(jj)) then
-                        if(tcnt(jj) >= nthreshold)  then
-                           tsum(jj)=tsum(jj)+tsum0(jj)
-!                          tlap2(jj) = tlap0(jj) + wgtlap*tlap1(jj)/tsum(jj)
-                           tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
-                           count_tlapmean(jj)=count_tlapmean(jj)+one
-                        elseif (tcnt(jj)>0) then
-                           ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
-                           tsum(jj)=ratio*tsum(jj)+tsum0(jj)
-!                          tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
-                           tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)
-                           count_tlapmean(jj)=count_tlapmean(jj)+one
-                        else
-                           tsum(jj)=tsum0(jj)
-                           tlap2(jj) = tlap0(jj)
-                           count_tlapmean(jj)=count_tlapmean(jj)
-                        endif
-                        tsum_tlapmean(jj)=tsum(jj)
-                        tlapmean(jj)=tlap2(jj)
-                        if (.not. newpc4pred) tlapmean(jj)=0.01_r_kind*tlapmean(jj)
+            do jj=jjstart, sensor_end
+               if ( nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+                  if (update_tlapmean(jj)) then
+                     if(tcnt(jj) >= nthreshold)  then
+                        tsum(jj)=tsum(jj)+tsum0(jj)
+!                       tlap2(jj) = tlap0(jj) + wgtlap*tlap1(jj)/tsum(jj)
+                        tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)+one
+                     elseif (tcnt(jj)>0) then
+                        ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
+                        tsum(jj)=ratio*tsum(jj)+tsum0(jj)
+!                       tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
+                        tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)+one
+                     else
+                        tsum(jj)=tsum0(jj)
+                        tlap2(jj) = tlap0(jj)
+                        count_tlapmean(jj)=count_tlapmean(jj)
                      endif
-                     cycle loop_b
-                  endif 
-               endif
+                     tsum_tlapmean(jj)=tsum(jj)
+                     tlapmean(jj)=tlap2(jj)
+                     if (.not. newpc4pred) tlapmean(jj)=0.01_r_kind*tlapmean(jj)
+                  endif
+                  cycle loop_b
+               endif 
             end do
          end do loop_b
 
@@ -1704,16 +1705,14 @@ contains
          dname = 'update_' // trim(obstype) // '_' // trim(platid)
          open(lntemp,file=dname,form='formatted')
 
-         jjstart = 1
+         jjstart = sensor_start
          loop_c: do j=1,n_chan
-            do jj=jjstart,jpch_rad
-               if ( trim(nusis(jj)) == trim(satsens_id)) then
-                  if ( nuchan(jj) == header_chan(j)%nuchan ) then
-                     jjstart = jj + 1
-                     write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
-220                  format(I5,1x,2e15.6,1x,I5)
-                     cycle loop_c
-                  endif
+            do jj=jjstart, sensor_end
+               if ( nuchan(jj) == header_chan(j)%nuchan ) then
+                  jjstart = jj + 1
+                  write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
+220               format(I5,1x,2e15.6,1x,I5)
+                  cycle loop_c
                endif
             end do
          end do loop_c

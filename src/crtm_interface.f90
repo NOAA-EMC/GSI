@@ -555,7 +555,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  if (channelinfo(1)%sensor_id == isis) then
     sensorindex = 1
 
-    if (channelinfo(1)%sensor_id(1:4) == 'iasi') then
+    if (isis(1:4) == 'iasi' .or. &
+        trim(isis) == 'amsua_aqua' .or. &
+        isis(1:4) == 'airs' ) then
        subset_start = 0
        subset_end = 0
        do k=1, jpch_rad
@@ -567,12 +569,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
        error_status = crtm_channelinfo_subset(channelinfo(1), &
            channel_subset = nuchan(subset_start:subset_end))
+
     endif
 
-! Added a fudge in here to prevent multiple script changes following change of AIRS naming
-! convention in CRTM:
- else if (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. isis == 'airs281SUBSET_aqua') then
-    sensorindex = 1
 ! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
 ! and BUFR files is checked in read_cris:
  else if (channelinfo(1)%sensor_id(1:12) == 'cris-fsr2211' .AND. isis(1:8) == 'cris-fsr') then
