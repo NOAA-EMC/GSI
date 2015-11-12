@@ -134,7 +134,7 @@ jobname=$DATA_EXTRACT_JOBNAME
 if [[ $RUN_ENVIR = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" ]]; then
+   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       total=0
       line=`qstat -u ${LOGNAME} | grep ${jobname}`
       test=`echo $line | gawk '{print $10}'`
@@ -236,11 +236,30 @@ if [[ -e ${radstat} ]]; then
    export VERBOSE=${VERBOSE:-YES}
   
 
+   #----------------------------------------------------------------------------
+   #  Advance the satype file from previous day.
+   #  If it isn't found then create one using the contents of the radstat file.
+   #----------------------------------------------------------------------------
+   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
+
    if [[ $CYC = "00" ]]; then
+      echo "Making new day directory for 00 cycle"
       mkdir -p ${TANKverf}/radmon.${PDY}
       prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-      cp ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
-   fi
+      if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ]]; then
+         cp ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+      fi
+    fi 
+
+    echo "TESTING for $satype_file"
+    if [[ -s ${satype_file} ]]; then
+      echo "${satype_file} is good to go"
+    else
+      echo "CREATING satype file"
+      radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
+      echo $radstat_satype > ${satype_file}
+      echo "CREATED ${satype_file}"
+    fi
 
    
    #------------------------------------------------------------------
@@ -257,7 +276,7 @@ if [[ -e ${radstat} ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
 
-   elif [[ $MY_MACHINE = "zeus" ]]; then
+   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
    fi
   
