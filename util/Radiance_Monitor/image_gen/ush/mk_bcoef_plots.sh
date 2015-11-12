@@ -83,7 +83,7 @@ for type in ${SATYPE}; do
    fi
    ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
@@ -103,7 +103,7 @@ rm ${logfile}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $IG_SCRIPTS/plot_bcoef.sh
-elif [[ $MY_MACHINE = "zeus" ]]; then
+elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
 fi
 

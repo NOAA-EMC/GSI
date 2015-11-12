@@ -5,7 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for zeus and wcoss machines.
+#  executables.  This script works for zeus, theia, and wcoss 
+#  machines.
 #
 #-------------------------------------------------------------------
 
@@ -15,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "zeus" && $machine ne "wcoss" ) {
+   if( $machine ne "zeus" && $machine ne "theia" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -23,14 +24,11 @@
    }
 
    #
-   #  zeus is the only little endian machine
+   #  zeus, theia, and wcoss are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
-   if( $machine eq "zeus" ) {
-      $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";   
-   }
-
    my $my_os = "linux";
+
 
    #
    #  Idenfity basedir location of package
@@ -55,9 +53,12 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $mahine eq "zeus" ) {
+   if( $machine eq "zeus" ) {
       $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
    } 
+   elsif( $machine eq "theia" ){
+      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   }
    else {
       $tankdir = "/global/save/$user_name/nbns";
    }
@@ -141,11 +142,67 @@
    #
    #  Set up ptmp and stmp locations according to $arch.
    #
-   my $my_ptmp="export PTMP=\${PTMP:-/ptmpp1}";
-   my $my_stmp="export STMP=\${STMP:-/stmpp1}";
-   if( $machine eq "zeus" ) {
-      $my_ptmp="export PTMP=\${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
-      $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
+   #
+   my $my_ptmp;
+   my $my_stmp;
+
+   if( $machine eq "wcoss" ) {
+      $ptmp = "/ptmpd1";
+      print "Please specify PTMP location.  This is used for temporary work space.\n";
+      print "  Available options are: \n";
+      print "      /ptmpd1  (default)\n";
+      print "      /ptmpd2\n";
+      print "      /ptmpd3\n";
+      print "      /ptmpp1\n";
+      print "      /ptmpp2\n";
+   
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default PTMP:  $ptmp \n";
+      print "     ?\n";
+      my $new_ptmp = <>;
+      $new_ptmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_ptmp ) > 0 ) {
+         $ptmp = $new_ptmp;
+      }
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-$ptmp}";
+      print "my_ptmp = $my_ptmp\n";
+      print "\n\n";
+      sleep( 1 );
+
+      $stmp = "/stmpd1";
+      print "Please specify STMP location.  This is used for temporary work space.\n";
+      print "  Available options are: \n";
+      print "      /stmpd1  (default)\n";
+      print "      /stmpd2\n";
+      print "      /stmpd3\n";
+      print "      /stmpp1\n";
+      print "      /stmpp2\n";
+
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default STMP:  $stmp \n";
+      print "     ?\n";
+      my $new_stmp = <>;
+      $new_stmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_stmp ) > 0 ) {
+         $stmp = $new_stmp;
+      }
+      $my_stmp="export MY_STMP=\${MY_STMP:-$stmp}";
+      print "my_stmp = $my_stmp\n";
+      print "\n\n";
+      sleep( 1 );
+
+   }
+   elsif( $machine eq "zeus" ) {
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
+   }
+   elsif( $machine eq "theia" ){
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch4/NCEPDEV/stmp4}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch4/NCEPDEV/stmp3}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -177,10 +234,10 @@
       elsif( $_ =~ "MY_MACHINE=" ) {
          print $out "$my_machine\n";
       }
-      elsif( $_ =~ "PTMP=" ) {
+      elsif( $_ =~ "MY_PTMP=" ) {
          print $out "$my_ptmp\n";
       }
-      elsif( $_ =~ "STMP=" ) {
+      elsif( $_ =~ "MY_STMP=" ) {
          print $out "$my_stmp\n";
       }
       else {
@@ -199,7 +256,7 @@
    print "Updating parm/RadMon_user_settings\n";
 
    my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
-   if( $machine ne "zeus" ) {
+   if( $machine ne "zeus" && $machine ne "theia" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
@@ -208,7 +265,7 @@
       $project="export PROJECT=";
    } 
 
-   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev}";
+   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
    if( $machine ne "wcoss" ) {
       $job_queue="export JOB_QUEUE=";
    } 

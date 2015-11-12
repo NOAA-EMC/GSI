@@ -14,6 +14,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !
 ! program history log:
 !   2012-08-20 Li Bi      
+!   2014-04-15 Su -  new error table
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
 !                        dynamic allocated array
@@ -43,16 +44,19 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc
+  use qcmod, only: errormod,noiqc,njqc
+
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
-!  use converr,only: etabl
+  use converr,only: etabl
+  use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
+  use convb_uv,only: btabl_uv,bptabl_uv
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv, &
+       ithin_conv,rmesh_conv,pmesh_conv,index_sub, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -102,7 +106,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
-  integer(i_kind) qc1,qc2,qc3
+  integer(i_kind) qc1,qc2,qc3,ierr,ierr2
   
   
  
@@ -111,20 +115,18 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   integer(i_kind),dimension(5):: idate5 
   integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
-  integer(i_kind),allocatable,dimension(:,:)::tab 
+  integer(i_kind),allocatable,dimension(:,:)::tab
 
-  integer(i_kind) ietabl,itypex,lcount,iflag,m
-
-  real(r_single),allocatable,dimension(:,:,:) :: etabl
-
+! integer(i_kind) itypex,lcount,iflag,m
+  integer(i_kind) itypey
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
-  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
+  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,var_jb
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
-  real(r_kind) del,werrmin,obserr,ppb1
+  real(r_kind) del,werrmin,obserr,ppb1,wjbmin
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
@@ -162,38 +164,38 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Read observation error table
 ! itype 291 has been modified in the error table 
 
-  allocate(etabl(300,33,6))
-  etabl=1.e9_r_kind
-  ietabl=19
-  open(ietabl,file='errtable',form='formatted')
-  rewind ietabl
-  etabl=1.e9_r_kind
-  lcount=0
-  loopd : do
-     read(ietabl,100,IOSTAT=iflag) itypex
-     if( iflag /= 0 ) exit loopd
-     lcount=lcount+1
-     do k=1,33
-        read(ietabl,110)(etabl(itypex,k,m),m=1,6)
-     end do
-  end do   loopd
-100     format(1x,i3)
-110     format(1x,6e12.5)
-  if(lcount<=0 ) then
-     write(6,*)'READ_SFCWND: obs error table not available to 3dvar. the program will stop'
-     call stop2(49) 
-  else
-     write(6,*)'READ_SFCWND: observation errors provided by local file errtable'
-  endif
-
-  close(ietabl)
+!  allocate(etabl(300,33,6))
+!  etabl=1.e9_r_kind
+!  ietabl=19
+!  open(ietabl,file='errtable',form='formatted')
+!  rewind ietabl
+!  etabl=1.e9_r_kind
+!  lcount=0
+!  loopd : do
+!     read(ietabl,100,IOSTAT=iflag) itypex
+!     if( iflag /= 0 ) exit loopd
+!     lcount=lcount+1
+!     do k=1,33
+!        read(ietabl,110)(etabl(itypex,k,m),m=1,6)
+!     end do
+!  end do   loopd
+!100     format(1x,i3)
+!110     format(1x,6e12.5)
+!  if(lcount<=0 ) then
+!     write(6,*)'READ_SFCWND: obs error table not available to 3dvar. the program will stop'
+!     call stop2(49) 
+!  else
+!     write(6,*)'READ_SFCWND: observation errors provided by local file errtable'
+!  endif
+!
+!  close(ietabl)
 
 ! Set lower limits for observation errors
 ! ** keep this way for now
 ! nreal keep the dimension of cdata_all 
   werrmin=one
   nsattype=0
-  nreal=23
+  nreal=24
   if (noiqc) then
      lim_qm=8
   else
@@ -236,7 +238,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
 
-!  allocate(lmsg(nmsgmax,ntread))
   lmsg = .false.
   maxobs=0
   tab=0
@@ -538,22 +539,54 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   only need read the 4th column for type 291 from the right
  
            ppb=max(zero,min(ppb,r2000))
-           if(ppb>=etabl(itype,1,1)) k1=1          
-           do kl=1,32
-              if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
-           end do
-           if(ppb<=etabl(itype,33,1)) k1=5
-           k2=k1+1
-           ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
-           if (abs(ediff) > tiny_r_kind) then
-              del = (ppb-etabl(itype,k1,1))/ediff
-           else
-              del = huge_r_kind
+           itypey=itype
+           ierr=index_sub(nc)
+           if (ierr >maxsub_uv) ierr=2
+           ierr2=ierr-1
+           if( iobsub /= isuble_uv(itypey,ierr2)) then
+              write(6,*) ' READ_SFCWND: the subtypes do not match subtype &
+              in the errortable,iobsub=',iobsub,isuble_uv(itypey,ierr2),itypey,itype,ierr2,nc,index_sub(nc)
+              call stop2(49)
            endif
-           del=max(zero,min(del,one))
-           obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
-           obserr=max(obserr,werrmin)
 
+           ppb=max(zero,min(ppb,r2000))
+           if(njqc) then
+              if(ppb>=etabl_uv(itypey,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) k1=kl
+              end do
+              if(ppb<=etabl_uv(itypey,33,1)) k1=5
+              k2=k1+1
+              ediff = etabl_uv(itypey,k2,1)-etabl_uv(itypey,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl_uv(itypey,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl_uv(itypey,k1,ierr)+del*etabl_uv(itypey,k2,ierr)
+              obserr=max(obserr,werrmin)
+! get non linear qc parameter from b table
+              var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
+              var_jb=max(var_jb,wjbmin)
+              if (var_jb >10.0_r_kind) var_jb=zero
+          else
+             if(ppb>=etabl(itype,1,1)) k1=1
+              do kl=1,32
+                 if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
+              end do
+              if(ppb<=etabl(itype,33,1)) k1=5
+              k2=k1+1
+              ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
+              if (abs(ediff) > tiny_r_kind) then
+                 del = (ppb-etabl(itype,k1,1))/ediff
+              else
+                 del = huge_r_kind
+              endif
+              del=max(zero,min(del,one))
+              obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
+              obserr=max(obserr,werrmin)
+           endif
 
 !         Set usage variable
            usage = 0 
@@ -668,8 +701,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
-
-
+           cdata_all(24,iout)=var_jb              ! non linear qc parameter
 
         enddo  loop_readsb
 
@@ -685,7 +717,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep)
+  deallocate(lmsg)
  
 
   ! Write header record and data to output file for further processing
@@ -710,7 +742,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      end do
   end do
   deallocate(iloc,isort,cdata_all)
-  deallocate(etabl)
+!  deallocate(etabl)
   
   call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
