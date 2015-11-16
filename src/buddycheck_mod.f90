@@ -323,13 +323,15 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   call final_vars_
   ! - Now call buddy check routine
   range = 108000.0_r_kind ! Radius within which we check for an ob's buddies (units are m)
-  difmax= 8.0_r_kind      ! Max difference allowed relative to buddies
+!
+! 8/31/2015: adjust the difmax value based on case: 2/29/2015 03Z. 
+!  difmax= 7.0_r_kind      ! the final codeMax difference allowed relative to buddies
+!for being consistent, difmax=8, but late will be changed.
+   difmax= 8.0_r_kind      ! Max difference allowed relative to buddies
+
  
   call execute_buddy_check(mype,is,nobs,vals,range,difmax,buddyuse)
-
-
 ! End of routine
-
   return
   contains
 
