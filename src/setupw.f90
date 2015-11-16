@@ -719,7 +719,37 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(itype ==258 .and. presw >600.0_r_kind) error=zero
         if(itype ==259 .and. presw >600.0_r_kind) error=zero
         if(itype ==259 .and. presw <249.0_r_kind) error=zero
-     endif ! qc_satwnds
+
+     endif ! qc_satwnds for GMAO
+
+!    QC GOES CAWV - some checks above as well
+     if (itype==247) then
+        prsfc = r10*psges       ! surface pressure in hPa
+
+!       Compute observed and guess wind speeds (m/s).  
+        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
+ 
+!       Set and compute GOES CAWV specific departure parameters
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+!       if(LNVD_ratio >= LNVD_threshold) then ! LNVD check
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+            (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
+           error = zero
+        endif
+! check for direction departure gt 50 deg 
+        wdirdiffmax=50._r_kind
+        call getwdir(uob,vob,wdirob)
+        call getwdir(ugesin,vgesin,wdirgesin)
+        if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                 abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+          error = zero
+        endif
+       endif 
+
+
    
 !    QC MODIS winds
      if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
@@ -745,7 +775,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (itype==244) then
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
-        prsfc = r10*prsfc       ! surface pressure in hPa
+!       prsfc = r10*prsfc       ! surface pressure in hPa
+        prsfc = r10*psges       ! surface pressure in hPa
 
 !       Set and computes modis specific qc parameters
         LNVD_wspd = spdob
@@ -1129,11 +1160,13 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(17,ii) = data(iuob,i)       ! u wind component observation (m/s)
         rdiagbuf(18,ii) = dudiff             ! u obs-ges used in analysis (m/s)
-        rdiagbuf(19,ii) = uob-ugesin         ! u obs-ges w/o bias correction (m/s) (future slot)
+       !rdiagbuf(19,ii) = uob-ugesin         ! u obs-ges w/o bias correction (m/s) (future slot)
+        rdiagbuf(19,ii) = data(idomsfc,i)    ! dominate surface type
 
         rdiagbuf(20,ii) = data(ivob,i)       ! v wind component observation (m/s)
         rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
-        rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
+       !rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
+        rdiagbuf(22,ii) = data(izz,i)        ! model terrain at ob location
 
         if(regional) then
 
@@ -1155,6 +1188,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
 
         rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
+        if(itype >=240 .and. itype <=260) rdiagbuf(23,ii)=(psges*r10)
 
         ioff=ioff0
         if (lobsdiagsave) then
