@@ -764,9 +764,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif  
                     endif
                  enddo
-                 if(qifn <85.0_r_kind )  then
+!QI not applied to CAWV for now - may in the future
+                 if(qifn <85.0_r_kind .and. itype .ne. 247)  then
                     qm=15
                  endif
+! Minimum speed requirement for CAWV of 10m/s
+                 if(itype .eq. 247 .and. obsdat(4) < 10.0_r_kind)  then
+                   qm=15
+                endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -991,7 +996,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(itype ==245 .or. itype ==252 .or. itype ==253 .or. itype ==240) then 
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-                    if(isflg /= 0) cycle loop_readsb 
+!                   if(isflg /= 0) cycle loop_readsb 
+                    if(isflg /= 0) qm=15
                  endif
               endif
            endif
