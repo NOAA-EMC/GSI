@@ -410,7 +410,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Only use central IFOV
         ifov = nint(linele(1))               ! field of view
-        if (ifov /= 5) cycle read_loop
+!        if (ifov /= 5) cycle read_loop
 
         ifor = nint(linele(4))               ! field of regard
 
@@ -573,7 +573,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
           cycle read_loop
         end if
 
-        if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
+        if (ifov == 5 .and. abs(sat_look_angle - look_angle_est)*rad2deg > one) then
            write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
                look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
            bad_line = iscn
@@ -661,22 +661,22 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Cloud information  may be missing depending on how the VIIRS granules align
 !       with the CrIS granules.  
 !       Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
-!JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
-!JAJ        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
+        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
+        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-!JAJ           pred = cloud_frac(1) / 10.0_r_kind
-!           pred = cloud_frac(2) / 100.0_r_kind
-!JAJ           crit1 = crit1 + pred
+!           pred = cloud_frac(1) / 10.0_r_kind
+           pred = cloud_frac(2) / 100.0_r_kind
+           crit1 = crit1 + pred
 
-!JAJ        else
+        else
 !       If cloud_frac is missing from BUFR, use proxy of warmest fov over 
 !       non ice surfaces.  Fixed channels (assuming the 399 set) for now.
 !       This is moved to below where the radiances are read in.
 
-!JAJ           if (sfcpct(0)+sfcpct(1) > 0.9) &
-!JAJ              crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
+           if (sfcpct(0)+sfcpct(1) > 0.9) &
+              crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
  
-!JAJ        endif ! clearest FOV check
+        endif ! clearest FOV check
 
 !       Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
