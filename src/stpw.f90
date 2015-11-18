@@ -189,7 +189,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (vqc==.true. .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
+        if (vqc ==.true. .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                              wptr%b  > tiny_r_kind) then
            w_pg=wptr%pg*varqc_iter
            cg_w=cg_term/wptr%b
@@ -201,13 +201,10 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
         endif
 
 ! Purser's scheme
-        if(njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+        if(njqc ==.true. .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*wptr%jb*log(cosh(sqrt(pen(kk)/(two*wptr%jb))))
            enddo
-        endif
-
-        if(njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
            out(1) = out(1)+pen(1)*sqrt(wptr%raterr2)
            do kk=2,nstep
               out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(wptr%raterr2)
