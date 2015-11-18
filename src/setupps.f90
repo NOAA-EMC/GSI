@@ -491,7 +491,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            valqc = -two*rat_err2*term
         else
            term = exp_arg
-           wgt  = wgtlim
+           wgt  = one 
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
         endif

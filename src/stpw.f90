@@ -81,7 +81,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: w_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -189,7 +189,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
+        if (vqc==.true. .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                              wptr%b  > tiny_r_kind) then
            w_pg=wptr%pg*varqc_iter
            cg_w=cg_term/wptr%b
