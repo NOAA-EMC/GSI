@@ -164,7 +164,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (vqc ==.true. .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
+        if (vqc  .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
                              qptr%b  > tiny_r_kind) then
            q_pg=qptr%pg*varqc_iter
            cg_q=cg_term/qptr%b
@@ -175,7 +175,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            end do
         endif
      
-        if(njqc ==.true.  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+        if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo

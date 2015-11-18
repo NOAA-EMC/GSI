@@ -191,7 +191,7 @@ subroutine intw_(whead,rval,sval)
 
 !          gradient of nonlinear operator
  
-           if (vqc ==.true. .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                                 wptr%b  > tiny_r_kind) then
               w_pg=wptr%pg*varqc_iter
               cg_w=cg_term/wptr%b
@@ -203,7 +203,7 @@ subroutine intw_(whead,rval,sval)
               valu = valu*term
               valv = valv*term
            endif
-           if (njqc ==.true. .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+           if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
               valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
               valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
               gradu = valu*sqrt(wptr%raterr2*wptr%err2)
