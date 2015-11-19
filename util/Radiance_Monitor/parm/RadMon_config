@@ -62,10 +62,10 @@ export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 #
 #  Log and work space definitions
 #
-export PTMP=${PTMP:-/ptmpp1}
-export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
-export STMP=${STMP:-/stmpp1}
-export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
+export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
+export MY_STMP=${MY_STMP:-/stmpp1}
+export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
 export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
@@ -130,12 +130,9 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
-else    # zeus 
-   shell=sh
-   /usr/bin/modulecmd $shell load ncep
- 
+else    # theia 
    export SUB=/apps/torque/default/bin/qsub
-   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
 fi
