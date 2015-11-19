@@ -1,11 +1,9 @@
 # This config file contains the compile options for compilation
-# of the GSI code on the NOAA HPCS.
+# of the EnKF code on the NOAA HPCS.
 
-# ------------------------------------
-# Redefine variables for Cray on WCOSS
-# ------------------------------------
-
+# ----------------------------------
 # Set library versions
+# ----------------------------------
 BACIO_VER = v2.0.1
 BUFR_VER = v11.0.1
 CRTM_VER = v2.2.3
@@ -40,7 +38,6 @@ NETCDFPATH = /usrx/local/prod/NetCDF/$(NETCDF_VER)/$(COMPILER)/haswell
 NETCDF_INCLUDE = $(NETCDFPATH)/include
 NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
 
-
 # WRF locations
 WRFPATH = /gpfs/hps/nco/ops/nwprod/wrf_shared.v1.1.0-$(COMPILER)
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -50,13 +47,12 @@ OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
 
 
-# Empty out definition of libs use by GMAO GSI building structure
+# Empty out definition of libs use by GMAO EnKF building structure
 LIBtransf = #-L$(CORELIB) -ltransf
 LIBhermes = #-L$(CORELIB) -lhermes
 LIBgfio   = #-L$(CORELIB) -lgfio
 INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
 LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
-
 
 # ---------------------------
 # General targets/definitions
@@ -75,35 +71,38 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -D_REAL8_ -DWRF
+  FFLAGS_F90    = -DGFS
+  EXE_FILE = global_enkf
+  #FFLAGS_F90    = -DWRF
+  #EXE_FILE = wrf_enkf
+  #FFLAGS_F90    = -DNMMB
+  #EXE_FILE = nmmb_enkf
 
-  FFLAGS_COM_N  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
-  		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                -O3 -fp-model source -convert big_endian -assume byterecl \
-                -implicitnone $(OMP)
+  FFLAGS_COM_N  = -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		-I $(NETCDF_INCLUDE) \
+		-O3 -fp-model source -convert big_endian -assume byterecl \
+		-implicitnone $(OMP)
 
-  FFLAGS_COM_N_NOSWAP  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
-  		       -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                       -O3 -fp-model source -convert big_endian -assume byterecl \
-                       -implicitnone $(OMP)
+  FFLAGS_COM_N_NOSWAP  = -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC)-I \
+  		       $(NETCDF_INCLUDE) \
+		       -O3 -fp-model source -convert big_endian -assume byterecl \
+		       -implicitnone $(OMP)
 
-  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF) 
-  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF) 
-  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF) 
-  FFLAGS    = $(FFLAGS_N) $(PROF) 
+  FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
+  FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
+  FFLAGS_f  = $(FFLAGS_COM_N) $(PROF)
+  FFLAGS    = $(FFLAGS_N) $(PROF)
 
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
-  		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-  		-O0 -fp-model source -convert big_endian -assume byterecl \
-		-implicitnone -g -traceback -debug \
-                -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
-  FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
-  		       -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
+  FFLAGS_COM_D  =  -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		-I $(NETCDF_INCLUDE) \
+		-O0 -fp-model source -convert big_endian -assume byterecl \
+		-implicitnone -warn all -g -traceback -debug all -check all
+  FFLAGS_COM_NOSWAP_D  =  -I ./ -I ../ -I $(SFCIO_INC4) -I $(SIGIO_INC4) -I $(NEMSIO_INC) \
+  		       -I $(NETCDF_INCLUDE) \
   		       -O0 -fp-model source -convert big_endian -assume byterecl \
-		       -implicitnone -g -traceback -debug \
-                       -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
+		       -implicitnone -warn all -g -traceback -debug all -check all
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
 
@@ -132,10 +131,9 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  LIBS_N        = $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) \
-  		$(SFCIO_LIB4) $(BUFR_LIBd) $(W3NCO_LIBd) $(W3EMC_LIBd) \
-  		$(CRTM_LIB) $(WRFLIB) $(NETCDF_LDFLAGS_F)
-#               -L../lib/GSD/gsdcloud4nmmb -lgsdcloud
+  LIBS_N        = $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIBd) \
+  		  $(W3EMC_LIBd) $(SIGIO_LIB4) $(SFCIO_LIB4) $(CRTM_LIB) \
+		  $(BUFR_LIBd) $(WRFLIB) $(NETCDF_LDFLAGS_F)
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
@@ -149,4 +147,4 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Empty out mpi library definition: embedded in compiler
 
-  LIBmpi	= 
+  LIBmpi	=
