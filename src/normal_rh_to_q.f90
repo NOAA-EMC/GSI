@@ -14,6 +14,7 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
 !   2006-01-09  derber move sigsum calculation to compute_derived and clean up
 !   2006-07-31  kleist - analysis variable changed from ln(ps) to ps
 !   2008-05-28  safford - rm unused uses
+!   2015-10-27  mahajan - code clean-up
 !
 !   input argument list:
 !      rhnorm - normalized RH
@@ -43,27 +44,21 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
   integer(i_kind) i,j,k
 
 ! Convert normalized rh to q
-  if(qoption==1) then
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              q(i,j,k)=q(i,j,k)+dqdrh(i,j,k)*rhnorm(i,j,k)
-           end do
-        end do
-     end do
+   do k=1,nsig
+      do j=1,lon2
+         do i=1,lat2
+            q(i,j,k) = dqdrh(i,j,k)*rhnorm(i,j,k)
+            if ( qoption == 2 ) then
+               q(i,j,k) = q(i,j,k) + &
+                          dqdt(i,j,k)*t(i,j,k) - &
+                          dqdp(i,j,k)*(p(i,j,k) + p(i,j,k+1))
+            endif
+         enddo
+      enddo
+   enddo
 
-  else
-     do k=1,nsig
-       do j=1,lon2
-          do i=1,lat2
-             q(i,j,k) = q(i,j,k)+dqdrh(i,j,k)*rhnorm(i,j,k) &
-                  +dqdt(i,j,k)*t(i,j,k) &
-                  -dqdp(i,j,k)*(p(i,j,k)+p(i,j,k+1))
-          end do
-       end do
-     end do
-  end if
-  
+   return
+
 end subroutine normal_rh_to_q
 
 subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
@@ -84,6 +79,7 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
 !   2006-08-16  parrish - correct adjoint error, which only has impact when
 !                         using strong balance constraint.
 !   2008-05-28  safford - rm unused uses
+!   2015-10-27  mahajan - code clean-up
 !
 !   input argument list:
 !      rhnorm - normalized RH
@@ -115,26 +111,20 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
   integer(i_kind) i,j,k
   
 ! Adjoint of convert normalized rh to q
-  if(qoption==1) then
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              rhnorm(i,j,k)=rhnorm(i,j,k)+dqdrh(i,j,k)*q(i,j,k)
-           end do
-        end do
-     end do
-  else
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              rhnorm(i,j,k)=rhnorm(i,j,k)+dqdrh(i,j,k)*q(i,j,k)
-              t(i,j,k  ) = t(i,j,k  ) + dqdt(i,j,k)*q(i,j,k)
-              p(i,j,k  ) = p(i,j,k  ) - dqdp(i,j,k)*q(i,j,k)
-              p(i,j,k+1) = p(i,j,k+1) - dqdp(i,j,k)*q(i,j,k)
-           end do
-        end do
-     end do
+   do k=1,nsig
+      do j=1,lon2
+         do i=1,lat2
+            rhnorm(i,j,k) = rhnorm(i,j,k) + dqdrh(i,j,k)*q(i,j,k)
+            if ( qoption == 2 ) then
+               t(i,j,k  ) = t(i,j,k  ) + dqdt(i,j,k)*q(i,j,k)
+               p(i,j,k  ) = p(i,j,k  ) - dqdp(i,j,k)*q(i,j,k)
+               p(i,j,k+1) = p(i,j,k+1) - dqdp(i,j,k)*q(i,j,k)
+            endif
+            q(i,j,k) = zero
+         enddo
+      enddo
+   enddo
 
-  end if
-  
+   return
+ 
 end subroutine normal_rh_to_q_ad
