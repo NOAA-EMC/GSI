@@ -114,11 +114,7 @@ end if
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 do_cw_to_hydro_ad=.false.
-if (regional) then
-   do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
-else
-   do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
-endif
+do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
 
 ! Initialize
 mval%values=zero
@@ -130,6 +126,11 @@ if(istatus/=0) then
 endif
 
 do jj=1,ntlevs_ens
+
+! If calling TLNMC, already have u,v (so set last argument to true)
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+            (jj==ibin_anl .and. tlnmc_option==2))  
+
    wbundle_c%values=zero
 
 ! Get sv pointers here
@@ -143,33 +144,18 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'q'   ,rv_q ,  istatus)
    call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
 
+!  Adjoint of consistency for sensible temperature, calculate sensible temperature
+   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
-!  Calculate sensible temperature
-!  if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
-
-!  Adjoint to convert ps to 3-d pressure
-!  if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
-
-! If calling TLNMC, already have u,v (so set last argument to true)
-   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
-            (jj==ibin_anl .and. tlnmc_option==2))  
    if(do_tlnmc) then
 
-!  Adjoint of consistency for 3d pressure and sensible temperature
-!  Calculate sensible temperature
-      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
-
-!     Adjoint of convert input normalized RH to q to add contribution of moisture
-!     to t, p , and normalized rh
-      if(do_normal_rh_to_q_ad) then
-!    rv_tsen is used as a scratch array here
-         call normal_rh_to_q_ad(cv_rh,rv_tv,rv_prse,rv_q)
-      end if
-!  Adjoint to convert ps to 3-d pressure
+      ! Adjoint to convert ps to 3-d pressure
       if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+      rv_prse=zero
 
-!  Adjoint of strong_bk
+      ! Adjoint of strong_bk
       call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
+
    end if
 
    call self_add(mval,eval(jj))
@@ -214,23 +200,18 @@ do jj=1,ntlevs_ens
       enddo
    endif
 
-   if(.not. do_tlnmc) then
-!     Calculate sensible temperature
-      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
+!  Calculate sensible temperature
+   if(do_q_copy) then
+      call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
+   else
 
 !     Adjoint of convert input normalized RH to q to add contribution of moisture
 !     to t, p , and normalized rh
-      if(do_normal_rh_to_q_ad) then
-         call normal_rh_to_q_ad(cv_rh,rv_tv,rv_prse,rv_q)
-         rv_q=zero
-      end if
+      if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,rv_tv,rv_prse,rv_q)
 
 !     Adjoint to convert ps to 3-d pressure
-      if(do_getprs_ad) then
-         call getprs_ad(rv_ps,rv_tv,rv_prse)
-      end if
+      if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
    end if
-   if(do_q_copy) call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
 
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
