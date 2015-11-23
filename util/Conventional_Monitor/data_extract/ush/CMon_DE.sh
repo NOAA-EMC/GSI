@@ -110,7 +110,8 @@ if [[ ! -d ${C_IMGNDIR} ]]; then
    mkdir -p ${C_IMGNDIR}
 fi
 
-tmpdir=${C_STMP_USER}/check_conv${SUFFIX}
+
+tmpdir=${WORKverf_cmon}/check_conv${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -131,24 +132,33 @@ fi
 # Get date of cycle to process and/or previous cycle processed.
 #
 if [[ $PDATE = "" ]]; then
-   GDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+   GDATE=`${SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
    PDATE=`$NDATE +06 $GDATE`
 else
    GDATE=`$NDATE -06 $PDATE`
 fi
 
-sdate=`echo $PDATE|cut -c1-8`
-export CYA=`echo $PDATE|cut -c9-10`
+echo GDATE = $GDATE
 
-export GCYA=`echo $GDATE|cut -c9-10`
-export gydat=`echo $GDATE|cut -c1-8`
+PDY=`echo $PDATE|cut -c1-8`
+export CYC=`echo $PDATE|cut -c9-10`
 
-#export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$sdate}
-#export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$gydat}
+export GCYC=`echo $GDATE|cut -c9-10`
+export PDYm6h=`echo $GDATE|cut -c1-8`
+echo PDYm6h = $PDYm6h
 
+#################
 # testing only:
-export DATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prslh4d
-export GDATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prslh4d
+#################
+#export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$PDY}
+#export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$PDYm6h}
+export DATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prh3enkf
+export GDATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prh3enkf
+
+export C_COMIN=${DATDIR}
+export C_COMINm6h=${GDATDIR}
+
+export DATA_IN=${WORKverf_cmon}
 
 
 #--------------------------------------------------------------------
@@ -167,27 +177,30 @@ export GDATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prslh4d
 #   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
 #   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
 #else
-#   export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
-#   export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
-#   export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
+#   export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
+#   export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
+#   export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 #fi
 
-#export cnvstat="${DATDIR}/gdas1.t${CYA}z.cnvstat"
+export grib2=${grib2:-0}
+#export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
 export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
-export pgrbanl="${DATDIR}/gdas1.t${CYA}z.pgrbanl"
+export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
 if [[ ! -s ${pgrbanl} ]]; then
 #   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
-   export pgrbanl=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
+   export pgrbanl=${DATDIR}/pgbanl.gdas.${PDATE}
+#   export pgrbanl=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
 fi
 
-export pgrbf06="${GDATDIR}/gdas1.t${GCYA}z.pgrbf06"
+export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 if [[ ! -s ${pgrbf06} ]]; then
 #   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-   export pgrbf06=${DATDIR}/pgbh06.gdas.${GDATE}.grib2
+#   export pgrbf06=${DATDIR}/pgbh06.gdas.${GDATE}.grib2
+   export pgrbf06=${DATDIR}/pgbf06.gdas.${GDATE}
 fi
 
 if [ -s $cnvstat  -a -s $pgrbanl ]; then
@@ -198,13 +211,13 @@ if [ -s $cnvstat  -a -s $pgrbanl ]; then
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
         echo "job for wcoss goes here"
-#        $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/data_extract.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
 
       elif [[ $MY_MACHINE = "theia" ]]; then
          echo "ACCOUNT = $ACCOUNT"
          echo "jobname = $jobname"
-         echo "LOGdir  = $LOGdir" 
-#        $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+         echo "C_LOGDIR= $C_LOGDIR" 
+         $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
       fi
 
 #      echo firing convcopr.sh
