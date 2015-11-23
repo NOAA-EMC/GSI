@@ -175,10 +175,7 @@ do jj=1,nsubwin
 
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) then
-      call normal_rh_to_q_ad(workrh,rv_tv,rv_prse,rv_q)
-      rv_q=zero
-   end if
+   if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(workrh,rv_tv,rv_prse,rv_q)
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
