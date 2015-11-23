@@ -285,6 +285,7 @@ EOF
       done
    done
    if [[ $fail -eq $ctr || $fail -gt $ctr  ]]; then
+      echo "fail, ctr = $fail, $ctr"
       err=10
    fi
 

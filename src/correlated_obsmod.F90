@@ -148,8 +148,6 @@ public ObsErrorCov
 public GSI_BundleErrorCov
 public corr_oberr_qc
 
-
-
 ! !METHOD OVERLOADING:
 
 interface corr_ob_initialize; module procedure ini_; end interface
@@ -204,7 +202,6 @@ integer(i_kind),parameter :: methods_avail(5)=(/-1, & ! do nothing
                                                  1, & ! use full est(R), but decompose once for all
                                                  2, & ! use full est(R), but re-decomp at each profile
                                                  3/)  ! use diag est(R), as scaling factor to GSI(R)
-
 contains
 
 !-------------------------------------------------------------------------
@@ -379,12 +376,6 @@ real(r_kind),allocatable, dimension(:) :: diag
      ErrorCov%R = readR8
      deallocate(readR8)
    endif
-
-
-
-
-
-
 
 !  Done reading file
    close(lu)
@@ -612,9 +603,6 @@ if ( ErrorCov%method==2 ) then
    ! each profile at each location at setup time.
    ErrorCov%Revals=zero
    ErrorCov%Revecs=zero
-
-
-
 endif ! method=2
 
   contains
@@ -738,9 +726,6 @@ end subroutine decompose_
 logical function scale_jac_(depart,obvarinv,adaptinf,jacobian, &
                             nchanl,jpch_rad,varinv,wgtjo,iuse,ich,ErrorCov)
 ! !USES:
-
-
-
 use constants, only: tiny_r_kind
 use mpeu_util, only: die
 implicit none
@@ -788,7 +773,6 @@ integer(i_kind),allocatable,dimension(:)   :: ircv
 integer(i_kind),allocatable,dimension(:)   :: ijac
 integer(i_kind),allocatable,dimension(:)   :: IRsubset
 integer(i_kind),allocatable,dimension(:)   :: IJsubset
-
 real(r_kind),   allocatable,dimension(:)   :: col,col0
 real(r_kind),   allocatable,dimension(:,:) :: row,row0
 real(r_kind) coeff,qcadjusted
@@ -805,10 +789,8 @@ call timer_ini('scljac')
 ! used in estimating the observation error covariance
 allocate(ircv(nchanl))
 allocate(ijac(nchanl))
-
 ircv = -1
 ijac = -1
-
 coeff=one
 if(ErrorCov%method==1.and.ErrorCov%kreq>zero) then
   coeff=100._r_kind/ErrorCov%kreq
@@ -828,12 +810,6 @@ do jj=1,nchanl
          ircv(jj)=ifound  ! index value applies to ErrorCov
       endif
    endif
-
-
-
-
-
-
 enddo
 ncp=count(ircv>0) ! number of active channels in profile
 ! following should never happen, but just in case ...
@@ -874,7 +850,6 @@ endif
 ! decompose the sub-matrix - returning the result in the 
 !                            structure holding the full covariance
 if( ErrorCov%method==1 .or. ErrorCov%method==2 ) then
-
 !wgu
    if( ErrorCov%method==2 ) then
      do jj=1,ncp
@@ -884,6 +859,7 @@ if( ErrorCov%method==1 .or. ErrorCov%method==2 ) then
         ErrorCov%R(IRsubset(jj),IRsubset(jj)) = ErrorCov%R(IRsubset(jj),IRsubset(jj))
      enddo
    endif
+!wgu
    subset = decompose_subset_ (IRsubset,ErrorCov)
    if(.not.subset) then
       call die(myname_,' failed to decompose correlated R')
@@ -907,17 +883,6 @@ else
    allocate(col(ncp),col0(ncp))
    row=zero;row0=zero
    col=zero;col0=zero
-
-
-
-
-
-
-
-
-
-
-
 
    select case ( ErrorCov%method )   ! Re: estimated ob error cov
                                      !     De=diag(Re); Ce=corr(Re)
@@ -968,11 +933,6 @@ else
       enddo
 
 
-
-
-
-
-
      case(3) ! use diag(Re) scales GSI specified errors
              !    inv(Rg) = inv(De*Dg)
 
@@ -1020,7 +980,6 @@ endif
 ! clean up
 deallocate(IJsubset)
 deallocate(IRsubset)
-
 deallocate(ijac)
 deallocate(ircv)
 
@@ -1028,7 +987,6 @@ scale_jac_=.true.
 call timer_fnl('scljac')
 end function scale_jac_
 !EOC
-
 
 !-------------------------------------------------------------------------
 !BOP
@@ -1159,6 +1117,8 @@ deallocate(ircv)
 
 call timer_fnl('inv_rsqrt')
 end subroutine rsqrtinv_
+!EOC
+
 !-------------------------------------------------------------------------
 !BOP
 !
