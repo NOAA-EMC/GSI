@@ -205,7 +205,7 @@
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
-  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
+  use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &

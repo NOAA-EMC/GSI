@@ -122,7 +122,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
   nc=0
   conv: do i=1,nconvtype
-     if(trim(obstype) == trim(ioctype(i)) .and. ictype(i)==999_i_kind) then
+     if(trim(obstype) == trim(ioctype(i)) .and. ictype(i)==154_i_kind) then
         nc=i
         exit conv
      end if
