@@ -40,7 +40,7 @@ character(9):: gesfile, anlfile
 character(256):: cov_file                               !name of outputted covariance file
 character(256):: wave_file                              !name of outputted file containing channel wavenumbers
 character(256):: err_file                               !name of outputted file containing assumed obs errors
-character(256):: corr_file                              !name of outputted correlation file
+character(256):: corr_file,corr_file1                             !name of outputted correlation file
 character(256):: instr
 integer:: Error_Status, gesid, anlid
 integer, parameter:: dsize=4500                         !cap size on the number of omg's that can be stored at each time step
@@ -104,7 +104,7 @@ real(r_kind), dimension(:,:), allocatable:: Edbadbo
 real(r_kind), dimension(:,:), allocatable:: Edbodbo
 real(r_kind), dimension(:,:), allocatable:: invE
 real(r_kind), dimension(:,:), allocatable:: Pmult
-real(r_kind), dimension(:,:), allocatable:: Rcorr     !the correlation matrix
+real(r_kind), dimension(:,:), allocatable:: Rcorr,Rcorr1     !the correlation matrix
 real(r_kind), dimension(:,:), allocatable:: anl_ave   !average value of oma
 real(r_kind), dimension(:,:), allocatable:: ges_ave  !average value of omb
 real(r_kind), dimension(:,:), allocatable:: ba_ave
@@ -119,6 +119,7 @@ integer(i_kind), dimension(:), allocatable:: ipiv, work
 real(r_kind):: info
 real(r_kind), dimension(:,:), allocatable:: Rout
 real(r_kind):: kreq
+real(r_kind), parameter:: errt=0.0001_r_kind
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, mod_Rcov
 if (mod_Rcov.and.(kreq<0)) kreq=70
@@ -129,6 +130,9 @@ cov_file(lencov+1:lencov+leninstr)=instr
 lencorr=len_trim('Rcorr_')
 corr_file(1:lencorr)='Rcorr_'
 corr_file(lencorr+1:leninstr+lencorr)=instr
+corr_file1(1:lencorr)='Rcorr_'
+corr_file1(lencorr+1:leninstr+lencorr)=instr
+corr_file1(lencorr+leninstr+1:lencorr+leninstr+7)='recond'
 lenwave=len_trim('wave_')
 wave_file(1:lenwave)='wave_'
 wave_file(lenwave+1:lenwave+leninstr)=instr
@@ -206,7 +210,7 @@ do tim=1,ntimes
          end do
          allocate(ges(dsize,nch_active,gsize),anl(nch_active))
          allocate(gesuse(dsize,nch_active,gsize), anluse(nch_active))
-         allocate(Rcov(nch_active,nch_active),Rcorr(nch_active,nch_active))
+         allocate(Rcov(nch_active,nch_active),Rcorr(nch_active,nch_active),Rcorr1(nch_active,nch_active))
          allocate(divider(nch_active,nch_active))
          allocate(anl_ave(nch_active,nch_active),ges_ave(nch_active,nch_active))
          allocate(chaninfo(nch_active),errout(nch_active))
@@ -228,6 +232,7 @@ do tim=1,ntimes
          end do               
          Rcov=zero
          Rcorr=zero
+         Rcorr1=zero
          divider=zero
          anl_ave=zero
          ges_ave=zero
@@ -273,7 +278,7 @@ do tim=1,ntimes
              j=indR(jj)
              if (((Cloud_Type>All_Cloud).and.&
              (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and. &
-             (abs(RadDiag_Data%Channel(j)%errinv)>zero)) then 
+             (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
                 ges(ng(gblock),jj,gblock)=RadDiag_Data%Channel(j)%omgbc
                 gesuse(ng(gblock),jj,gblock)=1
                 nc=nc+1
@@ -341,7 +346,7 @@ do tim=1,ntimes
          j=indR(jj)
          if (((Cloud_Type>All_Cloud).and.&
          (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
-         (abs(RadDiag_Data%Channel(j)%errinv)>zero)) then 
+         (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
             anl(jj)=RadDiag_Data%Channel(j)%omgbc
             anluse(jj)=1
             nc=nc+1
@@ -453,8 +458,12 @@ do r=1,nch_active
    do c=1,nch_active
      if (divider(r,c)>zero) then
          val=Rcov(r,r)*Rcov(c,c)
-         val=sqrt(val)
-         Rcorr(r,c)=Rcov(r,c)/val
+         val=sqrt(abs(val))
+         if (val>errt) then
+            Rcorr(r,c)=Rcov(r,c)/val
+         else
+            Rcorr(r,c)=one
+         end if
       else if (r==c) then
          Rcorr(r,c)=one
       end if
@@ -483,11 +492,29 @@ if (mod_Rcov) then
    Pmult=MATMUL(invE,Edbodbo)
    Rcov=MATMUL(Rcov,Pmult)
 end if
+do r=1,nch_active
+   do c=1,nch_active
+     if (divider(r,c)>zero) then
+         val=Rcov(r,r)*Rcov(c,c)
+         val=sqrt(abs(val))
+         if (val>errt) then
+            Rcorr1(r,c)=Rcov(r,c)/val
+         else
+            Rcorr1(r,c)=one
+         end if
+      else if (r==c) then
+         Rcorr1(r,c)=one
+      end if
+   end do
+end do
+
+Rcorr1=(Rcorr1+TRANSPOSE(Rcorr1))/two
 
 !output
 inquire(iolength=reclen) Rcov(1,1)
+print *, 'recl', reclen
 open(26,file=trim(cov_file),form='unformatted')
-write(26) nch_active
+write(26) nch_active, reclen
 write(26) indR
 write(26) Rcov
 close(26)
@@ -505,9 +532,12 @@ if (out_corr) then
    open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
    write(25,rec=1) Rcorr
    close(25)
+   open(34,file=trim(corr_file1),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
+   write(34,rec=1) Rcorr1
+   close(34)
 end if
 deallocate(Rcov,chaninfo,errout)
-deallocate(indR,Rcorr)
+deallocate(indR,Rcorr, Rcorr1)
 deallocate(divider)
 deallocate(anl_ave, ges_ave)
 deallocate(obs_pairs)

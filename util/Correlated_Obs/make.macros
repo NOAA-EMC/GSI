@@ -269,7 +269,7 @@ NAME_GFORTRAN = gfortran
 LINUX_COMMON_FLAGS_GFORTRAN_DEBUG = -pg
 LINUX_FLAGS_GFORTRAN_DEBUG = "FC=${NAME_GFORTRAN}" \
 	                     "FL=${NAME_GFORTRAN}" \
-	                     "FC_FLAGS= -c \
+	                     "FC_FLAGS=  -c \
                                         -fbounds-check \
                                         -fconvert=little-endian \
                                         -ffpe-trap=overflow,zero \

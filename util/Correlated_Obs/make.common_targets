@@ -78,10 +78,10 @@ sun:
 
 # Linux compilers
 # ---------------
-gfortran_debug:
+mpif90_debug:
 	make -f $(MAKE_FILE) build $(LINUX_FLAGS_GFORTRAN_DEBUG)
 
-gfortran:
+mpif90:
 	make -f $(MAKE_FILE) build $(LINUX_FLAGS_GFORTRAN_PROD)
 
 

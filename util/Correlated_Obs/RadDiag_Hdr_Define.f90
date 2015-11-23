@@ -209,6 +209,7 @@ CONTAINS
     ! Perform the allocation
     ALLOCATE( RadDiag_Hdr%Channel(n_Channels), &
               STAT = alloc_stat )
+
     IF ( alloc_stat /= 0 ) RETURN
 
     ! Initialise dimensions
