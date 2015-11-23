@@ -299,7 +299,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
-     instr=18
+     instr=17     ! CrIS is similar to AIRS for this purpose.
      call instrument_init(instr, jsatid, expansion, valid)
      if (.not. valid) then
         if (assim) then
