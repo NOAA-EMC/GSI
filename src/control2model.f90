@@ -229,12 +229,7 @@ do jj=1,nsubwin
    if (nclouds>0) then
       if (cw_to_hydro) then
 !        Case when cw is generated from hydrometeors
-         if (.not. do_tv_to_tsen) then 
-            allocate(sv_tsen(lat2,lon2,nsig))
-            call tv_to_tsen(sv_tv,sv_q,sv_tsen)
-         end if
-         call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
-         if (.not. do_tv_to_tsen) deallocate(sv_tsen)
+         call cw2hydro_tl(sval(jj),wbundle,clouds,nclouds)
       else
 !        Case when cloud-vars map one-to-one, take care of them together
          do ic=1,nclouds

@@ -62,8 +62,7 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ','cw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
-real(r_kind),pointer,dimension(:,:)   :: cv_ps
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7 
 integer(i_kind) :: isps(nsvars)
@@ -75,7 +74,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
-logical :: do_tlnmc
+logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro_ad
 
 !****************************************************************************
@@ -108,14 +107,14 @@ do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
 do_normal_rh_to_q_ad=(.not.q_hyb_ens).and.&
                      lc_t .and.lc_rh.and.ls_prse.and.ls_q
+do_q_copy=.false.
+if(.not. do_normal_rh_to_q_ad) then
+  do_q_copy = lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.q_hyb_ens
+end if
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 do_cw_to_hydro_ad=.false.
-if (regional) then
-   do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
-else
-   do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
-endif
+do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
 
 ! Initialize
 mval%values=zero
@@ -127,6 +126,11 @@ if(istatus/=0) then
 endif
 
 do jj=1,ntlevs_ens
+
+! If calling TLNMC, already have u,v (so set last argument to true)
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+            (jj==ibin_anl .and. tlnmc_option==2))  
+
    wbundle_c%values=zero
 
 ! Get sv pointers here
@@ -138,28 +142,20 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'tv'  ,rv_tv,  istatus)
    call gsi_bundlegetpointer (eval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (eval(jj),'q'   ,rv_q ,  istatus)
+   call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
 
+!  Adjoint of consistency for sensible temperature, calculate sensible temperature
+   if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
 
-!  Calculate sensible temperature
-!  if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
-
-!  Adjoint to convert ps to 3-d pressure
-!  if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
-
-! If calling TLNMC, already have u,v (so set last argument to true)
-   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
-            (jj==ibin_anl .and. tlnmc_option==2))  
    if(do_tlnmc) then
 
-!  Adjoint of consistency for 3d pressure and sensible temperature
-!  Calculate sensible temperature
-      if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
-
-!  Adjoint to convert ps to 3-d pressure
+      ! Adjoint to convert ps to 3-d pressure
       if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+      rv_prse=zero
 
-!  Adjoint of strong_bk
+      ! Adjoint of strong_bk
       call strong_bk_ad(rv_u,rv_v,rv_ps,rv_tv,.true.)
+
    end if
 
    call self_add(mval,eval(jj))
@@ -189,14 +185,10 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
-   call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
       call cw2hydro_ad(eval(jj),wbundle_c,clouds,nclouds)
-      if(.not. do_tv_to_tsen_ad) then
-         call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
-      end if
    else
 !  Since cloud-vars map one-to-one, take care of them together
       do ic=1,nclouds
@@ -208,29 +200,23 @@ do jj=1,ntlevs_ens
       enddo
    endif
 
+!  Calculate sensible temperature
+   if(do_q_copy) then
+      call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
+   else
+
+!     Adjoint of convert input normalized RH to q to add contribution of moisture
+!     to t, p , and normalized rh
+      if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,rv_tv,rv_prse,rv_q)
+
+!     Adjoint to convert ps to 3-d pressure
+      if(do_getprs_ad) call getprs_ad(rv_ps,rv_tv,rv_prse)
+   end if
+
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
 !  call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk                    
-!  Calculate sensible temperature
-   if(do_tv_to_tsen_ad .and. .not. do_tlnmc) call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
-
-!  Adjoint of convert input normalized RH to q to add contribution of moisture
-!  to t, p , and normalized rh
-   if(do_normal_rh_to_q_ad) then
-      call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
-      call normal_rh_to_q_ad(cv_rh,cv_tv,rv_prse,rv_q)
-   else
-!  Else q option
-      if(q_hyb_ens) call gsi_bundleputvar (wbundle_c, 'q', rv_q, istatus )
-   end if
-
-!  Adjoint to convert ps to 3-d pressure
-   if(do_getprs_ad) then
-      call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
-      call getprs_ad(cv_ps,cv_tv,rv_prse)
-   end if
-
 !$omp end parallel sections
 
    if(dual_res) then

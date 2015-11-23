@@ -7,6 +7,7 @@ set -xa
 # Specify whether the run is production or development
 #
 export RUN_ENVIR=${RUN_ENVIR:-prod}
+export envir=${envir:-prod}
 
 ###############################################################
 # This block can be modified for different test environment
@@ -26,21 +27,21 @@ export PS4='$SECONDS + '
 export pid=$$
 export DATA_IN=${DATA_IN:-/tmpnwprd}
 
-export DATA=$DATA_IN/${job}.${pid}
+export DATA=$DATA_IN/${jobname}.${pid}
 mkdir -p $DATA
 cd $DATA
 
 ####################################
 # File To Log Msgs
 ####################################
-export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
+export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${jobname}.${pid}}
 
 ####################################
 # Determine Job Output Name on System
 ####################################
 export outid="LL$job"
 export jobid="${outid}.o${pid}"
-export cycle=t${cyc}z 
+export cycle=t${CYC}z 
 
 ###############################
 # Specify NET and RUN name
@@ -57,11 +58,11 @@ export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
 export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
-export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.${gdas_cmon_ver}}
+export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.v${gdas_cmon_ver}}
 export SCRIPTSgdascmon=${SCRIPTSgdascmon:-$HOMEgdascmon/scripts}
 export FIXgdascmon=${FIXgdascmon:-$HOMEgdascmon/fix}
 
-export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.${cmon_shared_ver}}
+export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.v${cmon_shared_ver}}
 export EXECcmon=${EXECcmon:-$HOMEcmon/exec}
 export FIXcmon=${FIXcmon:-${FIXgdascmon}}
 export USHcmon=${USHcmon:-$HOMEcmon/ush}
@@ -79,6 +80,7 @@ export Z=${Z:-gz}
 export NWPROD=${NWPROD:-/nwprod}
 export utilscript=${utilscript:-$NWPROD/util/ush}
 export utilexec=${utilexec:-$NWPROD/util/exec}
+export NDATE=${NDATE:-$utilexec/ndate}
 
 # Run setup to initialize working directory and utility scripts
 $utilscript/setup.sh
@@ -89,15 +91,16 @@ source ./PDY
 
 
 #############################################
-# COMOUT - WHERE GSI OUTPUT RESIDES
+# COMIN    - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export TANKverf=${TANKverf:-/com/verf/${envir}}
-export TANKverf_con=${TANKverf}/cmon.${PDY}
+export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
+export TANKDIR_cmon=${C_TANKDIR}/cmon.${PDY}
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export CMON_SUFFIX=${CMON_SUFFIX:-gdas}
 
-mkdir -p -m 775 $TANKverf_rad
+mkdir -p -m 775 $TANKDIR_cmon
  
 env
 
@@ -106,15 +109,22 @@ env
 ########################################
 export CMON_AREA=${CMON_AREA:-glb}
 
-#export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
-#export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
+#export biascr=${biascr:-$COMIN/gdas1.t${CYC}z.abias}
+#export radstat=${radstat:-$COMIN/gdas1.t${CYC}z.radstat}
+export cnvstat=${cnvstat:-$COMIN/fish}
+export pgrbanl=${pgrbanl:-$COMIN/fodd}
+export pgrbf06=${pgrbf06:-$COMIN/flux}
+
+echo "cnvstat = $cnvstat"
+echo "pgrbanl = $pgrbanl"
+echo "pgrbf06 = $pgrbf06"
 
 msg="JOB HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-#${RADMONSH:-$HOMEgdasradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
+${CMONSH:-$HOMEgdascmon/scripts/exgdas_vrfyconv.sh.ecf} ${PDY} ${CYC}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
