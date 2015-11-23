@@ -210,12 +210,20 @@ do tim=1,ntimes
          end do
          allocate(ges(dsize,nch_active,gsize),anl(nch_active))
          allocate(gesuse(dsize,nch_active,gsize), anluse(nch_active))
-         allocate(Rcov(nch_active,nch_active),Rcorr(nch_active,nch_active),Rcorr1(nch_active,nch_active))
+         allocate(Rcov(nch_active,nch_active))
          allocate(divider(nch_active,nch_active))
          allocate(anl_ave(nch_active,nch_active),ges_ave(nch_active,nch_active))
          allocate(chaninfo(nch_active),errout(nch_active))
          allocate(obs_pairs(dsize))
-         if (kreq>0) then
+         if (out_corr) then 
+            allocate(Rcorr(nch_active,nch_active))
+            Rcorr=zero
+            if (kreq>zero) then
+               allocate(Rcorr1(nch_active,nch_active))
+               Rcorr1=zero
+            end if
+         end if
+         if (kreq>zero) then
             allocate(eigs(nch_active),eigv(nch_active,nch_active))
             allocate(Rout(nch_active,nch_active))
          end if
@@ -225,22 +233,18 @@ do tim=1,ntimes
             allocate(ba_ave(nch_active,nch_active))
             allocate(Pmult(nch_active,nch_active),invE(nch_active,nch_active))
             allocate(work(nch_active),ipiv(nch_active))
+            ba_ave=zero
+            Edbadbo=zero
+            Edbodbo=zero
          end if
          do r=1,nch_active
             chaninfo(r)=RadDiag_Hdr%Channel(indR(r))%wave
             errout(r)=RadDiag_Hdr%Channel(indR(r))%varch
          end do               
          Rcov=zero
-         Rcorr=zero
-         Rcorr1=zero
          divider=zero
          anl_ave=zero
          ges_ave=zero
-         if (mod_Rcov) then
-            ba_ave=zero
-            Edbadbo=zero
-            Edbodbo=zero
-         end if
       end if !tim=1, ncc=0
       ng(gblock)=0
       ges_read_loop: do 
@@ -473,7 +477,7 @@ end do
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
 Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 
-if (kreq>0) then
+if (kreq>zero) then
    call eigdecomp(Rcov,nch_active,eigs,eigv)
    call recondition(eigv,eigs,nch_active,kreq,Rout)
    Rcov=Rout
@@ -492,24 +496,24 @@ if (mod_Rcov) then
    Pmult=MATMUL(invE,Edbodbo)
    Rcov=MATMUL(Rcov,Pmult)
 end if
-do r=1,nch_active
-   do c=1,nch_active
-     if (divider(r,c)>zero) then
-         val=Rcov(r,r)*Rcov(c,c)
-         val=sqrt(abs(val))
-         if (val>errt) then
-            Rcorr1(r,c)=Rcov(r,c)/val
-         else
+if (kreq>zero) then
+   do r=1,nch_active
+      do c=1,nch_active
+        if (divider(r,c)>zero) then
+            val=Rcov(r,r)*Rcov(c,c)
+            val=sqrt(abs(val))
+            if (val>errt) then
+               Rcorr1(r,c)=Rcov(r,c)/val
+            else
+               Rcorr1(r,c)=one
+            end if
+         else if (r==c) then
             Rcorr1(r,c)=one
          end if
-      else if (r==c) then
-         Rcorr1(r,c)=one
-      end if
+      end do
    end do
-end do
-
-Rcorr1=(Rcorr1+TRANSPOSE(Rcorr1))/two
-
+   Rcorr1=(Rcorr1+TRANSPOSE(Rcorr1))/two
+end if
 !output
 inquire(iolength=reclen) Rcov(1,1)
 print *, 'recl', reclen
@@ -532,15 +536,21 @@ if (out_corr) then
    open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
    write(25,rec=1) Rcorr
    close(25)
-   open(34,file=trim(corr_file1),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
-   write(34,rec=1) Rcorr1
-   close(34)
+   if (kreq>zero) then
+      open(34,file=trim(corr_file1),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
+      write(34,rec=1) Rcorr1
+      close(34)
+   end if
 end if
 deallocate(Rcov,chaninfo,errout)
-deallocate(indR,Rcorr, Rcorr1)
+deallocate(indR)
 deallocate(divider)
 deallocate(anl_ave, ges_ave)
 deallocate(obs_pairs)
-if (mod_Rcov) deallocate(Edbadbo, Edbodbo, ba_ave, Pmult, invE, work, ipiv)
-if (kreq>0) deallocate(Rout,eigv, eigs)
+if (out_corr) then
+   deallocate(Rcorr)
+   if (kreq>zero) deallocate(Rcorr1)
+end if
+if (mod_Rcov) deallocate(Edbadbo, Edbodbo, ba_ave, Pmult, invE, work, ipiv) 
+if (kreq>zero) deallocate(Rout,eigv, eigs)
 end program fast_cov_calc
