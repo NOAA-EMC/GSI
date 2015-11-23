@@ -5,6 +5,7 @@ public:: zero, one, one_int, two, three_int, four_int, sixty, one_hundred, three
 public:: rad, pi
 !numbers
 real(r_kind), parameter:: zero=0.0_r_kind
+integer(i_kind), parameter:: zero_int=0
 real(r_kind), parameter:: one=1.0_r_kind
 real(r_kind), parameter:: one_int=1
 real(r_kind), parameter:: two=2.0_r_kind

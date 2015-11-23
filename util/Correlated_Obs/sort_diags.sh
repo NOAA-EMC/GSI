@@ -3,7 +3,7 @@ cd $wrkdir
 nt=1
 one=1
 
-while [[ $nt -lt $ntot ]] ; do
+while [[ $nt -le $ntot ]] ; do
    if [ $nt -lt 10 ] ; then
       fon=000$nt
    elif [ $nt -lt 100 ] ; then
@@ -16,6 +16,7 @@ while [[ $nt -lt $ntot ]] ; do
    nd=$nt
    fonn=$fon
    while [ ! -f danl_${fonn} ] || [ ! -f dges_${fonn} ] ; do
+      nd=$(( nd+one ))
       if [ $nd -lt 10 ] ; then
          fonn=000$nd
       elif [ $nd -lt 100 ] ; then
@@ -25,7 +26,6 @@ while [[ $nt -lt $ntot ]] ; do
       else
          fonn=$nd
       fi
-      nd=$(( nd+one ))
       if [ $nd -gt $ntot ] ; then
          break
       fi

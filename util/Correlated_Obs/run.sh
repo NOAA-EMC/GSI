@@ -1,23 +1,23 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040500
+bdate=2014040100
 #date of last radstat file
-edate=2014040600
+edate=2014060100
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
-exp=prCtl
-diagdir=/da/noscrub/${USER}/archive/${exp}
+exp=para_2014
+diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/stmpp1/${USER}/desroziers_${exp}_${bdate}
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib_sea
 #location the covariance matrix is saved to
 savdir=$diagdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
 type=1
 #cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
-cloud=1
+cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
-angle=20
+angle=30
 #option to output the channel wavenumbers
 wave_out=.true.
 #option to output the assigned observation errors
@@ -25,17 +25,16 @@ err_out=.true.
 #option to output the correlation matrix
 corr_out=.true.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=60
+kreq=-60
 #logical to use modified Rcov
-mod_Rcov=.true.
-ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
-
+mod_Rcov=.false.
+ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
 
 cdate=$bdate
 [ ! -d ${wrkdir} ] && mkdir ${wrkdir}
 [ ! -d ${savdir} ] && mkdir ${savdir}
-cp fast_cov_calc $wrkdir
+cp cov_calc $wrkdir
 nt=0
 cd $wrkdir
 while [[ $cdate -le $edate ]] ; do
@@ -71,7 +70,7 @@ while [[ $cdate -le $edate ]] ; do
    fi
    cdate=`$ndate +06 $cdate`
 done
-./fast_cov_calc <<EOF
+./cov_calc <<EOF
 $nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $mod_Rcov
 EOF
 

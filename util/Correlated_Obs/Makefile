@@ -28,12 +28,6 @@ SRC_FILES = kinds.f90 \
 OBJ_FILES = $(SRC_FILES:.f90=.o) \
             $(EXE_FILE).o
 
-# Include and library definitions
-#INCLUDES = -I$(HOME)/local/netcdf/include
-#LIBRARIES = -L$(HOME)/local/netcdf/lib -lnetcdf
-# Include and library definitions (for cirrus/stratus)
-#INCLUDES = -I/nwprod/lib/sorc/netcdf/netcdf-3.5.0/include
-#LIBRARIES = -L/nwprod/lib -lnetcdf_64
 
 # Define common make targets (all, build, clean, install)
 include make.common_targets

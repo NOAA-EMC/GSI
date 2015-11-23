@@ -273,7 +273,7 @@ CONTAINS
     CHARACTER(ML)  :: msg
     CHARACTER(256) :: Filename
     INTEGER :: io_stat
-    INTEGER :: i
+    INTEGER :: i, reclen
     TYPE(RadDiag_Hdr_Scalar_type) :: Scalar
 
     ! Set up
@@ -284,8 +284,8 @@ CONTAINS
       CALL Hdr_Read_CleanUp(); RETURN
     END IF
     ! ...Get the filename
-    INQUIRE( UNIT=FileID, NAME=Filename )
-
+    INQUIRE( UNIT=FileID, NAME=Filename)
+    inquire(iolength=reclen) Scalar%nchan
 
     ! Read the fixed part of the header
     READ( FileID, IOSTAT=io_stat ) Scalar 
@@ -309,7 +309,6 @@ CONTAINS
       msg = 'Error allocating RadDiag_Hdr structure'
       CALL Hdr_Read_CleanUp(); RETURN
     END IF
-
 
     ! Copy the fixed portion of the header
     RadDiag_Hdr%Scalar = Scalar
