@@ -2030,4 +2030,20 @@ function leadchar_(line) result(c)
   enddo
 end function leadchar_
 end subroutine getarec_
+
+subroutine check_iostat(ierror,myname,message)
+   use xxx, only: mype
+   implicit none
+   integer,intent(in) :: ierror
+   character(len=*),intent(in) :: myname,message
+
+   if ( ierror /= 0 ) then
+      if ( mype == 0 ) &
+      write(6,'(A,I)') 'Error occured in ' // trim(myname) // ' during ' // trim(message) // ', iostat = ', ierror
+      call die(myname)
+   endif
+   return
+end subroutine check_iostat
+
+
 end module mpeu_util

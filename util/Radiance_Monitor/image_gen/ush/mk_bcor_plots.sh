@@ -99,7 +99,7 @@ for type in ${SATYPE}; do
    fi
    ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
