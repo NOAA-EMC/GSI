@@ -111,9 +111,9 @@ export CMON_AREA=${CMON_AREA:-glb}
 
 #export biascr=${biascr:-$COMIN/gdas1.t${CYC}z.abias}
 #export radstat=${radstat:-$COMIN/gdas1.t${CYC}z.radstat}
-export cnvstat=${cnvstat:-$COMIN/fish}
-export pgrbanl=${pgrbanl:-$COMIN/fodd}
-export pgrbf06=${pgrbf06:-$COMIN/flux}
+export cnvstat=${cnvstat:-$COMIN/gdas1.t${CYC}z.cnvstat}
+export pgrbanl=${pgrbanl:-$COMIN/gdas1.t${CYC}z.pgrbanl}
+export pgrbf06=${pgrbf06:-$COMIN/gdas1.t${CYC}z.pgrbf06}   # need 6 hrs prior to $CYC 
 
 echo "cnvstat = $cnvstat"
 echo "pgrbanl = $pgrbanl"

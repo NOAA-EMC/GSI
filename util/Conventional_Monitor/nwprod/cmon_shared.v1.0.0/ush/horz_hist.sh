@@ -48,8 +48,7 @@
    export nreal_uv=${nreal_uv:-21}
 
 
-#   for type in ps q t uv; do
-   for type in t; do
+   for type in ps q t uv; do
 
       eval stype=\${${type}_TYPE}
       eval nreal=\${nreal_${type}}
@@ -68,15 +67,13 @@
          fi
 
          for cycle in ges anl; do
-####        cp $DATDIR/diag_conv_${cycle}.${PDATE} conv_diag   # this appears to be unneeded
+            cp ./diag_conv_${cycle}.${PDATE} ./conv_diag   # this appears to be unneeded?
 
             if [[ "$VERBOSE" = "YES" ]]; then
                echo "cycle = $cycle"
             fi 
 
             ${USHcmon}/diag2grad_${type}_case.sh
-
-#         /bin/sh  $SCRIPTS/diag2grad_${type}_case.sh $CMON_SUFFIX $PDATE $FIXDIR $EXEDIR $cycle $nreal ${TANKDIR_cmon}/horz_hist/$cycle $mtype $subtype $hint $workdir/$PDATE 
 
          done    #### done with cycle
 
