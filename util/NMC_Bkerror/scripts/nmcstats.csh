@@ -17,17 +17,16 @@ setenv PERTURBDIR /scratch4/NCEPDEV/da/noscrub/Rahul.Mahajan/BKERROR
 #setenv PERTURBDIR /scratch4/NCEPDEV/global/noscrub/glopara/enkf/data254_specps
 
 # Set Output Resolution
-setenv JCAP 670
-setenv NLAT 674
-setenv NLON 1344
+setenv JCAP 254
+setenv NLAT 258
+setenv NLON 512
 setenv LEVS 64
 
 # Number of cases to calculate statistics from
-#setenv MAXCASES 256
-setenv MAXCASES 2
+setenv MAXCASES 256
 
 # Create a temporary working directory
-setenv TMPDIR "/scratch3/NCEPDEV/stmp1/$user/tmp/nmcstats_T${JCAP}_tmp"
+setenv TMPDIR "/scratch3/NCEPDEV/stmp1/$user/tmp/nmcstats_T${JCAP}_n$MAXCASES"
 if ( -d $TMPDIR ) rm -rf $TMPDIR
 mkdir -p $TMPDIR
 cd $TMPDIR

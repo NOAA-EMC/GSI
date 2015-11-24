@@ -119,7 +119,7 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi

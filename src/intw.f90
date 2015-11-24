@@ -12,6 +12,8 @@ module intwmod
 !   2008-11-26  Todling - remove intw_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2014-04-12       su - add non linear qc from Purser's scheme
+!   2015-02-26       su - add njqc as an option to chose new non linear qc
 !
 ! subroutines included:
 !   sub intw_
@@ -65,6 +67,7 @@ subroutine intw_(whead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-03-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2014-04-12       su - add non linear qc from Purser's scheme
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
@@ -84,9 +87,9 @@ subroutine intw_(whead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -200,13 +203,18 @@ subroutine intw_(whead,rval,sval)
               valu = valu*term
               valv = valv*term
            endif
-
-           if( ladtest_obs) then
-              gradu = valu
-              gradv = valv
+           if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+              valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
+              valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
+              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
+              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2
+           endif
+           if( ladtest_obs) then
+              gradu = valu
+              gradv = valv
            end if
         endif
 

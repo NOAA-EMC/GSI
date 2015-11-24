@@ -170,8 +170,9 @@ do jj=1,ntlevs_ens
    end if
 
    sv_q=zero
-   if(do_q_copy) call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
-   if(.not. do_tlnmc)then
+   if(do_q_copy) then
+      call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
+   else
 !     Get 3d pressure
       if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_prse)
 
@@ -179,9 +180,6 @@ do jj=1,ntlevs_ens
       if(do_normal_rh_to_q) then
          call normal_rh_to_q(cv_rh,cv_tv,sv_prse,sv_q)
       end if
-
-!     Calculate sensible temperature
-      if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
    end if
 
 !  Convert streamfunction and velocity potential to u,v
@@ -221,14 +219,10 @@ do jj=1,ntlevs_ens
 !     Get 3d pressure
       if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
-!     Convert input normalized RH to q
-      if(do_normal_rh_to_q) then
-         call normal_rh_to_q(cv_rh,sv_tv,sv_prse,sv_q)
-      end if
-
-!     Calculate sensible temperature 
-      if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
    end if
+
+!  Calculate sensible temperature 
+   if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
 
    call gsi_bundledestroy(wbundle_c,istatus)
    if(istatus/=0) then
