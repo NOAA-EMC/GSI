@@ -96,9 +96,9 @@ export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
 export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
 export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
 
+export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
+. $CMON_PARM/CMon.ver
+
+export HOMEgdascmon=${HOMEgdascmon:-${MY_CMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
 export HOMEcmon=${HOMEcmon:-${MY_CMON}/nwprod/cmon_shared.v${cmon_shared_ver}}
 
-#export SCRIPTS=${CONVDIR}/scripts
-#export GSCRIPTS=${CONVDIR}/gscripts
-#export CTLDIR=${CONVDIR}/ctldir
-export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}

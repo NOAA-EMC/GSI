@@ -152,8 +152,8 @@ echo PDYm6h = $PDYm6h
 #################
 #export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$PDY}
 #export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$PDYm6h}
-export DATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prh3enkf
-export GDATDIR=/scratch4/NCEPDEV/stmp3/Rahul.Mahajan/ROTDIRS/prh3enkf
+export DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
+export GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
 
 export C_COMIN=${DATDIR}
 export C_COMINm6h=${GDATDIR}
@@ -183,8 +183,8 @@ export DATA_IN=${WORKverf_cmon}
 #fi
 
 export grib2=${grib2:-0}
-#export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
+export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
+#export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
 fi
