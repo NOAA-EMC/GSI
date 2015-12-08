@@ -64,7 +64,7 @@ subroutine add_gfs_stratosphere
   use gfs_stratosphere, only: good_o3mr
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use radiance_mod, only: icloud_forward
+  use radiance_mod, only: icloud_fwd
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -137,7 +137,7 @@ subroutine add_gfs_stratosphere
      call gsi_metguess_get('dim',nguess,istatus)
 
 !    Get pointer to cloud water mixing ratio
-     if (nguess>0 .and. (icloud_forward)) then
+     if (nguess>0 .and. (icloud_fwd)) then
         allocate(ges_cw_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_ql_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_qi_r_g(lat2,lon2,nsig,nfldsig))
@@ -182,7 +182,7 @@ subroutine add_gfs_stratosphere
         end do
      end do
 
-     if (nguess>0 .and. (icloud_forward)) then
+     if (nguess>0 .and. (icloud_fwd)) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -560,7 +560,7 @@ subroutine add_gfs_stratosphere
   allocate(ttsen(lat2,lon2,nsig))
   allocate(qt(lat2,lon2,nsig))
   allocate(ozt(lat2,lon2,nsig))
-  if (nguess>0 .and. (icloud_forward)) then
+  if (nguess>0 .and. (icloud_fwd)) then
      allocate(qlt(lat2,lon2,nsig))
      allocate(qit(lat2,lon2,nsig))
      allocate(qrt(lat2,lon2,nsig))
@@ -728,7 +728,7 @@ subroutine add_gfs_stratosphere
         end do
      
 
-        if (nguess>0 .and. (icloud_forward)) then
+        if (nguess>0 .and. (icloud_fwd)) then
 
            if (ier_ql==0) then
 !    ql  -- regional contribution
@@ -907,7 +907,7 @@ subroutine add_gfs_stratosphere
   call general_sub2grid_destroy_info(grd_gfst)
   call general_sub2grid_destroy_info(grd_mix)
   deallocate(ut,vt,tt,ttsen,qt,ozt)
-  if (nguess>0 .and. (icloud_forward)) then
+  if (nguess>0 .and. (icloud_fwd)) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -965,7 +965,7 @@ subroutine add_gfs_stratosphere
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
 ! deallocate(pri_m)  
   deallocate(vector) 
-  if (nguess>0 .and. (icloud_forward)) deallocate(qlt,qit,qrt,qst,qgt,qht)
+  if (nguess>0 .and. (icloud_fwd)) deallocate(qlt,qit,qrt,qst,qgt,qht)
 
 
   enddo it_loop       
@@ -1019,7 +1019,7 @@ subroutine revert_to_nmmb
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use radiance_mod, only: icloud_forward
+  use radiance_mod, only: icloud_fwd
   implicit none
 
   character(len=*),parameter::myname='revert_to_nmmb'
@@ -1095,7 +1095,7 @@ subroutine revert_to_nmmb
 !  Inquire about cloud guess fields
    call gsi_metguess_get('dim',nguess,istatus)
 
-   if (nguess>0 .and. (icloud_forward)) then
+   if (nguess>0 .and. (icloud_fwd)) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
@@ -1185,7 +1185,7 @@ subroutine revert_to_nmmb
         end do
 
 
-        if (nguess>0 .and. (icloud_forward)) then
+        if (nguess>0 .and. (icloud_fwd)) then
 !  ql:
            if (ier_ql==0) then
               do k=1,nsig
@@ -1293,7 +1293,7 @@ subroutine revert_to_nmmb
                  ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
               end do
            end if
-        end if ! end of (nguess>0 .and. (icloud_forward))
+        end if ! end of (nguess>0 .and. (icloud_fwd))
 
      end do
   end do
@@ -1335,7 +1335,7 @@ subroutine restore_nmmb_gfs
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use radiance_mod, only: icloud_forward
+  use radiance_mod, only: icloud_fwd
   implicit none
 
   character(len=*),parameter::myname='restore_nmmb_gfs'
@@ -1382,7 +1382,7 @@ subroutine restore_nmmb_gfs
 !  Inquire about cloud guess fields
    call gsi_metguess_get('dim',nguess,istatus)
 
-   if (nguess>0 .and. (icloud_forward)) then
+   if (nguess>0 .and. (icloud_fwd)) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret

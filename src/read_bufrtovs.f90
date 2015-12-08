@@ -775,7 +775,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
                  qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                 if (radmod%lcloud_forward) then
+                 if (radmod%lcloud_fwd) then
                   ! no preference in selecting clouds/precipitation
                   ! qval=zero 
                   ! favor non-precipitating clouds                                                   

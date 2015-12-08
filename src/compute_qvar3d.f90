@@ -21,7 +21,7 @@ subroutine compute_qvar3d
 ! 2014-06-15 zhu  - new background error variance of cw in the regional applications 
 !                   for all-sky radiance assimilation (cwoption3)
 ! 2015-01-04 zhu  - apply the background error variance of cw cwoption3 to the global
-! 2015-09-10 zhu  - use centralized cloud_names_for and n_clouds_for in the assignments of cloud 
+! 2015-09-10 zhu  - use centralized cloud_names_fwd and n_clouds_fwd in the assignments of cloud 
 !                   variances (either cw or individual hydrometerors) for all-sky radiance assimilation
 !                 - remove cwoption1
 !
@@ -49,7 +49,7 @@ subroutine compute_qvar3d
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_commvars_mod, only: g3
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use radiance_mod, only: icloud_cv,n_clouds_for,cloud_names_for
+  use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
 
   implicit none
 
@@ -199,11 +199,11 @@ subroutine compute_qvar3d
   else 
      if (cwoption/=3) return
      do n=1,size(cvars3d)
-        do ic=1,n_clouds_for
-           if(trim(cvars3d(n))==trim(cloud_names_for(ic))) then
+        do ic=1,n_clouds_fwd
+           if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
               nrf3_var=n
               call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig), &
-                             trim(cloud_names_for(ic)),ges_var,istatus)
+                             trim(cloud_names_fwd(ic)),ges_var,istatus)
               if (istatus/=0) return
 
               do k = 1,nsig

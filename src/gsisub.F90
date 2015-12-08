@@ -60,7 +60,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2013-05-19  zhu     - add aircraft temperature bias correction
 !   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
 !   2015-07-20  zhu     - centralize radiance info for the usages of clouds & aerosols
-!                       - add radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aero_init 
+!                       - add radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init 
 !
 !   input argument list:
 !     mype - mpi task id
@@ -91,7 +91,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use oneobmod, only: oneobtest,oneobmakebufr
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
      aircraft_t_bc_ext
-  use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aero_init
+  use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -148,7 +148,7 @@ subroutine gsisub(mype,init_pass,last_pass)
         call coinfo_read
         call pcpinfo_read
         call aeroinfo_read
-        call radiance_parameter_aero_init
+        call radiance_parameter_aerosol_init
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
            call aircraftinfo_read
      endif

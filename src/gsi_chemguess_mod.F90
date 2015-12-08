@@ -690,6 +690,8 @@ end subroutine final_
 ! !REVISION HISTORY:
 !   2010-04-10  todling  initial code
 !   2011-05-17  todling  protect against use of unavailable label
+!   2015-09-05  zhu      change "i4crtm3d(ii)==11" to "i4crtm3d(ii)>=11" 
+!                        for "aerosols_4crtm::3d"
 !
 ! !REMARKS:
 !   language: f90
