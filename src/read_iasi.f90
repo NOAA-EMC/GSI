@@ -157,6 +157,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(3,10):: cscale
   real(r_double),dimension(6):: cloud_frac
+  integer(i_kind) :: ndx, il, im
   
   real(r_kind)      :: step, start,step_adjust
   character(len=8)  :: subset
@@ -409,6 +410,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do bufr_chans
      end do satinfo_chans
 
+     call status(lnbufr,ndx,il,im)
+     call backbufr(ndx)
 
      read_loop: do while (ireadsb(lnbufr)==0)
 

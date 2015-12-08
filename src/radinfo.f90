@@ -1485,9 +1485,7 @@ contains
       if (satsens /= satsens_id) then
          write(6,*)'INIT_PREDX:  ***ERROR*** inconsistent satellite ids ',&
               ' fdiag_rad= ',trim(fdiag_rad),' satsens,satsens_id=',satsens,satsens_id
-         ierror_code=99
-         call mpi_abort(mpi_comm_world,ierror_code,ierror)
-         stop 98
+         cycle loopf
       endif
 
 !     Define sensor_satellite channel range from satinfo file

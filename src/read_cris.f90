@@ -123,6 +123,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(6):: cloud_frac
+  integer(i_kind) :: ndx, il, im
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -385,7 +386,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
         cycle message_loop
      endif
-      
+
+     call status(lnbufr,ndx,il,im)
+     call backbufr(ndx)
 
      read_loop: do while (ireadsb(lnbufr)==0)
 
