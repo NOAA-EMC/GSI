@@ -32,7 +32,7 @@
 !                     - extract from rdgstat_reg
 !                     - change sructure of error file
 !                     - make changes for generalized control variables
-!       01Oct15   Zhu - use centralized cloud_names_for and n_clouds_for to add 
+!       01Oct15   Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
 !                       flexibility for clouds (either cw or individual hydrometeros) 
 !                       variances/correlations for all-sky radiance assimilation  
 !EOP ___________________________________________________________________
@@ -278,7 +278,7 @@ end subroutine berror_read_bal_reg
       use guess_grids, only:  ges_psfcavg,ges_prslavg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
-      use radiance_mod, only: icloud_cv,n_clouds_for,cloud_names_for
+      use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
 
       implicit none
 
@@ -319,7 +319,7 @@ end subroutine berror_read_bal_reg
 !       10Jun14 Zhu - tune error variance and correlation lengths of cw for
 !                     all-sky radiance assimilation
 !       19Jun14 carley/zhu - add tcamt and lcbas
-!       01Oct15 Zhu - use centralized cloud_names_for and n_clouds_for to add 
+!       01Oct15 Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
 !                     flexibility for clouds (either cw or individual hydrometeros) 
 !                     variances/correlations for all-sky radiance assimilation
 !
@@ -596,10 +596,10 @@ end subroutine berror_read_bal_reg
      end if
   end if
 
-  if (icloud_cv .and. n_clouds_for>0 .and. nrf3_cw<=0 .and. cwoption==3) then
+  if (icloud_cv .and. n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3) then
      do n=1,size(cvars3d)
-        do ic=1,n_clouds_for
-           if(trim(cvars3d(n))==trim(cloud_names_for(ic))) then
+        do ic=1,n_clouds_fwd
+           if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
               ivar=n
               do k=1,nsig
                  do i=1,nlat
@@ -612,7 +612,7 @@ end subroutine berror_read_bal_reg
            end if
         end do
      end do
-  end if ! n_clouds_for>0 .and. nrf3_cw<=0 .and. cwoption==3
+  end if ! n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3
 
 
   if (nrf3_sfwter>0) then

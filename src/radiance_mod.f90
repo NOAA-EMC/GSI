@@ -35,18 +35,18 @@ module radiance_mod
   public :: radiance_obstype_search
   public :: radiance_obstype_destroy
   public :: radiance_parameter_cloudy_init
-  public :: radiance_parameter_aero_init
+  public :: radiance_parameter_aerosol_init
   public :: radiance_ex_obserr
   public :: radiance_ex_biascor
 
-  public :: icloud_forward,icloud_cv,iallsky,cw_cv
-  public :: n_actual_clouds,n_clouds_for,n_clouds_jac
-  public :: cloud_names,cloud_names_jac,cloud_names_for
+  public :: icloud_fwd,icloud_cv,iallsky,cw_cv
+  public :: n_actual_clouds,n_clouds_fwd,n_clouds_jac
+  public :: cloud_names,cloud_names_jac,cloud_names_fwd
   public :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
 
-  public :: iaerosol_forward,iaerosol_cv,iaerosol
-  public :: n_actual_aerosols,n_aerosols_for,n_aerosols_jac
-  public :: aero_names,aero_names_for,aero_names_jac
+  public :: iaerosol_fwd,iaerosol_cv,iaerosol
+  public :: n_actual_aerosols,n_aerosols_fwd,n_aerosols_jac
+  public :: aerosol_names,aerosol_names_fwd,aerosol_names_jac
 
   public :: total_rad_type
   public :: rad_type_info
@@ -56,29 +56,30 @@ module radiance_mod
   public :: amsua_type
 
   character(len=20),save,allocatable,dimension(:) :: cloud_names
-  character(len=20),save,allocatable,dimension(:) :: cloud_names_for
+  character(len=20),save,allocatable,dimension(:) :: cloud_names_fwd
   character(len=20),save,allocatable,dimension(:) :: cloud_names_jac
-  character(len=20),save,allocatable,dimension(:) :: aero_names
-  character(len=20),save,allocatable,dimension(:) :: aero_names_for
-  character(len=20),save,allocatable,dimension(:) :: aero_names_jac
-  logical :: icloud_forward,icloud_cv,iallsky,cw_cv
-  logical :: iaerosol_forward,iaerosol_cv,iaerosol
-  integer(i_kind) :: n_actual_clouds,n_clouds_jac,n_clouds_for
-  integer(i_kind) :: n_actual_aerosols,n_aerosols_for,n_aerosols_jac
-  integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
+  character(len=20),save,allocatable,dimension(:) :: aerosol_names
+  character(len=20),save,allocatable,dimension(:) :: aerosol_names_fwd
+  character(len=20),save,allocatable,dimension(:) :: aerosol_names_jac
+  logical :: icloud_fwd,icloud_cv,iallsky,cw_cv,icf_fwd
+  logical :: iaerosol_fwd,iaerosol_cv,iaerosol
+  integer(i_kind) :: n_actual_clouds,n_clouds_jac,n_clouds_fwd
+  integer(i_kind) :: n_actual_aerosols,n_aerosols_fwd,n_aerosols_jac
+  integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh,idx_cf
 
   integer(i_kind) :: total_rad_type
 
   type rad_obs_type
     character(10) :: rtype            ! instrument
     integer(i_kind) :: nchannel       ! total channel number
+    character(8) :: cfoption          ! cloud fraction option: gmao_lcf4crtm, emc_lcf4crtm 
     logical :: cld_sea_only           ! .true. only perform all-sky over ocean
     logical :: ex_obserr              ! .true. for special obs error assignment
     logical :: ex_biascor             ! .true. for special bias correction
     logical :: cld_effect             ! .true. additional cloud effect quality control
-    logical :: lcloud_forward,lallsky
+    logical :: lcloud_fwd,lallsky
     integer(i_kind),pointer,dimension(:) :: lcloud4crtm=> NULL()    ! -1 clear-sky; 0 forwad operator only; 1 iallsky
-    logical :: laerosol_forward,laerosol
+    logical :: laerosol_fwd,laerosol
     integer(i_kind),pointer,dimension(:) :: laerosol4crtm => NULL() ! -1 no aero used; 0 forwad operator only; 1 iaerosol 
   end type rad_obs_type
 
@@ -126,21 +127,22 @@ contains
     integer(i_kind) indx_p25,indx_dust1,indx_dust2,ip25_av,idust1_av,idust2_av
 
 !   initialize variables
-    icloud_forward=.false.
+    icloud_fwd=.false.
     icloud_cv=.false.
     iallsky=.false.
     cw_cv=.false.
+    icf_fwd=.false.
 
     n_actual_clouds=0
-    n_clouds_for=0 
+    n_clouds_fwd=0 
     n_clouds_jac=0
 
-    iaerosol_forward=.false.
+    iaerosol_fwd=.false.
     iaerosol_cv=.false.
     iaerosol=.false.
 
     n_actual_aerosols=0
-    n_aerosols_for=0
+    n_aerosols_fwd=0
     n_aerosols_jac=0
 
 !   inquire number of clouds 
@@ -148,12 +150,12 @@ contains
     if (n_actual_clouds>0) then
        allocate(cloud_names(n_actual_clouds))
        call gsi_metguess_get ('clouds::3d', cloud_names, ier)
-       call gsi_metguess_get ( 'clouds_4crtm_for::3d', n_clouds_for, ier )
-       n_clouds_for=max(0,n_clouds_for)
-       if (n_clouds_for>0) then
-          icloud_forward=.true.
-          allocate(cloud_names_for(max(n_clouds_for,1)))
-          call gsi_metguess_get ('clouds_4crtm_for::3d', cloud_names_for, ier)
+       call gsi_metguess_get ( 'clouds_4crtm_fwd::3d', n_clouds_fwd, ier )
+       n_clouds_fwd=max(0,n_clouds_fwd)
+       if (n_clouds_fwd>0) then
+          icloud_fwd=.true.
+          allocate(cloud_names_fwd(max(n_clouds_fwd,1)))
+          call gsi_metguess_get ('clouds_4crtm_fwd::3d', cloud_names_fwd, ier)
 
           call gsi_metguess_get ('clouds_4crtm_jac::3d', n_clouds_jac, ier )
           n_clouds_jac=max(0,n_clouds_jac)
@@ -170,8 +172,10 @@ contains
        call gsi_metguess_get ( 'i4crtm::qs', idx_qs, ier )
        call gsi_metguess_get ( 'i4crtm::qg', idx_qg, ier )
        call gsi_metguess_get ( 'i4crtm::qh', idx_qh, ier )
+       call gsi_metguess_get ( 'i4crtm::cf', idx_cf, ier )
 !      if (idx_ql>10 .or. idx_qi>10 .or. idx_qr>10 .or. idx_qs>10 &
-!         .or. idx_qg>10 .or. idx_qh>10) icloud_forward=.true.
+!         .or. idx_qg>10 .or. idx_qh>10) icloud_fwd=.true.
+       if (idx_cf>10) icf_fwd=.true. 
 
 !      Determine whether or not cloud-condensate is the control variable
 !      (ges_cw=ges_ql+ges_qi)
@@ -185,7 +189,7 @@ contains
 
        if (icw_av>0) cw_cv=.true.
        if (icw_av>0 .or. iql_av>0 .or. iqi_av>0 .or. iqtotal>0) icloud_cv=.true.
-       if (icloud_cv .and. icloud_forward) iallsky=.true.
+       if (icloud_cv .and. icloud_fwd) iallsky=.true.
 
     end if  ! end of (n_actual_clouds>0)
 
@@ -193,22 +197,22 @@ contains
 !   inquire number of aerosols
     call gsi_chemguess_get ( 'aerosols::3d', n_actual_aerosols, ier )
     if (n_actual_aerosols > 0) then
-       iaerosol_forward=.true.
-       allocate(aero_names(n_actual_aerosols))
-       call gsi_chemguess_get ('aerosols::3d',aero_names,ier)
-       indx_p25   = getindex(aero_names,'p25')
-       indx_dust1 = getindex(aero_names,'dust1')
-       indx_dust2 = getindex(aero_names,'dust2')
+       iaerosol_fwd=.true.
+       allocate(aerosol_names(n_actual_aerosols))
+       call gsi_chemguess_get ('aerosols::3d',aerosol_names,ier)
+       indx_p25   = getindex(aerosol_names,'p25')
+       indx_dust1 = getindex(aerosol_names,'dust1')
+       indx_dust2 = getindex(aerosol_names,'dust2')
 
-       call gsi_chemguess_get ( 'aerosols_4crtm::3d', n_aerosols_for, ier )
-       if (n_aerosols_for >0) then
-          allocate(aero_names_for(n_aerosols_for))
-          call gsi_chemguess_get ( 'aerosols_4crtm::3d', aero_names_for, ier)  
+       call gsi_chemguess_get ( 'aerosols_4crtm::3d', n_aerosols_fwd, ier )
+       if (n_aerosols_fwd >0) then
+          allocate(aerosol_names_fwd(n_aerosols_fwd))
+          call gsi_chemguess_get ( 'aerosols_4crtm::3d', aerosol_names_fwd, ier)  
        end if
        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
        if (n_aerosols_jac >0) then
-          allocate(aero_names_jac(n_aerosols_jac))
-          call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aero_names_jac, ier)  
+          allocate(aerosol_names_jac(n_aerosols_jac))
+          call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aerosol_names_jac, ier)  
        end if
     endif
 
@@ -218,23 +222,23 @@ contains
     idust2_av=getindex(cvars3d,'dust2')
     if (ip25_av>0 .or. idust1_av>0 .or. idust2_av>0) iaerosol_cv=.true.
 
-    if (iaerosol_cv .and. iaerosol_forward) iaerosol=.true.
+    if (iaerosol_cv .and. iaerosol_fwd) iaerosol=.true.
 
     if (mype==0) then
-       write(6,*) 'radiance_mode_init: icloud_forward=',icloud_forward,' iallsky=',iallsky, &
-                  ' cw_cv=',cw_cv,' iaerosol_forward=',iaerosol_forward,' iaerosol=',iaerosol
+       write(6,*) 'radiance_mode_init: icloud_fwd=',icloud_fwd,' iallsky=',iallsky, &
+                  ' cw_cv=',cw_cv,' iaerosol_fwd=',iaerosol_fwd,' iaerosol=',iaerosol
        write(6,*) 'radiance_mode_init: n_actual_clouds=',n_actual_clouds
        if (n_actual_clouds>0) write(6,*) 'radiance_mode_init: cloud_names=',cloud_names  
-       write(6,*) 'radiance_mode_init: n_clouds_for=',n_clouds_for
-       if (n_clouds_for>0) write(6,*) 'radiance_mode_init: cloud_names_for=',cloud_names_for
+       write(6,*) 'radiance_mode_init: n_clouds_fwd=',n_clouds_fwd
+       if (n_clouds_fwd>0) write(6,*) 'radiance_mode_init: cloud_names_fwd=',cloud_names_fwd
        write(6,*) 'radiance_mode_init: n_clouds_jac=',n_clouds_jac
        if (n_clouds_jac>0) write(6,*) 'radiance_mode_init: cloud_names_jac=',cloud_names_jac
        write(6,*) 'radiance_mode_init: n_actual_aerosols=',n_actual_aerosols
-       if (n_actual_aerosols>0) write(6,*) 'radiance_mode_init: aero_names=',aero_names
-       write(6,*) 'radiance_mode_init: n_aerosols_for=',n_aerosols_for
-       if (n_aerosols_for>0) write(6,*) 'radiance_mode_init: aero_names_for=',aero_names_for
+       if (n_actual_aerosols>0) write(6,*) 'radiance_mode_init: aerosol_names=',aerosol_names
+       write(6,*) 'radiance_mode_init: n_aerosols_fwd=',n_aerosols_fwd
+       if (n_aerosols_fwd>0) write(6,*) 'radiance_mode_init: aerosol_names_fwd=',aerosol_names_fwd
        write(6,*) 'radiance_mode_init: n_aerosols_jac=',n_aerosols_jac
-       if (n_aerosols_jac>0) write(6,*) 'radiance_mode_init: aero_names_jac=',aero_names_jac
+       if (n_aerosols_jac>0) write(6,*) 'radiance_mode_init: aerosol_names_jac=',aerosol_names_jac
     end if
     
   end subroutine radiance_mode_init
@@ -264,12 +268,12 @@ contains
     implicit none
  
     if(allocated(cloud_names)) deallocate(cloud_names)
-    if(allocated(cloud_names_for)) deallocate(cloud_names_for)
+    if(allocated(cloud_names_fwd)) deallocate(cloud_names_fwd)
     if(allocated(cloud_names_jac)) deallocate(cloud_names_jac)
   
-    if(allocated(aero_names)) deallocate(aero_names)
-    if(allocated(aero_names_for)) deallocate(aero_names_for)
-    if(allocated(aero_names_jac)) deallocate(aero_names_jac)
+    if(allocated(aerosol_names)) deallocate(aerosol_names)
+    if(allocated(aerosol_names_fwd)) deallocate(aerosol_names_fwd)
+    if(allocated(aerosol_names_jac)) deallocate(aerosol_names_jac)
 
   end subroutine radiance_mode_destroy
 
@@ -310,30 +314,30 @@ contains
     do j=1,jpch_rad
        if (icloud4crtm(j)>=0) then
           if (.not. iallsky) icloud4crtm(j)=0
-          if (.not. icloud_forward) icloud4crtm(j)=-1
+          if (.not. icloud_fwd) icloud4crtm(j)=-1
        end if
        if (iaerosol4crtm(j)>=0) then
           if (.not. iaerosol) iaerosol4crtm(j)=0
-          if (.not. iaerosol_forward) iaerosol4crtm(j)=-1
+          if (.not. iaerosol_fwd) iaerosol4crtm(j)=-1
        end if
     end do
 
-    if (icloud_forward .and. all(icloud4crtm<0)) then 
-       icloud_forward=.false.
+    if (icloud_fwd .and. all(icloud4crtm<0)) then 
+       icloud_fwd=.false.
        iallsky=.false.
-       n_clouds_for=0
+       n_clouds_fwd=0
        n_clouds_jac=0       
-       cloud_names_for=' '
+       cloud_names_fwd=' '
        cloud_names_jac=' '
     end if
 
-    if (iaerosol_forward .and. all(iaerosol4crtm<0)) then
-       iaerosol_forward=.false.
+    if (iaerosol_fwd .and. all(iaerosol4crtm<0)) then
+       iaerosol_fwd=.false.
        iaerosol=.false.
-       n_aerosols_for=0
+       n_aerosols_fwd=0
        n_aerosols_jac=0   
-       aero_names_for=' '
-       aero_names_jac=' '
+       aerosol_names_fwd=' '
+       aerosol_names_jac=' '
     end if
 
     if (iallsky .and. all(icloud4crtm<1)) then
@@ -345,7 +349,7 @@ contains
     if (iaerosol .and. all(iaerosol4crtm<1)) then
        iaerosol=.false.
        n_aerosols_jac=0
-       aero_names_jac=' '
+       aerosol_names_jac=' '
     end if
 
 !   determine rads type
@@ -408,13 +412,14 @@ contains
 
     do k=1, total_rad_type
        rad_type_info(k)%rtype=rrtype(k)
+       rad_type_info(k)%cfoption=' ' 
        rad_type_info(k)%cld_sea_only=.false.
        rad_type_info(k)%ex_obserr=.false.
        rad_type_info(k)%ex_biascor=.false.
        rad_type_info(k)%cld_effect=.false.
-       rad_type_info(k)%lcloud_forward=.false.
+       rad_type_info(k)%lcloud_fwd=.false.
        rad_type_info(k)%lallsky=.false.
-       rad_type_info(k)%laerosol_forward=.false.
+       rad_type_info(k)%laerosol_fwd=.false.
        rad_type_info(k)%laerosol=.false.
 
        ii=k2i(k)
@@ -427,8 +432,8 @@ contains
           else
              diffistr = trim(nusis(j))/=trim(nusis(j+1))
           end if
-!         if (trim(dsis(ii))==trim(nusis(j))) then
-          if (index(trim(nusis(j)),trim(rrtype(k))) /= 0) then
+          if (trim(dsis(ii))==trim(nusis(j))) then
+!         if (index(trim(nusis(j)),trim(rrtype(k))) /= 0) then
              if (first) then
                 nn1=j
                 first=.false.
@@ -457,27 +462,27 @@ contains
           if (.not. rad_type_info(k)%lallsky) then
              if (icloud4crtm(j)==1) then 
                 rad_type_info(k)%lallsky=.true.
-                rad_type_info(k)%lcloud_forward=.true.
+                rad_type_info(k)%lcloud_fwd=.true.
              end if
           end if
-          if (.not. rad_type_info(k)%lcloud_forward) then
-             if (icloud4crtm(j)==0) rad_type_info(k)%lcloud_forward=.true.
+          if (.not. rad_type_info(k)%lcloud_fwd) then
+             if (icloud4crtm(j)==0) rad_type_info(k)%lcloud_fwd=.true.
           end if
           if (.not. rad_type_info(k)%laerosol) then
              if (iaerosol4crtm(j)==1) then 
                 rad_type_info(k)%laerosol=.true.
-                rad_type_info(k)%laerosol_forward=.true.
+                rad_type_info(k)%laerosol_fwd=.true.
              end if
           end if
-          if (.not. rad_type_info(k)%laerosol_forward) then
-             if (iaerosol4crtm(j)==0) rad_type_info(k)%laerosol_forward=.true.
+          if (.not. rad_type_info(k)%laerosol_fwd) then
+             if (iaerosol4crtm(j)==0) rad_type_info(k)%laerosol_fwd=.true.
           end if
        end do
        if (mype==0) write(6,*) 'radiance_obstype_init: type=', rad_type_info(k)%rtype, &
                                ' nch=',rad_type_info(k)%nchannel, &
-                               ' lcloud_forward=',rad_type_info(k)%lcloud_forward, &
+                               ' lcloud_fwd=',rad_type_info(k)%lcloud_fwd, &
                                ' lallsky=',rad_type_info(k)%lallsky, &
-                               ' laerosol_forward=',rad_type_info(k)%laerosol_forward, &
+                               ' laerosol_fwd=',rad_type_info(k)%laerosol_fwd, &
                                ' laerosol=',rad_type_info(k)%laerosol
     end do ! end total_rad_type
 
@@ -511,23 +516,27 @@ contains
     character(10) :: obstype
     type(rad_obs_type) :: radmod
     integer i,j
+
+    if (total_rad_type<=0) return
     
     do i=1,total_rad_type
-       if (index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0) then
+!      if (index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0) then
+       if (trim(obstype)==trim(rad_type_info(i)%rtype)) then
           if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
                                   ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
           radmod%nchannel = rad_type_info(i)%nchannel
+          radmod%cfoption = rad_type_info(i)%cfoption
           radmod%cld_sea_only = rad_type_info(i)%cld_sea_only
           radmod%cld_effect = rad_type_info(i)%cld_effect
           radmod%ex_obserr = rad_type_info(i)%ex_obserr
           radmod%ex_biascor = rad_type_info(i)%ex_biascor
 
-          radmod%lcloud_forward = rad_type_info(i)%lcloud_forward
+          radmod%lcloud_fwd = rad_type_info(i)%lcloud_fwd
           radmod%lallsky = rad_type_info(i)%lallsky
           radmod%lcloud4crtm => rad_type_info(i)%lcloud4crtm
 
-          radmod%laerosol_forward = rad_type_info(i)%laerosol_forward
+          radmod%laerosol_fwd = rad_type_info(i)%laerosol_fwd
           radmod%laerosol = rad_type_info(i)%laerosol
           radmod%laerosol4crtm => rad_type_info(i)%laerosol4crtm
           exit
@@ -575,7 +584,6 @@ contains
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    radiance_parameter_cloudy_init
-!
 !   prgrmmr:    yanqiu zhu      org: np23                date: 2015-07-20
 !
 ! abstract:  This routine sets default values for variables used in
@@ -595,70 +603,99 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
+    use mpeu_util, only: gettablesize, gettable
     implicit none
 
+    character(len=*),parameter:: fixfilename='cloudy_radiance_info.txt'
+    character(len=*),parameter:: toptablename='radiance_mod_instr_input'
     integer(i_kind) :: lunin
+    character(len=20) :: tablename
     character(len=10) :: obsname
-    character(len=10) :: obsloc   ! global, sea, or, land ...
-    logical :: obserr,biascor,cldeff
+    character(len=8)  :: obsloc   ! global, sea, or, land ...
+    character(len=8)  :: cfoption ! gmao_cf, emc_cf, none
+    logical :: ex_obserr,ex_biascor,cld_effect
     logical :: pcexist
 
-    integer(i_kind) i
-    character(len=20) :: filename
+    integer(i_kind) i,ii,istr,ntot,nrows
+    character(len=256),allocatable,dimension(:):: utable
 
-    namelist/obs_amsua/obsname,obsloc,obserr,biascor,cldeff
+    if (.not. icloud_fwd .or. total_rad_type<=0) return
 
-    inquire(file='cloudy_radiance_info.txt',exist=pcexist)
+    inquire(file=fixfilename,exist=pcexist)
     if (.not. pcexist) return
     lunin=11
-    open(lunin,file='cloudy_radiance_info.txt',form='formatted')
+    open(lunin,file=fixfilename,form='formatted')
 
-!-- amsua
-    read(lunin,obs_amsua)
-    do i=1,total_rad_type
-       if (index(trim(rad_type_info(i)%rtype),trim(obsname)) /= 0) then
-          if (trim(obsloc)=='sea') rad_type_info(i)%cld_sea_only=.true.
-          rad_type_info(i)%ex_obserr=obserr
-          rad_type_info(i)%ex_biascor=biascor
-          rad_type_info(i)%cld_effect=cldeff
+!   Scan file for desired table first and get size of table
+    call gettablesize(toptablename,lunin,ntot,nrows)
+    if (mype==0) write(6,*) 'radiance_parameter_cloudy_init: ',toptablename, nrows
+    if(nrows==0) then
+       return
+    endif
 
-          if (.not. rad_type_info(i)%lcloud_forward) then 
-             rad_type_info(i)%cld_sea_only=.false.
-             rad_type_info(i)%cld_effect=.false.
-             rad_type_info(i)%ex_obserr=.false.
-             rad_type_info(i)%ex_biascor=.false.
+!   Get contents of table
+    allocate(utable(nrows))
+    call gettable(toptablename,lunin,ntot,nrows,utable)
+
+    do ii=1,nrows
+       read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption
+       if (mype==0) write(6,*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption 
+       if (.not. icf_fwd) cfoption=' '
+
+       do i=1,total_rad_type
+          if (index(trim(rad_type_info(i)%rtype),trim(obsname)) /= 0) then
+             istr=i
+             if (trim(obsloc)=='sea') rad_type_info(i)%cld_sea_only=.true.
+             rad_type_info(i)%cfoption=cfoption
+             rad_type_info(i)%ex_obserr=ex_obserr
+             rad_type_info(i)%ex_biascor=ex_biascor
+             rad_type_info(i)%cld_effect=cld_effect
+
+             if (.not. rad_type_info(i)%lcloud_fwd) then 
+                rad_type_info(i)%cld_sea_only=.false.
+                rad_type_info(i)%cld_effect=.false.
+                rad_type_info(i)%ex_obserr=.false.
+                rad_type_info(i)%ex_biascor=.false.
+                if ((trim(cfoption)=='gmao_cf') .and. (rad_type_info(i)%laerosol_fwd)) then
+                   rad_type_info(i)%cfoption=cfoption
+                else
+                   rad_type_info(i)%cfoption=' '
+                end if
+             end if
+
+             if (mype==0) write(6,*) 'cloudy_radiance_info for ', trim(obsname),&
+                 ' cld_sea_only=', rad_type_info(i)%cld_sea_only, &
+                 ' cfoption=', trim(rad_type_info(i)%cfoption), &
+                 ' ex_obserr=', rad_type_info(i)%ex_obserr, &
+                 ' ex_biascor=', rad_type_info(i)%ex_biascor
+
+             if (trim(obsname)=='amsua') then
+                cloudy_amsua%nchannel=rad_type_info(i)%nchannel
+                cloudy_amsua%cfoption=rad_type_info(i)%cfoption
+   
+                cloudy_amsua%lcloud_fwd=rad_type_info(i)%lcloud_fwd
+                cloudy_amsua%lallsky=rad_type_info(i)%lallsky
+                cloudy_amsua%lcloud4crtm=>rad_type_info(i)%lcloud4crtm
+                cloudy_amsua%laerosol_fwd=rad_type_info(i)%laerosol_fwd
+                cloudy_amsua%laerosol=rad_type_info(i)%laerosol
+                cloudy_amsua%laerosol4crtm=>rad_type_info(i)%laerosol4crtm
+             end if
+             exit
           end if
+       end do
 
-          if (trim(obsname)=='amsua') then
-             cloudy_amsua%nchannel=rad_type_info(i)%nchannel
-             cloudy_amsua%cld_sea_only=rad_type_info(i)%cld_sea_only
-             cloudy_amsua%cld_effect=rad_type_info(i)%cld_effect
-             cloudy_amsua%ex_obserr=rad_type_info(i)%ex_obserr
-             cloudy_amsua%ex_biascor=rad_type_info(i)%ex_biascor
+!      allocate space for entries from table, Obtain table contents
+       tablename='obs_'//trim(obsname) 
 
-             cloudy_amsua%lcloud_forward=rad_type_info(i)%lcloud_forward
-             cloudy_amsua%lallsky=rad_type_info(i)%lallsky
-             cloudy_amsua%lcloud4crtm=>rad_type_info(i)%lcloud4crtm
-             cloudy_amsua%laerosol_forward=rad_type_info(i)%laerosol_forward
-             cloudy_amsua%laerosol=rad_type_info(i)%laerosol
-             cloudy_amsua%laerosol4crtm=>rad_type_info(i)%laerosol4crtm
-             if (mype==0) write(6,*) 'amsua: nchannel= ',cloudy_amsua%nchannel, &
-                          ' cld_sea_only=',cloudy_amsua%cld_sea_only, &
-                          ' cld_effect=',cloudy_amsua%cld_effect, &
-                          ' ex_obserr=',cloudy_amsua%ex_obserr, &
-                          ' ex_biascor=',cloudy_amsua%ex_biascor
-          end if
+!      amsua
+       if (trim(obsname)=='amsua') then
+          allocate(cloudy_amsua%cclr(cloudy_amsua%nchannel), & 
+                   cloudy_amsua%ccld(cloudy_amsua%nchannel))
+          call amsua_table(trim(tablename),lunin,cloudy_amsua%nchannel,cloudy_amsua%cclr,cloudy_amsua%ccld)
        end if
-    end do
 
-!   allocate space for entries from table
-!   Obtain table contents
-    allocate(cloudy_amsua%cclr(cloudy_amsua%nchannel), & 
-             cloudy_amsua%ccld(cloudy_amsua%nchannel))
-    filename='obs_'//trim(obsname)
-    call amsua_table(filename,lunin,cloudy_amsua%nchannel,cloudy_amsua%cclr,cloudy_amsua%ccld)
-!-- end of amsua
-
+    enddo ! end of nrows
+    deallocate(utable)
     close(lunin)
   end subroutine radiance_parameter_cloudy_init
 
@@ -702,8 +739,7 @@ contains
     cclr(:)=zero
     ccld(:)=zero
 
-!   Scan file for desired table first
-!   and get size of table
+!   Scan file for desired table first and get size of table
     call gettablesize(filename,lunin,ntot,nrows)
     if (mype==0) write(6,*) 'amsua_table: ',filename, nrows
     if(nrows==0) then
@@ -759,9 +795,11 @@ contains
 
   end subroutine radiance_parameter_cloudy_destroy
 
-  subroutine radiance_parameter_aero_init
+  subroutine radiance_parameter_aerosol_init
     implicit none
-  end subroutine radiance_parameter_aero_init
+
+    if (.not. iaerosol_fwd) return
+  end subroutine radiance_parameter_aerosol_init
 
   subroutine radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval, &
                                 tnoise,tnoise_cld,error0)

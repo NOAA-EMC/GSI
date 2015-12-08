@@ -609,7 +609,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
         cosza = cos(lza)
         d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-        if (radmod%lcloud_forward) then
+        if (radmod%lcloud_fwd) then
            qval  = zero 
         else 
            qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))

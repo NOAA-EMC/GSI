@@ -30,7 +30,7 @@ module crtm_interface
 !   2014-02-26  zhu - add non zero jacobian
 !   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
 !   2015-09-10  zhu  - generalize enabling all-sky and using aerosol (radiance_mod & radmod) in radiance 
-!                      assimilation. use n_clouds_jac,cloud_names_jac,n_aerosols_jac,aero_names_jac,etc
+!                      assimilation. use n_clouds_jac,cloud_names_jac,n_aerosols_jac,aerosol_names_jac,etc
 !
 ! subroutines included:
 !   sub init_crtm
@@ -61,9 +61,9 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
-use radiance_mod, only: n_actual_clouds,cloud_names,n_clouds_for,cloud_names_for, &
-    n_clouds_jac,cloud_names_jac,n_actual_aerosols,aero_names,n_aerosols_for,aero_names_for, &
-    n_aerosols_jac,aero_names_jac,rad_obs_type,cw_cv
+use radiance_mod, only: n_actual_clouds,cloud_names,n_clouds_fwd,cloud_names_fwd, &
+    n_clouds_jac,cloud_names_jac,n_actual_aerosols,aerosol_names,n_aerosols_fwd,aerosol_names_fwd, &
+    n_aerosols_jac,aerosol_names_jac,rad_obs_type,cw_cv
 
 implicit none
 
@@ -151,6 +151,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 
   real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
 
+  character(8),save :: cfoption_wk
   integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_ir
   integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_mwave 
   integer(i_kind),save, allocatable,dimension(:) :: icw
@@ -164,16 +165,14 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind),save :: sensorindex
   integer(i_kind),save :: ico2,ico24crtm
   integer(i_kind),save :: n_actual_aerosols_wk      ! number of aerosols considered
-  integer(i_kind),save :: n_aerosols_for_wk         ! number of aerosols considered
+  integer(i_kind),save :: n_aerosols_fwd_wk         ! number of aerosols considered
   integer(i_kind),save :: n_aerosols_jac_wk         ! number of aerosols considered
   integer(i_kind),save :: n_actual_clouds_wk        ! number of clouds considered
-  integer(i_kind),save :: n_clouds_for_wk           ! number of clouds considered
+  integer(i_kind),save :: n_clouds_fwd_wk           ! number of clouds considered
   integer(i_kind),save :: n_clouds_jac_wk           ! number of clouds considered
   integer(i_kind),save :: n_ghg              ! number of green-house gases
-  integer(i_kind),save :: icf
   integer(i_kind),save :: itv,iqv,ioz,ius,ivs,isst
   integer(i_kind),save :: indx_p25, indx_dust1, indx_dust2
-  logical        ,save :: lcf4crtm
   logical        ,save :: lwind
   logical        ,save :: cld_sea_only_wk
   integer(i_kind), parameter :: min_n_absorbers = 2
@@ -259,7 +258,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 !   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
 !                         clear-sky Tb under all-sky condition 
 !   2015-09-20  zhu     - use centralized radiance info from radiance_mod: rad_obs_type,
-!                         n_clouds_jac,cloud_names_jac,n_aerosols_jac,aero_names_jac,etc 
+!                         n_clouds_jac,cloud_names_jac,n_aerosols_jac,aerosol_names_jac,etc 
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -310,7 +309,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   integer(i_kind) :: ier,ii,error_status,iderivative
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
-  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm
+  integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
   integer(i_kind) :: j,icount
   integer(i_kind) :: ig
@@ -354,15 +353,15 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 
 ! Get indexes of variables composing the jacobian_aero
   if (n_actual_aerosols > 0) then
-     indx_p25   = getindex(aero_names,'p25')
-     indx_dust1 = getindex(aero_names,'dust1')
-     indx_dust2 = getindex(aero_names,'dust2')
+     indx_p25   = getindex(aerosol_names,'p25')
+     indx_dust1 = getindex(aerosol_names,'dust1')
+     indx_dust2 = getindex(aerosol_names,'dust2')
      if (n_aerosols_jac >0) then
         allocate(iaero_jac(n_aerosols_jac))
         iaero_jac=-1
         icount=0
         do ii=1,n_actual_aerosols
-           indx=getindex(aero_names_jac,trim(aero_names(ii)))
+           indx=getindex(aerosol_names_jac,trim(aerosol_names(ii)))
            if(indx>0) then
               icount=icount+1
               iaero_jac(icount)=aerojacindxs(indx)
@@ -371,22 +370,13 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
      endif
   endif
 
-! Inquire presence of extra fields in MetGuess
- icf=-1; icf4crtm=-1
- if (size(gsi_metguess_bundle)>0) then ! check to see if bundle's allocated
-!   get cloud-fraction for radiation information
-    call gsi_bundlegetpointer(gsi_metguess_bundle(1),'cf',icf,ier)
-    call gsi_metguess_get ( 'i4crtm::cf', icf4crtm, ier )
- endif
- lcf4crtm = obstype=='airs' .and. icf4crtm==12 .and. icf>0
-
 ! When Cloud is available in MetGuess, defined Cloudy Radiance
- if (radmod%lcloud_forward) then
-    allocate(cloud_cont(msig,n_clouds_for))
-    allocate(cloud_efr(msig,n_clouds_for))
-    allocate(jcloud(n_clouds_for))
-    allocate(cloud(nsig,n_clouds_for))
-    allocate(cloudefr(nsig,n_clouds_for))
+ if (radmod%lcloud_fwd) then
+    allocate(cloud_cont(msig,n_clouds_fwd))
+    allocate(cloud_efr(msig,n_clouds_fwd))
+    allocate(jcloud(n_clouds_fwd))
+    allocate(cloud(nsig,n_clouds_fwd))
+    allocate(cloudefr(nsig,n_clouds_fwd))
     allocate(icloud(n_actual_clouds))
     cloud_cont=zero
     cloud_efr =zero
@@ -403,18 +393,21 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
           jcloud(iii)=ii
        endif
     end do
-    if(iii/=n_clouds_for) call die(myname_,'inconsistent cloud count',1)
+    if(iii/=n_clouds_fwd) call die(myname_,'inconsistent cloud count',1)
 
     n_actual_clouds_wk = n_actual_clouds
-    n_clouds_for_wk = n_clouds_for
+    n_clouds_fwd_wk = n_clouds_fwd
     n_clouds_jac_wk = n_clouds_jac
     cld_sea_only_wk = radmod%cld_sea_only
+    cfoption_wk = radmod%cfoption
     Load_CloudCoeff = .true.
  else
     n_actual_clouds_wk = 0
-    n_clouds_for_wk = 0
+    n_clouds_fwd_wk = 0
     n_clouds_jac_wk = 0
     cld_sea_only_wk = .false. 
+    cfoption_wk = ' '
+    if (radmod%laerosol_fwd) cfoption_wk = radmod%cfoption
     Load_CloudCoeff = .false.
  endif
 
@@ -486,15 +479,15 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 
 
 ! Are there aerosols to affect CRTM?
- if (radmod%laerosol_forward) then 
+ if (radmod%laerosol_fwd) then 
     allocate(aero(nsig,n_actual_aerosols),aero_conc(msig,n_actual_aerosols),auxrh(msig))
     n_actual_aerosols_wk=n_actual_aerosols
-    n_aerosols_for_wk=n_aerosols_for
+    n_aerosols_fwd_wk=n_aerosols_fwd
     n_aerosols_jac_wk=n_aerosols_jac
     Load_AerosolCoeff=.true.
  else
     n_actual_aerosols_wk=0
-    n_aerosols_for_wk=0
+    n_aerosols_fwd_wk=0
     n_aerosols_jac_wk=0
     Load_AerosolCoeff=.false.
  endif
@@ -554,7 +547,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 
 ! Allocate structures for radiative transfer
 
- if (radmod%lcloud_forward) allocate(rtsolution0(channelinfo(sensorindex)%n_channels,1))       
+ if (radmod%lcloud_fwd) allocate(rtsolution0(channelinfo(sensorindex)%n_channels,1))       
 
  allocate(&
     rtsolution  (channelinfo(sensorindex)%n_channels,1),&
@@ -572,7 +565,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 
 !  Create structures for radiative transfer
 
- call crtm_atmosphere_create(atmosphere(1),msig,n_absorbers,n_clouds_for_wk,n_aerosols_for_wk)
+ call crtm_atmosphere_create(atmosphere(1),msig,n_absorbers,n_clouds_fwd_wk,n_aerosols_fwd_wk)
 !_RTod-NOTE if(r_kind==r_single .and. crtm_kind/=r_kind) then ! take care of case: GSI(single); CRTM(double)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
@@ -589,7 +582,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
    end if
  end if
 !_RTod-NOTE endif
- if (radmod%lcloud_forward) &                                       
+ if (radmod%lcloud_fwd) &                                       
  call crtm_rtsolution_create(rtsolution0,msig) 
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
@@ -599,7 +592,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
     write(6,*)myname_,' ***ERROR** creating atmosphere.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
- if (radmod%lcloud_forward) then                                            
+ if (radmod%lcloud_fwd) then                                            
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution0)))) &  
     write(6,*)' ***ERROR** creating rtsolution0.'             
  endif                                                        
@@ -689,7 +682,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
  endif ! regional
 
 ! Calculate RH when aerosols are present and/or cloud-fraction used
- if (n_actual_aerosols_wk>0 .or. lcf4crtm) then
+ if (n_actual_aerosols_wk>0 .or. (trim(cfoption_wk)=='gmao_cf')) then
     allocate(gesqsat(lat2,lon2,nsig,nfldsig))
     ice=.true.
     iderivative=0
@@ -728,12 +721,12 @@ subroutine destroy_crtm
   error_status = crtm_destroy(channelinfo)
   if (error_status /= success) &
      write(6,*)myname_,':  ***ERROR*** error_status=',error_status
-  if (n_actual_aerosols_wk>0 .or. lcf4crtm) then
+  if (n_actual_aerosols_wk>0 .or. (trim(cfoption_wk)=='gmao_cf')) then
      deallocate(gesqsat)
   endif
   call crtm_atmosphere_destroy(atmosphere(1))
   call crtm_surface_destroy(surface(1))
-  if (n_clouds_for_wk>0) &     
+  if (n_clouds_fwd_wk>0) &     
   call crtm_rtsolution_destroy(rtsolution0)    
   call crtm_rtsolution_destroy(rtsolution)
   call crtm_rtsolution_destroy(rtsolution_k)
@@ -744,7 +737,7 @@ subroutine destroy_crtm
      write(6,*)myname_,' ***ERROR** destroying surface.'
   if (ANY(crtm_rtsolution_associated(rtsolution))) &
      write(6,*)myname_,' ***ERROR** destroying rtsolution.'
-  if (n_clouds_for_wk>0) then            
+  if (n_clouds_fwd_wk>0) then            
   if (ANY(crtm_rtsolution_associated(rtsolution0))) &    
      write(6,*)' ***ERROR** destroying rtsolution0.'    
   endif                                                 
@@ -753,7 +746,7 @@ subroutine destroy_crtm
   if (ANY(crtm_options_associated(options))) &
      write(6,*)myname_,' ***ERROR** destroying options.'
   deallocate(rtsolution,atmosphere_k,surface_k,rtsolution_k)
-  if (n_clouds_for_wk>0) &         
+  if (n_clouds_fwd_wk>0) &         
   deallocate(rtsolution0) 
   if(n_actual_aerosols_wk>0)then
      deallocate(aero,aero_conc,auxrh)
@@ -810,7 +803,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2015-02-27  eliu-- wind direction fix for using CRTM FASTEM model 
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance assimilation,
-!                      use n_clouds_for_wk,n_aerosols_for_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
+!                      use n_clouds_fwd_wk,n_aerosols_fwd_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1068,7 +1061,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'q',qges_itsigp,istatus)
   iqs=iqs+istatus
 
-  if (lcf4crtm) then
+  if (trim(cfoption_wk)=='gmao_cf') then
     call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,ier)
     call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,ier)
     if (iqs/=0) call die(myname_,'inconsistent cloud setting, missing q',2)
@@ -1181,7 +1174,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            dtskin(3) = dtsavg
         end if
 
-        if (n_clouds_for_wk>0) then
+        if (n_clouds_fwd_wk>0) then
             ps=(psges_itsig (ix,iy )*w00+psges_itsig (ixp,iy )*w10+ &
                 psges_itsig (ix,iyp)*w01+psges_itsig (ixp,iyp)*w11)*dtsig + &
                (psges_itsigp(ix,iy )*w00+psges_itsigp(ixp,iy )*w10+ &
@@ -1423,7 +1416,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      else
         q(k)  = qsmall
      endif
-     if (lcf4crtm) then
+     if (trim(cfoption_wk)=='gmao_cf') then
         cf    =(cfges_itsig (ix ,iy ,k)*w00+ &
                 cfges_itsig (ixp,iy ,k)*w10+ &
                 cfges_itsig (ix ,iyp,k)*w01+ &
@@ -1478,8 +1471,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif ! oz
 ! Quantities required for MW cloudy radiance calculations
 
-     if (n_clouds_for_wk>0) then
-        do ii=1,n_clouds_for_wk
+     if (n_clouds_fwd_wk>0) then
+        do ii=1,n_clouds_fwd_wk
            iii=jcloud(ii)
            cloud(k,ii) =(gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &     ! kg/kg
                          gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
@@ -1526,7 +1519,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             end if
 
         end do  
-     endif ! <n_clouds_for_wk>
+     endif ! <n_clouds_fwd_wk>
   end do
 ! Interpolate level pressure to observation point for top interface
   prsi(nsig+1)=(ges_prsi(ix ,iy ,nsig+1,itsig )*w00+ &
@@ -1595,7 +1588,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   if(n_actual_aerosols_wk>0)then
     if(size(gsi_chemguess_bundle)==1) then
        do ii=1,n_actual_aerosols_wk
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(1),aero_names(ii),aeroges_itsig ,ier) 
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(1),aerosol_names(ii),aeroges_itsig ,ier) 
             do k=1,nsig
               aero(k,ii) =(aeroges_itsig(ix ,iy ,k)*w00+ &
                            aeroges_itsig(ixp,iy ,k)*w10+ &
@@ -1605,8 +1598,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        enddo
     else
        do ii=1,n_actual_aerosols_wk
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),aero_names(ii),aeroges_itsig ,ier) 
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),aero_names(ii),aeroges_itsigp,ier) 
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),aerosol_names(ii),aeroges_itsig ,ier) 
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),aerosol_names(ii),aeroges_itsigp,ier) 
             do k=1,nsig
               aero(k,ii) =(aeroges_itsig (ix ,iy ,k)*w00+ &
                            aeroges_itsig (ixp,iy ,k)*w10+ &
@@ -1624,7 +1617,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           aero(k,:)=aero(k,:)*ugkg_kgm2(k)
        enddo
     endif
-    if(.not.lcf4crtm) then ! otherwise already calculated
+    if(.not.(trim(cfoption_wk)=='gmao_cf')) then ! otherwise already calculated
        do k=1,nsig
            qs(k) =(gesqsat(ix ,iy ,k,itsig )*w00+ &
                    gesqsat(ixp,iy ,k,itsig )*w10+ &
@@ -1675,7 +1668,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
      kk2 = klevel(kk)
      atmosphere(1)%temperature(k)    = h(kk2)
-     if(lcf4crtm) then
+     if(trim(cfoption_wk)=='gmao_cf') then
         atmosphere(1)%absorber(k,1)  = r1000*qclr(kk2)*c3(kk2)
      else
         atmosphere(1)%absorber(k,1)  = r1000*q(kk2)*c3(kk2)
@@ -1699,7 +1692,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Include cloud guess profiles in mw radiance computation
 
-     if (n_clouds_for_wk>0) then
+     if (n_clouds_fwd_wk>0) then
         kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
         if (cw_cv) then
           if (icmask) then 
@@ -1708,18 +1701,18 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               auxq (k)=q(kk2)
 
               if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
-                 do ii=1,n_clouds_for_wk
+                 do ii=1,n_clouds_fwd_wk
                     cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
                     cloud_efr (k,ii)=cloudefr(kk2,ii)
                  end do
               else
-                 do ii=1,n_clouds_for_wk
+                 do ii=1,n_clouds_fwd_wk
                     cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
                  end do
               end if
 
               clw_guess = clw_guess +  cloud_cont(k,1)
-              do ii=1,n_clouds_for_wk
+              do ii=1,n_clouds_fwd_wk
                  if (ii==1 .and. atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
                     cloud_cont(k,1)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,1))
                  if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
@@ -1728,11 +1721,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           endif   
         else 
            if (icmask) then
-              do ii=1,n_clouds_for_wk
+              do ii=1,n_clouds_fwd_wk
                  cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2
-                 if (trim(cloud_names_for(ii))=='ql' .and.  atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
+                 if (trim(cloud_names_fwd(ii))=='ql' .and.  atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
                      cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
-                 if (trim(cloud_names_for(ii))=='qi' .and.  atmosphere(1)%temperature(k)<t0c) &
+                 if (trim(cloud_names_fwd(ii))=='qi' .and.  atmosphere(1)%temperature(k)<t0c) &
                      cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
               end do
            end if
@@ -1751,15 +1744,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 ! Set clouds for CRTM
-  if(n_clouds_for_wk>0) then
-     atmosphere(1)%n_clouds = n_clouds_for_wk  
-     call Set_CRTM_Cloud (msig,n_actual_clouds_wk,cloud_names,icmask,n_clouds_for_wk,cloud_cont,cloud_efr,jcloud,auxdp, &
+  if(n_clouds_fwd_wk>0) then
+     atmosphere(1)%n_clouds = n_clouds_fwd_wk  
+     call Set_CRTM_Cloud (msig,n_actual_clouds_wk,cloud_names,icmask,n_clouds_fwd_wk,cloud_cont,cloud_efr,jcloud,auxdp, &
                           atmosphere(1)%temperature,atmosphere(1)%pressure,auxq,atmosphere(1)%cloud)
   endif
 
 ! Set aerosols for CRTM
   if(n_actual_aerosols_wk>0) then
-     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_for_wk, aero_names, aero_conc, auxrh, &
+     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
   endif
 
@@ -1785,7 +1778,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   end if
 
 ! Calculate clear-sky Tb for AMSU-A over sea when allsky condition is on
-  if (n_clouds_for_wk>0 .and. present(tsim_clr)) then
+  if (n_clouds_fwd_wk>0 .and. present(tsim_clr)) then
      ! Zero out data array in cloud structure: water content, effective
      ! radius and variance
 
@@ -1823,7 +1816,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
 
-       if (n_clouds_for_wk>0 .and. present(tsim_clr)) &                          
+       if (n_clouds_fwd_wk>0 .and. present(tsim_clr)) &                          
        tsim_clr(i)=rtsolution0(i,1)%brightness_temperature  
 
 !  Estimated emissivity
@@ -1906,7 +1899,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !        end if
        endif
 
-       if (n_clouds_for_wk>0) then
+       if (n_clouds_fwd_wk>0) then
           if (icmask) then
              do ii=1,n_clouds_jac_wk
                do k=1,nsig
@@ -1961,7 +1954,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               layer_od(kk,i) = layer_od(kk,i) + rtsolution(i,1)%layer_optical_depth(k)
            endif
            do ii=1,n_aerosols_jac_wk
-              if ( n_aerosols_jac_wk > n_aerosols_for_wk .and. ii == indx_p25 ) then
+              if ( n_aerosols_jac_wk > n_aerosols_fwd_wk .and. ii == indx_p25 ) then
                  jaero(kk,i,ii) = jaero(kk,i,ii) + &
                                   (0.5_r_kind*(0.78_r_kind*atmosphere_k(i,1)%aerosol(indx_dust1)%concentration(k) + &
                                                0.22_r_kind*atmosphere_k(i,1)%aerosol(indx_dust2)%concentration(k)) )

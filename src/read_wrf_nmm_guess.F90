@@ -106,7 +106,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use mpeu_util, only: die
   use native_endianness, only: byte_swap
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
-  use radiance_mod, only: n_actual_clouds,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_fwd
 
   implicit none
 
@@ -815,7 +815,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end if
               end do
            end do
-           if (n_actual_clouds>0 .and. (icloud_forward) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icloud_fwd) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -1052,7 +1052,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use radiance_mod, only: n_actual_clouds,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_fwd
   implicit none
 
 ! Declare passed variables here
@@ -1415,7 +1415,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end if
               end do
            end do
-           if (n_actual_clouds>0 .and. (icloud_forward) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icloud_fwd) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
@@ -1660,7 +1660,7 @@ subroutine read_nems_nmmb_guess(mype)
   use mpeu_util, only: die
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
   use derivsmod, only: cwgues0
-  use radiance_mod, only: n_actual_clouds,icloud_forward
+  use radiance_mod, only: n_actual_clouds,icloud_fwd
   implicit none
 
 ! Declare passed variables here
@@ -1804,7 +1804,7 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
-        if ((icloud_forward) .and. ier==0) then
+        if ((icloud_fwd) .and. ier==0) then
            ges_ql=zero; ges_qi=zero; ges_qr=zero; ges_qs=zero; ges_qg=zero; ges_qh=zero
            efr_ql=zero; efr_qi=zero; efr_qr=zero; efr_qs=zero; efr_qg=zero; efr_qh=zero
            do kr=1,nsig_read
@@ -1833,7 +1833,7 @@ subroutine read_nems_nmmb_guess(mype)
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 
-        end if  ! icloud_forward
+        end if  ! icloud_fwd
      end if    ! end of (n_actual_clouds>0)
 
 

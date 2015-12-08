@@ -713,7 +713,7 @@
         mixed = .not. sea  .and. .not. ice .and.  &
                 .not. land .and. .not. snow
         eff_area=.false.
-        if (radmod%lcloud_forward) then
+        if (radmod%lcloud_fwd) then
            eff_area=(radmod%cld_sea_only .and. sea) .or. (.not.  radmod%cld_sea_only)
         end if
          
@@ -745,7 +745,7 @@
 
 !       Interpolate model fields to observation location, call crtm and create jacobians
 !       Output both tsim and tsim_clr for allsky
-        if (radmod%lcloud_forward) then
+        if (radmod%lcloud_fwd) then
            call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
@@ -827,7 +827,7 @@
         kraintype=0
         cldeff_obs=zero 
         if(microwave .and. sea) then 
-           if(radmod%lcloud_forward) then                            
+           if(radmod%lcloud_fwd) then                            
               call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
               scatp=scat 
            else
@@ -870,7 +870,7 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-           if(radmod%lcloud_forward .and. sea) pred(3,i ) = zero 
+           if(radmod%lcloud_fwd .and. sea) pred(3,i ) = zero 
  
 !       Apply bias correction
  
@@ -975,7 +975,7 @@
 !       Compute retrieved microwave cloud liquid water and 
 !       assign cld_rbc_idx for bias correction in allsky conditions
         cld_rbc_idx=one
-        if (radmod%lcloud_forward .and. radmod%ex_biascor .and. eff_area) then
+        if (radmod%lcloud_fwd .and. radmod%ex_biascor .and. eff_area) then
            ierrret=0
            do i=1,nchanl
               mm=ich(i)
@@ -993,7 +993,7 @@
               varinv(1:nchanl)=zero
               id_qc(1:nchanl) = ifail_cloud_qc
            endif
-        end if ! radmod%lcloud_forward .and. radmod%ex_biascor
+        end if ! radmod%lcloud_fwd .and. radmod%ex_biascor
         
         do i=1,nchanl
            error0(i) = tnoise(i) 
@@ -1001,7 +1001,7 @@
         end do
 
 !       Assign observation error for all-sky radiances 
-        if (radmod%lcloud_forward .and. radmod%ex_obserr .and. eff_area)  then   
+        if (radmod%lcloud_fwd .and. radmod%ex_obserr .and. eff_area)  then   
            call radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval,tnoise,tnoise_cld,error0)
         end if
 
@@ -1232,8 +1232,9 @@
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
-              if(radmod%lcloud_forward .and. sea) then 
+              if(radmod%lcloud_fwd .and. eff_area) then 
                  if (i <= 5 .or. i==15) then         
+!                if (radmod%lcloud4crtm(i)>=0) then         
                     errf(i) = 3.00_r_kind*errf(i)    
                  else
                     errf(i) = min(three*errf(i),ermax_rad(m))
@@ -1734,7 +1735,7 @@
               diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
-           if(radmod%lcloud_forward .and. sea) then  
+           if(radmod%lcloud_fwd .and. sea) then  
            !  diagbuf(22) = tpwc_amsua   
               diagbuf(22) = scat                              ! scattering index from AMSU-A 
               diagbuf(23) = clw_guess                         ! integrated CLWP (kg/m**2) from background                
@@ -1749,7 +1750,7 @@
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
            else
-              if((radmod%lcloud_forward .and. sea) .or. gmi .or. amsr2) then
+              if((radmod%lcloud_fwd .and. sea) .or. gmi .or. amsr2) then
                  if (gmi .or. amsr2) then
                    diagbuf(25)  = clw_obs                       ! clw (kg/m**2) from retrievals
                  else
@@ -1793,13 +1794,13 @@
               if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
-              if (radmod%lcloud_forward) then             
+              if (radmod%lcloud_fwd) then             
                  diagbufchan(6,i)=error0(ich_diag(i))
               else
                  diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
               endif
               diagbufchan(7,i)=tlapchn(ich_diag(i))                   ! stability index
-              if (radmod%lcloud_forward) then
+              if (radmod%lcloud_fwd) then
                  diagbufchan(8,i)=cld_rbc_idx(ich_diag(i))            ! indicator of cloudy consistency
               else
                  diagbufchan(8,i)=ts(ich_diag(i))                     ! d(Tb)/d(Ts)

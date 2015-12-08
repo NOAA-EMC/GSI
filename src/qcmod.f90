@@ -2388,7 +2388,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 
 
 ! QC for all-sky condition
-  if (radmod%lcloud_forward) then
+  if (radmod%lcloud_fwd) then
      qc4emiss=.false.
      if(.not. sea) then  
        if(factch6 >= one .or. latms_surfaceqc) then   
@@ -2503,7 +2503,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
         endif
      endif  ! if sea
 ! QC for clear condition
-  else  ! <lcloud_forward>
+  else  ! <lcloud_fwd>
      qc4emiss=.false.
      if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
@@ -2598,7 +2598,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
            end if
         end if
      end if
-  endif ! <lcloud_forward>
+  endif ! <lcloud_fwd>
 
   if (qc4emiss) then
 ! QC2 in statsrad
@@ -2674,10 +2674,10 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 ! diff_clw, scattering index, surface wind speed. The coefficient 13.0 for 
 ! clwtmp may be re-tuned with model physics changes. 
   eff_area=.false.
-  if (radmod%lcloud_forward) then
+  if (radmod%lcloud_fwd) then
      eff_area=(radmod%cld_sea_only .and. sea) .or. (.not. radmod%cld_sea_only)
   end if
-  if (radmod%lcloud_forward .and. eff_area) then
+  if (radmod%lcloud_fwd .and. eff_area) then
      icol=one
      if (any(cld_rbc_idx==zero)) icol=zero
      do i=1,nchanl
