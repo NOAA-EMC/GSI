@@ -133,7 +133,8 @@ export C_COMINm6h=${C_COMINm6h:-${C_COM_IN}/${RUN}.${PDYm6h}}
 export cnvstat=${cnvstat:-${C_COMIN}/cnvstat.gdas.${PDATE}}
 export pgrbanl=${pgrbanl:-${C_COMIN}/gdas1.t${CYC}z.pgrbanl}
 export pgrbf06=${pgrbf06:-${C_COMINm6h}/gdas1.t${GCYC}z.pgrbf06}
-							
+export convinfo=${convinfo:-${FIXgdascmon}/global_convinfo.txt}	
+						
 echo "cnvstat = $cnvstat"
 echo "pgrbanl = $pgrbanl"
 echo "pgrbf06 = $pgrbf06"
@@ -222,32 +223,17 @@ if [[ -s ${cnvstat} && -s ${pgrbanl} && -s ${pgrbf06} ]]; then
    #    -->  get unique rc values for each child, use in error reporting below
    #------------------------------------------------------------------
 
+   #---------------------------------------
    #  run the horz-hist extraction script
+   #
    ${USHcmon}/horz_hist.sh # ${PDATE}
    rc_horz_hist=$?
 
- 
-#   jobname=cmon_horz_hist_${SUFFIX}
-#run_script=${SCRIPTS}/horz_hist.sh
-#log_file=${LOGDIR}/horz_hist_${SUFFIX}.log
-#rm -f $log_file
-#
-#if [[ $MY_MACHINE = "wcoss" ]]; then
-#   $SUB -P $PROJECT -q $JOB_QUEUE -o ${log_file} -R affinity[core] -M 50 -W 0:30 -J ${jobname} ${run_script}
-#fi
-#
+   #---------------------------------------
    #  run the time-vert extraction script
-#
-#jobname=cmon_time_vert_${SUFFIX}
-#run_script=${SCRIPTS}/time_vert.sh
-#log_file=${LOGDIR}/time_vert_${SUFFIX}.log
-#rm -f $log_file
-#
-#if [[ $MY_MACHINE = "wcoss" ]]; then
-#   $SUB -P $PROJECT -q $JOB_QUEUE -o ${log_file} -R affinity[core] -M 50 -W 0:10 -J ${jobname} ${run_script}
-#fi
-
-
+   #
+   ${USHcmon}/time_vert.sh 
+   rc_time_vert=$?
 
 fi
 
@@ -260,22 +246,18 @@ if [[ ${data_available} -ne 1 ]]; then
    err=1
 elif [[ $rc_horz_hist -ne 0 ]]; then
    err=$rc_horz_hist
-#elif [[ $rc_bcoef -ne 0 ]]; then
-#   err=$rc_bcoef
-#elif [[ $rc_bcor -ne 0 ]]; then
-#   err=$rc_bcor
-#elif [[ $rc_time -ne 0 ]]; then
-#   err=$rc_time
+elif [[ $rc_time_vert -ne 0 ]]; then
+   err=$rc_time_vert
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyconv.sh.sms, exit value = ${err}"
 fi
 
-#if [[ ${err} -ne 0 ]]; then
-#   export err
-#   $ERRSCRIPT||exit ${err} 
-#fi
+if [[ ${err} -ne 0 ]]; then
+   export err
+   $ERRSCRIPT||exit ${err} 
+fi
 
 set +x
 exit ${err}
