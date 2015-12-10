@@ -220,8 +220,6 @@ if [ -s $cnvstat  -a -s $pgrbanl ]; then
          $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
       fi
 
-#      echo firing convcopr.sh
-#      /bin/sh $SCRIPTS/convcopr.sh
    else
       echo data not available, missing $pgrbf06 file
    fi
@@ -236,5 +234,5 @@ cd $tmpdir
 cd ../
 rm -rf $tmpdir
 
-echo "End CheckCmon.sh"
+echo "End CMon_DE.sh"
 exit
