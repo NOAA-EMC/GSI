@@ -157,7 +157,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(3,10):: cscale
   real(r_double),dimension(6):: cloud_frac
-  integer(i_kind) :: ndx, il, im
+  integer(i_kind) :: bufr_size
   
   real(r_kind)      :: step, start,step_adjust
   character(len=8)  :: subset
@@ -276,6 +276,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   satinfo_nchan = subset_end - subset_start + 1
   allocate(channel_number(satinfo_nchan))
   allocate(sc_index(satinfo_nchan))
+  allocate(bufr_index(satinfo_nchan)) 
   ioff = ioff - 1 
 
   step_adjust = 0.625_r_kind
@@ -373,6 +374,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! The number of channels in obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
+  allocate(temperature(1))   ! dependent on # of channels in the bufr file
+  allocate(allchan(2,1))
 
 ! Big loop to read data file
   next=0
@@ -385,35 +388,21 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle read_subset
 
-!    Read the bufr file, allocate the bufr arrays used for the data and coordinate with the channels in the satinfo file
-     if (ireadsb(lnbufr) /=0 ) cycle read_subset
-
-!    Get the size of the channels and radiance (allchan) array
-     call ufbint(lnbufr,crchn_reps,1,1,iret,'CHNM')
-     bufr_nchan = iret
-
-!    Allocate the arrays needed for the channel and radiance array
-     allocate(bufr_index(satinfo_nchan)) ! dependent on # of channels in the satinfo file
-     allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
-     allocate(allchan(2,bufr_nchan))
-
-     call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SCRA CHNM')
-
-!    Coordinate bufr channels with satinfo file channels
-     bufr_index(:) = 0
-     satinfo_chans: do i=1,satinfo_nchan
-        bufr_chans: do l=1,bufr_nchan
-           if ( channel_number(i) == int(allchan(2,l)) ) then
-              bufr_index(i) = l
-              exit bufr_chans
-           endif
-        end do bufr_chans
-     end do satinfo_chans
-
-     call status(lnbufr,ndx,il,im)
-     call backbufr(ndx)
 
      read_loop: do while (ireadsb(lnbufr)==0)
+
+
+!       Get the size of the channels and radiance (allchan) array
+        call ufbint(lnbufr,crchn_reps,1,1,iret,'(IASICHN)')
+        bufr_nchan = int(crchn_reps)
+
+        bufr_size = size(temperature,1)
+        if ( bufr_size /= bufr_nchan ) then      ! allocation if
+!          Allocate the arrays needed for the channel and radiance array
+           deallocate(temperature,allchan)
+           allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
+           allocate(allchan(2,bufr_nchan))
+        endif       !  allocation if
 
 !       Read IASI FOV information
         call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ SELV SAID')
@@ -639,12 +628,21 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Read IASI channel number(CHNM) and radiance (SCRA)
         call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SCRA CHNM')
-
         if (iret /= bufr_nchan) then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
               iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
            cycle read_loop
         endif
+!       Coordinate bufr channels with satinfo file channels
+        bufr_index(:) = 0
+        satinfo_chans: do i=1,satinfo_nchan
+           bufr_chans: do l=1,bufr_nchan
+              if ( channel_number(i) == int(allchan(2,l)) ) then
+                 bufr_index(i) = l
+                 exit bufr_chans
+              endif
+           end do bufr_chans
+        end do satinfo_chans
 
         iskip = 0
         jstart=1
@@ -759,11 +757,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      enddo read_loop
 
-     deallocate(bufr_index)
-     deallocate(temperature)
-     deallocate(allchan)
 
   enddo read_subset
+
+  deallocate(temperature,allchan)
   call closbf(lnbufr)
 
 ! deallocate crtm info
@@ -809,6 +806,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   deallocate(data_all,nrec) ! Deallocate data arrays
   deallocate(channel_number,sc_index)
+  deallocate(bufr_index)
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.

@@ -118,12 +118,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)     :: lnbufr = 10
 
 ! Variables for BUFR IO    
-  real(r_double) :: crchn_reps, rchar_mtyp
+  real(r_double) :: rchar_mtyp
   real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(6):: cloud_frac
-  integer(i_kind) :: ndx, il, im
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -172,6 +171,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: ntest
   integer(i_kind):: error_status
   integer(i_kind):: radedge_min, radedge_max
+  integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
 
 
@@ -243,6 +243,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   satinfo_nchan = subset_end - subset_start + 1
   allocate(channel_number(satinfo_nchan))
   allocate(sc_index(satinfo_nchan))
+  allocate(bufr_index(satinfo_nchan)) 
   ioff=ioff-1
 
 ! If all channels of a given sensor are set to monitor or not
@@ -300,7 +301,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
-     instr=17     ! CrIS is similar to AIRS for this purpose.
+     instr=17     ! CrIS is similar to AIRS for this purpose. 
      call instrument_init(instr, jsatid, expansion, valid)
      if (.not. valid) then
         if (assim) then
@@ -338,6 +339,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! The number of channels is obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
+  allocate(temperature(1))   ! actual values set within ireadsb
+  allocate(allchan(2,1))     ! actual values set within ireadsb
 
 ! Big loop to read data file
   next=0
@@ -349,55 +352,34 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle message_loop
 
-!    Read the bufr file, allocate the bufr arrays used for the data and coordinate with the channels in the satinfo file     
-     if (ireadsb(lnbufr) /= 0 ) cycle message_loop
-
-!    Check for data / sensor resolution mis-match 
-     call ufbint(lnbufr,rchar_mtyp,1,1,iret,'MTYP')
-     char_mtyp = transfer(rchar_mtyp,char_mtyp)
-     if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
-     if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
-
-!    Get the size of the channels and radiance (allchan) array
-     call ufbint(lnbufr,crchn_reps,1,1,iret,'CHNM')
-     bufr_nchan = iret
-
-!    Allocate the arrays needed for the channel and radiance array
-     allocate(bufr_index(satinfo_nchan)) ! dependent on # of channels in the satinfo file
-     allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
-     allocate(allchan(2,bufr_nchan))
-
-     call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
-
-!    Coordinate bufr channels with satinfo file channels
-     sfc_channel_index = 0
-     bufr_index(:) = 0
-     satinfo_chans: do i=1,satinfo_nchan
-        bufr_chans: do l=1,bufr_nchan
-           if ( channel_number(i) == int(allchan(2,l)) ) then
-              bufr_index(i) = l
-              if ( channel_number(i) == 501 ) sfc_channel_index = l
-              exit bufr_chans
-           endif
-        end do bufr_chans
-     end do  satinfo_chans
-
-     if ( sfc_channel_index == 0 ) then
-        write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
-        cycle message_loop
-     endif
-
-     call status(lnbufr,ndx,il,im)
-     call backbufr(ndx)
 
      read_loop: do while (ireadsb(lnbufr)==0)
 
+
+!       Check for data / sensor resolution mis-match 
+        call ufbint(lnbufr,rchar_mtyp,1,1,iret,'MTYP')
+        char_mtyp = transfer(rchar_mtyp,char_mtyp)
+        if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
+        if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
+
+
+!       Get the size of the channels and radiance (allchan) array and
 !       Read FOV information
-        if ( char_mtyp == 'FSR' ) then  ! Full spectral response bufr file
+        if (char_mtyp == 'FSR') then
            call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHNM)')
-        else                            ! Low spectral response bufr file
+        else
            call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHN)')
         endif
+        bufr_nchan = int(linele(5))
+
+
+        bufr_size = size(temperature,1)
+        if ( bufr_size /= bufr_nchan ) then    ! allocation if
+!          Allocate the arrays needed for the channel and radiance array
+           deallocate(temperature, allchan)
+           allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
+           allocate(allchan(2,bufr_nchan))
+        endif    ! allocation if
 
 !       CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
 !       per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
@@ -413,7 +395,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Only use central IFOV
         ifov = nint(linele(1))               ! field of view
-!        if (ifov /= 5) cycle read_loop
+        if (ifov /= 5) cycle read_loop
 
         ifor = nint(linele(4))               ! field of regard
 
@@ -543,7 +525,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
 !       Increment nread counter by bufr_nchan    (should be changed to number of channels in satinfo file? (satinfo_nchan))
-!JAJ        nread = nread + bufr_nchan
         nread = nread + satinfo_nchan
 
         if (thin4d) then
@@ -583,6 +564,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
+            pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
+
+! As cloud_frac is missing from BUFR, use proxy of warmest fov over
+! non ice surfaces.  Fixed channels (assuming the 399 set) for now.
+! This is moved to below where the radiances are read in.
+
+!        if ( pred < zero .or. pred > 100.0_r_kind ) pred = 100.0_r_kind
+        crit1 = crit1 + pred
+
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
+
 !   "Score" observation.  We use this information to identify "best" obs
 !    Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !    mask.  
@@ -620,12 +613,27 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Read CRIS channel number(CHNM) and radiance (SRAD)
         call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
-
         if( iret /= bufr_nchan)then
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
            cycle read_loop
         endif
+!       Coordinate bufr channels with satinfo file channels
+        sfc_channel_index = 0
+        bufr_index(:) = 0
+        satinfo_chans: do i=1,satinfo_nchan
+           bufr_chans: do l=1,bufr_nchan
+              if ( channel_number(i) == int(allchan(2,l)) ) then
+                 bufr_index(i) = l
+                 if ( channel_number(i) == 501 ) sfc_channel_index = l
+                 exit bufr_chans
+              endif
+           end do bufr_chans
+        end do  satinfo_chans
+        if ( sfc_channel_index == 0 ) then
+           write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
+           cycle read_loop
+        endif 
 
         iskip = 0
         jstart=1
@@ -664,14 +672,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Cloud information  may be missing depending on how the VIIRS granules align
 !       with the CrIS granules.  
 !       Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
-        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
-        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
+!JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
+!JAJ        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 !           pred = cloud_frac(1) / 10.0_r_kind
-           pred = cloud_frac(2) / 100.0_r_kind
-           crit1 = crit1 + pred
+!JAJ           pred = cloud_frac(2) / 100.0_r_kind
+!JAJ           crit1 = crit1 + pred
 
-        else
+!JAJ        else
 !       If cloud_frac is missing from BUFR, use proxy of warmest fov over 
 !       non ice surfaces.  Fixed channels (assuming the 399 set) for now.
 !       This is moved to below where the radiances are read in.
@@ -679,7 +687,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (sfcpct(0)+sfcpct(1) > 0.9) &
               crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
  
-        endif ! clearest FOV check
+!JAJ        endif ! clearest FOV check
 
 !       Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
@@ -756,12 +764,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      enddo read_loop
 
-     deallocate(bufr_index)
-     deallocate(temperature)
-     deallocate(allchan)
-
   enddo message_loop
 
+  deallocate(temperature,allchan)
   call closbf(lnbufr)
 
 ! deallocate crtm info
@@ -805,6 +810,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   deallocate(data_all,nrec) ! Deallocate data arrays
   deallocate(channel_number,sc_index)
+  deallocate(bufr_index)
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.
