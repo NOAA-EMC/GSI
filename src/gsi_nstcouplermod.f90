@@ -12,6 +12,7 @@
 !
 !  2011-10-20 RT/ Akella- Initial code
 !  2012-03-05 SA-         _full fields: tref, dt_cool, dt_warm, z_c, z_w, ... are declared here INSTEAD of satthin     
+!  2015-05-01 Li-         Change the nst fields to be single precision
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -33,7 +34,7 @@
 module GSI_NSTCouplerMod
 
 ! !USES:
-use kinds,         only: r_kind, i_kind
+use kinds,         only: r_single, r_kind, i_kind
 
 implicit none
 private
@@ -49,11 +50,9 @@ public GSI_NSTCoupler_final
 
 public :: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
 public :: c_0_full,c_d_full,w_0_full,w_d_full
-public :: nst_mask_full
 
-real(r_kind),allocatable,dimension(:,:,:):: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
-real(r_kind),allocatable,dimension(:,:,:):: c_0_full,c_d_full,w_0_full,w_d_full
-real(i_kind),allocatable,dimension(:,:)  :: nst_mask_full
+real(r_single),allocatable,dimension(:,:,:):: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
+real(r_single),allocatable,dimension(:,:,:):: c_0_full,c_d_full,w_0_full,w_d_full
 
 !-------------------
 interface gsi_nstcoupler_init
@@ -64,11 +63,11 @@ end interface
 !-------------------
 
 interface gsi_nstcoupler_set
-  subroutine nst_set_(mype)
+  subroutine nst_set_(mype,mype_io)
      use kinds,         only: i_kind
      implicit none
 
-     integer(i_kind), intent(in   ) :: mype
+     integer(i_kind), intent(in   ) :: mype,mype_io
      
   end subroutine nst_set_
 end interface
