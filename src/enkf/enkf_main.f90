@@ -92,9 +92,10 @@ program enkf_main
  use inflation, only: inflate_ens
  ! initialize radinfo variables
  use radinfo, only: init_rad, init_rad_vars
+ use omp_lib, only: omp_get_max_threads
 
  implicit none
- integer(i_kind) j,n
+ integer(i_kind) j,n,nth
  real(r_double) t1,t2
 
  ! initialize MPI.
@@ -109,6 +110,9 @@ program enkf_main
 
  ! Initialize derived radinfo variables
  call init_rad_vars()
+
+ nth= omp_get_max_threads()
+ if(nproc== 0)write(6,*) 'enkf_main:  number of threads ',nth
 
  ! read horizontal grid information and pressure fields from
  ! 6-h forecast ensemble mean file.
