@@ -2714,7 +2714,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
                  ll=ll+1
                  if(ll>255)then
                     write(6,*)'error in SONDE_EXT levs > 255'
-                    stop
+                    return
                  endif
                  obsdat(1,ll)=dpmdl(k)
                  qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
@@ -2777,7 +2777,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
               ll=ll+1
               if(ll>255)then
                  write(6,*)'error in SONDE_EXT levs > 255'
-                 stop
+                 return
               endif
               obsdat(1,ll)=dpmdl(k)
               qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
