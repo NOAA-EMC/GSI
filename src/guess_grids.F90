@@ -850,7 +850,7 @@ contains
     integer(i_kind):: istatus
 
 ! Deallocate arrays containing full horizontal nst fields
-    if (nst_gsi > 0) call gsi_nstcoupler_final()
+!   if (nst_gsi > 0) call gsi_nstcoupler_final()
 
     if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
     sfc_grids_allocated_=.false.
