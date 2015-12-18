@@ -4953,11 +4953,13 @@ subroutine setup_ens_wgt
    implicit none
 
    character(len=*),parameter :: myname='setup_ens_wgt::'
-   integer(i_kind) :: k,i,j,k,istatus,k1,k8
+   integer(i_kind) :: k,i,j,istatus,k1,k8
    integer(i_kind) :: msig,mlat
+   integer(i_kind) :: lunit
    real(r_kind) :: tmp_sum,pih,beta2_inv,rk81(2),rk810(2)
    real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
    real(r_kind),pointer :: ges_ps(:,:) => NULL()
+   character(len=128) :: pscon_stats
 
 !!!!!!!!!!! setup pwgt !!!!!!!!!!!!!!!!!!!!!
 ! weigh with balanced projection for pressure
@@ -5000,20 +5002,15 @@ subroutine setup_ens_wgt
          read(lunit,iostat=istatus) msig,mlat
          call check_iostat(istatus,myname,'read msig, mlat')
          if ( msig /= nsig .or. mlat /= nlat ) &
-            call die(trim(myname),'resolution of '//trim(pscon_stats)//' incompatible with guess',ier =istatus)
+            call die(trim(myname),'resolution of '//trim(pscon_stats)//' incompatible with guess, ier =',istatus)
          read(lunit,iostat=istatus) pwgt
          call check_iostat(istatus,myname,'read pwgt')
-         close(lunit)
+         close(lunit,iostat=istatus)
          call check_iostat(istatus,myname,'close('//trim(pscon_stats)//')')
-
-
-         if ( mype == 0 ) &
-            write(6,*) 'SETUP_ENS_WGT: routine not built for vertical integration function on ensemble contribution of surface pressure for global application, using defaults'
-         goto 199
 
       endif ! if ( regional )
 
-    else
+    else ! if ( pwgtflg )
 
        pwgt(:,:,1) = one
 
