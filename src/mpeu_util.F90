@@ -67,6 +67,8 @@ module mpeu_util
         ! a stable sorting tool.  See <Use indexed sorting> section below
       public :: IndexSet                ! setup an index array
       public :: IndexSort               ! (stable)sort through the index array
+      
+      public :: check_iostat            ! check the status of ioerror; if non-zero die
 
 #ifdef INCLUDE_MPOUT
       public :: stdout_open
@@ -2032,7 +2034,7 @@ end function leadchar_
 end subroutine getarec_
 
 subroutine check_iostat(ierror,myname,message)
-   use xxx, only: mype
+   use mpimod, only: mype
    implicit none
    integer,intent(in) :: ierror
    character(len=*),intent(in) :: myname,message
@@ -2044,6 +2046,5 @@ subroutine check_iostat(ierror,myname,message)
    endif
    return
 end subroutine check_iostat
-
 
 end module mpeu_util
