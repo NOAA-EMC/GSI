@@ -93,12 +93,9 @@ module radinfo
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
-!here next five lines
+!here next two lines
   public :: radinfo_scl_bias
   public :: radinfo_get_rsqrtinv
-!  public :: iland_det, isnow_det, imix_det, iice_det, iwater_det  !mkim
-!  public :: itopo_det, isst_det, iwndspeed_det, iomg_det  !mkim 
-!  public :: dec2bin  !mkim
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -166,16 +163,6 @@ module radinfo
 !                                                    =  4 use data with no bias correction
   integer(i_kind),allocatable,dimension(:):: icld_det  ! Use this channel in cloud detection (only used for
 !                                                        certain instruments. Set to greater than zero to use
-!here up to line 178
-!  integer(i_kind),allocatable,dimension(:):: iwater_det  ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: iland_det   ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: iice_det    ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: isnow_det   ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: imix_det    ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: itopo_det   ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: iomg_det    ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: isst_det    ! Use this channel in extra QC depending on sfc type
-!  integer(i_kind),allocatable,dimension(:):: iwndspeed_det  ! Use this channel in extra QC depending on sfc type
 
   logical,allocatable,dimension(:):: inew_rad  ! indicator if it needs initialized for satellite radiance data
   logical,allocatable,dimension(:):: update_tlapmean ! indicator if tlapmean update is needed
@@ -191,8 +178,6 @@ module radinfo
 
   real(r_kind) :: biaspredvar
   logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
-! extra var here
-!  integer(i_kind),allocatable, dimension(:):: iextra_det  !mkim
 
   interface radinfo_adjust_jacobian; module procedure adjust_jac_; end interface
 !two new interfaces here
@@ -575,8 +560,6 @@ contains
     logical,allocatable,dimension(:):: nfound
     logical cfound
     logical pcexist
-!added binary_iextra_det here
-!    integer(i_kind) binary_iextra_det(10)
 
     data lunin / 49 /
     data lunout / 51 /
@@ -614,17 +597,12 @@ contains
 !     ifactq    - scaling parameter for d(Tb)/dq sensitivity
 !     varch     - variance for clear radiance for each channel
 !     varch_cld - variance for cloudy radiance for each channel
-!allocated iextra_det to iomg_det here
+
     allocate(nuchan(jpch_rad),nusis(jpch_rad),iuse_rad(0:jpch_rad), &
          ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad),&
-         icld_det(jpch_rad)) ! iextra_det(jpch_rad)),
-!         isnow_det(jpch_rad), &    !mkim
-!         iland_det(jpch_rad),iice_det(jpch_rad), &
-!         iwater_det(jpch_rad),imix_det(jpch_rad),&
-!         itopo_det(jpch_rad),isst_det(jpch_rad), &
-!         iwndspeed_det(jpch_rad),iomg_det(jpch_rad))
+         icld_det(jpch_rad)) 
 
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
     iuse_rad(0)=-999
@@ -649,7 +627,7 @@ contains
        if (cflg == '!') cycle
        j=j+1
        read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j) !here changed icld_det to iextra_det
+            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j) 
        if(istat/=0) then
           call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
           call perr('radinfo_read','                 istat =',istat)
@@ -659,27 +637,14 @@ contains
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
-            b_rad(j),pg_rad(j),icld_det(j) !here, changed icld_det to  iextra_det
-!here, up to linecld
-!            call dec2bin(iextra_det(j),binary_iextra_det,10)
- 
-!            icld_det(j) = binary_iextra_det(1)
-!            iland_det(j) = binary_iextra_det(2)
-!            isnow_det(j) = binary_iextra_det(3)
-!            imix_det(j) = binary_iextra_det(4)
-!            iice_det(j) = binary_iextra_det(5)
-!            iwater_det(j) = binary_iextra_det(6)
-!            iomg_det(j) = binary_iextra_det(7)
-!            itopo_det(j) = binary_iextra_det(8)
-!            isst_det(j) = binary_iextra_det(9)
-!            iwndspeed_det(j) = binary_iextra_det(10)
+            b_rad(j),pg_rad(j),icld_det(j) 
 
     end do
     close(lunin)
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
-          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2) !here, changed icld_det to  iextra_det
+          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2) 
 
 
 !   Allocate arrays for additional preconditioning info
@@ -1064,12 +1029,10 @@ contains
 
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
-!here added last two lines to deallocate
+
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
          ifactq,varch,varch_cld,inew_rad,icld_det)
-!         iextra_det, &
-!         iland_det, isnow_det, iice_det,iwater_det,imix_det, &
-!         itopo_det,isst_det,iwndspeed_det,iomg_det)
+
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)

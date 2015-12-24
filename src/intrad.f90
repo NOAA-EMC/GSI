@@ -287,9 +287,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
-!next three lines here
+!next two lines here
   use radinfo, only: radinfo_scl_bias,radinfo_get_rsqrtinv
-  use mpimod, only: mype
   use timermod, only:  timer_ini, timer_fnl
 
 
@@ -538,8 +537,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      if(do_scl_bias)then
         allocate(rsqrtinv(radptr%nchan,radptr%nchan))
         rsqrtinv=zero
-        call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%icx, & !  need to talk to Jing!
+        call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, & !  need to talk to Jing!
                                   radptr%err2,rsqrtinv)
+
      endif
 
 !  For all other configurations

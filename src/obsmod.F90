@@ -460,9 +460,6 @@ module obsmod
      real(r_kind), pointer :: tldepart(:)    ! (miter)
      real(r_kind), pointer :: obssen(:)      ! (miter)
      real(r_kind) :: wgtjo
-!here add elon, elat, dlon, dlat
-!     real(r_kind) :: elat, elon         ! earth lat-lon for redistribution
-!     real(r_kind) :: dlat, dlon         ! earth lat-lon for redistribution
      integer(i_kind) :: indxglb
      integer(i_kind) :: nchnperobs           ! number of channels per observations
      integer(i_kind) :: idv,iob,ich   ! device id and obs index for verification
@@ -479,8 +476,6 @@ module obsmod
      integer(i_kind):: n_alloc=0
      type(obs_diag), pointer :: head => NULL()
      type(obs_diag), pointer :: tail => NULL()
-! here, add lookup
-!     type(aofp_obs_diag), allocatable, dimension(:):: lookup
   end type obs_diags
 
 ! Main observation data structure
@@ -498,9 +493,6 @@ module obsmod
      real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      real(r_kind)    :: ppertb        !  random number adding to the obs
-!here, add elat, elon, dlat, don
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
@@ -525,9 +517,6 @@ module obsmod
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      real(r_kind)    :: ppertb        !  random number adding to the obs
-!here, add lats and lons
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
@@ -557,10 +546,6 @@ module obsmod
      real(r_kind)    :: tpertb        !  random number adding to the obs
      real(r_kind),dimension(:),pointer :: pred => NULL() 
                                       !  predictor for aircraft temperature bias 
-!here, added lat, lon and lev
-!     real   (r_kind) :: elat, elon    !  earth lat-lon for redistribution
-!     real   (r_kind) :: dlat, dlon    !  earth lat-lon for redistribution
-!     real   (r_kind) :: dlev          !  reference to the vertical grid
      integer(i_kind) :: idx           !  index of tail number
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
@@ -592,10 +577,6 @@ module obsmod
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: upertb        !  random number adding to the obs
      real(r_kind)    :: vpertb        !  random number adding to the obs
-!here, lat, lon lev
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlev          !  reference to the vertical grid
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
@@ -622,10 +603,6 @@ module obsmod
      real(r_kind)    :: jb            !  variational quality control parameter(Purser's scheme)
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: qpertb        !  random number adding to the obs
-!here, lat, lon lev
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlev          !  reference to the vertical grid
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
@@ -652,9 +629,6 @@ module obsmod
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      real(r_kind)    :: uges          !  guess u value        
      real(r_kind)    :: vges          !  guess v value        
-!here
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
@@ -683,11 +657,6 @@ module obsmod
      real(r_kind)    :: rsrw(4)       !  forward model for radar superob wind 
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
-!here lat lon, lev, factw
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!    real(r_kind)    :: dlev          !  reference to the vertical grid
-!     real(r_kind)    :: factw         !  factor of 10m wind
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
 
@@ -711,11 +680,6 @@ module obsmod
      real(r_kind)    :: cosazm        !  v factor
      real(r_kind)    :: sinazm        !  u factor
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
-!here, lev, lat lon factw
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlev          !  reference to the vertical grid
-!     real(r_kind)    :: factw         !  factor of 10m wind
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
@@ -740,11 +704,6 @@ module obsmod
      real(r_kind)    :: cosazm        !  v factor
      real(r_kind)    :: sinazm        !  u factor
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
-!here lat lon lev factw
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlev          !  reference to the vertical grid
-!     real(r_kind)    :: factw         !  factor of 10m wind
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
@@ -769,9 +728,6 @@ module obsmod
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      real(r_kind)    :: zob           !  observation depth in meter
      real(r_kind)    :: tz_tr         !  sensitivity of tob to tref : d(Tz)/d(Tr)
-!here lat lon
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
@@ -794,9 +750,6 @@ module obsmod
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
-!here lat lon
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
      real(r_kind),dimension(:),pointer :: dp  => NULL()
                                       !  delta pressure at mid layers at obs locations
      integer(i_kind) :: ij(4)         !  horizontal locations
@@ -821,11 +774,6 @@ module obsmod
                                       !  square of ratio of final obs error 
                                       !  to original obs error
      real(r_kind)    :: time          !  observation time in sec     
-!here lat long rozcon dprsi
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: rozcon        !  see setupozlay() for about rozcon
-!     real(r_kind),dimension(:),pointer :: dprsi           ! see setupozlay() for about prsitmp(k)-prsitmp(k+1)
      real(r_kind),dimension(:,:),pointer :: wij => NULL()
                                       !  horizontal interpolation weights
      real(r_kind),dimension(:),pointer :: prs => NULL()
@@ -856,10 +804,6 @@ module obsmod
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
-! here lat lon lev
-!     real(r_kind)    :: elat, elon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    !  earth lat-lon for redistribution
-!     real(r_kind)    :: dlev          !  reference to the vertical grid
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      logical         :: luse          !  flag indicating if ob is used in pen.
@@ -1280,10 +1224,6 @@ module obsmod
                                       !  ratio of error variances squared (nchan)
      real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
-!here, added elat, elon, dlat and dlon
-!     real(r_kind)    :: elat, elon    ! earth lat-lon for redistribution
-!     real(r_kind)    :: dlat, dlon    ! earth lat-lon for redistribution
-
      real(r_kind),dimension(:,:),pointer :: pred => NULL()
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
@@ -1294,7 +1234,7 @@ module obsmod
 !here, added isfctype
      integer(i_kind) :: isfctype      ! surf mask: ocean=0, land=1, ice=2, snow=3, mixed=4
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
-     integer(i_kind),dimension(:),pointer :: ich => NULL() !here, commented ich
+     integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
 !here, added isis
      character(20) :: isis            ! sensor/instrument/satellite id, e.g. amsua_n15
@@ -2510,7 +2450,7 @@ contains
           radheadm(ii)%head => radtailm(ii)%head%llpoint
           deallocate(radtailm(ii)%head%res,radtailm(ii)%head%err2, &
                      radtailm(ii)%head%raterr2,radtailm(ii)%head%pred, &
-                     radtailm(ii)%head%ich,& !here commented
+                     radtailm(ii)%head%ich,& 
                      radtailm(ii)%head%icx,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad arrays, istatus=',istatus
           deallocate(radtailm(ii)%head,stat=istatus)
