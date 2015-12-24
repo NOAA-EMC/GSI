@@ -778,11 +778,9 @@ real(r_kind),   allocatable,dimension(:,:) :: row,row0
 real(r_kind) coeff,qcadjusted
 logical subset
 logical, save:: first = .true.
-
 scale_jac_=.false.
 nch_active=ErrorCov%nch_active
 if(nch_active<0) return
-
 call timer_ini('scljac')
 
 ! get indexes for the internal channels matching those
@@ -800,6 +798,8 @@ do jj=1,nchanl
    if (varinv(jj)>tiny_r_kind .and. iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
+
+!here, jj should be mm
          if(jj==ErrorCov%indxR(ii)) then
             ifound=ii       
             exit
@@ -976,13 +976,11 @@ else
    deallocate(col,col0)
    deallocate(row,row0)
 endif
-
 ! clean up
 deallocate(IJsubset)
 deallocate(IRsubset)
 deallocate(ijac)
 deallocate(ircv)
-
 scale_jac_=.true.
 call timer_fnl('scljac')
 end function scale_jac_
@@ -1036,10 +1034,8 @@ real(r_kind),   allocatable,dimension(:,:) :: row
 real(r_kind) coeff,qcadjusted
 logical subset
 logical, save:: first = .true.
-
 nch_active=ErrorCov%nch_active
 !wgu if(nch_active<0) return
-
 call timer_ini('inv_rsqrt')
 
 ! get indexes for the internal channels matching those
@@ -1049,9 +1045,10 @@ ircv = -1
 do jj=1,nchasm
    nn=ichasm(jj)    ! index in from 1 to nchanl
    mm=ich(jj)       ! true channel number (has no bearing here except in iuse)
-   if (iuse(mm)>=1) then
+!   if (iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
+!here nn to jj
          if(nn==ErrorCov%indxR(ii)) then
             ifound=ii       
             exit
@@ -1060,7 +1057,7 @@ do jj=1,nchasm
       if(ifound/=-1) then
          ircv(jj)=ifound  ! index value in from 1 to nch_active
       endif
-   endif
+!   endif
 enddo
 ncp=count(ircv>0) ! number of active channels in profile
 ! following should never happen, but just in case ...
@@ -1111,7 +1108,6 @@ endif
    enddo
 
    deallocate(row)
-
 ! clean up
 deallocate(ircv)
 
@@ -1164,11 +1160,9 @@ implicit none
    integer(i_kind) iinstr
    integer(i_kind),allocatable,dimension(:) :: ich1,tblidx   ! true channel numeber
    integer(i_kind) :: nchanl1,jc   ! total number of channels in instrument
-
    if(.not.allocated(idnames)) then
      return
    endif
-
    ntrow = size(idnames)
    allocate(ich1(jpch_rad),tblidx(ntrow))
 
@@ -1195,7 +1189,6 @@ implicit none
        endif
      enddo
      nchanl1=jc
-
      if(nchanl1==0)then
         call die(myname_,' improperly set GSI_BundleErrorCov')
      endif
@@ -1218,6 +1211,7 @@ implicit none
         if (iuse_rad(mm)>=1) then
           ifound=-1
           do ii=1,nch_active
+!here, should jj actually be mm?
             if(jj==GSI_BundleErrorCov(itbl)%indxR(ii)) then
                ifound=ii       
                exit
@@ -1277,7 +1271,6 @@ implicit none
    enddo
 
    deallocate(ich1,tblidx)
-
 end subroutine upd_varqc_
 !EOC
 
