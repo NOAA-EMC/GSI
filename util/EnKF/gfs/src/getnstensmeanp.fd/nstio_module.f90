@@ -308,7 +308,7 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     open(lu,file=cfname,form='unformatted',&
          status='old',action='read',iostat=ios)
-    write(*,*) ' successfully opened : ',cfname, ios
+!   write(*,*) ' successfully opened : ',cfname, ios
     iret=ios
     if(iret.ne.0) iret=-1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -352,24 +352,22 @@ contains
     iret=-2
     rewind lu
     read(lu,iostat=ios) head%clabnst(1:8)
-    write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
+!   write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
     if(ios.ne.0) return
     if(head%clabnst(1:8).eq.'GFS NST ') then  ! modern nst file
       rewind lu
       read(lu,iostat=ios) cgfs,cnst,head%ivo,nhead,nresv
-      write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivo,nhead
+!     write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivo,nhead
       if(ios.ne.0) return
       if(head%ivo.eq.200907) then
         read(lu,iostat=ios)
         if(ios.ne.0) return
         read(lu,iostat=ios) head%fhour,head%idate,head%lonb,head%latb,&
                             head%lsea,head%irealf
-        write(*,*) ' head%fhour, ios : ',head%fhour, ios
         if(ios.ne.0) return
         call nstio_alhead(head,ios)
         if(ios.ne.0) return
         read(lu,iostat=ios) head%lpl
-        write(*,*) ' head%lpl, ios : ',head%lpl, ios
         if(ios.ne.0) return
         read(lu,iostat=ios) head%zsea
         if(ios.ne.0) return
@@ -452,7 +450,7 @@ contains
     dim1=head%lonb
     dim2=head%latb
     dim3=head%lsea
-    write(*,*) 'in nstio_aldata, dim1, dim2, dim3 : ', dim1, dim2, dim3
+!   write(*,*) 'in nstio_aldata, dim1, dim2, dim3 : ', dim1, dim2, dim3
     allocate(&
       data%slmsk(dim1,dim2),&
       data%xt(dim1,dim2),&
