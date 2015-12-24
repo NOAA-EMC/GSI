@@ -200,17 +200,12 @@
    enddo                    ! do i = 1, nlat_b
  enddo                      ! do j = 1, nlon_b
 
-
- if ( nwsum > 0 ) then
-    write(*,'(a,I4,I3,I5)') 'int22_msk_glb: Number of grids without specified adjacent surface type, istyp,nwsum ; ',istyp,nwsum
- endif
- if ( nfinal > 0 ) then
-    write(*,'(a,I4,I3,I5)') 'int22_msk_glb: Number of grids without interpolted value, istyp,nfinal ; ',istyp,nfinal
- endif
+  write(*,'(a,I3,I5)') 'Number of grids without specified adjacent surface type,istyp,nwsum ; ',istyp,nwsum
+  write(*,'(a,I3,I5)') 'Number of grids without interpolted value,istyp,nwsum ; ',istyp,nwsum
 
  end subroutine int22_msk_glb
 
- subroutine int21_msk_sub(a,isli,x,dlat,dlon,istyp,nwsum,nfinal,mype)
+ subroutine int21_msk_sub(a,isli,alats,alons,nx,ny,x,istyp,lat,lon)
                         
 !$$$  subprogram documentation block
 !                .      .    .
@@ -218,89 +213,85 @@
 !
 ! prgrmmr:     li -  initial version; org: np2. 03/01/2014
 !
-! abstract :      This routine interpolates a (2-d array of a subdomain) to a single point with surface mask accounted
+! abstract :      This routine interpolates a (2-d array) to a single point with surface mask accounted
 ! notes    :      (1) Here is a 2-d to one point interpolation
 !                 (2) The mask is availabe for both 2-d array and the single point
 !
 ! program history log:
 !
 !  input argument list:
-!    a      - real: 2-d array such as analysis increment at analysis grids of a subdomain
-!    isli   - integer: 2-d array: surface mask (0 = water, 1 = land, 2 = sea ice) for grid of a
-!    dlat   - grid relative latitude (obs location) 
-!    dlon   - grid relative longitude (obs location)
+!    a      - real: 2-d array such as analysis increment at analysis grids
+!    isli   - integer: 2-d array: surface mask (0 = water, 1 = land, 2 = sea ice) for a grids
+!    alats  - real: 1-d array: the latitudes of a
+!    alons  - real: 1-d array: the logitudes of a
+!    nx     - integer: number of latitude of a
+!    ny     - integer: number of longitude of a
 !    istyp  - integer: surface type of point x
-!    mype   - mpi task id
+!    lat    - real: latitude of x 
+!    lon    - real: longitude of x 
 !    output argument list:
 !    x       - real: a variable (same type of a) at a single point 
 !$$$ end documentation block
 ! USES:
  use kinds, only: r_kind,i_kind,r_single
  use constants, only: zero,one,two
- use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat1,lat2
 
  implicit none
 
 ! INPUT:
- real   (r_kind), dimension(lat2,lon2), intent(in   ) :: a
- integer(i_kind), dimension(lat2,lon2), intent(in   ) :: isli
+ real   (r_kind), dimension(nx,ny), intent(in   ) :: a
+ integer(i_kind), dimension(nx,ny), intent(in   ) :: isli
 
- real   (r_kind), intent(in   ) :: dlat,dlon
- integer(i_kind), intent(in   ) :: istyp,mype
- integer(i_kind), intent(inout) :: nwsum,nfinal
+ real   (r_kind), dimension(nx), intent(in   ) :: alats
+ real   (r_kind), dimension(ny), intent(in   ) :: alons
+
+ integer(i_kind), intent(in   ) :: nx,ny,istyp,lat,lon
 
 !OUTPUT:
  real   (r_kind), intent(  out) :: x
 
 !Declare local variables
- integer(i_kind) :: ix1,iy1,ix,iy,ii,jj,ixa,iya,mm1
-
+ integer(i_kind) :: ix,iy,ii,jj,ixa,iya
+ integer(i_kind) :: nwsum,nfinal
  real(r_kind)    :: dx0,dx1,dx2,dx3,dy0,dy1,dy2,dy3,dx,dy,dr
  real(r_kind)    :: dx0s,dx1s,dx2s,dx3s,dy0s,dy1s,dy2s,dy3s
  real(r_kind)    :: ds00,ds01,ds02,ds03,ds10,ds11,ds12,ds13,ds20,ds21,ds22,ds23,ds30,ds31,ds32,ds33
- real(r_kind)    :: bavg,bout,wsum4,wsum16
+
+ real(r_kind)    :: bavg,bout,dlat,dlon,wsum4,wsum16
  real(r_kind), dimension(0:1,0:1) :: w4
  real(r_kind), dimension(0:3,0:3) :: w16
 
- mm1 = mype + 1
  dr = 8.0_r_kind    ! square of the search radius for 16-point cressman-type analysis
 
+ nwsum  = 0
+ nfinal = 0
  x=zero
 !
-! to get interpolated value of x with a (array) and mask info
+!to get interpolated value of x with a (array) and mask info
 !
- iy1 = int(dlon) 
- dy = dlon-iy1; dy1 = one-dy
- iy =iy1 - jstart(mm1) + 2
+ dlon = lon
+ call grdcrd1(dlon,alons,ny,1)
+ iy = int(dlon); dy = dlon-iy; dy1 = one-dy
+ iy = min(max(0,iy),ny); if(iy == 0) iy = ny
 
- if ( iy < 1 ) then
-    iy1 = iy1 + nlon
-    iy = iy1 - jstart(mm1) + 2
- endif
- if ( iy > lon1 + 1 ) then
-    iy1 = iy1 - nlon
-    iy  = iy1 - jstart(mm1) + 2
- endif
-
- ix1 = int(dlat)
- ix1 = max(1,min(ix1,nlat)) 
- dx  = dlat-ix1; dx1 = one-dx
-
- ix = ix1 - istart(mm1) + 2
+ dlat = lat
+ call grdcrd1(dlat,alats,nx,1)
+ ix = int(dlat); dx = dlat-ix; dx1 = one-dx
+ ix = min(max(1,ix),nx)
 
  w4(0,0) = dx1*dy1; w4(0,1) = dx1*dy; w4(1,0) = dx*dy1; w4(1,1) = dx*dy
 !
-! get the interpolated value with the nearby 4-grids (in a) which has
-! the identical surface mask (istyp for x) only
-!
+!get the interpolated value with the nearby 4-grids (in a) which has
+!the identical surface mask (istyp for x) only
 
  wsum4 = zero
  bavg  = zero
  bout  = zero
  do jj = 0, 1
-   iya = min(lon2,iy+jj)
+   iya = iy + jj
+   if ( iya == ny + 1 ) iya = 1
    do ii = 0, 1
-     ixa = min(lat2,ix+ii)
+     ixa = min(nx,ix + ii)
      bavg  = bavg + w4(ii,jj)*a(ixa,iya)
      if ( isli(ixa,iya) == istyp ) then
        wsum4 = wsum4 + w4(ii,jj)
@@ -321,7 +312,7 @@
 !  to perform a Cressman_type Analysis
 
    ix = ix -1; if(ix == 0) ix = 1
-   iy = iy -1; if(iy == 0) iy = 1
+   iy = iy -1; if(iy == 0) iy = ny
 
    dx0 = dx + one; dx1 = dx; dx2 = one - dx; dx3 = two - dx
    dy0 = dy + one; dy1 = dy; dy2 = one - dy; dy3 = two - dy
@@ -356,9 +347,12 @@
 
    wsum16 = zero
    do jj = 0, 3
-     iya = min(lon2,iy+jj)
+     iya = iy + jj
+     if ( iya == ny + 1 ) iya = 1
+     if ( iya == ny + 2 ) iya = 2
+     if ( iya == ny + 3 ) iya = 3
      do ii = 0, 3
-       ixa = min(lat2,ix + ii)
+       ixa = min(nx,ix + ii)
        if ( isli(ixa,iya) == istyp ) then
        wsum16  = wsum16  + w16(ii,jj)
        bout  = bout  + w16(ii,jj)*a(ixa,iya)
@@ -376,12 +370,8 @@
 
  x=bout
 
-! if ( nwsum > 0 ) then
-!    write(*,'(a,I4,I3,I5)') 'int21_msk_sub: Number of grids without specified adjacent surface type, mype,istyp,nwsum ; ', mype,istyp,nwsum
-! endif
-! if ( nfinal > 0 ) then
-!    write(*,'(a,I4,I3,I5)') 'int21_msk_sub: Number of grids without interpolted value, mype,istyp,nfinal ; ', mype,istyp,nfinal
-! endif
+ write(*,'(a,I3,I5)') 'No specified adjacent surface type,istyp,nwsum ; ',istyp,nwsum
+ write(*,'(a,I3,I5)') 'No interpolted value,istyp,nwsum ; ',istyp,nwsum
 
  end subroutine int21_msk_sub
 
@@ -469,91 +459,6 @@
   enddo                  ! do k = 1, nprep
 
  end subroutine int2_msk_glb_prep
-
- subroutine int2_msk_sub_prep(a,isli_a,b,isli_b,nx,ny,sfctyp_b,nprep)
-!$$$  subprogram documentation block
-!                .      .    .
-! subroutine:    int2_msk_sub_prep --- (subdomain 2-d array)
-!                for a specified surface type (sfctyp_b), expanding the area (grids) with this
-!                surface type using the surounded 8 grids with the same surface type
-!
-!  prgrmmr:     li -  initial version; org: np2
-!
-!  input argument list:
-!    a        - real: 2-d array
-!    isli_a   - integer: 2-d array: surface mask (0 = water, 1 = land, 2 = seaice) for a grids
-!    nx       - integer: number of grids in x-direction
-!    ny       - integer: number of grids in y-direction
-!    sfctyp_b - integer: the targeted surface type (0=water, 1=land, 2-sea ice)
-!    nprep    - integer: number of times to do the extension
-
-!
-!  output argument list:
-!    b        - real: 2-d array such as analysis increment at surface grids
-!    isli_b   - integer: 2-d array such as analysis surface mask
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
-! USES:
- use kinds, only: r_kind,i_kind,r_single
- use constants, only: zero,one,two
-
- implicit none
-
-! INPUT:
- real   (r_kind), dimension(nx,ny), intent(in   ) :: a
- integer(i_kind), dimension(nx,ny), intent(in   ) :: isli_a
- integer(i_kind),                   intent(in   ) :: nx,ny,sfctyp_b,nprep
-
-!OUTPUT:
- real   (r_kind), dimension(nx,ny), intent(  out) :: b
- integer(i_kind), dimension(nx,ny), intent(  out) :: isli_b
-
-!Declare local variables
- integer(i_kind) :: i,j,k,ii,jj,ix,iy,n
- real(r_kind)    :: bout
- real(r_kind),    dimension(nx,ny) :: wb
- integer(r_kind), dimension(nx,ny) :: wmsk
-
-!
-! Initialize b and isli_b
-!
-  b = a; isli_b = isli_a
-
-  do k = 1, nprep
-!
-! Initialize/update work array for the value and mask
-!
-    wb = b; wmsk  = isli_b
-!
-!   Loop over all grids of array b to update the grids nearby the sfctyp_b surface type
-!
-    do j = 1, ny
-      do i = 1, nx
-        if ( wmsk(i,j) /= sfctyp_b ) then
-          n = 0
-          bout = zero
-          do jj = j - 1, j + 1
-            do ii = i - 1, i + 1
-              iy = min(max(jj,1),ny)
-              ix = min(max(ii,1),nx)
-              if ( wmsk(ix,iy) == sfctyp_b ) then
-                n = n + 1
-                bout = bout + wb(ix,iy)
-              endif
-            enddo
-          enddo
-          if ( n > 0 ) then
-            b(i,j)      = bout/real(n)
-            isli_b(i,j) = sfctyp_b
-          endif
-        endif
-      enddo
-    enddo
-  enddo                  ! do k = 1, nprep
-
- end subroutine int2_msk_sub_prep
 
 !*******************************************************************************************
 subroutine dtzm_point(xt,xz,dt_cool,zc,z1,z2,dtzm)
