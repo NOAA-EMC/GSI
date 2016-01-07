@@ -17,11 +17,11 @@
 
 subroutine nst_init_()
 
-     use mpimod,           only: mype
+     use mpimod,      only: mype
      use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon
-     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use guess_grids, only: nfldnst, ntguesnst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                      c_0_full,c_d_full,w_0_full,w_d_full
      use mpeu_util,   only: die, perr
 
      implicit none
@@ -35,7 +35,6 @@ subroutine nst_init_()
      if(.not.allocated(c_d_full))     allocate(c_d_full     (nlat_sfc,nlon_sfc,nfldnst))
      if(.not.allocated(w_0_full))     allocate(w_0_full     (nlat_sfc,nlon_sfc,nfldnst))
      if(.not.allocated(w_d_full))     allocate(w_d_full     (nlat_sfc,nlon_sfc,nfldnst))
-     if(.not.allocated(nst_mask_full))allocate(nst_mask_full(nlat_sfc,nlon_sfc))
 
      if( ntguesnst < 1 .or. ntguesnst > nfldnst ) then 
             call perr('nst_init','ntguesnst = ',ntguesnst)
@@ -48,37 +47,25 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype)
+subroutine nst_set_(mype,mype_io)
 
-     use kinds,       only: r_kind,i_kind
-     use guess_grids, only: nfldnst, ntguesnst,ifilenst
+     use kinds,       only: i_kind
      use ncepgfs_io,  only: read_gfsnst
-     use satthin,     only: isli_full
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                      c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                      c_0_full,c_d_full,w_0_full,w_d_full
      implicit none
-     integer(i_kind),intent(in   ) :: mype
+     integer(i_kind),intent(in   ) :: mype,mype_io
 
-     integer(i_kind)               :: it
-     character(24)                    filename
-
-     nst_mask_full = isli_full
-
-     do it=1,nfldnst
-        write(filename,200)ifilenst(it)
-200  format('nstf',i2.2)
-        call read_gfsnst(filename,mype,tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
-                         dt_warm_full(1,1,it), z_w_full(1,1,it), &
-                         c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
-     end do
-
+     call read_gfsnst(mype_io,mype,tref_full,dt_cool_full,z_c_full, &
+                      dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+                         
 end subroutine nst_set_
 !*******************************************************************************************
 
 subroutine nst_final_ ()
 
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                  c_0_full,c_d_full,w_0_full,w_d_full
 
      if(allocated(tref_full))    deallocate(tref_full)
      if(allocated(dt_cool_full)) deallocate(dt_cool_full)
@@ -89,7 +76,6 @@ subroutine nst_final_ ()
      if(allocated(c_d_full))     deallocate(c_d_full)
      if(allocated(w_0_full))     deallocate(w_0_full)
      if(allocated(w_d_full))     deallocate(w_d_full)
-     if(allocated(nst_mask_full))deallocate(nst_mask_full)
 
 end subroutine nst_final_
 !*******************************************************************************************
@@ -128,7 +114,8 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      use guess_grids, only: nfldnst,hrdifnst
      use radinfo,     only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                  c_0_full,c_d_full,w_0_full,w_d_full, nst_mask_full
+                                  c_0_full,c_d_full,w_0_full,w_d_full
+     use satthin, only: isli_full
      implicit none
 
      real(r_kind), intent(in ) :: dlat_earth,dlon_earth,obstime,zob
@@ -193,10 +180,10 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 
 !    Set surface type flag.
 
-     istyp00 = nst_mask_full(ix ,iy )
-     istyp10 = nst_mask_full(ixp,iy )
-     istyp01 = nst_mask_full(ix ,iyp)
-     istyp11 = nst_mask_full(ixp,iyp)
+     istyp00 = isli_full(ix ,iy )
+     istyp10 = isli_full(ixp,iy )
+     istyp01 = isli_full(ix ,iyp)
+     istyp11 = isli_full(ixp,iyp)
 !
 !    Use the time interpolation factors for nst files
 !
@@ -367,22 +354,22 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
   tztr = one
 
   if ( dt_warm > zero .and.  c1 /= zero ) then
-     if ( z <= zc  ) then
-       tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
-     elseif ( z > zc .and. z < zw ) then
-       tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
-     endif
-   elseif ( dt_warm == zero .and. c2 /= zero ) then
-     if ( z <= zc ) then
-       tztr = (one-z*fac_tsl*c_d)/c2
-     endif
-   endif
+    if ( z <= zc  ) then
+      tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
+    elseif ( z > zc .and. z < zw ) then
+      tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
+    endif
+  elseif ( dt_warm == zero .and. c2 /= zero ) then
+    if ( z <= zc ) then
+      tztr = (one-z*fac_tsl*c_d)/c2
+    endif
+  endif
 
-   if ( tztr <= one .and. tztr > half ) then
-     tztr = tztr
-   else
-!    write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
-   endif
+  if ( tztr <= one .and. tztr > half ) then
+    tztr = tztr
+  else
+!   write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+  endif
 
 end subroutine cal_tztr_
 !*******************************************************************************************

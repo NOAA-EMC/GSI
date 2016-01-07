@@ -121,7 +121,10 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-  EXE_FILE = global_gsi
+#
+#  EXE_FILE_OLD  = global_gsi
+#  EXE_FILE = ../../exec/urma2p5_gsianl
+   EXE_FILE = global_gsi
 
 
 # --------------------
@@ -238,7 +241,16 @@ clean:
 	control2model.f90 \
 	control2state.f90 \
 	control_vectors.f90 \
-	converr.f90 \
+        converr.f90 \
+        converr_ps.f90 \
+        converr_q.f90 \
+        converr_t.f90 \
+        converr_uv.f90 \
+        converr_pw.f90 \
+        convb_ps.f90 \
+        convb_q.f90 \
+        convb_t.f90 \
+        convb_uv.f90 \
 	convinfo.f90 \
 	convthin.f90 \
 	convthin_time.f90 \
@@ -437,6 +449,7 @@ clean:
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
+        read_mitm_mxtm.f90 \
 	read_obsdiags.F90 \
 	read_wrf_mass_files.F90 \
 	read_wrf_mass_guess.F90 \

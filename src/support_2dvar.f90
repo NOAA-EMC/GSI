@@ -2328,6 +2328,8 @@ subroutine init_hilbertcurve(maxobs)
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
                     ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
+                    ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, & 
+                    ngrps_pmslob, ngrps_howvob, & 
                     ngrps_tcamtob,ngrps_lcbasob
 
   random_cvgrp=.false.

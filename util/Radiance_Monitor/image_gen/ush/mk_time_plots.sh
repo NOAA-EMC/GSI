@@ -82,7 +82,7 @@ fi
       fi
       ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
  
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
          mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
       fi
@@ -113,7 +113,7 @@ fi
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
-   elif [[ $MY_MACHINE = "zeus" ]]; then
+   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
 
@@ -167,7 +167,7 @@ fi
 
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       
-   else							# zeus/linux
+   else							# zeus||theia
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${SUFFIX}_tm_${sat}
@@ -222,7 +222,7 @@ fi
 
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
 
-      else						# zeus/linux
+      else						# zeus||theia
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
             jobname=plot_${SUFFIX}_tm_${sat}_${var}

@@ -35,5 +35,11 @@ elif [[ $MY_MACHINE = "zeus" ]]; then
    shell=sh
    . $MODULESHOME/init/$shell
    module load grads/2.0.1a
+elif [[ $MY_MACHINE = "theia" ]]; then
+   export GRADS=/apps/grads/2.0.1a/bin/grads
+   export STNMAP=/apps/grads/2.0.1a/bin/stnmap
+   shell=sh
+   . $MODULESHOME/init/$shell
+   module load grads/2.0.1a
 fi
 
