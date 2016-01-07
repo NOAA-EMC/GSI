@@ -556,6 +556,9 @@ subroutine read_obs(ndata,mype)
 !                        surface fields
 !   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-05-30  li     - modify for no radiance cases but sst (nsstbufr) and read processor for
+!                        surface fields (use_sfc = .true. for data type of sst),
+!                        to use deter_sfc in read_nsstbufr.f90)
 !   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
 !   
 !
@@ -605,7 +608,7 @@ subroutine read_obs(ndata,mype)
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv,ithin_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
-    use gsi_nstcouplermod, only: gsi_nstcoupler_set
+    use gsi_nstcouplermod, only: gsi_nstcoupler_set,gsi_nstcoupler_final
     use gsi_io, only: mype_io
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
@@ -1055,6 +1058,9 @@ subroutine read_obs(ndata,mype)
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
+          if(obstype == 'sst')then
+            use_sfc=.true.
+          endif
        else if(ditype(i) == 'rad' )then
           if(belong(i)) use_sfc=.true.
        end if
@@ -1126,14 +1132,13 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal nst fields from local fields in guess_grids/read it from nst file
     if (nst_gsi > 0) then
-      call gsi_nstcoupler_set(mype)         ! Set NST fields (each proc needs full NST fields)
-
-!     Create moored buoy station ID
-      call mbuoy_info(mype)
-
-!     Create ships info(ID, Depth & Instrument)
-      call read_ship_info(mype)
+      call gsi_nstcoupler_set(mype,mype_io_sfc)         ! Set NST fields (each proc needs full NST fields)
     endif
+!   Create moored buoy station ID
+    call mbuoy_info(mype)
+
+!   Create ships info(ID, Depth & Instrument)
+    call read_ship_info(mype)
 
 !   Loop over data files.  Each data file is read by a sub-communicator
     loop_of_obsdata_files: &
@@ -1254,7 +1259,7 @@ subroutine read_obs(ndata,mype)
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
-                        lunout,twind,sis)
+                        lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_NSSTBUFR'
                 elseif ( platid == 'mods') then
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
@@ -1580,6 +1585,8 @@ subroutine read_obs(ndata,mype)
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc
+!   Deallocate arrays containing full horizontal nsst fields
+    if (nst_gsi > 0) call gsi_nstcoupler_final()
 !   Sum and distribute number of obs read and used for each input ob group
     call mpi_allreduce(ndata1,ndata,ndat*3,mpi_integer,mpi_sum,mpi_comm_world,&
        ierror)

@@ -81,9 +81,7 @@ program getnstensmeanp
   do k=1,nanals
      new_group_members(k)=k-1
   end do
-  if (mype1 <= nanals) then
-     call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
-  endif
+  call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
   call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
   if (iret.ne.0) then
      write(6,*)'***ERROR*** after mpi_comm_create with iret=',iret

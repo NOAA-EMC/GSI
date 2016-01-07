@@ -146,7 +146,7 @@ allocate(ensmean_chunk(npts_max,ndim,nbackgrounds))
 allocate(ensmean_chunk_prior(npts_max,ndim,nbackgrounds))
 ensmean_chunk = 0.
 allocate(sendbuf(numproc*npts_max*ndim))
-allocate(recvbuf(nanals*npts_max*ndim))
+allocate(recvbuf(numproc*npts_max*ndim))
 
 ! send and receive buffers.
 do nb=1,nbackgrounds ! loop over time levels in background
@@ -223,7 +223,7 @@ do np=0,numproc-1
    end if
 enddo
 allocate(recvbuf(numproc*npts_max*ndim))
-allocate(sendbuf(nanals*npts_max*ndim))
+allocate(sendbuf(numproc*npts_max*ndim))
 
 t1 = mpi_wtime()
 do nb=1,nbackgrounds ! loop over time levels in background
@@ -262,7 +262,7 @@ deallocate(sendbuf,recvbuf)
 if (nproc == 0) then
    allocate(ensmean(npts,ndim,nbackgrounds))
 end if
-allocate(sendbuf(npts_max*ndim))
+allocate(sendbuf(npts*ndim))
 allocate(recvbuf(npts*ndim))
 if (nproc == 0) t1 = mpi_wtime()
 do nb=1,nbackgrounds

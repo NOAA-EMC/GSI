@@ -300,8 +300,8 @@ if (nproc == 0) then
       call stop2(19)
    end if
    if (numproc .lt. nanals+1) then
-      print *,'total number of mpi tasks must be >= nanals'
-      print *,'tasks, nanals = ',numproc,nanals
+      print *,'total number of mpi tasks must be >= nanals+1'
+      print *,'tasks, nanals+1 = ',numproc,nanals+1
       call stop2(19)
    endif
    if (datapath == ' ') then
