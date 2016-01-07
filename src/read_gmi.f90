@@ -34,6 +34,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         through. If the logical is set to false, the swath
 !                         edge obs are skipped in the read loop. 
 !   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
+!   2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,7 +76,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv,rearth
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
@@ -306,11 +307,11 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         iobsdate(1:5) = bfr1bhdr(1:5) !year,month,day,hour,min
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bfr1bhdr(6),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
+        sstime=real(nmind,r_kind) + real(bfr1bhdr(6),r_kind)*r60inv
+        tdiff=(sstime-gstime)*r60inv
+        if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + real(bfr1bhdr(6),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
            if(abs(tdiff) > twind) then 
              cycle read_loop             
            endif                        
@@ -427,7 +428,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            nread=nread + (nchanl - nchanla)
 
            flgch = 0
-           if (l4dvar) then
+           if (thin4d) then
               crit1 = 0.01_r_kind+ flgch
            else
               timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18

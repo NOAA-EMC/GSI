@@ -14,6 +14,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 !
 ! program history log:
 !   2015-04-03 Ling Liu    
+!   2015-09-17 Thomas  - add l4densvar and thin4d to data selection procedure
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -51,7 +52,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use mpimod, only: npe
   implicit none
@@ -457,11 +458,11 @@ loopd : do
            idate5(5) = hdrdat(6)     ! minutes
            call w3fs21(idate5,nmind)
            t4dv = real((nmind-iwinbgn),r_kind)*r60inv
-           if (l4dvar) then
+           sstime = real(nmind,r_kind) 
+           tdiff=(sstime-gstime)*r60inv
+           if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle loop_readsb 
            else
-              sstime = real(nmind,r_kind) 
-              tdiff=(sstime-gstime)*r60inv
               if (abs(tdiff)>twind) cycle loop_readsb 
            endif
 
@@ -582,7 +583,7 @@ loopd : do
               ntmp=ndata  ! counting moved to map3gridS
 
  !         Set data quality index for thinning
-              if (l4dvar) then
+              if (thin4d) then
                  timedif = zero
               else
                  timedif=abs(t4dv-toff)
