@@ -551,6 +551,8 @@ contains
 !
 ! program history log:
 !   2009-11-29   zhu
+!   2016-01-07   derber - apply the same preconditioning formula (for obs_count>3 or 20) 
+!                         to the cases with obs_count<=3 or 20 as well
 !
 ! attributes:
 !   language: f90
@@ -585,15 +587,13 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
+              if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>20.0_r_kind) then
-                 vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
                  if (rstats(j,i)>zero) then
                     varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
                  else
                     varA(j,i)=10000.0_r_kind
                  end if
-              else
-                 vprecond(nclen1+ii)=one
               end if
            end do
         end do
@@ -611,11 +611,9 @@ contains
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
 
+                if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
-                   vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
-                else
-                   vprecond(nclen1+ii)=one
                 end if
              end do
           end do
