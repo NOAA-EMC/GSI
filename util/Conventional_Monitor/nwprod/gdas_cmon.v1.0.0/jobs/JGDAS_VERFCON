@@ -104,19 +104,26 @@ mkdir -p -m 775 $TANKDIR_cmon
  
 env
 
-########################################
+#############################################################################
+#############################################################################
 # Set necessary environment variables
-########################################
+#  
+# Note:  The CMon used to use the pgrbanl grib file.  But at some point that
+#        file was changed and no longer includes the RHm2 field.  So at Su's  
+#        suggestion I modified the package to use the pgrbf00 grib file
+#        instead of pgrbanl.
+#############################################################################
+#############################################################################
 export CMON_AREA=${CMON_AREA:-glb}
 
 #export biascr=${biascr:-$COMIN/gdas1.t${CYC}z.abias}
 #export radstat=${radstat:-$COMIN/gdas1.t${CYC}z.radstat}
 export cnvstat=${cnvstat:-$COMIN/gdas1.t${CYC}z.cnvstat}
-export pgrbanl=${pgrbanl:-$COMIN/gdas1.t${CYC}z.pgrbanl}
+export pgrbf00=${pgrbf00:-$COMIN/gdas1.t${CYC}z.pgrbf00}
 export pgrbf06=${pgrbf06:-$COMIN/gdas1.t${CYC}z.pgrbf06}   # need 6 hrs prior to $CYC 
 
 echo "cnvstat = $cnvstat"
-echo "pgrbanl = $pgrbanl"
+echo "pgrbf00 = $pgrbf00"
 echo "pgrbf06 = $pgrbf06"
 
 msg="JOB HAS STARTED"

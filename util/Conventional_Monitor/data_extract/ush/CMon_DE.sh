@@ -22,9 +22,8 @@ set -ax
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  CMon_DE.sh suffix run_envir [pdate]"
+  echo "Usage:  CMon_DE.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            run_envir is either 'dev' or 'para'."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
 		    param is optional"
 }
@@ -34,7 +33,7 @@ function usage {
 #--------------------------------------------------------------------
 
 nargs=$#
-if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -50,10 +49,11 @@ export CMON_SUFFIX=$1
 #--------------------------------------------------------------------
 #  RUN_ENVIR:  can be either "dev" or "para".
 #--------------------------------------------------------------------
-export RUN_ENVIR=$2		
+#export RUN_ENVIR=$2		
+export RUN_ENVIR=${RUN_ENVIR:-"dev"}
 
-if [[ $nargs -ge 2 ]]; then
-   export PDATE=$3;
+if [[ $nargs -ge 1 ]]; then
+   export PDATE=$2;
    echo "PDATE set to $PDATE"
 fi
 
@@ -174,11 +174,11 @@ export DATA_IN=${WORKverf_cmon}
 
 #if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
 #   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
-#   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
+#   export pgrbf00=${DATDIR}/pgrbf00.gdas.${PDATE}.grib2
 #   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
 #else
 #   export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-#   export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
+#   export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
 #   export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 #fi
 
@@ -189,11 +189,12 @@ if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
-export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
-if [[ ! -s ${pgrbanl} ]]; then
-#   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
-   export pgrbanl=${DATDIR}/pgbanl.gdas.${PDATE}
-#   export pgrbanl=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
+#export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
+export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
+if [[ ! -s ${pgrbf00} ]]; then
+#   export pgrbf00=${DATDIR}/pgrbf00.gdas.${PDATE}.grib2
+   export pgrbf00=${DATDIR}/pgbanl.gdas.${PDATE}
+#   export pgrbf00=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
 fi
 
 export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
@@ -203,7 +204,7 @@ if [[ ! -s ${pgrbf06} ]]; then
    export pgrbf06=${DATDIR}/pgbf06.gdas.${GDATE}
 fi
 
-if [ -s $cnvstat  -a -s $pgrbanl ]; then
+if [ -s $cnvstat  -a -s $pgrbf00 ]; then
    #------------------------------------------------------------------
    #   Submit data extraction job.
    #------------------------------------------------------------------
@@ -217,14 +218,14 @@ if [ -s $cnvstat  -a -s $pgrbanl ]; then
          echo "ACCOUNT = $ACCOUNT"
          echo "jobname = $jobname"
          echo "C_LOGDIR= $C_LOGDIR" 
-         $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
+         $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
       fi
 
    else
       echo data not available, missing $pgrbf06 file
    fi
 else
-   echo data not available -- missing $cnvstat and/or $pgrbanl files
+   echo data not available -- missing $cnvstat and/or $pgrbf00 files
 fi
 
 

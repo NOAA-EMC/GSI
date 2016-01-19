@@ -11,6 +11,7 @@ echo "--> time_vert.sh"
 
 `pwd`
 
+rc=0
 export nregion=10
 
 # set up TANKDIR directories
@@ -24,25 +25,12 @@ export execfile=${EXECcmon}/conv_time.x
 export CYA=`echo $PDATE | cut -c9-10`
 
 
-gdate=`$NDATE -720 $PDATE`
+#gdate=`$NDATE -720 $PDATE`
 hour=`echo $PDATE | cut -c9-10`
 dday=`echo $PDATE | cut -c7-8`
 
 
-#----------------------------------------------------
-#  FIX NEEDED:  
-#     This needs to catch anything from gdate and older
-#
-#rm -f $savedir/*.${gdate}	# need better mechanism for savedir cleanup
-
-#mkdir $PDATE
-#cd $PDATE
-#cp $SCRIPTS/make_timesers_ctl.sh ./make_timesers_ctl.sh
-#cp $SCRIPTS/julian.sh ./julian.sh
-
-
-
-for cycle in ges  anl;do
+for cycle in ges anl;do
 
    rm -f ./conv_diag
    ln -s ./diag_conv_${cycle}.${PDATE} conv_diag
@@ -70,138 +58,31 @@ EOF
 
    mv stdout ${cycle}_stdout
 
+#   for type in u v; do
+#     cp ${cycle}_uv_stas.ctl ${cycle}_${type}_stas.ctl
+#   done
+
+   cp uv_stas.ctl u_stas.ctl
+   cp uv_stas.ctl v_stas.ctl
+
    for type in ps t q uv u v; do
 
       for file2 in ${type}*stas; do
-         mv $file2 ${savedir}/${cycle}_${file2}.${PDATE}
+         mv -f $file2 ${savedir}/${cycle}_${file2}.${PDATE}
       done
 
       for file3 in ${type}*stas.ctl; do
-         mv ${file3} ${savedir}/${cycle}_${file3}
+         mv -f ${file3} ${savedir}/${cycle}_${file3}
       done
 
 #      /bin/sh  make_timesers_ctl.sh ${gdate} ${PDATE} $savedir $cycle $type
 
    done
+
 done
 
-
-##for type in ps q t uv u v; do
-
-##   if [ "${type}"  = 'ps' ];then
-
-
-#
-#  make time plots
-#
-# PROBLEM:  no data out, not clear why
-
-#jobname="cmon_plot_t_ps_${SUFFIX}"
-#logfile="${LOGDIR}/plot_conv_time_ps_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time_ps.sh"
-#rm -f $logfile
-#
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#
-#fi
-
-#
-# PROBLEM:  no data out, not clear why
-#
-#jobname="cmon_plot_t_q_${SUFFIX}"
-#logfile="${LOGDIR}/plot_time_q_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time.sh q"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-#jobname="cmon_plot_t_t_${SUFFIX}"
-#logfile="${LOGDIR}/plot_conv_time_t_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time.sh t"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-#jobname="cmon_plot_t_uv_${SUFFIX}"
-#logfile="${LOGDIR}/plot_time_uv_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time.sh uv"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-#jobname="cmon_plot_t_u_${SUFFIX}"
-#logfile="${LOGDIR}/plot_time_u_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time.sh u"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-#jobname="cmon_plot_t_v_${SUFFIX}"
-#logfile="${LOGDIR}/plot_time_v_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_time.sh v"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-##
-##  make vertical plots
-##
-#jobname="cmon_plot_v_q_${SUFFIX}"
-#logfile="${LOGDIR}/plot_v_q_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_vert.sh q"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-#jobname="cmon_plot_v_t_${SUFFIX}"
-#logfile="${LOGDIR}/plot_v_t_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_vert.sh t"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-#jobname="cmon_plot_v_uv_${SUFFIX}"
-#logfile="${LOGDIR}/plot_v_uv_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_vert.sh uv"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-
-#jobname="cmon_plot_v_u_${SUFFIX}"
-#logfile="${LOGDIR}/plot_v_u_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_vert.sh u"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-#jobname="cmon_plot_v_v_${SUFFIX}"
-#logfile="${LOGDIR}/plot_v_v_${SUFFIX}.log"
-#pltfile="${SCRIPTS}/plot_vert.sh v"
-#rm -f $logfile
-#if [[ $MY_MACHINE == "wcoss" ]]; then
-#   $SUB -q $JOB_QUEUE -P $PROJECT -o $logfile -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-#fi
-
-##fi
-##done
 
 
 echo "<-- time_vert.sh"
 
-exit
+exit ${rc}

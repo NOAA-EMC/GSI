@@ -52,10 +52,19 @@ fi
 
 rm -f ${mtype}_${subtype}.tmp
 
+
 ##############################################
-#  Rename stdout file, move grads and 
-#  scatter files $TANKDIR_cmon
+#  Create the nt file, rename stdout, move nt,
+#  grads, and scatter files to $TANDIR_cmon
 ##############################################
+ntline=`tail -n1 stdout`
+nt=`echo ${ntline} | sed 's/^ *//g' | sed 's/ *$//g'`
+if [ ${#nt} = 1 ]; then
+   ntfile="nt_${mtype}_${subtype}.${PDATE}"
+   echo ${nt} > ${ntfile}
+   cp ${ntfile} ${TANKDIR_cmon}/horz_hist/${cycle}/.
+fi
+ 
 mv stdout stdout_diag2grads_${mtype}_${subtype}.$cycle
 dest_dir="${TANKDIR_cmon}/horz_hist/${cycle}"
 

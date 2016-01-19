@@ -30,8 +30,6 @@ nreal2_uv=`expr $nreal - 2`
 
 ctype=`echo ${mtype} | cut -c3-5`
 
-cd $tmpdir
-
 if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" = 'uv232' -o "$mtype" = 'uv233' -o "$mtype" = 'uv234' -o "$mtype" = 'uv235' -o "$mtype" = 'uv242' -o "$mtype" = 'uv243'  -o "$mtype" = 'uv245' -o "$mtype" = 'uv246' -o "$mtype" = 'uv247' -o "$mtype" = 'uv248' -o "$mtype" = 'uv249' -o "$mtype" = 'uv250' -o "$mtype" = 'uv251' -o "$mtype" = 'uv252' -o "$mtype" = 'uv253' -o "$mtype" = 'uv254' -o "$mtype" = 'uv255' -o "$mtype" = 'uv256' -o "$mtype" = 'uv257' -o "$mtype" = 'uv258' ]; then
 
    rm -f diag2grads
@@ -96,6 +94,18 @@ EOF
 fi
 
 ./diag2grads <input>stdout 2>&1 
+
+##############################################
+#  Create the nt file, rename stdout, move nt,
+#  grads, and scatter files to $TANDIR_cmon
+##############################################
+ntline=`tail -n1 stdout`
+nt=`echo ${ntline} | sed 's/^ *//g' | sed 's/ *$//g'`
+if [ ${#nt} = 1 ]; then
+   ntfile="nt_${mtype}_${subtype}.${PDATE}"
+   echo ${nt} > ${ntfile}
+   cp ${ntfile} ${TANKDIR_cmon}/horz_hist/${cycle}/.
+fi
 
 rm -f *tmp
 mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle} 

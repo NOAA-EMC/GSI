@@ -37,7 +37,7 @@
                      ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg)
 
 !  print *,'ituse=',ituse,gtross
-!  write(6, 'ituse,gross =', ituse,gtross
+  write(6, *) 'ituse, gtross = ', ituse, gtross
 
   if (ituse >0) call read_ps(nreal,mtype,fname,fileo,gtross,rlev) 
   if (ituse <0) call read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev) 
