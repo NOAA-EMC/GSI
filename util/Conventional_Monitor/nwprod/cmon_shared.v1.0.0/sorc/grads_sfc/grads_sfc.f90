@@ -47,7 +47,7 @@ if(iscater ==1) then
    close(51)
 endif
 
-if (igrads ==1) then 
+if (igrads ==1 .AND. nobs > 0) then 
 
   filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
 
@@ -94,7 +94,10 @@ if (igrads ==1) then
  
   close(21)
   close(11)
+else
+   write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
 endif
+
   deallocate(rdiag,cdiag)
   return 
   end

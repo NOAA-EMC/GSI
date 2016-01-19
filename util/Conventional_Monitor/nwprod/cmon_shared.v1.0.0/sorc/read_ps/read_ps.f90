@@ -22,10 +22,6 @@
   data bmiss/-999.0/ 
 
 
- 
-
-!  print *,'nreal=',nreal
-
   ncount=0
   rpress=bmiss
   ncount_vqc=0
@@ -39,6 +35,8 @@
      rewind(11)
      read(11) nobs,nreal_in
 !     print *, 'nobs=',nobs
+     write(6,*) 'nobs = ', nobs
+
      if (nreal /= nreal_in) then
       print *,'nreal_in,nreal ',nreal_in,nreal
       stop
@@ -64,6 +62,7 @@
 ! check weather data have duplicate
 
   call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+
 
  do  i=1,nobs
       if( rdiag(iweight,i) >= 0.0 .and. rdiag(imuse,i) >0.0 ) then

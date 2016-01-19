@@ -95,6 +95,7 @@ export C_IG_EXEC=${C_IG_EXEC:-${CMON_IMAGE_GEN}/exec}
 export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
 export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
 export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
+export C_IG_FIX=${C_IG_FIX:-${CMON_IMAGE_GEN}/fix}
 
 export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
 . $CMON_PARM/CMon.ver

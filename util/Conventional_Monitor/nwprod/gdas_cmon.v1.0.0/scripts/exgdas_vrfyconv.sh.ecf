@@ -68,11 +68,9 @@
 #
 #     programs   : $NDATE
 #
-#     fixed data : $SATANGL
-#
-#     input data : $biascr
-#                  $radstat
-#                  $biascr
+#     input data : $cnvstat
+#                  $pgrbf00
+#                  $pgrbf06
 #
 #     output data:  
 #
@@ -128,15 +126,16 @@ export GDATE=`$NDATE -06 $PDY$CYC`
 export PDYm6h=`echo $GDATE|cut -c1-8`
 export GCYC=`echo $GDATE|cut -c9-10`
 export C_COMINm6h=${C_COMINm6h:-${C_COM_IN}/${RUN}.${PDYm6h}}
+export TANKDIR_prev_cmon=${C_TANKDIR}/cmon.${PDYm6h}
 
 #  Filenames
 export cnvstat=${cnvstat:-${C_COMIN}/cnvstat.gdas.${PDATE}}
-export pgrbanl=${pgrbanl:-${C_COMIN}/gdas1.t${CYC}z.pgrbanl}
+export pgrbf00=${pgrbf00:-${C_COMIN}/gdas1.t${CYC}z.pgrbf00}
 export pgrbf06=${pgrbf06:-${C_COMINm6h}/gdas1.t${GCYC}z.pgrbf06}
 export convinfo=${convinfo:-${FIXgdascmon}/global_convinfo.txt}	
 						
 echo "cnvstat = $cnvstat"
-echo "pgrbanl = $pgrbanl"
+echo "pgrbf00 = $pgrbf00"
 echo "pgrbf06 = $pgrbf06"
 
 export INISCRIPT=${INISCRIPT}
@@ -147,7 +146,7 @@ export ENDSCRIPT=${ENDSCRIPT}
 #  Other variables
 export CMON_AREA=${CMON_AREA:-glb}
 #export USE_ANL=${USE_ANL:-1}
-export NCP=${NCP:-/bin/cp}
+export NCP=${NCP:-/bin/cp -f}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfyconv.sh.sms
 
@@ -163,17 +162,41 @@ fi
 cd $DATA
 export workdir=$DATA
 
-
+#--------------------------------------------------------
+#  Ensure necessary TANKDIR directories are in place
+#--------------------------------------------------------
 if [[ ! -d ${TANKDIR_cmon} ]]; then
-   mkdir -p $TANKDIR_cmon
+   mkdir -p ${TANKDIR_cmon}
 fi
+if [[ ! -d ${TANKDIR_prev_cmon} ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}
+fi
+
+if [[ ! -d ${TANKDIR_cmon}/horz_hist ]]; then
+   mkdir -p ${TANKDIR_cmon}/horz_hist
+   mkdir -p ${TANKDIR_cmon}/horz_hist/anl
+   mkdir -p ${TANKDIR_cmon}/horz_hist/ges
+fi
+if [[ ! -d ${TANKDIR_prev_cmon}/horz_hist ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist/anl
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist/ges
+fi
+
+if [[ ! -d ${TANKDIR_cmon}/time_vert ]]; then
+   mkdir -p ${TANKDIR_cmon}/time_vert
+fi
+if [[ ! -d ${TANKDIR_prev_cmon}/time_vert ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}/time_vert
+fi
+
 
 if [[ "$VERBOSE" = "YES" ]]; then
    if [[ -s ${cnvstat} ]]; then
       echo "$cnvstat is available"
    fi
-   if [[ -s ${pgrbanl} ]]; then
-      echo "$pgrbanl is available"
+   if [[ -s ${pgrbf00} ]]; then
+      echo "$pgrbf00 is available"
    fi
    if [[ -s ${pgrbf06} ]]; then
       echo "$pgrbf06 is available"
@@ -182,7 +205,7 @@ fi
 #####################################################################
 
 data_available=0
-if [[ -s ${cnvstat} && -s ${pgrbanl} && -s ${pgrbf06} ]]; then
+if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    data_available=1                                         
 
    #------------------------------------------------------------------
@@ -192,32 +215,72 @@ if [[ -s ${cnvstat} && -s ${pgrbanl} && -s ${pgrbf06} ]]; then
 
    export grib2=${grib2:-0}   
    $NCP $cnvstat ./cnvstat.$PDATE
-   $NCP $pgrbanl ./pgbanl.$PDATE
+   $NCP $pgrbf00 ./pgbanl.$PDATE
    $NCP $pgrbf06 ./pgbf06.$GDATE
 
    tar -xvf ./cnvstat.$PDATE
    $UNCOMPRESS ./*.${Z}
 
-   rm ./cnvstat.$PDATE
+#   rm ./cnvstat.$PDATE
 
    #------------------------------------------------------------------
-   #  Generate the anal.ctl and guess.ctl files for later plotting
+   #  NOTE:  The anal (really f00) and guess (really f06) grib files
+   #         contain more information than we need for the subsequent
+   #         image generation.  Use wgrib and awk to reduce the file
+   #         size.
+   #           
+   #  NOTE:  The f06 file is taken from the GDATE cycle (the previous 
+   #         cycle but is stored in TANKDIR in the 
+   #         cmon.$PDATE/horz_hist/ges subdirectory.
+   #  
+   #  NOTE:  In order to use the anal and guess files in GrADS we 
+   #         need an index (.idx) and control (.ctl) file.  These can
+   #         be created in the plot process and don't need to be 
+   #         stored.
    #------------------------------------------------------------------
    echo "grib2 = $grib2"
    if [[ $grib2 -eq 0 ]]; then
-      echo "using ${USHcmon}/grib2ctl.pl"
-      ${USHcmon}/grib2ctl.pl pgbanl.$PDATE > anal_${PDATE}.ctl
-#      gribmap -i anal.ctl -0
-      ${USHcmon}/grib2ctl.pl -verf pgbf06.$GDATE > guess_${GDATE}.ctl
-#      gribmap -i guess.ctl
+
+      wgrib -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbanl.${PDATE} -o ./pared_anal.${PDATE}
+#      ${USHcmon}/grib2ctl.pl pared_anal.$PDATE > pared_anal_${PDATE}.ctl
+
+#      echo "using ${USHcmon}/grib2ctl.pl"
+#      ${USHcmon}/grib2ctl.pl pgbanl.$PDATE > anal_${PDATE}.ctl
+
+  
+      wgrib -s pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbf06.${GDATE} -o ./pared_guess.${PDATE}
+#      ${USHcmon}/grib2ctl.pl pared_guess.$PDATE > pared_guess_${PDATE}.ctl
+
+#      echo "using ${USHcmon}/grib2ctl.pl"
+#      ${USHcmon}/grib2ctl.pl pgbf06.$GDATE > guess_${PDATE}.ctl
+#      gribmap -i anal_${PDATE}.ctl -0
+
+#      ${USHcmon}/grib2ctl.pl -verf pgbf06.$GDATE > guess_${PDATE}.ctl
+#      gribmap -i guess_${PDATE}.ctl 
    else
+      #---------------------
+      #  wgrib2 is untested
+      #---------------------
+      wgrib2 -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib2 -i -grib pgbanl.${PDATE} -o ./pared_pgbanl.${PDATE}
       echo "using g2ctl.pl"
-      ${USHcmon}/g2ctl.pl -0 pgbanl.$PDATE > anal_${PDATE}.ctl
-#      gribmap -0 -i anal.ctl
-      ${USHcmon}/g2ctl.pl pgbf06.$GDATE > guess_${GDATE}.ctl
-#      gribmap -i guess.ctl
+      ${USHcmon}/g2ctl.pl -0 pared_pgbanl.$PDATE > pared_anal_${PDATE}.ctl
+#      gribmap -0 -i anal_${PDATE}.ctl
+      ${USHcmon}/g2ctl.pl pared_pgbf06.$GDATE > guess_${GDATE}.ctl
+#      gribmap -i guess_${PDATE}.ctl
    fi
 
+   ${NCP} ./pared_anal.${PDATE} ${TANKDIR_cmon}/horz_hist/anl/anal.${PDATE}
+   ${NCP} ./pared_guess.${PDATE} ${TANKDIR_cmon}/horz_hist/ges/guess.${PDATE}
+
+#   cp anal_*.ctl ${TANKDIR_cmon}/horz_hist/anl/.
+#   cp pared_pgbanl.${PDATE} ${TANKDIR_cmon}/horz_hist/anl/pgbanl.${PDATE}
+#   cp pgbanl.${PDATE}.idx ${TANKDIR_cmon}/horz_hist/anl/.
+
+#   cp guess_*.ctl ${TANKDIR_cmon}/horz_hist/ges/.
+#   cp pared_pgbf06.${PDATE} ${TANKDIR_cmon}/horz_hist/ges/.
+#   cp pgbf06.${PDATE}.idx ${TANKDIR_cmon}/horz_hist/ges/.
+   
+ 
    #------------------------------------------------------------------
    #   Run the child sccripts.
    #    -->  get unique rc values for each child, use in error reporting below
@@ -228,12 +291,14 @@ if [[ -s ${cnvstat} && -s ${pgrbanl} && -s ${pgrbf06} ]]; then
    #
    ${USHcmon}/horz_hist.sh # ${PDATE}
    rc_horz_hist=$?
+   echo "rc_horz_hist = $rc_horz_hist"
 
    #---------------------------------------
    #  run the time-vert extraction script
    #
    ${USHcmon}/time_vert.sh 
    rc_time_vert=$?
+   echo "rc_time_vert = $rc_time_vert"
 
 fi
 
@@ -245,8 +310,10 @@ err=0
 if [[ ${data_available} -ne 1 ]]; then
    err=1
 elif [[ $rc_horz_hist -ne 0 ]]; then
+   echo "ERROR repored from horz_hist.sh:  $rc_horz_hist"
    err=$rc_horz_hist
 elif [[ $rc_time_vert -ne 0 ]]; then
+   echo "ERROR repored from time_vert.sh:  $rc_time_vert"
    err=$rc_time_vert
 fi
 

@@ -1,0 +1,21 @@
+#
+#  Conventional Monitor package user settings file
+#
+
+echo "begin CMon_user_settings"
+
+
+#################################################################
+#   The grib2 flag indicates if the data files are in 
+#     grib2 format (1) or grib (0)
+#################################################################
+export grib2=0
+
+#################################################################
+#  RUN_ONLY_ON_DEV limits use to dev machine only (1) 
+#    or allow to run on prod (0)
+#################################################################
+export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
+
+
+echo "end CMon_user_settings"

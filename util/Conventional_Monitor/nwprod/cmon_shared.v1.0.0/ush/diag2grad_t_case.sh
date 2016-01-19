@@ -69,6 +69,7 @@ EOF
 
 ./diag2grads <input>stdout 2>&1 
 
+
 rm -f *tmp
 mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle}
 

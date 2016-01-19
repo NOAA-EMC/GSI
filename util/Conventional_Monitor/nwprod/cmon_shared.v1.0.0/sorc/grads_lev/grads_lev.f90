@@ -61,7 +61,7 @@
  endif
 
 
-if (igrads ==1)  then 
+if (igrads ==1 .AND. nobs > 0)  then 
 
   print *, rdiag(1,1),rdiag(2,1),rdiag(3,1),rdiag(4,1),rdiag(5,1),&
            rdiag(6,1),rdiag(7,1),rdiag(8,1),rdiag(9,1),rdiag(10,1)
@@ -108,7 +108,10 @@ if (igrads ==1)  then
  
   close(31)
 
+else
+   write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
 endif
+
  deallocate(rdiag,cdiag)
   return 
   end
