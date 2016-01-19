@@ -45,6 +45,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  li      - add ntguessfc to use guess_grids to apply intrp2a11 correctly
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-05-30  li     - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -64,17 +65,17 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: dsfct,ntguessfc
+  use guess_grids, only: dsfct,ntguessfc,isli2,hrdifnst,nfldnst
   use obsmod, only: ssthead,ssttail,rmiss_single,i_sst_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: sst_ob_type
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
-  use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
+  use gridmod, only: nlat,nlon,istart,jstart,lon1,lat1,lon2,lat2,nsig
   use gridmod, only: get_ij
-  use constants, only: zero,tiny_r_kind,one,half,wgtlim, &
-            two,cg_term,pi,huge_single,r1000
+  use constants, only: zero,tiny_r_kind,one,quarter,half,wgtlim, &
+            two,cg_term,pi,huge_single,r1000,tfrozen
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -83,6 +84,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
+  integer(i_kind),parameter:: istyp=0,nprep=1
 ! Declare passed variables
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
@@ -98,7 +100,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   real(r_double) rstation_id
 
-  real(r_kind) sstges,dlat,dlon,ddiff,dtime,error,dsfct_obx
+  real(r_kind) sstges,dlat,dlon,ddiff,dtime,error,dsfct_obx,owpct
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,halfpi,rwgt
@@ -108,17 +110,19 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nele,nobs):: data
+  real(r_kind),dimension(lat2,lon2):: dsfct_tmp
+  integer(i_kind),dimension(lat2,lon2):: isli2_tmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   real(r_kind) :: tz_tr,zob,tref,dtw,dtc
 
-  integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc
+  integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc,itemp,ipct
   integer(i_kind) ier2,iuse,izob,itref,idtw,idtc,itz_tr,iotype,ilate,ilone,istnelv
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
   integer(i_kind) istat,id_qc
   integer(i_kind) idomsfc,itz
-  integer(i_kind) idatamax
+  integer(i_kind) idatamax,nwsum,nfinal,nobs_qc
   
   logical,dimension(nobs):: luse,muse
 
@@ -150,11 +154,11 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   id=5        ! index of station id
   itime=6     ! index of observation time in data array
   ikxx=7      ! index of ob type
-  imaxerr=8   ! index of sst max error
+  itemp=8     ! index of open water temperature (background)
   izob=9      ! index of flag indicating depth of observation
   iotype=10   ! index of measurement type
-  iqc=11      ! index of qulaity mark
-  ier2=12     ! index of original-original obs error ratio
+  ipct=11     ! index of open water percentage
+  ier2=12     ! index of original obs error
   iuse=13     ! index of use parameter
   idomsfc=14  ! index of dominant surface type
   itz=15      ! index of temperature at depth z (Tz)
@@ -177,6 +181,10 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
+  nobs_qc=0
+  nwsum=0
+  nfinal=0
 
   dup=one
   do k=1,nobs
@@ -222,6 +230,11 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
       dtw   = data(idtw,i)
       dtc   = data(idtc,i)
       tz_tr = data(itz_tr,i)
+    else
+      tref  = data(itz,i)
+      dtw   = zero
+      dtc   = zero
+      tz_tr = one
     end if
 
 if(in_curbin) then
@@ -231,6 +244,7 @@ if(in_curbin) then
      ikx  = nint(data(ikxx,i))
      error=data(ier2,i)
      isli=data(idomsfc,i)
+     owpct=data(ipct,i)
 endif
 
 !    Link observation to appropriate observation bin
@@ -294,23 +308,24 @@ if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
      if ( isli == 0 ) then
+       nobs_qc = nobs_qc + 1
        call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
-!      call intrp2a11_msk(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
+
      else
        dsfct_obx = zero
      endif
 
      if(nst_gsi > 1) then
-       sstges = max(tref+dtw-dtc+dsfct_obx, 271.0_r_kind)
+       sstges = max(tref+dtw-dtc+dsfct_obx, tfrozen)
      else
-       sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
+       sstges = max(data(itz,i)+dsfct_obx, tfrozen)
      end if
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
 
-     if(isli > 0 ) error = zero
+     if(owpct == 0 ) error = zero
 
      ddiff=data(isst,i)-sstges
 
@@ -451,11 +466,11 @@ if(.not.in_curbin) cycle
         rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
-        rdiagbuf(6,ii)  = rmiss_single       ! observation pressure (hPa)
+        rdiagbuf(6,ii)  = data(itemp,i)      ! background open water temperature (K)
         rdiagbuf(7,ii)  = data(izob,i)       ! observation depth (meters)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
-        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+        rdiagbuf(9,ii)  = data(ipct,i)       ! open water percentage (0 to 1)
         rdiagbuf(10,ii) = id_qc              ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
@@ -486,8 +501,8 @@ if(.not.in_curbin) cycle
  
         rdiagbuf(17,ii) = data(isst,i)       ! SST observation (K)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = data(isst,i)-sstges! obs-ges w/o bias correction (K) (future slot)
- 
+        rdiagbuf(19,ii) = data(itz,i)        ! background open water temperature at zob (K)
+
         rdiagbuf(20,ii) = data(iotype,i)     ! type of measurement
 
         if ( nst_gsi > 0 ) then
@@ -522,7 +537,6 @@ if(.not.in_curbin) cycle
         endif
  
      end if
-
 
   end do                    ! do i=1,nobs
 
