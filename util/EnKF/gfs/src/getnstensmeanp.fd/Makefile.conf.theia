@@ -31,7 +31,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   PROF= #-pg
   OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
+  FFLAGS_F90    = -convert big_endian -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
   FFLAGS_COM_N  = -I $(INCsfcio)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
