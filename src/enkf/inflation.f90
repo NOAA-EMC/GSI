@@ -195,7 +195,8 @@ if (smoothparm .gt. zero) then
       print *,'min/max var 2 inflation = ',minval(covinfglobal(:,nlevs+1:2*nlevs)),maxval(covinfglobal(:,nlevs+1:2*nlevs))
       print *,'min/max var 3 inflation = ',minval(covinfglobal(:,2*nlevs+1:3*nlevs)),maxval(covinfglobal(:,2*nlevs+1:3*nlevs))
       if (nvarhumid .gt. 0) then
-      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
+      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),&
+           maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
       endif
       print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
       ! write out inflation.

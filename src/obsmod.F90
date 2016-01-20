@@ -2748,8 +2748,10 @@ iamroot_=mype==0
 if(present(iamroot)) iamroot_=iamroot 
 
 ! load file
+write(6,*) 'myid is ',mype,' before opening file ',rcname 
 if (present(rcname)) then
    luin=get_lun()
+   write(6,*) 'myid is ',mype,' opening file ',rcname,' with lun = ',luin
    open(luin,file=trim(rcname),form='formatted')
 else
    luin=5
