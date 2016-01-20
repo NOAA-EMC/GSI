@@ -116,7 +116,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare external calls for code analysis
   external:: intrp2a
-  external:: tintrp2a
+  external:: tintrp2a1
   external:: tintrp3
   external:: grdcrd1
   external:: stop2
@@ -480,7 +480,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
-        else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
+        else if (vqc  .and. (cvar_pg(ikx)> tiny_r_kind) .and. (error >tiny_r_kind)) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_ps=cvar_b(ikx)

@@ -749,7 +749,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
-        else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
+        else if (vqc .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_t=cvar_b(ikx)
