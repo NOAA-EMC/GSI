@@ -371,7 +371,7 @@ subroutine get_gefs_ensperts_dualres
 ! Convert to mean
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
-!$omp parallel do schedule(dynamic,1) private(i,j,n,m,ic2,ipic)
+!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
   do m=1,ntlevs_ens
      do i=1,nelen
         en_bar(m)%values(i)=en_bar(m)%values(i)*bar_norm
@@ -393,7 +393,27 @@ subroutine get_gefs_ensperts_dualres
    
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,m)%valuesr4(i)=(en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
+           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i)
+        end do
+        if(.not. q_hyb_ens) then
+          do ic3=1,nc3d
+
+             ipic=ipc3d(ic3)
+
+             if(trim(cvars3d(ic3)) == 'q' .or. trim(cvars3d(ic3)) == 'Q')then
+                do k=1,km
+                   do j=1,jm
+                      do i=1,im
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,m)%r3(ipic)%qr4(i,j,k),1._r_single)
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,m)%r3(ipic)%qr4(i,j,k),-1._r_single)
+                      end do
+                   end do
+                end do
+             end if
+          end do
+        end if
+        do i=1,nelen
+           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)*sig_norm
         end do
      end do
   end do
