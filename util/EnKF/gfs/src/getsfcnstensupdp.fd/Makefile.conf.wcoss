@@ -7,6 +7,7 @@
 
 SFCIO_VERSION = 1.0.0
 W3NCO_VERSION = 2.0.6
+SP_VERSION = 2.0.1
 
 COREINC  = /nwprod/lib/incmod
 CORELIB  = /nwprod/lib
@@ -29,7 +30,7 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
   PROF= 
   OMP = 
 
-  FFLAGS_F90    = 
+  FFLAGS_F90    = -D_REAL8_
   FFLAGS_COM_N  = -I ./ -I $(INCsfcio) -O3 -fp-model strict -convert big_endian -assume byterecl \
   		-implicitnone
   FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
@@ -59,10 +60,10 @@ INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3nco_v$(W3NCO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4
+  LIBS_N        = -L$(CORELIB)  -lsp_v$(SP_VERSION)_d -lw3nco_v$(W3NCO_VERSION)_4 -lsfcio_v$(SFCIO_VERSION)_4
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 
