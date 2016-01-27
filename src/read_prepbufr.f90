@@ -129,6 +129,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset  number from fixed number to
 !                        dynamic allocated array
+!   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -231,7 +232,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
 
 ! Declare local variables
-  logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob
+  logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob,cldchob
   logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
   logical sfctype
@@ -242,7 +243,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
-  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqstr,cld2seqstr
+  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqstr,cld2seqstr,cldceilhstr
   character(40) maxtmintstr,owavestr
   character(80) obstr
   character(10) date
@@ -264,7 +265,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs,cldseqlevs,cld2seqlevs
   integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
-  integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm,tdqm,mxtmqm,mitmqm,howvqm
+  integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm,tdqm,mxtmqm,mitmqm,howvqm,cldchqm
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) ntmp,iout
@@ -293,7 +294,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
-  real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe
+  real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe,cldchoe
   real(r_kind) selev,elev,stnelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00
@@ -328,6 +329,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(4,1) :: goescld
   real(r_double),dimension(2,255):: maxtmint
   real(r_double),dimension(1,255):: owave
+  real(r_double),dimension(1,255):: cldceilh   !MPondeca
   real(r_double),dimension(1):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
   real(r_double),dimension(1,255):: levdat
@@ -364,6 +366,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
   data maxtmintstr  /'MXTM MITM'/
   data owavestr  /'HOWV'/
+  data cldceilhstr /'CEILING'/
 
   data lunin / 13 /
   data ithin / -9 /
@@ -412,10 +415,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   goesctpobs = obstype == 'gos_ctp'
   tcamtob = obstype == 'tcamt'
   lcbasob = obstype == 'lcbas'
+  cldchob = obstype == 'cldch'
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob .or. &
             tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob .or. &
-            tcamtob .or. lcbasob
+            tcamtob .or. lcbasob .or. cldchob
   aircraftobst=.false.
   if(tob)then
      nreal=25
@@ -457,6 +461,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      nreal=20
   else if(lcbasob) then
      nreal=23
+  else if(cldchob) then
+     nreal=18
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR ',obstype
      call stop2(94)
@@ -971,6 +977,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (twodvar_regional) then
               if (mxtmob .or. mitmob) call ufbint(lunin,maxtmint,2,255,levs,maxtmintstr)
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
+              if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)   !MPondeca, 20Jul2015
            endif
            if(kx==224 .and. newvad) then
            call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
@@ -1505,6 +1512,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(howvob) then
                  howvqm=0                    !fix this / MPondeca
                  qm=howvqm
+              else if(cldchob) then
+                 cldchqm=0                    !fix this /MPondeca
+                 qm=cldchqm
               else if(metarcldobs) then
                  qm=0      
               else if(goesctpobs) then
@@ -1723,6 +1733,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (mxtmob  .and. maxtmint(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
               if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
               if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
+              if (cldchob  .and. cldceilh(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
 
               if (sfctype) then 
                  if (i_gsdsfc_uselist==1 ) then
@@ -1823,6 +1834,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Winds 
               else if(uvob) then 
                  call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 if (obstype == 'wspd10m') obserr(5,k)=(three/four)*obserr(5,k)
                  woe=obserr(5,k)*errout
                  if (inflate_error) woe=woe*r1_2
                  if(obsdat(1,k) < r50)woe=woe*r1_2
@@ -1939,7 +1951,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
                     cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
-                 if (obstype == 'wspd10m') cdata_all(7,iout)=sqrt(uob*uob+vob*vob)
  
               else if(spdob) then 
                  woe=obserr(5,k)
@@ -2507,6 +2518,33 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                     cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  end if
+
+!             Cloud ceiling height
+              else if(cldchob) then
+
+                 cldchoe=4000.0  ! temporarily
+                 if (inflate_error) cldchoe=cldchoe*r1_2
+
+                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error (m)
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=cldceilh(1,k)           ! cloud ceiling height obs
+                 cdata_all(5,iout)=rstation_id             ! station id
+                 cdata_all(6,iout)=t4dv                    ! time
+                 cdata_all(7,iout)=nc                      ! type
+                 cdata_all(8,iout)=cldchoe*three           ! max error
+                 cdata_all(9,iout)=cldchqm                 ! quality mark
+                 cdata_all(10,iout)=usage                  ! usage parameter
+                 if (lhilbert) thisobtype_usage=10         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
+                 cdata_all(11,iout)=idomsfc                ! dominate surface type
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(14,iout)=stnelev                ! station elevation (m)
+                 cdata_all(15,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(16,iout)=zz                     ! terrain height at ob location
+                 cdata_all(17,iout)=r_prvstg(1,1)          ! provider name
+                 cdata_all(18,iout)=r_sprvstg(1,1)         ! subprovider name
+
               end if
 
 !

@@ -315,6 +315,7 @@ end subroutine berror_read_bal_reg
 !       10Jun14 Zhu - tune error variance and correlation lengths of cw for
 !                     all-sky radiance assimilation
 !       19Jun14 carley/zhu - add tcamt and lcbas
+!       10Jul15 pondeca - add cldch
 !
 !EOP ___________________________________________________________________
 
@@ -341,7 +342,7 @@ end subroutine berror_read_bal_reg
 
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf3_vp,nrf2_sst
   integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_ps,nrf2_wspd10m
-  integer(i_kind) :: nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
+  integer(i_kind) :: nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas,nrf2_cldch
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
@@ -540,6 +541,7 @@ end subroutine berror_read_bal_reg
   nrf3_vpwter =getindex(cvars3d,'vpwter')
   nrf2_tcamt=getindex(cvars2d,'tcamt')
   nrf2_lcbas=getindex(cvars2d,'lcbas')
+  nrf2_cldch=getindex(cvars2d,'cldch')
 
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
@@ -703,6 +705,15 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
+     end if
+     if (n==nrf2_cldch) then
+        do i=1,mlat
+           corp(i,n)=40000.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_t)
+        end do
+        print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
      end if
 
   enddo

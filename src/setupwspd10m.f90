@@ -36,7 +36,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl,fact10,nfldsfc, &
-               hrdifsfc,geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10     
+               hrdifsfc,geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
   use obsmod, only: wspd10mhead,wspd10mtail,rmiss_single,i_wspd10m_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: wspd10m_ob_type
@@ -44,13 +44,13 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
-  use gridmod, only: get_ij,twodvar_regional
+  use gridmod, only: get_ij,twodvar_regional,regional
   use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,rd,grav,&
-            two,cg_term,three,four,ten,huge_single,r1000,rad2deg,r3600,&
+            two,cg_term,three,four,five,ten,huge_single,r1000,rad2deg,r3600,&
             grav_ratio,flattening,grav,deg2rad,grav_equator,somigliana, &
             semi_major_axis,eccentricity
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: dfact,dfact1,npres_print,qc_satwnds
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
@@ -71,37 +71,48 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_7=0.7_r_kind
+  real(r_kind),parameter:: r6=6.0_r_kind
+  real(r_kind),parameter:: r20=20.0_r_kind
+  real(r_kind),parameter:: r360=360.0_r_kind
   character(len=*),parameter:: myname='setupwspd10m'
 
 ! Declare local variables
   
+  integer(i_kind) num_bad_ikx
+
   real(r_double) rstation_id
 
-  real(r_kind) wspd10mges,dlat,dlon,ddiff,dtime,error,r0_001,thirty
-  real(r_kind) scale,val2,rsig,rsigp,ratio,ressw2,ress,residual
-  real(r_kind) obserrlm,obserror,val,valqc,rlow,rhgh,drpx
+  real(r_kind) spdges,dlat,dlon,ddiff,dtime,error,prsln2,r0_001,thirty
+  real(r_kind) scale,val2,rsig,rsigp,ratio,ressw2,ress,residual,dudiff,dvdiff
+  real(r_kind) obserrlm,obserror,val,valqc,dx10,rlow,rhgh,drpx,prsfc
   real(r_kind) term,rwgt
   real(r_kind) cg_wspd10m,wgross,wnotgross,wgt,arg,exp_arg,rat_err2,qcgross
-  real(r_kind) presw,factw,dpres,sfcchk
-  real(r_kind) ratio_errors,tfact,fact,wflate,psges,goverrd,zsges
-  real(r_kind) slat,sin2,termg,termr,termrg,pobl
-  real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,dstn
+  real(r_kind) presw,factw,dpres,sfcchk,ugesin,vgesin,dpressave
+  real(r_kind) ugesin_scaled,vgesin_scaled
+  real(r_kind) qcu,qcv
+  real(r_kind) ratio_errors,tfact,fact,wflate,psges,goverrd,zsges,spdob
+  real(r_kind) slat,sin2,termg,termr,termrg,pobl,uob,vob
+  real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
+  real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
+  real(r_kind) ascat_vec
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,zges
+  real(r_kind),dimension(nsig)::prsltmp,zges,tges
+  real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
 
-  integer(i_kind) ier,ier2,ilon,ilat,ihgt,iuob,iwspd10m,ipres,id,itime,ikx,iqc
+  integer(i_kind) ier,ier2,ilon,ilat,ihgt,iuob,ivob,ipres,id,itime,ikx,iqc
   integer(i_kind) iuse,ilate,ilone,ielev,izz,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
+  integer(i_kind) i,nchar,nreal,k,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj,itype
   integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   
   logical,dimension(nobs):: luse,muse
+  logical lowlevelsat
   logical proceed
 
   character(8) station_id
@@ -121,9 +132,12 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
   
-  real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
-  real(r_kind),allocatable,dimension(:,:,:) :: ges_z         !will probably need at some point
-  real(r_kind),allocatable,dimension(:,:,:) :: ges_wspd10m
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z         !will probably need at some point
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_wspd10m
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -136,7 +150,10 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
+  spdb=zero
+
   read(lunin)data,luse
+
 !  index information for data array (see reading routine)
   ier=1       ! index of obs error
   ilon=2      ! index of grid relative obs location (x)
@@ -144,7 +161,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ipres=4     ! index of pressure
   ihgt=5      ! index of observation elevation
   iuob=6      ! index of u observation
-  iwspd10m=7  ! index of wspd10m observation
+  ivob=7      ! index of wspd10m observation
   id=8        ! index of station id
   itime=9     ! index of observation time in data array
   ikxx=10     ! index of ob type
@@ -180,6 +197,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      do l=k+1,nobs
         if(data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
+           data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
 
@@ -214,6 +232,12 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         dlon=data(ilon,i)
 
         ikx  = nint(data(ikxx,i))
+        if(ikx < 1 .or. ikx > nconvtype) then
+           num_bad_ikx=num_bad_ikx+1
+           if(num_bad_ikx<=10) write(6,*)' in setupwspd10m, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype
+           cycle
+        end if
+
         error=data(ier2,i)
         isli=data(idomsfc,i)
      endif
@@ -277,10 +301,19 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
+!    Load observation error and values into local variables
+     obserror = max(cermin(ikx),min(cermax(ikx),data(ier,i)))    !OUT / MPondeca
+     uob = data(iuob,i)
+     vob = data(ivob,i)
+     spdob=sqrt(uob*uob+vob*vob)
+
 ! Interpolate to get wspd10m at obs location/time
-     call tintrp2a11(ges_wspd10m,wspd10mges,dlat,dlon,dtime,hrdifsig,&
+     call tintrp2a11(ges_wspd10m,spdges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
 
+     itype=ictype(ikx)
+
+   GOTO 1111
 !   Process observations with reported height
     drpx = zero
     dpres = data(ihgt,i)
@@ -369,7 +402,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              factw = term*factw
           end if
        end if
-       wspd10mges=factw*wspd10mges
+       spdges=factw*spdges
     endif
 
 !   Compute observation pressure (only used for diagnostics & for type 2**)
@@ -410,6 +443,55 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     sfcchk=zero
     call grdcrd1(sfcchk,zges,nsig,1)
 
+1111  CONTINUE
+
+!    Process observations with reported pressure
+        dpres = data(ipres,i)
+        presw = ten*exp(dpres)
+        dpres = dpres-log(psges)
+        drpx=zero
+
+        prsfc=psges
+        prsln2=log(exp(prsltmp(1))/prsfc)
+        dpressave=dpres
+
+!       Put obs pressure in correct units to get grid coord. number
+        dpres=log(exp(dpres)*prsfc)
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
+ 
+!       Interpolate guess u and v to observation location and time.
+ 
+        call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,mype,nfldsig)
+        call tintrp31(ges_v,vgesin,dlat,dlon,dpres,dtime, &
+           hrdifsig,mype,nfldsig)
+        if(dpressave <= prsln2)then
+           factw=one
+        else
+           factw = data(iff10,i)
+           if(sfcmod_gfs .or. sfcmod_mm5) then
+              sfcr = data(isfcr,i)
+              skint = data(iskint,i)
+              call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
+           end if
+ 
+           call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+              nsig,mype,nfldsig)
+!          Apply 10-meter wind reduction factor to guess winds
+           dx10=-goverrd*ten/tges(1)
+           if (dpressave < dx10)then
+              term=(prsln2-dpressave)/(prsln2-dx10)
+              factw=one-term+factw*term
+           end if
+           ugesin=factw*ugesin   
+           vgesin=factw*vgesin
+ 
+        end if
+       
+!       Get approx k value of sfc by using surface pressure
+        sfcchk=log(psges)
+        call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
+
 !    Checks based on observation location relative to model surface and top
      rlow=max(sfcchk-dpres,zero)
      rhgh=max(dpres-r0_001-rsigp,zero)
@@ -422,13 +504,83 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Adjust observation error
      wflate=zero
      if (ictype(ikx)==288 .or. ictype(ikx)==295) then
-       if (data(iwspd10m,i)<one .and. wspd10mges >=ten ) wflate=four*data(ier,i) ! Tyndall/Horel type QC
+       if (spdob<one .and. spdges >=ten ) wflate=four*data(ier,i) ! Tyndall/Horel type QC
      endif
+
+
      ratio_errors=error/(data(ier,i)+drpx+wflate+1.0e6*rhgh+four*rlow)
+
+!    Invert observation error
      error=one/error
 
+!    Check to see if observation below model surface or above model top.
+!    If so, don't use observation
+     if (dpres > rsig )then
+        if( regional .and. presw > pt_ll )then
+           dpres=rsig
+        else
+           ratio_errors=zero
+        endif
+     endif
+
 !    Compute innovations
-     ddiff=data(iwspd10m,i)-wspd10mges
+     lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
+                 itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
+                 itype==253.or.itype==254.or.itype==257.or.itype==258.or. &
+                 itype==259
+     if (lowlevelsat .and. twodvar_regional) then
+         call windfactor(presw,factw)
+         data(iuob,i)=factw*data(iuob,i)
+         data(ivob,i)=factw*data(ivob,i)
+         uob = data(iuob,i)
+         vob = data(ivob,i)
+     endif
+     dudiff=uob-ugesin
+     dvdiff=vob-vgesin
+     spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
+
+     ddiff=spdob-spdges
+
+     if ( qc_satwnds ) then
+        if(itype >=240 .and. itype <=260) then
+           if( presw >950.0_r_kind) error =zero    !  screen data beloww 950mb
+        endif
+        if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     !  water vapor cloud top
+           if(presw >399.0_r_kind) error=zero
+        endif
+        if(itype ==258 .and. presw >600.0_r_kind) error=zero
+        if(itype ==259 .and. presw >600.0_r_kind) error=zero
+     endif ! qc_satwnds
+
+!    QC WindSAT winds
+     if (itype==289) then
+        qcu = r6
+        qcv = r6
+        if ( spdob > r20 .or. &          ! high wind speed check
+             abs(dudiff) > qcu  .or. &   ! u component check
+             abs(dvdiff) > qcv ) then    ! v component check
+           error = zero
+        endif
+     endif
+
+!    QC ASCAT winds
+     if (itype==290) then
+        qcu = five
+        qcv = five
+!       Compute innovations for opposite vectors
+        dudiff_opp = -uob - ugesin
+        dvdiff_opp = -vob - vgesin
+        vecdiff = sqrt(dudiff**2 + dvdiff**2)
+        vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
+        ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
+
+        if ( abs(dudiff) > qcu  .or. &       ! u component check
+             abs(dvdiff) > qcv  .or. &       ! v component check
+             vecdiff > vecdiff_opp ) then    ! ambiguity check
+
+           error = zero
+        endif
+     endif
 
 !    If requested, setup for single obs test.
      if (oneobtest) then
@@ -440,13 +592,29 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Gross check using innovation normalized by error
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
-     residual = abs(ddiff)
+!!   residual = abs(ddiff)
+     if ( abs(ugesin)>zero .or. abs(vgesin)>zero ) then
+        ugesin_scaled=(ugesin/sqrt(ugesin**2+vgesin**2))*spdges
+        vgesin_scaled=(vgesin/sqrt(ugesin**2+vgesin**2))*spdges
+        residual = sqrt((uob-ugesin_scaled)**2+(vob-vgesin_scaled)**2)
+      else
+        residual = sqrt(dudiff**2+dvdiff**2)
+     endif
      ratio    = residual/obserrlm
 
 !!   modify cgross depending on the quality mark, qcmark=3, cgross=0.7*cgross
 !!   apply asymetric gross check for satellite winds
      qcgross=cgross(ikx)
      if(data(iqc,i) == three) qcgross=r0_7*cgross(ikx)
+
+     if(spdb <0 )then
+        if(itype ==244) then   ! AVHRR, use same as MODIS
+          qcgross=r0_7*cgross(ikx)
+        endif
+        if(itype >=257 .and. itype <=259 ) then
+          qcgross=r0_7*cgross(ikx)
+        endif
+     endif
 
      if (ratio> qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(6) = awork(6)+one
@@ -455,6 +623,30 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
         ratio_errors =ratio_errors/sqrt(dup(i))
      end if
+
+     if (lowlevelsat .and. twodvar_regional) then
+        if (data(idomsfc,i) /= 0 .and. data(idomsfc,i) /= 3 ) then
+           error = zero
+           ratio_errors = zero
+        endif
+     endif
+
+     if (twodvar_regional) then
+        if (lowlevelsat .or. itype==289 .or. itype==290) then
+            wdirdiffmax=45._r_kind
+          else
+           wdirdiffmax=100000._r_kind
+        endif
+        if (spdob > zero .and. (spdob-spdb) > zero) then
+           call getwdir(uob,vob,wdirob)
+           call getwdir(ugesin,vgesin,wdirgesin)
+           if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                          abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+               error = zero
+               ratio_errors = zero
+           endif
+        endif
+     endif
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
@@ -497,7 +689,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            nn=2
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
-        if (abs(data(iwspd10m,i)-rmiss_single) >=tiny_r_kind) then
+        if (abs(spdob-rmiss_single) >=tiny_r_kind) then
            bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one           ! count
            bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
            bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
@@ -605,9 +797,9 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
  
-        rdiagbuf(17,ii) = data(iwspd10m,i)   ! 10m wind speed observation (K)
+        rdiagbuf(17,ii) = spdob              ! 10m wind speed observation (K)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = data(iwspd10m,i)-wspd10mges! obs-ges w/o bias correction (K) (future slot)
+        rdiagbuf(19,ii) = spdob-spdges       ! obs-ges w/o bias correction (K) (future slot)
  
         rdiagbuf(20,ii) = factw              ! 10m wind reduction factor
 
@@ -679,11 +871,18 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   proceed=ivar>0
   call gsi_metguess_get ('var::z' , ivar, istatus )
   proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::u' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::v' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=10) :: varname
   integer(i_kind) ifld, istatus
 
@@ -738,6 +937,60 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          do ifld=2,nfldsig
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
             ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
          enddo
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus

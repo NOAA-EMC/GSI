@@ -1220,6 +1220,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            endif
            inflate_error=.false.
            if (qm==3 .or. qm==7) inflate_error=.true.
+           if (obstype == 'wspd10m') obserr=(three/four)*obserr
            woe=obserr
            if (inflate_error) woe=woe*r1_2
            if(regional)then

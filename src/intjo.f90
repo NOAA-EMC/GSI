@@ -160,6 +160,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !   2014-03-19  pondeca  - add intwspd10m
 !   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
 !   2014-05-07  pondeca  - add inthowv
+!   2015-07-10  pondeca  - add intcldch
 !
 !   input argument list:
 !     ibin
@@ -225,6 +226,7 @@ use intpmslmod, only: intpmsl
 use inthowvmod, only: inthowv
 use inttcamtmod, only: inttcamt
 use intlcbasmod, only: intlcbas
+use intcldchmod, only: intcldch
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -345,6 +347,9 @@ real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 ! RHS for lcbas observations
   call intlcbas(yobs%lcbas,rval,sval)
+
+! RHS for cldch observations
+  call intcldch(yobs%cldch,rval,sval)
 
 ! Take care of background error for bias correction terms
 
