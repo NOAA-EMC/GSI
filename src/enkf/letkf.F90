@@ -568,9 +568,8 @@ if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
 #ifdef MPI3
 nullify(anal_ob_fp)
 call MPI_Win_free(shm_win, ierr)
-#else
-deallocate(anal_ob)
 #endif
+if (allocated(anal_ob)) deallocate(anal_ob)
 
 return
 
