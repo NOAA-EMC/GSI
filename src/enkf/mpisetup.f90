@@ -33,6 +33,7 @@ include 'mpif.h'
 integer numproc, nproc
 integer mpi_status(mpi_status_size)
 integer, public :: mpi_realkind
+integer, public :: mpi_comm_io
 
 contains
 
@@ -55,6 +56,36 @@ else
    call mpi_cleanup()
 endif
 end subroutine mpi_initialize
+
+subroutine mpi_initialize_io(nanals)
+use mpimod, only : mpi_comm_world,npe,mype
+integer ierr,np,nuse,new_group,old_group
+integer, intent(in) :: nanals
+integer, dimension(:), allocatable :: useprocs, itasks
+
+! create communicator involving just tasks involved in reading
+! and writing ensemble members (1st nanals tasks).
+allocate(itasks(numproc)); itasks=0
+itasks(1:nanals) = 1
+allocate(useprocs(nanals))
+nuse = 0
+do np=0,numproc-1
+   if (itasks(np+1) == 1) then
+     nuse = nuse + 1
+     useprocs(nuse) = np
+   end if
+enddo
+!if (nproc .eq. 0) then
+!   print *,'nanals',nanals,nuse
+!   print *,useprocs
+!endif
+deallocate(itasks)
+call MPI_COMM_GROUP(MPI_COMM_WORLD,old_group,ierr)
+call MPI_GROUP_INCL(old_group,nuse,useprocs,new_group,ierr)
+deallocate(useprocs)
+call MPI_COMM_CREATE(MPI_COMM_WORLD,new_group,mpi_comm_io,ierr)
+!print *,'ierr from mpi_comm_create',ierr,mpi_comm_io
+end subroutine mpi_initialize_io
 
 subroutine mpi_cleanup()
 integer ierr

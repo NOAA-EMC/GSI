@@ -98,17 +98,23 @@ logical,public :: nmm = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
 logical,public :: massbal_adjust = .false.
+! if true, use ensemble mean qsat in definition of
+! normalized humidity analysis variable (instead of
+! qsat for each member, which is the default behavior
+! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
+! is ignored.
+logical,public :: use_qsatensmean = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
-                   varqc,huber,nlons,nlats,smoothparm,&
+                   varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   covl_minfact,covl_efold,&
+                   fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
