@@ -142,8 +142,8 @@ type(c_ptr)                             :: anal_ob_cp ! C pointer
 integer disp_unit, shm_win
 integer(MPI_ADDRESS_KIND) :: win_size, nsize
 integer(MPI_ADDRESS_KIND) :: segment_size
-real(r_single), allocatable, dimension(:) :: buffer
 #endif
+real(r_single), allocatable, dimension(:) :: buffer
 
 !$omp parallel
 nthreads = omp_get_num_threads()
@@ -192,6 +192,19 @@ call mpi_barrier(mpi_comm_world, ierr)
 ! segment (containing observation prior ensemble) on each task.
 call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
 call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
+#else
+! if MPI3 not available, need anal_ob on every MPI task
+! broadcast observation prior ensemble from root one ensemble member at a time.
+allocate(buffer(nobstot))
+! allocate anal_ob on non-root tasks
+if (nproc .ne. 0) allocate(anal_ob(nanals,nobstot))
+! bcast anal_ob from root one member at a time.
+do nanal=1,nanals
+   buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
+   call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
+   if (nproc .ne. 0) anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
+end do
+deallocate(buffer)
 #endif
 
 ! define a few frequently used parameters
