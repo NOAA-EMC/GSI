@@ -74,9 +74,10 @@ module letkf
 !$$$
 
 use mpisetup
+use, intrinsic :: iso_c_binding
 use omp_lib, only: omp_get_num_threads
 use covlocal, only:  taper, latval
-use kinds, only: r_double,i_kind,r_kind,r_single
+use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
 use loadbal, only: numptsperproc, &
                    indxproc, lnp_chunk, &
                    grdloc_chunk, kdtree_obs2
@@ -110,7 +111,7 @@ implicit none
 ! LETKF update.
 
 ! local variables.
-integer(i_kind) nob,nf,n1,n2,ideln,&
+integer(i_kind) nob,nf,n1,n2,ideln,nanal,&
                 niter,i,j,n,nrej,npt,nn,nnmax,ierr
 integer(i_kind) nobsl, ngrd1, nobsl2, nthreads, nb, &
                 nobslocal_max,nobslocal_maxall
@@ -134,11 +135,64 @@ real(r_kind),dimension(nanals) :: work,work2
 ! kdtree stuff
 type(kdtree2_result),dimension(:),allocatable :: sresults
 type(kdtree2), pointer :: kdtree_grid
+#ifdef MPI3
+! pointers used for MPI-3 shared memory manipulations.
+real(r_single), pointer, dimension(:,:) :: anal_ob_fp ! Fortran pointer
+type(c_ptr)                             :: anal_ob_cp ! C pointer
+integer disp_unit, shm_win
+integer(MPI_ADDRESS_KIND) :: win_size, nsize
+integer(MPI_ADDRESS_KIND) :: segment_size
+real(r_single), allocatable, dimension(:) :: buffer
+#endif
 
 !$omp parallel
 nthreads = omp_get_num_threads()
 !$omp end parallel
 if (nproc == 0) print *,'using',nthreads,' openmp threads'
+
+#ifdef MPI3
+! setup shared memory segment on each node that points to
+! observation prior ensemble.
+! shared window size will be zero except on root task of
+! shared memory group on each node.
+disp_unit = num_bytes_for_r_single ! anal_ob is r_single
+nsize = nobstot*nanals
+if (nproc_shm == 0) then
+   win_size = nsize*disp_unit
+else
+   win_size = 0
+endif
+call MPI_Win_allocate_shared(win_size, disp_unit, MPI_INFO_NULL,&
+                             mpi_comm_shmem, anal_ob_cp, shm_win, ierr)
+if (nproc_shm == 0) then
+   ! create shared memory segment on each shared mem comm
+   call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win,ierr)
+   call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
+   ! bcast entire obs prior ensemble from root task 
+   ! to a single task on each node, assign to shared memory window.
+   ! send one ensemble member at a time.
+   allocate(buffer(nobstot))
+   do nanal=1,nanals
+      if (nproc == 0) buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
+      if (nproc_shm == 0) then
+         call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_shmemroot,ierr)
+         anal_ob_fp(nanal,1:nobstot) = buffer(1:nobstot)
+      end if 
+   end do
+   deallocate(buffer)
+   call MPI_Win_unlock(0, shm_win, ierr)
+   nullify(anal_ob_fp)
+   ! don't need anal_ob anymore
+   if (nproc == 0) deallocate(anal_ob)
+endif
+! barrier here to make sure no tasks try to access shared
+! memory segment before it is created.
+call mpi_barrier(mpi_comm_world, ierr)
+! associate fortran pointer with c pointer to shared memory 
+! segment (containing observation prior ensemble) on each task.
+call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
+call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
+#endif
 
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
@@ -394,7 +448,11 @@ do niter=1,numiter
         allocate(dep(nobsl2))
         do nob=1,nobsl2
            nf=oindex(nob)
-           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) ! anal_ob is a global array
+#ifdef MPI3
+           hdxf(nob,1:nanals)=anal_ob_fp(1:nanals,nf) 
+#else
+           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) 
+#endif
            rdiag(nob)=one/oberrvaruse(nf)
            dep(nob)=ob(nf)-ensmean_ob(nf)
         end do
@@ -443,7 +501,11 @@ do niter=1,numiter
               nob = indxob_pt(npt,n)
               ! if not vlocal,nn=oblev==1
               if (oblev(nob) == nn .and. oberrvaruse(nob) <= 1.e10_r_single) then
+#ifdef MPI3
+                 work(1:nanals) = anal_ob_fp(1:nanals,nob)
+#else
                  work(1:nanals) = anal_ob(1:nanals,nob)
+#endif
                  work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
                  if(r_kind == kind(1.d0)) then
                     call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
@@ -488,7 +550,14 @@ do niter=1,numiter
 end do ! niter loop
 
 if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
+
+! free shared memory segement, fortran pointer to that memory.
+#ifdef MPI3
+nullify(anal_ob_fp)
+call MPI_Win_free(shm_win, ierr)
+#else
 deallocate(anal_ob)
+#endif
 
 return
 
