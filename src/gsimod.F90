@@ -956,10 +956,6 @@
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
   if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
 
-  write(6,*) 'HEY!!! myid is ',mype
-  write(6,*) 'HEY!!! comm size is ',npe
-  write(6,*) 'HEY!!! ierror is ',ierror
-
 ! Initialize defaults of vars in modules
   call init_4dvar
 

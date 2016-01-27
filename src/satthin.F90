@@ -482,24 +482,16 @@ contains
        nlon_sfc=nlon
     end if
     if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
-    write(6,*) 'allocate 1'
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
-    write(6,*) 'allocate 2'
     allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
-    write(6,*) 'allocate 3'
     allocate(sst_full(nlat_sfc,nlon_sfc,nfldsfc),sno_full(nlat_sfc,nlon_sfc,nfldsfc))
-    write(6,*) 'allocate 4'
     allocate(zs_full(nlat,nlon))
-    write(6,*) 'allocate 5'
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
     if(use_sfc_any .or. (mype_io/=0))then
-    write(6,*) 'allocate 6'
        allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
-    write(6,*) 'allocate 7'
        allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
-    write(6,*) 'allocate 8'
        allocate(veg_type_full(nlat_sfc,nlon_sfc))
     end if
     do j=1,lon1*lat1
@@ -606,7 +598,6 @@ contains
     else                   ! for regional 
 #endif /* HAVE_ESMF */
 
-    write(6,*) 'regional 1'
        it=ntguessfc
        rlats_sfc=rlats
        rlons_sfc=rlons
@@ -740,7 +731,6 @@ contains
 
 ! Now stuff that isn't model dependent
 ! zs_full
-    write(6,*) 'regional 2'
     it=ntguessig
     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z',ges_z,istatus)
     if (istatus==0) then
@@ -811,13 +801,11 @@ contains
        end do
 
     end if
-    write(6,*) 'regional 3'
     if(allocated(veg_frac)) deallocate(veg_frac)
     if(allocated(veg_type)) deallocate(veg_type)
     if(allocated(soil_type)) deallocate(soil_type)
     if(allocated(soil_moi)) deallocate(soil_moi)
     if(allocated(sfc_rough)) deallocate(sfc_rough)
-    write(6,*) 'regional 4'
     return
 
   end subroutine getsfc
