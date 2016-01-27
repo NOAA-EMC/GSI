@@ -292,11 +292,7 @@ subroutine bkg_stddev(cvec,svec)
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
 !  Convert input normalized RH to q
-   
-   if(do_normal_rh_to_q) then
-      sv_q=zero
-      call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
-   end if
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
    
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)

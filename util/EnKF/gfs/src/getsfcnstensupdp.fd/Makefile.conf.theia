@@ -13,6 +13,7 @@ INCsfcio = $(CORELIB)/sfcio/v$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)_4
 
 SFCIO_LIB4=$(CORELIB)/sfcio/v$(SFCIO_VER)/libsfcio_v$(SFCIO_VER)_4.a
 W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
+SP_LIBd=$(CORELIB)/libsp_d.a
 
 # ---------------------------
 # General targets/definitions
@@ -31,7 +32,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   PROF= #-pg
   OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
+  FFLAGS_F90    = -D_REAL8_ -convert big_endian -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
   FFLAGS_COM_N  = -I $(INCsfcio)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
@@ -62,7 +63,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = $(W3NCO_LIB4) $(SFCIO_LIB4)
+  LIBS_N        = $(SP_LIBd) $(W3NCO_LIB4) $(SFCIO_LIB4)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 
