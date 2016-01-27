@@ -140,6 +140,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-10-14  Hu      - add code for adjusting surface temperature observation error
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs T
+!   2011-10-14  Hu      - add code for using 2-m temperature as background to
+!                            calculate surface temperauture observation
+!                            innovation
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-17  zhu     - add contribution from aircraft temperature bias correction
@@ -152,9 +155,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !   2014-10-06  carley  - add call to buddy check for twodvar_regional option
 !   2014-12-30  derber  - Modify for possibility of not using obsdiag
-!   2011-10-14  Hu      - add code for using 2-m temperature as background to
-!                            calculate surface temperauture observation
-!                            innovation
+!   2015-12-21  yang     - Dave Parrish's modification to the njqc formula
 !
 ! !REMARKS:
 !   language: f90
@@ -746,7 +747,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
         else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then

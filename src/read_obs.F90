@@ -559,6 +559,7 @@ subroutine read_obs(ndata,mype)
 !   2015-05-30  li     - modify for no radiance cases but sst (nsstbufr) and read processor for
 !                        surface fields (use_sfc = .true. for data type of sst),
 !                        to use deter_sfc in read_nsstbufr.f90)
+!   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
 !   
 !
@@ -744,7 +745,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'td2m' .or. obstype=='mxtm' .or. &
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
-           obstype=='lcbas') then
+           obstype=='lcbas' .or. obstype=='cldch') then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -1043,7 +1044,7 @@ subroutine read_obs(ndata,mype)
        if(ditype(i) =='conv')then
           obstype=dtype(i)
           if (obstype == 't' .or. obstype == 'q'  .or. &
-              obstype == 'uv') then
+              obstype == 'uv' .or. obstype == 'wspd10m') then
               use_prsl_full=.true.
               if(belong(i))use_prsl_full_proc=.true.
           else
@@ -1174,11 +1175,11 @@ subroutine read_obs(ndata,mype)
              if (obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
-                 obstype == 'wspd10m' .or. obstype == 'td2m' .or. &
+                 obstype == 'td2m' .or. &
 !                obstype=='mxtm' .or. obstype == 'mitm' .or. &
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
-                 obstype == 'lcbas'  ) then
+                 obstype == 'lcbas' .or. obstype == 'cldch' ) then
 
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then

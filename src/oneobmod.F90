@@ -120,6 +120,7 @@ contains
 !                            file can be read as little endian
 !   2014-08-04  carley - modify for tcamt and howv obs
 !   2014-08-18  carley - added td2m, mxtm, mitm, pmsl, and wsdp10m
+!   2016-01-18  pondeca - added cldch
 !
 !   input argument list:
 !
@@ -147,7 +148,7 @@ contains
     real(r_kind),dimension(1,1):: pob    
     integer(i_kind) n,k,iret
     real(r_kind) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
-                 cldseq(3,10),owave(1,255),maxtmint(2,255)
+                 cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT PWO MXGS HOVI PRSS TDO PMO'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM PWQ PMQ'
@@ -156,6 +157,7 @@ contains
     character(80):: cldseqstr='VSSO CLAM HOCB'   ! vertical significance, cloud amount and cloud base height
     character(80):: owavestr='HOWV'              ! significant wave height
     character(80):: maxtmintstr='MXTM MITM'      ! Max T and Min T
+    character(80):: cldceilhstr='CEILING'        ! cldch
     if (oneobmade) return
 
     if (oneob_type == 'o3lev') then
@@ -182,6 +184,7 @@ contains
     vob=five
     owave=bmiss
     maxtmint=bmiss
+    cldceilh=bmiss
     cld2seq=bmiss
     cldseq=bmiss
     pqm=one
@@ -228,6 +231,11 @@ contains
        subset='ADPSFC'
        typ(1)=87._r_kind
        cat(1,1)=zero
+    else if (oneob_type=='cldch') then
+       subset='ADPSFC'
+       typ(1)=87._r_kind
+       cat(1,1)=zero
+       cldceilh(1,1)=1000._r_kind !clch in m
     else
        typ(1)=20._r_kind
        cat(1,1)=one

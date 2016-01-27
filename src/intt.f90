@@ -314,7 +314,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            endif
            if (njqc .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               val=sqrt(two*tptr%jb)*tanh(sqrt(tptr%err2)*val/sqrt(two*tptr%jb))
-              grad = val*sqrt(tptr%raterr2*tptr%err2)
+              grad = val*tptr%raterr2*sqrt(tptr%err2)
            else
               grad = val*tptr%raterr2*tptr%err2
            endif

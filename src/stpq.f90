@@ -179,9 +179,9 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo
-           out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
+           out(1) = out(1)+pen(1)*qptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*qptr%raterr2

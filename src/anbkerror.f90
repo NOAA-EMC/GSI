@@ -24,6 +24,13 @@ subroutine anbkerror(gradx,grady)
 !   2014-02-07  pondeca - update to handle motley variables. rename p_st to p_sf
 !   2014-02-14  pondeca - update to handle optional separation of sf and vp control variables
 !                         into land-only and water-only parts
+!   2015-05-02  parrish - add subroutine ansmoothrf_reg_sub2slab_option, and
+!                         parameter rtma_bkerr_sub2slab.
+!                         rtma_bkerr_sub2slab = F, then use ansmoothrf_reg_subdomain_option
+!                         rtma_bkerr_sub2slab = T, then use ansmoothrf_reg_sub2slab_option
+!                         This allows dual resolution for the anisotropic recursive filter, which
+!                         currently can only be used with full horizontal domain (slab) storage.
+!   2015-07-02  pondeca - update slab mode option to work with any number of control variables
 !
 !   input argument list:
 !     gradx    - input field  
@@ -265,12 +272,13 @@ subroutine anbkgcov(bundle)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,twodvar_regional
-  use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro
+  use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro,rtma_bkerr_sub2slab
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use general_commvars_mod, only: s2g_raf
+  USE MPIMOD, only: mype
   implicit none
 
 ! Passed Variables
@@ -278,7 +286,7 @@ subroutine anbkgcov(bundle)
 
 ! Local Variables
 
-  integer(i_kind) n,istatus
+  integer(i_kind) i,j,k,iflg,ier,n,istatus
   integer(i_kind) i_sst,i_stl,i_sti,i_ps,i_t,i_q,i_gust,i_wspd10m, &
                   i_td2m,i_mxtm,i_mitm, & 
                   i_pswter,i_twter,i_qwter,i_gustwter,i_wspd10mwter, &
@@ -287,7 +295,6 @@ subroutine anbkgcov(bundle)
   real(r_kind),dimension(lat2,lon2) :: skint,sst,stl,sti
   real(r_kind),dimension(lat2,lon2) :: field,fld,fldwter
 
-  real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
   real(r_kind),dimension(:,:),   pointer :: ptrsst=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrstl=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrsti=>NULL()
@@ -308,7 +315,8 @@ subroutine anbkgcov(bundle)
   real(r_kind),dimension(:,:),   pointer :: ptrtd2mwter=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmxtmwter=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmitmwter=>NULL()
-   
+
+
 ! Perform simple vertical smoothing while fields are in sudomain mode.
 ! The accompanying smoothing in the horizontal is performed inside the
 ! recursive filter. Motivation: Reduce possible high frequency noise in
@@ -488,20 +496,13 @@ subroutine anbkgcov(bundle)
 
 ! Apply auto-covariance 
   if(rtma_subdomain_option) then 
-      call ansmoothrf_reg_subdomain_option(bundle)
+      if(rtma_bkerr_sub2slab) then
+         call ansmoothrf_reg_sub2slab_option(bundle)
+      else
+         call ansmoothrf_reg_subdomain_option(bundle)
+      end if
   else
-
-! Convert from subdomain to full horizontal field distributed among processors
-     call general_sub2grid(s2g_raf,bundle%values,hwork)
-!  need to modify this to use with sst and motley variables stl,sti, but apparently this
-!    not implemented yet in RTMA.
-
-! Apply horizontal smoother for number of horizontal scales
-     call ansmoothrf(hwork)
-
-! Put back onto subdomains
-     call general_grid2sub(s2g_raf,hwork,bundle%values)
-
+     call ansmoothrf(bundle)
   end if
 
 !Adjoint of simple vertical smoothing
@@ -821,10 +822,17 @@ subroutine anbkgvar_lw(field,fld,fldwter,iflg)
   logical glerlarea
 
 ! Declare local parameters
+!    Great Lakes
   real(r_kind),parameter::flon1=-93._r_kind
   real(r_kind),parameter::flon2=-75._r_kind
   real(r_kind),parameter::flat1=40.5_r_kind
   real(r_kind),parameter::flat2=49.5_r_kind
+
+!    Great Salt Lake
+  real(r_kind),parameter::slon1=-113._r_kind
+  real(r_kind),parameter::slon2=-112._r_kind
+  real(r_kind),parameter::slat1=40.6_r_kind
+  real(r_kind),parameter::slat2=41.7_r_kind
 
   mm1=mype+1
 
@@ -835,6 +843,7 @@ subroutine anbkgvar_lw(field,fld,fldwter,iflg)
              flat=region_lat(iglob,jglob)*rad2deg
              flon=region_lon(iglob,jglob)*rad2deg
              glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+             glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
 
              if(iflg == 0) then
 ! Break field into components
@@ -863,7 +872,7 @@ subroutine anbkgvar_lw(field,fld,fldwter,iflg)
   return
 end subroutine anbkgvar_lw
 
-subroutine ansmoothrf(work)
+subroutine ansmoothrf(cstate)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ansmoothrf  anisotropic rf for regional mode
@@ -875,12 +884,13 @@ subroutine ansmoothrf(work)
 !   2005-02-14  parrish
 !   2008-12-04  sato - update for global mode
 !   2009-01-02  todling - get mype from mpimod directly
+!   2015-07-01  pondeca - rewrite to handle motley variables
 !
 !   input argument list:
-!     work     - fields to be smoothed
+!     cstate     - bundle containing horizontal fields to be smoothed
 !
 !   output argument list:
-!     work     - smoothed fields
+!     cstate     - bundle containing smoothed horizontal fields
 !
 ! attributes:
 !   language: f90
@@ -892,61 +902,115 @@ subroutine ansmoothrf(work)
   use patch2grid_mod, only: patch2grid, tpatch2grid
   use mpimod, only:  npe
   use constants, only: zero
-  use gridmod, only: nlat,nlon,regional
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,regional
+  use control_vectors, only: nvars,nrf,nrf_var,nrf_3d
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_commvars_mod, only: s2g_raf
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use fgrid2agrid_mod, only: fgrid2agrid,tfgrid2agrid
+  use raflib, only: raf4_ad,raf4
   use raflib, only: raf4_ad_wrap,raf4_wrap
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(nlat,nlon,indices%kps:indices%kpe),intent(inout) :: work
+  type(gsi_bundle),intent(inout) :: cstate
 
 ! Declare local variables
-  integer(i_kind) i,igauss,j,k
-
-  real(r_kind)  ,dimension( indices%ips:indices%ipe, &
-                            indices%jps:indices%jpe, &
-                            indices%kps:indices%kpe ):: worka
-  real(r_single),dimension(ngauss, &
-                           indices%ips:indices%ipe, &
-                           indices%jps:indices%jpe, &
-                           indices%kps:indices%kpe ):: workb
-
-  real(r_kind)  ,allocatable,dimension(:,:,:)  :: workanp,workasp
+  integer(i_kind):: ips,ipe,jps,jpe,kps,kpe,kds,kde
+  integer(i_kind):: p_ips,p_ipe,p_jps,p_jpe,p_kps,p_kpe
+  integer(i_kind) i,igauss,j,k,kk,n,istatus
+  real(r_kind),allocatable:: fields(:,:,:,:)
+  real(r_kind),allocatable:: work(:,:,:,:)
+  real(r_kind),allocatable:: worka(:,:,:)
+  real(r_single),allocatable:: workb(:,:,:,:)
+  real(r_kind),allocatable,dimension(:,:,:)  :: workanp,workasp
   real(r_single),allocatable,dimension(:,:,:,:):: workbnp,workbsp
+  real(r_kind),pointer::rank2(:,:)
+  real(r_kind),pointer::rank3(:,:,:)
+  real(r_kind),allocatable:: hwork(:,:,:,:)
+
+! Convert from subdomain to full horizontal field distributed among processors
+  kds=1
+  kde=s2g_raf%num_fields
+  kps=s2g_raf%kbegin_loc
+  kpe=s2g_raf%kend_loc
+  ips=indices%ips
+  ipe=indices%ipe
+  jps=indices%jps
+  jpe=indices%jpe
+
+  p_kps=s2g_raf%kbegin_loc  !indices_p%kps
+  p_kpe=s2g_raf%kend_loc    !indices_p%kpe
+  p_ips=indices_p%ips
+  p_ipe=indices_p%ipe
+  p_jps=indices_p%jps
+  p_jpe=indices_p%jpe
+
+
+               !WHY THE "1" IN THE ALLOCATE STATEMENTS? / MPondeca
+  allocate(fields(1,lat2,lon2,kds:kde))             !MUST DEALLOCATE / MPondeca
+  allocate(work(1,nlat,nlon,kps:max(kps,kpe)))   !MUST DEALLOCATE / MPondeca
+
+  allocate(worka(ips:ipe,jps:jpe,kps:max(kps,kpe)))
+  allocate(workb(ngauss,ips:ipe,jps:jpe,kps:max(kps,kpe)))
 
   if(.not.regional) then
-     allocate(workanp(indices_p%ips:indices_p%ipe, &
-                      indices_p%jps:indices_p%jpe, &
-                      indices_p%kps:indices_p%kpe ))
-     allocate(workbnp(ngauss, &
-                      indices_p%ips:indices_p%ipe, &
-                      indices_p%jps:indices_p%jpe, &
-                      indices_p%kps:indices_p%kpe ))
-     allocate(workasp(indices_p%ips:indices_p%ipe, &
-                      indices_p%jps:indices_p%jpe, &
-                      indices_p%kps:indices_p%kpe ))
-     allocate(workbsp(ngauss, &
-                      indices_p%ips:indices_p%ipe, &
-                      indices_p%jps:indices_p%jpe, &
-                      indices_p%kps:indices_p%kpe ))
+     allocate(workanp(p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe))
+     allocate(workasp(p_ips:p_ipe ,p_jps:p_jpe ,p_kps:p_kpe))
+
+     allocate(workbnp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe))
+     allocate(workbsp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe ))
   end if
 
+  fields=zero
+  kk=0
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
+        if(istatus==0) then
+           do k=1,nsig
+              kk=kk+1
+              do j=1,lon2
+                 do i=1,lat2
+                    fields(1,i,j,kk)=rank3(i,j,k)
+                 end do
+              end do
+           end do
+        endif
+     else        !2d flds including motley flds
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
+        if(istatus==0) then
+           kk=kk+1
+           do j=1,lon2
+              do i=1,lat2
+                 fields(1,i,j,kk)=rank2(i,j)
+              end do
+           end do
+        endif
+     endif
+  end do
+
+! Convert from subdomain to full horizontal fields distributed among processors
+
+  call general_sub2grid(s2g_raf,fields,work)
+
 !  adjoint of coarse to fine grid
-  do k=indices%kps,indices%kpe
+  do k=kps,kpe
      if(regional) then
-        call tfgrid2agrid(pf2aP1,work(1,1,k),worka(indices%ips,indices%jps,k))
+        call tfgrid2agrid(pf2aP1,work(1,1,1,k),worka(ips,jps,k))
      else
-        call tpatch2grid(work(1,1,k), &
-                         worka  (indices%ips,  indices%jps,k),   &
-                         workanp(indices_p%ips,indices_p%jps,k), &
-                         workasp(indices_p%ips,indices_p%jps,k))
+        call tpatch2grid(work(1,1,1,k), &
+                         worka  (ips,jps,k),   &
+                         workanp(p_ips,p_jps,k), &
+                         workasp(p_ips,p_jps,k))
      end if
   end do
 
 !  transfer coarse grid fields to ngauss copies
-  do k=indices%kps,indices%kpe
-     do j=indices%jps,indices%jpe
-        do i=indices%ips,indices%ipe
+  do k=kps,kpe
+     do j=jps,jpe
+        do i=ips,ipe
            do igauss=1,ngauss
               workb(igauss,i,j,k)=worka(i,j,k)
            end do
@@ -955,9 +1019,9 @@ subroutine ansmoothrf(work)
   end do
 
   if(.not.regional) then
-     do k=indices_p%kps,indices_p%kpe
-        do j=indices_p%jps,indices_p%jpe
-           do i=indices_p%ips,indices_p%ipe
+     do k=p_kps,p_kpe
+        do j=p_jps,p_jpe
+           do i=p_ips,p_ipe
               do igauss=1,ngauss
                  workbnp(igauss,i,j,k)=workanp(i,j,k)
                  workbsp(igauss,i,j,k)=workasp(i,j,k)
@@ -969,35 +1033,39 @@ subroutine ansmoothrf(work)
 
 !   apply recursive filter
 
-  call raf4_wrap(   workb,filter_all,ngauss,indices,npe)
-  call raf4_ad_wrap(workb,filter_all,ngauss,indices,npe)
+!  call raf4_wrap(   workb,filter_all,ngauss,indices,npe)  /MPondeca
+!  call raf4_ad_wrap(workb,filter_all,ngauss,indices,npe)  /MPondeca
+
+  call raf4 (workb,filter_all,ngauss,ips,ipe,jps,jpe,ips,ipe,jps,jpe,kps,kpe,npe)
+  call raf4_ad(workb,filter_all,ngauss,ips,ipe,jps,jpe,ips,ipe,jps,jpe,kps,kpe,npe)
+
 
   if(.not.regional) then
-     call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,npe)
-     call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,npe)
-
-     call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,npe)
-     call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,npe)
+     call raf4_wrap(   workbnp,filter_p2,ngauss,indices_p,npe)   !WORK ON THIS / MPondeca
+     call raf4_ad_wrap(workbnp,filter_p2,ngauss,indices_p,npe)   !WORK ON THIS / MPondeca 
+     call raf4_wrap(   workbsp,filter_p3,ngauss,indices_p,npe)   !WORK ON THIS / MPondeca
+     call raf4_ad_wrap(workbsp,filter_p3,ngauss,indices_p,npe)   !WORK ON THIS / MPondeca
   end if
 
 !  add together ngauss copies
   worka=zero
-  do k=indices%kps,indices%kpe
-     do j=indices%jps,indices%jpe
-        do i=indices%ips,indices%ipe
+  do k=kps,kpe
+     do j=jps,jpe
+        do i=ips,ipe
            do igauss=1,ngauss
               worka(i,j,k)=worka(i,j,k)+workb(igauss,i,j,k)
            end do
         end do
      end do
   end do
+  deallocate(workb)
 
   if(.not.regional) then
      workanp=zero
      workasp=zero
-     do k=indices_p%kps,indices_p%kpe
-        do j=indices_p%jps,indices_p%jpe
-           do i=indices_p%ips,indices_p%ipe
+     do k=p_kps,p_kpe
+        do j=p_jps,p_jpe
+           do i=p_ips,p_ipe
               do igauss=1,ngauss
                  workanp(i,j,k)=workanp(i,j,k)+workbnp(igauss,i,j,k)
                  workasp(i,j,k)=workasp(i,j,k)+workbsp(igauss,i,j,k)
@@ -1008,16 +1076,20 @@ subroutine ansmoothrf(work)
   end if
 
 !  coarse to fine grid
-  do k=indices%kps,indices%kpe
+  do k=kps,kpe
      if(regional) then
-        call fgrid2agrid(pf2aP1,worka(indices%ips,indices%jps,k),work(1,1,k))
+        call fgrid2agrid(pf2aP1,worka(ips,jps,k),work(1,1,1,k))
      else
-        call patch2grid(work(1,1,k), &
-                        worka  (indices%ips  ,indices%jps  ,k),&
-                        workanp(indices_p%ips,indices_p%jps,k),&
-                        workasp(indices_p%ips,indices_p%jps,k))
+        call patch2grid(work(1,1,1,k), &
+                        worka  (ips,jps,k),&
+                        workanp(p_ips,p_jps,k),&
+                        workasp(p_ips,p_jps,k))
      end if
   end do
+  deallocate(worka)
+
+  call general_grid2sub(s2g_raf,work,fields)
+  deallocate(work)
 
   if(.not.regional) then
      deallocate(workanp)
@@ -1025,6 +1097,36 @@ subroutine ansmoothrf(work)
      deallocate(workasp)
      deallocate(workbsp)
   end if
+
+!   transfer from work back to bundle
+
+  kk=0
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
+        if(istatus==0) then
+           do k=1,nsig
+              kk=kk+1
+              do j=1,lon2
+                 do i=1,lat2
+                    rank3(i,j,k)=fields(1,i,j,kk)
+                 end do
+              end do
+           end do
+        endif
+     else        !2d flds including motley flds
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
+        if(istatus==0) then
+           kk=kk+1
+           do j=1,lon2
+              do i=1,lat2
+                 rank2(i,j)=fields(1,i,j,kk)
+              end do
+           end do
+        endif
+     endif
+  end do
+  deallocate(fields)
 
 end subroutine ansmoothrf
 
@@ -1197,6 +1299,186 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
   return
 end subroutine tvert_smther
 
+subroutine ansmoothrf_reg_sub2slab_option(cstate)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ansmoothrf_reg_subdomain_option  anisotropic rf for regional mode
+!   prgmmr: parrish          org: np22                date: 2015-05-01
+!
+! abstract: apply anisotropic rf for regional mode (input subdomains but slab for filter)
+!
+! program history log:
+!   2005-02-14  parrish
+!   2011-02-22  zhu - use cstate to replace argument list such as p,t,q,vp,st 
+!   2014-02-07  pondeca - update to include motley variables as well in 2d set of filtered variables
+!   2015-05-02  parrish - make copy of ansmoothrf_reg_subdomain_option and
+!                            modify to allow conversion from subdomains to slabs.
+!
+!   input argument list:
+!     t,p,q,oz,st,stl,sti,cwmr,st,vp   -  fields to be smoothed
+!
+!   output argument list:
+!     t,p,q,oz,st,stl,sti,cwmr,st,vp   -  smoothed fields
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind,r_single
+  use anberror, only: filter_all,ngauss
+  use anberror, only: pf2aP1
+  use mpimod, only: mype,npe
+  use constants, only: zero,zero_single
+  use gridmod, only: lat2,lon2,nsig
+  use raflib, only: raf4_ad,raf4
+  use control_vectors, only: nvars,nrf,nrf_var,nrf_3d
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_commvars_mod, only: s2g_raf
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use fgrid2agrid_mod, only: fgrid2agrid,tfgrid2agrid
+  implicit none
+
+! Declare passed variables
+  type(gsi_bundle),intent(inout) :: cstate
+
+! Declare local variables
+  integer(i_kind) i,igauss,j,k,kk,n,istatus
+  real(r_kind),allocatable:: worka(:,:,:,:)
+  real(r_single),allocatable:: workb(:,:,:,:)
+  real(r_kind),pointer::rank2(:,:)
+  real(r_kind),pointer::rank3(:,:,:)
+  real(r_kind),allocatable::slaba(:,:,:,:)
+  real(r_kind),allocatable::slabb(:,:,:)
+
+  integer(i_kind):: kds,kde,kps,kpe,nlatf,nlonf,nlat,nlon
+
+  kds=1
+  kde=s2g_raf%num_fields
+  kps=s2g_raf%kbegin_loc
+  kpe=s2g_raf%kend_loc
+  nlat=pf2ap1%nlata
+  nlon=pf2ap1%nlona
+  nlatf=pf2ap1%nlatf
+  nlonf=pf2ap1%nlonf
+
+  allocate(worka(1,lat2,lon2,kds:kde))
+  allocate(slaba(1,nlat,nlon,kps:max(kps,kpe)))
+  allocate(slabb(nlatf,nlonf,kps:max(kps,kpe)))
+  allocate(workb(ngauss,nlatf,nlonf,kps:max(kps,kpe)))
+
+!   transfer from bundle to worka
+
+  worka=zero
+  kk=0
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
+        if(istatus==0) then
+           do k=1,nsig
+              kk=kk+1
+              do j=1,lon2
+                 do i=1,lat2
+                    worka(1,i,j,kk)=rank3(i,j,k)
+                 end do
+              end do
+           end do
+        endif
+     else        !2d flds including motley flds
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
+        if(istatus==0) then
+           kk=kk+1
+           do j=1,lon2
+              do i=1,lat2
+                 worka(1,i,j,kk)=rank2(i,j)
+              end do
+           end do
+        endif
+     endif
+  end do
+
+!   transfer from subdomains to slabs
+
+  call general_sub2grid(s2g_raf,worka,slaba)
+
+!  adjoint of coarse to fine grid interpolation:
+
+  do k=kps,kpe
+     call tfgrid2agrid(pf2aP1,slaba(1,1,1,k),slabb(1,1,k))
+  end do
+
+!  transfer to ngauss copies
+
+  do k=kps,kpe
+     do j=1,nlonf
+        do i=1,nlatf
+           do igauss=1,ngauss
+              workb(igauss,i,j,k)=slabb(i,j,k)
+           end do
+        end do
+     end do
+  end do
+
+!   apply recursive filter
+
+  call raf4   (workb,filter_all,ngauss,1,nlatf,1,nlonf,1,nlatf,1,nlonf,kps,kpe,npe)
+  call raf4_ad(workb,filter_all,ngauss,1,nlatf,1,nlonf,1,nlatf,1,nlonf,kps,kpe,npe)
+
+!  add together ngauss copies
+
+  slabb=zero
+  do k=kps,kpe
+     do j=1,nlonf
+        do i=1,nlatf
+           do igauss=1,ngauss
+              slabb(i,j,k)=workb(igauss,i,j,k)+slabb(i,j,k)
+           end do
+        end do
+     end do
+  end do
+  deallocate(workb)
+
+!  coarse to fine grid interpolation:
+
+  do k=kps,kpe
+     call fgrid2agrid(pf2aP1,slabb(1,1,k),slaba(1,1,1,k))
+  end do
+  deallocate(slabb)
+
+  call general_grid2sub(s2g_raf,slaba,worka)
+  deallocate(slaba)
+
+!   transfer from worka back to bundle
+
+  kk=0
+  do n=1,nvars
+     if (n<=nrf .and. nrf_3d(n)) then
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
+        if(istatus==0) then
+           do k=1,nsig
+              kk=kk+1
+              do j=1,lon2
+                 do i=1,lat2
+                    rank3(i,j,k)=worka(1,i,j,kk)
+                 end do
+              end do
+           end do
+        endif
+     else        !2d flds including motley flds
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
+        if(istatus==0) then
+           kk=kk+1
+           do j=1,lon2
+              do i=1,lat2
+                 rank2(i,j)=worka(1,i,j,kk)
+              end do
+           end do
+        endif
+     endif
+  end do
+  deallocate(worka)
+
+end subroutine ansmoothrf_reg_sub2slab_option
 
 subroutine ansmoothrf_reg_subdomain_option(cstate)
 !$$$  subprogram documentation block

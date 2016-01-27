@@ -166,9 +166,9 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)/(two*psptr%jb))))
            enddo
-           out(1) = out(1)+pen(1)*sqrt(psptr%raterr2)
+           out(1) = out(1)+pen(1)*psptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(psptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*psptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*psptr%raterr2
