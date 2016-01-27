@@ -183,7 +183,7 @@ if (nproc_shm == 0) then
    call MPI_Win_unlock(0, shm_win, ierr)
    nullify(anal_ob_fp)
    ! don't need anal_ob anymore
-   if (nproc == 0) deallocate(anal_ob)
+   if (allocated(anal_ob)) deallocate(anal_ob)
 endif
 ! barrier here to make sure no tasks try to access shared
 ! memory segment before it is created.
