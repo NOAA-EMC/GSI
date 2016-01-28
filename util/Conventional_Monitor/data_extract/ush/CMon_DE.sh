@@ -7,14 +7,10 @@
 #  This is the top level data extractionscript for the Conventional 
 #  Data Monitor (Cmon) package.  
 #
-#  The default is to run this with a suffix value (data source) of copr
-#  meaning the Conventional data from the operational GDAS.  The value
-#  of SUFFIX can be overriden in your envionment or calling script if 
-#  this is to be run as a cron.
-#
-#  Similarly DATDIR and GDATDIR point to the operational data (GDAS). 
-#  They can be overriden either in your interactive shell or in a 
-#  script in order to point to another source.
+#  C_DATDIR and C_GDATDIR (source directories for the cnvstat files) 
+#  point to the operational data (GDAS).  They can be overriden 
+#  either in your interactive shell or in a script in order to point 
+#  to another source.
 #--------------------------------------------------------------------
 set -ax
 
@@ -111,7 +107,7 @@ if [[ ! -d ${C_IMGNDIR} ]]; then
 fi
 
 
-tmpdir=${WORKverf_cmon}/check_conv${SUFFIX}
+tmpdir=${WORKverf_cmon}/de_cmon_${CMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -123,8 +119,8 @@ cd $tmpdir
 if [[ $MY_MACHINE = "wcoss" ]]; then
    count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
    if [[ $count -ne 0 ]] ; then
-      echo "Previous cmon jobs are still running for ${SUFFIX}" 
-      exit
+      echo "Previous cmon jobs are still running for ${CMON_SUFFIX}" 
+      exit 5
    fi
 fi
 
@@ -132,7 +128,7 @@ fi
 # Get date of cycle to process and/or previous cycle processed.
 #
 if [[ $PDATE = "" ]]; then
-   GDATE=`${SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
+   GDATE=`${C_DE_SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
    PDATE=`$NDATE +06 $GDATE`
 else
    GDATE=`$NDATE -06 $PDATE`
@@ -150,13 +146,13 @@ echo PDYm6h = $PDYm6h
 #################
 # testing only:
 #################
-#export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$PDY}
-#export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$PDYm6h}
-export DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
-export GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
+export C_DATDIR=${C_DATDIR:-/com/gfs/prod/gdas.$PDY}
+export C_GDATDIR=${C_GDATDIR:-/com/gfs/prod/gdas.$PDYm6h}
+#export C_DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
+#export C_GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
 
-export C_COMIN=${DATDIR}
-export C_COMINm6h=${GDATDIR}
+export C_COMIN=${C_DATDIR}
+export C_COMINm6h=${C_GDATDIR}
 
 export DATA_IN=${WORKverf_cmon}
 
@@ -173,37 +169,38 @@ export DATA_IN=${WORKverf_cmon}
 # GSI. 
 
 #if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
-#   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
-#   export pgrbf00=${DATDIR}/pgrbf00.gdas.${PDATE}.grib2
-#   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+#   export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
+#   export pgrbf00=${C_DATDIR}/pgrbf00.gdas.${PDATE}.grib2
+#   export pgrbf06=${C_DATDIR}/pgrbf006.gdas.${GDATE}.grib2
 #else
-#   export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-#   export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
-#   export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
+#   export cnvstat="${C_DATDIR}/gdas1.t${CYC}z.cnvstat"
+#   export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
+#   export pgrbf06="${C_GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 #fi
 
 export grib2=${grib2:-0}
-export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-#export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
+export cnvstat="${C_DATDIR}/gdas1.t${CYC}z.cnvstat"
+#export cnvstat="${C_DATDIR}/cnvstat.gdas.${PDATE}"
 if [[ ! -s ${cnvstat} ]]; then
-   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
+   export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
-#export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
-export pgrbf00="${DATDIR}/gdas1.t${CYC}z.pgrbf00"
+#export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
+export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
 if [[ ! -s ${pgrbf00} ]]; then
-#   export pgrbf00=${DATDIR}/pgrbf00.gdas.${PDATE}.grib2
-   export pgrbf00=${DATDIR}/pgbanl.gdas.${PDATE}
-#   export pgrbf00=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
+#   export pgrbf00=${C_DATDIR}/pgrbf00.gdas.${PDATE}.grib2
+   export pgrbf00=${C_DATDIR}/pgbanl.gdas.${PDATE}
+#   export pgrbf00=${C_DATDIR}/pgbhnl.gdas.${PDATE}.grib2
 fi
 
-export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
+export pgrbf06="${C_GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 if [[ ! -s ${pgrbf06} ]]; then
-#   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-#   export pgrbf06=${DATDIR}/pgbh06.gdas.${GDATE}.grib2
-   export pgrbf06=${DATDIR}/pgbf06.gdas.${GDATE}
+#   export pgrbf06=${C_DATDIR}/pgrbf006.gdas.${GDATE}.grib2
+#   export pgrbf06=${C_DATDIR}/pgbh06.gdas.${GDATE}.grib2
+   export pgrbf06=${C_DATDIR}/pgbf06.gdas.${GDATE}
 fi
 
+exit_value=0
 if [ -s $cnvstat  -a -s $pgrbf00 ]; then
    #------------------------------------------------------------------
    #   Submit data extraction job.
@@ -211,21 +208,19 @@ if [ -s $cnvstat  -a -s $pgrbf00 ]; then
    if [ -s $pgrbf06 ]; then
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        echo "job for wcoss goes here"
-#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/data_extract.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:15 -J ${jobname} ${HOMEgdascmon}/jobs/JGDAS_VERFCON
 
       elif [[ $MY_MACHINE = "theia" ]]; then
-         echo "ACCOUNT = $ACCOUNT"
-         echo "jobname = $jobname"
-         echo "C_LOGDIR= $C_LOGDIR" 
          $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
       fi
 
    else
       echo data not available, missing $pgrbf06 file
+      exit_value=6
    fi
 else
    echo data not available -- missing $cnvstat and/or $pgrbf00 files
+   exit_value=7
 fi
 
 
@@ -236,4 +231,4 @@ cd ../
 rm -rf $tmpdir
 
 echo "End CMon_DE.sh"
-exit
+exit ${exit_value}

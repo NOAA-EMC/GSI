@@ -51,12 +51,9 @@ rm -f $logfile
 rm -f $errfile
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   echo "job for wcoss goes here"
-   $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/data_extract.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${plot_hist}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   echo "ACCOUNT = $ACCOUNT"
-   echo "jobname = $jobname"
    ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_hist}
 fi
 
@@ -64,8 +61,6 @@ fi
 #------------------------------
 # submit the plot_horz job
 #------------------------------
-
-#  Plotting on wcoss is untested of course.
 
 jobname="${JOBNAME}_horz"
 plot_horz="${C_IG_SCRIPTS}/plot_horz.sh"
@@ -75,12 +70,9 @@ rm -f $logfile
 rm -f $errfile
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   echo "job for wcoss goes here"
-   $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/data_extract.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${plot_horz}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   echo "ACCOUNT = $ACCOUNT"
-   echo "jobname = $jobname"
    ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_horz}
 fi
 
@@ -88,7 +80,6 @@ fi
 #------------------------------
 # submit the plot_horz_uv job
 #------------------------------
-#  Plotting on wcoss is untested of course.
 
 jobname="${JOBNAME}_horz_uv"
 plot_horz_uv="${C_IG_SCRIPTS}/plot_horz_uv.sh"
@@ -98,12 +89,9 @@ rm -f $logfile
 rm -f $errfile
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   echo "job for wcoss goes here"
-  $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/data_extract.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${plot_horz_uv}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   echo "ACCOUNT = $ACCOUNT"
-   echo "jobname = $jobname"
    ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_horz_uv}
 fi
 

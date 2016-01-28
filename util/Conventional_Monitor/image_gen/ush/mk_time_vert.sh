@@ -30,13 +30,10 @@ echo "--> mk_time_vert.sh"
    rm -f $logfile
    rm -f $errfile
 
-   #  wcoss is yet untested
    if [[ $MY_MACHINE == "wcoss" ]]; then
-      echo "job for wcoss goes here"
       $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
+
    elif [[ $MY_MACHINE == "theia" ]]; then
-      echo "ACCOUNT = $ACCOUNT"
-      echo "jobname = $jobname"
       ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${pltfile}
    fi
 
@@ -52,14 +49,10 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      #  wcoss is yet untested
       if [[ $MY_MACHINE == "wcoss" ]]; then
-         echo "job for wcoss goes here"
          $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-      elif [[ $MY_MACHINE == "theia" ]]; then
-         echo "ACCOUNT = $ACCOUNT"
-         echo "jobname = $jobname"
 
+      elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="walltime=0:22:00"
          else
@@ -84,14 +77,10 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      #  wcoss is yet untested
       if [[ $MY_MACHINE == "wcoss" ]]; then
-         echo "job for wcoss goes here"
          $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
-      elif [[ $MY_MACHINE == "theia" ]]; then
-         echo "ACCOUNT = $ACCOUNT"
-         echo "jobname = $jobname"
 
+      elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="walltime=0:22:00"
          else

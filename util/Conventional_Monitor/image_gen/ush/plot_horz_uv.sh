@@ -67,7 +67,7 @@ for type in uv; do
 
    eval stype=\${${type}_TYPE} 
    eval nreal=\${nreal_${type}} 
-   exec=read_${type}
+#   exec=read_${type}
 
    ## decoding the dignostic file
 
