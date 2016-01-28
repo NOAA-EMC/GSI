@@ -336,7 +336,6 @@ clean:
 	intgps.f90 \
 	intgust.f90 \
 	inthowv.f90 \
-	intcldch.f90 \
         intjcmod.f90 \
 	intjo.f90 \
 	intlag.f90 \
@@ -375,7 +374,6 @@ clean:
 	lag_traj.f90 \
 	lagmod.f90 \
 	lanczos.F90 \
-	logcldch_to_cldch.f90 \
 	loglcbas_to_lcbas.f90 \
 	logvis_to_vis.f90 \
 	looplimits.f90 \
@@ -493,7 +491,6 @@ clean:
 	stpgps.f90 \
 	stpgust.f90 \
 	stphowv.f90 \
-	stpcldch.f90 \
 	stpjo.f90 \
         stpjcmod.f90 \
 	stplcbas.f90 \
@@ -617,7 +614,6 @@ clean:
 	setupdw.f90 \
 	setupgust.f90 \
 	setuphowv.f90 \
-	setupcldch.f90 \
 	setuplag.f90 \
 	setuplcbas.f90 \
 	setupmitm.f90 \

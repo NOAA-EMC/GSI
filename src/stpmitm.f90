@@ -9,7 +9,6 @@ module stpmitmmod
 !
 ! program history log:
 !   2014-04-10  pondeca
-!   2015-07-10  pondeca  - force return if no mitm data available
 !
 ! subroutines included:
 !   sub stpmitm
@@ -81,9 +80,6 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
   type(mitm_ob_type), pointer :: mitmptr
 
   out=zero_quad
-
-! If no mitm data return
-  if(.not. associated(mitmhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

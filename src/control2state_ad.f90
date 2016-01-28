@@ -37,7 +37,6 @@ subroutine control2state_ad(rval,bval,grad)
 !   2014-05-07  pondeca  - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-12-03  derber   - introduce parallel regions for optimization
-!   2015-07-10  pondeca  - add cloud ceiling height (cldch)
 !
 !   input argument list:
 !     rval - State variable
@@ -87,7 +86,6 @@ integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m
 integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
 integer(i_kind) :: ictcamt,iclcbas,icsfwter,icvpwter
-integer(i_kind) :: iccldch
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw ', 'ql ', 'qi '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
@@ -100,7 +98,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
@@ -110,7 +107,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh,rv_wspd10m,rv_tcamt,rv_lcbas
-real(r_kind),pointer,dimension(:,:)   :: rv_td2m,rv_mxtm,rv_mitm,rv_pmsl,rv_howv,rv_cldch
+real(r_kind),pointer,dimension(:,:)   :: rv_td2m,rv_mxtm,rv_mitm,rv_pmsl,rv_howv
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
@@ -179,7 +176,6 @@ call gsi_bundlegetpointer (grad%step(1),'sfwter',icsfwter,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vpwter',icvpwter,istatus)
 call gsi_bundlegetpointer (grad%step(1),'tcamt',ictcamt,istatus)
 call gsi_bundlegetpointer (grad%step(1),'lcbas',iclcbas,istatus)
-call gsi_bundlegetpointer (grad%step(1),'cldch',iccldch,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -358,13 +354,6 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'lcbas', zero, istatus )
       !  Adjoint of convert loglcbas to lcbas
       call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
-   end if
-   if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch'  ,cv_cldch ,istatus)
-      call gsi_bundlegetpointer (rval(jj),'cldch' ,rv_cldch , istatus)
-      call gsi_bundleputvar ( wbundle, 'cldch' , zero   , istatus )
-      !  Adjoint of convert logcldch to cldch
-      call logcldch_to_cldch_ad(cv_cldch,rv_cldch)
    end if
 
 !$omp end parallel sections

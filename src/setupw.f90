@@ -947,7 +947,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*rat_err2*log(cosh((sqrt(val))/sqrt(two*var_jb)))
+           term=-two*var_jb*ratio_errors*log(cosh((sqrt(val))/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
         else if (vqc==.true. .and. cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
