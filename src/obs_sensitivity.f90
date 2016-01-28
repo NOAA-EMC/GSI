@@ -17,8 +17,6 @@ module obs_sensitivity
 !   2010-08-19 lueken   - add only to module use;no machine code, so use .f90
 !   2011-03-29 todling  - add reference to pm2_5
 !   2012-04-15 todling  - add reference to gust, vis, pblh
-!   2015-07-10 pondeca  - add reference to wspd10m, td2m ,mxtm ,mitm ,pmsl,
-!                         howv ,tcamt, lcbas, cldch
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -42,10 +40,7 @@ use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                   i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, & 
-                  i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, & 
-                  i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, & 
-                  i_cldch_ob_type
+                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
@@ -261,15 +256,7 @@ cobtype(i_pm2_5_ob_type) ="pm2_5"
 cobtype(i_gust_ob_type)  ="gust "
 cobtype(i_vis_ob_type)   ="vis  "
 cobtype(i_pblh_ob_type)  ="pblh "
-cobtype(i_wspd10m_ob_type) ="w10m"
-cobtype(i_td2m_ob_type)  ="td2m "
-cobtype(i_mxtm_ob_type)  ="mxtm "
-cobtype(i_mitm_ob_type)  ="mitm "
-cobtype(i_pmsl_ob_type)  ="pmsl "
-cobtype(i_howv_ob_type)  ="howv "
-cobtype(i_tcamt_ob_type) ="tcamt "
-cobtype(i_lcbas_ob_type) ="lcbas "
-cobtype(i_cldch_ob_type) ="cldch "
+
 
 return
 end subroutine init_fc_sens

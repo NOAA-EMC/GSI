@@ -170,7 +170,7 @@ subroutine intps_(pshead,rval,sval)
            endif
            if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
               val=sqrt(two*psptr%jb)*tanh(sqrt(psptr%err2)*val/sqrt(two*psptr%jb))
-              grad = val*psptr%raterr2*sqrt(psptr%err2)
+              grad = val*sqrt(psptr%raterr2*psptr%err2)
            else
               grad = val*psptr%raterr2*psptr%err2
            endif

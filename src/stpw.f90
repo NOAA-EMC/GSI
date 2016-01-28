@@ -208,9 +208,9 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
         endif
 
         if(njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
-           out(1) = out(1)+pen(1)*wptr%raterr2
+           out(1) = out(1)+pen(1)*sqrt(wptr%raterr2)
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*wptr%raterr2
+              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(wptr%raterr2)
            end do
         else
            out(1) = out(1)+pen(1)*wptr%raterr2

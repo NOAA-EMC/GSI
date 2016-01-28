@@ -9,7 +9,6 @@ module derivsmod
 ! program history log:
 !   2013-10-19 Todling - Initial code.
 !   2014-06-18 Carley - add lgues and dlcbasdlog
-!   2015-07-10 Pondeca - add cldchgues and dcldchdlog
 !
 ! public subroutines:
 !  drv_initialized         - initialize name of fields to calc derivs for
@@ -61,7 +60,7 @@ public :: dvars2d, dvars3d
 public :: dsrcs2d, dsrcs3d
 public :: cwgues,cwgues0  
 public :: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
-public :: w10mgues,howvgues,cldchgues,dcldchdlog
+public :: w10mgues,howvgues
 public :: qsatg,qgues,dqdt,dqdrh,dqdp
 
 logical :: drv_initialized = .false.
@@ -73,7 +72,7 @@ character(len=32),allocatable,dimension(:):: dsrcs2d, dsrcs3d
 
 real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp
 real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
-real(r_kind),allocatable,dimension(:,:):: w10mgues,howvgues,cldchgues,dcldchdlog
+real(r_kind),allocatable,dimension(:,:):: w10mgues,howvgues
 real(r_kind),target,allocatable,dimension(:,:,:):: cwgues,cwgues0        
 
 ! below this point: declare vars not to be made public
@@ -404,7 +403,6 @@ drv_set_=.true.
 !   2014-03-19  pondeca - add w10mgues
 !   2014-05-07  pondeca - add howvgues
 !   2014-06-18  carley - add lgues and dlcbasdlog
-!   2015-07-10  pondeca- add cldchgues and dcldchdlog
 !
 !   input argument list:
 !    mlat
@@ -502,15 +500,6 @@ drv_set_=.true.
           end do
        end do
     end if
-    if (getindex(svars2d,'cldch')>0) then
-       allocate(cldchgues(lat2,lon2),dcldchdlog(lat2,lon2))
-       do j=1,lon2
-          do i=1,lat2
-             cldchgues(i,j)=zero
-             dcldchdlog(i,j)=zero
-          end do
-       end do
-    end if
 
 
     return
@@ -533,7 +522,6 @@ drv_set_=.true.
 !   2014-03-19  pondeca - add w10mgues
 !   2014-05-07  pondeca - add howvgues
 !   2014-06-18  carley - add lgues and dlcbasdlog 
-!   2015-07-10  pondeca- add cldchgues and dcldchdlog
 !
 !   input argument list:
 !
@@ -561,8 +549,6 @@ drv_set_=.true.
     if(allocated(dlcbasdlog)) deallocate(dlcbasdlog)
     if(allocated(w10mgues)) deallocate(w10mgues)
     if(allocated(howvgues)) deallocate(howvgues)
-    if(allocated(cldchgues)) deallocate(cldchgues)
-    if(allocated(dcldchdlog)) deallocate(dcldchdlog)
 
     return
   end subroutine destroy_auxiliar_

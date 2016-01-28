@@ -148,7 +148,6 @@ subroutine intall(sval,sbias,rval,rbias)
 !   2014-03-19  pondeca -  Add RHS calculation for wspd10m constraint
 !   2014-05-07  pondeca -  Add RHS calculation for howv constraint
 !   2014-06-17  carley/zhu  - Add RHS calculation for lcbas constraint
-!   2015-07-10  pondeca - Add RHS calculation for cldch constraint
 !
 !   input argument list:
 !     sval     - solution on grid
@@ -180,7 +179,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
-  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,intlimcldch,&
+  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,&
       intliml,intjcpdry1,intjcpdry2,intjcdfi
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
@@ -266,9 +265,6 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for lcbas constraint
      if (getindex(svars2d,'lcbas')>0) call intliml(rval(1),sval(1))
-
-! RHS for cldch constraint
-     if (getindex(svars2d,'cldch')>0) call intlimcldch(rval(1),sval(1))
 
   end if
 

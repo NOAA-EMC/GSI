@@ -12,7 +12,6 @@ module intjcmod
 !   2014-03-19  pondeca - add weak constraint subroutine for wspd10m
 !   2014-05-07  pondeca - add weak constraint subroutine for howv
 !   2014-06-17  carley/zhu - add intliml for lcbas + some cleanup
-!   2015-07-10  pondeca - add weak constraint subroutine for cldch
 !
 ! subroutines included:
 !
@@ -28,7 +27,7 @@ use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 implicit none
 
 PRIVATE
-PUBLIC intlimq,intlimg,intlimp,intlimv,intlimw10m,intlimhowv,intliml,intlimcldch,intjcdfi,intjcpdry,intjcpdry1,intjcpdry2
+PUBLIC intlimq,intlimg,intlimp,intlimv,intlimw10m,intlimhowv,intliml,intjcdfi,intjcpdry,intjcpdry1,intjcpdry2
 
 contains
 
@@ -499,72 +498,6 @@ subroutine intliml(rval,sval)
 
   return
 end subroutine intliml
-
-subroutine intlimcldch(rval,sval)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    intlimcldch
-!   prgmmr: pondeca           org: np23                date: 2014-05-07
-!
-! abstract: limit negative cloud ceiling height as a weak constraint
-!
-! program history log:
-!   2015-07-10  pondeca
-!
-!   input argument list:
-!     sg       - increment in grid space
-!
-!   output argument list:
-!     rg       - results from limiting operator                 
-!
-! remarks: see modules used
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_kind,i_kind
-  use constants, only: zero
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factcldch
-  use derivsmod, only: cldchgues
-  use gsi_bundlemod, only: gsi_bundle
-  use gsi_bundlemod, only: gsi_bundlegetpointer
-  implicit none
-
-! Declare passed variables
-  type(gsi_bundle),intent(in   ) :: sval
-  type(gsi_bundle),intent(inout) :: rval
-
-! Declare local variables
-  integer(i_kind) i,j,ier,istatus
-  real(r_kind) cldch
-  real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
-  real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
-
-  if (factcldch==zero) return
-
-! Retrieve pointers
-! Simply return if any pointer not found
-  ier=0
-  call gsi_bundlegetpointer(sval,'cldch',sg,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'cldch',rg,istatus);ier=istatus+ier
-  if(ier/=0)return
- 
-  do j = 2,lon1+1
-     do i = 2,lat1+1
-        cldch = cldchgues(i,j) + sg(i,j)
-           
-!       Lower constraint limit
-        if (cldch < zero) then
-           rg(i,j) = rg(i,j) + factcldch*cldch/(cldchgues(i,j)*cldchgues(i,j))
-        end if
-     end do
-  end do
-
-  return
-end subroutine intlimcldch
 
 subroutine intjcpdry(rval,sval,nbins,pjc)
 !$$$  subprogram documentation block

@@ -206,8 +206,8 @@ subroutine intw_(whead,rval,sval)
            if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
               valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
               valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
-              gradu = valu*wptr%raterr2*sqrt(wptr%err2)
-              gradv = valv*wptr%raterr2*sqrt(wptr%err2)
+              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
+              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2

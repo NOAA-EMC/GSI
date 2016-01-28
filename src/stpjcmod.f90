@@ -11,7 +11,6 @@ module stpjcmod
 !   2014-03-19  pondeca - add stepzise calculation for wspd10m weak constraint term
 !   2014-05-07  pondeca - add stepzise calculation for howv weak constraint term
 !   2014-06-17  carley/zhu - add stepzise calculation for lcbas weak constraint term
-!   2015-07-10  pondeca - add stepzise calculation for cldch weak constraint term
 !
 ! subroutines included:
 !
@@ -29,7 +28,7 @@ use gsi_metguess_mod, only: gsi_metguess_bundle
 implicit none
 
 PRIVATE
-PUBLIC stplimq,stplimg,stplimp,stplimv,stplimw10m,stplimhowv,stplimcldch,stpliml,stpjcdfi,stpjcpdry
+PUBLIC stplimq,stplimg,stplimp,stplimv,stplimw10m,stplimhowv,stpliml,stpjcdfi,stpjcpdry
 
 contains
 
@@ -527,82 +526,8 @@ subroutine stplimhowv(rval,sval,sges,out,nstep)
   end do
   return
 end subroutine stplimhowv
-
-subroutine stplimcldch(rval,sval,sges,out,nstep)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stplimcldch     calculate penalty and stepsize for limit of cldch
-!   prgmmr: derber           org: np23                date: 1996-11-19
-!
-! abstract: calculate stepsize contribution and penalty for limiting cldch
-!
-! program history log:
-!   2015-07-10  pondeca
-!
-!   input argument list:
-!     rg       - search direction
-!     sg       - increment in grid space
-!     sges     - step size estimates (4)
-!     nstep    - number of step size estimates if == 0 then just do outer loop
-!
-!   output argument list:
-!     out(1:nstep)  - current penalty for negative cldch sges(1:nstep)
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factcldch
-  use derivsmod, only: cldchgues
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)                     ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(1,nstep)),intent(  out) :: out
-  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
-
-! Declare local variables
-  integer(i_kind) i,j,kk,ier,istatus
-  real(r_kind) cldch,cx
-  real(r_kind),pointer,dimension(:,:) :: rg,sg
-
-  out=zero_quad
-
-  if (factcldch==zero) return
-
-! Retrieve pointers
-! Simply return if any pointer not found
-  ier=0
-  call gsi_bundlegetpointer(sval,'cldch',sg,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'cldch',rg,istatus);ier=istatus+ier
-  if(ier/=0)return
-
-! Loop over interior of subdomain
-  if(nstep > 0)then
-     do j = 2,lon1+1
-        do i = 2,lat1+1
-
-!          Values for cldch using stepsizes
-           cldch  = cldchgues(i,j) + sg(i,j)
-           do kk=1,nstep
-              cx = cldch + sges(kk)*rg(i,j)
-              if(cx < zero)then
-                 out(kk)=out(kk)+factcldch*cx*cx/(cldchgues(i,j)*cldchgues(i,j))
-              end if
-           end do
-        end do
-     end do
-  end if
-
-  do kk=2,nstep
-     out(kk)=out(kk)-out(1)
-  end do
-  return
-end subroutine stplimcldch
-
+ 
+ 
 subroutine stpliml(rval,sval,sges,out,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
