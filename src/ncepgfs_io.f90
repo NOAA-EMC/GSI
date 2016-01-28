@@ -1160,14 +1160,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
         file_sfc = 'sfcanl'
         file_nst = 'nstanl'
         if(use_gfs_nemsio)then
-          call write_nemssfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(:,:,ntguessfc))
+!         call write_nemssfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(:,:,ntguessfc))
+          call write_nemssfc_nst(mype,mype_sfc,dsfct(:,:,ntguessfc))
         else
           call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
         end if
-        if ( l_hyb_ens ) then
-          call write_ens_dsfct(mype,mype_sfc,dsfct(1,1,ntguessfc))
-        endif
-
       else
         filename='sfcanl.gsi'
         if(use_gfs_nemsio)then

@@ -25,9 +25,16 @@ program getsfcnstensupdp
   use constants, only: two,half,zero,z_w_max,tfrozen,init_constants_derived,pi
   use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_swohdc
   use nstio_module, only: nstio_srohdc,nstio_head,nstio_data,nstio_swohdc
+  use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+  use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
+       nemsio_writerec,nemsio_readrecv,nemsio_writerecv
 
   implicit none
  
+  real(4),parameter:: zero=0.0_4
+
+  logical:: nemsio, sfcio
+
   real(r_kind),    parameter :: houra=zero
   integer(i_kind), parameter :: nprep=15
   integer(i_kind), parameter :: lun_dtfanl=11,lun_nstges=21,lun_sfcges=22, &
@@ -39,6 +46,8 @@ program getsfcnstensupdp
   character(len=8)  :: charbuf
 
   integer(i_kind) :: mype,mype1,npe,nproc,iret
+  integer nrec, lonb, latb, n, npts
+  integer,dimension(7):: idate
   integer(i_kind) :: latb,lonb,n_new_water,n_new_seaice
   integer(i_kind) :: i,j,jmax
   integer(i_kind) :: nanals,nst_gsi,zsea1,zsea2
@@ -58,6 +67,7 @@ program getsfcnstensupdp
   type(sfcio_head):: head_sfcanl,head_sfcges,head_sfcgcy
   type(sfcio_data):: data_sfcanl,data_sfcges,data_sfcgcy
 
+  type(nemsio_gfile) :: gfile_sfcges,gfile_sfcgcy,gfile_sfcanl,gfile_nstanl
 ! Initialize mpi
 !  mype is process number, npe is total number of processes.
   call mpi_init(iret)
@@ -104,6 +114,8 @@ program getsfcnstensupdp
 
   else
 
+    call nemsio_init(iret)
+
     write(charnanal,'(i3.3)') mype1
 
     fname_dtfanl = 'dtfanl'
@@ -129,25 +141,49 @@ program getsfcnstensupdp
 !   read nsst guess fields
 !
     call nstio_srohdc(lun_nstges,trim(fname_nstges),head_nst,data_nst,iret)
-    write(6,'(3a,i5)')'Read ',trim(fname_nstges),' iret = ',iret
-!
 !   read sfc guess fields
 !
     call sfcio_srohdc(lun_sfcges,trim(fname_sfcges),head_sfcges,data_sfcges,iret)
-    write(6,'(3a,i5)')'Read ',trim(fname_sfcges),' iret = ',iret
 !
 !   read sfc global_cycle fields
 !
     call sfcio_srohdc(lun_sfcgcy,trim(fname_sfcgcy),head_sfcgcy,data_sfcgcy,iret)
-    write(6,'(3a,i5)')'Read ',trim(fname_sfcgcy),' iret = ',iret
 
-    if ( head_nst%latb /= head_sfcgcy%latb .or. head_nst%lonb /= head_sfcgcy%lonb ) then
-       if ( mype == 0 ) then
-          write(6,'(a)') 'Inconsistent dimension for sfc and nst files'
-          write(6,'(2(a,i5))') 'head_nst%latb    = ',head_nst%latb,   ' head_nst%lonb    = ',head_nst%lonb
-          write(6,'(2(a,i5))') 'head_sfcgcy%latb = ',head_sfcgcy%latb,' head_sfcgcy%lonb = ',head_sfcgcy%lonb
+!
+    if (iret == 0 ) then
+       sfcio = .true.
+       write(6,'(3a)')'Read ',trim(fname_nstges),' in sfcio format '
+       write(6,'(3a)')'Read ',trim(fname_sfcges),' in sfcio format '
+       write(6,'(3a)')'Read ',trim(fname_sfcgcy),' in sfcio format '
+       if ( head_nst%latb /= head_sfcgcy%latb .or. head_nst%lonb /= head_sfcgcy%lonb ) then
+          if ( mype == 0 ) then
+             write(6,'(a)') 'Inconsistent dimension for sfc and nst files'
+             write(6,'(2(a,i5))') 'head_nst%latb    = ',head_nst%latb,   ' head_nst%lonb    = ',head_nst%lonb
+             write(6,'(2(a,i5))') 'head_sfcgcy%latb = ',head_sfcgcy%latb,' head_sfcgcy%lonb = ',head_sfcgcy%lonb
+          endif
+       endif
+
+    else
+       if (iret == 0 ) then
+          nemsio = .true.
+          call nemsio_open(gfile_nstges,trim(fname_nstges),'READ',iret)
+          write(6,'(3a)')'Open to read ',trim(fname_nstges),' in nemsio format '
+
+          call nemsio_open(gfile_sfcges,trim(fname_sfcges),'READ',iret)
+          write(6,'(3a)')'Open to read ',trim(fname_sfcges),' in nemsio format '
+
+          call nemsio_open(gfile_sfcgcy,trim(fname_sfcgcy),'READ',iret)
+          write(6,'(3a)')'Open to read',trim(fname_sfcgcy),' in nemsio format '
+       else
+          write(6,*)'***ERROR*** ',trim(fname_sfcges),' contains unrecognized format.  ABORT'
        endif
     endif
+
+
+     if (.not.nemsio .and. .not.sfcio) goto 100
+     if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sfcio=',sfcio
+
+
 !
 !  Assign sfcanl as sfcgcy
 !
