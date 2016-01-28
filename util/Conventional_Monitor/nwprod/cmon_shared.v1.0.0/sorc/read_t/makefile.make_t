@@ -1,7 +1,7 @@
 SHELL=/bin/sh
 
 #------------------
-#  makefile.make_t
+#  makefile.read_t
 #------------------
 
 SRCS=   mainread_t.f90 read_t.f90 read_t_mor.f90 histgram.f90 dup.f90 convinfo.f90 
@@ -25,7 +25,6 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp ${CMD} ../../exec/.
 
 mainread_t.o : mainread_t.f90
 	$(CF) $(FFLAGS) -c $(*).f90
