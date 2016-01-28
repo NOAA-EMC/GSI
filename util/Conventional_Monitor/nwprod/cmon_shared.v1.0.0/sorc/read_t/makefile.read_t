@@ -1,12 +1,12 @@
 SHELL=/bin/sh
 
-#-----------------------
-#  makefile.grads_sfc
-#-----------------------
+#------------------
+#  makefile.read_t
+#------------------
 
-SRCS=         maingrads_sfc.f90 read_conv2grads.f90 grads_sfc.f90 dup.f90 convinfo.f90 
+SRCS=   mainread_t.f90 read_t.f90 read_t_mor.f90 histgram.f90 dup.f90 convinfo.f90 
 
-OBJS=         maingrads_sfc.o read_conv2grads.o grads_sfc.o dup.o convinfo.o 
+OBJS=   mainread_t.o read_t.o read_t_mor.o histgram.o dup.o convinfo.o 
 
 #----------------------------------------------------
 # Include machine dependent compile & load options
@@ -14,9 +14,9 @@ OBJS=         maingrads_sfc.o read_conv2grads.o grads_sfc.o dup.o convinfo.o
 MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
-CMD=            grads_sfc.x 
+CMD=    read_t.x    
 
-all:            $(CMD)
+all:    $(CMD)
 
 clean:
 	rm -f *.o
@@ -26,13 +26,20 @@ clean:
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
 
-maingrads_sfc.o : maingrads_sfc.f90
+mainread_t.o : mainread_t.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-read_conv2grads.o : read_conv2grads.f90
+
+read_t.o : read_t.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-grads_sfc.o : grads_sfc.f90
+
+read_t_mor.o : read_t_mor.f90
 	$(CF) $(FFLAGS) -c $(*).f90
+
+histgram.o : histgram.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
 dup.o : dup.f90
 	$(CF) $(FFLAGS) -c $(*).f90
+
 convinfo.o : convinfo.f90
 	$(CF) $(FFLAGS) -c $(*).f90

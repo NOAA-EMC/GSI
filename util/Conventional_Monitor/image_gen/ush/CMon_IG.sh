@@ -181,64 +181,6 @@ ${C_IG_SCRIPTS}/mk_time_vert.sh
 #fi
 
 
-
-#################
-# testing only:
-#################
-##export DATDIR=${DATDIR:-/com/gfs/prod/gdas.$PDY}
-##export GDATDIR=${GDATDIR:-/com/gfs/prod/gdas.$PDYm6h}
-#export DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
-#export GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
-
-#export C_COMIN=${DATDIR}
-#export C_COMINm6h=${GDATDIR}
-
-#export DATA_IN=${WORKverf_cmon}
-
-
-#--------------------------------------------------------------------
-# If data is available, export variables, and submit driver for
-# plot jobs.
-#
-# Modification here is for prhw14 and prhs13 parallels which only
-# generate grib2 files for the analysis and forecast files.  The 
-# operational GDAS creates grib and grib2 files.  The Cmon package
-# was originally designed to use grib files, but it's clear that
-# grib2 will be the only standard with the next major release of 
-# GSI. 
-
-##if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
-##   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
-##   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
-##   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-##else
-##   export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-##   export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
-##   export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
-##fi
-
-#export grib2=${grib2:-0}
-#export cnvstat="${DATDIR}/gdas1.t${CYC}z.cnvstat"
-##export cnvstat="${DATDIR}/cnvstat.gdas.${PDATE}"
-#if [[ ! -s ${cnvstat} ]]; then
-#   export cnvstat=${DATDIR}/cnvstat.gdas.${PDATE}
-#fi
-#
-#export pgrbanl="${DATDIR}/gdas1.t${CYC}z.pgrbanl"
-#if [[ ! -s ${pgrbanl} ]]; then
-##   export pgrbanl=${DATDIR}/pgrbanl.gdas.${PDATE}.grib2
-#   export pgrbanl=${DATDIR}/pgbanl.gdas.${PDATE}
-##   export pgrbanl=${DATDIR}/pgbhnl.gdas.${PDATE}.grib2
-#fi
-
-#export pgrbf06="${GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
-#if [[ ! -s ${pgrbf06} ]]; then
-##   export pgrbf06=${DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-##   export pgrbf06=${DATDIR}/pgbh06.gdas.${GDATE}.grib2
-#   export pgrbf06=${DATDIR}/pgbf06.gdas.${GDATE}
-#fi
-
-
 #--------------------------------------------------------------------
 # Clean up and exit
 #cd $tmpdir

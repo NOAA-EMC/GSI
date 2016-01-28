@@ -21,7 +21,6 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp ${CMD} ../../exec/.
 
 mainconv_time.o : mainconv_time.f90
 	$(CF) $(FFLAGS) -c $(*).f90

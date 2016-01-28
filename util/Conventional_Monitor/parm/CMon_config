@@ -14,7 +14,7 @@ export MY_MACHINE=wcoss
 # MY_CMON should point to that.
 #
 
-export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monitor}
+export MY_CMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventional_Monitor
 
 #
 #  The CMON_TANKDIR will be the location for the extracted data files and
@@ -23,7 +23,7 @@ export MY_CMON=${MY_CMON:-/gpfs/td2/emc/da/noscrub/${LOGNAME}/Conventional_Monit
 #  this location.
 #
 
-export CMON_TANKDIR=${CMON_TANKDIR:-/u/${LOGNAME}/nbns}
+export CMON_TANKDIR=/u/Edward.Safford/nbns
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
 export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
@@ -45,8 +45,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="gunzip -f"
    export Z="gz"
    export TIMEX=
-   export GRADS=${GRADS_ROOT}/grads
-   export PROJECT=${PROJECT:-GDAS-T20}
+   export GRADS=/usrx/local/GrADS/2.0.1/bin/grads
+   export PROJECT=${PROJECT:-GDAS-T2O}
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
@@ -77,9 +77,9 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this c
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEBDIR=${WEBDIR:-}
-export WEBUSER=${WEBUSER:-${LOGNAME}}
-export WEBSVR=${WEBSVR:-emcrzdm}
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
+export WEBUSER=esafford
+export WEBSVR=emcrzdm
 
 
 #
