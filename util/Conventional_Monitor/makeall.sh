@@ -49,6 +49,7 @@ if [[ ${machine} = "wcoss" || ${machine} = "theia" ]]; then
 
       if [[ ${mode} = "all" ]]; then
          cp -f ${var}.x ${exec_path}/.
+         ln -s ${exec_path}/${var}.x ${top_level}/image_gen/exec/.
       fi
    done
 
