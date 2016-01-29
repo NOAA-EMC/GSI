@@ -620,8 +620,8 @@ real(r_kind), allocatable, dimension(:) :: rrloc,eival,work3
 real(r_kind) :: rho
 integer(i_kind) :: i,j,nob,nanal,ierr,lwork
 !for dsyevr
-!integer(i_kind) iwork(10*nanals),isuppz(2*nanals)
-!real(r_kind) vl,vu,work(70*nanals)
+integer(i_kind) iwork(10*nanals),isuppz(2*nanals)
+real(r_kind) vl,vu,work(70*nanals)
 !for dsyevd
 !integer(i_kind) iwork(5*nanals+3)
 !real(r_kind) work(2*nanals*nanals+6*nanals+1)
@@ -658,14 +658,14 @@ do nanal=1,nanals
 end do
 ! eigenvalues and eigenvectors of [ hdxb^T Rinv hdxb + (m-1) I ]
 ! use LAPACK dsyev
-eivec(:,:) = work1(:,:); lwork = -1
-call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
-lwork = min(nanals*nanals, int(work1(1,1)))
-call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
+!eivec(:,:) = work1(:,:); lwork = -1
+!call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
+!lwork = min(nanals*nanals, int(work1(1,1)))
+!call dsyev('V','L',nanals,eivec,nanals,eival,work1(1,1),lwork,ierr)
 ! use LAPACK dsyevd
 !call dsyevd('V','L',nanals,eivec,nanals,eival,work,size(work),iwork,size(iwork),ierr)
 ! use LAPACK dsyevr 
-!call dsyevr('V','A','L',nanals,work1,nanals,vl,vu,1,nanals,-1.d0,nanals,eival,eivec,nanals,isuppz,work,size(work),iwork,size(iwork),ierr)
+call dsyevr('V','A','L',nanals,work1,nanals,vl,vu,1,nanals,-1.d0,nanals,eival,eivec,nanals,isuppz,work,size(work),iwork,size(iwork),ierr)
 if (ierr .ne. 0) print *,'warning: dsyev* failed, ierr=',ierr
 ! Pa = [ hdxb^T Rinv hdxb + (m-1) I ]inv
 do j=1,nanals
