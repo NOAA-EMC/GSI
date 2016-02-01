@@ -185,7 +185,7 @@ clean:
 
   SRCSF90C = \
 	covlocal.f90 \
-	enkf.F90 \
+	enkf.f90 \
 	enkf_main.f90 \
 	fftpack.f90 \
 	genqsat1.f90 \
