@@ -1,5 +1,5 @@
 covlocal.o : covlocal.f90 params.o 
-enkf.o : enkf.F90 rnorm.o gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o kdtree2.o covlocal.o mpisetup.o sorting.o
+enkf.o : enkf.f90 rnorm.o gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o kdtree2.o covlocal.o mpisetup.o sorting.o
 enkf_main.o : enkf_main.f90 inflation.o  enkf.o letkf.o loadbal.o statevec.o gridinfo.o innovstats.o enkf_obsmod.o mpisetup.o params.o 
 fftpack.o : fftpack.f90 
 genqsat1.o : genqsat1.f90  
