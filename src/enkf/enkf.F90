@@ -83,7 +83,8 @@ module enkf
 !               kdtree2_module, enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
-!   2009-02-23  Initial version.
+!   2009-02-23:  Initial version.
+!   2016-02-01:  Ensure posterior perturbation mean remains zero.
 !
 ! attributes:
 !   language: f95
@@ -606,6 +607,25 @@ do niter=1,numiter
       ncount = ncount + 1
 
   end do obsloop ! loop over obs to assimilate
+
+  ! make sure posterior perturbations still have zero mean.
+  ! (roundoff errors can accumulate)
+  !$omp parallel do schedule(dynamic) private(npt,nb,i)
+  do npt=1,npts_max
+     do nb=1,nbackgrounds
+        do i=1,ndim
+           anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
+           sum(anal_chunk(1:nanals,npt,i,nb),1)/r_nanals
+        end do
+     end do
+  enddo
+  !$omp end parallel do
+  !$omp parallel do schedule(dynamic) private(nob)
+  do nob=1,nobs_max
+     anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob)-&
+     sum(anal_obchunk(1:nanals,nob),1)/r_nanals
+  enddo
+  !$omp end parallel do
 
   tend = mpi_wtime()
   if (nproc .eq. 0) then
