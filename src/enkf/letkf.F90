@@ -67,6 +67,10 @@ module letkf
 !               Use openmp reductions for profiling openmp loops. Use kdtree
 !               for range search instead of original box routine. Modify
 !               ob space update to use weights computed at nearest grid point.
+!   2016-02-01  whitaker: Use MPI-3 shared memory pointers to reduce memory
+!               footprint by only allocated observation prior ensemble
+!               array on one MPI task per node. Also ensure posterior
+!               perturbation mean is zero.
 !
 ! attributes:
 !   language: f95
@@ -78,7 +82,7 @@ use, intrinsic :: iso_c_binding
 use omp_lib, only: omp_get_num_threads
 use covlocal, only:  taper, latval
 use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
-use loadbal, only: numptsperproc, &
+use loadbal, only: numptsperproc, npts_max, &
                    indxproc, lnp_chunk, &
                    grdloc_chunk, kdtree_obs2
 use statevec, only: ensmean_chunk, anal_chunk
@@ -538,6 +542,19 @@ do niter=1,numiter
      if (allocated(sresults)) deallocate(sresults)
   end do grdloop
   !$omp end parallel do
+
+  ! make sure posterior perturbations still have zero mean.
+  ! (roundoff errors can accumulate)
+  !$omp parallel do schedule(dynamic) private(npt,nb,i)
+  do npt=1,npts_max
+     do nb=1,nbackgrounds
+        do i=1,ndim
+           anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
+           sum(anal_chunk(1:nanals,npt,i,nb),1)/r_nanals
+        end do
+     end do
+  enddo
+  !$omp end parallel do
   
   tend = mpi_wtime()
   call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
@@ -569,7 +586,8 @@ if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
 nullify(anal_ob_fp)
 call MPI_Win_free(shm_win, ierr)
 #endif
-if (allocated(anal_ob)) deallocate(anal_ob)
+! deallocate anal_ob on non-root tasks.
+if (nproc .ne. 0 .and. allocated(anal_ob)) deallocate(anal_ob)
 
 return
 
@@ -591,7 +609,9 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !               is used.  Allow for numiter=0 (skip ob space update). Fixed
 !               missing openmp private declarations in obsloop and grdloop.
 !               Use openmp reductions for profiling openmp loops. Use LAPACK
-!               routine for eigenanalysis.
+!               routine dsyev for eigenanalysis.
+!   2016-02-01  whitaker: Use LAPACK dsyevr for eigenanalysis (faster
+!               than dsyev in most cases).
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch

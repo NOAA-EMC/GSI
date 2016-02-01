@@ -32,6 +32,7 @@ program enkf_main
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
+!   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
 !
 ! usage:
 !   input files:
