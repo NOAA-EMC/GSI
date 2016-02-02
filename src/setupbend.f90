@@ -453,9 +453,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      data(ihgt,i)=hob
 
 !    initialize error, error_adjst, and err_final
-     error=tiny_r_kind
-     error_adjst=tiny_r_kind
-     err_final=tiny_r_kind
+     error(i)=tiny_r_kind
+     error_adjst(i)=tiny_r_kind
 
      if (hob<one .or. hob>rsig) then
         data(ier,i) = zero
