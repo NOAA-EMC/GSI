@@ -775,8 +775,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (itype==244) then
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
-!       prsfc = r10*prsfc       ! surface pressure in hPa
-        prsfc = r10*psges       ! surface pressure in hPa
+        prsfc = r10*prsfc       ! surface pressure in hPa
 
 !       Set and computes modis specific qc parameters
         LNVD_wspd = spdob
@@ -1188,7 +1187,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
 
         rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
-        if(itype >=240 .and. itype <=260) rdiagbuf(23,ii)=(psges*r10)
 
         ioff=ioff0
         if (lobsdiagsave) then
