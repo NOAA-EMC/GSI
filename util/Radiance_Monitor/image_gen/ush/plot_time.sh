@@ -132,6 +132,9 @@ EOF
      done 
    fi
 
+   #  This restriction is in place because the regional html doesn't yet
+   #  use the interactive plotting by default.  That is next on the todo list.
+   #  All global sources and nrx (operatioal ndas)  are supported though.
    if [[ ${RAD_AREA} = "glb" || ${SUFFIX} = "nrx" ]]; then
       $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
       ./nu_plot_time.sh ${type}

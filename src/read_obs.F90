@@ -171,6 +171,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   return
 #endif
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
+  if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -555,6 +556,10 @@ subroutine read_obs(ndata,mype)
 !                        surface fields
 !   2015-01-16  ejones  - added saphir, gmi, and amsr2 handling
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
+!   2015-05-30  li     - modify for no radiance cases but sst (nsstbufr) and read processor for
+!                        surface fields (use_sfc = .true. for data type of sst),
+!                        to use deter_sfc in read_nsstbufr.f90)
+!   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
 !   
 !
 !   input argument list:
@@ -578,12 +583,22 @@ subroutine read_obs(ndata,mype)
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common, &
            reduce_diag,nobs_sub,dval_use
+    use qcmod, only: njqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero
     use converr, only: converr_read
+    use converr_ps, only: converr_ps_read
+    use converr_q, only: converr_q_read
+    use converr_t, only: converr_t_read
+    use converr_uv, only: converr_uv_read
+    use converr_pw, only: converr_pw_read
+    use convb_ps,only: convb_ps_read
+    use convb_q,only:convb_q_read
+    use convb_t,only:convb_t_read
+    use convb_uv,only:convb_uv_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nst_gsi
     use insitu_info, only: mbuoy_info,read_ship_info
@@ -593,7 +608,7 @@ subroutine read_obs(ndata,mype)
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv,ithin_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
-    use gsi_nstcouplermod, only: gsi_nstcoupler_set
+    use gsi_nstcouplermod, only: gsi_nstcoupler_set,gsi_nstcoupler_final
     use gsi_io, only: mype_io
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
@@ -662,10 +677,19 @@ subroutine read_obs(ndata,mype)
     npem1=npe-1
     nprof_gps1=0
 
-!    if(oberrflg .or. perturb_obs) then
+    if(njqc) then
+       call converr_ps_read(mype)
+       call converr_q_read(mype)
+       call converr_t_read(mype)
+       call converr_uv_read(mype)
+       call converr_pw_read(mype)
+       call convb_ps_read(mype)
+       call convb_q_read(mype)
+       call convb_t_read(mype)
+       call convb_uv_read(mype)
+    else
        call converr_read(mype)
-!    endif
-
+    endif
 
 !   Optionally set random seed to perturb observations
     if (perturb_obs) then
@@ -1020,8 +1044,8 @@ subroutine read_obs(ndata,mype)
           obstype=dtype(i)
           if (obstype == 't' .or. obstype == 'q'  .or. &
               obstype == 'uv') then
-             use_prsl_full=.true.
-             if(belong(i))use_prsl_full_proc=.true.
+              use_prsl_full=.true.
+              if(belong(i))use_prsl_full_proc=.true.
           else
             do j=1,nconvtype
                if(obstype == trim(ioctype(j)) .and. ithin_conv(j) > 0)then
@@ -1034,10 +1058,11 @@ subroutine read_obs(ndata,mype)
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
-       else if(ditype(i) == 'rad' )then
-          if(belong(i))then
+          if(obstype == 'sst')then
             use_sfc=.true.
-          end if
+          endif
+       else if(ditype(i) == 'rad' )then
+          if(belong(i)) use_sfc=.true.
        end if
     end do
     use_sfc_any=.false.
@@ -1107,14 +1132,13 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal nst fields from local fields in guess_grids/read it from nst file
     if (nst_gsi > 0) then
-      call gsi_nstcoupler_set(mype)         ! Set NST fields (each proc needs full NST fields)
-
-!     Create moored buoy station ID
-      call mbuoy_info(mype)
-
-!     Create ships info(ID, Depth & Instrument)
-      call read_ship_info(mype)
+      call gsi_nstcoupler_set(mype,mype_io_sfc)         ! Set NST fields (each proc needs full NST fields)
     endif
+!   Create moored buoy station ID
+    call mbuoy_info(mype)
+
+!   Create ships info(ID, Depth & Instrument)
+    call read_ship_info(mype)
 
 !   Loop over data files.  Each data file is read by a sub-communicator
     loop_of_obsdata_files: &
@@ -1151,7 +1175,7 @@ subroutine read_obs(ndata,mype)
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'wspd10m' .or. obstype == 'td2m' .or. &
-                 obstype=='mxtm' .or. obstype == 'mitm' .or. &
+!                obstype=='mxtm' .or. obstype == 'mitm' .or. &
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
                  obstype == 'lcbas'  ) then
@@ -1167,6 +1191,28 @@ subroutine read_obs(ndata,mype)
                    string='READ_PREPBUFR'
 
                 endif
+
+             else if(obstype == 'mitm') then
+                if ( index(infile,'mitmdat') /=0) then
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,sis, & 
+                                       nobs_sub1(1,i))
+                   string='READ_ASCII_MITM'
+                 else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_PREPBUFR'
+                 endif
+
+             else if(obstype == 'mxtm') then
+                if ( index(infile,'mxtmdat') /=0) then
+                   call read_mitm_mxtm(nread,npuse,nouse,infile,obstype,lunout,gstime,sis, & 
+                                       nobs_sub1(1,i))
+                   string='READ_ASCII_MXTM'
+                 else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                   string='READ_PREPBUFR'
+                 endif
 
 !            Process total cloud amount (tcamt) in prepbufr -or- from goes imager sky cover products
              else if(obstype == 'tcamt') then
@@ -1213,7 +1259,7 @@ subroutine read_obs(ndata,mype)
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
-                        lunout,twind,sis)
+                        lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_NSSTBUFR'
                 elseif ( platid == 'mods') then
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
@@ -1539,6 +1585,8 @@ subroutine read_obs(ndata,mype)
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc
+!   Deallocate arrays containing full horizontal nsst fields
+    if (nst_gsi > 0) call gsi_nstcoupler_final()
 !   Sum and distribute number of obs read and used for each input ob group
     call mpi_allreduce(ndata1,ndata,ndat*3,mpi_integer,mpi_sum,mpi_comm_world,&
        ierror)

@@ -49,7 +49,7 @@ subroutine get_gefs_ensperts_dualres
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
-  use hybrid_ensemble_parameters, only: betas_inv,betae_inv
+  use hybrid_ensemble_parameters, only: betas_inv,betae_inv,ensemble_path
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -133,10 +133,10 @@ subroutine get_gefs_ensperts_dualres
           ! read pre-processed ensemble data (one file for each bin that has all
           ! the ensemble members for a subdomain).
           if(l4densvar) then
-             write(filename,103) n, ens4d_fhrlevs(m), mype
- 103         format('ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
+             write(filename,103) trim(ensemble_path), n, ens4d_fhrlevs(m), mype
+ 103         format(a,'ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
           else
-             write(filename,103) n, 6, mype
+             write(filename,103) trim(ensemble_path), n, 6, mype
           end if
           if (mype==npe)write(6,*) 'READ PRE-PROCESSED ENS FILE: ',trim(filename)
           open(lunges,file=filename,form='unformatted',iostat=iret)
@@ -161,10 +161,10 @@ subroutine get_gefs_ensperts_dualres
        else
           ! read from spectral file on root task, broadcast to other tasks.
           if (l4densvar) then
-             write(filename,106) ens4d_fhrlevs(m), n
- 106         format('sigf',i2.2,'_ens_mem',i3.3)
+             write(filename,106) trim(ensemble_path), ens4d_fhrlevs(m), n
+ 106         format(a,'sigf',i2.2,'_ens_mem',i3.3)
           else
-             write(filename,106) 6, n
+             write(filename,106) trim(ensemble_path), 6, n
           endif
           if (use_gfs_ens) then
              if (mype==npe)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
@@ -371,7 +371,7 @@ subroutine get_gefs_ensperts_dualres
 ! Convert to mean
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
-!$omp parallel do schedule(dynamic,1) private(i,j,n,m,ic2,ipic)
+!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
   do m=1,ntlevs_ens
      do i=1,nelen
         en_bar(m)%values(i)=en_bar(m)%values(i)*bar_norm
@@ -393,7 +393,27 @@ subroutine get_gefs_ensperts_dualres
    
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,m)%valuesr4(i)=(en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
+           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i)
+        end do
+        if(.not. q_hyb_ens) then
+          do ic3=1,nc3d
+
+             ipic=ipc3d(ic3)
+
+             if(trim(cvars3d(ic3)) == 'q' .or. trim(cvars3d(ic3)) == 'Q')then
+                do k=1,km
+                   do j=1,jm
+                      do i=1,im
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,m)%r3(ipic)%qr4(i,j,k),1._r_single)
+                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,m)%r3(ipic)%qr4(i,j,k),-1._r_single)
+                      end do
+                   end do
+                end do
+             end if
+          end do
+        end if
+        do i=1,nelen
+           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)*sig_norm
         end do
      end do
   end do
