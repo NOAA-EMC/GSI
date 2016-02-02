@@ -996,8 +996,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(itype ==245 .or. itype ==252 .or. itype ==253 .or. itype ==240) then 
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-!                   if(isflg /= 0) cycle loop_readsb 
-                    if(isflg /= 0) qm=15
+                    if(isflg /= 0) cycle loop_readsb 
+!                   if(isflg /= 0) qm=15
                  endif
               endif
            endif
