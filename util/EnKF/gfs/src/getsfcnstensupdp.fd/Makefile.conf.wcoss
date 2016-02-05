@@ -5,11 +5,11 @@
 # Set library versions
 # ----------------------------------
 
+BACIO_VER = v2.0.1
 NEMSIO_VER = v2.2.1
 SFCIO_VER = v1.0.0
-W3NCO_VER = v2.0.6
-BACIO_VER = v2.0.1
 SP_VER = v2.0.2
+W3NCO_VER = v2.0.6
 
 CORELIB  = /nwprod/lib
 
@@ -19,8 +19,8 @@ SFCIO_INC4=$(CORELIB)/sfcio/$(SFCIO_VER)/incmod/sfcio_$(SFCIO_VER)_4
 BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
 NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
 SFCIO_LIB4=$(CORELIB)/sfcio/$(SFCIO_VER)/libsfcio_$(SFCIO_VER)_4.a
+SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
 W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
-SP_LIB4=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
 
 # ---------------------------
 # General targets/definitions
@@ -72,7 +72,7 @@ SP_LIB4=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
   LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SFCIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SFCIO_LIB4) $(W3NCO_LIB4) $(SP_LIBd)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 
