@@ -223,7 +223,7 @@ m_uniq.o : m_uniq.f90 m_find.o kinds.o
 native_endianness.o : native_endianness.f90 kinds.o 
 ncepgfs_ghg.o : ncepgfs_ghg.f90 constants.o kinds.o 
 ncepgfs_io.o : ncepgfs_io.f90 obsmod.o general_commvars_mod.o ncepnems_io.o gsi_4dvar.o radinfo.o hybrid_ensemble_parameters.o nstio_module.o constants.o gsi_chemguess_mod.o ncepgfs_ghg.o derivsmod.o general_specmod.o gsi_io.o cloud_efr_mod.o mpeu_util.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o 
-ncepnems_io.o : ncepnems_io.f90 radinfo.o gsi_4dvar.o obsmod.o egrid2agrid_mod.o general_specmod.o general_commvars_mod.o gsi_chemguess_mod.o ncepgfs_io.o ncepgfs_ghg.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o constants.o 
+ncepnems_io.o : ncepnems_io.f90 radinfo.o gsi_4dvar.o obsmod.o egrid2agrid_mod.o general_specmod.o general_commvars_mod.o gsi_chemguess_mod.o ncepgfs_ghg.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o constants.o 
 nlmsas_ad.o : nlmsas_ad.f90 constants.o kinds.o 
 normal_rh_to_q.o : normal_rh_to_q.f90 constants.o gridmod.o jfunc.o derivsmod.o kinds.o 
 nstio_module.o : nstio_module.f90 

@@ -29,6 +29,8 @@ module ncepnems_io
 !   2011-11-01 Huang    (1) add integer nst_gsi to control the mode of NSST
 !                       (2) add read_nemsnst to read ncep nst file
 !                       (3) add subroutine write_nemssfc_nst to save sfc and nst files
+!   2016-01-01 Li       (1) Move tran_gfssfc from ncepgfs_io.f90 to here
+!                       (2) Modify write_sfc_nst_ to follows the update done in sfcio
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -118,6 +120,7 @@ module ncepnems_io
   public read_nemsnst
   public write_nemssfc_nst
   public sfc_interpolate
+  public tran_gfssfc
   public error_msg
 
   interface read_nems
@@ -2105,7 +2108,7 @@ contains
 ! program history log:
 !   2011-11-01  Huang    initial version based on routine write_gfs_sfc_nst
 !   2013-10-25  todling - reposition ltosi and others to commvars
-!   2016-01-25  li      - update write_sfc_nst_ (nemsio) as for write_gfs_sfc_nst (sfcio)
+!   2016-01-01  li      - update write_sfc_nst_ (nemsio) as for write_gfs_sfc_nst (sfcio)
 !
 !   input argument list:
 !     dsfct     - delta skin temperature
@@ -2146,7 +2149,6 @@ contains
     use guess_grids, only: isli2
     use radinfo, only: nst_gsi,zsea1,zsea2
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
-    use ncepgfs_io, only: tran_gfssfc
 
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close,nemsio_readrecv
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
@@ -2187,7 +2189,7 @@ contains
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 106
     real(r_kind)    :: fhour
-    real(r_single) :: r_zsea1,r_zsea2
+    real(r_single)  :: r_zsea1,r_zsea2
 
     real(r_kind),    dimension(lat1,lon1):: dsfct_sub
     integer(i_kind), dimension(lat1,lon1):: isli_sub
@@ -2205,20 +2207,10 @@ contains
     real(r_single),  dimension(nlon_sfc,nlat_sfc-2):: dtzm
     real(r_single),  dimension(nlat_sfc,nlon_sfc)  :: work
 
-    real(r_single), dimension(nlon,nlat):: buffer
-    real(r_kind),   dimension(lat1,lon1):: sfcsub
-    real(r_kind),   dimension(nlon,nlat):: grid
-    real(r_kind),   dimension(max(iglobal,itotsub)):: sfcall
-    real(r_single), allocatable, dimension(:,:) :: buffer2, grid2, grid2_nst
     real(r_single),   allocatable, dimension(:,:) :: tsea,xt,xs,xu,xv,xz,zm,xtts,xzts,dt_cool,z_c, &
-                                                   c_0,c_d,w_0,w_d,d_conv,ifd,tref,qrain
+                                                     c_0,c_d,w_0,w_d,d_conv,ifd,tref,qrain
     real(r_single),   allocatable, dimension(:,:) :: slmsk_ges,slmsk_anl
-    real(r_kind),   allocatable, dimension(:)   :: rwork1d
-
-    integer(i_kind),dimension(nlon,nlat):: isli
-    integer(i_kind),dimension(lat1,lon1):: isosub
-    integer(i_kind),dimension(nlon,nlat):: igrid
-    integer(i_kind),dimension(max(iglobal,itotsub)):: isoall
+    real(r_single),   allocatable, dimension(:)   :: rwork1d
 
     type(nemsio_gfile) :: gfile_sfcges,gfile_sfcgcy,gfile_nstges,gfile_sfctsk,gfile_sfcanl,gfile_nstanl
 
@@ -2239,7 +2231,7 @@ contains
        end do
     end do
 !
-!   Gather analysis increment and surface mask info from subdomains
+!   Gather global analysis increment and surface mask info from subdomains
 !
     call mpi_gatherv(dsfct_sub,ijn(mm1),mpi_rtype,&
          dsfct_all,ijn,displs_g,mpi_rtype,mype_so ,&
@@ -2252,7 +2244,7 @@ contains
 !   Only MPI task mype_so  writes the surface file.
     if (mype==mype_so ) then
 
-      write(*,'(a,5(1x,a6))') 'write_gfs_sfc_nst:',fname_sfcges,fname_nstges,fname_sfctsk,fname_sfcanl,fname_nstanl
+      write(*,'(a,5(1x,a6))') 'write_nems_sfc_nst:',fname_sfcges,fname_nstges,fname_sfctsk,fname_sfcanl,fname_nstanl
 !
 !     get Tf analysis increment and surface mask at analysis (lower resolution) grids
 !
@@ -2289,7 +2281,7 @@ contains
           dimx=lonb, dimy=latb, nfhour=nfhour, nfminute=nfminute, &
           nfsecondn=nfsecondn, nfsecondd=nfsecondd, iret=iret)
 
-!      read nsst guess file header records (dimensions)
+!      read some nsst guess file header records (dimensions)
        call nemsio_getfilehead(gfile_nstges, nrec=nrec_nst, dimx=lonb_nst,dimy=latb_nst,iret=iret)
 
 !      check the dimensions consistency in sfc, nst files and the used.
@@ -2306,6 +2298,7 @@ contains
        endif
 !      
        allocate(slmsk_ges(lonb,latb),slmsk_anl(lonb,latb))
+       allocate(rwork1d(lonb*latb))
 
 !      read slmsk in fname_sfcges to get slmsk_ges
        call nemsio_readrecv(gfile_sfcges, 'land', 'sfc', 1, rwork1d, iret=iret)
@@ -2621,7 +2614,6 @@ contains
           end do
 
        endif                   ! if ( nst_gsi > 2 ) then
-
 !
 !      update tsea record in sfcanl
 !
@@ -2726,6 +2718,9 @@ contains
 
        call nemsio_close(gfile_sfcges, iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_sfcges),null,'close',istop,iret)
+
+       call nemsio_close(gfile_sfcgcy, iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_sfcgcy),null,'close',istop,iret)
 
        call nemsio_close(gfile_nstges, iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstges),null,'close',istop,iret)
@@ -2863,5 +2858,64 @@ contains
 !   End of routine
     return
   end subroutine sfc_interpolate
+
+  subroutine tran_gfssfc(ain,aout,lonb,latb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
+!   prgmmr: derber          org: np2                date: 2003-04-10
+!
+! abstract: transform gfs surface file to analysis grid
+!
+! program history log:
+!   2012-31-38  derber  - initial routine
+!
+!   input argument list:
+!     ain      - input surface record on processor iope
+!     lonb     - input number of longitudes
+!     latb     - input number of latitudes
+!
+!   output argument list:
+!     aout     - output transposed surface record
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind,r_single
+  use constants, only: zero
+  use sfcio_module, only: sfcio_realkind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                  ,intent(in ) :: lonb,latb
+  real(sfcio_realkind),dimension(lonb,latb),intent(in ) :: ain
+  real(r_single),dimension(latb+2,lonb),intent(out) :: aout
+
+! Declare local variables
+  integer(i_kind) i,j
+  real(r_kind) sumn,sums
+! of surface guess array
+  sumn = zero
+  sums = zero
+  do i=1,lonb
+     sumn = ain(i,1)    + sumn
+     sums = ain(i,latb) + sums
+  end do
+  sumn = sumn/float(lonb)
+  sums = sums/float(lonb)
+!  Transfer from local work array to surface guess array
+  do j = 1,lonb
+     aout(1,j)=sums
+     do i=2,latb+1
+        aout(i,j) = ain(j,latb+2-i)
+     end do
+     aout(latb+2,j)=sumn
+  end do
+
+  return
+  end subroutine tran_gfssfc
+
 end module ncepnems_io
 
