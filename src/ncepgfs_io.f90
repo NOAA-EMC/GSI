@@ -48,6 +48,7 @@ module ncepgfs_io
 !
 !$$$ end documentation block
   use sigio_module, only: sigio_head
+  use ncepnems_io, only: tran_gfssfc
   implicit none
 
   private
@@ -60,7 +61,6 @@ module ncepgfs_io
   public write_gfs
   public write_gfs_sfc_nst
   public sigio_cnvtdv8
-  public tran_gfssfc
   public sighead 
   public write_ghg_grid
 
@@ -910,65 +910,6 @@ end subroutine write_ghg_grid
 
     return
   end subroutine read_gfsnst
-
-subroutine tran_gfssfc(ain,aout,lonb,latb)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
-!   prgmmr: derber          org: np2                date: 2003-04-10
-!
-! abstract: transform gfs surface file to analysis grid
-!
-! program history log:
-!   2012-31-38  derber  - initial routine
-!
-!   input argument list:
-!     ain      - input surface record on processor iope
-!     lonb     - input number of longitudes
-!     latb     - input number of latitudes
-!
-!   output argument list:
-!     aout     - output transposed surface record
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: r_kind,i_kind,r_single
-    use constants, only: zero
-    use sfcio_module, only: sfcio_realkind
-    implicit none
-
-!   Declare passed variables
-    integer(i_kind)                  ,intent(in ) :: lonb,latb
-    real(sfcio_realkind),dimension(lonb,latb),intent(in ) :: ain
-    real(r_single),dimension(latb+2,lonb),intent(out) :: aout
-
-!   Declare local variables
-    integer(i_kind) i,j
-    real(r_kind) sumn,sums
-!   of surface guess array
-    sumn = zero
-    sums = zero
-    do i=1,lonb
-       sumn = ain(i,1)    + sumn
-       sums = ain(i,latb) + sums
-    end do
-    sumn = sumn/float(lonb)
-    sums = sums/float(lonb)
-
-!    Transfer from local work array to surface guess array
-    do j = 1,lonb
-       aout(1,j)=sums
-       do i=2,latb+1
-          aout(i,j) = ain(j,latb+2-i)
-       end do
-       aout(latb+2,j)=sumn
-    end do
-
-    return
-    end subroutine tran_gfssfc
 
   subroutine write_gfs(increment,mype,mype_atm,mype_sfc)
 !$$$  subprogram documentation block

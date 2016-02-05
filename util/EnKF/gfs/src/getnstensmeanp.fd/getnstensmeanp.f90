@@ -236,7 +236,7 @@ program getnstensmeanp
      call nemsio_getfilehead(gfile, nrec=nrec, idate=idate, dimx=lonb,dimy=latb, iret=iret)
 
      if (mype==0) then
-        gfileo=gfile
+        gfileo=gfile         ! copy gfile header to gfileo header
         call nemsio_open(gfileo,trim(filenameout),'WRITE',iret )
      end if
 
@@ -244,6 +244,9 @@ program getnstensmeanp
      if (.not.allocated(rwork1d)) allocate(rwork1d(npts))
      if (.not.allocated(swork1d)) allocate(swork1d(npts))
 
+!
+!   get the average for all data records and then write to gfileo
+!
      do n=1,nrec
         rwork1d=zero
         call nemsio_readrec (gfile, n,rwork1d,iret)
