@@ -109,6 +109,9 @@ subroutine get_gefs_ensperts_dualres
   jm=grd_ens%lon2
   km=grd_ens%nsig
   num_fields=min(6*km+1,npe)
+
+    !write(6,*) ' glbsoi begin of get_gefs_ensperts_dualres im=',im,' jm=',jm,' km=',km,' mype=',mype
+
 !  Create temporary communication information fore read routines
   call general_sub2grid_create_info(grd_t,inner_vars,grd_ens%nlat,grd_ens%nlon, &
             km,num_fields,regional)
@@ -120,6 +123,14 @@ subroutine get_gefs_ensperts_dualres
         call stop2(999)
      endif
   end do
+
+    if (mype==0) write(6,*) ' glbsoi inside get_gefs_ensperts_dualres ensemble_path=',trim(ensemble_path)
+    if (mype==0) write(6,*) ' glbsoi enspreproc=',enspreproc,' l4densvar=',l4densvar,' q_hyb_ens=',q_hyb_ens
+    if (mype==0) then 
+       do ic3=1,nc3d
+         write(6,*) ' glbsoi ic3=',ic3,' cvars3d(ic3) ', trim(cvars3d(ic3))
+       enddo
+    endif
 
   zflag=.false.
   inithead = .true.
@@ -188,6 +199,7 @@ subroutine get_gefs_ensperts_dualres
              else
                 call general_read_gfsatm(grd_t,sp_ens,sp_ens,filename,mype,uv_hyb_ens,.false., &
                     zflag,z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+!               if (mype==0) write(6,*) ' glbsoi pert iret=',iret,' reading ',trim(filename)
              end if
              inithead=.false.
           else
@@ -204,6 +216,7 @@ subroutine get_gefs_ensperts_dualres
                write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
           cycle
        endif
+
 
        if (.not.q_hyb_ens) then !use RH
 ! Compute RH
@@ -238,6 +251,7 @@ subroutine get_gefs_ensperts_dualres
 
          ice=.true.
          iderivative=0
+         if (mype==0) write(6,*) ' glbsoi calculating qs '
          call genqsat(qs,tsen,prsl,im,jm,km,ice,iderivative)
          deallocate(tsen,prsl)
        end if
@@ -281,6 +295,7 @@ subroutine get_gefs_ensperts_dualres
 
              case('q','Q')
                 if (.not.q_hyb_ens) then !use RH
+                   if (mype==0) write(6,*) ' glbsoi calculating rh ipic = ',ipic
                    do k=1,km
                       do j=1,jm
                          do i=1,im
@@ -291,6 +306,7 @@ subroutine get_gefs_ensperts_dualres
                       end do
                    end do
                 else ! use q instead
+                   if (mype==0) write(6,*) ' glbsoi filling with q ipic = ',ipic
                    do k=1,km
                       do j=1,jm
                          do i=1,im
@@ -365,13 +381,17 @@ subroutine get_gefs_ensperts_dualres
     end do ! end do over ensemble
   end do !end do over bins
 
+   if (mype==0) write(6,*) ' glbsoi get_gefs_ensperts_dualres call general_sub2grid_destroy_info'
+
   call general_sub2grid_destroy_info(grd_t)
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p 
 ! Convert to mean
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
-!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
+
+   if (mype==0) write(6,*) ' glbsoi get_gefs_ensperts_dualres calc en_bar ntlevs_ens=',ntlevs_ens,' ipicps=',ipicps
+!remove parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
   do m=1,ntlevs_ens
      do i=1,nelen
         en_bar(m)%values(i)=en_bar(m)%values(i)*bar_norm
@@ -380,16 +400,21 @@ subroutine get_gefs_ensperts_dualres
 ! Before converting to perturbations, get ensemble spread
      if (m == 1 .and. write_ens_sprd .and. .not.l4densvar)  call ens_spread_dualres(en_bar(1),1,mype)
 
+!  write(6,*) ' glbsoi get_gefs_ensperts_dualres mype=',mype,' s_ens_v=',s_ens_v
 
+    write(6,*) ' glbsoi before ps_bar mype=',mype
      if(s_ens_v <= zero)then
 
+ !      write(6,*) ' glbsoi calc ps_bar mype=',mype,' m=',m,' im=',im,' jm=',jm
         do j=1,jm
+ !      write(6,*) ' glbsoi mype=',mype,' j=',j
            do i=1,im
               ps_bar(i,j,m)=en_bar(m)%r2(ipicps)%q(i,j)
            end do
         end do
      end if
 ! Convert ensemble members to perturbations
+   write(6,*) ' glbsoi get_gefs_ensperts_dualres conver to pert mype=',mype
    
      do n=1,n_ens
         do i=1,nelen
@@ -399,8 +424,14 @@ subroutine get_gefs_ensperts_dualres
           do ic3=1,nc3d
 
              ipic=ipc3d(ic3)
+             write(6,*) ' glbsoi outside q check mype=',mype,' n=',n,' ipic=',ipic,' ic3=',ic3
+!  if ( 1 .eq. 2) then
+             write(6,*) ' glbsoi outside q check mype=',mype,' cvars3d=',trim(cvars3d(ic3))
+!  endif
 
+!  if ( 1 .eq. 2) then
              if(trim(cvars3d(ic3)) == 'q' .or. trim(cvars3d(ic3)) == 'Q')then
+             write(6,*) ' glbsoi inside q check mype=',mype,' n=',n,' ipic=',ipic
                 do k=1,km
                    do j=1,jm
                       do i=1,im
@@ -410,12 +441,16 @@ subroutine get_gefs_ensperts_dualres
                    end do
                 end do
              end if
+!   endif ! debug
           end do
         end if
         do i=1,nelen
            en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)*sig_norm
         end do
      end do
+
+   write(6,*) ' glbsoi skipped block mype=',mype
+
   end do
 
 !  since initial version is ignoring sst perturbations, skip following code for now.  revisit
@@ -460,6 +495,8 @@ subroutine get_gefs_ensperts_dualres
 !    end do
 !  end do
 
+   if (mype==0) write(6,*) ' glbsoi get_gefs_ensperts_dualres calling destroy '
+
    do m=1,ntlevs_ens
       call gsi_bundledestroy(en_bar(m),istatus)
       if(istatus/=0) then
@@ -469,6 +506,8 @@ subroutine get_gefs_ensperts_dualres
    end do
   
    deallocate(en_bar)
+
+   if (mype==0) write(6,*) ' glbsoi leaving get_gefs_ensperts_dualres '
 
   return
 end subroutine get_gefs_ensperts_dualres

@@ -1106,7 +1106,8 @@ end subroutine normal_new_factorization_rf_y
        end do
     end do
 
-
+!   write(6,*) ' glbsoi in hybrid_ensemble_isotropic create ensemble allocate ps_bar '
+!   write(6,*) ' glbsoi ensemble grd_ens lat2 ',grd_ens%lat2,' lon2 ',grd_ens%lon2,' ntlevs_ens ',ntlevs_ens
     allocate(ps_bar(grd_ens%lat2,grd_ens%lon2,ntlevs_ens) )
     if(debug) then
        write(6,*)' in create_ensemble, grd_ens%latlon11,grd_ens%latlon1n,n_ens,ntlevs_ens=', &
@@ -1275,7 +1276,9 @@ end subroutine normal_new_factorization_rf_y
 
        if (.not.regional) then
 
+          if(mype==0) write(6,*)' glbsoi in load_ensemble: calling get_gefs_ensperts_dualres'
           call get_gefs_ensperts_dualres
+          if(mype==0) write(6,*)' glbsoi in load_ensemble: back from get_gefs_ensperts_dualres'
 
        else
 
