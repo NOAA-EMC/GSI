@@ -121,10 +121,7 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-#
-#  EXE_FILE_OLD  = global_gsi
-#  EXE_FILE = ../../exec/urma2p5_gsianl
-   EXE_FILE = global_gsi
+  EXE_FILE = global_gsi
 
 
 # --------------------
@@ -241,7 +238,7 @@ clean:
 	control2model.f90 \
 	control2state.f90 \
 	control_vectors.f90 \
-        converr.f90 \
+	converr.f90 \
         converr_ps.f90 \
         converr_q.f90 \
         converr_t.f90 \
