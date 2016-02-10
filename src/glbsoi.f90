@@ -175,13 +175,11 @@ subroutine glbsoi(mype)
   call timer_ini('glbsoi')
 
   if(mype==0) write(6,*) 'glbsoi: starting ...'
-  if(mype==0) write(6,*) 'glbsoi l_hyb_ens=',l_hyb_ens
 
 
 ! If l_hyb_ens is true, then initialize machinery for hybrid ensemble 3dvar
   if(l_hyb_ens) then
      call hybens_grid_setup
-     if(mype==0) write(6,*) 'glbsoi calling create_ensemble '
      call create_ensemble
   end if
 
@@ -224,39 +222,30 @@ subroutine glbsoi(mype)
         end if
      end if
   else
-     if(mype==0) write(6,*) 'glbsoi: setup background error'
      call create_balance_vars
      if(anisotropic) then
-        if(mype==0) write(6,*) 'glbsoi: anisotropic'
         call create_anberror_vars(mype)
      else
-        if(mype==0) write(6,*) 'glbsoi: not anisotropic'
         call create_berror_vars
      end if
      
-        if(mype==0) write(6,*) 'glbsoi: calling prebal '
      call prebal(fut2ps,cwcoveqqcov)
 
 !    Load background error arrays used by recursive filters
      if(anisotropic) then
-        if(mype==0) write(6,*) 'glbsoi: calling anprewgt '
         call anprewgt(mype)
      else
-        if(mype==0) write(6,*) 'glbsoi: calling prewgt '
         call prewgt(mype)
      end if
   end if
 
 ! If l_hyb_ens is true, then read in ensemble perturbations
   if(l_hyb_ens) then
-     if(mype==0) write(6,*) 'glbsoi: calling load_ensemble'
      call load_ensemble
-     if(mype==0) write(6,*) 'glbsoi: calling hybens_localization_setup'
      call hybens_localization_setup
   end if
 
 ! Set error (variance) for predictors (only use guess)
-     if(mype==0) write(6,*) 'glbsoi: calling set_predictors_var'
   call set_predictors_var
 
 ! Set errors and create variables for dynamical constraint
