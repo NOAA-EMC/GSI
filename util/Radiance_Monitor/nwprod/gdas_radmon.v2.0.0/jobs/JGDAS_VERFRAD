@@ -64,8 +64,14 @@ export SENDDBN=${SENDDBN:-NO}
 export SENDECF=${SENDECF:-NO}
 export VERBOSE=${VERBOSE:-YES}
 
-export ERRSCRIPT=${ERRSCRIPT:-err_chk}
-export LOGSCRIPT=${LOGSCRIPT:-startmsg}
+###################################
+# Set up the UTILITIES
+###################################
+export utilscript=${utilscript:-/nwprod/util/ush}
+export utilexec=${utilexec:-/nwprod/util/exec}
+
+export ERRSCRIPT=${ERRSCRIPT:-${utilscript}/err_chk.sh}
+export LOGSCRIPT=${LOGSCRIPT:-${utilscript}/startmsg.sh}
 
 ##############################################
 # Specify Execution Areas
@@ -81,7 +87,7 @@ export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
 export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.v${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
-#export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
+export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 #export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -92,30 +98,23 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
 ###################################
-# Set up the UTILITIES
-###################################
-#export NWPROD=${NWPROD:-/nwprod}
-export utilscript=${utilscript:-/nwprod/util/ush}
-export utilexec=${utilexec:-/nwprod/util/exec}
-
-###################################
 # source the parm file
 ###################################
 .  ${PARMgdas}/gdas_radmon.parm
 
 
 # Run setup to initialize working directory and utility scripts
-$utilscript/setup.sh
+#  should be removed?
+#${utilscript}/setup.sh
 
 # Run setpdy and initialize PDY variables
-$utilscript/setpdy.sh
+${utilscript}/setpdy.sh
 source ./PDY
 
 
 #############################################
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
-#   NEED to figure this out next
 #############################################
 export TANKverf=${TANKverf:-/com/verf/${envir}}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
@@ -135,15 +134,15 @@ export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
 export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
 
 msg="JOB HAS STARTED"
-./postmsg "$jlogfile" "$msg"
+postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-#${RADMONSH:-$HOMEgdasradmon/scripts/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
+${RADMONSH:-${SCRgdas}/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
-./postmsg "$jlogfile" "$msg"
+postmsg "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory
