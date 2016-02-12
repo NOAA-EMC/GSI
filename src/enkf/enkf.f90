@@ -615,7 +615,7 @@ do niter=1,numiter
      do nb=1,nbackgrounds
         do i=1,ndim
            anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
-           sum(anal_chunk(1:nanals,npt,i,nb),1)/r_nanals
+           sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
         end do
      end do
   enddo

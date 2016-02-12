@@ -190,10 +190,10 @@ iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
 ! if deterministic is true, use EnSRF w/o perturbed obs.
-! if false, use perturbed obs EnKF.
+! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
 ! if deterministic is false, re-order obs to minimize regression erros
-! as described in Anderson (2003).
+! as described in Anderson (2003) (only used for serial filter).
 sortinc = .true.
 ! these are all mandatory.
 ! nlons and nlats are # of lons and lats
@@ -307,7 +307,7 @@ if (nproc == 0) then
    end if
    if (numproc .lt. nanals+1) then
       print *,'total number of mpi tasks must be >= nanals+1'
-      print *,'tasks, nanals+1 = ',numproc,nanals+1
+      print *,'tasks, nanals = ',numproc,nanals
       call stop2(19)
    endif
    if (datapath == ' ') then

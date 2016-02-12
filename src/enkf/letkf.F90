@@ -78,6 +78,7 @@ module letkf
 !$$$
 
 use mpisetup
+use random_normal, only : rnorm, set_random_seed
 use, intrinsic :: iso_c_binding
 use omp_lib, only: omp_get_num_threads
 use covlocal, only:  taper, latval
@@ -123,17 +124,19 @@ integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
 integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
 real(r_single) :: deglat, dist, corrsq
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
-real(r_kind) r_nanals,r_nanalsm1
+real(r_kind) r_nanals,r_nanalsm1,r_scalefact
 real(r_kind) normdepart, pnge, width
 real(r_kind),dimension(nobstot):: oberrvaruse
 real(r_kind) oblnp_indx(1)
 real(r_kind) logp_tmp(nlevs)
 real(r_kind) vdist
 real(r_kind) corrlength
+real(r_kind) sqrtoberr
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hdxf
-real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc
+real(r_single),allocatable,dimension(:,:) :: obens
+real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,kfgain
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
 ! kdtree stuff
@@ -214,6 +217,7 @@ deallocate(buffer)
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
 r_nanalsm1=one/float(nanals-1)
+r_scalefact = sqrt(float(nanals)/float(nanals-1))
 
 if (minval(lnsigl) > 1.e3) then
    vlocal = .false.
@@ -227,7 +231,9 @@ else
    ! need to be computed for every vertical level.
    nnmax = nlevs_pres
 endif
-
+! initialize random seed for perturbed obs
+! (different seed for each task)
+if (.not. deterministic) call set_random_seed(0,nproc)
 ! is observation space update requested (yes if numiter !=0)?
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
@@ -404,7 +410,7 @@ do niter=1,numiter
   ! Loop for each horizontal grid points on this task.
   !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
   !$omp                  nobsl2,ngrd1,corrlength, &
-  !$omp                  nf,vdist, &
+  !$omp                  nf,vdist,kfgain,obens,sqrtoberr, &
   !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
   !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
   !$omp  reduction(+:t1,t2,t3,t4,t5) &
@@ -473,14 +479,43 @@ do niter=1,numiter
            rdiag(nob)=one/oberrvaruse(nf)
            dep(nob)=ob(nf)-ensmean_ob(nf)
         end do
-        deallocate(oindex)
   
         t3 = t3 + mpi_wtime() - t1
         t1 = mpi_wtime()
+
+        if (.not. deterministic) then
+           allocate(kfgain(nobsl2),obens(nobsl2,nanals))
+           ! create ob perturbations independently for each observation volume.
+           do nob=1,nobsl2
+              nf=oindex(nob)
+              sqrtoberr=sqrt(oberrvaruse(nf))
+              do nanal=1,nanals
+                obens(nob,nanal) = sqrtoberr*rnorm()
+              enddo
+              ! make sure mean is zero.
+              sqrtoberr = sum(obens(nob,1:nanals))*r_nanals
+              obens(nob,1:nanals) = obens(nob,1:nanals) - sqrtoberr
+              !if (nob .eq. 1) print *,nproc,nf,trim(obtype(nf)),sqrtoberr,sqrt(oberrvaruse(nf)),&
+              !  sqrt(sum(obens(nob,1:nanals)**2)*r_nanalsm1),&
+              !  sqrt(sum(anal_ob_fp(1:nanals,nf)**2)*r_nanalsm1)
+              ! renormalize to remove bias, add to ob prior ensemble
+              obens(nob,1:nanals) = r_scalefact*obens(nob,1:nanals) + &
+#ifdef MPI3
+              anal_ob_fp(1:nanals,nf) 
+#else
+              anal_ob(1:nanals,nf) 
+#endif
+           enddo
+        endif
+        deallocate(oindex)
   
         ! Compute transformation matrix of LETKF
         call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
-        deallocate(hdxf,rdiag,dep,rloc)
+        deallocate(rloc,rdiag)
+        if (deterministic) then
+           deallocate(hdxf,dep)
+        endif
+        
   
         t4 = t4 + mpi_wtime() - t1
         t1 = mpi_wtime()
@@ -492,18 +527,38 @@ do niter=1,numiter
               ! if not vlocal, update all state variables in column.
               if(vlocal .and. index_pres(i) /= nn) cycle
               work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
-              work2(1:nanals) = ensmean_chunk(npt,i,nb)
-              if(r_kind == kind(1.d0)) then
-                 call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                      & work2,1)
-              else
-                 call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                      & work2,1)
-              end if
-              ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
-              anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
-           end do
-           end do
+              if (deterministic) then
+                 work2(1:nanals) = ensmean_chunk(npt,i,nb)
+                 if(r_kind == kind(1.d0)) then
+                    call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                         & work2,1)
+                 else
+                   call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                         & work2,1)
+                 end if
+                 ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+                 anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+              else ! perturbed obs using LETKF gain.
+                 if(r_kind == kind(1.d0)) then
+                    call dgemv('n',nobsl2,nanals,1.d0,hdxf,nobsl2,work,1,0.d0, &
+                         & kfgain,1)
+                 else
+                    call sgemv('n',nobsl2,nanals,1.e0,hdxf,nobsl2,work,1,0.e0, &
+                         & kfgain,1)
+                 end if
+                 ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + &
+                 sum(kfgain*dep)
+                 do nanal=1,nanals
+                    anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
+                    sum(kfgain*obens(:,nanal))
+                 enddo
+              endif
+           enddo
+           enddo
+        endif
+        ! deallocate arrays needed for perturbed obs LETKF
+        if (.not. deterministic) then
+           deallocate(hdxf,kfgain,dep,obens)
         endif
         ! Update ob space innov stats (mean and spread)
         ! (see eqn 18 in Hunt et al (2007)).
@@ -514,6 +569,7 @@ do niter=1,numiter
         ! obfit_post is what update_biascorr needs (ob - ensmean_ob).
         ! also used to modify ob error in nonlinear quality control
         if (update_obspace) then
+           ! Note: perturbed obs LETKF not implemented in ob space
            do n=1,numobsperpt(npt)
               nob = indxob_pt(npt,n)
               ! if not vlocal,nn=oblev==1
@@ -530,6 +586,8 @@ do niter=1,numiter
                     call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
                  end if
                  obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
+                 ! updated observation prior ensemble, need to remove ens
+                 ! mean
                  obsprd_post(nob) = sum( (work2(1:nanals) + obfit_post(nob) - ob(nob))**2 )*r_nanalsm1
               endif
            enddo
@@ -550,7 +608,7 @@ do niter=1,numiter
      do nb=1,nbackgrounds
         do i=1,ndim
            anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
-           sum(anal_chunk(1:nanals,npt,i,nb),1)/r_nanals
+           sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
         end do
      end do
   enddo
@@ -621,7 +679,9 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !     rloc     - localization function to each observations
 !
 !   output argument list:
-!     trans    - transform matrix for this point
+!     trans    - transform matrix for this point.
+!                On output, hdxf is over-written
+!                with matrix that can be used to compute Kalman Gain.
 !
 ! attributes:
 !   language:  f95
@@ -728,7 +788,15 @@ else
    call sgemm('n','t',nanals,nobsl,nanals,1.e0,pa,nanals,hdxf,&
         nobsl,0.e0,work2,nanals)
 end if
-! Pa hdxb_rinv^T dep
+! over-write hdxf with Pa hdxb_rinv
+! (pre-multiply with ensemble perts to compute Kalman gain - 
+!  eqns 20-23 in Hunt et al 2007 paper)
+do nanal=1,nanals
+   do nob=1,nobsl
+      hdxf(nob,nanal)=work2(nanal,nob)
+   enddo
+enddo
+! work3 = Pa hdxb_rinv^T dep
 do nanal=1,nanals
    work3(nanal) = work2(nanal,1) * dep(1)
    do nob=2,nobsl
