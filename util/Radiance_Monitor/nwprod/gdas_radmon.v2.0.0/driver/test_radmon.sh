@@ -37,6 +37,8 @@ function usage {
 set -ax
 echo start test_radmon.sh
 
+module load prod_util/v1.0.2
+
 #--------------------------------------------------------------------
 #  test_radmon.sh begins here
 #--------------------------------------------------------------------
@@ -61,9 +63,9 @@ radmon_shared_ver=2.0.2
 export SUFFIX="radmon_test"
 export envir="test"
 
-export TANKverf=${Data_Out}/${SUFFIX}
+export TANKverf=${PWD}/${SUFFIX}
 export DATAROOT=/stmpp1/${LOGNAME}
-export COMROOT=${Data_Out}
+export COMROOT=/com
 export SENDCOM=NO
 
 export NWROOT=/nwprod2
@@ -123,7 +125,7 @@ export KEEPDATA=YES
 #------------------------------------------------------------------
 
    export PDY=`echo ${PDATE}|cut -c1-8`
-   export CYC=`echo ${PDATE}|cut -c9-10`
+   export cyc=`echo ${PDATE}|cut -c9-10`
 
    export DATDIR=${Data_In}
 
@@ -133,8 +135,8 @@ export KEEPDATA=YES
    if [[ -d ${DATDIR}/gdas.$PDY ]]; then
       export DATDIR=${DATDIR}/gdas.${PDY}
 
-      export biascr=$DATDIR/gdas1.t${CYC}z.abias  
-      export radstat=$DATDIR/gdas1.t${CYC}z.radstat
+      export biascr=$DATDIR/gdas1.t${cyc}z.abias  
+      export radstat=$DATDIR/gdas1.t${cyc}z.radstat
    else
       export biascr=$DATDIR/biascr.gdas.${PDATE}  
       export radstat=$DATDIR/radstat.gdas.${PDATE}
@@ -153,7 +155,7 @@ if [[ -e ${radstat} ]]; then
 #   export MEMORY_AFFINITY=MCM
 #   export envir=prod
 #   
-#   export cyc=$CYC
+#   export cyc=$cyc
 #   export job=gdas_vrfyrad_${PDY}${cyc}
 #   export SENDSMS=${SENDSMS:-NO}
 #   export DATA_IN=${WORKverf_rad}
@@ -169,7 +171,7 @@ if [[ -e ${radstat} ]]; then
    #----------------------------------------------------------------------------
 #   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
 #
-#   if [[ $CYC = "00" ]]; then
+#   if [[ $cyc = "00" ]]; then
 #      echo "Making new day directory for 00 cycle"
 #      mkdir -p ${TANKverf}/radmon.${PDY}
 #      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
@@ -211,7 +213,7 @@ fi
 #   if [[ $MY_MACHINE = "wcoss" ]]; then
       jobname="test_radmon"
       echo "queue job $jobname"
-      logfile="./radmon_test.${PDY}.${CYC}.log"
+      logfile="./radmon_test.${PDY}.${cyc}.log"
       project="GDAS-T2O"
       job_queue="dev_shared"
       SUB=bsub
@@ -221,7 +223,7 @@ fi
       $SUB -q ${job_queue} -P $project -o $logfile -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${HOMEgdas}/jobs/JGDAS_VERFRAD
 
 #   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-#      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+#      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${cyc}.log -e $LOGdir/error_file.${PDY}.${cyc}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
 #   fi
   
 #--------------------------------------------------------------------
@@ -241,6 +243,8 @@ fi
 
 echo end test_radmon.sh
 
+
+module unload prod_util/v1.0.2
 
 exit ${exit_value}
 

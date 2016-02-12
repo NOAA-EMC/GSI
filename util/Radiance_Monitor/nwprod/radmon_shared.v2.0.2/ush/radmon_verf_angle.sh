@@ -44,14 +44,6 @@
 #                       defaults to current directory
 #     SATYPE            list of satellite/instrument sources
 #                       defaults to none
-#     INISCRIPT         preprocessing script
-#                       defaults to none
-#     LOGSCRIPT         log script
-#                       defaults to none
-#     ERRSCRIPT         error processing script
-#                       defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT         postprocessing script
-#                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
 #     LITTLE_ENDIAN     flag to indicate LE machine
@@ -63,10 +55,7 @@
 #     err           Last return code
 #
 #   Modules and files referenced:
-#     scripts    : $INISCRIPT
-#                  $LOGSCRIPT
-#                  $ERRSCRIPT
-#                  $ENDSCRIPT
+#     scripts    : 
 #
 #     programs   : $NCP
 #                  $angle_exec
@@ -85,28 +74,27 @@
 #      0 - no problem encountered
 #     >0 - some problem encountered
 #
-#  Control variable resolution priority
-#    1 Command line argument.
-#    2 Environment variable.
-#    3 Inline default.
-#
-# Attributes:
-#   Language: POSIX shell
-#   Machine: IBM SP
 ####################################################################
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
+scr=radmon_verf_angle.sh
+msg="${scr} HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+
+if [[ "$VERBOSE" = "YES" ]]; then
+   set -ax
+fi
+
 # Directories
-FIXradmon=${FIXradmon:-$(pwd)}
+FIXgdas=${FIXgdas:-$(pwd)}
 EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
-INISCRIPT=${INISCRIPT:-}
-LOGSCRIPT=${LOGSCRIPT:-}
-ERRSCRIPT=${ERRSCRIPT:-}
-ENDSCRIPT=${ENDSCRIPT:-}
+pgmout=${pgmout:-${jlogfile}}
+touch $pgmout
 
 # Other variables
 MAKE_CTL=${MAKE_CTL:-1}
@@ -127,27 +115,20 @@ err=0
 angle_exec=radmon_angle
 scaninfo=scaninfo.txt
 
-if [[ "$VERBOSE" = "YES" ]]; then
-   set -ax
-   echo "$(date) executing $0 $* >&2"
-fi
-################################################################################
-#  Preprocessing
-$INISCRIPT
-$LOGSCRIPT
-
 
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
 
 $NCP ${EXECradmon}/${angle_exec}  ./
-$NCP $FIXradmon/gdas_radmon_scaninfo.txt  ./${scaninfo}
+$NCP $FIXgdas/gdas_radmon_scaninfo.txt  ./${scaninfo}
 
 if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
    err=2
 else
 #--------------------------------------------------------------------
 #   Run program for given time
+
+export pgm=${angle_exec}
 
    iyy=`echo $PDATE | cut -c1-4`
    imm=`echo $PDATE | cut -c5-6`
@@ -156,10 +137,13 @@ else
 
    ctr=0
    fail=0
+   touch "./errfile"
 
    for type in ${SATYPE}; do
 
       for dtype in ${gesanl}; do
+
+         prep_step
 
          ctr=`expr $ctr + 1`
 
@@ -200,13 +184,17 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-         $TIMEX ./${angle_exec} < input >   ${stdout_file}
+
+	 startmsg
+         ./${angle_exec} < input >>   ${pgmout} 2>>errfile
+         export err=$?; err_chk
          if [[ $? -ne 0 ]]; then
              fail=`expr $fail + 1`
          fi
+
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
-#
+
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${angl_file}
             mv ${angl_file} $TANKverf_rad/.
@@ -235,11 +223,12 @@ fi
 
 ################################################################################
 #  Post processing
-$ENDSCRIPT
-set +x
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 error code ${err} >&2
 fi
+
+msg="${scr} HAS ENDED"
+postmsg "$jlogfile" "$msg"
 
 exit ${err}
