@@ -45,6 +45,7 @@
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
                       stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5,&
+                      stndev_conv_pm10,id_bias_pm10,conv_bias_pm10,&
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
@@ -128,6 +129,7 @@
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+  use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
@@ -921,7 +923,8 @@
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
+       aero_ratios,wrf_pm2_5
 
 !EOC
 

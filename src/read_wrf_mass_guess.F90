@@ -1236,8 +1236,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use constants, only: r0_01, tiny_r_kind
   use gsi_io, only: lendian_in
-  use chemmod, only: laeroana_gocart
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b
+  use chemmod, only: laeroana_gocart,nh4_mfac,oc_mfac,&
+       aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge,i_use_2mq4b
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1291,41 +1292,42 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                      indx_seas1, indx_seas2, indx_seas3, indx_seas4,indx_p25
   character(len=5),allocatable :: cvar(:)
 
-  real(r_kind), pointer :: ges_ps_it (:,:  )=>NULL()
-  real(r_kind), pointer :: ges_th2_it(:,:  )=>NULL()
-  real(r_kind), pointer :: ges_q2_it (:,:  )=>NULL()
-  real(r_kind), pointer :: ges_tsk_it(:,:  )=>NULL()
-  real(r_kind), pointer :: ges_soilt1_it(:,:)=>NULL()
-  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_z_it  (:,:  )=>NULL()
-  real(r_kind), pointer :: ges_u_it  (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_v_it  (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_tv_it (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_q_it  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_ps_it (:,:  )=>null()
+  real(r_kind), pointer :: ges_th2_it(:,:  )=>null()
+  real(r_kind), pointer :: ges_q2_it (:,:  )=>null()
+  real(r_kind), pointer :: ges_tsk_it(:,:  )=>null()
+  real(r_kind), pointer :: ges_soilt1_it(:,:)=>null()
+  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>null()
+  real(r_kind), pointer :: ges_smois_it(:,:,:)=>null()
+  real(r_kind), pointer :: ges_z_it  (:,:  )=>null()
+  real(r_kind), pointer :: ges_u_it  (:,:,:)=>null()
+  real(r_kind), pointer :: ges_v_it  (:,:,:)=>null()
+  real(r_kind), pointer :: ges_tv_it (:,:,:)=>null()
+  real(r_kind), pointer :: ges_q_it  (:,:,:)=>null()
 
-  real(r_kind), pointer :: ges_qc (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_qi (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_qr (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qc (:,:,:)=>null()
+  real(r_kind), pointer :: ges_qi (:,:,:)=>null()
+  real(r_kind), pointer :: ges_qr (:,:,:)=>null()
+  real(r_kind), pointer :: ges_qs (:,:,:)=>null()
+  real(r_kind), pointer :: ges_qg (:,:,:)=>null()
+  real(r_kind), pointer :: ges_qnr(:,:,:)=>null()
 
-  real(r_kind), pointer :: ges_sulf(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_bc1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_bc2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_oc1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_oc2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust3(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust4(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust5(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas3(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_p25(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_sulf(:,:,:)=>null()
+  real(r_kind), pointer :: ges_bc1(:,:,:)=>null()
+  real(r_kind), pointer :: ges_bc2(:,:,:)=>null()
+  real(r_kind), pointer :: ges_oc1(:,:,:)=>null()
+  real(r_kind), pointer :: ges_oc2(:,:,:)=>null()
+  real(r_kind), pointer :: ges_dust1(:,:,:)=>null()
+  real(r_kind), pointer :: ges_dust2(:,:,:)=>null()
+  real(r_kind), pointer :: ges_dust3(:,:,:)=>null()
+  real(r_kind), pointer :: ges_dust4(:,:,:)=>null()
+  real(r_kind), pointer :: ges_dust5(:,:,:)=>null()
+  real(r_kind), pointer :: ges_seas1(:,:,:)=>null()
+  real(r_kind), pointer :: ges_seas2(:,:,:)=>null()
+  real(r_kind), pointer :: ges_seas3(:,:,:)=>null()
+  real(r_kind), pointer :: ges_seas4(:,:,:)=>null()
+  real(r_kind), pointer :: ges_p25(:,:,:)=>null()
+  real(r_kind), pointer :: ges_pm2_5(:,:,:)
 
 !  WRF MASS input grid dimensions in module gridmod
 !      These are the following:
@@ -1375,6 +1377,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) &
                           num_mass_fields=15+4*lm+7*lm+2+2*nsig_soil
 
+     if (laeroana_gocart .and. wrf_pm2_5 ) then
+        if(mype==0) write(6,*)'laeroana_gocart canoot be both true'
+        call stop2(2)
+     endif
+
+
      if ( laeroana_gocart ) then
         call gsi_chemguess_get ('aerosols::3d',n_gocart_var,istatus)
         if ( n_gocart_var > 0 ) then
@@ -1383,6 +1391,11 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            laeroana_gocart = .false.
         endif
      endif
+
+     if ( wrf_pm2_5 ) then
+        num_mass_fields = num_mass_fields + lm
+     endif
+
 
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
@@ -1586,6 +1599,19 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         endif
      endif ! laeroana_gocart
 
+     if ( wrf_pm2_5 ) then
+        allocate(cvar(1))
+        allocate(i_chem(1))
+        allocate(kchem(1))
+        iv=1
+        i_chem(iv)=i+1
+        do k=1,lm
+           i=i+1
+           jsig_skip(i)=0 ; igtype(i)=1
+        end do
+     endif
+
+
 !    End of stuff from MASS restart file
 
      allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
@@ -1705,6 +1731,14 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            ktt=i_0+i_tt-1
         endif
         if ( laeroana_gocart ) then
+
+           if (aero_ratios) then 
+              IF (mype==0) WRITE(6,*) 'aero_ratios = .true. disabled - reset aero_ratios = .false. Aborting'
+              call stop2(3)
+           endif
+
+           if (aero_ratios .and. it==1) call init_aerotot_guess()
+
            ier = 0
            indx_sulf=-1; indx_bc1=-1; indx_bc2=-1; indx_oc1=-1; indx_oc2=-1
            indx_dust1=-1;indx_dust2=-1;indx_dust3=-1; indx_dust4=-1;
@@ -1772,6 +1806,21 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            endif
         endif
 
+        if ( wrf_pm2_5 ) then
+           ier = 0
+           iv=1
+           cvar(1)='pm2_5'
+
+           CALL GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_pm2_5,istatus)
+           ier=ier+istatus
+           if (ier/=0 .and. mype == 0) then
+              write(6,*)'READ_WRF_MASS_NETCDF_GUESS: getpointer failed ',  &
+                   'for pm2_5 species ',cvar(iv)
+           endif
+           kchem(iv) = i_0+i_chem(iv)-1
+        endif
+
+
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
 !              so accumulate 1 + total water vapor to use as correction factor
 
@@ -1799,6 +1848,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  end do
               endif
            endif
+
+           if ( wrf_pm2_5 ) then
+              iv = 1
+              kchem(iv) = kchem(iv)+1
+           endif
+
            do i=1,lon2
               do j=1,lat2
                  ges_u_it(j,i,k) = all_loc(j,i,ku)
@@ -1838,6 +1893,30 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                     if (indx_seas3>0) ges_seas3(j,i,k) = all_loc(j,i,kchem(indx_seas3)) 
                     if (indx_seas4>0) ges_seas4(j,i,k) = all_loc(j,i,kchem(indx_seas4)) 
                     if (indx_p25>0)   ges_p25(j,i,k)   = all_loc(j,i,kchem(indx_p25))   
+                    if (aero_ratios .and. it==1) then
+                       aerotot_guess(j,i,k)=MAX(tiny_r_kind,&
+                       ges_sulf(j,i,k)*nh4_mfac+&
+                       ges_bc1(j,i,k)+&
+                       ges_bc2(j,i,k)+&
+                       ges_oc1(j,i,k)*oc_mfac+&
+                       ges_oc2(j,i,k)*oc_mfac+&
+                       ges_p25(j,i,k)+&
+                       ges_dust1(j,i,k)+&
+                       ges_dust2(j,i,k)+&
+                       ges_dust3(j,i,k)+&
+                       ges_dust4(j,i,k)+&
+                       ges_dust5(j,i,k)+&
+                       ges_seas1(j,i,k)+&
+                       ges_seas2(j,i,k)+&
+                       ges_seas3(j,i,k)+&
+                       ges_seas4(j,i,k))
+                    endif
+
+                 END IF
+
+                 if ( wrf_pm2_5 ) then
+                    iv=1
+                    ges_pm2_5(j,i,k)  = all_loc(j,i,kchem(iv))
                  end if
               end do
            end do
@@ -1846,6 +1925,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            deallocate(i_chem)
            deallocate(kchem)
         endif
+
+        if ( wrf_pm2_5 ) then
+           deallocate(i_chem)
+           deallocate(kchem)
+        endif
+
 
         if(l_gsd_soilTQ_nudge) then
            ier=0
