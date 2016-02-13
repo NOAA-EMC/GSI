@@ -346,6 +346,7 @@ clean:
 	intpblh.f90 \
 	intpcp.f90 \
 	intpm2_5.f90 \
+        intpm10.f90 \
 	intpmsl.f90 \
 	intps.f90 \
 	intpw.f90 \
@@ -464,6 +465,7 @@ clean:
 	set_crtm_aerosolmod.f90 \
 	set_crtm_cloudmod.f90 \
         setupaod.f90 \
+        setuppm10.f90 \
 	setupyobs.f90 \
 	sfc_model.f90 \
 	sfcobsqc.f90 \
@@ -485,6 +487,7 @@ clean:
 	statsrad.f90 \
 	stop1.f90 \
 	stp3dvar.f90 \
+        stpaod.f90 \
 	stpcalc.f90 \
 	stpco.f90 \
 	stpdw.f90 \

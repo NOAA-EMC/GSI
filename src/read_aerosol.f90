@@ -142,7 +142,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_kind) :: tdiff, sstime, dlon, dlat, t4dv, timedif, crit1, dist1
   real(r_kind) :: slons0, slats0, rsat, solzen, azimuth, dlat_earth, dlon_earth
   real(r_kind) :: styp, dbcf, qaod
-  real(r_kind),dimension(0:4):: rlndsea
+  real(r_kind),dimension(0:6):: rlndsea
 
   real(r_kind), allocatable, dimension(:,:) :: aeroout
   real(r_kind), allocatable, dimension(:)   :: dataaod
@@ -167,6 +167,9 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   rlndsea(2) = 20._r_kind  ! styp 2: desert
   rlndsea(3) = 10._r_kind  ! styp 3: land
   rlndsea(4) = 25._r_kind  ! styp 4: deep blue
+  rlndsea(5) = 30._r_kind  ! styp 5: nnr ocean
+  rlndsea(6) = 35._r_kind  ! styp 6: nnr land
+
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
