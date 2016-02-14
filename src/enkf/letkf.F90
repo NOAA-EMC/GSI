@@ -134,8 +134,8 @@ real(r_kind) corrlength
 real(r_kind) sqrtoberr
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
-real(r_kind),allocatable,dimension(:,:) :: hdxf
-real(r_single),allocatable,dimension(:,:) :: obens
+real(r_kind),allocatable,dimension(:,:) :: hdxf,obens
+real(r_single),allocatable,dimension(:,:) :: obperts
 real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,kfgain
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
@@ -146,7 +146,9 @@ type(kdtree2), pointer :: kdtree_grid
 ! pointers used for MPI-3 shared memory manipulations.
 real(r_single), pointer, dimension(:,:) :: anal_ob_fp ! Fortran pointer
 type(c_ptr)                             :: anal_ob_cp ! C pointer
-integer disp_unit, shm_win
+real(r_single), pointer, dimension(:,:) :: obperts_fp ! Fortran pointer
+type(c_ptr)                             :: obperts_cp ! C pointer
+integer disp_unit, shm_win, shm_win2
 integer(MPI_ADDRESS_KIND) :: win_size, nsize
 integer(MPI_ADDRESS_KIND) :: segment_size
 #endif
@@ -156,6 +158,27 @@ real(r_single), allocatable, dimension(:) :: buffer
 nthreads = omp_get_num_threads()
 !$omp end parallel
 if (nproc == 0) print *,'using',nthreads,' openmp threads'
+
+! define a few frequently used parameters
+r_nanals=one/float(nanals)
+r_nanalsm1=one/float(nanals-1)
+r_scalefact = sqrt(float(nanals)/float(nanals-1))
+
+! create random numbers for perturbed obs on root task.
+if (.not. deterministic .and. nproc .eq. 0) then
+   call set_random_seed(0,nproc)
+   allocate(obperts(nanals, nobstot))
+   do nob=1,nobstot
+      sqrtoberr=sqrt(oberrvar(nob))
+      do nanal=1,nanals
+         obperts(nanal,nob) = sqrtoberr*rnorm()
+      enddo
+      ! make mean/variance are exact.
+      obperts(1:nanals,nob) = obperts(1:nanals,nob) - &
+                              sum(obperts(:,nob))*r_nanals
+      obperts(1:nanals,nob) = obperts(1:nanals,nob)*sqrtoberr/(sqrt(sum(obperts(:,nob)**2)*r_nanalsm1))
+   enddo
+endif
 
 #ifdef MPI3
 ! setup shared memory segment on each node that points to
@@ -171,6 +194,10 @@ else
 endif
 call MPI_Win_allocate_shared(win_size, disp_unit, MPI_INFO_NULL,&
                              mpi_comm_shmem, anal_ob_cp, shm_win, ierr)
+if (.not. deterministic) then
+   call MPI_Win_allocate_shared(win_size, disp_unit, MPI_INFO_NULL,&
+                                mpi_comm_shmem, obperts_cp, shm_win2, ierr)
+endif
 if (nproc_shm == 0) then
    ! create shared memory segment on each shared mem comm
    call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win,ierr)
@@ -186,11 +213,28 @@ if (nproc_shm == 0) then
          anal_ob_fp(nanal,1:nobstot) = buffer(1:nobstot)
       end if 
    end do
+   if (.not. deterministic) then
+      call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win2,ierr)
+      call c_f_pointer(obperts_cp, obperts_fp, [nanals, nobstot])
+      do nanal=1,nanals
+         if (nproc == 0) buffer(1:nobstot) = obperts(nanal,1:nobstot)
+         if (nproc_shm == 0) then
+            call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_shmemroot,ierr)
+            obperts_fp(nanal,1:nobstot) = buffer(1:nobstot)
+         end if 
+      end do
+   endif
    deallocate(buffer)
    call MPI_Win_unlock(0, shm_win, ierr)
    nullify(anal_ob_fp)
    ! don't need anal_ob anymore
    if (allocated(anal_ob)) deallocate(anal_ob)
+   if (.not. deterministic) then
+      ! don't need obperts anymore
+      call MPI_Win_unlock(0, shm_win2, ierr)
+      nullify(obperts_fp)
+      if (allocated(obperts)) deallocate(obperts)
+   endif
 endif
 ! barrier here to make sure no tasks try to access shared
 ! memory segment before it is created.
@@ -199,6 +243,10 @@ call mpi_barrier(mpi_comm_world, ierr)
 ! segment (containing observation prior ensemble) on each task.
 call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
 call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
+if (.not. deterministic) then
+   call MPI_Win_shared_query(shm_win2, 0, segment_size, disp_unit, obperts_cp, ierr)
+   call c_f_pointer(obperts_cp, obperts_fp, [nanals, nobstot])
+endif
 #else
 ! if MPI3 not available, need anal_ob on every MPI task
 ! broadcast observation prior ensemble from root one ensemble member at a time.
@@ -211,13 +259,16 @@ do nanal=1,nanals
    call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
    if (nproc .ne. 0) anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
 end do
+if (.not. deterministic) then
+   if (nproc .ne. 0) allocate(obperts(nanals,nobstot))
+   do nanal=1,nanals
+      buffer(1:nobstot) = obperts(nanal,1:nobstot)
+      call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
+      if (nproc .ne. 0) obperts(nanal,1:nobstot) = buffer(1:nobstot)
+   end do
+endif
 deallocate(buffer)
 #endif
-
-! define a few frequently used parameters
-r_nanals=one/float(nanals)
-r_nanalsm1=one/float(nanals-1)
-r_scalefact = sqrt(float(nanals)/float(nanals-1))
 
 if (minval(lnsigl) > 1.e3) then
    vlocal = .false.
@@ -231,9 +282,6 @@ else
    ! need to be computed for every vertical level.
    nnmax = nlevs_pres
 endif
-! initialize random seed for perturbed obs
-! (different seed for each task)
-if (.not. deterministic) call set_random_seed(0,nproc)
 ! is observation space update requested (yes if numiter !=0)?
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
@@ -410,7 +458,7 @@ do niter=1,numiter
   ! Loop for each horizontal grid points on this task.
   !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
   !$omp                  nobsl2,ngrd1,corrlength, &
-  !$omp                  nf,vdist,kfgain,obens,sqrtoberr, &
+  !$omp                  nf,vdist,kfgain,obens, &
   !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
   !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
   !$omp  reduction(+:t1,t2,t3,t4,t5) &
@@ -485,25 +533,14 @@ do niter=1,numiter
 
         if (.not. deterministic) then
            allocate(kfgain(nobsl2),obens(nobsl2,nanals))
-           ! create ob perturbations independently for each observation volume.
+           ! add ob perts to observation priors
            do nob=1,nobsl2
-              nf=oindex(nob)
-              sqrtoberr=sqrt(oberrvaruse(nf))
-              do nanal=1,nanals
-                obens(nob,nanal) = sqrtoberr*rnorm()
-              enddo
-              ! make sure mean is zero.
-              sqrtoberr = sum(obens(nob,1:nanals))*r_nanals
-              obens(nob,1:nanals) = obens(nob,1:nanals) - sqrtoberr
-              !if (nob .eq. 1) print *,nproc,nf,trim(obtype(nf)),sqrtoberr,sqrt(oberrvaruse(nf)),&
-              !  sqrt(sum(obens(nob,1:nanals)**2)*r_nanalsm1),&
-              !  sqrt(sum(anal_ob_fp(1:nanals,nf)**2)*r_nanalsm1)
-              ! renormalize to remove bias, add to ob prior ensemble
-              obens(nob,1:nanals) = r_scalefact*obens(nob,1:nanals) + &
+              nf = oindex(nob)
+              obens(nob,1:nanals) = &
 #ifdef MPI3
-              anal_ob_fp(1:nanals,nf) 
+              obperts_fp(1:nanals,nf) + anal_ob_fp(1:nanals,nf) 
 #else
-              anal_ob(1:nanals,nf) 
+              obperts(1:nanals,nf) + anal_ob(1:nanals,nf) 
 #endif
            enddo
         endif
@@ -533,7 +570,7 @@ do niter=1,numiter
                     call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
                          & work2,1)
                  else
-                   call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                    call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
                          & work2,1)
                  end if
                  ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
@@ -548,10 +585,19 @@ do niter=1,numiter
                  end if
                  ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + &
                  sum(kfgain*dep)
-                 do nanal=1,nanals
-                    anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
-                    sum(kfgain*obens(:,nanal))
-                 enddo
+                 if(r_kind == kind(1.d0)) then
+                    call dgemv('t',nobsl2,nanals,-1.d0,obens,nobsl2,kfgain,1,0.d0, &
+                         & work,1)
+                 else
+                    call sgemv('t',nobsl2,nanals,-1.e0,obens,nobsl2,kfgain,1,0.e0, &
+                         & work,1)
+                 end if
+                 anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb) + &
+                 work(1:nanals)
+                 !do nanal=1,nanals
+                 !   anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
+                 !   sum(kfgain*obens(:,nanal))
+                 !enddo
               endif
            enddo
            enddo
@@ -643,9 +689,14 @@ if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
 #ifdef MPI3
 nullify(anal_ob_fp)
 call MPI_Win_free(shm_win, ierr)
+if (.not. deterministic) then
+   nullify(obperts_fp)
+   call MPI_Win_free(shm_win2, ierr)
+endif
 #endif
 ! deallocate anal_ob on non-root tasks.
 if (nproc .ne. 0 .and. allocated(anal_ob)) deallocate(anal_ob)
+if (allocated(obperts)) deallocate(obperts)
 
 return
 
