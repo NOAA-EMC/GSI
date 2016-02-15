@@ -364,14 +364,14 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
      indx_p25   = getindex(aero_names,'p25')
      indx_dust1 = getindex(aero_names,'dust1')
      indx_dust2 = getindex(aero_names,'dust2')
-#ifdef WRF_CHEM_MZP
-     do ii=1,n_aerosols
-        indx=getindex(aerojacnames,trim(aero_names(ii)))
-        IF(indx>0) n_aerosols_jac=n_aerosols_jac+1
-     end do
-#else
-     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
-#endif
+     if (indx_p25 > 0) then
+        do ii=1,n_aerosols
+           indx=getindex(aerojacnames,trim(aero_names(ii)))
+           if(indx>0) n_aerosols_jac=n_aerosols_jac+1
+        end do
+     else
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
+     endif
      if (n_aerosols_jac >0) then
         allocate(iaero_jac(n_aerosols_jac))
         iaero_jac=-1
