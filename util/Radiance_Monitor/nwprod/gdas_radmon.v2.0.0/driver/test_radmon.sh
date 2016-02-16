@@ -7,21 +7,27 @@
 #
 #  Initial condition:               This script needs a bias correction and a radstat 
 #				    file from the same cycle.  These must be in the 
-# 				    indir directory.
+# 				    Data_In directory.
 #
-#  Usage:                           {bsub < xxx.sh under what directory structure}
+#  Usage:                           The RadMon is a verf step job but can be run any 
+#                                   time after the radstat file is generated. 
 #
-#  Data_In:                         Specified "indir" on command line.  This should be
+#  Data_In:                         Specified on command line.  This should be
 #				    something like ${COMROOT}/gfs/prod where 
 #				    $COMROOT is /com2 or /com.
 #
-#  Data_Out:                        Specified "outdir" on command line. 
+#  Data_Out:                        Specified on command line. This is where the 
+#				    radmon data files will be stored.
 #
-#  Result verification:             Output should be contained in directory $outdir/
+#  PDATA:			    Date to be processed in YYYYMMDDHH form, where HH
+#				    is 00, 06, 12, or 18.
+#
+#  Result verification:             Output should be contained in directory $Data_Out/
 #				    radmon.[YYYYMMDDHH] where YYYYMMDDHH = pdate.
 #				    Within that directory there should be ieee_d files
 #				    for each satellite instrument by angle, bcoef, 
-#				    bcor, and time.  Zero length files are a problem.
+#				    bcor, and time.  Zero length data files are a 
+#                                   problem.
 #####################################################################################
 
 #--------------------------------------------------------------------
@@ -39,6 +45,8 @@ echo start test_radmon.sh
 
 module load prod_util/v1.0.2
 
+which prep_step
+
 #--------------------------------------------------------------------
 #  test_radmon.sh begins here
 #--------------------------------------------------------------------
@@ -55,12 +63,11 @@ export PDATE=$3
 radmon_shared_ver=2.0.2
 
 #--------------------------------------------------------------------
-#  Eventually remove RUN_ENVIR argument but allow for it to possibly be
-#  present as $2 to ensure backward compatibility.
-#  
-#  if $COMOUT is defined then assume we're in a parallel.
+#  SUFFIX is the identifying name for a given data set from either a
+#  prod or parallel run.  For this driver we'll use radmon_test as 
+#  default.
 #--------------------------------------------------------------------
-export SUFFIX="radmon_test"
+export SUFFIX=${SUFFIX:-"radmon_test"}
 export envir="test"
 
 export TANKverf=${PWD}/${SUFFIX}
@@ -69,17 +76,8 @@ export COMROOT=/com
 export SENDCOM=NO
 
 export NWROOT=/nwprod2
-#export RUN_ENVIR=""
-#
-#if [[ $RUN_ENVIR = "" ]]; then
-#  export RUN_ENVIR="para"
-#  if [[ $COMOUT = "" ]]; then
-#     export RUN_ENVIR="dev"
-#  fi
-#fi
 
 echo SUFFIX = $SUFFIX
-#echo RUN_ENVIR = $RUN_ENVIR
 
 #--------------------------------------------------------------------
 #  Override HOMEgdas to point to the /nwprod dir within this package
@@ -102,45 +100,23 @@ export jlogfile="jlogfile_${SUFFIX}"
 export KEEPDATA=YES
 
 
-#--------------------------------------------------------------------
-# Set environment variables
-#--------------------------------------------------------------------
-#export RAD_AREA=glb
-#export MAKE_CTL=${MAKE_CTL:-1}
-#export MAKE_DATA=${MAKE_DATA:-1}
+export PDY=`echo ${PDATE}|cut -c1-8`
+export cyc=`echo ${PDATE}|cut -c9-10`
 
-#if [[ $RUN_ENVIR = para || $RUN_ENVIR = prod ]]; then
-#   this_dir=${VRFYRAD_DIR}
-#fi
+export DATDIR=${Data_In}
 
+#---------------------------------------------------------------
+# Locate required files.             
+#---------------------------------------------------------------
+if [[ -d ${DATDIR}/gdas.$PDY ]]; then
+   export DATDIR=${DATDIR}/gdas.${PDY}
 
-#mkdir -p $TANKverf
-#mkdir -p $LOGdir
-
-
-#------------------------------------------------------------------
-#  define data file sources depending on $RUN_ENVIR
-#
-#  need to idenfity correct output location(s) for binary files
-#------------------------------------------------------------------
-
-   export PDY=`echo ${PDATE}|cut -c1-8`
-   export cyc=`echo ${PDATE}|cut -c9-10`
-
-   export DATDIR=${Data_In}
-
-   #---------------------------------------------------------------
-   # Locate required files.             
-   #---------------------------------------------------------------
-   if [[ -d ${DATDIR}/gdas.$PDY ]]; then
-      export DATDIR=${DATDIR}/gdas.${PDY}
-
-      export biascr=$DATDIR/gdas1.t${cyc}z.abias  
-      export radstat=$DATDIR/gdas1.t${cyc}z.radstat
-   else
-      export biascr=$DATDIR/biascr.gdas.${PDATE}  
-      export radstat=$DATDIR/radstat.gdas.${PDATE}
-   fi
+   export biascr=$DATDIR/gdas1.t${cyc}z.abias  
+   export radstat=$DATDIR/gdas1.t${cyc}z.radstat
+else
+   export biascr=$DATDIR/biascr.gdas.${PDATE}  
+   export radstat=$DATDIR/radstat.gdas.${PDATE}
+fi
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -150,34 +126,6 @@ data_available=0
 
 if [[ -e ${radstat} ]]; then
    echo " radstat exists"                                         
-
-#   export MP_SHARED_MEMORY=yes
-#   export MEMORY_AFFINITY=MCM
-#   export envir=prod
-#   
-#   export cyc=$cyc
-#   export job=gdas_vrfyrad_${PDY}${cyc}
-#   export SENDSMS=${SENDSMS:-NO}
-#   export DATA_IN=${WORKverf_rad}
-#   export DATA=${DATA:-${STMP_USER}/radmon}
-#   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
-#
-#   export VERBOSE=${VERBOSE:-YES}
-#  
-
-   #----------------------------------------------------------------------------
-   #  Advance the satype file from previous day.
-   #  If it isn't found then create one using the contents of the radstat file.
-   #----------------------------------------------------------------------------
-#   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
-#
-#   if [[ $cyc = "00" ]]; then
-#      echo "Making new day directory for 00 cycle"
-#      mkdir -p ${TANKverf}/radmon.${PDY}
-#      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-#      if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ]]; then
-#         cp ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
-#      fi
 fi 
 
 if [[ -e ${biascr} ]]; then
@@ -188,57 +136,29 @@ if [[ -e ${radstat} && -e ${biascr} ]]; then
    data_available=1
 fi
 
-#    echo "TESTING for $satype_file"
-#    if [[ -s ${satype_file} ]]; then
-#      echo "${satype_file} is good to go"
-#    else
-#      echo "CREATING satype file"
-#      radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
-#      echo $radstat_satype > ${satype_file}
-#      echo "CREATED ${satype_file}"
-#    fi
+#------------------------------------------------------------------
+#   Submit job 
+#------------------------------------------------------------------
+jobname="test_radmon"
+echo "queue job $jobname"
+logfile="./radmon_test.${PDY}.${cyc}.log"
+project="GDAS-T2O"
+job_queue="dev_shared"
+SUB=bsub
 
-   
-   #------------------------------------------------------------------
-   #   Override the default base_file declaration if there is an  
-   #   available base file for this source.
-   #------------------------------------------------------------------
-#   if [[ -s ${TANKverf}/info/radmon_base.tar.${Z} || -s ${TANKverf}/info/radmon_base.tar ]]; then
-#      export base_file=${TANKverf}/info/radmon_base.tar 
-#   fi
+echo "job is ${HOMEgdas}/jobs/JGDAS_VERFRAD"
 
-   #------------------------------------------------------------------
-   #   Submit data processing jobs.
-   #------------------------------------------------------------------
-#   if [[ $MY_MACHINE = "wcoss" ]]; then
-      jobname="test_radmon"
-      echo "queue job $jobname"
-      logfile="./radmon_test.${PDY}.${cyc}.log"
-      project="GDAS-T2O"
-      job_queue="dev_shared"
-      SUB=bsub
+$SUB -q ${job_queue} -P $project -o $logfile -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${HOMEgdas}/jobs/JGDAS_VERFRAD
 
-      echo "job is ${HOMEgdas}/jobs/JGDAS_VERFRAD"
-
-      $SUB -q ${job_queue} -P $project -o $logfile -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${HOMEgdas}/jobs/JGDAS_VERFRAD
-
-#   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-#      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${cyc}.log -e $LOGdir/error_file.${PDY}.${cyc}.log $HOMEgdasradmon/jobs/JGDAS_VERFRAD
-#   fi
-  
 #--------------------------------------------------------------------
-# Clean up and exit
+# clean up and exit
 #--------------------------------------------------------------------
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
-
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=6
    echo No data available for ${SUFFIX}
 else
-   echo "driver reports normal operation, job submitted"
+   echo "normal operation, job submitted"
 fi
 
 echo end test_radmon.sh

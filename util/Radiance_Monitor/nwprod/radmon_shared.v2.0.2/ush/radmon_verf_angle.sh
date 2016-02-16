@@ -18,9 +18,6 @@
 #            other supporting files into a temporary working directory.
 #
 #
-# Script history log:
-# 2012-02-02  Safford  initial script
-#
 # Usage:  radmon_verf_angle.sh PDATE
 #
 #   Input script positional parameters:
@@ -36,8 +33,6 @@
 #                       defaults to 1 (on)
 #     EXECradmon        executable directory
 #                       defaults to current directory
-#     FIXradmon         fixed data directory
-#                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
 #     TANKverf_rad      data repository
@@ -51,9 +46,6 @@
 #     USE_ANL           use analysis files as inputs in addition to 
 #                         the ges files.  Default is 0 (ges only)
 #
-#   Exported Shell Variables:
-#     err           Last return code
-#
 #   Modules and files referenced:
 #     scripts    : 
 #
@@ -66,7 +58,7 @@
 #
 #     output data: $angle_file
 #                  $angle_ctl
-#                  $angle_stdout
+#                  $pgmout
 #
 # Remarks:
 #
@@ -82,6 +74,8 @@ scr=radmon_verf_angle.sh
 msg="${scr} HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
+which prep_step
+which startmsg
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
@@ -93,7 +87,7 @@ EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
-pgmout=${pgmout:-${jlogfile}}
+export pgmout=${pgmout:-${jlogfile}}
 touch $pgmout
 
 # Other variables
@@ -128,7 +122,7 @@ else
 #--------------------------------------------------------------------
 #   Run program for given time
 
-export pgm=${angle_exec}
+   export pgm=${angle_exec}
 
    iyy=`echo $PDATE | cut -c1-4`
    imm=`echo $PDATE | cut -c5-6`
@@ -143,7 +137,10 @@ export pgm=${angle_exec}
 
       for dtype in ${gesanl}; do
 
-         prep_step
+          echo "pgm    = $pgm"
+          echo "pgmout = $pgmout"
+#         prep_step
+         /nwprod2/util/ush/prep_step.sh
 
          ctr=`expr $ctr + 1`
 

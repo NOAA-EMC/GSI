@@ -30,12 +30,6 @@
 #                   overridden by 1
 #     cyc	    processing cycle; 
 #                   overridden by 2
-#     LOGSCRIPT     Log posting script
-#                   defaults to none
-#     ERRSCRIPT     Error processing script
-#                   defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT     Postprocessing script
-#                   defaults to none
 #     LITTLE_ENDIAN Flag to indicate LE machine
 #                   defaults to 0 (big endian)
 #
@@ -121,9 +115,6 @@ export TANKverf_rad=${TANKverf}/radmon.${PDY}
 export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
 export satype_file=${satype_file:-gdas_radmon_satype.txt}
-#export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
-#export LOGSCRIPT=${LOGSCRIPT}
-#export ENDSCRIPT=${ENDSCRIPT}
 
 #  Other variables
 export RAD_AREA=${RAD_AREA:-glb}
@@ -139,12 +130,8 @@ export MAIL_CC=${MAIL_CC:-" "}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 
-#$LOGSCRIPT
-
-#####################################################################
-# Preprocessing
-#$INISCRIPT
-
+###########################################################################
+# ensure work and TANK dirs exist, verify radstat and biascr are available
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
 fi
@@ -194,10 +181,11 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
 
    echo satype_file = $satype_file
   
-   #    
-   #  Get previous cycle's date, and look for the satype_file.  Using the previous cycle
-   #  will get us the previous day's directory if the cycle being processed is 00z.
-   #
+   #------------------------------------------------------------------
+   #  Get previous cycle's date, and look for the satype_file.  Using 
+   #  the previous cycle will get us the previous day's directory if 
+   #  the cycle being processed is 00z.
+   #------------------------------------------------------------------
    if [[ $CYC = "00" ]]; then
       pday=${PDYm1}
    else
@@ -237,10 +225,11 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
       fi
    done
 
-   #
-   #  If there is no satype_file in the current day's radmon.${PDY} directory or if changes
-   #  have occurred in the SATYPE list, then add/update the satype_file
-   #
+   #------------------------------------------------------------------
+   #  If there is no satype_file in the current day's radmon.${PDY} 
+   #  directory or if changes have occurred in the SATYPE list, then 
+   #  add/update the satype_file.
+   #------------------------------------------------------------------
    if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} || $satype_changes -eq 1 ]]; then
       if [[ ! -d ${TANKverf}/radmon.${PDY} ]]; then
          mkdir -f ${TANKverf}/radmon.${PDY}
@@ -278,41 +267,35 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
     ${USHradmon}/radmon_verf_angle.sh ${PDATE}
     rc_angle=$?
 
-#    ${USHradmon}/radmon_verf_bcoef.sh ${PDATE}
-#    rc_bcoef=$?
+    ${USHradmon}/radmon_verf_bcoef.sh ${PDATE}
+    rc_bcoef=$?
 
-#    ${USHradmon}/radmon_verf_bcor.sh ${PDATE}
-#    rc_bcor=$?
+    ${USHradmon}/radmon_verf_bcor.sh ${PDATE}
+    rc_bcor=$?
 
-#    ${USHradmon}/radmon_verf_time.sh ${PDATE}
-#    rc_time=$?
+    ${USHradmon}/radmon_verf_time.sh ${PDATE}
+    rc_time=$?
 
 fi
 
 #####################################################################
 # Postprocessing
-$ENDSCRIPT
 
 err=0
-#if [[ ${data_available} -ne 1 ]]; then
-#   err=1
-#elif [[ $rc_angle -ne 0 ]]; then
-#   err=$rc_angle
-#elif [[ $rc_bcoef -ne 0 ]]; then
-#   err=$rc_bcoef
-#elif [[ $rc_bcor -ne 0 ]]; then
-#   err=$rc_bcor
-#elif [[ $rc_time -ne 0 ]]; then
-#   err=$rc_time
-#fi
+if [[ ${data_available} -ne 1 ]]; then
+   err=1
+elif [[ $rc_angle -ne 0 ]]; then
+   err=$rc_angle
+elif [[ $rc_bcoef -ne 0 ]]; then
+   err=$rc_bcoef
+elif [[ $rc_bcor -ne 0 ]]; then
+   err=$rc_bcor
+elif [[ $rc_time -ne 0 ]]; then
+   err=$rc_time
+fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh.ecf, exit value = ${err}"
-fi
-
-if [[ ${err} -ne 0 ]]; then
-   export err
-   $ERRSCRIPT||exit ${err} 
 fi
 
 msg="${scr} HAS ENDED"
