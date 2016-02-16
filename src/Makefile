@@ -501,6 +501,7 @@ clean:
 	stppblh.f90 \
 	stppcp.f90 \
 	stppm2_5.f90 \
+	stppm10.f90 \
 	stppmsl.f90 \
 	stpmitm.f90 \
 	stpmxtm.f90 \

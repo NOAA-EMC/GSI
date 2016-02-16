@@ -550,7 +550,6 @@ subroutine get_lhs(yobs, lhs)
   call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 
 !--------------------------------------------------------------------------
-
 ! Do pm10 obs
   nob = 0
 !-------------------------------------------------------------------------
@@ -563,12 +562,9 @@ subroutine get_lhs(yobs, lhs)
      end if
      pm10ptr => pm10ptr%llpoint
   end do
-  CALL mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-!  if(nobs > 0 .and. mype ==0) write(6,*)' for jiter= ',jiter,' got pm10-obs ',nobs
-
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 
 !--------------------------------------------------------------------------
-
 ! Do aero aod obs
   nob = 0
 !-------------------------------------------------------------------------
@@ -584,11 +580,7 @@ subroutine get_lhs(yobs, lhs)
      end if
      aeroptr => aeroptr%llpoint
   end do
-  CALL mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-!  if(nobs > 0 .and. mype ==0) write(6,*)' for jiter= ',jiter,' got aero-obs ',nobs
-
-
-!--------------------------------------------------------------------------
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 
 !--------------------------------------------------------------------------
   return

@@ -179,6 +179,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
       call openbf(lnbufr,'IN',lnbufr)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
+      nread = nread + 1
 
 !     Extract date and check for consistency with analysis date
       if (idate<iadatebgn.or.idate>iadateend) then
@@ -295,12 +296,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else
          kidsat = 0
        end if
-
-       call closbf(lnbufr)
-       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
-       call openbf(lnbufr,'IN',lnbufr)
-       call datelen(10)
-       nread = nread + 1
 
        if(kidsat /= 0)then
         lexist = .false.

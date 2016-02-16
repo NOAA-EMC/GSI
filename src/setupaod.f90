@@ -294,9 +294,9 @@
                     tnoise = 0.05_r_kind+0.15_r_kind*aod_obs+0.01_r_kind*(three-dbcf)
                  end if
               case ( 5 )  ! nnr ocean
-                 tnoise = 0.2_r_kind*(aod_obs+0.01)
+                 tnoise = 0.2_r_kind*(aod_obs+0.01_r_kind)
               case ( 6 )  ! nnr land
-                 tnoise = 0.2_r_kind*(aod_obs+0.01)
+                 tnoise = 0.2_r_kind*(aod_obs+0.01_r_kind)
 
                  
            end select

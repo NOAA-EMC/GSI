@@ -1943,10 +1943,10 @@ subroutine wrwrfmassa_netcdf(mype)
 
   if ( wrf_pm2_5 ) then
      ier = 0
-     CALL GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'pm2_5',  ges_pm2_5,  istatus )
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'pm2_5',  ges_pm2_5,  istatus )
      ier=ier+istatus
-     IF (ier/=0 .and. mype == 0) then
-         WRITE(6,*)'WRWRFMASSA_NETCDF: getpointer failed for gocart pm2_5'
+     if (ier/=0 .and. mype == 0) then
+         write(6,*)'WRWRFMASSA_NETCDF: getpointer failed for gocart pm2_5'
      endif
      iv=1
      kchem(iv) = i_chem(iv)-1
