@@ -180,9 +180,9 @@ contains
 
        pm10ptr => pm10head
 
-       DO WHILE (ASSOCIATED(pm10ptr))
-          IF(pm10ptr%luse)THEN
-             IF(nstep > 0)THEN
+       do while (ASSOCIATED(pm10ptr))
+          if(pm10ptr%luse)then
+             if(nstep > 0)then
                 j1=pm10ptr%ij(1)
                 j2=pm10ptr%ij(2)
                 j3=pm10ptr%ij(3)

@@ -1292,42 +1292,42 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                      indx_seas1, indx_seas2, indx_seas3, indx_seas4,indx_p25
   character(len=5),allocatable :: cvar(:)
 
-  real(r_kind), pointer :: ges_ps_it (:,:  )=>null()
-  real(r_kind), pointer :: ges_th2_it(:,:  )=>null()
-  real(r_kind), pointer :: ges_q2_it (:,:  )=>null()
-  real(r_kind), pointer :: ges_tsk_it(:,:  )=>null()
-  real(r_kind), pointer :: ges_soilt1_it(:,:)=>null()
-  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>null()
-  real(r_kind), pointer :: ges_smois_it(:,:,:)=>null()
-  real(r_kind), pointer :: ges_z_it  (:,:  )=>null()
-  real(r_kind), pointer :: ges_u_it  (:,:,:)=>null()
-  real(r_kind), pointer :: ges_v_it  (:,:,:)=>null()
-  real(r_kind), pointer :: ges_tv_it (:,:,:)=>null()
-  real(r_kind), pointer :: ges_q_it  (:,:,:)=>null()
+  real(r_kind), pointer :: ges_ps_it (:,:  )=>NULL()
+  real(r_kind), pointer :: ges_th2_it(:,:  )=>NULL()
+  real(r_kind), pointer :: ges_q2_it (:,:  )=>NULL()
+  real(r_kind), pointer :: ges_tsk_it(:,:  )=>NULL()
+  real(r_kind), pointer :: ges_soilt1_it(:,:)=>NULL()
+  real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_z_it  (:,:  )=>NULL()
+  real(r_kind), pointer :: ges_u_it  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_v_it  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_tv_it (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_q_it  (:,:,:)=>NULL()
 
-  real(r_kind), pointer :: ges_qc (:,:,:)=>null()
-  real(r_kind), pointer :: ges_qi (:,:,:)=>null()
-  real(r_kind), pointer :: ges_qr (:,:,:)=>null()
-  real(r_kind), pointer :: ges_qs (:,:,:)=>null()
-  real(r_kind), pointer :: ges_qg (:,:,:)=>null()
-  real(r_kind), pointer :: ges_qnr(:,:,:)=>null()
+  real(r_kind), pointer :: ges_qc (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qi (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qr (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
 
-  real(r_kind), pointer :: ges_sulf(:,:,:)=>null()
-  real(r_kind), pointer :: ges_bc1(:,:,:)=>null()
-  real(r_kind), pointer :: ges_bc2(:,:,:)=>null()
-  real(r_kind), pointer :: ges_oc1(:,:,:)=>null()
-  real(r_kind), pointer :: ges_oc2(:,:,:)=>null()
-  real(r_kind), pointer :: ges_dust1(:,:,:)=>null()
-  real(r_kind), pointer :: ges_dust2(:,:,:)=>null()
-  real(r_kind), pointer :: ges_dust3(:,:,:)=>null()
-  real(r_kind), pointer :: ges_dust4(:,:,:)=>null()
-  real(r_kind), pointer :: ges_dust5(:,:,:)=>null()
-  real(r_kind), pointer :: ges_seas1(:,:,:)=>null()
-  real(r_kind), pointer :: ges_seas2(:,:,:)=>null()
-  real(r_kind), pointer :: ges_seas3(:,:,:)=>null()
-  real(r_kind), pointer :: ges_seas4(:,:,:)=>null()
-  real(r_kind), pointer :: ges_p25(:,:,:)=>null()
-  real(r_kind), pointer :: ges_pm2_5(:,:,:)
+  real(r_kind), pointer :: ges_sulf(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_bc1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_bc2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_oc1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_oc2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust3(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust4(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_dust5(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas1(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas2(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas3(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_p25(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_pm2_5(:,:,:)=>NULL()
 
 !  WRF MASS input grid dimensions in module gridmod
 !      These are the following:
@@ -1733,7 +1733,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         if ( laeroana_gocart ) then
 
            if (aero_ratios) then 
-              IF (mype==0) WRITE(6,*) 'aero_ratios = .true. disabled - reset aero_ratios = .false. Aborting'
+              IF (mype==0) write(6,*) 'aero_ratios = .true. disabled - reset aero_ratios = .false. Aborting'
               call stop2(3)
            endif
 
@@ -1912,7 +1912,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                        ges_seas4(j,i,k))
                     endif
 
-                 END IF
+                 end if
 
                  if ( wrf_pm2_5 ) then
                     iv=1

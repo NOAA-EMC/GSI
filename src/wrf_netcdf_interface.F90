@@ -995,9 +995,6 @@ subroutine convert_netcdf_mass
              ierr                                 )
 
         do k=1,nsig_regional
-!           write(6,*)' k,max,min,mid var=',rmse_var,k,     &
-!                MAXVAL(field3(:,:,k)),MINVAL(field3(:,:,k)), &
-!                field3(nlon_regional/2,nlat_regional/2,k)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
         end do
 

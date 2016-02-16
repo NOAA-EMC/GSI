@@ -61,11 +61,11 @@ module chemmod
   logical :: luse_deepblue
   integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
-  LOGICAL :: wrf_pm2_5
+  logical :: wrf_pm2_5
 
 
-  real(r_kind),parameter :: s_2_5=0.942,d_2_5=0.286,d_10=0.87,&
-       nh4_mfac=1.375,oc_mfac=1.8
+  real(r_kind),parameter :: s_2_5=0.942_r_kind,d_2_5=0.286_r_kind,&
+       d_10=0.87_r_kind,nh4_mfac=1.375_r_kind,oc_mfac=1.8_r_kind
 
   logical :: aero_ratios
 
@@ -79,13 +79,13 @@ module chemmod
        code_pm25_anowbufr=102,code_pm10_ncbufr=code_pm25_ncbufr,&
        code_pm10_anowbufr=code_pm25_anowbufr
 
-  real(r_kind),parameter :: pm2_5_teom_max=100_r_kind !ug/m3
+  real(r_kind),parameter :: pm2_5_teom_max=100.0_r_kind !ug/m3
 !some parameters need to be put here since convinfo file won't
 !accomodate, stands for maximum realistic value of surface pm2.5
-  real(r_kind),parameter :: pm10_teom_max=150_r_kind !ug/m3
+  real(r_kind),parameter :: pm10_teom_max=150.0_r_kind !ug/m3
 
 
-  real(r_kind),parameter :: elev_missing=-9999_r_kind
+  real(r_kind),parameter :: elev_missing=-9999.0_r_kind
 !when elevation of the obs site is missing assign that
 
   integer(i_kind), parameter :: nsites=4
@@ -258,6 +258,7 @@ contains
 !     ndata    - number of type "obstype" observations retained for further processing
 !     nodata   - number of individual "obstype" observations retained for !further processing
 !     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
 !
 ! attributes:
 !   language: f90
@@ -381,6 +382,7 @@ contains
     
     
 ! write header record and data to output file for further processing
+    call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
     write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
     

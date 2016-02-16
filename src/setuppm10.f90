@@ -18,12 +18,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
 
 ! program history log:
-!   2010-10-03  pagowski - based on setupX; converted for pm10
-!   2013-01-26  parrish - convert tintrp2a to tintrp2a1, tintrp2a11 (so debug compile works on WCOSS)
-!   2013-10-19  todling - metguess now holds background
-!   2013-11-26  guo     - removed nkeep==0 escaping to allow more than one obstype sources.
-!   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
-!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2014-09-14  Mariusz.Pagowski - inital code
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -167,10 +162,10 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !*********************************************************************************
 ! get pointer to pm10 guess state, if not present return 
 
-  IF (cmaq_regional) THEN
+  if (cmaq_regional) then
      WRITE(6,*) 'pm10 for cmaq not implemented. Stopping'
      CALL stop2(451)
-  ENDIF
+  endif
 
   if (wrf_mass_regional .and. laeroana_gocart) then
 
@@ -308,16 +303,16 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         endif
 
         aeroname='seas3'
-        CALL gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
              rank3,ier)
         if (ier==0) then
            ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
-           DO ifld=2,nfldsig
-              CALL gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
               ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           WRITE(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -350,30 +345,30 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         endif
 
         aeroname='dust3'
-        CALL gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
              rank3,ier)
         if (ier==0) then
            ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
-           DO ifld=2,nfldsig
-              CALL gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
               ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           WRITE(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
         aeroname='dust4'
-        CALL gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
              rank3,ier)
         if (ier==0) then
            ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3*d_10
-           DO ifld=2,nfldsig
-              CALL gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
               ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3*d_10
            enddo
         else
-           WRITE(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -422,10 +417,10 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   call dtime_setup()
   
-  IF (oneobtest_chem) THEN
+  if (oneobtest_chem) then
      WRITE(6,*)'setuppm10: oneobtest_chem available only for pm2_5'
      CALL stop2(424)
-  ENDIF
+  endif
      
 
   if (trim(isis)=='TEOM') then
@@ -538,7 +533,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !if elevation unknown include observation nevertheless
         endif
         
-        CALL tintrp2a11(ges_pm10,pm10ges,dlat,dlon,dtime,hrdifsig,&
+        call tintrp2a11(ges_pm10,pm10ges,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
         innov = conc - pm10ges
 
@@ -767,7 +762,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      enddo
   endif
 
-  proceed=proceed.AND.ivar>0
+  proceed=proceed.and.ivar>0
 
   end subroutine check_vars_ 
 
@@ -839,26 +834,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                  nfldsig,size(gsi_metguess_bundle)
      call stop2(999)
   endif
-!mhu  if (size(gsi_chemguess_bundle)==nfldsig) then
-!mhu     varname='pm10'
-!mhu     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(varname),rank3,ier)
-!mhu     if (ier==0) then
-!mhu         allocate(ges_pm10(size(rank3,1),size(rank3,2),size(rank3,3),&
-!mhu               nfldsig))
-!mhu         ges_pm10(:,:,:,1)=rank3
-!mhu         do ifld=2,nfldsig
-!mhu            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'pm10',rank3,ier)
-!mhu            ges_pm10(:,:,:,ifld)=rank3
-!mhu        enddo
-!mhu     else
-!mhu         write(6,*) trim(myname), ': ', trim(varname), ' not found in chem bundle, ier= ',ier
-!mhu         call stop2(999)
-!mhu     endif
-!mhu  else
-!mhu     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
-!mhu          nfldsig,size(gsi_chemguess_bundle)
-!mhu     call stop2(420)
-!mhu  endif
   end subroutine init_vars_
 
   subroutine final_vars_

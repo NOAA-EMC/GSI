@@ -181,9 +181,9 @@ contains
 
        pm2_5ptr => pm2_5head
 
-       DO WHILE (ASSOCIATED(pm2_5ptr))
-          IF(pm2_5ptr%luse)THEN
-             IF(nstep > 0)THEN
+       do while (associated(pm2_5ptr))
+          if(pm2_5ptr%luse)then
+             if(nstep > 0)then
                 j1=pm2_5ptr%ij(1)
                 j2=pm2_5ptr%ij(2)
                 j3=pm2_5ptr%ij(3)

@@ -2,18 +2,13 @@ module intpm10mod
 
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   intpm10mod    module for intq and its tangent linear intq_tl
+! module:   intpm10mod    module for intpm10 and its tangent linear 
 !   prgmmr:
 !
 ! abstract: module for intq and its tangent linear intq_tl
 !
 ! program history log:
-!   2005-05-13  Yanqiu zhu - wrap intq and its tangent linear intq_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-11-26  Todling - remove intq_tl; add interface back
-!   2009-08-13  lueken - update documentation
-!   2010-10-15  pagowski - use for in-situ pm10
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2014-09-14  Mariusz.Pagowski - inital code  
 !
 ! subroutines included:
 !   sub intpm10_
@@ -43,32 +38,11 @@ contains
 ! subprogram:    intpm10        apply nonlin qc obs operator for q 
 !   prgmmr: derber           org: np23                date: 1991-02-26
 !
-! abstract: apply observation operator and adjoint for q with
+! abstract: apply observation operator and adjoint for pm10 with
 !             nonlinear qc operator
 !
 ! program history log:
-!   1991-02-26  derber
-!   1993-08-15  wu
-!   1997-12-12  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2004-10-05  parrish - add non-linear qc option
-!   2005-03-01  parrish - nonlinear qc change to account for inflated obs error
-!   2005-04-11  treadon - merge intq and intq_qc into single routine
-!   2005-08-02  derber  - modify for variational qc parameters for each ob
-!   2005-09-28  derber  - consolidate location and weight arrays
-!   2005-10-21  su      - modify for variational qc
-!   2006-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic - add foto
-!   2007-03-19  tremolet - binning of observations
-!   2007-06-05  tremolet - use observation diagnostics structure
-!   2007-07-09  tremolet - observation sensitivity
-!   2008-05-31  safford - rm unused vars
-!   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
-!   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
-!   2010-05-13  todling  - update to use gsi_bundle; update interface 
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs!   2014-01-15  pagowski  - convert for in-situ pm10
-         
+!   2014-09-14  Mariusz.Pagowski - inital code
 !
 !   input argument list:
 !     pm10head    - obs type pointer to obs structure

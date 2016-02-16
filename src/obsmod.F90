@@ -1687,8 +1687,7 @@ contains
     mype_pm10= max(0,npe-26)! pm10
 
 !   Initialize arrays used in namelist obs_input 
-!mhu    time_window_max = three ! set maximum time window to +/-three hours
-    time_window_max = 240 ! set maximum time window to +/-three hours
+    time_window_max = three ! set maximum time window to +/-three hours
 
 
 !   Other initializations
@@ -2464,6 +2463,7 @@ contains
 
 
     if (allocated(obscounts)) deallocate(obscounts) 
+    if (allocated(nobs_sub)) deallocate(nobs_sub)
 
     return
   end subroutine destroyobs_
