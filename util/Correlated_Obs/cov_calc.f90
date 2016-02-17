@@ -148,13 +148,12 @@ allocate(gesloc(dsize,2,gsize))
 allocate(ges_times(dsize,gsize))
 do tim=1,ntimes
    call get_filename(tim,anl_stub,anlfile)
-   gcmod=mod(tim,3)
-   gblock=gcmod+1
    gwhile=0
    if ((tim==ntimes).and.(tim>1)) gwhile=1
    gtim=1
-   gblock=1
    if (tim>1) gtim=tim+1
+   gcmod=mod(gtim,3)
+   gblock=gcmod+1
    ncc=0
    !we read in one analysis diag file at each time step.
    !at time step tim, we need data from the ges diag files of time tim-1, tim and tim+1.
@@ -300,9 +299,9 @@ do tim=1,ntimes
           gesloc(ng(gblock),1,gblock)=RadDiag_Data%Scalar%lat
           gesloc(ng(gblock),2,gblock)=RadDiag_Data%Scalar%lon
       end do ges_read_loop
-      if ((tim==1).and.(gblock==1).and.(ntimes>1)) then 
+      if ((tim==1).and.(gblock==2).and.(ntimes>1)) then 
          gtim=2
-         gblock=2
+         gblock=3
       else 
          gwhile=1
       end if
@@ -386,7 +385,7 @@ do tim=1,ntimes
          i2=gcmod+1
       end if
       do ii=1,ptimes
-         i=ii
+         i=mod(ii,3)+1
          if ((tim==ntimes).and.(ntimes>2)) then
             i=i2
             if (ii==1) i=i1
