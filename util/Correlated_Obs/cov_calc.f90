@@ -143,7 +143,7 @@ err_file(lenerr+1:leninstr+lenerr)=instr
 ges_stub(1:5)='dges_'
 anl_stub(1:5)='danl_'
 gsize=three_int
-if (ntimes<=three_int) gsize=ntimes
+!if (ntimes<=three_int) gsize=ntimes
 allocate(gesloc(dsize,2,gsize))
 allocate(ges_times(dsize,gsize))
 do tim=1,ntimes
