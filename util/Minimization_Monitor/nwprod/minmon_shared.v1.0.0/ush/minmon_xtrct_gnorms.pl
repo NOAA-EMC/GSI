@@ -7,7 +7,7 @@ use List::MoreUtils 'first_index';
 use List::MoreUtils 'last_index';
 
 #---------------------------------------------------------------------------
-#  minmo_xtrct_gnorms.pl
+#  minmon_xtrct_gnorms.pl
 #
 #  Update the $suffix.gnorm_data.txt file with data from a new cycle.  Add 
 #  this new data to the last line of the ${suffix}.gnorm_data.txt file.
@@ -16,11 +16,6 @@ use List::MoreUtils 'last_index';
 #
 #  The gnorm_data.txt file is used plotted directly by the javascript on
 #  the GSI stats page.
-#
-#  Question:  Should this just add the new line for this cycle and not worry
-#  about the max days?  The transfer script could do a tail on this file to 
-#  limit the length if that's really necessary.  It would be useful to show 
-#  the last 30 days with an option to see a greater range.
 #---------------------------------------------------------------------------
 sub updateGnormData {
    my $cycle     = $_[0];
@@ -182,15 +177,27 @@ sub  makeErrMsg {
 #
 #---------------------------------------------------------------------------
 
-if ($#ARGV != 3 ) {
-   print "usage: minmon_xtrct_gnorms.pl SUFFIX pdy cyc infile \n";
+if ($#ARGV != 4 ) {
+   print "usage: minmon_xtrct_gnorms.pl SUFFIX pdy cyc infile jlogfile\n";
    exit;
 }
 
-my $suffix = $ARGV[0];
-my $pdy = $ARGV[1];
-my $cyc = $ARGV[2];
-my $infile = $ARGV[3];
+
+my $suffix   = $ARGV[0];
+my $pdy      = $ARGV[1];
+my $cyc      = $ARGV[2];
+my $infile   = $ARGV[3];
+my $jlogfile = $ARGV[4];
+
+#--------------------------------------------------
+my $scr = "minmon_xtrct_gnorms.pl";
+my $msg = $scr . " HAS STARTED";
+
+my @msgcmd = ("postmsg", $jlogfile, $msg);
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
+#--------------------------------------------------
+
 
 my $igrad_target;
 my $igrad_number;
@@ -202,8 +209,8 @@ my $gross_check_val;
 my $rc    = 0;
 my $cdate = sprintf '%s%s', $pdy, $cyc;
 
-my $FIXgmon = $ENV{"FIXgmon"};
-my $gnormfile = sprintf '%s%s', $FIXgmon, "/gmon_gnorm.txt";
+my $FIXminmon = $ENV{"FIXminmon"};
+my $gnormfile = sprintf '%s%s', $FIXminmon, "/gmon_gnorm.txt";
 
 
 if( (-e $gnormfile) ) {
@@ -401,6 +408,7 @@ if( $rc == 0 ) {
       #  move files to $M_TANKverf
       #--------------------------
       my $tankdir = $ENV{"M_TANKverf"};
+      print "M_TANKverf = $tankdir \n";
       if(! -d $tankdir) {
          system( "mkdir -p $tankdir" );
       }
@@ -424,6 +432,13 @@ if( $rc == 0 ) {
 }else {				# $infile does not exist
    $rc = 3;
 }
+
+#--------------------------------------------------
+$msg = $scr . " HAS ENDED";
+@msgcmd = ("postmsg", $jlogfile, $msg);
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
+#--------------------------------------------------
 
 print "$rc \n"
 

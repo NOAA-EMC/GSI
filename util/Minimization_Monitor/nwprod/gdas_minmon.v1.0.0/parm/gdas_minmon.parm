@@ -1,0 +1,21 @@
+#####################################
+# specify minmon shared version
+#####################################
+#export gdas_minmon_ver=1.0.0
+export minmon_shared_ver=1.0.0
+
+
+#####################################
+# specify minmon_shared location
+#####################################
+export HOMEminmon=${HOMEminmon:-${NWROOT}/minmon_shared.v${minmon_shared_ver}}
+export EXECminmon=${EXECminmon:-${HOMEminmon}/exec}
+export USHminmon=${USHminmon:-${HOMEminmon}/ush}
+
+
+#####################################
+# utilities
+#####################################
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+
