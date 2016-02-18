@@ -23,21 +23,13 @@
 #     M_TANKverf    repository for minmon data files
 #     DATA          data working space
 #     SUFFIX        data set identifier, defaults to GDAS
-#     FIXgdasgmon   fixed file directory, gdas specific
-#     FIXgmon       fixed file directory
-#     USHgmon       scripts directory
+#     FIXgdas       fixed file directory, gdas specific
+#     FIXminmon     fixed file directory
+#     USHminmon     scripts directory
 #     PDY           processing day; 
 #                   overridden by 1
 #     cyc	    processing cycle; 
 #                   overridden by 2
-#     INISCRIPT     Preprocessing script
-#                   defaults to none
-#     LOGSCRIPT     Log posting script
-#                   defaults to none
-#     ERRSCRIPT     Error processing script
-#                   defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT     Postprocessing script
-#                   defaults to none
 #     
 #   Exported Shell Variables:
 #     PDATE	    Processing date
@@ -45,13 +37,9 @@
 #     VERBOSE       switches on more/less log output
 #
 #   Modules and files referenced:
-#     scripts    : $INISCRIPT
-#                  $LOGSCRIPT
-#                  $ERRSCRIPT 
-#                  $ENDSCRIPT
-#                  ${USHgmon}/minmon_xtrct_gnorms.pl
-#                  ${USHgmon}/minmon_xtrct_costs.pl
-#                  ${USHgmon}/minmon_xtrct_reduction.pl
+#     scripts    : ${USHminmon}/minmon_xtrct_gnorms.pl
+#                  ${USHminmon}/minmon_xtrct_costs.pl
+#                  ${USHminmon}/minmon_xtrct_reduction.pl
 #
 #     programs   : $NDATE
 #
@@ -65,92 +53,87 @@
 #       0 - no problem encountered
 #      >0 - some problem encountered
 #
-#    Control variable resolution priority
-#       1 Command line argument.
-#       2 Environment variable.
-#       3 Inline default.
-#
-#  Attributes:
-#    Language:  POSIX shell
-#    Machine:   IBM SP
-#
 ################################################################################
+
+
+########################################
 #  Set environment
+########################################
 export VERBOSE=${VERBOSE:-"NO"} 
 if [[ "$VERBOSE" = "YES" ]]
 then
-   echo start exgdas_vrfminmon.sh.ecf
    set -x
 fi
 
-export RUN_ENVIR=${RUN_ENVIR:-prod}
+export scr=exgdas_vrfyminmon.sh.ecf
+
+msg="${scr} HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 export envir=${envir:-prod}
 
+########################################
 #  Command line arguments
+########################################
 export PDY=${1:-${PDY:?}} 
 export cyc=${2:-${cyc:?}}
 
+########################################
 #  Directories
+########################################
 export DATA=${DATA:-$(pwd)}
-export COM_IN=/com/${NET}/${envir}
+export COM_IN=${COMROOT}/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEgdasgmon=${HOMEgdasgmon:-/nw${envir}/gdas_minmon.${gdas_gmon_ver}}
-export FIXgdasgmon=${FIXgdasgmon:-$HOMEgdasgmon/fix}
+export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas_minmon.v${gdas_minmon_ver}}
+export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
-export HOMEgmon=${HOMEgmon:-/nw${envir}/minmon_shared.${gmon_shared_ver}}
-export EXECgmon=${EXECgmon:-$HOMEgmon/exec}
-export USHgmon=${USHgmon:-$HOMEgmon/ush}
-export FIXgmon=${FIXgmon:-${HOMEgmon/fix}}
+export HOMEminmon=${HOMEminmon:-/${NWROOT}/minmon_shared.${minmon_shared_ver}}
+export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
+export USHminmon=${USHminmon:-$HOMEminmon/ush}
+export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
 
+########################################
 #  Filenames
+########################################
 gsistat=${gsistat:-$COMIN/gdas1.t${cyc}z.gsistat}
 
-export INISCRIPT=${INISCRIPT}
-export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
-export LOGSCRIPT=${LOGSCRIPT}
-export ENDSCRIPT=${ENDSCRIPT}
-
+########################################
 #  Other variables
+########################################
 export SUFFIX=${SUFFIX:-GDAS}
 export PDATE=${PDY}${cyc}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfminmon.sh.ecf
 
+#########################################################
 # M_TANKverf is storage location for generated files
+#########################################################
 export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon.${PDY}}
 export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon.${PDYm1}}
-
-$LOGSCRIPT
-
+echo "M_TANKverf = $M_TANKverf"
 #####################################################################
-# Preprocessing
-$INISCRIPT
 
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
 fi
 cd $DATA
 
-if [[ "$VERBOSE" = "YES" ]]; then
-   if [[ -s ${gsistat} ]]; then
-      echo ${gsistat} is available
-   fi
-fi
 ######################################################################
 
 data_available=0
 
 if [[ -s ${gsistat} ]]; then
-   data_available=1                                         
 
-   cd ${DATA}
+   data_available=1                                         
 
    #------------------------------------------------------------------
    #  Copy the $SUFFIX.gnorm_data.txt file to the working directory
+   #  It's ok if it doesn't exist; we'll create a new one if needed.
    #------------------------------------------------------------------
    if [[ -s ${M_TANKverf}/${SUFFIX}.gnorm_data.txt ]]; then
       $NCP ${M_TANKverf}/${SUFFIX}.gnorm_data.txt .
@@ -161,15 +144,15 @@ if [[ -s ${gsistat} ]]; then
    #------------------------------------------------------------------
    #   Run the child sccripts.
    #------------------------------------------------------------------
-   ${USHgmon}/minmon_xtrct_costs.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat}
+   ${USHminmon}/minmon_xtrct_costs.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat} ${jlogfile}
    rc_costs=$?
    echo "rc_costs = $rc_costs"
 
-   ${USHradmon}/minmon_xtrct_gnorms.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat}
+   ${USHminmon}/minmon_xtrct_gnorms.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat} ${jlogfile}
    rc_gnorms=$?
    echo "rc_gnorms = $rc_gnorms"
 
-   ${USHradmon}/minmon_xtrct_reduct.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat}
+   ${USHminmon}/minmon_xtrct_reduct.pl ${SUFFIX} ${PDY} ${cyc} ${gsistat} ${jlogfile}
    rc_reduct=$?
    echo "rc_reduct = $rc_reduct"
 
@@ -177,7 +160,6 @@ fi
 
 #####################################################################
 # Postprocessing
-$ENDSCRIPT
 
 err=0
 if [[ ${data_available} -ne 1 ]]; then
@@ -194,10 +176,8 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfminmon.sh.ecf, exit value = ${err}"
 fi
 
-if [[ ${err} -ne 0 ]]; then
-   export err
-   $ERRSCRIPT||exit ${err} 
-fi
+msg="${scr} HAS ENDED"
+postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

@@ -3,53 +3,11 @@
 # Set up environment for GDAS Minimization Monitor job
 #############################################################
 set -xa
-#
-# Specify whether the run is production or development
-#
-export RUN_ENVIR=${RUN_ENVIR:-prod}
-export envir=${envir:-prod}
-
-###############################################################
-# This block can be modified for different test environment
-###############################################################
-if [ $RUN_ENVIR = prod -a $envir != prod ]; then
-  export SENDDBN=${SENDDBN:-NO}
-  export m_jlogfile=${m_jlogfile:-/com/logs/${envir}/jlogfile}
-  export jlogfile=${m_jlogfile}
-fi
-
-
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
-########################################################### 
-# obtain unique process id (pid) and make temp directories
-###########################################################
-export pid=$$
-export DATA_IN=${DATA_IN:-/tmpnwprd}
-export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
-export SUFFIX=${MINMON_SUFFIX}
-export m_job=${m_job:-${SUFFIX}_mmDE}
-export job=${m_job}
-
-export DATA=$DATA_IN/${job}.${pid}
-mkdir -p $DATA
-cd $DATA
-
-####################################
-# File To Log Msgs
-####################################
-export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
-#if [[ -e $jlogfile ]]; then
-#  rm -f $jlogfile
-#fi
-
-####################################
-# Determine Job Output Name on System
-####################################
-export outid="LL$job"
-export jobid="${outid}.o${pid}"
-export cycle=t${cyc}z 
+export RUN_ENVIR=${RUN_ENVIR:-nco}
+export envir=${envir:-prod}
 
 ###############################
 # Specify NET and RUN name
@@ -57,43 +15,96 @@ export cycle=t${cyc}z
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
+
+###########################################################
+# obtain unique process id (pid) and make temp directories
+###########################################################
+export pid=$$
+export outid=${outid:-"LL$job"}
+export jobid=${jobid:-"${outid}.o${pid}"}
+
+export DATAROOT=${DATAROOT:-/tmpnwprod2}
+export DATA=${DATA:-${DATAROOT}/${jobid}}
+
+mkdir -p $DATA
+cd $DATA
+
+#module use /nwpara2/modulefiles
+#module load util_shared/v1.0.3
+
+###############################################################
+# This block can be modified for different test environment
+###############################################################
+if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+   export SENDCOM=${SENDCOM:-NO}
+fi
+
+
+########################################################### 
+# obtain unique process id (pid) and make temp directories
+###########################################################
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
+
+
+####################################
+# File To Log Msgs
+####################################
+export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
+if [[ -e $jlogfile ]]; then
+  rm -f $jlogfile
+fi
+
+
 ##################################################
+# SENDECF  - Flag Events on ECF
 # SENDCOM  - Copy Files From TMPDIR to $COMOUT
 # SENDDBN  - Issue DBNet Client Calls
+# VERBOSE  - Specify Verbose Output 
 ##################################################
 export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
 export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
-export HOMEgdasgmon=${HOMEgdasgmon:-/nw${envir}/gdas_minmon.v${gdas_minmon_ver}}
-export SCRIPTSgdasgmon=${SCRIPTSgdasgmon:-$HOMEgdasgmon/scripts}
-echo "HOMEgdasgmon = $HOMEgdasgmon"
-
-export HOMEgmon=${HOMEgmon:-/nw${envir}/minmon_shared.v${minmon_shared_ver}}
-echo "HOMEgmon = $HOMEgmon"
-export EXECgmon=${EXECgmon:-$HOMEgmon/exec}
-export FIXgmon=${FIXgmon:-${HOMEgmon}/fix}
-export USHradmon=${USHgmon:-$HOMEgmon/ush}
-
-export COMPRESS=${COMPRESS:-gzip}
-export UNCOMPRESS=${UNCOMPRESS:-gunzip}
-export Z=${Z:-gz}
-
-
 
 ###################################
 # Set up the UTILITIES
 ###################################
-export NWPROD=${NWPROD:-/nwprod}
-export utilscript=${utilscript:-$NWPROD/util/ush}
-export utilexec=${utilexec:-$NWPROD/util/exec}
+export utilscript=${utilscript:-/nwprod/util/ush}
 
-# Run setup to initialize working directory and utility scripts
-$utilscript/setup.sh
 
+##############################################
+# Specify Package Areas
+##############################################
+export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas.${gdas_ver}}
+export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
+export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
+export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
+
+export HOMEminmon=${HOMEminmon:-/${NWROOT}/minmon_shared.v${minmon_shared_ver}}
+export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
+export FIXminmon=${FIXminmon:-${HOMEminmon}/fix}
+export USHminmon=${USHminmon:-$HOMEminmon/ush}
+
+
+###################################
+# source the parm file
+###################################
+.  ${PARMgdas}/gdas_minmon.parm
+
+#export COMPRESS=${COMPRESS:-gzip}
+#export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+#export Z=${Z:-gz}
+
+
+#############################################
 # Run setpdy and initialize PDY variables
-$utilscript/setpdy.sh
+#############################################
+${utilscript}/setup.sh
+
+export cycle=t${cyc}z
+${utilscript}/setpdy.sh
 source ./PDY
 
 
@@ -110,7 +121,6 @@ export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
 mkdir -p -m 775 $M_TANKverf
  
-env
 
 ########################################
 # Set necessary environment variables
@@ -122,7 +132,7 @@ postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${GMONSH:-$SCRIPTSgdasgmon/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
+${GMONSH:-$SCRgdas/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
@@ -137,5 +147,5 @@ postmsg "$jlogfile" "$msg"
 #  rm -rf $DATA 
 #fi
 
-date
+#date
 
