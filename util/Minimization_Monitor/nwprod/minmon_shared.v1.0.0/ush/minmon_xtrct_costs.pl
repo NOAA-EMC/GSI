@@ -65,8 +65,9 @@ if( (-e $infile) ) {
    my $jc_number = 7;
    my $jl_number = 8;
 
-   my $FIXminmon = $ENV{"FIXminmon"};
-   my $costfile = sprintf '%s%s', $FIXminmon, "/gmon_cost.txt";
+#   my $FIXminmon = $ENV{"FIXminmon"};
+   my $costfile = $ENV{"mm_costfile"};
+#   my $costfile = sprintf '%s', "./minmon_cost.txt";
    
    if( (-e $costfile) ) {
       open( COSTFILE, "<${costfile}" ) or die "Can't open ${costfile}: $!\n";
@@ -181,7 +182,7 @@ if( (-e $infile) ) {
       #------------------------------------------
       #  write all_costs array to costs.txt file
       #------------------------------------------
-      my $filename2 = "${suffix}.${cdate}.costs.txt";
+      my $filename2 = "${cdate}.costs.txt";
       if( @all_costs > 0 ) {
          open( OUTFILE, ">$filename2" ) or die "Can't open ${filename2}: $!\n";
          print OUTFILE @all_costs;
@@ -191,7 +192,7 @@ if( (-e $infile) ) {
       #-----------------------------------------------------
       #  write all_cost_terms array to costs_terms.txt file
       #-----------------------------------------------------
-      my $filename3 = "${suffix}.${cdate}.cost_terms.txt";
+      my $filename3 = "${cdate}.cost_terms.txt";
       if( @all_cost_terms > 0 ) {
          open( OUTFILE, ">$filename3" ) or die "Can't open ${filename3}: $!\n";
          print OUTFILE @all_cost_terms;

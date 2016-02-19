@@ -117,6 +117,9 @@ cd $WORKDIR
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
 gnorm_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.gnorm_data.txt
+if [[ ! -e $gnorm_file ]]; then
+   gnorm_file=${TANKDIR}/minmon.${pdy}/gnorm_data.txt
+fi
 local_gnorm=gnorm_data.txt
 
 if [[ -s ${gnorm_file} ]]; then
@@ -132,7 +135,14 @@ fi
 #    server from the tmp dir.
 #------------------------------------------------------------------
 costs=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.costs.txt
+if [[ ! -e $costs ]]; then
+   costs=${TANKDIR}/minmon.${pdy}/${PDATE}.costs.txt
+fi
+
 cost_terms=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.cost_terms.txt
+if [[ ! -e $cost_terms ]]; then
+   cost_terms=${TANKDIR}/minmon.${pdy}/${PDATE}.cost_terms.txt
+fi
 
 if [[ -s ${costs} ]]; then
    cp ${costs} ${WORKDIR}/${SUFFIX}.${PDATE}.costs.txt
@@ -160,9 +170,15 @@ while [[ $cdate -le $edate ]]; do
    pdy=`echo $cdate|cut -c1-8`
 
    gnorms_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.gnorms.ieee_d
+   if [[ ! -e $gnorms_file ]]; then
+      gnorms_file=${TANKDIR}/minmon.${pdy}/${cdate}.gnorms.ieee_d
+   fi
    local_gnorm=${cdate}.gnorms.ieee_d
 
    reduct_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.reduction.ieee_d
+   if [[ ! -e $reduct_file ]]; then
+      reduct_file=${TANKDIR}/minmon.${pdy}/${cdate}.reduction.ieee_d
+   fi
    local_reduct=${cdate}.reduction.ieee_d
 
    if [[ -s ${gnorms_file} ]]; then

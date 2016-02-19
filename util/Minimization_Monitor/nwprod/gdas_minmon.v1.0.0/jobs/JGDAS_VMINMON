@@ -1,7 +1,7 @@
 #!/bin/sh
-#############################################################
-# Set up environment for GDAS Minimization Monitor job
-#############################################################
+###########################################################
+# GDAS Minimization Monitor (MinMon) job
+###########################################################
 set -xa
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
@@ -29,16 +29,12 @@ export DATA=${DATA:-${DATAROOT}/${jobid}}
 mkdir -p $DATA
 cd $DATA
 
-#module use /nwpara2/modulefiles
-#module load util_shared/v1.0.3
-
 ###############################################################
 # This block can be modified for different test environment
 ###############################################################
 if [ $RUN_ENVIR = prod -a $envir != prod ]; then
    export SENDCOM=${SENDCOM:-NO}
 fi
-
 
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
@@ -50,7 +46,7 @@ export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 ####################################
 # File To Log Msgs
 ####################################
-export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${job}.${pid}}
+export jlogfile=${jlogfile:-${COMROOT}/logs/jlogfiles/jlogfile.${job}.${pid}}
 if [[ -e $jlogfile ]]; then
   rm -f $jlogfile
 fi
@@ -64,8 +60,8 @@ fi
 ##################################################
 export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
+export SENDECF=${SENDECF:-NO}
 export VERBOSE=${VERBOSE:-YES}
-export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
 
 ###################################
@@ -77,25 +73,21 @@ export utilscript=${utilscript:-/nwprod/util/ush}
 ##############################################
 # Specify Package Areas
 ##############################################
-export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas.${gdas_ver}}
+export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
 export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
 export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
 export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
-export HOMEminmon=${HOMEminmon:-/${NWROOT}/minmon_shared.v${minmon_shared_ver}}
-export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
-export FIXminmon=${FIXminmon:-${HOMEminmon}/fix}
-export USHminmon=${USHminmon:-$HOMEminmon/ush}
+#export HOMEminmon=${HOMEminmon:-${NWROOT}/minmon_shared.v${minmon_shared_ver}}
+#export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
+#export FIXminmon=${FIXminmon:-${HOMEminmon}/fix}
+#export USHminmon=${USHminmon:-$HOMEminmon/ush}
 
 
 ###################################
 # source the parm file
 ###################################
 .  ${PARMgdas}/gdas_minmon.parm
-
-#export COMPRESS=${COMPRESS:-gzip}
-#export UNCOMPRESS=${UNCOMPRESS:-gunzip}
-#export Z=${Z:-gz}
 
 
 #############################################
@@ -141,11 +133,11 @@ postmsg "$jlogfile" "$msg"
 ################################
 # Remove the Working Directory
 ################################
-#RM_TMPDIR=NO
-#cd $DATA_IN
-#if [ ${RM_TMPDIR:-YES} = YES ] ; then 
-#  rm -rf $DATA 
-#fi
+KEEPDATA=${KEEPDATA:-NO}
+cd ${DATAROOT}
 
-#date
+if [ ${KEEPDATA} = NO ] ; then
+  rm -rf ${DATA}
+fi
+
 
