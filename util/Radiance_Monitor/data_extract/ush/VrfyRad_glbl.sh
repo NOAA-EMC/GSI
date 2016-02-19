@@ -34,6 +34,7 @@ fi
 
 this_file=`basename $0`
 this_dir=`dirname $0`
+num_flds=`echo ${this_dir} | awk -F'/' '{print NF}'`
 
 #--------------------------------------------------------------------
 #  Eventually remove RUN_ENVIR argument but allow for it to possibly be
