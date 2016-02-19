@@ -567,8 +567,8 @@ do niter=1,numiter
            do i=1,ndim
               ! if not vlocal, update all state variables in column.
               if(vlocal .and. index_pres(i) /= nn) cycle
-              work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
               if (deterministic) then
+                 work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
                  work2(1:nanals) = ensmean_chunk(npt,i,nb)
                  if(r_kind == kind(1.d0)) then
                     call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
