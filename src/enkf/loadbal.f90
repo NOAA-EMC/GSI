@@ -114,7 +114,6 @@ type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid, kdtree_obs2
 contains
 
 subroutine load_balance()
-use random_normal, only : set_random_seed
 ! set up decomposition (for analysis grid points, and ob priors in serial EnKF)
 ! that minimizes load imbalance. 
 ! Uses "Graham's rule", which simply
@@ -125,6 +124,7 @@ integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 !real(r_single), allocatable, dimension(:) :: buffer
 integer(i_kind) np,i,n,nn,nob1,nob2,ierr
 real(r_double) t1
+logical test_loadbal
 
 if (letkf_flag) then
    kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
@@ -142,15 +142,24 @@ call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per hori
 ! distribute the results of estimate_work to all processors.
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (nproc == 0) print *,'time in estimate_work_enkf1 = ',mpi_wtime()-t1,' secs'
+if (nproc == 0) print *,'min/max numobs',minval(numobs),maxval(numobs)
 ! loop over horizontal grid points on analysis grid.
 t1 = mpi_wtime()
 rtmp = 0
 numptsperproc = 0
+np = 0
+test_loadbal = .false. ! simple partition for testing
 do n=1,npts
-   np = minloc(rtmp,dim=1)
-   ! np is processor with the fewest number of obs to process
-   ! add this grid point to list for nmin
-   rtmp(np) = rtmp(np)+numobs(n)
+   if (test_loadbal) then
+       ! use simple partition (does not use estimated workload) for testing
+       np = np + 1
+       if (np > numproc) np = 1
+   else
+       np = minloc(rtmp,dim=1)
+       ! np is processor with the fewest number of obs to process
+       ! add this grid point to list for nmin
+       rtmp(np) = rtmp(np)+numobs(n)
+   endif
    numptsperproc(np) = numptsperproc(np)+1
 end do
 npts_max = maxval(numptsperproc)
@@ -160,12 +169,31 @@ allocate(indxproc(numproc,npts_max))
 ! there are numptsperpoc(np) i values for processor np
 rtmp = 0
 numptsperproc = 0
+np = 0
 do n=1,npts
-   np = minloc(rtmp,dim=1)
-   rtmp(np) = rtmp(np)+numobs(n)
+   if (test_loadbal) then
+       ! use simple partition (does not use estimated workload) for testing
+       np = np + 1
+       if (np > numproc) np = 1
+   else
+       np = minloc(rtmp,dim=1)
+       rtmp(np) = rtmp(np)+numobs(n)
+   endif
    numptsperproc(np) = numptsperproc(np)+1 ! recalculate
    indxproc(np,numptsperproc(np)) = n
 end do
+! print estimated workload for each task
+if (nproc == 0) then
+   do np=1,numproc
+      rtmp(np) = 0
+      do n=1,numptsperproc(np)
+         rtmp(np) = rtmp(np) + numobs(indxproc(np,n))
+      enddo
+   enddo
+   print *,'min/max estimated work ',&
+    minval(rtmp),maxval(rtmp)
+endif
+deallocate(rtmp,numobs)
 if (nproc == 0) then
     print *,'npts = ',npts
     print *,'min/max number of points per proc = ',npts_min,npts_max
@@ -183,15 +211,13 @@ end do
 
 ! for serial filter, partition obs for observation space update.
 if (.not. letkf_flag) then
-   deallocate(numobs)
    allocate(numobsperproc(numproc))
    allocate(iprocob(nobstot))
-   ! default is to partition obs randomly, since
+   ! default is to partition obs simply, since
    ! speed up from using Graham's rule for observation process
    ! often does not justify cost of estimating workload in ob space.
    if (simple_partition) then
-     ! just distribute obs randomly
-     deallocate(rtmp)
+     ! just distribute obs without trying to estimate workload
      t1 = mpi_wtime()
      numobsperproc = 0
      np=0
@@ -211,6 +237,7 @@ if (.not. letkf_flag) then
      call mpi_allreduce(mpi_in_place,numobs,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
      if (nproc == 0) print *,'time in estimate_work_enkf2 = ',mpi_wtime()-t1,' secs'
      t1 = mpi_wtime()
+     allocate(rtmp(numproc))
      rtmp = 0
      numobsperproc = 0
      np=0
