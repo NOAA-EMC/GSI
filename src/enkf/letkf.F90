@@ -134,9 +134,10 @@ real(r_kind) corrlength
 real(r_kind) sqrtoberr
 logical lastiter, vlocal, update_obspace
 ! For LETKF core processes
-real(r_kind),allocatable,dimension(:,:) :: hdxf,obens
-real(r_single),allocatable,dimension(:,:) :: obperts
-real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,kfgain
+real(r_kind),allocatable,dimension(:,:) :: hxens
+real(r_single),allocatable,dimension(:,:) :: obperts,obens
+real(r_single),allocatable,dimension(:) :: kfgain
+real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc
 real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
 ! kdtree stuff
@@ -270,6 +271,9 @@ endif
 deallocate(buffer)
 #endif
 
+if (nproc .eq. 0 .and. .not. deterministic) then
+   print *,'perturbed obs LETKF'
+endif
 if (minval(lnsigl) > 1.e3) then
    vlocal = .false.
    if (nproc == 0) print *,'no vertical localization in LETKF'
@@ -459,7 +463,7 @@ do niter=1,numiter
   !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
   !$omp                  nobsl2,ngrd1,corrlength, &
   !$omp                  nf,vdist,kfgain,obens, &
-  !$omp                  nn,hdxf,rdiag,dep,rloc,i,work,work2,trans, &
+  !$omp                  nn,hxens,rdiag,dep,rloc,i,work,work2,trans, &
   !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
   !$omp  reduction(+:t1,t2,t3,t4,t5) &
   !$omp  reduction(max:nobslocal_max) 
@@ -514,15 +518,15 @@ do niter=1,numiter
            deallocate(rloc,oindex)
            cycle verloop
         end if
-        allocate(hdxf(nobsl2,nanals))
+        allocate(hxens(nanals,nobsl2))
         allocate(rdiag(nobsl2))
         allocate(dep(nobsl2))
         do nob=1,nobsl2
            nf=oindex(nob)
 #ifdef MPI3
-           hdxf(nob,1:nanals)=anal_ob_fp(1:nanals,nf) 
+           hxens(1:nanals,nob)=anal_ob_fp(1:nanals,nf) 
 #else
-           hdxf(nob,1:nanals)=anal_ob(1:nanals,nf) 
+           hxens(1:nanals,nob)=anal_ob(1:nanals,nf) 
 #endif
            rdiag(nob)=one/oberrvaruse(nf)
            dep(nob)=ob(nf)-ensmean_ob(nf)
@@ -547,10 +551,10 @@ do niter=1,numiter
         deallocate(oindex)
   
         ! Compute transformation matrix of LETKF
-        call letkf_core(nobsl2,hdxf,rdiag,dep,rloc(1:nobsl2),trans)
+        call letkf_core(nobsl2,hxens,rdiag,dep,rloc(1:nobsl2),trans)
         deallocate(rloc,rdiag)
         if (deterministic) then
-           deallocate(hdxf,dep)
+           deallocate(hxens,dep)
         endif
         
   
@@ -576,35 +580,21 @@ do niter=1,numiter
                  ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
                  anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
               else ! perturbed obs using LETKF gain.
-                 if(r_kind == kind(1.d0)) then
-                    call dgemv('n',nobsl2,nanals,1.d0,hdxf,nobsl2,work,1,0.d0, &
-                         & kfgain,1)
-                 else
-                    call sgemv('n',nobsl2,nanals,1.e0,hdxf,nobsl2,work,1,0.e0, &
-                         & kfgain,1)
-                 end if
-                 ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + &
-                 sum(kfgain*dep)
-                 if(r_kind == kind(1.d0)) then
-                    call dgemv('t',nobsl2,nanals,-1.d0,obens,nobsl2,kfgain,1,0.d0, &
-                         & work,1)
-                 else
-                    call sgemv('t',nobsl2,nanals,-1.e0,obens,nobsl2,kfgain,1,0.e0, &
-                         & work,1)
-                 end if
-                 anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb) + &
-                 work(1:nanals)
-                 !do nanal=1,nanals
-                 !   anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
-                 !   sum(kfgain*obens(:,nanal))
-                 !enddo
+                 do nob=1,nobsl2
+                    kfgain(nob) = sum(hxens(:,nob)*anal_chunk(:,npt,i,nb))
+                 enddo
+                 ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + sum(kfgain*dep)
+                 do nanal=1,nanals
+                    anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
+                    sum(kfgain*obens(:,nanal))
+                 enddo
               endif
            enddo
            enddo
         endif
         ! deallocate arrays needed for perturbed obs LETKF
         if (.not. deterministic) then
-           deallocate(hdxf,kfgain,dep,obens)
+           deallocate(hxens,kfgain,dep,obens)
         endif
         ! Update ob space innov stats (mean and spread)
         ! (see eqn 18 in Hunt et al (2007)).
@@ -667,7 +657,27 @@ do niter=1,numiter
   call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
   if (nproc .eq. 0) print *,'min/max/mean time to do letkf update ',tmin,tmax,tmean
   t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-  if (nproc == 0 .or. nproc == numproc-1) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
+  if (nproc == 0) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
+  call mpi_reduce(t2,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+  tmean = tmean/numproc
+  call mpi_reduce(t2,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+  call mpi_reduce(t2,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc .eq. 0) print *,',min/max/mean t2 = ',tmin,tmax,tmean
+  call mpi_reduce(t3,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+  tmean = tmean/numproc
+  call mpi_reduce(t3,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+  call mpi_reduce(t3,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc .eq. 0) print *,',min/max/mean t3 = ',tmin,tmax,tmean
+  call mpi_reduce(t4,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+  tmean = tmean/numproc
+  call mpi_reduce(t4,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+  call mpi_reduce(t4,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc .eq. 0) print *,',min/max/mean t4 = ',tmin,tmax,tmean
+  call mpi_reduce(t5,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+  tmean = tmean/numproc
+  call mpi_reduce(t5,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+  call mpi_reduce(t5,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc .eq. 0) print *,',min/max/mean t5 = ',tmin,tmax,tmean
   call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
   if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
   if (nrej > 0)   print *, nrej,' obs rejected by varqc'
@@ -702,7 +712,7 @@ return
 
 end subroutine letkf_update
 
-subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
+subroutine letkf_core(nobsl,hxens,rdiaginv,dep,rloc,trans)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    letkf_core
@@ -724,14 +734,14 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !
 !   input argument list:
 !     nobsl    - number of observations in the local patch
-!     hdxf     - first-guess ensembles on observation space
+!     hxens     - first-guess ensembles on observation space
 !     rdiaginv - inverse of diagonal element of observation error covariance
 !     dep      - observation departure from first guess mean
 !     rloc     - localization function to each observations
 !
 !   output argument list:
 !     trans    - transform matrix for this point.
-!                On output, hdxf is over-written
+!                On output, hxens is over-written
 !                with matrix that can be used to compute Kalman Gain.
 !
 ! attributes:
@@ -741,7 +751,7 @@ subroutine letkf_core(nobsl,hdxf,rdiaginv,dep,rloc,trans)
 !$$$ end documentation block
 implicit none
 integer(i_kind)                      ,intent(in ) :: nobsl
-real(r_kind),dimension(nobsl ,nanals),intent(inout) :: hdxf
+real(r_kind),dimension(nanals,nobsl ),intent(inout) :: hxens
 real(r_kind),dimension(nobsl        ),intent(in ) :: rdiaginv
 real(r_kind),dimension(nobsl        ),intent(in ) :: dep
 real(r_kind),dimension(nobsl        ),intent(in ) :: rloc
@@ -759,29 +769,29 @@ real(r_kind) vl,vu,work(70*nanals)
 allocate(work3(nanals),work2(nanals,nobsl))
 allocate(eivec(nanals,nanals),pa(nanals,nanals))
 allocate(work1(nanals,nanals),eival(nanals),rrloc(nobsl))
-! hdxf sqrt(Rinv)
+! hxens sqrt(Rinv)
 rrloc(1:nobsl) = rdiaginv(1:nobsl) * rloc(1:nobsl)
 rho = tiny(rrloc)
 where (rrloc < rho) rrloc = rho
 rrloc = sqrt(rrloc)
 do nanal=1,nanals
-   hdxf(1:nobsl,nanal) = hdxf(1:nobsl,nanal) * rrloc(1:nobsl)
+   hxens(nanal,1:nobsl) = hxens(nanal,1:nobsl) * rrloc(1:nobsl)
 end do
-! hdxf^T Rinv hdxf
+! hxens^T Rinv hxens
 !do j=1,nanals
 !   do i=1,nanals
-!      work1(i,j) = hdxf(1,i) * hdxf(1,j)
+!      work1(i,j) = hxens(i,1) * hxens(j,1)
 !      do nob=2,nobsl
-!         work1(i,j) = work1(i,j) + hdxf(nob,i) * hdxf(nob,j)
+!         work1(i,j) = work1(i,j) + hxens(i,nob) * hxens(j,nob)
 !      end do
 !   end do
 !end do
 if(r_kind == kind(1.d0)) then
-   call dgemm('t','n',nanals,nanals,nobsl,1.d0,hdxf,nobsl, &
-        hdxf,nobsl,0.d0,work1,nanals)
+   call dgemm('n','t',nanals,nanals,nobsl,1.d0,hxens,nanals, &
+        hxens,nanals,0.d0,work1,nanals)
 else
-   call sgemm('t','n',nanals,nanals,nobsl,1.e0,hdxf,nobsl, &
-        hdxf,nobsl,0.e0,work1,nanals)
+   call sgemm('n','t',nanals,nanals,nobsl,1.e0,hxens,nanals, &
+        hxens,nanals,0.e0,work1,nanals)
 end if
 ! hdxb^T Rinv hdxb + (m-1) I
 do nanal=1,nanals
@@ -819,34 +829,30 @@ else
    call sgemm('n','t',nanals,nanals,nanals,1.e0,work1,nanals,eivec,&
         nanals,0.e0,pa,nanals)
 end if
-! convert hdxf * Rinv^T from hdxf * sqrt(Rinv)^T
+! convert hxens * Rinv^T from hxens * sqrt(Rinv)^T
 do nanal=1,nanals
-   hdxf(1:nobsl,nanal) = hdxf(1:nobsl,nanal) * rrloc(1:nobsl)
+   hxens(nanal,1:nobsl) = hxens(nanal,1:nobsl) * rrloc(1:nobsl)
 end do
 ! Pa hdxb_rinv^T
 !do nob=1,nobsl
 !   do nanal=1,nanals
-!      work2(nanal,nob) = pa(nanal,1) * hdxf(nob,1)
+!      work2(nanal,nob) = pa(nanal,1) * hxens(1,nob)
 !      do k=2,nanals
-!         work2(nanal,nob) = work2(nanal,nob) + pa(nanal,k) * hdxf(nob,k)
+!         work2(nanal,nob) = work2(nanal,nob) + pa(nanal,k) * hxens(k,nob)
 !      end do
 !   end do
 !end do
 if(r_kind == kind(1.d0)) then
-   call dgemm('n','t',nanals,nobsl,nanals,1.d0,pa,nanals,hdxf,&
-        nobsl,0.d0,work2,nanals)
+   call dgemm('n','n',nanals,nobsl,nanals,1.d0,pa,nanals,hxens,&
+        nanals,0.d0,work2,nanals)
 else
-   call sgemm('n','t',nanals,nobsl,nanals,1.e0,pa,nanals,hdxf,&
-        nobsl,0.e0,work2,nanals)
+   call sgemm('n','n',nanals,nobsl,nanals,1.e0,pa,nanals,hxens,&
+        nanals,0.e0,work2,nanals)
 end if
-! over-write hdxf with Pa hdxb_rinv
+! over-write hxens with Pa hdxb_rinv
 ! (pre-multiply with ensemble perts to compute Kalman gain - 
 !  eqns 20-23 in Hunt et al 2007 paper)
-do nanal=1,nanals
-   do nob=1,nobsl
-      hdxf(nob,nanal)=work2(nanal,nob)
-   enddo
-enddo
+hxens = work2
 ! work3 = Pa hdxb_rinv^T dep
 do nanal=1,nanals
    work3(nanal) = work2(nanal,1) * dep(1)
