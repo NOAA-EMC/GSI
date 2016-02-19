@@ -9,10 +9,10 @@ use List::MoreUtils 'last_index';
 #---------------------------------------------------------------------------
 #  minmon_xtrct_gnorms.pl
 #
-#  Update the $suffix.gnorm_data.txt file with data from a new cycle.  Add 
-#  this new data to the last line of the ${suffix}.gnorm_data.txt file.
+#  Update the gnorm_data.txt file with data from a new cycle.  Add 
+#  this new data to the last line of the gnorm_data.txt file.
 #
-#  Note:  If the $suffix.gnorm_txt file does not exist, it will be created.
+#  Note:  If the gnorm_data.txt file does not exist, it will be created.
 #
 #  The gnorm_data.txt file is used plotted directly by the javascript on
 #  the GSI stats page.
@@ -29,7 +29,7 @@ sub updateGnormData {
    my $rc        = 0;
    my @filearray;
  
-   my $gdfile  = "${suffix}.gnorm_data.txt";  
+   my $gdfile  = "gnorm_data.txt";  
 
    my $outfile = "new_gnorm_data.txt";
    my $yr      = substr( $cycle, 0, 4);
@@ -209,8 +209,9 @@ my $gross_check_val;
 my $rc    = 0;
 my $cdate = sprintf '%s%s', $pdy, $cyc;
 
-my $FIXminmon = $ENV{"FIXminmon"};
-my $gnormfile = sprintf '%s%s', $FIXminmon, "/gmon_gnorm.txt";
+#my $FIXminmon = $ENV{"FIXminmon"};
+my $gnormfile = $ENV{"mm_gnormfile"};
+#my $gnormfile = sprintf '%s', "./minmon_gnorm.txt";
 
 
 if( (-e $gnormfile) ) {
@@ -374,7 +375,7 @@ if( $rc == 0 ) {
 
    
       #####################################################################
-      #  Update the $suffix.gnorm_data.txt file with information on the 
+      #  Update the gnorm_data.txt file with information on the 
       #  initial gradient, final gnorm, and avg/min/max for the last 10 
       #  iterations.
       #####################################################################
@@ -395,7 +396,7 @@ if( $rc == 0 ) {
       #   Note:  this uses pack to achieve the same results as 
       #          an unformatted binary Fortran file.
       #########################################################
-      my $filename2 = "${suffix}.${cdate}.gnorms.ieee_d";
+      my $filename2 = "${cdate}.gnorms.ieee_d";
 
       open( OUTFILE, ">$filename2" ) or die "Can't open ${filename2}: $!\n";
       binmode OUTFILE;
@@ -417,12 +418,12 @@ if( $rc == 0 ) {
          system("cp -f $filename2 ${tankdir}/.");
       }
 
-      my $gdfile  = "${suffix}.gnorm_data.txt";  
+      my $gdfile  = "gnorm_data.txt";  
       if( -e $gdfile ) {
          system("cp -f $gdfile ${tankdir}/.");
       }
 
-      my $errmsg = "${suffix}.${cdate}.errmsg.txt";
+      my $errmsg = "${cdate}.errmsg.txt";
       if( -e $errmsg ) {
          system("cp -f $errmsg ${tankdir}/.");
       }

@@ -3,18 +3,22 @@
 #####################################################################################
 #  Function been tested:            Run MinMon data extraction for GDAS on wcoss 
 #
-#  Calling sequence:                ./test_minmon.sh Data_In Data_Out PDATE
+#  Calling sequence:                ./test_minmon.sh Data_Out PDATE
 #
 #  Initial condition:               This script needs a gsistat or fits2 file for the
 #                                   specified cycle.  These must be in the Data_In
 #                                   directory and are created by the GSI.
 #
 #  Usage:                           The MinMon is a verf step job but can be run any 
-#                                   time after the gsistat file is generated. 
+#                                   time after the gsistat file is generated. This 
+#				    driver is designed to work with gsistats in
+#				    /com/gfs/prod and is wired to use the gdas gsistat
+#                                   files.  It may be altered to use gsistat from
+#				    another source by overriding either the Data_In or
+#				    gsistat defaults by setting environment variables.
 #
-#  Data_In:                         Specified on command line.  This should be
-#                                   something like ${COMROOT}/gfs/prod where 
-#                                   $COMROOT is /com2 or /com.
+#  Data_In:                         Defaults to /com/gfs/prod.  This may be 
+#                                   overridden with an environment variable.   
 #
 #  Data_Out:                        Specified on command line. This is where the 
 #                                   radmon data files will be stored.
@@ -33,8 +37,7 @@
 #--------------------------------------------------------------------
 function usage {
   echo ""
-  echo "Usage:  test_minmon.sh  Data_In Data_Out PDATE"
-  echo "            Data_In  :  directory containing a gsistat file"
+  echo "Usage:  test_minmon.sh  Data_Out PDATE"
   echo "            Data_Out :  location used for storing extraced minmon data"
   echo "            PDATE    :  cycle to run in YYYYMMDDHH form"
   echo ""
@@ -47,18 +50,18 @@ function usage {
 module load prod_util/v1.0.2
 
 nargs=$#
-if [[ $nargs -ne 3 ]]; then
+if [[ $nargs -ne 2 ]]; then
    usage
    exit 1
 fi
 
 set -ax
-export Data_In=$1
-export Data_Out=$2
+export Data_In=${Data_In:-/com/gfs/prod}
+export Data_Out=$1
 if [[ $Data_Out = "." ]]; then
    export Data_Out=${PWD}
 fi
-export PDATE=$3
+export PDATE=$2
 
 minmon_shared_ver=1.0.0
 
@@ -72,10 +75,10 @@ export envir="test"
 
 export M_TANKverf=${Data_Out}
 export DATAROOT=/stmpp1/${LOGNAME}
-export COMROOT=/com
 export SENDCOM=NO
 export GLB_AREA=1
 
+export COMROOT=/com
 export NWROOT=/nwprod2
 
 echo MINMON_SUFFIX = $MINMON_SUFFIX
@@ -108,7 +111,7 @@ export cyc=`echo ${PDATE}|cut -c9-10`
 #--------------------------------------------------------------------
 #  locate required gsistat file
 #--------------------------------------------------------------------
-gsistat=${Data_In}/gdas1.t${cyc}z.gsistat
+gsistat=${Data_In}/gdas.${PDY}/gdas1.t${cyc}z.gsistat
 
 
 ##########################################

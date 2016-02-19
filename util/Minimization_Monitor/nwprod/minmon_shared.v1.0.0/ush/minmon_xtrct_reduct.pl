@@ -57,7 +57,7 @@ if( (-e $infile) ) {
    #################################
    #  write reduct_array to outfile
    #################################
-   my $outfile = "${suffix}.${cdate}.reduction.ieee_d";
+   my $outfile = "${cdate}.reduction.ieee_d";
    open( OUTFILE, ">$outfile" ) or die "Can't open ${outfile}: $!\n";
    binmode OUTFILE;
 
