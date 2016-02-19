@@ -185,7 +185,7 @@ for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
 
    #
-   #  CCS submit 4 jobs for each $sat
+   #  wcoss submit 4 jobs for each $sat
    #
    if [[ $MY_MACHINE = "wcoss" ]]; then 	
       batch=1
@@ -212,7 +212,7 @@ for sat in ${bigSATLIST}; do
         
          mem="6000"
          if [[ $batch -eq 1 ]]; then
-            mem="100000"
+            mem="24000"
          fi
 
          $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile

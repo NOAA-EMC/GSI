@@ -45,8 +45,6 @@ echo start test_radmon.sh
 
 module load prod_util/v1.0.2
 
-which prep_step
-
 #--------------------------------------------------------------------
 #  test_radmon.sh begins here
 #--------------------------------------------------------------------
@@ -77,15 +75,12 @@ export SENDCOM=NO
 
 export NWROOT=/nwprod2
 
-echo SUFFIX = $SUFFIX
-
 #--------------------------------------------------------------------
 #  Override HOMEgdas to point to the /nwprod dir within this package
 #  in order to access fix, jobs, scripts in the JJob for testing.
 #
 #  This should be removed when handed to NCO?
 #--------------------------------------------------------------------
-this_file=`basename $0`
 this_dir=${PWD}
 num_flds=`echo ${this_dir} | awk -F'/' '{print NF}'`
 num_flds=`expr $num_flds - 1`
@@ -94,11 +89,11 @@ gdas_dir=`echo ${this_dir} | cut -d/ -f1-${num_flds}`
 num_flds=`expr $num_flds - 1`
 nwprod_dir=`echo ${this_dir} | cut -d/ -f1-${num_flds}`
 
-export HOMEgdas=${gdas_dir}
-export HOMEradmon=${nwprod_dir}/radmon_shared.v${radmon_shared_ver}
+export HOMEgdas=${HOMEgdas:-${gdas_dir}}
+export HOMEradmon=${HOMEradmon:-${nwprod_dir}/radmon_shared.v${radmon_shared_ver}}
+
 export jlogfile="jlogfile_${SUFFIX}"
 export KEEPDATA=YES
-
 
 export PDY=`echo ${PDATE}|cut -c1-8`
 export cyc=`echo ${PDATE}|cut -c9-10`
@@ -132,23 +127,24 @@ if [[ -e ${biascr} ]]; then
    echo "biascr exists"
 fi 
 
-if [[ -e ${radstat} && -e ${biascr} ]]; then
-   data_available=1
-fi
-
 #------------------------------------------------------------------
 #   Submit job 
 #------------------------------------------------------------------
-jobname="test_radmon"
-echo "queue job $jobname"
-logfile="./radmon_test.${PDY}.${cyc}.log"
-project="GDAS-T2O"
-job_queue="dev_shared"
-SUB=bsub
+if [[ -e ${radstat} && -e ${biascr} ]]; then
+   data_available=1
 
-echo "job is ${HOMEgdas}/jobs/JGDAS_VERFRAD"
+   jobname="test_radmon"
+   echo "queue job $jobname"
+   logfile="./radmon_test.${PDY}.${cyc}.log"
+   project="GDAS-T2O"
+   job_queue="dev_shared"
+   SUB=bsub
 
-$SUB -q ${job_queue} -P $project -o $logfile -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${HOMEgdas}/jobs/JGDAS_VERFRAD
+   echo "job is ${HOMEgdas}/jobs/JGDAS_VERFRAD"
+
+   $SUB -q ${job_queue} -P $project -o $logfile -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${HOMEgdas}/jobs/JGDAS_VERFRAD
+
+fi
 
 #--------------------------------------------------------------------
 # clean up and exit

@@ -7,13 +7,13 @@ echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
+export envir=${envir:-prod}
 
 ###############################
 # Specify NET and RUN name
 ##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
-
 
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
@@ -65,8 +65,6 @@ export VERBOSE=${VERBOSE:-YES}
 export utilscript=${utilscript:-/nwprod/util/ush}
 export utilexec=${utilexec:-/nwprod/util/exec}
 
-#export ERRSCRIPT=${ERRSCRIPT:-${utilscript}/err_chk.sh}
-#export LOGSCRIPT=${LOGSCRIPT:-${utilscript}/startmsg.sh}
 
 ##############################################
 # Specify Execution Areas
