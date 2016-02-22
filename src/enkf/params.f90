@@ -75,7 +75,8 @@ integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
 ! random seed for perturbed obs (deterministic=.false.)
-! if zero, system clock is used. Not used if deterministic=.true.
+! if zero, system clock is used.  Also used when
+! iassim_order=1 (random shuffling of obs for serial assimilation).
 integer(i_kind),public :: iseed_perturbed_obs = 0
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
