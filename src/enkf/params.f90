@@ -66,11 +66,17 @@ character(len=120),dimension(7),public :: anlfileprefixes
 character(len=10), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
 character(len=500),public :: datapath
+! if deterministic=.true., the deterministic square-root filter
+! update is used.  If .false, a perturbed obs (stochastic) update
+! is used.
 logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
+! random seed for perturbed obs (deterministic=.false.)
+! if zero, system clock is used. Not used if deterministic=.true.
+integer(i_kind),public :: iseed_perturbed_obs = 0
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
 real(r_single),public ::  obtimelnh,obtimeltr,obtimelsh
@@ -120,7 +126,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs
 namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -189,7 +195,7 @@ paoverpb_thresh = 1.0_r_single! don't skip any obs
 iassim_order = 0 
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
-! if deterministic is true, use EnSRF w/o perturbed obs.
+! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
 ! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
 ! if deterministic is false, re-order obs to minimize regression erros
@@ -356,9 +362,9 @@ do nb=1,nbackgrounds
      ! default analysis file prefix
      if (regional) then
       if (nbackgrounds > 1) then
-        fgfileprefixes(nbackgrounds+1)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
+        fgfileprefixes(nb)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
       else
-        fgfileprefixes(nbackgrounds+1)="analysis."
+        fgfileprefixes(nb)="analysis."
       endif
      else ! global
       if (nbackgrounds > 1) then

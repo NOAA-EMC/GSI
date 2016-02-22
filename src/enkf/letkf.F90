@@ -94,7 +94,7 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   biasprednorm, probgrosserr, prpgerr, obtype, obpress,&
                   lnsigl, anal_ob, obloclat, obloclon, stattype
 use constants, only: pi, one, zero, rad2deg, deg2rad
-use params, only: sprd_tol, ndim, datapath, nanals, &
+use params, only: sprd_tol, ndim, datapath, nanals, iseed_perturbed_obs,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,&
                   corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds
@@ -167,7 +167,7 @@ r_scalefact = sqrt(float(nanals)/float(nanals-1))
 
 ! create random numbers for perturbed obs on root task.
 if (.not. deterministic .and. nproc .eq. 0) then
-   call set_random_seed(0,nproc)
+   call set_random_seed(iseed_perturbed_obs,nproc)
    allocate(obperts(nanals, nobstot))
    do nob=1,nobstot
       sqrtoberr=sqrt(oberrvar(nob))

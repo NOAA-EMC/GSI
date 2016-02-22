@@ -111,7 +111,8 @@ use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
-                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim
+                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
+                  iseed_perturbed_obs
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -177,12 +178,24 @@ do nob=1,nobstot
    indxassim(nob) = nob
 end do
 
+! set random seed if random number generator is to be used.
+if (iassim_order == 1 .or. .not. deterministic) then
+   if (deterministic .and. nproc == 0) then
+      ! random numbers only generated on root task.
+      call set_random_seed(iseed_perturbed_obs, nproc)
+   else
+      ! random numbers generated for perturbed obs
+      ! on all tasks - set random seed identically
+      ! on all tasks to get same random sequence.
+      call set_random_seed(iseed_perturbed_obs, nproc)
+   endif
+endif
+
 if (iassim_order == 1) then
   ! create random index array so obs are assimilated in random order.
   if (nproc == 0) then
       print *,'assimilate obs in random order'
       allocate(rannum(nobstot))
-      call set_random_seed(0, nproc)
       call random_number(rannum)
       call quicksort(nobstot,rannum,indxassim)
       deallocate(rannum)
