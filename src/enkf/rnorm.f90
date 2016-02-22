@@ -103,9 +103,11 @@ subroutine set_random_seed ( iseed , myrank)
 
   if ( iseed /= 0 ) then
 
+    print *,'using system clock to set random seed...'
     seed(1:k) = iseed
 
   else
+    print *,'using input random seed',iseed
 !
 !  Make up a "random" value based on date and time information.
 !
