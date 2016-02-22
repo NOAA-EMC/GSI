@@ -118,3 +118,8 @@ export MAIL_CC=${MAIL_CC:-' '}
 #  
 export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 
+#
+#  KEEPDATA switches on/off allowing the work directory to remain after data extraction.
+#  YES=keep working directory, NO=rm working directory.
+#
+export KEEPDATA="YES"
