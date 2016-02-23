@@ -31,7 +31,7 @@ export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 #
 #  WORKDIR is working directory (temp space)
 #
-export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${SUFFIX} 
+export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${MINMON_SUFFIX} 
 
 # 
 #  GLB_AREA indicates the valid area of the data source
