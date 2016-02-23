@@ -7,8 +7,8 @@ export MY_MACHINE=wcoss
 
 export MY_MINMON=${MY_MINMON:-/u/${LOGNAME}}
 
-export HOMEgdasgmon=${MY_MINMON}/nwprod/gdas_minmon.v${gdas_minmon_ver}
-export HOMEgmon=${MY_MINMON}/nwprod/minmon_shared.v${minmon_shared_ver}
+export HOMEgdas=${MY_MINMON}/nwprod/gdas_minmon.v${gdas_minmon_ver}
+export HOMEminmon=${MY_MINMON}/nwprod/minmon_shared.v${minmon_shared_ver}
 
 export MINMON_DE=${MINMON_DE:-${MY_MINMON}/data_xtrct}
 export M_DE_SCRIPTS=${M_DE_SCRIPTS:-${MINMON_DE}/ush}
@@ -36,7 +36,7 @@ export WEBDIR=${WEBDIR:-}
 
 
 #
-#  Utilities used by the GMon package
+#  Utilities used by the MinMon package
 #
 export NCP=${NCP:-"/bin/cp -f"}
 export Z=${Z:-"gz"}
