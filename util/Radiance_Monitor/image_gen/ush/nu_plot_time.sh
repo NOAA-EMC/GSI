@@ -102,7 +102,7 @@ EOF
    echo $first_time > $times
    cdate=`$NDATE -6 $first_time` 
    ctr=1
-   while [[ $cdate -ge $last_time && $ctr -le 200 ]]; do
+   while [[ $cdate -ge $last_time && $ctr -le 400 ]]; do
       echo $cdate >> $times
       tdate=$cdate
       cdate=`$NDATE -6 $tdate`
