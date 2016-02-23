@@ -135,6 +135,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
        echo "$IG_SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
      done
      chmod 755 $cmdfile
+     echo "CMDFILE:  $cmdfile"
 
      ntasks=`cat $cmdfile|wc -l `
 
@@ -144,7 +145,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         wall_tm="1:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 10000 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
@@ -210,10 +211,10 @@ for sat in ${bigSATLIST}; do
          fi
 
         
-         mem="6000"
-         if [[ $batch -eq 1 ]]; then
+#         mem="6000"
+#         if [[ $batch -eq 1 ]]; then
             mem="24000"
-         fi
+#         fi
 
          $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
