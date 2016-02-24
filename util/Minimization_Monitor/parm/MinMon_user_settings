@@ -56,4 +56,9 @@ export MAIL_TO=${MAIL_TO:-""}
 #
 export MAIL_CC=${MAIL_CC:-""}
 
-
+#
+#  KEEPDATA is the control flag for preserving/deleting the working
+#  directory.  YES = keep the WORKDIR directory and contents
+#              NO  = delete the WORKDIR directory and contents
+#
+export KEEPDATA=YES

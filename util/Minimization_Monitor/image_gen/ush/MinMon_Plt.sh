@@ -1,12 +1,10 @@
 #!/bin/sh
 
 function usage {
-#  echo "Usage:  MinMonPlt.sh SUFFIX [PDATE] [EDATE]"
-  echo "Usage:  MinMonPlt.sh SUFFIX [PDATE]"
-  echo "            SUFFIX is data source identifier that matches data in "
+  echo "Usage:  MinMonPlt.sh MINMON_SUFFIX [PDATE]"
+  echo "            MINMON_SUFFIX is data source identifier that matches data in "
   echo "              the $M_TANKverf/stats directory."
   echo "            PDATE (format:  YYYYMMDDHH) optional, is only/first date to plot"
-#  echo "            EDATE (format:  YYYYMMDDHH) optional, is last date to plot"
 }
 
 set -ax
@@ -18,7 +16,7 @@ if [[ $nargs -lt 1 ]]; then
    exit 1
 fi
 
-export SUFFIX=$1
+export MINMON_SUFFIX=$1
 
 if [[ $nargs -ge 2 ]]; then
    export PDATE=$2
@@ -87,9 +85,9 @@ fi
 #  Specify TANKDIR for this suffix
 #--------------------------------------------------------------------
 if [[ $GLB_AREA -eq 1 ]]; then
-   export TANKDIR=${M_TANKverf}/stats/${SUFFIX}
+   export TANKDIR=${M_TANKverf}/stats/${MINMON_SUFFIX}
 else
-   export TANKDIR=${M_TANKverf}/stats/regional/${SUFFIX}
+   export TANKDIR=${M_TANKverf}/stats/regional/${MINMON_SUFFIX}
 fi
 
 #--------------------------------------------------------------------
@@ -116,7 +114,7 @@ cd $WORKDIR
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
-gnorm_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.gnorm_data.txt
+gnorm_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.gnorm_data.txt
 if [[ ! -e $gnorm_file ]]; then
    gnorm_file=${TANKDIR}/minmon.${pdy}/gnorm_data.txt
 fi
@@ -134,24 +132,24 @@ fi
 #  These aren't used for processing but will be pushed to the
 #    server from the tmp dir.
 #------------------------------------------------------------------
-costs=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.costs.txt
+costs=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.costs.txt
 if [[ ! -e $costs ]]; then
    costs=${TANKDIR}/minmon.${pdy}/${PDATE}.costs.txt
 fi
 
-cost_terms=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.cost_terms.txt
+cost_terms=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt
 if [[ ! -e $cost_terms ]]; then
    cost_terms=${TANKDIR}/minmon.${pdy}/${PDATE}.cost_terms.txt
 fi
 
 if [[ -s ${costs} ]]; then
-   cp ${costs} ${WORKDIR}/${SUFFIX}.${PDATE}.costs.txt
+   cp ${costs} ${WORKDIR}/${MINMON_SUFFIX}.${PDATE}.costs.txt
 else
    echo "WARNING:  Unable to locate ${costs}"
 fi
 
 if [[ -s ${cost_terms} ]]; then
-  cp ${cost_terms} ${WORKDIR}/${SUFFIX}.${PDATE}.cost_terms.txt 
+  cp ${cost_terms} ${WORKDIR}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt 
 else
    echo "WARNING:  Unable to locate ${cost_terms}"
 fi
@@ -169,13 +167,13 @@ while [[ $cdate -le $edate ]]; do
    echo "processing cdate = $cdate"
    pdy=`echo $cdate|cut -c1-8`
 
-   gnorms_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.gnorms.ieee_d
+   gnorms_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${cdate}.gnorms.ieee_d
    if [[ ! -e $gnorms_file ]]; then
       gnorms_file=${TANKDIR}/minmon.${pdy}/${cdate}.gnorms.ieee_d
    fi
    local_gnorm=${cdate}.gnorms.ieee_d
 
-   reduct_file=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${cdate}.reduction.ieee_d
+   reduct_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${cdate}.reduction.ieee_d
    if [[ ! -e $reduct_file ]]; then
       reduct_file=${TANKDIR}/minmon.${pdy}/${cdate}.reduction.ieee_d
    fi
@@ -248,7 +246,7 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    # Q:  does NDAS really use 101 instead of 102?  That can't be somehow....
    #######################
 
-   if [[ $SUFFIX = "RAP" ]]; then
+   if [[ $MINMON_SUFFIX = "RAP" ]]; then
       ${M_IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
    fi
 
@@ -265,13 +263,13 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
  
 cat << EOF >${PDATE}_plot_gnorms.gs
 'open allgnorm.ctl'
-'run plot_gnorms.gs $SUFFIX $PDATE x1100 y850'
+'run plot_gnorms.gs $MINMON_SUFFIX $PDATE x1100 y850'
 'quit'
 EOF
 
 cat << EOF >${PDATE}_plot_reduction.gs
 'open reduction.ctl'
-'run plot_reduction.gs $SUFFIX $PDATE x1100 y850'
+'run plot_reduction.gs $MINMON_SUFFIX $PDATE x1100 y850'
 'quit'
 EOF
 
@@ -290,7 +288,7 @@ EOF
   #-----------------------------------------------------------------
   #  copy the modified gnorm_data.txt file to tmp
   #-----------------------------------------------------------------
-  cp gnorm_data.txt tmp/${SUFFIX}.gnorm_data.txt
+  cp gnorm_data.txt tmp/${MINMON_SUFFIX}.gnorm_data.txt
 
  
   ctr=`expr $ctr + 1`
@@ -308,7 +306,7 @@ cp *cost*.txt tmp/.
 #--------------------------------------------------------------------
 if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
-   err_msg=${TANKDIR}/minmon.${pdy}/${SUFFIX}.${PDATE}.errmsg.txt
+   err_msg=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.errmsg.txt
    if [[ -e $err_msg ]]; then
       err_rpt="./err_rpt.txt"
       `cat $err_msg > $err_rpt`
