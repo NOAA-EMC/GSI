@@ -1,17 +1,17 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040100
+bdate=2014040200
 #date of last radstat file
-edate=2014060100
+edate=2014060218
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-b
+instr=iasi_metop-a
 #location of radstat file
-exp=para_2014
+exp=prcorriasim2
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib_sea
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/m2iasia_sea
 #location the covariance matrix is saved to
-savdir=$diagdir
+savdir=$wrkdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
 type=1
 #cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
@@ -19,11 +19,11 @@ cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30
 #option to output the channel wavenumbers
-wave_out=.true.
+wave_out=.false.
 #option to output the assigned observation errors
-err_out=.true.
+err_out=.false.
 #option to output the correlation matrix
-corr_out=.true.
+corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=-60
 #logical to use modified Rcov
