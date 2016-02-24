@@ -441,10 +441,10 @@ do r=1,nch_active
    do c=1,nch_active
       if (divider(r,c)>zero) then
          !the second term here subtracts the biases
-         Rcov(r,c)=(Rcov(r,c)/divider(r,c))-((anl_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
+         Rcov(r,c)=(Rcov(r,c)/divider(r,c))-((anl_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
          if (mod_Rcov) then
-            Edbadbo(r,c)=(Edbadbo(r,c)/divider(r,c))-((ba_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
-            Edbodbo(r,c)=(Edbodbo(r,c)/divider(r,c))-((ges_ave(r,c)*ges_ave(r,c))/(divider(r,c)**2))
+            Edbadbo(r,c)=(Edbadbo(r,c)/divider(r,c))-((ba_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
+            Edbodbo(r,c)=(Edbodbo(r,c)/divider(r,c))-((ges_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
          end if
       else if (r==c) then 
          !if there is no data passing qc for this channel, set Rcov to the
@@ -457,25 +457,27 @@ do r=1,nch_active
       end if
    end do
 end do
-do r=1,nch_active
-   do c=1,nch_active
-     if (divider(r,c)>zero) then
-         val=Rcov(r,r)*Rcov(c,c)
-         val=sqrt(abs(val))
-         if (val>errt) then
-            Rcorr(r,c)=Rcov(r,c)/val
-         else
+if (out_corr) then
+   do r=1,nch_active
+      do c=1,nch_active
+        if (divider(r,c)>zero) then
+            val=Rcov(r,r)*Rcov(c,c)
+            val=sqrt(abs(val))
+            if (val>errt) then
+               Rcorr(r,c)=Rcov(r,c)/val
+            else
+               Rcorr(r,c)=one
+            end if
+         else if (r==c) then
             Rcorr(r,c)=one
          end if
-      else if (r==c) then
-         Rcorr(r,c)=one
-      end if
+      end do
    end do
-end do
+   Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
+end if
+
 !make covariance matrix symmetric
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
-Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
-
 if (kreq>zero) then
    call eigdecomp(Rcov,nch_active,eigs,eigv)
    call recondition(eigv,eigs,nch_active,kreq,Rout)
@@ -495,7 +497,7 @@ if (mod_Rcov) then
    Pmult=MATMUL(invE,Edbodbo)
    Rcov=MATMUL(Rcov,Pmult)
 end if
-if (kreq>zero) then
+if ((kreq>zero).and.(out_corr)) then
    do r=1,nch_active
       do c=1,nch_active
         if (divider(r,c)>zero) then
@@ -515,7 +517,6 @@ if (kreq>zero) then
 end if
 !output
 inquire(iolength=reclen) Rcov(1,1)
-print *, 'recl', reclen
 open(26,file=trim(cov_file),form='unformatted')
 write(26) nch_active, reclen
 write(26) indR
