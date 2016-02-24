@@ -8,7 +8,6 @@
 function usage {
   echo "Usage:  MinMonDE.sh suffix run_envir [pdate]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            run_envir is either 'dev' or 'para'."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
@@ -16,7 +15,7 @@ function usage {
 #  MinMon_DE.sh begins here
 #--------------------------------------------------------------------
 nargs=$#
-if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -24,16 +23,20 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
+. /usrx/local/Modules/3.2.9/init/sh
+module load /nwprod2/modulefiles/prod_util/v1.0.2
+
+
 #--------------------------------------------------------------------
 #  RUN_ENVIR:
 #    if $COMOUT is defined then assume we're in a parallel, else
 #    it's dev.
 #--------------------------------------------------------------------
 export MINMON_SUFFIX=$1
-export RUN_ENVIR=$2
+#export RUN_ENVIR=$2
 
 if [[ $nargs -ge 2 ]]; then
-   export PDATE=$3;
+   export PDATE=$2;
    echo "PDATE set to $PDATE"
 fi
 
@@ -106,8 +109,11 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
-export m_jlogfile="${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}.log"
+lfile=${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}
+export m_jlogfile="${lfile}.log"
 echo  "m_jlogfile = $m_jlogfile"
+export jlogfile="${lfile}.jlog"
+
 jobname=minmon_de_${MINMON_SUFFIX}
 
 rm -f $m_jlogfile
@@ -121,7 +127,10 @@ echo "jobname    = $jobname"
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdasgmon/jobs/JGDAS_VMINMON
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VMINMON
 fi
+
+
+module unload /nwprod2/modulefiles/prod_util/v1.0.2
 
 echo "end MinMon_DE.sh"
