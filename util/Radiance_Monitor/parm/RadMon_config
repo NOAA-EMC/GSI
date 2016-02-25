@@ -133,7 +133,15 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
-else    # theia 
+elif [[ $MY_MACHINE = "cray" ]]; then
+   module load prod_util
+   module load prod_envir
+   export SUB="bsub"
+   export NWPROD=${COMROOTp1}
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+
+elif [[ $MY_MACHINE = "theia" ]]; then
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export COMPRESS=gzip
