@@ -35,14 +35,8 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; th
    #  make data extract executables
    #------------------------------------------------------------------
 
-   if [[ ${machine} = "wcoss" || ${machine} = "cray" ]]; then
-      echo loading RadMonBuild module for wcoss
-#      . /usrx/local/Modules/default/init/ksh
-
-      module use -a ${HOMEradmon}/modulefiles/${machine}
-      module load RadMonBuild
-
-   fi
+   module use -a ${HOMEradmon}/modulefiles/${machine}
+   module load RadMonBuild
 
    executables="angle bcoef bcor time"
    echo "Making executables in nwprod/radmon_shared.v${radmon_shared_ver}/sorc:"
@@ -91,9 +85,7 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; th
       echo
    done
 
-   if [[ ${machine} = "wcoss" ]]; then
-      module unload RadMonBuild
-   fi
+   module unload RadMonBuild
 
 else
    echo ${machine} is not supported 
