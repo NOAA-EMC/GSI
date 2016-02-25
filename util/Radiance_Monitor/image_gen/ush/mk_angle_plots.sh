@@ -120,7 +120,7 @@ cd $PLOT_WORK_DIR
 
 list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1"
 
-  if [[ ${MY_MACHINE} = "wcoss" ]]; then
+  if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" ]]; then
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${SUFFIX}_ang_${suffix}
@@ -130,7 +130,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
      rm -f $logfile
 
      rm $LOGdir/plot_angle_${suffix}.log
-#>$cmdfile
+
      for type in ${SATLIST}; do
        echo "$IG_SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
      done
@@ -145,9 +145,12 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         wall_tm="1:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
-
-  else				# Zeus/linux platform
+     if [[ ${MY_MACHINE} = "wcoss" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     else	# cray
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -J ${jobname} $cmdfile
+     fi
+  else				# Zeus/theia platform
      for sat in ${SATLIST}; do
         suffix=${sat} 
         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
@@ -188,7 +191,7 @@ for sat in ${bigSATLIST}; do
    #
    #  wcoss submit 4 jobs for each $sat
    #
-   if [[ $MY_MACHINE = "wcoss" ]]; then 	
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then 	
       batch=1
       ii=0
 
@@ -216,7 +219,11 @@ for sat in ${bigSATLIST}; do
             mem="24000"
 #         fi
 
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+         if [[ $MY_MACHINE = "wcoss" ]]; then
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+         else
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -J ${jobname} $cmdfile
+         fi
 
          (( batch=batch+1 ))
 

@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/bash
 
 #------------------------------------------------------------------
 #  makeall
@@ -27,7 +27,7 @@ echo "machine = $machine"
 . ${top_level}/parm/RadMon_config
 
 
-if [[ ${machine} = "theia" || ${machine} = "wcoss" ]]; then
+if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; then
    echo Building executables on ${machine}
    echo
 
@@ -35,11 +35,11 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" ]]; then
    #  make data extract executables
    #------------------------------------------------------------------
 
-   if [[ ${machine} = "wcoss" ]]; then
+   if [[ ${machine} = "wcoss" || ${machine} = "cray" ]]; then
       echo loading RadMonBuild module for wcoss
 #      . /usrx/local/Modules/default/init/ksh
 
-      module use -a ${HOMEradmon}/modulefiles/wcoss
+      module use -a ${HOMEradmon}/modulefiles/${machine}
       module load RadMonBuild
 
    fi
