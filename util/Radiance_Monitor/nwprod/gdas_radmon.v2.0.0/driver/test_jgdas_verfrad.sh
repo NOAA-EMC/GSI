@@ -13,12 +13,11 @@
 
 set -x
 
-export PDATE=2016022518
+export PDATE=2016022500
 
 #############################################################
 # Specify whether the run is production or development
 #############################################################
-#export RUN_ENVIR=para
 export PDY=`echo $PDATE | cut -c1-8`
 export cyc=`echo $PDATE | cut -c9-10`
 export job=gdas_verfrad.${cyc}
@@ -59,12 +58,7 @@ module list
 #############################################################
 # WCOSS environment settings
 #############################################################
-#export MP_LABELIO=yes
-#export MP_STDOUTMODE=ordered
-#export MP_PGMMODEL=mpmd
 export POE=YES
-#export OMP_NUM_THREADS=1
-#export CHGRESTHREAD=24
 
 
 #############################################################
@@ -72,7 +66,6 @@ export POE=YES
 #############################################################
 export SUFFIX=testrad
 export NWTEST=/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
-#export PARA_CONFIG=$NWTEST/gdas.${gdas_ver}/driver/para_config.gdas_enkf_post
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
