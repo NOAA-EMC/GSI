@@ -67,7 +67,8 @@ export VERBOSE=${VERBOSE:-YES}
 ###################################
 # Set up the UTILITIES
 ###################################
-export utilscript=${utilscript:-/nwprod/util/ush}
+export utilscript=${utilscript:-${UTILROOT}/ush}
+export utilexec=${utilexec:-${UTILROOT}/exec}
 
 
 ##############################################
@@ -93,8 +94,6 @@ export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-${utilscript}/setup.sh
-
 export cycle=t${cyc}z
 ${utilscript}/setpdy.sh
 source ./PDY
