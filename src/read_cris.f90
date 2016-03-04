@@ -289,14 +289,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      end do spec_coef
   end do  satinfo_chan
 
-!  find CRIS sensorindex.  This should not be necessary as the if statement in read_obs.f90 calling this subroutine requires 'cris'
+!  find CRIS sensorindex. 
   sensorindex = 0
   if ( sc(1)%sensor_id(1:8) == 'cris1305' .or. sc(1)%sensor_id(1:12) == 'cris-fsr2211' )then
      sensorindex = 1
   else
-     write(6,*)'READ_CRIS: sensorindex not set  NO CRIS DATA USED'
-     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id
-     return
+     write(6,*)'READ_CRIS: ***ERROR*** sensorindex not set  NO CRIS DATA USED'
+     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
   end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
