@@ -11,7 +11,7 @@
 
 set -x
 
-export PDATE=2016022500
+export PDATE=2016022506
 
 #############################################################
 # Specify whether the run is production or development
@@ -45,14 +45,6 @@ module load prod_util/${prod_util_ver}
 module load prod_envir
 module load PrgEnv-intel
 
-#module use /nwprod2/modulefiles
-#module load grib_util/$grib_util_ver
-#module load prod_util/$prod_util_ver
-#module load util_shared/$util_shared_ver
-
-#module unload ics/12.1
-#module load ics/15.0.3
-
 module list
 
 
@@ -65,7 +57,8 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export DATAROOT=/gpfs/hps/ptmp/$LOGNAME/test_data
+#export DATAROOT=/gpfs/hps/ptmp/$LOGNAME/test_data
+export DATAROOT=/gpfs/hps/emc/da/noscrub/$LOGNAME/test_data
 export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
 export SUFFIX=testminmon
 export NWTEST=/gpfs/hps/emc/da/noscrub/${LOGNAME}/MinMon_546/util/Minimization_Monitor/nwprod
