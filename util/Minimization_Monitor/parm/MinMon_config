@@ -8,6 +8,7 @@ export MY_MACHINE=wcoss
 export MY_MINMON=${MY_MINMON:-/u/${LOGNAME}}
 
 export HOMEgdas=${MY_MINMON}/nwprod/gdas_minmon.v${gdas_minmon_ver}
+export HOMEgfs=${MY_MINMON}/nwprod/gfs_minmon.v${gfs_minmon_ver}
 export HOMEminmon=${MY_MINMON}/nwprod/minmon_shared.v${minmon_shared_ver}
 
 export MINMON_DE=${MINMON_DE:-${MY_MINMON}/data_xtrct}
