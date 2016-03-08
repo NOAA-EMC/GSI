@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_vrfminmon.sh.ecf
+# Script name:         exgfs_vrfminmon.sh.ecf
 # Script description:  Runs data extract/validation for GSI normalization diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2015-04-10
@@ -22,8 +22,8 @@
 #   Imported Shell Variables:
 #     M_TANKverf    repository for minmon data files
 #     DATA          data working space
-#     MINMON_SUFFIX data set identifier, defaults to GDAS
-#     FIXgdas       fixed file directory, gdas specific
+#     MINMON_SUFFIX data set identifier, defaults to GFS
+#     FIXgfs        fixed file directory, gfs specific
 #     FIXminmon     fixed file directory
 #     USHminmon     scripts directory
 #     PDY           processing day; 
@@ -35,8 +35,8 @@
 #     PDATE	    Processing date
 #     err           last return code
 #     VERBOSE       switches on more/less log output
-#     mm_gnormfile  $GDASfix/gdas_minmon_gnorm.txt file
-#     mm_costfile   $GDASfix/gdas_minmon_cost.txt file
+#     mm_gnormfile  $GFSfix/gfs_minmon_gnorm.txt file
+#     mm_costfile   $GFSfix/gfs_minmon_cost.txt file
 #
 #   Modules and files referenced:
 #     scripts    : ${USHminmon}/minmon_xtrct_gnorms.pl
@@ -45,7 +45,7 @@
 #
 #     programs   : $NDATE
 #
-#     input data : $gsistat=${COMIN}/gdas1.t${cyc}z.gsistat
+#     input data : $gsistat=${COMIN}/gfs1.t${cyc}z.gsistat
 #
 #     output data:  
 #
@@ -67,14 +67,14 @@ then
    set -x
 fi
 
-export scr=exgdas_vrfyminmon.sh.ecf
+export scr=exgfs_vrfyminmon.sh.ecf
 
 msg="${scr} HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
-export RUN=${RUN:-gdas}
+export RUN=${RUN:-gfs}
 export envir=${envir:-prod}
 
 ########################################
@@ -90,8 +90,8 @@ export DATA=${DATA:-$(pwd)}
 export COM_IN=${COMROOT}/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas_minmon.v${gdas_minmon_ver}}
-export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
+export HOMEgfs=${HOMEgfs:-/${NWROOT}/gfs_minmon.v${gfs_minmon_ver}}
+export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 
 export HOMEminmon=${HOMEminmon:-/${NWROOT}/minmon_shared.${minmon_shared_ver}}
 export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
@@ -101,24 +101,24 @@ export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
 ########################################
 #  Filenames
 ########################################
-gsistat=${gsistat:-$COMIN/gdas1.t${cyc}z.gsistat}
-export mm_gnormfile=${gnormfile:-${FIXgdas}/gdas_minmon_gnorm.txt}
-export mm_costfile=${costfile:-${FIXgdas}/gdas_minmon_cost.txt}
+gsistat=${gsistat:-$COMIN/gfs.t${cyc}z.gsistat}
+export mm_gnormfile=${gnormfile:-${FIXgfs}/gfs_minmon_gnorm.txt}
+export mm_costfile=${costfile:-${FIXgfs}/gfs_minmon_cost.txt}
 
 ########################################
 #  Other variables
 ########################################
-export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GFS}
 export PDATE=${PDY}${cyc}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
-export pgm=exgdas_vrfminmon.sh.ecf
+export pgm=exgfs_vrfminmon.sh.ecf
 
 #########################################################
 # M_TANKverf is storage location for generated files
 #########################################################
-export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon_${MINMON_SUFFIX}.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon_${MINMON_SUFFIX}.${PDYm1}}
+export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon.${PDY}}
+export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon.${PDYm1}}
 #####################################################################
 
 if [[ ! -d ${DATA} ]]; then
@@ -180,7 +180,7 @@ elif [[ $rc_reduct -ne 0 ]]; then
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exgdas_vrfminmon.sh.ecf, exit value = ${err}"
+   echo "end exgfs_vrfminmon.sh.ecf, exit value = ${err}"
 fi
 
 msg="${scr} HAS ENDED"

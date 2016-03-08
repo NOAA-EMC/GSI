@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 #  MinMon data extraction script
 
@@ -6,7 +6,7 @@
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  MinMonDE.sh suffix run_envir [pdate]"
+  echo "Usage:  MinMonDE.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
@@ -23,17 +23,7 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-. /usrx/local/Modules/3.2.9/init/sh
-module load /nwprod2/modulefiles/prod_util/v1.0.2
-
-
-#--------------------------------------------------------------------
-#  RUN_ENVIR:
-#    if $COMOUT is defined then assume we're in a parallel, else
-#    it's dev.
-#--------------------------------------------------------------------
 export MINMON_SUFFIX=$1
-#export RUN_ENVIR=$2
 
 if [[ $nargs -ge 2 ]]; then
    export PDATE=$2;
@@ -41,13 +31,13 @@ if [[ $nargs -ge 2 ]]; then
 fi
 
 #if [[ $COMOUT = "" ]]; then
-#  export RUN_ENVIR="dev"
+  export RUN_ENVIR="dev"
 #else 
 #  export RUN_ENVIR="para"
 #fi
 
 echo MINMON_SUFFIX = $MINMON_SUFFIX
-echo RUN_ENVIR = $RUN_ENVIR
+#echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
 
@@ -95,7 +85,7 @@ echo "M_TANKverf = $M_TANKverf"
 #  Determine next cycle
 #    If PDATE wasn't an argument then call find_cycle.pl
 #    to determine the last processed cycle, and set PDATE to
-#    the next cycle.
+#    the next cycle
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
    echo "PDATE not specified:  setting PDATE using last cycle"
@@ -110,9 +100,37 @@ export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
 lfile=${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}
+export pid=${pid:-$$}
+export jlogfile=${lfile}.o${pid}
 export m_jlogfile="${lfile}.log"
 echo  "m_jlogfile = $m_jlogfile"
-export jlogfile="${lfile}.jlog"
+
+#############################################################
+export job=gdas_vminmon.${cyc}
+export jobid=${job}.${pid}
+export envir=para
+export DATAROOT=${DATA_IN:-${STMP_USER}}
+export COMROOT=${COMROOT:-${M_TANKverf}}
+export COMIN=${COMIN:-/com/gfs/prod}
+#############################################################
+# Load modules
+#############################################################
+. /usrx/local/Modules/3.2.9/init/ksh
+
+grib_util_ver=v1.0.0
+prod_util_ver=v1.0.1
+util_shared_ver=v1.0.1
+
+module use /nwprod2/modulefiles
+module load grib_util/$grib_util_ver
+module load prod_util/$prod_util_ver
+module load util_shared/$util_shared_ver
+
+module unload ics/12.1
+module load ics/15.0.3
+
+module list
+
 
 jobname=minmon_de_${MINMON_SUFFIX}
 
@@ -127,10 +145,12 @@ echo "jobname    = $jobname"
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
+   echo "submitting job $jobname"
+
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VMINMON
 fi
 
 
-module unload /nwprod2/modulefiles/prod_util/v1.0.2
+#module unload /nwprod2/modulefiles/prod_util/v1.0.2
 
 echo "end MinMon_DE.sh"

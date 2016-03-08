@@ -1,6 +1,6 @@
 #!/bin/sh
 ###########################################################
-# GDAS Minimization Monitor (MinMon) job
+# GFS Minimization Monitor (MinMon) job
 ###########################################################
 set -xa
 echo `date` $0 `date -u` begin
@@ -13,7 +13,7 @@ export envir=${envir:-prod}
 # Specify NET and RUN name
 ##############################
 export NET=${NET:-gfs}
-export RUN=${RUN:-gdas}
+export RUN=${RUN:-gfs}
 
 
 ###########################################################
@@ -39,7 +39,7 @@ fi
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
 ###########################################################
-export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GFS}
 export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 
 
@@ -74,16 +74,16 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Package Areas
 ##############################################
-export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
-export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
-export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
-export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
+export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+export PARMgfs=${PARMgfs:-$HOMEgfs/parm}
+export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
+export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 
 
 ###################################
 # source the parm file
 ###################################
-.  ${PARMgdas}/gdas_minmon.parm
+.  ${PARMgfs}/gfs_minmon.parm
 
 
 #############################################
@@ -111,14 +111,14 @@ mkdir -p -m 775 $M_TANKverf
 ########################################
 # Set necessary environment variables
 ########################################
-export gsistat=${gsistat:-${COMIN}/gdas1.t${cyc}z.gsistat}
+export gsistat=${gsistat:-${COMIN}/gfs.t${cyc}z.gsistat}
 
 msg="JOB HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${GMONSH:-$SCRgdas/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
+${GMONSH:-$SCRgfs/exgfs_vrfminmon.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
