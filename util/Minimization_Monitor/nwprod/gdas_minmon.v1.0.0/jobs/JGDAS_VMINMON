@@ -98,8 +98,8 @@ source ./PDY
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
 M_TANKverf=${M_TANKverf:-/com/verf/${envir}}
-M_TANKverfM0=${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}
-export M_TANKverfM1=${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}
+M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}}
+export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}}
 export M_TANKverf=$M_TANKverfM0
 
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}

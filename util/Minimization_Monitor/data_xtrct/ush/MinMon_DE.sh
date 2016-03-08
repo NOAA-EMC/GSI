@@ -99,6 +99,12 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
+mdate=`$NDATE -24 $PDATE`
+m1=`echo $mdate|cut -c1-8`
+
+export M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
+export M_TANKverfM1=${M_TANKverf}/minmon.${m1}
+
 lfile=${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}
 export pid=${pid:-$$}
 export jlogfile=${lfile}.o${pid}
@@ -143,11 +149,13 @@ echo "JOB_QUEUE  = $JOB_QUEUE"
 echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
+jobfile=${jobfile:-${HOMEgdas/jobs/JGDAS_VMINMON}}
+
 if [[ $MY_MACHINE = "wcoss" ]]; then
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
    echo "submitting job $jobname"
 
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VMINMON
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
 fi
 
 
