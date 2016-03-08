@@ -46,13 +46,13 @@ module statevec
 !
 !$$$
 
+use gridio, only: readgriddata, writegriddata
 use mpisetup
+use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
 use params, only: nlevs,nvars,ndim,nbackgrounds,&
                   nanals,pseudo_rh,massbal_adjust
 use kinds, only: r_kind, i_kind, r_double, r_single
 use loadbal, only: npts_max,indxproc,numptsperproc
-use gridio, only: readgriddata, writegriddata
-use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
 use enkf_obsmod, only: nobstot
 implicit none
 private
@@ -304,7 +304,8 @@ do nb=1,nbackgrounds
       endif 
       print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb))
       do nvar=1,nvars
-         print *,'ens. mean anal. increment min/max var',nvar,minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+         print *,'ens. mean anal. increment min/max var',nvar, &
+           minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
       enddo
    end if
 enddo ! end loop over time levels in background

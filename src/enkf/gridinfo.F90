@@ -358,7 +358,7 @@ module gridinfo
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
   use enkf_obsmod,    only: obloc, obloclat, obloclon, nobstot
   use params,    only: datapath, nlevs, nvars, ndim, nlons, nlats,           &
-                       arw, nmm
+                       arw, nmm, nbackgrounds, fgfileprefixes
   use mpisetup
   use netcdf_io
 
