@@ -350,9 +350,9 @@ do nb=1,nbackgrounds
      ! default analysis file prefix
      if (regional) then
       if (nbackgrounds > 1) then
-        fgfileprefixes(nbackgrounds+1)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
+        anlfileprefixes(nb)="analysis_fhr"//charfhr_anal(nb)//"."
       else
-        fgfileprefixes(nbackgrounds+1)="analysis."
+        anlfileprefixes(nb)="analysis."
       endif
      else ! global
       if (nbackgrounds > 1) then
