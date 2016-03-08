@@ -114,9 +114,14 @@ cd $WORKDIR
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
-gnorm_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.gnorm_data.txt
+gnorm_dir=${TANKDIR}/minmon.${pdy}
+if [[ ! -d $gnorm_dir ]]; then
+   gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
+fi
+
+gnorm_file=${gnorm_dir}/${MINMON_SUFFIX}.gnorm_data.txt
 if [[ ! -e $gnorm_file ]]; then
-   gnorm_file=${TANKDIR}/minmon.${pdy}/gnorm_data.txt
+   gnorm_file=${gnorm_dir}/gnorm_data.txt
 fi
 local_gnorm=gnorm_data.txt
 
@@ -132,14 +137,14 @@ fi
 #  These aren't used for processing but will be pushed to the
 #    server from the tmp dir.
 #------------------------------------------------------------------
-costs=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.costs.txt
+costs=${gnorm_dir}${MINMON_SUFFIX}.${PDATE}.costs.txt
 if [[ ! -e $costs ]]; then
-   costs=${TANKDIR}/minmon.${pdy}/${PDATE}.costs.txt
+   costs=${gnorm_dir}/${PDATE}.costs.txt
 fi
 
-cost_terms=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt
+cost_terms=${gnorm_dir}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt
 if [[ ! -e $cost_terms ]]; then
-   cost_terms=${TANKDIR}/minmon.${pdy}/${PDATE}.cost_terms.txt
+   cost_terms=${gnorm_dir}/${PDATE}.cost_terms.txt
 fi
 
 if [[ -s ${costs} ]]; then
@@ -167,15 +172,20 @@ while [[ $cdate -le $edate ]]; do
    echo "processing cdate = $cdate"
    pdy=`echo $cdate|cut -c1-8`
 
-   gnorms_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${cdate}.gnorms.ieee_d
+   gnorm_dir=${TANKDIR}/minmon.${pdy}
+   if [[ ! -d $gnorm_dir ]]; then
+      gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
+   fi
+
+   gnorms_file=${gnorm_dir}/${MINMON_SUFFIX}.${cdate}.gnorms.ieee_d
    if [[ ! -e $gnorms_file ]]; then
-      gnorms_file=${TANKDIR}/minmon.${pdy}/${cdate}.gnorms.ieee_d
+      gnorms_file=${gnorm_dir}/${cdate}.gnorms.ieee_d
    fi
    local_gnorm=${cdate}.gnorms.ieee_d
 
-   reduct_file=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${cdate}.reduction.ieee_d
+   reduct_file=${gnorm_dir}/${MINMON_SUFFIX}.${cdate}.reduction.ieee_d
    if [[ ! -e $reduct_file ]]; then
-      reduct_file=${TANKDIR}/minmon.${pdy}/${cdate}.reduction.ieee_d
+      reduct_file=${gnorm_dir}/${cdate}.reduction.ieee_d
    fi
    local_reduct=${cdate}.reduction.ieee_d
 
@@ -355,13 +365,14 @@ fi
       $RSYNC -ave ssh --exclude *.ctl*  ./ \
         ${WEBUSER}@${WEBSERVER}:${WEBDIR}/
    fi
-#--------------------------------------------------------------------
-#  Call update_save.sh to copy latest 15 days worth of data files 
-#  from $TANKDIR to /sss.../da/save so prod machine can access the 
-#  same data.
-#--------------------------------------------------------------------
 
-#   ${SCRIPTS}/update_sss.sh
+#--------------------------------------------------------------------
+#  Call nu_make_archive.sh to write archive files to hpss and
+#  update the prod machine with any missing M_TANKDIR directories.
+#--------------------------------------------------------------------
+   if [[ ${DO_ARCHIVE} -eq 1 ]]; then
+      ${M_IG_SCRIPTS}/nu_make_archive.sh
+   fi
 
 #cd ${WORKDIR}
 #cd ..
