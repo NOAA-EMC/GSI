@@ -47,6 +47,12 @@ export GLB_AREA=${GLB_AREA:-1}
 export DO_ERROR_RPT=${DO_ERROR_RPT:-0}
 
 #
+#  DO_ARCHIVE   1 = copy data to hpss and to prod machine at completion of each day
+#               0 = no data archiving (data will remain in TANKDIR on this machine)
+#
+export DO_ARCHIVE=${DO_ARCHIVE:-0}
+
+#
 #  MAIL_TO is the mail recpient list for error reporting
 #
 export MAIL_TO=${MAIL_TO:-""}
