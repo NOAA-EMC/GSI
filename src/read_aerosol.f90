@@ -1,6 +1,6 @@
 subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            obstype,twind,sis,ithin,rmesh, &
-           mype,mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+           mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_aerosol                    read aerosol data
@@ -34,7 +34,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     sis      - satellite/instrument/sensor indicator
 !     ithin    - flag to thin data
 !     rmesh    - thinning mesh size (km)
-!     mype     - mpi task id
 !     mype_root - "root" task for sub-communicator
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
@@ -75,7 +74,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind), intent(inout) :: nread
   integer(i_kind),dimension(npe), intent(inout) :: nobs
   integer(i_kind), intent(inout) :: ndata, nodata
-  integer(i_kind) ,intent(in)    :: mype
   integer(i_kind) ,intent(in)    :: mype_root
   integer(i_kind) ,intent(in)    :: mype_sub
   integer(i_kind) ,intent(in)    :: npe_sub
