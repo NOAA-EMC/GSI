@@ -2,13 +2,13 @@ module stpaodmod
   
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   stpaodmod    module for stpaod and its tangent linear stpaod_tl
-!  pgrmmr:
+! module:   stpaodmod    
+!  pgrmmr: pagowski org:NOAA/ESRL  date: 2016-02-20
 !
-! abstract: module for stpaod and its tangent linear stpaod_tl
+! abstract: module to calculate penalty and contribution to stepsize from aod
 !
 ! program history log:
-!   2014-09-14  Mariusz.Pagowski - inital code
+!   2016-02-20  pagowski - a module for aod 
 !
 ! subroutines included:
 !   sub stpaod
@@ -28,15 +28,14 @@ contains
   subroutine stpaod(aerohead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    stpaod        calcuate penalty and stepsize from q
+! subprogram:    stpaod        calcuate penalty and stepsize from aod
 !                            with addition of nonlinear qc.
-!   prgmmr: derber           org: np23                date: 1991-02-26
+!   prgmmr: pagowski org:NOAA/ESRL  date: 2016-02-20
 !
-! abstract: calculate penalty and contribution to stepsize from pm2_5
-!           using nonlinear qc.
+! abstract: calculate penalty and contribution to stepsize from aod
 !
 ! program history log:
-!   2014-01-15  pagowski - udpate for aod
+!   2016-01-15  pagowski - original routine 
 !
 !   input argument list:
 !     aerohead
@@ -72,12 +71,12 @@ contains
     real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
     
 ! declare local variables
-    integer(i_kind) ier,istatus,naero
+    integer(i_kind) istatus,naero
     integer(i_kind) j1,j2,j3,j4,kk,k,ic,nn
     real(r_kind) cg_aero,val,val2,wgross,wnotgross
     integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
     real(r_kind),dimension(max(1,nstep)):: term,rad
-    real(r_kind) w1,w2,w3,w4,qq
+    real(r_kind) w1,w2,w3,w4
     real(r_kind),pointer,dimension(:):: sv_chem,rv_chem
     type(aero_ob_type), pointer :: aeroptr
     real(r_kind),dimension(nsigaerojac) :: tdir,rdir

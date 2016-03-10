@@ -1541,7 +1541,7 @@ subroutine write_pm10head_ ()
 ! abstract: Write obs-specific data structure to file.
 !
 ! program history log:
-!   2011-05-18  todling
+!   2015-02-18  Pagowski
 !
 !   input argument list:
 !

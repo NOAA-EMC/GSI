@@ -6,19 +6,17 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
 !   prgrmmr:     parrish          org: np22                date: 1990-10-06
 !
-! abstract:      For sbuv ozone observations (layer amounts and total 
-!                column, this routine 
+! abstract:      For pm10 observations, this routine
 !                  a) reads obs assigned to given mpi task (geographic region),
 !                  b) simulates obs from guess,
 !                  c) apply some quality control to obs,
 !                  d) load weight and innovation arrays used in minimization
 !                  e) collects statistics for runtime diagnostic output
 !                  f) writes additional diagnostic information to output file
-!                  g) converted to pm10
 !
 
 ! program history log:
-!   2014-09-14  Mariusz.Pagowski - inital code
+!   2016-02-20  pagowski - based on setupmp2_5; converted for pm10
 !
 !   input argument list:
 !     lunin          - unit from which to read observations

@@ -33,8 +33,6 @@ module convinfo
 !   def nconvtype_ps   - number of input conventional type ps
 !   def nconvtype_t    - number of input conventional type t
 !   def nconvtype_spd  - number of input conventional type spd
-!   def nconvtype_pm2_5  - number of input conventional type pm2_5
-!   def nconvtype_pm10  - number of input conventional type pm10
 !   def ictype         - observation type
 !   def icsubtype      - observation subtype                           
 !   def icuse          - use flag                                        
@@ -83,8 +81,8 @@ module convinfo
 ! set passed variables as public
   public :: icsubtype,ioctype,nconvtype,ictype,diag_conv,icuse,conv_bias_spd,conv_bias_t,stndev_conv_ps
   public :: stndev_conv_spd,stndev_conv_t,id_bias_ps,npred_conv_max,id_bias_t,conv_bias_ps,id_bias_spd
-  public :: stndev_conv_pm2_5,conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
-  public :: stndev_conv_pm10,conv_bias_pm10,id_bias_pm10
+  public :: conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
+  public :: conv_bias_pm10,id_bias_pm10
 
   public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg,pmot_conv,ptime_conv
   public :: cermin,cgross
@@ -103,12 +101,11 @@ module convinfo
 
   real(r_kind),allocatable,dimension(:,:) :: predx_conv
   integer(i_kind)  npred_conv_max
-  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd,nconvtype_pm2_5,nconvtype_pm10
+  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd
   integer(i_kind)  id_bias_ps,id_bias_t,id_bias_spd,id_bias_pm2_5,id_bias_pm10
   real(r_kind)     conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       conv_bias_pm2_5,stndev_conv_pm10,&
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,stndev_conv_pm2_5,&
-       conv_bias_pm10
+       conv_bias_pm2_5,conv_bias_pm10, &
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd
 
   logical,save :: convinfo_initialized=.false.
 
@@ -147,13 +144,9 @@ contains
     nconvtype_ps  =0
     nconvtype_t   =0
     nconvtype_spd =0
-    nconvtype_pm2_5  =0
-    nconvtype_pm10  =0
     stndev_conv_t =one
     stndev_conv_ps =one
     stndev_conv_spd =one
-    stndev_conv_pm2_5=one
-    stndev_conv_pm10=one
 
     id_bias_ps = 0            ! prepbufr id to have conv_bias added for testing 
     id_bias_t  = 0            ! prepbufr id to have conv_bias added for testing 
@@ -351,12 +344,6 @@ contains
              case('spd')
                 nconvtype_spd=nconvtype_spd+1
                 stndev_conv(nc)=stndev_conv_spd
-             case('pm2_5')                
-                nconvtype_pm2_5=nconvtype_pm2_5+1
-                stndev_conv(nc)=stndev_conv_pm2_5
-             case('pm10')
-                nconvtype_pm10=nconvtype_pm10+1
-                stndev_conv(nc)=stndev_conv_pm10
           end select
        endif
     enddo

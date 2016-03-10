@@ -6,8 +6,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
 !   prgrmmr:     parrish          org: np22                date: 1990-10-06
 !
-! abstract:      For sbuv ozone observations (layer amounts and total 
-!                column, this routine 
+! abstract:      For pm2_5 observations this routine
 !                  a) reads obs assigned to given mpi task (geographic region),
 !                  b) simulates obs from guess,
 !                  c) apply some quality control to obs,

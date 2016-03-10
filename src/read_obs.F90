@@ -179,7 +179,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
       call openbf(lnbufr,'IN',lnbufr)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
-      nread = nread + 1
 
 !     Extract date and check for consistency with analysis date
       if (idate<iadatebgn.or.idate>iadateend) then
@@ -296,6 +295,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else
          kidsat = 0
        end if
+
+       call closbf(lnbufr)
+       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
+       call openbf(lnbufr,'IN',lnbufr)
+       call datelen(10)
 
        if(kidsat /= 0)then
         lexist = .false.
@@ -440,6 +444,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                       end if
                    end do
                 end do
+                nread = nread + 1
              enddo fileloopanow_pm2_5
           endif
 
@@ -451,10 +456,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            
        else if(trim(dtype) == 'pm10')then
           lexist = .false.
-          fileloopanow_pm10:DO WHILE(ireadmg(lnbufr,subset,idate2) >= 0)
+          fileloopanow_pm10:do while(ireadmg(lnbufr,subset,idate2) >= 0)
              do while(ireadsb(lnbufr)>=0)
                 if (subset == 'NC008033') then
-                   CALL ufbint(lnbufr,rtype,1,1,iret,'TYPO')
+                   call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
                    kx=nint(rtype)
                    IF (kx/=code_pm10_ncbufr) then
                       cycle
@@ -473,6 +478,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                    end if
                 end do
              end do
+             nread = nread + 1
           enddo fileloopanow_pm10
 
           if (lexist) then
@@ -1577,7 +1583,7 @@ subroutine read_obs(ndata,mype)
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
                   platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                  mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                   nobs_sub1(1,i))
              string='READ_AEROSOL'
                      

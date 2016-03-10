@@ -2883,11 +2883,11 @@ _EXIT_(myname_)
 
        if(.not. lobserver) then
          my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
-	 	if(.not. associated(my_node%diags)) then
+         if(.not. associated(my_node%diags)) then
 		  call die(myname_,'obdiag_locate(), '//&
 		    '(type,ibin,mobs,iobs,idv,iob,ich) =', &
 		    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
-       endif
+         endif
        endif
     enddo
 
@@ -2895,8 +2895,8 @@ _EXIT_(myname_)
       passed = ob_verify(pm2_5head(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-       call stop2(217)
-    end if
+          call stop2(217)
+       end if
     endif
 _EXIT_(myname_)
 end subroutine read_pm2_5head_
@@ -2995,11 +2995,11 @@ _EXIT_(myname_)
 
        if(.not. lobserver) then
          my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
-	 	if(.not. associated(my_node%diags)) then
+	    if(.not. associated(my_node%diags)) then
 		  call die(myname_,'obdiag_locate(), '//&
 		    '(type,ibin,mobs,iobs,idv,iob,ich) =', &
 		    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
-       endif
+          endif
        endif
     enddo
 
@@ -3007,8 +3007,8 @@ _EXIT_(myname_)
       passed = ob_verify(pm10head(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-       call stop2(217)
-    end if
+          call stop2(217)
+       end if
     endif
 _EXIT_(myname_)
 end subroutine read_pm10head_

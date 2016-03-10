@@ -2463,7 +2463,7 @@ contains
 
 
     if (allocated(obscounts)) deallocate(obscounts) 
-    if (allocated(nobs_sub)) deallocate(nobs_sub)
+    if (allocated(nobs_sub)) deallocate(nobs_sub) 
 
     return
   end subroutine destroyobs_
