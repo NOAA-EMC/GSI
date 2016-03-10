@@ -2,7 +2,7 @@ add_gfs_stratosphere.o : add_gfs_stratosphere.f90 control_vectors.o gfs_stratosp
 adjtest.o : adjtest.f90 bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o jfunc.o constants.o gsi_4dvar.o kinds.o 
 adjtest_obs.o : adjtest_obs.f90 intall.o bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o constants.o jfunc.o obsmod.o gsi_4dvar.o kinds.o 
 adjust_cloudobs_mod.o : adjust_cloudobs_mod.f90 obsmod.o constants.o kinds.o 
-aeroinfo.o : aeroinfo.F90 obsmod.o gridmod.o gsi_chemguess_mod.o mpimod.o kinds.o 
+aeroinfo.o : aeroinfo.f90 obsmod.o gridmod.o gsi_chemguess_mod.o mpimod.o kinds.o 
 aircraftinfo.o : aircraftinfo.f90 obsmod.o mpimod.o constants.o kinds.o 
 aircraftobsqc.o : aircraftobsqc.f90 kinds.o 
 anberror.o : anberror.f90 mpeu_util.o mpimod.o jfunc.o control_vectors.o fgrid2agrid_mod.o gridmod.o berror.o raflib.o constants.o kinds.o 
@@ -64,7 +64,7 @@ convinfo.o : convinfo.f90 gsi_chemguess_mod.o mpimod.o gridmod.o obsmod.o consta
 convthin.o : convthin.f90 satthin.o constants.o kinds.o 
 convthin_time.o : convthin_time.f90 satthin.o constants.o kinds.o 
 correlated_obsmod.o : correlated_obsmod.F90 mpeu_util.o timermod.o mpimod.o constants.o kinds.o 
-crtm_interface.o : crtm_interface.f90 set_crtm_cloudmod.o set_crtm_aerosolmod.o regional_io.o ncepgfs_ghg.o cloud_efr_mod.o mpimod.o obsmod.o constants.o control_vectors.o guess_grids.o aeroinfo.o radinfo.o gsi_metguess_mod.o gsi_chemguess_mod.o gsi_bundlemod.o mpeu_util.o gridmod.o kinds.o 
+crtm_interface.o : crtm_interface.f90 obsmod.o set_crtm_cloudmod.o set_crtm_aerosolmod.o ncepgfs_ghg.o cloud_efr_mod.o mpimod.o constants.o control_vectors.o guess_grids.o aeroinfo.o radinfo.o gsi_metguess_mod.o gsi_chemguess_mod.o gsi_bundlemod.o mpeu_util.o gridmod.o kinds.o 
 cvsection.o : cvsection.f90 control_vectors.o jfunc.o gridmod.o mpimod.o kinds.o 
 cwhydromod.o : cwhydromod.f90 gsi_bundlemod.o derivsmod.o guess_grids.o gridmod.o constants.o kinds.o 
 derivsmod.o : derivsmod.f90 mpeu_util.o gsi_chemguess_mod.o gsi_metguess_mod.o gsi_bundlemod.o state_vectors.o constants.o gridmod.o mpimod.o kinds.o 

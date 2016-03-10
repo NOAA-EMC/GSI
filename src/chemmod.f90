@@ -298,7 +298,7 @@ contains
 ! declare local variables
     logical outside
     
-    integer(i_kind) lunin,i
+    integer(i_kind) i
     integer(i_kind) ikx
     
     real(r_kind) :: tdiff,obstime
@@ -310,8 +310,6 @@ contains
     integer(i_kind) k,site_char,site_id
     real(r_kind) :: conc,site_elev
     real(r_kind), dimension(nreal,1):: cdata_all
-    
-    data lunin / 10 /
     
     site_id=123456789
     site_char=1 ! set unknown site character

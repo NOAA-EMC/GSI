@@ -2,18 +2,13 @@ module stppm10mod
   
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   stppm10mod    module for stppm10 and its tangent linear stppm10_tl
+! module:   stppm10mod    module for pm10 
 !  pgrmmr:
 !
-! abstract: module for stppm10 and its tangent linear stppm10_tl
+! abstract: module for stppm10 
 !
 ! program history log:
-!   2005-05-19  Yanqiu zhu - wrap stpq and its tangent linear stpq_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-12-02  Todling - remove stpq_tl
-!   2009-08-12  lueken - update documentation
-!   2010-05-13  todling - uniform interface across stp routines
-!   2014-01-15  pagowski - convert for pm10
+!   2016-02-20  pagowski - re-write from pm2_5 for pm10
 !
 ! subroutines included:
 !   sub stppm10
@@ -33,7 +28,7 @@ contains
   subroutine stppm10(pm10head,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    stppm10        calcuate penalty and stepsize from q
+! subprogram:    stppm10        calcuate penalty and stepsize from pm10
 !                            with addition of nonlinear qc.
 !   prgmmr: derber           org: np23                date: 1991-02-26
 !
@@ -41,24 +36,7 @@ contains
 !           using nonlinear qc.
 !
 ! program history log:
-!   1991-02-26  derber
-!   1993-08-25  wu
-!   1998-02-03  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2004-10-05  parrish - add non-linear qc option
-!   2005-04-11  treadon - merge stpq and stpq_qc into single routine
-!   2005-08-02  derber  - modify for variational qc parameters for each ob
-!   2005-09-28  derber  - consolidate location and weight arrays
-!   2005-10-21  su      - modify for variational qc
-!   2007-03-19  tremolet - binning of observations
-!   2007-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic  - add foto
-!   2007-06-04  derber  - use quad precision to get reproducability over number of processors
-!   2008-12-03  todling - changed handling of ptr%time
-!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
-!   2010-05-13  todling - udpate to use gsi_bundle
-!   2010-10-15  pagowski - udpate for pm10
+!   2016-02-20  pagowski - convert from stppm2_5 for stppm10
 !
 !   input argument list:
 !     pm10head

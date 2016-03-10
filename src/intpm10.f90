@@ -2,13 +2,14 @@ module intpm10mod
 
 !$$$ module documentation block
 !           .      .    .                                       .
-! module:   intpm10mod    module for intpm10 and its tangent linear 
+! module:   intpm10mod    module for intpm10 and its tangent linear intpm10_tl
 !   prgmmr:
 !
-! abstract: module for intq and its tangent linear intq_tl
+! abstract: module for intpm10 and its tangent linear intpm10_tl
 !
 ! program history log:
-!   2014-09-14  Mariusz.Pagowski - inital code  
+!   2016-02-20  pagowski - based on intpm2_5 but for pm10 
+
 !
 ! subroutines included:
 !   sub intpm10_
@@ -38,11 +39,11 @@ contains
 ! subprogram:    intpm10        apply nonlin qc obs operator for q 
 !   prgmmr: derber           org: np23                date: 1991-02-26
 !
-! abstract: apply observation operator and adjoint for pm10 with
+! abstract: apply observation operator and adjoint for q with
 !             nonlinear qc operator
 !
 ! program history log:
-!   2014-09-14  Mariusz.Pagowski - inital code
+! 2016-02-20  pagowski - based on intpm2_5 but for pm10         
 !
 !   input argument list:
 !     pm10head    - obs type pointer to obs structure

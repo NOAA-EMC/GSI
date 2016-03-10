@@ -43,7 +43,8 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
        tll2xy,txy2ll,rlats,rlons,region_dx
   use convinfo, only: nconvtype,ctwind, &
-       icuse,ioctype,ictype,cermin,cermax
+       icuse,ioctype,ictype,cermin,cermax,&
+       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use chemmod, only : obs2model_anowbufr_pm,&
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
@@ -114,12 +115,11 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
   equivalence (sid,indata(nsid))
 
+  data lunin / 10 /
+
   ncbufr=.false.
   anowbufr=.false.
 
-  data lunin / 10 /
-  
-  
   site_char=1 ! set unknown site character
   site_elev=elev_missing ! set unknown site elevation
 
@@ -292,7 +292,12 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 !error_2=tunable_error*error_1*sqrt(dx/site_scale)
 !similar for ozone
 
+           
            conc=conc*obs2model_anowbufr_pm()
+
+           if (kx == code_pm25_ncbufr .and. id_bias_pm2_5) conc=conc+conv_bias_pm2_5
+           if (kx == code_pm10_ncbufr .and. id_bias_pm10) conc=conc+conv_bias_pm10
+
 
            error_1=cermax(ikx)+cermin(ikx)*percent*conc
            error_2=tunable_error*error_1*&

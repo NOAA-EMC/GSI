@@ -427,13 +427,6 @@
                     my_head%ich(iii)=ii
                  end if
               end do
-!if(mype==0) then
-!   DO ii=1,iii
-!   DO k=1,nsigaerojac
-!      write(*,*) ii,k,aerotail(ibin)%head%daod_dvar(k,ii)
-!   ENDDO
-!   ENDDO
-!endif
            end if ! icc
         endif ! (in_curbin)
 

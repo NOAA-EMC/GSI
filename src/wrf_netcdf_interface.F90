@@ -2722,12 +2722,12 @@ subroutine update_netcdf_mass
      do k=1,nsig_regional
         READ(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
         write(6,*)' k,max,min,mid var=',rmse_var,k,            &
-             MAXVAL(field3(:,:,k)),MINVAL(field3(:,:,k)), &
+             maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
      end do
-     call ext_ncd_get_var_info (dh1,TRIM(rmse_var),ndim1,ordering,staggering, &
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
-     write(6,*)' rmse_var=',TRIM(rmse_var)
+     write(6,*)' rmse_var=',trim(rmse_var)
      write(6,*)' ordering=',ordering
      write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
      write(6,*)' ndim1=',ndim1

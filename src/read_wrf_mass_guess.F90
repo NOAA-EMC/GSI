@@ -1811,7 +1811,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            iv=1
            cvar(1)='pm2_5'
 
-           CALL GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_pm2_5,istatus)
+           call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_pm2_5,istatus)
            ier=ier+istatus
            if (ier/=0 .and. mype == 0) then
               write(6,*)'READ_WRF_MASS_NETCDF_GUESS: getpointer failed ',  &
@@ -1894,7 +1894,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                     if (indx_seas4>0) ges_seas4(j,i,k) = all_loc(j,i,kchem(indx_seas4)) 
                     if (indx_p25>0)   ges_p25(j,i,k)   = all_loc(j,i,kchem(indx_p25))   
                     if (aero_ratios .and. it==1) then
-                       aerotot_guess(j,i,k)=MAX(tiny_r_kind,&
+                       aerotot_guess(j,i,k)=max(tiny_r_kind,&
                        ges_sulf(j,i,k)*nh4_mfac+&
                        ges_bc1(j,i,k)+&
                        ges_bc2(j,i,k)+&
