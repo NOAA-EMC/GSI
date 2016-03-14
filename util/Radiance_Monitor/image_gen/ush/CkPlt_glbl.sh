@@ -296,7 +296,8 @@ ${IG_SCRIPTS}/mk_time_plots.sh
 #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
 #------------------------------------------------------------------
 if [[ $DO_ARCHIVE = 1 ]]; then
-   ${IG_SCRIPTS}/make_archive.sh
+#   ${IG_SCRIPTS}/make_archive.sh
+   ${IG_SCRIPTS}/nu_make_archive.sh
 fi
 
 #--------------------------------------------------------------------
