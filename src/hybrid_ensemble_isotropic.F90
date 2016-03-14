@@ -37,7 +37,6 @@ module hybrid_ensemble_isotropic
 !                        for actual hybrid Ens-4DVAR (with TL/AD).
 !   2012-01-17  wu      - option "pwgtflg": psfc with vertically integrated contribution 
 !                          in forward and adjoint routines
-!                       - option "betaflg": height dependent beta in regional
 !   2012-02-08  parrish - add changes to allow regional dual res 
 !   2012-02-08  parrish - cleanup
 !   2012-10-11  wu      - dual resolution for regional hybens options; 
@@ -2541,7 +2540,7 @@ subroutine beta12mult(grady)
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: beta1_inv,betas_inv,betae_inv,n_ens,oz_univ_static
-  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,betaflg,grd_ens
+  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,grd_ens
   use constants, only:  one
   use control_vectors
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -3891,7 +3890,7 @@ subroutine hybens_localization_setup
    use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
    use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
                                          nval_lenz_en,regional_ensemble_option
-   use hybrid_ensemble_parameters, only: readin_beta,betas_inv,betae_inv,beta1_inv
+   use hybrid_ensemble_parameters, only: readin_beta,betas_inv,betae_inv,beta1_inv,beta1wgt,beta2wgt
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
 
@@ -3943,7 +3942,7 @@ subroutine hybens_localization_setup
          allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
       endif
 
-   endif
+   endif ! if ( readin_localization .or. readin_beta )
 
 100 format(I4)
 101 format(F8.1,3x,F5.1,2(3x,F8.4))
@@ -3990,7 +3989,12 @@ subroutine hybens_localization_setup
       call init_sf_xy(jcap_ens)
    endif
 
-   call setup_ens_wgt
+   !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
+   ! vertical variation of static and ensemble weights
+
+   ! Set defaults
+   beta1wgt = betas_inv
+   beta2wgt = betae_inv
 
    !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
    !     and triggered by lsqrtb.
@@ -3999,6 +4003,9 @@ subroutine hybens_localization_setup
    else
       nval_lenz_en = sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
    endif
+
+   ! setup vertical weighting for ensemble contribution to psfc
+   call setup_pwgt
 
    return
 
@@ -4911,21 +4918,20 @@ subroutine acceptable_for_essl_fft(nin,nout)
 
 end subroutine acceptable_for_essl_fft
 
-subroutine setup_ens_wgt 
+subroutine setup_pwgt 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    setup_ens_wgt
+! subprogram:    setup_pwgt
 !   prgmmr: wu               org: np22                date: 2011-06-14
 !
-! abstract: setup pwgt and beta1wgt, beta2wgt
+! abstract: setup pwgt
 !           pwgt : vertical projection of control variable A for Psfc
-!           beta1wgt, beta2wgt : vertical smoothing of hybridization
-!           coefficients 
 !
 ! program history log:
 !   2011_06_14  wu- initial documentation
 !   2012-10-16  wu- only setup if the options are on
 !   2013-10-19  todling - all guess variables in met-guess
+!   2016-03-14  mahajan - remove hybrid weights from this routine, no longer necessary
 !
 !   input argument list:
 !
@@ -4937,34 +4943,30 @@ subroutine setup_ens_wgt
 !
 !$$$ end documentation block
 
-   use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a,coef_bw
    use kinds, only: r_kind,i_kind
-   use gridmod, only: lat2,lon2,nsig,regional,nlat
-   use general_sub2grid_mod, only: general_suba2sube
-   use guess_grids, only: ges_prsl,ntguessig
-   use balmod, only: wgvk
+   use constants,only: zero,one
    use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
-   use constants,only: zero,one,ten,two,half
-   use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res,betas_inv,betae_inv
-   use gsi_bundlemod, only: GSI_BundleGetPointer
-   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
-   use mpeu_util, only: die,check_iostat
+   use gridmod, only: lat2,lon2,nsig,regional
+   use general_sub2grid_mod, only: general_suba2sube
+   use balmod, only: wgvk
+   use hybrid_ensemble_parameters, only: pwgtflg,pwgt,dual_res,grd_ens,grd_a1,grd_e1,p_e2a
 
    implicit none
 
-   character(len=*),parameter :: myname='setup_ens_wgt::'
-   integer(i_kind) :: k,i,j,istatus,k1,k8
+   character(len=*),parameter :: myname='setup_pwgt::'
+   integer(i_kind) :: i,j,k,istatus
    integer(i_kind) :: msig,mlat
    integer(i_kind) :: lunit
-   real(r_kind) :: tmp_sum,pih,beta2_inv,rk81(2),rk810(2)
+   real(r_kind) :: tmp_sum
    real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
-   real(r_kind),pointer :: ges_ps(:,:) => NULL()
    character(len=128) :: pscon_stats
 
 !!!!!!!!!!! setup pwgt !!!!!!!!!!!!!!!!!!!!!
 ! weigh with balanced projection for pressure
 
    ! Set defaults
+   pwgt(:,:,1) = one
+
    if ( pwgtflg ) then
 
       if ( regional ) then
@@ -4995,97 +4997,17 @@ subroutine setup_ens_wgt
     
       else ! if ( regional )
 
-         ! read from a file
-         open(lunit,file=trim(pscon_stats),form='unformatted',status='old',iostat=istatus)
-         call check_iostat(istatus,myname,'open('//trim(pscon_stats)//')')
-         rewind lunit
-         read(lunit,iostat=istatus) msig,mlat
-         call check_iostat(istatus,myname,'read msig, mlat')
-         if ( msig /= nsig .or. mlat /= nlat ) &
-            call die(trim(myname),'resolution of '//trim(pscon_stats)//' incompatible with guess, ier =',istatus)
-         read(lunit,iostat=istatus) pwgt
-         call check_iostat(istatus,myname,'read pwgt')
-         close(lunit,iostat=istatus)
-         call check_iostat(istatus,myname,'close('//trim(pscon_stats)//')')
+         if ( mype == 0 ) then
+            write(6,*) 'SETUP_PWGT: routine not built to load pwgts for global application'
+            write(6,*) 'SETUP_PWGT: using defaults instead'
+         endif
 
       endif ! if ( regional )
-
-    else ! if ( pwgtflg )
-
-       pwgt(:,:,1) = one
 
    endif ! if ( pwgtflg )
 
-199 continue
-
-!!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
-! vertical variation of static and ensemble weights
-
-   ! Set defaults
-   beta1wgt = betas_inv
-   beta2wgt = betae_inv
-   if ( betaflg ) then
-
-      if ( regional ) then
-
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus )
-         if ( istatus /= 0 ) call die(trim(myname),'cannot get pointers for met-fields, ier =',istatus)
-
-         i = lat2 / 2
-         j = lon2 / 2
-
-         k8_loop: do k=1,nsig
-            if ( ges_prsl(i,j,k,ntguessig)/ges_ps(i,j) < .85_r_kind ) then
-               rk81(1) = k
-               exit k8_loop
-            endif
-         enddo k8_loop
-
-         k1_loop: do k=nsig,1,-1
-            if ( ges_prsl(i,j,k,ntguessig) > ten ) then
-               rk81(2) = k
-               exit k1_loop
-            endif
-         enddo k1_loop
-
-         ! get domain mean k8 and k1
-         call mpi_allreduce(rk81,rk810,2,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-         k8 = int(rk810(1)/float(npe))
-         k1 = int(rk810(2)/float(npe))
-
-         beta2wgt = one
-         pih = atan(one) * two / float(k8-1)
-
-         !!! hardwired numbers for beta profile; can be tuned differently  !!!
-         do k=1,k8-1
-            beta2wgt(k) = ( one - coef_bw ) + coef_bw * sin(pih*float(k-1))
-         enddo
-         pih = one / ( log(ges_prsl(i,j,k1,ntguessig)) - log(ges_prsl(i,j,nsig,ntguessig)) )
-         do k=k1+1,nsig
-            beta2wgt(k) = one - coef_bw * pih * ( log(ges_prsl(i,j,k1,ntguessig)) - log(ges_prsl(i,j,k,ntguessig)) )
-         enddo
-
-         beta2_inv = one - beta1_inv
-         beta2wgt  = beta2wgt * beta2_inv
-
-         do k=1,nsig
-            beta1wgt(k) = one - beta2wgt(k)
-         enddo
-
-      else ! if ( regional )
-
-         if ( mype == 0 ) &
-            write(6,*) 'SETUP_ENS_WGT: routine not built for smoothing vertical beta weights for global application, using defaults'
-         goto 299
-
-      endif ! if ( regional )
-
-   endif ! if ( betaflg )
-
-299 continue
-
    return
 
-end subroutine setup_ens_wgt
+end subroutine setup_pwgt
 
 end module hybrid_ensemble_isotropic
