@@ -1839,7 +1839,7 @@ module gridinfo
 
 use mpisetup
 use params, only: datapath,nlevs,nvars,ndim,datestring,&
-                  nmmb,regional,nlons,nlats
+                  nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth
 
