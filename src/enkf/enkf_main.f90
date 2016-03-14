@@ -32,6 +32,7 @@ program enkf_main
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
+!   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
 !
 ! usage:
 !   input files:
@@ -67,9 +68,10 @@ program enkf_main
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
  use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
-                    numiter
+                    numiter, nanals
  ! mpi functions and variables.
- use mpisetup, only:  mpi_initialize, mpi_cleanup, nproc, numproc, mpi_wtime
+ use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
+                      numproc, mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
                     deltapredx, nobs_sat, obfit_post, obsprd_post, &
@@ -107,6 +109,9 @@ program enkf_main
 
  ! read namelist.
  call read_namelist()
+
+ ! initialize MPI communicator for IO tasks.
+ call mpi_initialize_io(nanals)
 
  ! Initialize derived radinfo variables
  call init_rad_vars()

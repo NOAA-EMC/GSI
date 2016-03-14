@@ -50,7 +50,7 @@ use gridio, only: readgriddata, writegriddata
 use mpisetup
 use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
 use params, only: nlevs,nvars,ndim,nbackgrounds,&
-                  nanals,pseudo_rh,massbal_adjust
+                  nanals,pseudo_rh,massbal_adjust,use_qsatensmean
 use kinds, only: r_kind, i_kind, r_double, r_single
 use loadbal, only: npts_max,indxproc,numptsperproc
 use enkf_obsmod, only: nobstot
@@ -72,7 +72,7 @@ subroutine read_ensemble()
 implicit none
 real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
 real(r_double) t1,t2
-integer(i_kind) nanal,nn,i,n,nb
+integer(i_kind) nanal,nn,i,n,nb,nlev
 ! npts,nlevs,ntrac arrays
 integer(i_kind) ierr, np
 
@@ -125,6 +125,17 @@ if (nproc <= nanals-1) then
    nanal = nproc + 1
    t1 = mpi_wtime()
    call readgriddata(nanal,grdin,qsat)
+   !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
+   if (use_qsatensmean) then
+       ! convert qsat to ensemble mean.
+       do nb=1,nbackgrounds
+       do nlev=1,nlevs
+          call mpi_allreduce(mpi_in_place,qsat(1,nlev,nb),npts,mpi_real8,mpi_sum,mpi_comm_io,ierr)
+       enddo
+       enddo
+       qsat = qsat/real(nanals)
+       !print *,'min/max qsat ensmean',nanal,'=',minval(qsat),maxval(qsat)
+   endif
    if (nproc == 0) then
      t2 = mpi_wtime()
      print *,'time in readgridata on root',t2-t1,'secs'
@@ -135,7 +146,8 @@ if (nproc <= nanals-1) then
    if (pseudo_rh .and. nvarhumid > 0) then
       do nb=1,nbackgrounds
          ! create normalized humidity analysis variable.
-         grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)/qsat(:,:,nb)
+         grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = &
+         grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)/qsat(:,:,nb)
       enddo
    end if
 endif
@@ -324,7 +336,8 @@ if (nproc <= nanals-1) then
    if (pseudo_rh .and. nvarhumid > 0) then
       do nb=1,nbackgrounds
       ! re-scale normalized spfh with sat. sphf of first guess
-      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)*qsat(:,:,nb)
+      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb) = &
+      grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)*qsat(:,:,nb)
       enddo
    end if
    call writegriddata(nanal,grdin)
