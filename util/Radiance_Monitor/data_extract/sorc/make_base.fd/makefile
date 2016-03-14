@@ -34,6 +34,9 @@ check_prereqs:
 install:	
 	cp -f $(CMD) $(BINDIR)/.
 
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
+
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
 

@@ -4,6 +4,8 @@ Instructions for building executables.
      i.)
         WCOSS:
            "module use -a ../modulefiles/wcoss"     
+        CRAY:
+           "module use -a ../modulefiles/cray"     
         THEIA:
            "module use -a ../modulefiles/theia"
      ii.) type:

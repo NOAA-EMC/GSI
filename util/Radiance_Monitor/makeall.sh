@@ -7,9 +7,10 @@
 #  data_extract and image_gen subdirectories and places the 
 #  executables into the proper exec directories.
 #
-#  An optional argument to this script is "clean".  Use this if 
-#  you wish to remove *.o, *.mod, and *.x files in the various src 
-#  directories.  If "clean" is not used, "all" is assumed.
+#  An optional arguments to this script include "clean", "debug",
+#  and "check_prereqs".  Do not use "install" as an optional 
+#  argument -- this script will do that automatically.  
+#  If no argument is included "all" and "install" are assumed.
 #------------------------------------------------------------------
 set -ax
 
@@ -23,8 +24,8 @@ echo "machine = $machine"
 #------------------------------
 #  source RadMon_config
 #------------------------------
-#. ${top_level}/parm/radmon.ver
 . ${top_level}/parm/RadMon_config
+. ${top_level}/parm/radmon.ver
 
 
 if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; then
@@ -86,6 +87,7 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; th
    done
 
    module unload RadMonBuild
+   set +x
 
 else
    echo ${machine} is not supported 
