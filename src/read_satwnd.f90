@@ -59,6 +59,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                        dynamic allocated array 
 !   2015-02-26  Genkova - read GOES-R like winds from ASCII files & apply Sharon Nebuda's changes for GOES-R
 !   2015-05-12  Genkova - reading from ASCII files removed, read GOES-R from new BUFR, keep Nebuda's GOES-R related changes 
+!   2015-03-14  Nebuda  - add QC for clear air WV AMV (WVCS) from GOES type 247, removed PCT1 check not applicable to 247
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -913,7 +914,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  end if
                  if (experr_norm > 0.9_r_double) qm=15 ! reject data with EE/SPD>0.9
                  pct1=cvwd_dat(1)             ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==247 .or. itype==251) then 
+                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
                 ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
            	    if (pct1 < 0.04_r_double) qm=15  
 		    if (pct1 > 0.50_r_double) qm=15
