@@ -123,3 +123,9 @@ export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 #  YES=keep working directory, NO=rm working directory.
 #
 export KEEPDATA="YES"
+
+#
+#  CYCLE_INTERVAL indicates the period of time between cycle runs for any given
+#  data source.  This is generally 6 hrs, but can be 3 or 1 hr for rapid refresh sources.
+#
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
