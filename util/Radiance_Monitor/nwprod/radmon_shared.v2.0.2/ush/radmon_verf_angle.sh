@@ -68,6 +68,12 @@
 #
 ####################################################################
 #  Command line arguments.
+
+RAD_AREA=${RAD_AREA:-glb}
+REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
+rgnHH=${rgnHH:-}
+rgnTM=${rgnTM:-}
+
 export PDATE=${1:-${PDATE:?}}
 
 scr=radmon_verf_angle.sh
@@ -93,7 +99,6 @@ touch $pgmout
 # Other variables
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
-RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -146,18 +151,18 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}_anl.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}_anl
-            angl_stdout=angle.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}
-            angl_stdout=angle.${stdout_file}
+         fi
+
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
+         else
+            angl_file=angle.${data_file}
          fi
 
          rm input
@@ -204,13 +209,14 @@ EOF
             ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
          fi 
 
-         if [[ -s ${stdout_file} ]]; then
-            mv ${stdout_file} ${angl_stdout}
-            mv ${angl_stdout}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
-         fi
+#         if [[ -s ${stdout_file} ]]; then
+#            mv ${stdout_file} ${angl_stdout}
+#            mv ${angl_stdout}  ${TANKverf_rad}/.
+#            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
+#         fi
 
       done    # for dtype in ${gesanl} loop
+
    done    # for type in ${SATYPE} loop
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
