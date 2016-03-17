@@ -92,6 +92,9 @@ touch $pgmout
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
+REGIONAL_RR=${REGIONAL_RR:-0}
+rgnHH=${rgnHH:-}
+rgnTM=${rgnTM:-}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -141,19 +144,20 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
             ctl_file=${type}_anl.ctl
             bcor_ctl=bcor.${ctl_file}
-            stdout_file=stdout.${type}_anl
-            bcor_stdout=bcor.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            bcor_file=bcor.${data_file}
             ctl_file=${type}.ctl
             bcor_ctl=bcor.${ctl_file}
-            stdout_file=stdout.${type}
-            bcor_stdout=bcor.${stdout_file}
          fi
+
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            bcor_file=${rgnHH}.bcor.${data_file}.${rgnTM}
+         else
+            bcor_file=bcor.${data_file}
+         fi
+
       rm input
 
       nchanl=-999
@@ -199,12 +203,6 @@ EOF
          mv ${ctl_file} ${bcor_ctl}
          mv ${bcor_ctl}  ${TANKverf_rad}/.
          ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
-      fi
-
-      if [[ -s ${stdout_file} ]]; then
-         mv ${stdout_file} ${bcor_stdout}
-         mv ${bcor_stdout}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
       fi
 
       done  # dtype in $gesanl loop

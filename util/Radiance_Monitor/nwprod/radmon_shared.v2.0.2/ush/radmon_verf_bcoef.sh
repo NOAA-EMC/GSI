@@ -93,6 +93,9 @@ touch $pgmout
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
+REGIONAL_RR=${REGIONAL_RR:-0}
+rgnHH=${rgnHH:-}
+rgnTM=${rgnTM:-}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -140,19 +143,20 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            bcoef_file=bcoef.${data_file}
             ctl_file=${type}_anl.ctl
             bcoef_ctl=bcoef.${ctl_file}
-            stdout_file=stdout.${type}_anl
-            bcoef_stdout=bcoef.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            bcoef_file=bcoef.${data_file}
             ctl_file=${type}.ctl
             bcoef_ctl=bcoef.${ctl_file}
-            stdout_file=stdout.${type}
-            bcoef_stdout=bcoef.${stdout_file}
          fi 
+
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            bcoef_file=${rgnHH}.bcoef.${data_file}.${rgnTM}
+         else
+            bcoef_file=bcoef.${data_file}
+         fi
+ 
 
       rm input
 
@@ -199,12 +203,6 @@ EOF
          mv ${ctl_file} ${bcoef_ctl}
          mv ${bcoef_ctl}  ${TANKverf_rad}/.
          ${COMPRESS} -f ${TANKverf_rad}/${bcoef_ctl}
-      fi
-
-      if [[ -s ${stdout_file} ]]; then
-         mv ${stdout_file} ${bcoef_stdout}
-         mv ${bcoef_stdout}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
       done  # dtype in $gesanl loop
