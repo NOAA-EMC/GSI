@@ -227,6 +227,7 @@ data_available=0
 
 if [[ -e ${radstat} ]]; then
    data_available=1                                         
+   pid=${pid:-$$}
 
    export MP_SHARED_MEMORY=yes
    export MEMORY_AFFINITY=MCM
@@ -236,11 +237,13 @@ if [[ -e ${radstat} ]]; then
    export job=gdas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-${STMP_USER}/radmon}
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export DATA=${DATA:-${STMP_USER}/radmon_${SUFFIX}}
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}.${pid}
 
    export VERBOSE=${VERBOSE:-YES}
-  
+ 
+   rm -f $DATA 
+   mkdir $DATA
 
    #----------------------------------------------------------------------------
    #  Advance the satype file from previous day.
