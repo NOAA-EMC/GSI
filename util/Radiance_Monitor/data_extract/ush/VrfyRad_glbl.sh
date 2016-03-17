@@ -242,7 +242,7 @@ if [[ -e ${radstat} ]]; then
 
    export VERBOSE=${VERBOSE:-YES}
  
-   rm -f $DATA 
+   rm -rf $DATA 
    mkdir $DATA
 
    #----------------------------------------------------------------------------
