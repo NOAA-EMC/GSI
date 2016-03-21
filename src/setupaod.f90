@@ -12,6 +12,7 @@
 !   2010-10-20  hclin - modified from setuprad for aod
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2016-02-20  pagowski - added NASA nnr AOD
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -132,7 +133,6 @@
   real(r_kind),dimension(nsigaerojac,nchanl):: jacobian_aero
   real(r_kind),dimension(nsig,nchanl):: layer_od
   real(r_kind) :: clw_guess, tzbgr, sfc_speed
-  real(r_kind) :: sum_jacobian_aero
 
   if ( .not. laeroana_gocart ) then
      return
@@ -413,16 +413,8 @@
                     aerotail(ibin)%head%err2(iii)=var(iii)
                     aerotail(ibin)%head%raterr2(iii)=ratio_aoderr(iii)
                     aerotail(ibin)%head%icx(iii)=m
-                    sum_jacobian_aero=0.0
                     do k = 1, nsigaerojac
-                       sum_jacobian_aero=sum_jacobian_aero+jacobian_aero(k,ii)
-                    enddo
-
-                    if (abs(sum_jacobian_aero) < tiny_r_kind)&
-                         sum_jacobian_aero=tiny_r_kind
-                    do k = 1, nsigaerojac
-                       aerotail(ibin)%head%daod_dvar(k,iii)=jacobian_aero(k,ii)/&
-                                       sum_jacobian_aero
+                       aerotail(ibin)%head%daod_dvar(k,iii)=jacobian_aero(k,ii)
                     end do
                     my_head%ich(iii)=ii
                  end if
