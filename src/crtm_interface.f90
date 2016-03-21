@@ -936,7 +936,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: minsnow=one_tenth
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
-  real(r_kind),parameter:: jac_small  = 1.e-6_r_kind
+  real(r_kind),parameter:: jac_pert  = 1.0_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
   real(r_kind),parameter:: windscale = 999999.0_r_kind
   real(r_kind),parameter:: windlimit = 0.0001_r_kind
@@ -1798,7 +1798,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
   do i=1,nchanl
-     rtsolution_k(i,1)%layer_optical_depth(:) = jac_small
+     rtsolution_k(i,1)%layer_optical_depth(:) = jac_pert
   enddo
 
   error_status = 0
