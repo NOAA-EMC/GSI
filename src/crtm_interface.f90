@@ -557,7 +557,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
     if (isis(1:4) == 'iasi' .or. &
         trim(isis) == 'amsua_aqua' .or. &
-        isis(1:4) == 'airs' ) then
+        isis(1:4) == 'airs' .or. &
+        isis(1:4) == 'cris' ) then
        subset_start = 0
        subset_end = 0
        do k=1, jpch_rad
@@ -571,36 +572,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
            channel_subset = nuchan(subset_start:subset_end))
 
     endif
-
-! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
-! and BUFR files is checked in read_cris:
- else if (channelinfo(1)%sensor_id(1:12) == 'cris-fsr2211' .AND. isis(1:8) == 'cris-fsr') then
-    sensorindex = 1
-    subset_start = 0
-    subset_end = 0
-    do k=1, jpch_rad
-      if (isis == nusis(k)) then
-        if (subset_start == 0) subset_start = k
-        subset_end = k
-      endif
-    end do
-
-    error_status = crtm_channelinfo_subset(channelinfo(1), &
-         channel_subset = nuchan(subset_start:subset_end))
-
- else if (channelinfo(1)%sensor_id(1:8) == 'cris1305' .AND. isis(1:4) == 'cris') then
-    sensorindex = 1
-    subset_start = 0
-    subset_end = 0
-    do k=1, jpch_rad
-      if (isis == nusis(k)) then
-        if (subset_start == 0) subset_start = k
-        subset_end = k
-      endif
-    end do
-
-    error_status = crtm_channelinfo_subset(channelinfo(1), &
-         channel_subset = nuchan(subset_start:subset_end))
 
  endif 
 
