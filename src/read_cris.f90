@@ -291,7 +291,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find CRIS sensorindex. 
   sensorindex = 0
-  if ( sc(1)%sensor_id(1:8) == 'cris1305' .or. sc(1)%sensor_id(1:12) == 'cris-fsr2211' )then
+  if ( sc(1)%sensor_id(1:8) == 'cris-fsr' .or. sc(1)%sensor_id(1:8) == 'cris_npp' )then
      sensorindex = 1
   else
      write(6,*)'READ_CRIS: ***ERROR*** sensorindex not set  NO CRIS DATA USED'

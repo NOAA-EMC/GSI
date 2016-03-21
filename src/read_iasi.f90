@@ -325,13 +325,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find IASI sensorindex
   sensorindex = 0
-  if ( sc(1)%sensor_id == 'iasi8461_metop-a' .or. &
-       sc(1)%sensor_id == 'iasi8461_metop-b' .or. &
-       sc(1)%sensor_id == 'iasi8461_metop-c' ) then
+  if ( sc(1)%sensor_id == 'iasi_metop-a' .or. &
+       sc(1)%sensor_id == 'iasi_metop-b' .or. &
+       sc(1)%sensor_id == 'iasi_metop-c' ) then
      sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
-     return
+     write(6,*)'READ_IASI: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
   end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
