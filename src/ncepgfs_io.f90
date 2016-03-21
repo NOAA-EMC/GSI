@@ -471,8 +471,8 @@ subroutine write_ghg_grid(a,char_ghg,mype)
   return
 end subroutine write_ghg_grid
 
-  subroutine read_sfc(fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
-           soil_moi,sfc_rough,terrain,isli,use_sfc_any)
+  subroutine read_sfc(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+                      veg_type,soil_type,terrain,isli,use_sfc_any)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_sfc
@@ -486,10 +486,20 @@ end subroutine write_ghg_grid
 !   2012-01-24  whitaker - create routine
 !
 !   input argument list:
-!    lunges             - unit number to use for IO
-!    filename           - gfs surface file to read
+!    use_sfc_any - true if any processor uses extra surface fields
 !
 !   output argument list:
+!     sfct      - surface temperature (skin temp)
+!     soil_moi  - soil moisture of first layer
+!     sno       - snow depth
+!     soil_temp - soil temperature of first layer
+!     veg_frac  - vegetation fraction
+!     fact10    - 10 meter wind factor
+!     sfc_rough - surface roughness
+!     veg_type  - vegetation type
+!     soil_type - soil type
+!     terrain   - terrain height
+!     isli      - sea/land/ice mask
 !
 ! attributes:
 !   language:  f90
@@ -502,17 +512,16 @@ end subroutine write_ghg_grid
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,ifilesfc
-    integer(i_kind), dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_single),  dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
-         veg_type,soil_type,terrain
-    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) ::  &
-         fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
-    logical,                                    intent(in   ) :: use_sfc_any
+
+    logical,                                               intent(in   ) :: use_sfc_any
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough 
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(  out) :: isli
     integer(i_kind) :: latb,lonb
     integer(i_kind) :: iret,n,i,j
     type(sfcio_head) :: sfc_head
     type(sfcio_data) :: sfc_data
-    real(r_single),allocatable,dimension(:,:):: outtmp
+    real(r_single), allocatable, dimension(:,:):: outtmp
     integer(i_kind) :: nsfc,it
     character(24) :: filename
 !   Declare local parameters
@@ -546,79 +555,78 @@ end subroutine write_ghg_grid
          nsfc=nsfc_all-4
        end if
 !$omp parallel do private(n,i,j,outtmp)
-       do n=1,nsfc
+       do n = 1, nsfc
  
-        if(n == 1)then                                  !skin temperature
+          if (n == 1) then                               ! skin temperature
    
-          call tran_gfssfc(sfc_data%tsea,sfct(1,1,it),lonb,latb)                                 
-        else if(n == 2 .and. use_sfc_any) then          ! soil moisture
+             call tran_gfssfc(sfc_data%tsea,sfct(1,1,it),lonb,latb)                                 
+ 
+          elseif(n == 2 .and. use_sfc_any) then          ! soil moisture
 
-          call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi(1,1,it),lonb,latb)  
+             call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi(1,1,it),lonb,latb)  
 
-        else if(n == 3) then                            ! snow depth
+          elseif(n == 3) then                            ! snow depth
 
-          call tran_gfssfc(sfc_data%sheleg,sno(1,1,it),lonb,latb)        
+             call tran_gfssfc(sfc_data%sheleg,sno(1,1,it),lonb,latb)        
 
-        else if(n == 4 .and. use_sfc_any) then          ! soil temperature
+          elseif(n == 4 .and. use_sfc_any) then          ! soil temperature
 
-          call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp(1,1,it),lonb,latb)  
+             call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp(1,1,it),lonb,latb)  
 
-        else if(n == 5 .and. use_sfc_any) then           ! vegetation cover 
+          elseif(n == 5 .and. use_sfc_any) then          ! vegetation cover 
 
-          call tran_gfssfc(sfc_data%vfrac,veg_frac(1,1,it),lonb,latb)                       
+             call tran_gfssfc(sfc_data%vfrac,veg_frac(1,1,it),lonb,latb)                       
 
-        else if(n == 6) then                             ! 10m wind factor
+          elseif(n == 6) then                            ! 10m wind factor
 
-          call tran_gfssfc(sfc_data%f10m,fact10(1,1,it),lonb,latb)                           
+             call tran_gfssfc(sfc_data%f10m,fact10(1,1,it),lonb,latb)                           
 
-        else if(n == 7) then                             ! suface roughness
+          elseif(n == 7) then                            ! suface roughness
 
-          call tran_gfssfc(sfc_data%zorl,sfc_rough(1,1,it),lonb,latb)            
+             call tran_gfssfc(sfc_data%zorl,sfc_rough(1,1,it),lonb,latb)            
 
+          elseif(n == 8 .and. use_sfc_any) then          ! vegetation type
 
-        else if(n == 8 .and. use_sfc_any) then           ! vegetation type
+              call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
 
-           call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
+          elseif(n == 9 .and. use_sfc_any) then          ! soil type
 
-        else if(n == 9 .and. use_sfc_any) then           ! soil type
+             call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
 
-          call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
+          elseif(n == 10) then                           ! sea/land/ice flag
 
-        else if(n == 10) then                            ! sea/land/ice flag
+             call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
 
-          allocate(outtmp(latb+2,lonb))
-          call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
-          do j=1,lonb
-            do i=1,latb+2
-               isli(i,j) = nint(outtmp(i,j))
-            end do
-          end do
-          deallocate(outtmp)
+          elseif(n == 11) then                           ! terrain
 
-        else if(n == 11) then                            ! terrain
+             allocate(outtmp(latb+2,lonb))
+             call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
+             do j=1,lonb
+                do i=1,latb+2
+                   isli(i,j) = nint(outtmp(i,j))
+                end do
+             end do
+             deallocate(outtmp)
 
-          call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
+          endif
 
-        end if
-
-
-!         End of loop over data records
-       end do
+!      End of loop over data records
+       enddo
 !   Print date/time stamp
        write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
 700    format('READ_SFC:  ges read/scatter, nlat,nlon=',&
             2i6,', hour=',f10.1,', idate=',4i5)
        call sfcio_axdata(sfc_data,iret)
        call sfcio_sclose(lunges,iret)
-!         End of loop over time levels
+
+!   End of loop over time levels
     end do
 
   end subroutine read_sfc
 
+  subroutine read_gfssfc(iope,mype,sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+                         veg_type,soil_type,terrain,isli,use_sfc_any)
 
-  subroutine read_gfssfc(iope,mype,fact10,sfct,sno,veg_type,&
-       veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain,&
-       use_sfc_any)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_gfssfc     read gfs surface file
@@ -635,25 +643,25 @@ end subroutine write_ghg_grid
 !   2006-09-28  treadon - pull out surface roughness
 !   2008-05-28  safford - rm unused vars
 !   2009-01-12  gayno   - add read of terrain height
+!   2016-03-13  xuli    - modify the document and reorganize the variables order 
 !
 !   input argument list:
-!     filename - name of surface guess file
 !     iope     - mpi task handling i/o
 !     mype     - mpi task id
+!     use_sfc_any - true if any processor uses extra surface fields
 !
 !   output argument list:
-!     fact10    - 10 meter wind factor
 !     sfct      - surface temperature (skin temp)
-!     sno       - snow depth
-!     veg_type  - vegetation type
-!     veg_frac  - vegetation fraction
-!     soil_type - soil type
-!     soil_temp - soil temperature of first layer
 !     soil_moi  - soil moisture of first layer
-!     isli      - sea/land/ice mask (subdomain)
-!     isli_g    - global sea/land/ice mask
+!     sno       - snow depth
+!     soil_temp - soil temperature of first layer
+!     veg_frac  - vegetation fraction
+!     fact10    - 10 meter wind factor
 !     sfc_rough - surface roughness
+!     veg_type  - vegetation type
+!     soil_type - soil type
 !     terrain   - terrain height
+!     isli      - sea/land/ice mask 
 !
 ! attributes:
 !   language: f90
@@ -670,12 +678,10 @@ end subroutine write_ghg_grid
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
     integer(i_kind)                      ,intent(in   ) :: mype
-    integer(i_kind), dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_single),  dimension(nlat_sfc,nlon_sfc),intent(  out) :: &
-         veg_type,soil_type,terrain
-    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc),intent(  out) :: &
-         fact10,sfct,sno,veg_frac,soil_temp,soil_moi,sfc_rough
     logical                              ,intent(in   ) :: use_sfc_any
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(  out) :: isli
 
 
 !   Declare local variables
@@ -683,9 +689,9 @@ end subroutine write_ghg_grid
 
 !-----------------------------------------------------------------------------
 !   Read surface file on processor iope
-    if(mype == iope)then
-      call read_sfc(fact10,sfct,sno,veg_type,veg_frac,soil_type,soil_temp, &
-           soil_moi,sfc_rough,terrain,isli,use_sfc_any)
+    if (mype == iope) then
+       call read_sfc(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+                     veg_type,soil_type,terrain,isli,use_sfc_any)
     end if
 
 !     Load onto all processors
@@ -697,12 +703,12 @@ end subroutine write_ghg_grid
     call mpi_bcast(fact10,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     call mpi_bcast(sno,       nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     if(sfcmod_mm5 .or. sfcmod_gfs)then
-    call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     else
        sfc_rough = zero
     end if
     call mpi_bcast(terrain,   npts,   mpi_rtype4,iope,mpi_comm_world,iret)
-    call mpi_bcast(isli,      npts,   mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli,      npts,   mpi_itype, iope,mpi_comm_world,iret)
     if(use_sfc_any)then
        call mpi_bcast(veg_frac, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
        call mpi_bcast(soil_temp,nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
@@ -963,7 +969,7 @@ end subroutine write_ghg_grid
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
-    use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nemssfc_nst
+    use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
 
     implicit none
 
@@ -1098,20 +1104,17 @@ end subroutine write_ghg_grid
        end if
     else
       if ( nst_gsi > 0 ) then
-        file_sfc = 'sfcanl'
-        file_nst = 'nstanl'
         if(use_gfs_nemsio)then
-!         call write_nemssfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(:,:,ntguessfc))
-          call write_nemssfc_nst(mype,mype_sfc,dsfct(:,:,ntguessfc))
+          call write_nems_sfc_nst(mype,mype_sfc,dsfct(:,:,ntguessfc))
         else
-          call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
+          call write_gfs_sfc_nst (mype,mype_sfc,dsfct(1,1,ntguessfc))
         end if
       else
         filename='sfcanl.gsi'
         if(use_gfs_nemsio)then
           call write_nemssfc(filename,mype,mype_sfc,dsfct(:,:,ntguessfc))
         else
-          call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+          call write_gfssfc (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
         end if
       endif
     endif

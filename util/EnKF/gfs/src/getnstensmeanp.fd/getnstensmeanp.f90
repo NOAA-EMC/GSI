@@ -163,11 +163,13 @@ program getnstensmeanp
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
           trim(adjustl(fileprefix))//'_mem'//charnanal
-     call nstio_srohdc(lunin,filenamein,nstheadi,nstdatai,iret)
-     write(6,*)'Read ',trim(filenamein),' iret=',iret
-
-     if (iret == 0 ) then
+     call nstio_sropen(lunin,filenamein,iret)
+     if ( iret /= 0 )  write(6,*)'***ERROR in open ',trim(filenamein)
+     call nstio_srhead(lunin,nstheadi,iret)
+     write(6,*)'Read header of ',trim(filenamein),' iret=',iret
+     if ( nstheadi%clabnst(1:8) == 'GFS NST ' ) then
         sfcio = .true.
+        call nstio_srohdc(lunin,filenamein,nstheadi,nstdatai,iret)
      else
         call nemsio_open(gfile,trim(filenamein),'READ',iret)
         if (iret == 0 ) then
