@@ -124,8 +124,10 @@ program getsfcnstensupdp
 !
   sfcio=.false.
   nemsio=.false.
+
   call sfcio_srohdc(lun_sfcges,'sfcf06_mem001',head_sfcges,data_sfcges,iret)
-  if (iret == 0 ) then
+
+  if ( iret == 0 ) then
     sfcio = .true.
     if (mype==0) write(6,'(3a)')'Read ','sfcf06_mem001',' in sfcio format '
     lonb=head_sfcges%lonb
@@ -273,7 +275,7 @@ program getsfcnstensupdp
 !   transform the dtf_gsi(nlat_ens,nlon_ens) to dtf_ens(lonb,latb) for sfc file format
 !
     if ( mype == 0 ) write(6,'(a,2(a,2i5))')'getsfcnstensupdp: grid dimensions same: ',&
-                     'nlon_anl,nlat_anl = ',nlon_anl,nlat_anl,' lonb,latb = ',lonb,latb
+                     'nlon_anl,nlat_anl-2 = ',nlon_anl,nlat_anl-2,' lonb,latb = ',lonb,latb
     do j=1,latb
       do i=1,lonb
         dtf_ens(i,j)=dtf_anl(latb+1-j,i)
@@ -409,6 +411,9 @@ program getsfcnstensupdp
       call nemsio_open(gfile_sfcgcy,trim(fname_sfcgcy),'read',iret=iret)
       if (iret /= 0) call error_msg(0,trim(my_name),'fname_sfcgcy',null,'open',istop,iret)
 
+!     open gfile_nstges (nstf06_mem???)
+      call nemsio_open(gfile_nstges,trim(fname_nstges),'read',iret=iret)
+      if (iret /= 0) call error_msg(0,trim(my_name),'fname_nstges',null,'open',istop,iret)
 !      copy sfcgcy header info tosfcanl header, need to do this before nemsio_close(gfile)
        gfile_sfcanl=gfile_sfcgcy
 !      open nemsio sfcanl
@@ -422,8 +427,7 @@ program getsfcnstensupdp
                         nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstanl),null,'open',istop,iret)
 
-! Allocate work array (rwork1d) and tsea in sfc file
-       allocate(rwork1d(lonb*latb))
+! Allocate work array (tsea in sfc file
        allocate(tsea(lonb,latb))
 ! Allocate nsst variables
        allocate(xt(lonb,latb))

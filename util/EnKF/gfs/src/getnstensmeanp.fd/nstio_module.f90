@@ -357,7 +357,7 @@ contains
     if(head%clabnst(1:8).eq.'GFS NST ') then  ! modern nst file
       rewind lu
       read(lu,iostat=ios) cgfs,cnst,head%ivn,nhead,nresv
-!     write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivn,nhead
+      write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst,ios,head%ivn,nhead,nresv
       if(ios.ne.0) return
       if(head%ivn.eq.200907) then
         read(lu,iostat=ios)

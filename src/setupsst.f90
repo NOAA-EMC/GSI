@@ -309,8 +309,8 @@ if(.not.in_curbin) cycle
 ! Interpolate to get sst at obs location/time
      if ( isli == 0 ) then
        nobs_qc = nobs_qc + 1
-       call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
-
+!      call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
+       call tintrp2a11(dsfct,dsfct_obx,dlat,dlon,dtime,hrdifnst,mype,nfldnst)
      else
        dsfct_obx = zero
      endif
