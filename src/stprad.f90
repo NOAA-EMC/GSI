@@ -112,6 +112,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
           luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+!next line here
+  use radinfo, only: radinfo_scl_bias,radinfo_get_rsqrtinv
   implicit none
   
 ! Declare passed variables
@@ -125,7 +127,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk
+  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk, mm, ic1 !here mm, ic1
   real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tdir,rdir
   real(r_kind) cg_rad,wgross,wnotgross
@@ -133,6 +135,10 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
   type(rad_ob_type), pointer :: radptr
+!here, add logical do_scl_bias, rsqrtinv, iinstr
+  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+  logical do_scl_bias
+  integer(i_kind) iinstr
 
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
@@ -337,6 +343,15 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               end do
            end if
         end if
+!here, add call to radinfo_scl_bias and allocate rsqrtinv
+        do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
+        if(do_scl_bias)then
+           allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+           rsqrtinv=zero
+           call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, &
+                                     radptr%err2,rsqrtinv)
+        endif
+
         do nn=1,radptr%nchan
 
            val2=-radptr%res(nn)
@@ -346,8 +361,19 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !             contribution from bias corection
               ic=radptr%icx(nn)
               do nx=1,npred
-                 val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
-                 val =val +rpred(nx,ic)*radptr%pred(nx,nn)
+!here, would need to multiply both by rsqrtinv
+                 if (do_scl_bias) then
+                    do mm=1,radptr%nchan
+                       ic1=radptr%icx(mm)
+                       val2=val2+spred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val=val+rpred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                    end do
+                 else
+                    val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
+                    val =val +rpred(nx,ic)*radptr%pred(nx,nn)
+                 end if
+!                 val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
+!                 val =val +rpred(nx,ic)*radptr%pred(nx,nn)
               end do
  
 !             contribution from atmosphere
@@ -386,7 +412,10 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end do
 
         end do
-
+!here, deallocate rsqrtinv
+        if(do_scl_bias) then
+           deallocate(rsqrtinv)
+        endif
      end if
 
      radptr => radptr%llpoint
