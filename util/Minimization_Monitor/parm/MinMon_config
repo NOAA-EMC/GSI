@@ -53,7 +53,17 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
    export RSYNC=/usr/bin/rsync
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
-else    # zeus 
+
+elif [[ $MY_MACHINE = "cray" ]]; then
+   . $MODULESHOME/init/ksh
+   module load prod_util        # defines $NDATE among other things
+   module load prod_envir
+   export SUB="bsub"
+   export NWPROD=${COMROOTp1}
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+
+elif [[ $MY_MACHINE = "theia" ]]; then
    shell=sh
    /usr/bin/modulecmd $shell load ncep
 

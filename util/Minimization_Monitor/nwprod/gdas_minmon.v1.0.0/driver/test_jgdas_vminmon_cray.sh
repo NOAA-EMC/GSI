@@ -11,7 +11,7 @@
 
 set -x
 
-export PDATE=2016022506
+export PDATE=2016030706
 
 #############################################################
 # Specify whether the run is production or development
@@ -57,7 +57,6 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-#export DATAROOT=/gpfs/hps/ptmp/$LOGNAME/test_data
 export DATAROOT=/gpfs/hps/emc/da/noscrub/$LOGNAME/test_data
 export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
 export SUFFIX=testminmon
