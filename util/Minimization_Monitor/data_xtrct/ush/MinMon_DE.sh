@@ -30,14 +30,14 @@ if [[ $nargs -ge 2 ]]; then
    echo "PDATE set to $PDATE"
 fi
 
-#if [[ $COMOUT = "" ]]; then
+if [[ $COMOUT = "" ]]; then
   export RUN_ENVIR="dev"
-#else 
-#  export RUN_ENVIR="para"
-#fi
+else 
+  export RUN_ENVIR="para"
+fi
 
 echo MINMON_SUFFIX = $MINMON_SUFFIX
-#echo RUN_ENVIR = $RUN_ENVIR
+echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
 
@@ -121,19 +121,30 @@ export COMIN=${COMIN:-/com/gfs/prod}
 #############################################################
 # Load modules
 #############################################################
-. /usrx/local/Modules/3.2.9/init/ksh
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   . /usrx/local/Modules/3.2.9/init/ksh
 
-grib_util_ver=v1.0.0
-prod_util_ver=v1.0.1
-util_shared_ver=v1.0.1
+   grib_util_ver=v1.0.0
+   prod_util_ver=v1.0.1
+   util_shared_ver=v1.0.1
 
-module use /nwprod2/modulefiles
-module load grib_util/$grib_util_ver
-module load prod_util/$prod_util_ver
-module load util_shared/$util_shared_ver
+   module use /nwprod2/modulefiles
+   module load grib_util/$grib_util_ver
+   module load prod_util/$prod_util_ver
+   module load util_shared/$util_shared_ver
 
-module unload ics/12.1
-module load ics/15.0.3
+   module unload ics/12.1
+   module load ics/15.0.3
+elif [[ $MY_MACHINE = "cray" ]]; then
+   . $MODULESHOME/init/ksh
+   prod_util_ver=1.0.3
+   export util_shared_ver=v1.0.2
+   export gdas_minmon_ver=v1.0.0
+   export minmon_shared_ver=v1.0.0
+   module load prod_util/${prod_util_ver}
+   module load prod_envir
+   module load PrgEnv-intel
+fi
 
 module list
 
@@ -149,13 +160,18 @@ echo "JOB_QUEUE  = $JOB_QUEUE"
 echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
-jobfile=${jobfile:-${HOMEgdas/jobs/JGDAS_VMINMON}}
+jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
    echo "submitting job $jobname"
 
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
+
+elif [[ $MY_MACHINE = "cray" ]]; then
+   export PERL5LIB=/u/Edward.Safford/lib
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 80 -R "select[mem>80] rusage[mem=80]" -W 0:10 -J ${jobname} $jobfile
+
 fi
 
 

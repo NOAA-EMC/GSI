@@ -261,7 +261,7 @@
    my $project = "GDAS-T2O";
    my $my_project = "";
 
-   if( $machine ne "wcoss" ) {
+   if( $machine ne "wcoss" && $machine ne "cray" ) {
       $project="export PROJECT=";
    } else {
       print "Please specify the PROJECT setting for job submissions from this package.\n";
@@ -287,7 +287,7 @@
    my $job_queue = "dev_shared";
    my $my_job_queue = "";
 
-   if( $machine ne "wcoss" ) {
+   if( $machine eq "theia" ) {
       $job_queue="export JOB_QUEUE=";
    } else {
       print "Please specify the JOB_QUEUE for job submissions from this package.\n";

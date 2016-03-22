@@ -21,7 +21,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  RUN_ONLY_ON_DEV  1 = dev machine only, 0 = run anywhere
