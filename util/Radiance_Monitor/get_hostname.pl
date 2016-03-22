@@ -48,7 +48,7 @@
    elsif( $host =~ /fe/ ) { 
       $machine = "zeus";
    } 
-   elsif( $host =~ /slogin/ ) {
+   elsif( $host =~ /login/ ) {
       $machine = "cray";
    }
    elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
