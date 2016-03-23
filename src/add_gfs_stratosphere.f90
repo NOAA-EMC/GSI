@@ -144,7 +144,7 @@ subroutine add_gfs_stratosphere
      iqtotal=getindex(cvars3d,'qt')
 
 !    Get pointer to cloud water mixing ratio
-     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
         allocate(ges_cw_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_ql_r_g(lat2,lon2,nsig,nfldsig))
         allocate(ges_qi_r_g(lat2,lon2,nsig,nfldsig))
@@ -189,7 +189,7 @@ subroutine add_gfs_stratosphere
         end do
      end do
 
-     if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+     if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -567,7 +567,7 @@ subroutine add_gfs_stratosphere
   allocate(ttsen(lat2,lon2,nsig))
   allocate(qt(lat2,lon2,nsig))
   allocate(ozt(lat2,lon2,nsig))
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+  if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
      allocate(qlt(lat2,lon2,nsig))
      allocate(qit(lat2,lon2,nsig))
      allocate(qrt(lat2,lon2,nsig))
@@ -735,7 +735,7 @@ subroutine add_gfs_stratosphere
         end do
      
 
-        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
 
            if (ier_ql==0) then
 !    ql  -- regional contribution
@@ -914,7 +914,7 @@ subroutine add_gfs_stratosphere
   call general_sub2grid_destroy_info(grd_gfst)
   call general_sub2grid_destroy_info(grd_mix)
   deallocate(ut,vt,tt,ttsen,qt,ozt)
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+  if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_ql=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_qi=iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_qr=iret
@@ -972,7 +972,7 @@ subroutine add_gfs_stratosphere
   deallocate(prsl_m,prsl_r,prsl_g,work_sub)
 ! deallocate(pri_m)  
   deallocate(vector) 
-  if (nguess>0 .and. (icw4crtm .or. iqtotal)) deallocate(qlt,qit,qrt,qst,qgt,qht)
+  if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) deallocate(qlt,qit,qrt,qst,qgt,qht)
 
 
   enddo it_loop       
@@ -1109,7 +1109,7 @@ subroutine revert_to_nmmb
 !  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
    iqtotal=getindex(cvars3d,'qt')
 
-   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+   if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
@@ -1199,7 +1199,7 @@ subroutine revert_to_nmmb
         end do
 
 
-        if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+        if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
 !  ql:
            if (ier_ql==0) then
               do k=1,nsig
@@ -1307,7 +1307,7 @@ subroutine revert_to_nmmb
                  ges_cwmr(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
               end do
            end if
-        end if ! end of (nguess>0 .and. (icw4crtm .or. iqtotal))
+        end if ! end of (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0)))
 
      end do
   end do
@@ -1403,7 +1403,7 @@ subroutine restore_nmmb_gfs
 !  Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
    iqtotal=getindex(cvars3d,'qt')
 
-   if (nguess>0 .and. (icw4crtm .or. iqtotal)) then
+   if (nguess>0 .and. ((icw4crtm /= 0) .or. (iqtotal /= 0))) then
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,iret); ier_ql=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,iret); ier_qi=iret
       call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,iret); ier_qr=iret
