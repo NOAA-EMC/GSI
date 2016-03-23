@@ -489,7 +489,7 @@ contains
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
-    if(use_sfc_any .or. mype_io)then
+    if(use_sfc_any .or. (mype_io/=0))then
        allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
        allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
        allocate(veg_type_full(nlat_sfc,nlon_sfc))
@@ -553,7 +553,7 @@ contains
              fact10_full,sst_full,sno_full, &
              veg_type_full,veg_frac_full,soil_type_full,soil_temp_full,&
              soil_moi_full,isli_full,sfc_rough_full,zs_full_gfs,use_sfc_any)
-          if(.not. use_sfc .and. (use_sfc_any .or. mype_io))then
+          if(.not. use_sfc .and. (use_sfc_any .or. (mype_io /= 0)))then
              deallocate(soil_moi_full,soil_temp_full)
              deallocate(veg_frac_full,soil_type_full)
              deallocate(veg_type_full)
