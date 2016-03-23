@@ -1553,7 +1553,7 @@ subroutine read_obs(ndata,mype)
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
                   platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                  mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                   nobs_sub1(1,i))
              string='READ_AEROSOL'
                      
