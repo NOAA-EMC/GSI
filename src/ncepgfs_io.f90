@@ -746,7 +746,7 @@ end subroutine write_ghg_grid
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
     integer(i_kind) :: latb,lonb
-    integer(i_kind) :: iret,n,i,j
+    integer(i_kind) :: iret,n
     type(nstio_head) :: nst_head
     type(nstio_data) :: nst_data
     real(r_single),allocatable,dimension(:,:):: dwarm_tmp
@@ -771,58 +771,58 @@ end subroutine write_ghg_grid
        lonb = nst_head%lonb
        latb = nst_head%latb
        if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
-            write(6,*)'READ_NST:  ***ERROR*** inconsistent grid dimensions.  ',&
+          write(6,*)'READ_NST:  ***ERROR*** inconsistent grid dimensions.  ',&
                  ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- nst file lonb,latb=',&
                     lonb,latb
-            call nstio_axdata(nst_data,iret)
-            call stop2(80)
+          call nstio_axdata(nst_data,iret)
+          call stop2(80)
        endif
 
        nnst=nnst_all
 
-!$omp parallel do private(n,i,j,dwarm_tmp)
+!$omp parallel do private(n,dwarm_tmp)
        do n=1,nnst
  
-        if(n == 1)then                            ! foundation temperature (Tf)
+          if(n == 1)then                            ! foundation temperature (Tf)
 
-          call tran_gfssfc(nst_data%tref,tref(1,1,it),lonb,latb)                                 
+             call tran_gfssfc(nst_data%tref,tref(1,1,it),lonb,latb)                                 
 
-        else if(n == 2) then                      ! cooling amount
+          else if(n == 2) then                      ! cooling amount
 
-          call tran_gfssfc(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
+             call tran_gfssfc(nst_data%dt_cool,dt_cool(1,1,it),lonb,latb)  
 
-        else if(n == 3) then                      ! cooling layer thickness
+          else if(n == 3) then                      ! cooling layer thickness
 
-          call tran_gfssfc(nst_data%z_c,z_c(1,1,it),lonb,latb)        
+             call tran_gfssfc(nst_data%z_c,z_c(1,1,it),lonb,latb)        
 
-        else if(n == 4 ) then                     ! warming amount
+          else if(n == 4 ) then                     ! warming amount
 
-          allocate(dwarm_tmp(lonb,latb))
-          dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
-          call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
-          deallocate(dwarm_tmp)
+             allocate(dwarm_tmp(lonb,latb))
+             dwarm_tmp(:,:)  = two*nst_data%xt(:,:)/nst_data%xz(:,:)
+             call tran_gfssfc(dwarm_tmp,dt_warm(1,1,it),lonb,latb)  
+             deallocate(dwarm_tmp)
 
-        else if(n == 5 ) then                     ! warm layer thickness
+          else if(n == 5 ) then                     ! warm layer thickness
 
-          call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
+             call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
 
-        else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
+          else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
+             call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
 
-        else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
+          else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
+             call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
 
-        else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
+          else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
+             call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
 
-        else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
+          else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
 
-          call tran_gfssfc(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
+             call tran_gfssfc(nst_data%w_d,w_d(1,1,it),lonb,latb)                     
 
-        end if
+          end if
 
 !         End of loop over data records
        end do
@@ -1560,7 +1560,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind):: iret,n_new_water,n_new_seaice
     integer(i_kind):: latb,lonb,nlatm2
     integer(i_kind):: i,j,ip1,jp1,ilat,ilon,mm1
-    real(r_kind) :: dtw,dtc
     real(r_single) :: r_zsea1,r_zsea2
 
     real(r_kind),    dimension(lat1,lon1):: dsfct_sub
@@ -2038,7 +2037,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),   allocatable, dimension(:,:) :: dsfct_tmp
     real(r_single), allocatable, dimension(:,:) :: work
 
-    real(r_kind) :: dlon,dtw,dtc
+    real(r_kind) :: dlon
 
     type(sfcio_head):: head_sfcges,head_sfcgcy,head_sfcanl
     type(sfcio_data):: data_sfcges,data_sfcgcy,data_sfcanl

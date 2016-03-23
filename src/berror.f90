@@ -441,13 +441,13 @@ contains
                 if (new_tail) then
                    varprd(ii)=one_tenth
                    if (aircraft_t_bc .and. j==2) varprd(ii)=1.0e-3_r_kind
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-4_r_kind
+                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-5_r_kind
                 else
                    if (obs_count<=3.0_r_kind) then
                       if (aircraft_t_bc .and. j==2) then
                          varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-5_r_kind
                       else if (aircraft_t_bc .and. j==3) then
-                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                         varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-7_r_kind
                       else
                          varA_t(j,i)=1.05_r_kind*varA_t(j,i)+1.0e-4_r_kind
                       end if
@@ -456,16 +456,20 @@ contains
                       if (aircraft_t_bc .and. j==2) then
                          varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
                       else if (aircraft_t_bc .and. j==3) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
                       else
                          varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-4_r_kind
                       end if
                    end if
-                   if (varprd(ii)>one) varprd(ii)=one
-                   if (varA_t(j,i)>one) varA_t(j,i)=one
-                   if (aircraft_t_bc .and. j>1) then
-                      if (varprd(ii)>one_tenth) varprd(ii)=one_tenth
-                      if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
+                   if (varprd(ii)>one_tenth) varprd(ii)=one_tenth
+                   if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
+                   if (aircraft_t_bc .and. j==2) then
+                      if (varprd(ii)>1.0e-2_r_kind) varprd(ii)=1.0e-2_r_kind
+                      if (varA_t(j,i)>1.0e-2_r_kind) varA_t(j,i)=1.0e-2_r_kind
+                   end if
+                   if (aircraft_t_bc .and. j==3) then
+                      if (varprd(ii)>1.0e-3_r_kind) varprd(ii)=1.0e-3_r_kind
+                      if (varA_t(j,i)>1.0e-3_r_kind) varA_t(j,i)=1.0e-3_r_kind
                    end if
                 end if
              end do
@@ -488,33 +492,38 @@ contains
 ! program history log:
 !   output argument list:
 !   2013-10-01  zhu
+!   2016-01-19  zhu - add initial varA_* for a special case when very few data are available 
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only:  one,one_tenth
-    use radinfo, only: newpc4pred,jpch_rad,npred,ostats,inew_rad,iuse_rad
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t
+    use constants, only:  zero,one,one_tenth
+    use radinfo, only: newpc4pred,jpch_rad,npred,ostats,inew_rad,iuse_rad,varA
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,varA_t
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen, ntclen
     implicit none
 
     integer(i_kind) i,j,ii,obs_count
-    real(r_kind) stndev
+    real(r_kind) stndev,tenth_stndev,hundth_stndev
     
     stndev = one/biaspredt
+    tenth_stndev = one_tenth*stndev
+    hundth_stndev = one_tenth*tenth_stndev
 
 !   reset variances for bias predictor coeff. based on current data count
     if (.not. twodvar_regional .and. newpc4pred) then
        ii=0
        do i=1,jpch_rad
+          if (ostats(i)<one) cycle
           do j=1,npred
              ii=ii+1
              if (.not.inew_rad(i) .and. iuse_rad(i)>0 .and. ostats(i)<=20.0_r_kind) then
                 varprd(ii)=1.0e-6_r_kind
              end if
+             if (inew_rad(i)) varA(j,i)=varprd(ii)
           end do
        end do
 
@@ -526,11 +535,15 @@ contains
 
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
+                if (obs_count<one) cycle
 
+                if (all(varA_t(:,i)==zero)) varA_t(j,i)=varprd(ii)
                 if (obs_count<=3.0_r_kind .and. varprd(ii)>stndev) then
                    varprd(ii)=stndev
-                   if (aircraft_t_bc .and. j==2) varprd(ii)=one_tenth*stndev
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=one_tenth*one_tenth*stndev
+                   if (aircraft_t_bc) then
+                      if (j==2 .and. varprd(ii)>tenth_stndev) varprd(ii)=tenth_stndev
+                      if (j==3 .and. varprd(ii)>hundth_stndev) varprd(ii)=hundth_stndev
+                   end if
                 end if
              end do
           end do
@@ -551,6 +564,8 @@ contains
 !
 ! program history log:
 !   2009-11-29   zhu
+!   2016-01-07   derber - apply the same preconditioning formula (for obs_count>3 or 20) 
+!                         to the cases with obs_count<=3 or 20 as well
 !
 ! attributes:
 !   language: f90
@@ -585,15 +600,13 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
+              if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>20.0_r_kind) then
-                 vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
                  if (rstats(j,i)>zero) then
                     varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
                  else
                     varA(j,i)=10000.0_r_kind
                  end if
-              else
-                 vprecond(nclen1+ii)=one
               end if
            end do
         end do
@@ -610,12 +623,11 @@ contains
 
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
-
+ 
+                if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
+                if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
-                   vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
-                else
-                   vprecond(nclen1+ii)=one
                 end if
              end do
           end do
