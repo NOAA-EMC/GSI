@@ -28,14 +28,6 @@
 #   Imported Shell Variables:
 #     SATYPE            list of satellite/instrument sources
 #                       defaults to none
-#     INISCRIPT         preprocessing script
-#                       defaults to none
-#     LOGSCRIPT         log script
-#                       defaults to none
-#     ERRSCRIPT         error processing script
-#                       defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT         postprocessing script
-#                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
 #
@@ -43,10 +35,7 @@
 #     err           Last return code
 #
 #   Modules and files referenced:
-#     scripts    : $INISCRIPT
-#                  $LOGSCRIPT
-#                  $ERRSCRIPT
-#                  $ENDSCRIPT
+#     scripts    : 
 #
 #     programs   :
 #
@@ -71,15 +60,13 @@
 #   Language: POSIX shell
 #   Machine: IBM SP
 ####################################################################
+export scr=radmon_ck_stdout.sh
+msg="${scr} HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+
 #  Command line arguments.
 outfile=${1:-${outfile:?}}
-
-# Directories
-# File names
-INISCRIPT=${INISCRIPT:-}
-LOGSCRIPT=${LOGSCRIPT:-}
-ERRSCRIPT=${ERRSCRIPT:-}
-ENDSCRIPT=${ENDSCRIPT:-}
 
 # Other variables
 SATYPE=${SATYPE:-}
@@ -91,8 +78,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
 fi
 ################################################################################
 #  Preprocessing
-$INISCRIPT
-$LOGSCRIPT
 
 outfile=$1
 error_msg="PROBLEM reading diagnostic file"
@@ -116,11 +101,12 @@ done
 
 ################################################################################
 #  Post processing
-$ENDSCRIPT
-set +x
-
 if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
+msg="${scr} HAS ENDED"
+postmsg "$jlogfile" "$msg"
+
+set +x
 exit ${err}

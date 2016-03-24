@@ -143,6 +143,8 @@ fi
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:20 -J ${jobname} $IG_SCRIPTS/plot_comp.sh
+   elif [[ $MY_MACHINE = "cray" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:20 -J ${jobname} $IG_SCRIPTS/plot_comp.sh
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_comp.sh
    fi
