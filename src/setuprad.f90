@@ -169,6 +169,7 @@
 !   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance assimilation.
 !                      Use radiance_obstype_search & type extentions from radiance_mod.
 !                    - special obs error & bias correction handlings are called from centralized module
+!   2016-02-15  zhu  - remove the code forcing zero Jacobians for qr,qs,qg,qh for regional, let users decide
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -259,7 +260,6 @@
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
-  integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
@@ -478,16 +478,6 @@
      ius=radjacindxs(ius)
      ivs=radjacindxs(ivs)
   endif
-  if (regional .and. radmod%lallsky) then
-     iqs=getindex(radjacnames,'qs')
-     if (iqs>0) iqs=radjacindxs(iqs)
-     iqg=getindex(radjacnames,'qg')
-     if (iqg>0) iqg=radjacindxs(iqg)
-     iqh=getindex(radjacnames,'qh')
-     if (iqh>0) iqh=radjacindxs(iqh)
-     iqr=getindex(radjacnames,'qr')
-     if (iqr>0) iqr=radjacindxs(iqr)
-  end if 
 
 ! Initialize ozone jacobian flags to .false. (retain ozone jacobian)
   zero_irjaco3_pole = .false.
@@ -1490,30 +1480,6 @@
                           radtail(ibin)%head%dtb_dvar(ius+1,iii) = zero
                           radtail(ibin)%head%dtb_dvar(ivs+1,iii) = zero
                        endif
-                    end if
-
-!                   Load Jacobian for hydrometeors
-                    if (regional .and. radmod%lallsky) then
-                       if (iqs>0) then
-                          do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqs+k,iii) = zero
-                          end do
-                       end if
-                       if (iqg>0) then
-                          do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqg+k,iii) = zero
-                          end do
-                       end if
-                       if (iqh>0) then
-                          do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqh+k,iii) = zero
-                          end do
-                       end if
-                       if (iqr>0) then
-                          do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqr+k,iii) = zero
-                          end do
-                       end if
                     end if
 
                     my_head%ich(iii)=ii
