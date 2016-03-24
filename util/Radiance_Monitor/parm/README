@@ -9,12 +9,14 @@ specific entries in that script within your interactive shell.
 If you have not done so already, please run the RadMon_install.sh script 
 located in the directory one level from here.  RadMon_install.sh will update 
 the RadMon_config and RadMon_user_settings files and set some defaults based 
-on the system you're running on (ccs, wcoss or zeus). 
+on the system you're running on (wcoss or theia). It will also run the makeall.sh 
+script which will build all the necessary executables and move them to the 
+appropriate exec directories within the package.
 
 Next, edit or override specific values in the RadMon_user_settings script as
 necessary.  For example, the default $RADSTAT_LOCATION, or directory which
 contains the *.radstat files you want to process, is set by default to 
-/com/gfs/prod.  You may edit this location in the file to anything you want 
+/com2/gfs/prod.  You may edit this location in the file to anything you want 
 or set a value for $RADSTAT_LOCATION in your shell.  The values of any 
 variables in RadMon_user_settings will be overriden by the same variables 
 declared in your interactive shell.  To override the RADSTAT_LOCATION the
