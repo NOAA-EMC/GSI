@@ -143,7 +143,7 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    export minmon_shared_ver=v1.0.0
    module load prod_util/${prod_util_ver}
    module load prod_envir
-   module load PrgEnv-intel
+   module load pm5
 fi
 
 module list
@@ -169,7 +169,6 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
 
 elif [[ $MY_MACHINE = "cray" ]]; then
-   export PERL5LIB=/u/Edward.Safford/lib
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 80 -R "select[mem>80] rusage[mem=80]" -W 0:10 -J ${jobname} $jobfile
 
 fi

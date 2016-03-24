@@ -43,7 +43,7 @@ export minmon_shared_ver=v1.0.0
 
 module load prod_util/${prod_util_ver}
 module load prod_envir
-module load PrgEnv-intel
+module load pm5
 
 module list
 

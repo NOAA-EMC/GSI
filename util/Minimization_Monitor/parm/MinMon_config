@@ -58,6 +58,7 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    . $MODULESHOME/init/ksh
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
+   module load pm5
    export SUB="bsub"
    export NWPROD=${COMROOTp1}
    export COMPRESS=gzip
@@ -69,6 +70,7 @@ elif [[ $MY_MACHINE = "theia" ]]; then
 
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
 fi
