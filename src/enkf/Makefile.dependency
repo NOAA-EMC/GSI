@@ -1,5 +1,5 @@
 covlocal.o : covlocal.f90 params.o 
-enkf.o : enkf.F90 rnorm.o gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o kdtree2.o covlocal.o mpisetup.o sorting.o
+enkf.o : enkf.f90 rnorm.o gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o kdtree2.o covlocal.o mpisetup.o sorting.o
 enkf_main.o : enkf_main.f90 inflation.o  enkf.o letkf.o loadbal.o statevec.o gridinfo.o innovstats.o enkf_obsmod.o mpisetup.o params.o 
 fftpack.o : fftpack.f90 
 genqsat1.o : genqsat1.f90  
@@ -11,7 +11,7 @@ kdtree2.o : kdtree2.f90
 letkf.o : letkf.F90 gridinfo.o radbias.o  params.o  enkf_obsmod.o statevec.o loadbal.o covlocal.o mpisetup.o 
 loadbal.o : loadbal.f90 rnorm.o gridinfo.o kdtree2.o enkf_obsmod.o params.o mpisetup.o 
 mpi_readobs.o : mpi_readobs.f90 mpisetup.o readozobs.o readsatobs.o readconvobs.o  params.o 
-mpisetup.o : mpisetup.f90 
+mpisetup.o : mpisetup.F90  
 netcdf_io_wrf.o : netcdf_io_wrf.f90 
 enkf_obsmod.o : enkf_obsmod.f90 covlocal.o   mpi_readobs.o params.o  mpisetup.o 
 params.o : params.f90   mpisetup.o 
