@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_vrfyrad.sh.sms
+# Script name:         exgdas_vrfyrad.sh.ecf
 # Script description:  Runs data extract/validation for global radiance diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2012-01-18
@@ -23,21 +23,13 @@
 #     RAD_AREA      flag for global or regional
 #     TANKDIR       repository for radmon data files
 #     DATA          data working space
-#     FIXgdasradmon fixed file directory, gdas specific
-#     FIXradmon     fixed file directory
-#     USHradmon     scripts directory
+#     FIXgdas       fixed file directory, gdas specific
+#     FIXradmon     radmon fixed file directory
+#     USHradmon     radmon scripts directory
 #     PDY           processing day; 
 #                   overridden by 1
 #     cyc	    processing cycle; 
 #                   overridden by 2
-#     INISCRIPT     Preprocessing script
-#                   defaults to none
-#     LOGSCRIPT     Log posting script
-#                   defaults to none
-#     ERRSCRIPT     Error processing script
-#                   defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT     Postprocessing script
-#                   defaults to none
 #     LITTLE_ENDIAN Flag to indicate LE machine
 #                   defaults to 0 (big endian)
 #
@@ -57,11 +49,7 @@
 #     MAIL_CC       Mail cc recipients list, set to "" (no recipients)
 #
 #   Modules and files referenced:
-#     scripts    : $INISCRIPT
-#                  $LOGSCRIPT
-#                  $ERRSCRIPT 
-#                  $ENDSCRIPT
-#                  ${USHradmon}/radmon_verf_angle.sh
+#     scripts    : ${USHradmon}/radmon_verf_angle.sh
 #                  ${USHradmon}/radmon_verf_bcoef.sh
 #                  ${USHradmon}/radmon_verf_bcor.sh
 #                  ${USHradmon}/radmon_verf_time.sh
@@ -82,24 +70,23 @@
 #       0 - no problem encountered
 #      >0 - some problem encountered
 #
-#    Control variable resolution priority
-#       1 Command line argument.
-#       2 Environment variable.
-#       3 Inline default.
-#
-#  Attributes:
-#    Language:  POSIX shell
-#    Machine:   IBM SP
-#
+################################################################################
+export scr=exgdas_vrfyrad.sh.ecf
+
+msg="${scr} HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
 ################################################################################
 #  Set environment
+################################################################################
 export VERBOSE=${VERBOSE:-"NO"} 
 if [[ "$VERBOSE" = "YES" ]]
 then
-   echo start exgdas_vrfyrad.sh.sms
    set -x
 fi
-export RUN_ENVIR=${RUN_ENVIR:-prod}
+
+
+export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 export envir=${envir:-prod}
@@ -110,15 +97,15 @@ export cyc=${2:-${cyc:?}}
 
 #  Directories
 export DATA=${DATA:-$(pwd)}
-export COM_IN=/com/${NET}/${envir}
+export COM_IN=${COMROOT}/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEgdasradmon=${HOMEgdasradmon:-/nw${envir}/gdas_radmon.${gdas_radmon_ver}}
-export FIXgdasradmon=${FIXgdasradmon:-$HOMEgdasradmon/fix}
-export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
+export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
+export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
-export HOMEradmon=${HOMEradmon:-/nw${envir}/radmon_shared.${radmon_shared_ver}}
+export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.v${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 export TANKverf=${TANKverf:-/com/verf/prod}
@@ -128,10 +115,6 @@ export TANKverf_rad=${TANKverf}/radmon.${PDY}
 export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
 export satype_file=${satype_file:-gdas_radmon_satype.txt}
-export INISCRIPT=${INISCRIPT}
-export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
-export LOGSCRIPT=${LOGSCRIPT}
-export ENDSCRIPT=${ENDSCRIPT}
 
 #  Other variables
 export RAD_AREA=${RAD_AREA:-glb}
@@ -146,14 +129,9 @@ export MAIL_TO=${MAIL_TO:-" "}
 export MAIL_CC=${MAIL_CC:-" "}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
-export pgm=exgdas_vrfyrad.sh.sms
 
-$LOGSCRIPT
-
-#####################################################################
-# Preprocessing
-$INISCRIPT
-
+###########################################################################
+# ensure work and TANK dirs exist, verify radstat and biascr are available
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
 fi
@@ -182,7 +160,6 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  Untar radstat file.  
    #------------------------------------------------------------------
 
-   cd ${DATA}
    $NCP $biascr  ./biascr.$PDATE
    $NCP $radstat ./radstat.$PDATE
 
@@ -192,7 +169,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #  SATYPE is the list of expected satellite/instrument sources
    #  in the radstat file.  It should be stored in the $TANKverf 
-   #  directory.  If it isn't there then use the $FIXradmon copy.  In all 
+   #  directory.  If it isn't there then use the $FIXgdas copy.  In all 
    #  cases write it back out to the radmon.$PDY directory.  Add any
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
@@ -204,10 +181,11 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
 
    echo satype_file = $satype_file
   
-   #    
-   #  Get previous cycle's date, and look for the satype_file.  Using the previous cycle
-   #  will get us the previous day's directory if the cycle being processed is 00z.
-   #
+   #------------------------------------------------------------------
+   #  Get previous cycle's date, and look for the satype_file.  Using 
+   #  the previous cycle will get us the previous day's directory if 
+   #  the cycle being processed is 00z.
+   #------------------------------------------------------------------
    if [[ $CYC = "00" ]]; then
       pday=${PDYm1}
    else
@@ -215,13 +193,13 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    fi
 
    if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
-      if [[ ! -e ${FIXgdasradmon}/${satype_file} ]]; then 
+      if [[ ! -e ${FIXgdas}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
             echo " ${satype_file} not found.  Adding it now using radstat file contents."
          fi
       else
-         export SATYPE=`cat ${FIXgdasradmon}/${satype_file}`
+         export SATYPE=`cat ${FIXgdas}/${satype_file}`
       fi
    else
       export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
@@ -247,10 +225,11 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
       fi
    done
 
-   #
-   #  If there is no satype_file in the current day's radmon.${PDY} directory or if changes
-   #  have occurred in the SATYPE list, then add/update the satype_file
-   #
+   #------------------------------------------------------------------
+   #  If there is no satype_file in the current day's radmon.${PDY} 
+   #  directory or if changes have occurred in the SATYPE list, then 
+   #  add/update the satype_file.
+   #------------------------------------------------------------------
    if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} || $satype_changes -eq 1 ]]; then
       if [[ ! -d ${TANKverf}/radmon.${PDY} ]]; then
          mkdir -f ${TANKverf}/radmon.${PDY}
@@ -275,7 +254,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    for type in ${SATYPE}; do
       mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
       ${UNCOMPRESS} ./${type}.${Z}
-      
+     
       if [[ $USE_ANL -eq 1 ]]; then
          mv diag_${type}_anl.${PDATE}.${Z} ${type}_anl.${Z}
          ${UNCOMPRESS} ./${type}_anl.${Z}
@@ -301,7 +280,6 @@ fi
 
 #####################################################################
 # Postprocessing
-$ENDSCRIPT
 
 err=0
 if [[ ${data_available} -ne 1 ]]; then
@@ -317,13 +295,11 @@ elif [[ $rc_time -ne 0 ]]; then
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exgdas_vrfyrad.sh.sms, exit value = ${err}"
+   echo "end exgdas_vrfyrad.sh.ecf, exit value = ${err}"
 fi
 
-if [[ ${err} -ne 0 ]]; then
-   export err
-   $ERRSCRIPT||exit ${err} 
-fi
+msg="${scr} HAS ENDED"
+postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

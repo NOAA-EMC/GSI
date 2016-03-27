@@ -100,10 +100,13 @@ export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
 export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
+
 . $RADMON_PARM/radmon.ver
-export HOMEgdasradmon=${HOMEgdasradmon:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
+
+export HOMEgdas=${HOMEgdas:-${MY_RADMON}/nwprod/gdas_radmon.v${gdas_radmon_ver}}
 export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.v${radmon_shared_ver}}
  
+export DATAROOT=${DATAROOT:-${STMP_USER}}
 
 #
 #  Definitions for parm files.  This allows users to swap in 
@@ -127,16 +130,25 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
 
    export SUB="bsub"
    export NWPROD=/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
-else    # theia 
+elif [[ $MY_MACHINE = "cray" ]]; then
+   module load prod_util	# defines $NDATE among other things
+   module load prod_envir
+   export SUB="bsub"
+   export NWPROD=${COMROOTp1}
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+
+elif [[ $MY_MACHINE = "theia" ]]; then
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
 fi
 
-export NDATE=${NWPROD}/util/exec/ndate
 
 echo "end RadMon_config"

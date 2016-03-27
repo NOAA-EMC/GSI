@@ -83,7 +83,8 @@ module enkf
 !               kdtree2_module, enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
-!   2009-02-23  Initial version.
+!   2009-02-23:  Initial version.
+!   2016-02-01:  Ensure posterior perturbation mean remains zero.
 !
 ! attributes:
 !   language: f95
@@ -110,7 +111,8 @@ use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
-                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim
+                  covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
+                  iseed_perturbed_obs
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -176,12 +178,24 @@ do nob=1,nobstot
    indxassim(nob) = nob
 end do
 
+! set random seed if random number generator is to be used.
+if (iassim_order == 1 .or. .not. deterministic) then
+   if (deterministic .and. nproc == 0) then
+      ! random numbers only generated on root task.
+      call set_random_seed(iseed_perturbed_obs, nproc)
+   else
+      ! random numbers generated for perturbed obs
+      ! on all tasks - set random seed identically
+      ! on all tasks to get same random sequence.
+      call set_random_seed(iseed_perturbed_obs, nproc)
+   endif
+endif
+
 if (iassim_order == 1) then
   ! create random index array so obs are assimilated in random order.
   if (nproc == 0) then
       print *,'assimilate obs in random order'
       allocate(rannum(nobstot))
-      call set_random_seed(0, nproc)
       call random_number(rannum)
       call quicksort(nobstot,rannum,indxassim)
       deallocate(rannum)
@@ -606,6 +620,25 @@ do niter=1,numiter
       ncount = ncount + 1
 
   end do obsloop ! loop over obs to assimilate
+
+  ! make sure posterior perturbations still have zero mean.
+  ! (roundoff errors can accumulate)
+  !$omp parallel do schedule(dynamic) private(npt,nb,i)
+  do npt=1,npts_max
+     do nb=1,nbackgrounds
+        do i=1,ndim
+           anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
+           sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
+        end do
+     end do
+  enddo
+  !$omp end parallel do
+  !$omp parallel do schedule(dynamic) private(nob)
+  do nob=1,nobs_max
+     anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob)-&
+     sum(anal_obchunk(1:nanals,nob),1)/r_nanals
+  enddo
+  !$omp end parallel do
 
   tend = mpi_wtime()
   if (nproc .eq. 0) then

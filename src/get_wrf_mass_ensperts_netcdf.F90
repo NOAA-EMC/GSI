@@ -41,6 +41,15 @@ subroutine get_wrf_mass_ensperts_netcdf
     use gsi_bundlemod, only: gsi_gridcreate
 
     implicit none
+    interface 
+       subroutine ens_spread_dualres_regional(mype,en_bar)
+         use kinds, only: r_kind,i_kind,r_single
+         use gsi_bundlemod, only: gsi_bundle
+         integer(i_kind),intent(in):: mype
+         type(gsi_bundle),OPTIONAL,intent(in) :: en_bar
+       end subroutine ens_spread_dualres_regional
+    end interface
+
 
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,cwmr,oz,rh
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
