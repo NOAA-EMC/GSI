@@ -89,6 +89,9 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
+! if npe=0, diag files are read (concatenated pe* files written by gsi)
+! if npe>0, npe+1 pe* files read directly
+integer,public :: npe = 0
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
 ! do sat bias correction update.
@@ -123,11 +126,12 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
+                   fgfileprefixes,anlfileprefixes,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npe
 namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz

@@ -29,18 +29,14 @@ use kinds, only: r_kind,i_kind,r_single
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list
-use params, only: nsats_rad, nsatmax_rad, dsis, sattypes_rad
+use params, only: nsats_rad, nsatmax_rad, dsis, sattypes_rad, npe
 
 implicit none
 
 private
 public :: get_satobs_data, get_num_satobs
 
-! just amsu, hirs, airs and ssmi data.
-! for now allow 200 satellite data files, to increase, adjust 200 in next 3 lines
-
 contains
-
 
 subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
     use radinfo, only: iuse_rad,nusis,jpch_rad,nuchan,npred
@@ -48,10 +44,11 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
     character(len=500) obsfile
     character(len=10), intent(in) :: id, datestring
     character(len=20) ::  sat_type
+    character(len=4) :: pe_name
     integer(i_kind), intent(out) :: num_obs_tot
-    integer(i_kind) iunit, iflag, nsat, ios,n,nkeep, i, jpchstart,indxsat
+    integer(i_kind) iunit, iflag, nsat, ios,n,nkeep, i, jpchstart,indxsat,ipe
     integer(i_kind) npred_radiag
-    logical fexist,lretrieval,lverbose
+    logical fexist,lretrieval,lverbose,init_pass
     real(r_kind) :: errorlimit,errorlimit2
 
     type(diag_header_fix_list )         :: header_fix0
@@ -80,41 +77,56 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
           end if
         end do
         if(jpchstart == 0) cycle
-        nkeep = 0
-        obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
-        inquire(file=obsfile,exist=fexist)
-        if (.not. fexist .or. datestring .eq. '0000000000') then
-        obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id))
-        endif
+        init_pass = .true.
+        peloop: do ipe=0,npe
+           write(pe_name,'(i4.4)') ipe
+           if (npe .eq. 0) then
+               ! read diag file (concatenated pe* files)
+               obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
+               inquire(file=obsfile,exist=fexist)
+               if (.not. fexist .or. datestring .eq. '0000000000') &
+               obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id))
+           else ! read raw, unconcatenated pe* files.
+               obsfile =&
+               trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.'//trim(sattypes_rad(nsat))//'_01'
+           endif
 
-        inquire(file=obsfile,exist=fexist)
-        if (.not.fexist) goto 900
+           inquire(file=obsfile,exist=fexist)
+           if (.not.fexist) cycle peloop
+           nkeep = 0
 
-        open(iunit,form="unformatted",file=obsfile,iostat=ios)
-        rewind(iunit)
-        call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix0,header_chan0,data_name0,iflag,lverbose)
+           !print *,'obsfile=',trim(obsfile)
 
-        do
-           call read_radiag_data(iunit,header_fix0,lretrieval,data_fix0,data_chan0,data_extra0,iflag )
-           if( iflag /= 0 )exit
-           chan: do n=1,header_fix0%nchan
-             if(header_chan0(n)%iuse<1) cycle chan
-             indxsat=header_chan0(n)%iochan
-             if(data_chan0(n)%qcmark < 0. .or. data_chan0(n)%errinv < errorlimit &
-                      .or. data_chan0(n)%errinv > errorlimit2 &
-                      .or. indxsat == 0) cycle chan
-             if(data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
-                data_extra0(1,n)%extra > 1200._r_kind  .or. &
-                abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
-             nkeep = nkeep + 1
-           end do chan
-        enddo
-        num_obs_tot = num_obs_tot + nkeep
-900     continue
-        close(iunit)
-        write(6,100) nsat,trim(sattypes_rad(nsat)),nkeep,num_obs_tot
-100     format(2x,i3,2x,a20,2x,'nkeep= ',i9,2x,'num_obs_tot= ',i9)
-    enddo
+           open(iunit,form="unformatted",file=obsfile,iostat=ios)
+           rewind(iunit)
+           if (init_pass) then
+              call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix0,header_chan0,data_name0,iflag,lverbose)
+              init_pass = .false.
+           endif
+
+           do
+              call read_radiag_data(iunit,header_fix0,lretrieval,data_fix0,data_chan0,data_extra0,iflag )
+              if( iflag /= 0 )exit
+              chan: do n=1,header_fix0%nchan
+                if(header_chan0(n)%iuse<1) cycle chan
+                indxsat=header_chan0(n)%iochan
+                if(data_chan0(n)%qcmark < 0. .or. data_chan0(n)%errinv < errorlimit &
+                         .or. data_chan0(n)%errinv > errorlimit2 &
+                         .or. indxsat == 0) cycle chan
+                if(data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
+                   data_extra0(1,n)%extra > 1200._r_kind  .or. &
+                   abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
+                nkeep = nkeep + 1
+              end do chan
+           enddo
+           num_obs_tot = num_obs_tot + nkeep
+           close(iunit)
+           if (ipe .eq. npe) then
+              write(6,100) nsat,trim(sattypes_rad(nsat)),nkeep,num_obs_tot
+100           format(2x,i3,2x,a20,2x,'nkeep= ',i9,2x,'num_obs_tot= ',i9)
+           endif
+        enddo peloop ! ipe
+    enddo ! satellite
 end subroutine get_num_satobs
 
 subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_err, &
@@ -123,6 +135,7 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
   character*500, intent(in) :: obspath
   character*500 obsfile,obsfile2
   character(len=10), intent(in) :: id,id2
+  character(len=4) pe_name
 
   real(r_single), dimension(nobs_max) :: h_x,h_xnobc,x_obs,x_err,x_lon,&
                                x_lat,x_press,x_time,x_errorig
@@ -132,9 +145,9 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
   character(len=20) ::  sat_type
   character(len=10), intent(in) ::  datestring
 
-  integer(i_kind) nobs_max, iunit, iunit2,iflag, nobs, n, nsat, i,jpchstart,indxsat
+  integer(i_kind) nobs_max, iunit, iunit2,iflag,nobs,n,nsat,ipe,i,jpchstart,indxsat
   integer(i_kind) npred_radiag,iflag2
-  logical twofiles,fexist1,fexist2,lretrieval,lverbose
+  logical twofiles,fexist1,fexist2,lretrieval,lverbose,init_pass,init_pass2
   real(r_kind) :: errorlimit,errorlimit2
 
   type(diag_header_fix_list )         :: header_fix1,header_fix2
@@ -167,30 +180,47 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
        end if
      end do
      if(jpchstart == 0) cycle
-     obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
-     inquire(file=obsfile,exist=fexist1)
-     if (.not. fexist1 .or. datestring .eq. '0000000000') then
-     obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id))
+     init_pass = .true.; init_pass2 = .true.
+     peloop: do ipe=0,npe
+     write(pe_name,'(i4.4)') ipe
+     if (npe .eq. 0) then
+         ! read diag file (concatenated pe* files)
+         obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
+         inquire(file=obsfile,exist=fexist1)
+         if (.not. fexist1 .or. datestring .eq. '0000000000') &
+         obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id))
+     else ! read raw, unconcatenated pe* files.
+         obsfile =&
+         trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.'//trim(sattypes_rad(nsat))//'_01'
      endif
      inquire(file=obsfile,exist=fexist1)
-     if(.not.fexist1) goto 900
+     if(.not.fexist1) cycle peloop
 
      open(iunit,form="unformatted",file=obsfile)
      rewind(iunit)
-     call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix1,header_chan1,data_name1,iflag,lverbose)
+     if (init_pass) then
+        call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix1,header_chan1,data_name1,iflag,lverbose)
+        init_pass = .false.
+     endif
 
      if(twofiles)then
-       obsfile2=trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id2))
-       inquire(file=obsfile2,exist=fexist2)
-       if (.not. fexist2 .or. datestring .eq. '0000000000') then
-       obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id2))
+        if (npe .eq. 0)  then
+          ! read diag file (concatenated pe* files)
+          obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id2))
+          inquire(file=obsfile2,exist=fexist2)
+          if (.not. fexist2 .or. datestring .eq. '0000000000') &
+          obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//trim(adjustl(id2))
+       else ! read raw, unconcatenated pe* files.
+          obsfile2 =&
+          trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.'//trim(sattypes_rad(nsat))//'_01'
        endif
-       inquire(file=obsfile2,exist=fexist2)
-       if(.not.fexist2) goto 900
 
        open(iunit2,form="unformatted",file=obsfile2)
        rewind(iunit2)
-       call read_radiag_header(iunit2,npred_radiag,lretrieval,header_fix2,header_chan2,data_name2,iflag2,lverbose)
+       if (init_pass2) then
+          call read_radiag_header(iunit2,npred_radiag,lretrieval,header_fix2,header_chan2,data_name2,iflag2,lverbose)
+          init_pass2 = .false.
+       endif
      end if
 
      do
@@ -277,7 +307,8 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
 900  continue
      close(iunit)
      if(twofiles)close(iunit2)
- enddo
+     enddo peloop ! ipe
+ enddo ! satellite
 
  end subroutine get_satobs_data
 
