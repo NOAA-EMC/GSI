@@ -20,6 +20,7 @@ subroutine add_gfs_stratosphere
 !   2013-10-19  todling - metguess now holds background
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
+!   2014-11-30  todling - update interface to general_read_gfs routines
 !   2014-12-03  derber  - modify call to general_read_gfsatm to reduce reading
 !                         of unused variables
 !
@@ -43,7 +44,12 @@ subroutine add_gfs_stratosphere
   use kinds, only: r_kind,i_kind
   use mpeu_util, only: die
   use mpimod, only: npe
-  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid,general_sub2grid_destroy_info
@@ -69,8 +75,17 @@ subroutine add_gfs_stratosphere
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs,sp_b
-  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
-  real(r_kind),allocatable,dimension(:,:)   :: z,ps
+  real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,prsl_g,prsl_r,prsl_m
+  real(r_kind),pointer,dimension(:,:,:) :: vor =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: div =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: u   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: v   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: tv  =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: q   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: cwmr=>null()
+  real(r_kind),pointer,dimension(:,:,:) :: oz  =>null()
+  real(r_kind),pointer,dimension(:,:)   :: z =>null()
+  real(r_kind),pointer,dimension(:,:)   :: ps=>null()
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen,qlt,qit,qrt,qst,qgt,qht
 
@@ -96,6 +111,17 @@ subroutine add_gfs_stratosphere
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
   real(r_kind),allocatable,dimension(:):: blend_rm_oz,blend_gm_oz
+
+  type(gsi_bundle) :: atm_bundle
+  type(gsi_grid)   :: atm_grid
+  integer(i_kind),parameter :: n2d=2
+  integer(i_kind),parameter :: n3d=8
+  character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+  character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                  'vor ', 'div ', &
+                                                  'tv  ', 'q   ', &
+                                                  'cw  ', 'oz  '  /)
+
 
   real(r_kind) dlon,dlat,uob,vob
   integer(i_kind) ii,jj,it,ier,istatus
@@ -366,29 +392,35 @@ subroutine add_gfs_stratosphere
   call g_create_egrid2points_slow(nlat*nlon,region_lat,region_lon, &
                     grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
 
-!!   allocate necessary space on global grid
+!   Allocate bundle on global grid
+    call gsi_gridcreate(atm_grid,grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig)
+    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    if(istatus/=0) then
+      write(6,*)myname,': trouble creating atm_bundle'
+      call stop2(999)
+    endif
 
-     allocate( vor(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate( div(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   u(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   v(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(  tv(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   q(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(cwmr(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(  oz(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
-     allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
+!   Extract pointers ...
+     call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus) 
+     call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus) 
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if(use_gfs_nemsio)then
            call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,.true.,.false.,.true., &
-                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+                                    atm_bundle,.true.,iret)
      else
         if (hires) then
            call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
-                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+                                    atm_bundle,.true.,iret)
         else
            call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
-                                    z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+                                    atm_bundle,.true.,iret)
         end if
      end if
         
@@ -411,7 +443,6 @@ subroutine add_gfs_stratosphere
            end do
         end do
      end do
-     deallocate(u,v,tv,q,oz,cwmr)
      kz=num_fields ; kps=kz-1
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
@@ -419,7 +450,7 @@ subroutine add_gfs_stratosphere
            work_sub(1,i,j,kps)=ps(i,j)
         end do
      end do
-     deallocate(z,ps)
+     call gsi_bundledestroy(atm_bundle,istatus)
      allocate(work(grd_gfs%inner_vars,grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
      call general_sub2grid(grd_gfs,work_sub,work)
      deallocate(work_sub)

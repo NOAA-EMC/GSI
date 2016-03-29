@@ -24,6 +24,7 @@ subroutine read_gfs_ozone_for_regional
 !   2014-06-30  wu      - bug fix for undefined variable "proceed" in check_vars_
 !   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
 !                         transformed to a coarser resolution grid
+!   2014-11-30  todling - update interface to general_read_gfs routines
 !   2014-12-03  derber  - modify call to general_read_gfsatm
 !   2015-05-13  wu      - read in just one GFS for ozone even when nfldsig > 1 
 !                         use the same ges_oz in all time levels
@@ -53,15 +54,29 @@ subroutine read_gfs_ozone_for_regional
   use guess_grids, only: ges_prsl,ntguessig,nfldsig,ifilesig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
-  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use gsi_4dvar, only: nhr_assimilation
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs,sp_b
-  real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl
-  real(r_kind),allocatable,dimension(:,:)   :: z,ps
+  real(r_kind),allocatable,dimension(:,:,:) :: pri,prsl
+  real(r_kind),pointer,dimension(:,:,:) :: vor =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: div =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: u   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: v   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: tv  =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: q   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: cwmr=>null()
+  real(r_kind),pointer,dimension(:,:,:) :: oz  =>null()
+  real(r_kind),pointer,dimension(:,:)   :: z =>null()
+  real(r_kind),pointer,dimension(:,:)   :: ps=>null()
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
 
@@ -69,6 +84,7 @@ subroutine read_gfs_ozone_for_regional
   real(r_kind) kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,ndim
   integer(i_kind) it,it_beg,it_end   
+  integer(i_kind) istatus
   character(24) filename
   character(255),allocatable,dimension(:)::infiles
   logical uv_hyb_ens
@@ -94,6 +110,17 @@ subroutine read_gfs_ozone_for_regional
   real(r_kind),allocatable,dimension(:)::glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax
   real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
   real(r_kind),allocatable,dimension(:,:,:,:)::ges_oz
+
+  type(gsi_bundle) :: atm_bundle
+  type(gsi_grid)   :: atm_grid
+  integer(i_kind),parameter :: n2d=2
+  integer(i_kind),parameter :: n3d=8
+  character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+  character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                  'vor ', 'div ', &
+                                                  'tv  ', 'q   ', &
+                                                  'cw  ', 'oz  '  /)
+
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
@@ -272,37 +299,43 @@ subroutine read_gfs_ozone_for_regional
   deallocate(vector)
 
 
-!!   allocate necessary space on global grid
+! allocate bundle for reading required fields
+  call gsi_gridcreate(atm_grid,grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig)
+  call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+  if(istatus/=0) then
+    write(6,*)myname,': trouble creating atm_bundle'
+    call stop2(999)
+  endif
+
+! Extract required pointers
+  call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus)
+  call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus)
 
   allocate( pri(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig+1))
-  allocate( vor(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate( div(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(   u(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(   v(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(  tv(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(   q(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(cwmr(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(  oz(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
   allocate(prsl(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-  allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
-  allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
   if(use_gfs_nemsio)then
-     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false., &
+                              atm_bundle,.true.,iret)
   else
      if (hires) then
-        call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false., &
+                              atm_bundle,.true.,iret)
      else
-        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false.,z,ps, &
-                              vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false., &
+                              atm_bundle,.true.,iret)
      end if
   end if
 
 ! test
 !   call grads3a(grd_gfs,u,oz,tv,q,ps,grd_gfs%nsig,mype,'gfsfields')
 
-  deallocate(vor,div,u,v,q,cwmr,z)
   do k=1,grd_gfs%nsig
      ozmin=minval(oz(:,:,k))
      ozmax=maxval(oz(:,:,k))
@@ -341,7 +374,8 @@ subroutine read_gfs_ozone_for_regional
         end do
      end do
   end if
-  deallocate(tv,ps,ak5,bk5,ck5,tref5)
+  deallocate(ak5,bk5,ck5,tref5)
+  call gsi_bundledestroy(atm_bundle,istatus)
   do k=1,grd_gfs%nsig+1
      ozmin=minval(pri(:,:,k))
      ozmax=maxval(pri(:,:,k))
