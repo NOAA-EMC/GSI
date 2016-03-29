@@ -23,7 +23,7 @@ module readozobs
 !$$$
 
 use kinds, only: r_single,i_kind,r_kind
-use params, only: nsats_oz,sattypes_oz,npe
+use params, only: nsats_oz,sattypes_oz,npefiles
   
 implicit none
 
@@ -61,9 +61,9 @@ subroutine get_num_ozobs(obspath,datestring,num_obs_tot,id)
         nread = 0
         nkeep = 0
         init_pass = .true.
-        peloop: do ipe=0,npe
+        peloop: do ipe=0,npefiles
            write(pe_name,'(i4.4)') ipe
-           if (npe .eq. 0) then
+           if (npefiles .eq. 0) then
                ! read diag file (concatenated pe* files)
                obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_oz(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
                inquire(file=obsfile,exist=fexist)
@@ -108,7 +108,7 @@ subroutine get_num_ozobs(obspath,datestring,num_obs_tot,id)
            print *,'error reading diag_sbuv file'
 30         continue
            close(iunit)
-           if (ipe .eq. npe) then
+           if (ipe .eq. npefiles) then
               write(6,100) nsat,trim(sattypes_oz(nsat)),nread,nkeep,num_obs_tot
 100           format(2x,i3,2x,a20,2x,'nread= ',i9,2x,'nkeep= ',i9,2x,'num_obs_tot= ',i9)
            endif
@@ -160,9 +160,9 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
   do nsat=1,nsats_oz
       init_pass = .true.
       init_pass2 = .true.
-      peloop: do ipe=0,npe
+      peloop: do ipe=0,npefiles
          write(pe_name,'(i4.4)') ipe
-         if (npe .eq. 0) then
+         if (npefiles .eq. 0) then
              ! read diag file (concatenated pe* files)
              obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_oz(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
              inquire(file=obsfile,exist=fexist)
@@ -184,7 +184,7 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
             init_pass = .false.
          endif
          if(twofiles)then
-           if (npe .eq. 0) then
+           if (npefiles .eq. 0) then
                ! read diag file (concatenated pe* files)
                obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_oz(nsat))//"_ges."//datestring//'_'//trim(adjustl(id2))
                inquire(file=obsfile2,exist=fexist)

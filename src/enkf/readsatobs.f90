@@ -29,7 +29,7 @@ use kinds, only: r_kind,i_kind,r_single
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list
-use params, only: nsats_rad, nsatmax_rad, dsis, sattypes_rad, npe
+use params, only: nsats_rad, nsatmax_rad, dsis, sattypes_rad, npefiles
 
 implicit none
 
@@ -78,9 +78,9 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
         end do
         if(jpchstart == 0) cycle
         init_pass = .true.
-        peloop: do ipe=0,npe
+        peloop: do ipe=0,npefiles
            write(pe_name,'(i4.4)') ipe
-           if (npe .eq. 0) then
+           if (npefiles .eq. 0) then
                ! read diag file (concatenated pe* files)
                obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
                inquire(file=obsfile,exist=fexist)
@@ -121,7 +121,7 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
            enddo
            num_obs_tot = num_obs_tot + nkeep
            close(iunit)
-           if (ipe .eq. npe) then
+           if (ipe .eq. npefiles) then
               write(6,100) nsat,trim(sattypes_rad(nsat)),nkeep,num_obs_tot
 100           format(2x,i3,2x,a20,2x,'nkeep= ',i9,2x,'num_obs_tot= ',i9)
            endif
@@ -181,9 +181,9 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
      end do
      if(jpchstart == 0) cycle
      init_pass = .true.; init_pass2 = .true.
-     peloop: do ipe=0,npe
+     peloop: do ipe=0,npefiles
      write(pe_name,'(i4.4)') ipe
-     if (npe .eq. 0) then
+     if (npefiles .eq. 0) then
          ! read diag file (concatenated pe* files)
          obsfile = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id))
          inquire(file=obsfile,exist=fexist1)
@@ -204,7 +204,7 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
      endif
 
      if(twofiles)then
-        if (npe .eq. 0)  then
+        if (npefiles .eq. 0)  then
           ! read diag file (concatenated pe* files)
           obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_rad(nsat))//"_ges."//datestring//'_'//trim(adjustl(id2))
           inquire(file=obsfile2,exist=fexist2)

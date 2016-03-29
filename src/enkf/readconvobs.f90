@@ -23,7 +23,7 @@ module readconvobs
 !$$$
 use kinds, only: r_kind,i_kind,r_single
 use constants, only: one,zero
-use params, only: npe
+use params, only: npefiles
 implicit none
 
 private
@@ -67,9 +67,9 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     nobssrw = 0
     nobstcp = 0; nobstcx = 0; nobstcy = 0; nobstcz = 0
     init_pass = .true.
-    peloop: do ipe=0,npe
+    peloop: do ipe=0,npefiles
        write(pe_name,'(i4.4)') ipe
-       if (npe .eq. 0) then
+       if (npefiles .eq. 0) then
            ! read diag file (concatenated pe* files)
            obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
            inquire(file=obsfile,exist=fexist)
@@ -180,7 +180,7 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
 20     continue
        print *,'error reading diag_conv file',obtype
 30     continue
-       if (ipe .eq. npe) then
+       if (ipe .eq. npefiles) then
           print *,num_obs_tot,' obs in diag_conv_ges file'
           write(6,*)'columns below obtype,nread, nkeep'
           write(6,100) 't',nobst(1),nobst(2)
@@ -241,10 +241,10 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   init_pass = .true.
   init_pass2 = .true.
 
-  peloop: do ipe=0,npe
+  peloop: do ipe=0,npefiles
 
   write(pe_name,'(i4.4)') ipe
-  if (npe .eq. 0) then
+  if (npefiles .eq. 0) then
       ! read diag file (concatenated pe* files)
       obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
       inquire(file=obsfile,exist=fexist)
@@ -267,7 +267,7 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   endif
   !print *,idate
   if(twofiles) then
-     if (npe .eq. 0) then
+     if (npefiles .eq. 0) then
          ! read diag file (concatenated pe* files)
          obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id2))
          inquire(file=obsfile2,exist=fexist)
