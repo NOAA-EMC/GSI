@@ -1,6 +1,5 @@
 subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zflag, &
-       g_z,g_ps,g_vor,g_div,g_u,g_v,&
-       g_tv,g_q,g_cwmr,g_oz,init_head,iret_read)
+       inbundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm  adaptation of read_gfsatm for general resolutions
@@ -14,6 +13,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !   2010-02-25  parrish
 !   2010-03-29  kleist     - modifications to allow for st/vp perturbations instead of u,v
 !   2012-01-17  wu         - increase character length for variable "filename"
+!   2014-11-30  todling    - genelize interface to handle bundle instead of fields;
+!                            internal code should be generalized
 !   2014-12-03  derber     - introduce vordivflag, zflag and optimize routines
 !
 !   input argument list:
@@ -34,7 +35,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !                reading similar files (ensembles)
 !
 !   output argument list:
-!     g_*      - guess fields
+!     inbundle  - guess fields in bundle form
 !     iret_read - return code, 0 for successful read.
 !
 ! attributes:
@@ -54,6 +55,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     use sigio_r_module, only: sigio_dbti,sigio_rrhead,sigio_rropen,&
         sigio_rrdbti,sigio_rclose
     use ncepgfs_io, only: sigio_cnvtdv8,sighead
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
 
     implicit none
     
@@ -68,14 +71,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     integer(i_kind)                       ,intent(in   ) :: mype
     logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
     integer(i_kind)                       ,intent(  out) :: iret_read
-    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_ps
-    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(inout) :: g_z
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
-         g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
+    type(gsi_bundle)                      ,intent(inout) :: inbundle
+
     
 !   Declare local variables
     integer(i_kind):: iret,nlatm2,nlevs,icm
+    integer(i_kind):: ier,istatus
     integer(i_kind):: i,j,k,icount
+    integer(i_kind):: iredundant
     integer(i_kind),dimension(npe)::ilev,iflag,mype_use
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
 
@@ -88,6 +91,15 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     logical :: procuse
         
     type(sigio_dbti):: sigdati
+
+    real(r_kind),pointer,dimension(:,:)       :: ptr2d
+    real(r_kind),pointer,dimension(:,:,:)     :: ptr3d
+    real(r_kind),pointer,dimension(:,:)       :: g_ps
+    real(r_kind),pointer,dimension(:,:,:)     :: g_vor,g_div,&
+                                                 g_cwmr,g_q,g_oz,g_tv
+
+    real(r_kind),allocatable,dimension(:,:)   :: g_z
+    real(r_kind),allocatable,dimension(:,:,:) :: g_u,g_v
 
 !******************************************************************************  
 !   Initialize variables used below
@@ -111,6 +123,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     end do
     icm=icount
       
+
     if(procuse)then
 !   All tasks open and read header with RanRead
        rewind(lunges)
@@ -123,6 +136,73 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     end if
 
     icount=0
+
+!   Get pointer to relevant variables (this should be made flexible and general)
+    call gsi_bundlegetpointer(inbundle,'ps',g_ps  ,ier);istatus=ier
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'sf',g_div ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'div',g_div ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both sf and div'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'vp',g_vor ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'vor',g_vor ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both vp and vor'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'t' ,g_tv  ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'tv',g_tv  ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both t and tv'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    call gsi_bundlegetpointer(inbundle,'q' ,g_q   ,ier);istatus=istatus+ier
+    call gsi_bundlegetpointer(inbundle,'oz',g_oz  ,ier);istatus=istatus+ier
+    call gsi_bundlegetpointer(inbundle,'cw',g_cwmr,ier);istatus=istatus+ier
+    if (istatus/=0) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'Missing some of the required fields'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
+    allocate(g_z(grd%lat2,grd%lon2))
 
 !   Process guess fields according to type of input file.   NCEP_SIGIO files
 !   are spectral coefficient files and need to be transformed to the grid.
@@ -472,6 +552,35 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
             3i6,', nlon,nlat=',2i6,', hour=',f10.1,', idate=',4i5)
     end if
 
+!   Load u->div and v->vor slot when uv are used instead
+    if (uvflag) then
+        call gsi_bundlegetpointer(inbundle,'u' ,ptr3d,ier)
+        if (ier==0) then
+           ptr3d=g_u
+           call gsi_bundlegetpointer(inbundle,'v' ,ptr3d,ier)
+           if(ier==0) ptr3d=g_v
+        else ! in this case, overload: return u/v in sf/vp slot 
+           call gsi_bundlegetpointer(inbundle,'sf' ,ptr3d,ier)
+           if (ier==0) then
+              ptr3d=g_u
+              call gsi_bundlegetpointer(inbundle,'vp' ,ptr3d,ier)
+              if(ier==0) ptr3d=g_v
+           endif
+        endif
+    else ! in this case, overload: return u/v in sf/vp slot 
+        call gsi_bundlegetpointer(inbundle,'sf' ,ptr3d,ier)
+        if(ier==0) ptr3d=g_u
+        call gsi_bundlegetpointer(inbundle,'vp' ,ptr3d,ier)
+        if(ier==0) ptr3d=g_v
+    endif
+    if (zflag) then
+       call gsi_bundlegetpointer(inbundle,'z' ,ptr2d,ier)
+       if(ier==0) ptr2d=g_z
+    endif
+
+!   Clean up
+    deallocate(g_z)
+    deallocate(g_u,g_v)
     return
 
 
@@ -486,8 +595,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     return
 end subroutine general_read_gfsatm
 subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zflag, &
-       g_z,g_ps,g_vor,g_div,g_u,g_v,&
-       g_tv,g_q,g_cwmr,g_oz,init_head,iret_read)
+       inbundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm  adaptation of read_gfsatm for general resolutions
@@ -501,6 +609,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !   2010-02-25  parrish
 !   2010-03-29  kleist     - modifications to allow for st/vp perturbations instead of u,v
 !   2012-01-17  wu         - increase character length for variable "filename"
+!   2014-11-30  todling    - genelize interface to handle bundle instead of fields;
+!                            internal code should be generalized
 !   2014-12-03  derber     - introduce vordivflag, zflag and optimize routines
 !
 !   input argument list:
@@ -521,7 +631,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !                reading similar files (ensembles)
 !
 !   output argument list:
-!     g_*      - guess fields
+!     inbundle  - bundle carrying guess fields
 !     iret_read - return code, 0 for successful read.
 !
 ! attributes:
@@ -541,6 +651,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use general_commvars_mod, only: fill_ns,filluv_ns,fill2_ns,filluv2_ns,ltosj_s,ltosi_s
     use constants, only: two,pi,half,deg2rad,r60,r3600
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
 
     implicit none
     
@@ -554,16 +666,23 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
     integer(i_kind)                       ,intent(in   ) :: mype
     logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
     integer(i_kind)                       ,intent(  out) :: iret_read
-    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_ps
-    real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(inout) :: g_z
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
-         g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
+    type(gsi_bundle)                      ,intent(inout) :: inbundle
+
+    real(r_kind),pointer,dimension(:,:)       :: ptr2d
+    real(r_kind),pointer,dimension(:,:,:)     :: ptr3d
+    real(r_kind),pointer,dimension(:,:)       :: g_ps
+    real(r_kind),pointer,dimension(:,:,:)     :: g_vor,g_div,&
+                                                 g_cwmr,g_q,g_oz,g_tv
+
+    real(r_kind),allocatable,dimension(:,:)   :: g_z
+    real(r_kind),allocatable,dimension(:,:,:) :: g_u,g_v
     
 !   Declare local variables
     character(len=120) :: my_name = 'general_read_gfsatm_nems'
     character(len=1)   :: null = ' '
     integer(i_kind):: iret,nlatm2,nlevs,icm,nord_int
     integer(i_kind):: i,j,k,icount,kk
+    integer(i_kind) :: ier,istatus,iredundant
     integer(i_kind) :: latb, lonb, levs, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 101
@@ -693,6 +812,73 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       deallocate(rlats,rlons)
 
     end if
+
+!   Get pointer to relevant variables (this should be made flexible and general)
+    call gsi_bundlegetpointer(inbundle,'ps',g_ps  ,ier);istatus=ier
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'sf',g_div ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'div',g_div ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both sf and div'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'vp',g_vor ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'vor',g_vor ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both vp and vor'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    iredundant=0
+    call gsi_bundlegetpointer(inbundle,'t' ,g_tv  ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    call gsi_bundlegetpointer(inbundle,'tv',g_tv  ,ier)
+    if (ier==0) then 
+       iredundant=iredundant+1
+    endif
+    if(iredundant==2) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'cannot handle having both t and tv'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    call gsi_bundlegetpointer(inbundle,'q' ,g_q   ,ier);istatus=istatus+ier
+    call gsi_bundlegetpointer(inbundle,'oz',g_oz  ,ier);istatus=istatus+ier
+    call gsi_bundlegetpointer(inbundle,'cw',g_cwmr,ier);istatus=istatus+ier
+    if (istatus/=0) then
+       if (mype==0) then
+          write(6,*) 'general_read_gfsatm: ERROR'
+          write(6,*) 'Missing some of the required fields'
+          write(6,*) 'Aborting ... '
+       endif
+       call stop2(999)
+    endif
+    allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
+    allocate(g_z(grd%lat2,grd%lon2))
 
     icount=0
 
@@ -1090,6 +1276,36 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !         end do
 !      end do
 !   end do
+
+!   Load u->div and v->vor slot when uv are used instead
+    if (uvflag) then
+        call gsi_bundlegetpointer(inbundle,'u' ,ptr3d,ier)
+        if (ier==0) then
+           ptr3d=g_u
+           call gsi_bundlegetpointer(inbundle,'v' ,ptr3d,ier)
+           if(ier==0) ptr3d=g_v
+        else ! in this case, overload: return u/v in sf/vp slot 
+           call gsi_bundlegetpointer(inbundle,'sf' ,ptr3d,ier)
+           if (ier==0) then
+              ptr3d=g_u
+              call gsi_bundlegetpointer(inbundle,'vp' ,ptr3d,ier)
+              if(ier==0) ptr3d=g_v
+           endif
+        endif
+    else ! in this case, overload: return u/v in sf/vp slot 
+        call gsi_bundlegetpointer(inbundle,'sf' ,ptr3d,ier)
+        if(ier==0) ptr3d=g_u
+        call gsi_bundlegetpointer(inbundle,'vp' ,ptr3d,ier)
+        if(ier==0) ptr3d=g_v
+    endif
+    if (zflag) then
+       call gsi_bundlegetpointer(inbundle,'z' ,ptr2d,ier)
+       if(ier==0) ptr2d=g_z
+    endif
+
+!   Clean up
+    deallocate(g_z)
+    deallocate(g_u,g_v)
 
 !   Print date/time stamp 
     if(mype==0) then

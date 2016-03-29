@@ -105,6 +105,11 @@ contains
     use guess_grids, only: ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_gridcreate
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe
     use mpeu_util, only: die
@@ -121,16 +126,18 @@ contains
     integer(i_kind):: it,nlon_b,num_fields,inner_vars
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
-    real(r_kind),dimension(lat2,lon2  ):: aux_ps
-    real(r_kind),dimension(lat2,lon2  ):: aux_z
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
+    type(gsi_bundle) :: atm_bundle
+    type(gsi_grid)   :: atm_grid
+    integer(i_kind),parameter :: n2d=2
+    integer(i_kind),parameter :: n3d=8
+    character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+    character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                    'vor ', 'div ', &
+                                                    'tv  ', 'q   ', &
+                                                    'cw  ', 'oz  '  /)
+
+    real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
@@ -165,6 +172,14 @@ contains
     call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
           grd_a%nsig,num_fields,regional)
 
+!   Allocate bundle used for reading members
+    call gsi_gridcreate(atm_grid,lat2,lon2,nsig)
+    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    if(istatus/=0) then
+      write(6,*)' read_gfs: trouble creating atm_bundle'
+      call stop2(999)
+    endif
+
     zflag=.true.
     inithead=.true.
     do it=1,nfldsig
@@ -177,22 +192,16 @@ contains
 !         uses double FFT.   Need to pass in sp_a and sp_b
 
           call general_read_gfsatm(grd_t,sp_a,sp_b,filename,mype,.true.,.true.,zflag, &
-               aux_z,aux_ps,&
-               aux_vor,aux_div,&
-               aux_u,aux_v,&
-               aux_tv,aux_q,&
-               aux_cwmr,aux_oz,inithead,iret)
+               atm_bundle,&
+               inithead,iret)
 
        else
 
 !         Otherwise, use standard transform.  Use sp_a in place of sp_b.
 
           call general_read_gfsatm(grd_t,sp_a,sp_a,filename,mype,.true.,.true.,zflag, &
-               aux_z,aux_ps,&
-               aux_vor,aux_div,&
-               aux_u,aux_v,&
-               aux_tv,aux_q,&
-               aux_cwmr,aux_oz,inithead,iret)
+               atm_bundle,&
+               inithead,iret)
        endif
        inithead=.false.
        zflag=.false.
@@ -214,6 +223,8 @@ contains
        end if
 
     end do
+    call gsi_bundledestroy(atm_bundle,istatus)
+
     call general_sub2grid_destroy_info(grd_t)
 
     if (hires_b) call general_destroy_spec_vars(sp_b)
@@ -224,26 +235,56 @@ contains
 
   subroutine set_guess_
 
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it  ,istatus) 
-  if(istatus==0) ges_ps_it = aux_ps
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it   ,istatus) 
-  if(istatus==0) ges_z_it = aux_z
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it   ,istatus) 
-  if(istatus==0) ges_u_it = aux_u
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it   ,istatus) 
-  if(istatus==0) ges_v_it = aux_v
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus) 
-  if(istatus==0) ges_vor_it = aux_vor
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
-  if(istatus==0) ges_div_it = aux_div
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it  ,istatus) 
-  if(istatus==0) ges_tv_it = aux_tv
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it   ,istatus) 
-  if(istatus==0) ges_q_it = aux_q
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it  ,istatus) 
-  if(istatus==0) ges_oz_it = aux_oz
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
-  if(istatus==0) ges_cwmr_it = aux_cwmr
+  call gsi_bundlegetpointer (atm_bundle,'ps',ptr2d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it  ,istatus) 
+     if(istatus==0) ges_ps_it = ptr2d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'z',ptr2d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it   ,istatus) 
+     if(istatus==0) ges_z_it = ptr2d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'u',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it   ,istatus) 
+     if(istatus==0) ges_u_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'v',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it   ,istatus) 
+     if(istatus==0) ges_v_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'vor',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus) 
+     if(istatus==0) ges_vor_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'div',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
+     if(istatus==0) ges_div_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'tv',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it  ,istatus) 
+     if(istatus==0) ges_tv_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'q',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it   ,istatus) 
+     if(istatus==0) ges_q_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'oz',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it  ,istatus) 
+     if(istatus==0) ges_oz_it = ptr3d
+  endif
+  call gsi_bundlegetpointer (atm_bundle,'cw',ptr3d,istatus) 
+  if (istatus==0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
+     if(istatus==0) ges_cwmr_it = ptr3d
+  endif
   call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
   call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
   if (iret_ql/=0) then 
@@ -257,7 +298,7 @@ contains
 
   end subroutine read_gfs
 
-  subroutine read_gfs_chem (iyear, month,idd )
+  subroutine read_gfs_chem (iyear, month,idd, it )
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_gfs_chem
@@ -281,6 +322,10 @@ contains
 !   2011-05-24  yang    - add idd for time interpolation of co2 field
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2013-11-08  todling - revisit check for present of GHG in chem-bundle
+!   2016-01-12  todling - allow for full Co2 field to be used when specified by user
+!                         (should be extra option in ncepgfs_ghg)
+!                       - pass time index (it) as optional arg for when routine
+!                         called sequentially in time
 !
 !   input argument list:
 !
@@ -309,12 +354,14 @@ contains
     integer(i_kind), intent(in):: iyear
     integer(i_kind), intent(in):: month
     integer(i_kind), intent(in):: idd
+    integer(i_kind), intent(in), optional:: it
 
 !   Declare local variables
     character(len=*),parameter :: myname='read_gfs_chem'
-    integer(i_kind)            :: i,j,n,ier
+    integer(i_kind)            :: i,j,k,n,it_,ier
     integer(i_kind)            :: ico24crtm,ich44crtm,in2o4crtm,ico4crtm
     character(len=3) :: char_ghg
+    real(r_kind),allocatable,dimension(:) :: avefld
     real(r_kind),dimension(lat2):: xlats
     real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
     real(r_kind),pointer,dimension(:,:,:)::p_ch4=>NULL()
@@ -327,6 +374,10 @@ contains
 
     if(.not.associated(gsi_chemguess_bundle)) return
 
+    it_=1
+    if (present(it)) then
+       it_=it
+    endif
 !   Get subdomain latitude array
     j = mype + 1
     do i = 1, lat2
@@ -337,18 +388,32 @@ contains
 !!      WILL CHANGE THE CODE FOLLOWING WHAT I DID IN crtm_interface.f90            !!!!!!
 
 ! check whether CO2 exist
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(it_),'co2',p_co2,ier)
     if (associated(p_co2)) then
        call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
        if (ico24crtm >= 0 ) then
-          call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
-                          lat2,lon2,nsig,mype,  &
-                          p_co2 )
+          if (ico24crtm<=2) then
+             call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
+                               lat2,lon2,nsig,mype,  &
+                               p_co2 )
 ! Approximation: assign three time slots (nfldsig) of ghg with same values
-          do n=2,nfldsig
-             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d_co2,ier)
-             ptr3d_co2 = p_co2
-          enddo
+             if (.not.present(it)) then
+                do n=2,nfldsig
+                   call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d_co2,ier)
+                   ptr3d_co2 = p_co2
+                enddo
+             endif
+          else
+             allocate(avefld(size(p_co2,3)))
+             call glbave(p_co2,xlats,avefld)
+             if (mype==0) then
+                write(6,'(a)') 'Mean Co2'
+                do k=1,nsig
+                   write(6,'(1p,(e10.3,1x))') avefld(k)
+                enddo
+             endif
+             deallocate(avefld)
+          endif
           char_ghg='co2'
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_co2,char_ghg,mype)
@@ -356,7 +421,7 @@ contains
     endif ! <co2>
 
 ! check whether CH4 data exist
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'ch4',p_ch4,ier)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(it_),'ch4',p_ch4,ier)
     if (associated(p_ch4)) then
        call gsi_chemguess_get ( 'i4crtm::ch4', ich44crtm, ier )
        if (ich44crtm > 0 ) then
@@ -364,17 +429,19 @@ contains
           call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
                           lat2,lon2,nsig,mype,  &
                           p_ch4 )
-          do n=2,nfldsig
-             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'ch4',ptr3d_ch4,ier)
-             ptr3d_ch4 = p_ch4
-          enddo
+          if (.not.present(it))then
+             do n=2,nfldsig
+                call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'ch4',ptr3d_ch4,ier)
+                ptr3d_ch4 = p_ch4
+             enddo
+          endif
 ! take comment out for printing out the interpolated tracer gas fields.
 !         call write_ghg_grid (ptr3d_ch4,char_ghg,mype)
        endif
     endif ! <ch4>
 
 ! check whether N2O data exist
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'n2o',p_n2o,ier)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(it_),'n2o',p_n2o,ier)
     if (associated(p_n2o)) then
        call gsi_chemguess_get ( 'i4crtm::n2o', in2o4crtm, ier )
        if (in2o4crtm > 0 ) then
@@ -382,17 +449,19 @@ contains
           call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
                           lat2,lon2,nsig,mype,  &
                           p_n2o )
-          do n=2,nfldsig
-             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'n2o',ptr3d_n2o,ier)
-             ptr3d_n2o = p_n2o
-          enddo
+          if (.not.present(it))then
+             do n=2,nfldsig
+                call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'n2o',ptr3d_n2o,ier)
+                ptr3d_n2o = p_n2o
+             enddo
+          endif
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_n2o,char_ghg,mype)
        endif
     endif ! <n2o>
 
 ! check whether CO data exist
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',p_co,ier)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(it_),'co',p_co,ier)
     if (associated(p_co)) then
        call gsi_chemguess_get ( 'i4crtm::co', ico4crtm, ier )
        if (ico4crtm > 0 ) then
@@ -400,10 +469,12 @@ contains
           call read_ch4n2oco ( iyear,month,idd,char_ghg,xlats,&
                           lat2,lon2,nsig,mype,  &
                           p_co )
-          do n=2,nfldsig
-             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co',ptr3d_co,ier)
-             ptr3d_co = p_co
-          enddo
+          if (.not.present(it)) then
+             do n=2,nfldsig
+                call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co',ptr3d_co,ier)
+                ptr3d_co = p_co
+             enddo
+          endif
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_co,char_ghg,mype)
        endif
@@ -2753,5 +2824,34 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     return
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine sigio_cnvtdv8
+
+  subroutine glbave(fld,xlats,ave)
+  use kinds, only: r_kind,i_kind,r_quad
+  use constants, only: zero_quad,two_quad
+  use mpimod, only: mype
+  use gridmod, only: lat2,lon2,nlon,istart,wgtlats
+  use mpl_allreducemod, only: mpl_allreduce
+  implicit none
+  real(r_kind),intent(in)    :: fld(:,:,:) 
+  real(r_kind),intent(in)    :: xlats(:)
+  real(r_kind),intent(inout) :: ave(:) 
+  integer(i_kind) i,j,k,mp1,ii
+  real(r_quad),allocatable,dimension(:):: xave
+  allocate(xave(size(ave,1)))
+  mp1=mype+1
+  do k=1,size(ave,1)
+     xave(k)=zero_quad
+     do j=2,lon2-1
+        do i=2,lat2-1
+           ii=istart(mp1)+i-2
+           xave(k)=xave(k)+fld(i,j,k)*wgtlats(ii)
+        enddo
+     enddo
+  enddo
+  xave=xave/(two_quad*float(nlon))
+  call mpl_allreduce(size(ave,1),xave)
+  ave=xave
+  deallocate(xave)
+  end subroutine glbave
 
 end module ncepgfs_io
