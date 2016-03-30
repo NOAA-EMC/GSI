@@ -1,28 +1,22 @@
-subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
+subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    setuppm2_5 --- Compute rhs of oi for in-situ pm2_5 obs
+! subprogram:    setuppm10 --- Compute rhs of oi for in-situ pm10 obs
 !
 !   prgrmmr:     parrish          org: np22                date: 1990-10-06
 !
-! abstract:      For pm2_5 observations this routine
+! abstract:      For pm10 observations, this routine
 !                  a) reads obs assigned to given mpi task (geographic region),
 !                  b) simulates obs from guess,
 !                  c) apply some quality control to obs,
 !                  d) load weight and innovation arrays used in minimization
 !                  e) collects statistics for runtime diagnostic output
 !                  f) writes additional diagnostic information to output file
-!                  g) converted to pm2_5
 !
 
 ! program history log:
-!   2010-10-03  pagowski - based on setupX; converted for pm2_5
-!   2013-01-26  parrish - convert tintrp2a to tintrp2a1, tintrp2a11 (so debug compile works on WCOSS)
-!   2013-10-19  todling - metguess now holds background
-!   2013-11-26  guo     - removed nkeep==0 escaping to allow more than one obstype sources.
-!   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
-!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2016-02-20  pagowski - based on setupmp2_5; converted for pm10
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -32,7 +26,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !     isis           - sensor/instrument/satellite id
 !     is             - integer(i_kind) counter for number of obs types to process
 !     
-!     obstype        - type of pm2_5 obs
+!     obstype        - type of pm10 obs
 !
 ! attributes:
 !   language: f90
@@ -50,8 +44,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use constants, only: huge_single,r10
   use constants, only: r1000,rd,max_varname_length
 
-  use obsmod, only : pm2_5head,pm2_5tail,&
-       pm2_5_ob_type,i_pm2_5_ob_type,time_offset
+  use obsmod, only : pm10head,pm10tail,&
+       pm10_ob_type,i_pm10_ob_type,time_offset
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : obs_diag,luse_obsdiag
   use qcmod, only : dfact,dfact1
@@ -74,11 +68,11 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   use chemmod, only : &
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,&
-        elev_tolerance,elev_missing,pm2_5_teom_max,ilate,ilone
+        elev_tolerance,elev_missing,pm10_teom_max,ilate,ilone
   use chemmod, only : oneobtest_chem,maginnov_chem,conconeobs
-  use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac,ppmv_conv
+  use chemmod, only : d_10,nh4_mfac,oc_mfac,ppmv_conv
   use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
-      upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
+      upper2lower,lower2upper,laeroana_gocart
 
 
   use gridmod, only : cmaq_regional,wrf_mass_regional
@@ -87,7 +81,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   
 ! !input parameters:
 
-  character(len=3) :: cvar='pm2'
+  character(len=3) :: cvar='pm1'
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
   integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
@@ -101,13 +95,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   
 ! declare local parameters  
 
-  character(len=*),parameter:: myname="setuppm2_5"
+  character(len=*),parameter:: myname="setuppm10"
   
 ! declare local variables  
   
   real(r_kind) rat_err2,dlat,dtime,dlon
-  real(r_kind) cg_pm2_5,wgross,wnotgross,wgt,arg,exp_arg,term
-  real(r_kind) :: pm2_5ges
+  real(r_kind) cg_pm10,wgross,wnotgross,wgt,arg,exp_arg,term
+  real(r_kind) :: pm10ges
   real(r_kind) :: ratio_errors,error
   real(r_kind) :: innov,innov_error2,rwgt,valqc,tfact,innov_error,elevges,&
         elevdiff,conc,elevobs,ps_ges,site_id,tv_ges
@@ -117,7 +111,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind) ,dimension(nreal,nobs):: data
   real(r_kind),pointer,dimension(:,:,:):: rank3
   
-  integer(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia,ifld
+  INTEGER(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia,ifld
   integer(i_kind) mm1
   integer(i_kind) :: nchar,nrealdiag
 
@@ -135,17 +129,17 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   logical proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  type(pm2_5_ob_type),pointer:: my_head
+  type(pm10_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
-  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_pm2_5
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_pm10
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
 
   character(len=max_varname_length) :: aeroname
 
-  integer(i_kind) :: ipm2_5,n_gocart_var
+  integer(i_kind) :: ipm10,n_gocart_var
 
 
 ! Check to see if required guess fields are available
@@ -164,38 +158,12 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 !
 !*********************************************************************************
-! get pointer to pm2_5 guess state, if not present return 
+! get pointer to pm10 guess state, if not present return 
 
-    if (cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
-
-     call gsi_chemguess_get ('var::pm2_5', ipm2_5, ier )
-     if (ipm2_5 <= 0) then
-        write(6,*)'pm2_5 not in chem_guess - returning from setuppm2_5'
-        return
-     endif
-
-     if (size(gsi_chemguess_bundle)==nfldsig) then
-        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'pm2_5',rank3,ier)
-        if (ier==0) then
-           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
-                nfldsig))
-           ges_pm2_5(:,:,:,1)=rank3
-           do ifld=2,nfldsig
-              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'pm2_5',rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=rank3
-           enddo
-        else
-           write(6,*) 'setuppm2_5: pm2_5 not found in chem bundle, ier= ',ier
-           call stop2(453)
-        endif
-     else
-        write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
-          nfldsig,size(gsi_chemguess_bundle)
-        call stop2(420)
-     endif
-     
+  if (cmaq_regional) then
+     WRITE(6,*) 'pm10 for cmaq not implemented. Stopping'
+     CALL stop2(451)
   endif
-
 
   if (wrf_mass_regional .and. laeroana_gocart) then
 
@@ -204,14 +172,14 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
 
      if (n_gocart_var /= naero_gocart_wrf) then
-        write(6,*) 'setuppm2_5: not all gocart aerosols in anavinfo'
+        write(6,*) 'setuppm10: not all gocart aerosols in anavinfo'
         call stop2(451)
      endif
 
      do i=1,naero_gocart_wrf
         aeroname=upper2lower(aeronames_gocart_wrf(i))
-        call gsi_chemguess_get ('var::'//trim(aeroname), ipm2_5, ier )
-        if (ier > 0 .or. ipm2_5 <= 0) then
+        call gsi_chemguess_get ('var::'//trim(aeroname), ipm10, ier )
+        if (ier > 0 .or. ipm10 <= 0) then
            write(6,*) 'convinfo: ',trim(aeroname),' missing in anavinfo'
            call stop2(452)
         endif
@@ -222,15 +190,15 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
+           allocate(ges_pm10(size(rank3,1),size(rank3,2),size(rank3,3),&
                 nfldsig))
-           ges_pm2_5(:,:,:,1)=rank3
+           ges_pm10(:,:,:,1)=rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=rank3
+              ges_pm10(:,:,:,ifld)=rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -238,13 +206,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -252,13 +220,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*nh4_mfac
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3*nh4_mfac
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*nh4_mfac
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3*nh4_mfac
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -266,13 +234,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -280,13 +248,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*oc_mfac
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3*oc_mfac
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*oc_mfac
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3*oc_mfac
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -294,13 +262,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*oc_mfac
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3*oc_mfac
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*oc_mfac
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3*oc_mfac
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -308,13 +276,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -322,13 +290,27 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*s_2_5
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*s_2_5
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='seas3'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -336,13 +318,13 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
@@ -350,18 +332,47 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
-           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*d_2_5
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*d_2_5
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
            enddo
         else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           write(6,*) 'setuppm10: ',trim(aeroname),' not found in chem bundle, ier= ',ier
            call stop2(453)
         endif
 
+        aeroname='dust3'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='dust4'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),TRIM(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm10(:,:,:,1)=ges_pm10(:,:,:,1)+rank3*d_10
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),TRIM(aeroname),rank3,ier)
+              ges_pm10(:,:,:,ifld)=ges_pm10(:,:,:,ifld)+rank3*d_10
+           enddo
+        else
+           write(6,*) 'setuppm10: ',TRIM(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+
      else
-        write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+        write(6,*) 'setuppm10: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
              nfldsig,size(gsi_chemguess_bundle)
         call stop2(420)
      endif
@@ -404,21 +415,20 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   call dtime_setup()
   
+  if (oneobtest_chem) then
+     WRITE(6,*)'setuppm10: oneobtest_chem available only for pm2_5'
+     CALL stop2(424)
+  endif
+     
+
   if (trim(isis)=='TEOM') then
 
-     do i=1,nobs
+     DO i=1,nobs
         
         dtime=data(itime,i)
 
         call dtime_check(dtime, in_curbin, in_anybin)
-        if(.not.in_anybin) then 
-           if (oneobtest_chem) then
-              write(6,*)'oneobtest_chem outside time window'
-              call stop2(414)
-           else
-              cycle
-           endif
-        endif
+        if(.not.in_anybin) cycle
 
         if (nobs_bins > 1) then
            ibin = nint( dtime/hr_obsbin ) + 1
@@ -432,50 +442,50 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !    link obs to diagnostics structure
         if(luse_obsdiag)then
            if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_pm2_5_ob_type,ibin)%head)) then
-                 allocate(obsdiags(i_pm2_5_ob_type,ibin)%head,stat=istat)
+              if (.not.associated(obsdiags(i_pm10_ob_type,ibin)%head)) then
+                 allocate(obsdiags(i_pm10_ob_type,ibin)%head,stat=istat)
                  if (istat/=0) then
                     write(6,*)'setupq: failure to allocate obsdiags',istat
                     call stop2(421)
                  end if
-                 obsdiags(i_pm2_5_ob_type,ibin)%tail => obsdiags(i_pm2_5_ob_type,ibin)%head
+                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%head
               else
-                 allocate(obsdiags(i_pm2_5_ob_type,ibin)%tail%next,stat=istat)
+                 allocate(obsdiags(i_pm10_ob_type,ibin)%tail%next,stat=istat)
                  if (istat/=0) then
                     write(6,*)'setupq: failure to allocate obsdiags',istat
                     call stop2(422)
                  end if
-                 obsdiags(i_pm2_5_ob_type,ibin)%tail => obsdiags(i_pm2_5_ob_type,ibin)%tail%next
+                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%tail%next
               end if
 
-              allocate(obsdiags(i_pm2_5_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_pm2_5_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_pm2_5_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_pm2_5_ob_type,ibin)%tail%obssen(miter))
+              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%muse(miter+1))
+              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(miter+1))
+              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(miter))
+              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%obssen(miter))
 
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%indxglb=i
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%luse=.false.
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%muse(:)=.false.
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_pm2_5_ob_type,ibin)%tail%obssen(:)=zero
+              obsdiags(i_pm10_ob_type,ibin)%tail%indxglb=i
+              obsdiags(i_pm10_ob_type,ibin)%tail%nchnperobs=-99999
+              obsdiags(i_pm10_ob_type,ibin)%tail%luse=.false.
+              obsdiags(i_pm10_ob_type,ibin)%tail%muse(:)=.false.
+              obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+              obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(:)=zero
+              obsdiags(i_pm10_ob_type,ibin)%tail%wgtjo=-huge(zero)
+              obsdiags(i_pm10_ob_type,ibin)%tail%obssen(:)=zero
            
               n_alloc(ibin) = n_alloc(ibin) +1
-              my_diag => obsdiags(i_pm2_5_ob_type,ibin)%tail
+              my_diag => obsdiags(i_pm10_ob_type,ibin)%tail
               my_diag%idv = is
               my_diag%iob = i
               my_diag%ich = 1
               
            else
-              if (.not.associated(obsdiags(i_pm2_5_ob_type,ibin)%tail)) then
-                 obsdiags(i_pm2_5_ob_type,ibin)%tail => obsdiags(i_pm2_5_ob_type,ibin)%head
+              if (.not.associated(obsdiags(i_pm10_ob_type,ibin)%tail)) then
+                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%head
               else
-                 obsdiags(i_pm2_5_ob_type,ibin)%tail => obsdiags(i_pm2_5_ob_type,ibin)%tail%next
+                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%tail%next
               end if
-              if (obsdiags(i_pm2_5_ob_type,ibin)%tail%indxglb/=i) then
-                 write(6,*)'setuppm2_5: index error'
+              if (obsdiags(i_pm10_ob_type,ibin)%tail%indxglb/=i) then
+                 write(6,*)'setuppm10: index error'
                  call stop2(423)
               end if
            endif
@@ -495,7 +505,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         
 !obs are conc
 !wrf state vars are as mix ratio
-!cmaq pm2_5 is as conc
+!cmaq pm10 is as conc
 !might convert for cmaq at some point as well
 
 
@@ -521,30 +531,16 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !if elevation unknown include observation nevertheless
         endif
         
-        if (oneobtest_chem) then
-           call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
-                mype,nfldsig)
-           if (jiter==1) then
-              innov = min(maginnov_chem,cgross(ikx))
-              conconeobs=pm2_5ges+innov
-              conc=conconeobs
-           else
-              conc=conconeobs
-              innov=conc - pm2_5ges
-           endif
-
-        else
-           call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
-                mype,nfldsig)
-           innov = conc - pm2_5ges
-        end if
+        call tintrp2a11(ges_pm10,pm10ges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
+        innov = conc - pm10ges
 
         error=one/data(ierror,i)
         ratio_errors=one/sqrt(real(dup(i)))
         innov_error = error*innov
         
         if (abs(innov) > cgross(ikx) .or. &
-              conc > pm2_5_teom_max  .or. &
+              conc > pm10_teom_max  .or. &
               elevdiff > elev_tolerance) then
            muse(i)=.false.
         endif
@@ -560,8 +556,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            if (cvar_pg(ikx) > tiny_r_kind ) then
               arg  = exp(exp_arg)
               wnotgross= one-cvar_pg(ikx)
-              cg_pm2_5=cvar_b(ikx)
-              wgross = cg_term*cvar_pg(ikx)/(cg_pm2_5*wnotgross)
+              cg_pm10=cvar_b(ikx)
+              wgross = cg_term*cvar_pg(ikx)/(cg_pm10*wnotgross)
               term = log((arg+wgross)/(one+wgross))
               wgt  = one-wgross/(arg+wgross)
               rwgt = wgt/wgtlim
@@ -576,48 +572,48 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         endif
 
         if(luse_obsdiag)then
-           obsdiags(i_pm2_5_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_pm2_5_ob_type,ibin)%tail%muse(jiter)=muse(i)
-           obsdiags(i_pm2_5_ob_type,ibin)%tail%nldepart(jiter)=innov
-           obsdiags(i_pm2_5_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+           obsdiags(i_pm10_ob_type,ibin)%tail%luse=luse(i)
+           obsdiags(i_pm10_ob_type,ibin)%tail%muse(jiter)=muse(i)
+           obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(jiter)=innov
+           obsdiags(i_pm10_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
         end if
 
         if (.not. last .and. muse(i)) then
            
-           if(.not. associated(pm2_5head(ibin)%head))then
-              allocate(pm2_5head(ibin)%head,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write pm2_5head '
-              pm2_5tail(ibin)%head => pm2_5head(ibin)%head
+           if(.not. associated(pm10head(ibin)%head))then
+              allocate(pm10head(ibin)%head,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write pm10head '
+              pm10tail(ibin)%head => pm10head(ibin)%head
            else
-              allocate(pm2_5tail(ibin)%head%llpoint,stat=istat)
-              if(istat /= 0)write(6,*)' failure to write pm2_5tail%llpoint '
-              pm2_5tail(ibin)%head => pm2_5tail(ibin)%head%llpoint
+              allocate(pm10tail(ibin)%head%llpoint,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write pm10tail%llpoint '
+              pm10tail(ibin)%head => pm10tail(ibin)%head%llpoint
            end if
            
            m_alloc(ibin) = m_alloc(ibin) +1
-           my_head => pm2_5tail(ibin)%head
+           my_head => pm10tail(ibin)%head
            my_head%idv = is
            my_head%iob = i
            
            call get_ij(mm1,dlat,dlon,&
-                 pm2_5tail(ibin)%head%ij(1),tempwij(1))
+                 pm10tail(ibin)%head%ij(1),tempwij(1))
 
-           pm2_5tail(ibin)%head%ij(5:8)=pm2_5tail(ibin)%head%ij(1:4)
-           pm2_5tail(ibin)%head%wij(1:4)=tempwij
-           pm2_5tail(ibin)%head%wij(5:8)=zero
-           pm2_5tail(ibin)%head%res    = innov
-           pm2_5tail(ibin)%head%err2   = error**2
-           pm2_5tail(ibin)%head%raterr2= ratio_errors**2
-           pm2_5tail(ibin)%head%time   = dtime
-           pm2_5tail(ibin)%head%b      = cvar_b(ikx)
-           pm2_5tail(ibin)%head%pg     = cvar_pg(ikx)
-           pm2_5tail(ibin)%head%luse   = luse(i)
+           pm10tail(ibin)%head%ij(5:8)=pm10tail(ibin)%head%ij(1:4)
+           pm10tail(ibin)%head%wij(1:4)=tempwij
+           pm10tail(ibin)%head%wij(5:8)=zero
+           pm10tail(ibin)%head%res    = innov
+           pm10tail(ibin)%head%err2   = error**2
+           pm10tail(ibin)%head%raterr2= ratio_errors**2
+           pm10tail(ibin)%head%time   = dtime
+           pm10tail(ibin)%head%b      = cvar_b(ikx)
+           pm10tail(ibin)%head%pg     = cvar_pg(ikx)
+           pm10tail(ibin)%head%luse   = luse(i)
            if(luse_obsdiag)then
-              pm2_5tail(ibin)%head%diags => &
-                    obsdiags(i_pm2_5_ob_type,ibin)%tail
+              pm10tail(ibin)%head%diags => &
+                    obsdiags(i_pm10_ob_type,ibin)%tail
 
-              my_head => pm2_5tail(ibin)%head
-              my_diag => pm2_5tail(ibin)%head%diags
+              my_head => pm10tail(ibin)%head
+              my_diag => pm10tail(ibin)%head%diags
               if(my_head%idv /= my_diag%idv .or. &
                    my_head%iob /= my_diag%iob ) then
                  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =',&
@@ -657,8 +653,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            rdiagbuf(7,ii)  = data(ielev,i)    ! observation height (meters)
            rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
            
-           rdiagbuf(9,ii)  = zero !data(iqc,i) input prepbufr qc or event mark
-           rdiagbuf(10,ii) = zero !data(iqt,i) setup qc or event mark (currently qtflg only)
+           rdiagbuf(9,ii)  = zero !data(iqc,i)  input prepbufr qc or event mark
+           rdiagbuf(10,ii) = zero !data(iqt,i)  setup qc or event mark (currently qtflg only)
            rdiagbuf(11,ii) = one       ! read_prepbufr data usage flag
            if(muse(i)) then
               rdiagbuf(12,ii) = one            ! analysis usage flag (1=use, -1=not used)
@@ -695,7 +691,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            if (lobsdiagsave) then
               do jj=1,miter
                  idia=idia+1
-                 if (obsdiags(i_pm2_5_ob_type,ibin)%tail%muse(jj)) then
+                 if (obsdiags(i_pm10_ob_type,ibin)%tail%muse(jj)) then
                     rdiagbuf(idia,ii) = one
                  else
                     rdiagbuf(idia,ii) = -one
@@ -704,17 +700,17 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
               
               do jj=1,miter+1
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%nldepart(jj)
+                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(jj)
               enddo
 
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%tldepart(jj)
+                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(jj)
               enddo
 
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm2_5_ob_type,ibin)%tail%obssen(jj)
+                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%obssen(jj)
               enddo
 
            endif
@@ -747,7 +743,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   contains
 
   subroutine check_vars_ (proceed)
-  use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf
+    use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf
   logical,intent(inout) :: proceed
   integer(i_kind) ivar, istatus
 ! Check to see if required guess fields are available
@@ -756,18 +752,16 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   call gsi_metguess_get ('var::z' , ivar, istatus )
   proceed=proceed.and.ivar>0
 !
-  if ( cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
-     call gsi_chemguess_get ('var::pm2_5', ivar, istatus )
-  else if (wrf_mass_regional .and. laeroana_gocart) then
-
+  if (wrf_mass_regional .and. laeroana_gocart) then
      do i=1,naero_gocart_wrf
         aeroname=upper2lower(aeronames_gocart_wrf(i))
         call gsi_chemguess_get ('var::'//trim(aeroname), ivar, istatus )
         if (ivar == 0) exit
      enddo
-
   endif
+
   proceed=proceed.and.ivar>0
+
   end subroutine check_vars_ 
 
   subroutine init_vars_
@@ -817,20 +811,20 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      endif
 !    get tv ...
      varname='tv'
-     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)                       
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)                   
      if (istatus==0) then
          if(allocated(ges_tv))then
-            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '   
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '      
             call stop2(999)
          endif
          allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
          ges_tv(:,:,:,1)=rank3
          do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)            
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)       
             ges_tv(:,:,:,ifld)=rank3
          enddo
      else
-         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus         
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus    
          call stop2(999)
      endif
   else
@@ -842,9 +836,9 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   subroutine final_vars_
     if(allocated(ges_tv)) deallocate(ges_tv)
-    if(allocated(ges_pm2_5)) deallocate(ges_pm2_5)
+    if(allocated(ges_pm10)) deallocate(ges_pm10)
     if(allocated(ges_z )) deallocate(ges_z )
     if(allocated(ges_ps)) deallocate(ges_ps)
   end subroutine final_vars_
 
-end subroutine setuppm2_5
+end subroutine setuppm10

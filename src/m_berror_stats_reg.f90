@@ -12,7 +12,7 @@
       use kinds,only : i_kind,r_kind
       use constants, only: zero,one,max_varname_length
       use gridmod, only: nsig
-      use chemmod, only : berror_chem
+      use chemmod, only : berror_chem,upper2lower,lower2upper
 
       implicit none
 
@@ -336,7 +336,7 @@ end subroutine berror_read_bal_reg
 
 
   character*5 :: varshort
-  character(len=max_varname_length) :: var_chem,var
+  character(len=max_varname_length) :: var
   logical,dimension(nrf):: nrf_err
 
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf3_vp,nrf2_sst
@@ -399,9 +399,9 @@ end subroutine berror_read_bal_reg
   nrf_err=.false.
   read: do
      if (berror_chem) then
-        read(inerr,iostat=istat) var_chem,isig
-        var=var_chem
-!chem variable names can be longer than 5 chars
+        read(inerr,iostat=istat) varshort,isig
+        var=upper2lower(varshort)
+        if (var == 'pm25') var = 'pm2_5'
      else 
         read(inerr,iostat=istat) varshort, isig
         var=varshort
@@ -430,6 +430,8 @@ end subroutine berror_read_bal_reg
            nrf_err(n)=.true.
            loc=n
            exit
+        else
+           loc=-999
         end if
      end do
 
