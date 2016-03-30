@@ -48,7 +48,7 @@ subroutine get_gefs_ensperts_dualres
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
   use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
-  use constants,only: zero,half,fv,rd_over_cp,one,qcmin
+  use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
@@ -336,10 +336,27 @@ subroutine get_gefs_ensperts_dualres
                       end do
                    end do
                 end do
+                cycle
              end if
+          end if
+          if ( trim(cvars3d(ic3)) == 'cw' ) then
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = max(p3(i,j,k),qcmin)
+                      x3(i,j,k)=x3(i,j,k)+max(p3(i,j,k),qcmin)
+                   end do
+                end do
+             end do
              cycle
           end if
-          
+
+          if ( trim(cvars3d(ic3)) == 'oz' .and. oz_univ_static ) then
+             w3 = zero_single
+             cycle
+          end if
+
 !$omp parallel do schedule(dynamic,1) private(i,j,k)
           do k=1,km
              do j=1,jm
@@ -349,10 +366,6 @@ subroutine get_gefs_ensperts_dualres
                 end do
              end do
           end do
-
-          if ( trim(cvars3d(ic3)) == 'oz' .and. oz_univ_static ) then
-             w3 = zero
-           end if
 
        end do !c3d
        if (.not.q_hyb_ens) deallocate(qs)
