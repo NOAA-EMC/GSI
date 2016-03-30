@@ -122,8 +122,8 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
            num_obs_tot = num_obs_tot + nkeep
            close(iunit)
            if (ipe .eq. npefiles) then
-              write(6,100) nsat,trim(sattypes_rad(nsat)),nkeep,num_obs_tot
-100           format(2x,i3,2x,a20,2x,'nkeep= ',i9,2x,'num_obs_tot= ',i9)
+              write(6,100) nsat,trim(sattypes_rad(nsat)),num_obs_tot
+100           format(2x,i3,2x,a20,2x,'num_obs_tot= ',i9)
            endif
         enddo peloop ! ipe
     enddo ! satellite
