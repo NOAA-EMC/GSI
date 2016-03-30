@@ -1684,7 +1684,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
        i_use_2mq4b
-  use chemmod, only: laeroana_gocart
+  use chemmod, only: laeroana_gocart,wrf_pm2_5
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
@@ -1755,6 +1755,7 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_kind), pointer :: ges_seas3(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_p25  (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_pm2_5  (:,:,:)=>NULL()
 
   it=ntguessig
 
@@ -1790,6 +1791,14 @@ subroutine wrwrfmassa_netcdf(mype)
         laeroana_gocart = .false.
      endif
   endif
+
+  if ( wrf_pm2_5 ) then
+     num_mass_fields = num_mass_fields + lm
+     allocate(i_chem(1))
+     allocate(kchem(1))
+  endif
+  
+
   num_all_fields=num_mass_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat2,lon2,num_all_pad))
@@ -1830,12 +1839,25 @@ subroutine wrwrfmassa_netcdf(mype)
            i_chem(iv)=i_tt+(iv-1)*lm+1
         end do
      endif
+
+     if ( wrf_pm2_5 ) then
+        iv=1
+        i_chem(iv)=i_tt+(iv-1)*lm+1
+     endif
+     
   else
      if ( laeroana_gocart) then
         do iv = 1, n_gocart_var
            i_chem(iv)=i_skt+(iv-1)*lm+1
         end do
      endif
+
+     if ( wrf_pm2_5 ) then
+        iv=1
+        i_chem(iv)=i_skt+(iv-1)*lm+1
+     endif
+
+
   endif
   
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
@@ -1919,6 +1941,18 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
   endif
 
+  if ( wrf_pm2_5 ) then
+     ier = 0
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'pm2_5',  ges_pm2_5,  istatus )
+     ier=ier+istatus
+     if (ier/=0 .and. mype == 0) then
+         write(6,*)'WRWRFMASSA_NETCDF: getpointer failed for gocart pm2_5'
+     endif
+     iv=1
+     kchem(iv) = i_chem(iv)-1
+  endif
+
+
   q_integral=one
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+1)
@@ -1941,6 +1975,13 @@ subroutine wrwrfmassa_netcdf(mype)
            kchem(iv) = kchem(iv)+1
         end do
      endif
+
+     if (wrf_pm2_5) then
+        iv=1
+        kchem(iv) = kchem(iv)+1
+     endif
+
+
      do i=1,lon2
         do j=1,lat2
            all_loc(j,i,ku)=ges_u(j,i,k)
@@ -1982,6 +2023,11 @@ subroutine wrwrfmassa_netcdf(mype)
               all_loc(j,i,kchem(14))=ges_seas4(j,i,k)
               if ( n_gocart_var>=15 ) all_loc(j,i,kchem(15))=ges_p25(j,i,k)
            endif
+
+           if ( wrf_pm2_5 ) then
+              all_loc(j,i,kchem(1))=ges_pm2_5(j,i,k)
+           endif
+           
 
            q_integral(j,i)=q_integral(j,i)+deltasigma* &
                 ges_q(j,i,k)/(one-ges_q(j,i,k))
@@ -2508,6 +2554,29 @@ subroutine wrwrfmassa_netcdf(mype)
               write(lendian_out)temp1
            end if
         end do
+     end do
+     deallocate(i_chem)
+     deallocate(kchem)
+  endif
+
+  if ( wrf_pm2_5 ) then
+     iv=1
+     kchem(iv)=i_chem(iv)-1
+     do k=1,nsig
+        tempa=0.0
+        kchem(iv)=kchem(iv)+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip(all_loc(:,:,kchem(iv)),strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
+           do i=1,iglobal
+              tempa(i)=tempa(i)-tempb(i)
+           end do
+           call unfill_mass_grid2t(tempa,im,jm,temp1)
+           write(lendian_out)temp1
+        end if
      end do
      deallocate(i_chem)
      deallocate(kchem)
