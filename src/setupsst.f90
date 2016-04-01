@@ -110,13 +110,11 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nele,nobs):: data
-  real(r_kind),dimension(lat2,lon2):: dsfct_tmp
-  integer(i_kind),dimension(lat2,lon2):: isli2_tmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   real(r_kind) :: tz_tr,zob,tref,dtw,dtc
 
-  integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc,itemp,ipct
+  integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,itemp,ipct
   integer(i_kind) ier2,iuse,izob,itref,idtw,idtc,itz_tr,iotype,ilate,ilone,istnelv
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
@@ -309,8 +307,7 @@ if(.not.in_curbin) cycle
 ! Interpolate to get sst at obs location/time
      if ( isli == 0 ) then
        nobs_qc = nobs_qc + 1
-!      call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
-       call tintrp2a11(dsfct,dsfct_obx,dlat,dlon,dtime,hrdifnst,mype,nfldnst)
+       call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
      else
        dsfct_obx = zero
      endif
