@@ -149,7 +149,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
   use chemmod, only : oneobtest_chem,oneob_type_chem,&
-       code_pm25_bufr,code_pm25_prepbufr
+       code_pm25_ncbufr,code_pm25_anowbufr,code_pm10_ncbufr,code_pm10_anowbufr
 
   implicit none
 
@@ -179,7 +179,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
       call openbf(lnbufr,'IN',lnbufr)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
-      nread = nread + 1
 
 !     Extract date and check for consistency with analysis date
       if (idate<iadatebgn.or.idate>iadateend) then
@@ -296,6 +295,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else
          kidsat = 0
        end if
+
+       call closbf(lnbufr)
+       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
+       call openbf(lnbufr,'IN',lnbufr)
+       call datelen(10)
 
        if(kidsat /= 0)then
         lexist = .false.
@@ -414,7 +418,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
              lexist=.true.
           else
              lexist = .false.
-             fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
+             fileloopanow_pm2_5:do while(ireadmg(lnbufr,subset,idate2) >= 0)
                 do while(ireadsb(lnbufr)>=0)
                    if (subset == 'ANOWPM') then
                       call ufbint(lnbufr,rtype,1,1,iret,'TYP')
@@ -423,10 +427,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                           (subset == 'NC008032' ) ) then
                       call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
                       kx=nint(rtype)
-                      if (kx/=code_pm25_bufr) then
+                      if (kx/=code_pm25_ncbufr) then
                          cycle
                       else
-                         kx=code_pm25_prepbufr
+                         kx=code_pm25_anowbufr
                       endif
                    else
                       cycle
@@ -436,12 +440,12 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                       if(trim(ioctype(nc)) == trim(dtype) .and. &
                            kx == ictype(nc) .and. icuse(nc) > minuse)then
                          lexist = .true.
-                         exit fileloopanow
+                         exit fileloopanow_pm2_5
                       end if
                    end do
                 end do
                 nread = nread + 1
-             enddo fileloopanow
+             enddo fileloopanow_pm2_5
           endif
 
           if (lexist) then
@@ -450,6 +454,40 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
              write(6,*)'did not find pm2_5 in anow bufr'
           endif
            
+       else if(trim(dtype) == 'pm10')then
+          lexist = .false.
+          fileloopanow_pm10:do while(ireadmg(lnbufr,subset,idate2) >= 0)
+             do while(ireadsb(lnbufr)>=0)
+                if (subset == 'NC008033') then
+                   call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
+                   kx=nint(rtype)
+                   IF (kx/=code_pm10_ncbufr) then
+                      cycle
+                   else
+                      kx=code_pm10_anowbufr
+                   endif
+                else
+                   cycle
+                endif
+
+                do nc=1,nconvtype
+                   if(trim(ioctype(nc)) == trim(dtype) .and. &
+                        kx == ictype(nc) .and. icuse(nc) > minuse)then
+                      lexist = .true.
+                      exit fileloopanow_pm10
+                   end if
+                end do
+             end do
+             nread = nread + 1
+          enddo fileloopanow_pm10
+
+          if (lexist) then
+             write(6,*)'found pm10 in anow bufr'
+          else
+             write(6,*)'did not find pm10 in anow bufr'
+          endif
+
+
        end if
       end if
 
@@ -738,7 +776,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
-           obstype == 'larccld' .or. obstype == 'pm2_5' .or. &
+           obstype == 'larccld' .or. obstype == 'pm2_5' .or. obstype == 'pm10' .or. &
            obstype == 'gust' .or. obstype=='vis' .or. &
            obstype == 'pblh' .or. obstype=='wspd10m' .or. &
            obstype == 'td2m' .or. obstype=='mxtm' .or. &
@@ -1326,7 +1364,7 @@ subroutine read_obs(ndata,mype)
                      twind,sis,nobs_sub1(1,i))
                 string='READ_SUPRWNDS'
 
-             else if (obstype == 'pm2_5') then
+             else if (obstype == 'pm2_5' .or. obstype == 'pm10') then
 
                 if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
                    call oneobschem(nread,npuse,nouse,gstime,&
@@ -1545,7 +1583,7 @@ subroutine read_obs(ndata,mype)
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
                   platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                  mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                   nobs_sub1(1,i))
              string='READ_AEROSOL'
                      

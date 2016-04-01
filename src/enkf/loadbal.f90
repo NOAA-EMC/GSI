@@ -114,43 +114,52 @@ type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid, kdtree_obs2
 contains
 
 subroutine load_balance()
-use random_normal, only : set_random_seed
-! set up decomposition (for ob priors and analysis grid points)
+! set up decomposition (for analysis grid points, and ob priors in serial EnKF)
 ! that minimizes load imbalance. 
 ! Uses "Graham's rule", which simply
 ! stated, assigns each new work item to the task that currently has the 
 ! smallest load.
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
-real(r_single), allocatable, dimension(:) :: buffer
-integer(i_kind) np,i,n,nn,nob1,nob2,ierr,nanal
+!real(r_single), allocatable, dimension(:) :: buffer
+integer(i_kind) np,i,n,nn,nob1,nob2,ierr
 real(r_double) t1
+logical test_loadbal
 
 if (letkf_flag) then
    kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
 endif
 
-! partition state vector for enkf using Grahams rule..
+! partition state vector for using Grahams rule..
 ! ("When a new job arrives, allocate it to the server 
 ! that currently has the smallest load")
 allocate(numobs(npts))
-allocate(numobsperproc(numproc))
 allocate(numptsperproc(numproc))
 allocate(rtmp(numproc))
 t1 = mpi_wtime()
+! assume work load proportional to number of 'nearby' obs
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (nproc == 0) print *,'time in estimate_work_enkf1 = ',mpi_wtime()-t1,' secs'
+if (nproc == 0) print *,'min/max numobs',minval(numobs),maxval(numobs)
 ! loop over horizontal grid points on analysis grid.
 t1 = mpi_wtime()
 rtmp = 0
 numptsperproc = 0
+np = 0
+test_loadbal = .false. ! simple partition for testing
 do n=1,npts
-   np = minloc(rtmp,dim=1)
-   ! np is processor with the fewest number of obs to process
-   ! add this grid point to list for nmin
-   rtmp(np) = rtmp(np)+numobs(n)
+   if (test_loadbal) then
+       ! use simple partition (does not use estimated workload) for testing
+       np = np + 1
+       if (np > numproc) np = 1
+   else
+       np = minloc(rtmp,dim=1)
+       ! np is processor with the fewest number of obs to process
+       ! add this grid point to list for nmin
+       rtmp(np) = rtmp(np)+numobs(n)
+   endif
    numptsperproc(np) = numptsperproc(np)+1
 end do
 npts_max = maxval(numptsperproc)
@@ -160,98 +169,114 @@ allocate(indxproc(numproc,npts_max))
 ! there are numptsperpoc(np) i values for processor np
 rtmp = 0
 numptsperproc = 0
+np = 0
 do n=1,npts
-   np = minloc(rtmp,dim=1)
-   rtmp(np) = rtmp(np)+numobs(n)
+   if (test_loadbal) then
+       ! use simple partition (does not use estimated workload) for testing
+       np = np + 1
+       if (np > numproc) np = 1
+   else
+       np = minloc(rtmp,dim=1)
+       rtmp(np) = rtmp(np)+numobs(n)
+   endif
    numptsperproc(np) = numptsperproc(np)+1 ! recalculate
    indxproc(np,numptsperproc(np)) = n
 end do
+! print estimated workload for each task
+if (nproc == 0) then
+   do np=1,numproc
+      rtmp(np) = 0
+      do n=1,numptsperproc(np)
+         rtmp(np) = rtmp(np) + numobs(indxproc(np,n))
+      enddo
+   enddo
+   print *,'min/max estimated work ',&
+    minval(rtmp),maxval(rtmp)
+endif
+deallocate(rtmp,numobs)
 if (nproc == 0) then
     print *,'npts = ',npts
     print *,'min/max number of points per proc = ',npts_min,npts_max
     print *,'time to do model space decomp = ',mpi_wtime()-t1
 end if
-
-! partition obs for observation space update.
-deallocate(numobs)
-if (simple_partition) then
-  ! just distribute obs randomly
-  deallocate(rtmp)
-  t1 = mpi_wtime()
-  numobsperproc = 0
-  allocate(iprocob(nobstot))
-  np=0
-  do n=1,nobstot
-     np=np+1
-     if(np > numproc)np = 1
-     numobsperproc(np) = numobsperproc(np)+1
-     iprocob(n) = np-1
-  enddo
-else
-  ! use graham's rule
-  allocate(numobs(nobstot))
-  t1 = mpi_wtime()
-  call estimate_work_enkf2(numobs) ! fill numobs array with number of obs close to each ob
-  ! distribute the results of estimate_work to all processors.
-  call mpi_allreduce(mpi_in_place,numobs,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
-  if (nproc == 0) print *,'time in estimate_work_enkf2 = ',mpi_wtime()-t1,' secs'
-  t1 = mpi_wtime()
-  rtmp = 0
-  numobsperproc = 0
-  allocate(iprocob(nobstot))
-  np=0
-  do n=1,nobstot
-     np = minloc(rtmp,dim=1)
-     ! np is processor with the fewest number of close obs to process
-     rtmp(np) = rtmp(np)+numobs(n)
-     numobsperproc(np) = numobsperproc(np)+1
-     iprocob(n) = np-1
-  enddo
-  deallocate(rtmp,numobs)
-end if
-nobs_min = minval(numobsperproc)
-nobs_max = maxval(numobsperproc)
-allocate(indxproc_obs(numproc,nobs_max))
-numobsperproc = 0
-do n=1,nobstot
-   np=iprocob(n)+1
-   numobsperproc(np) = numobsperproc(np)+1 ! recalculate
-   ! indxproc_obs(np,i) is i'th ob index for processor np.
-   ! there are numobsperpoc(np) i values for processor np
-   indxproc_obs(np,numobsperproc(np)) = n
-end do
-if (nproc == 0) then
-    print *,'nobstot = ',nobstot
-    print *,'min/max number of obs per proc = ',nobs_min,nobs_max
-    print *,'time to do ob space decomp = ',mpi_wtime()-t1
-end if
-
-! send out observation priors to be updated on each processor.
-if (.not. letkf_flag) allocate(anal_obchunk_prior(nanals,nobs_max))
-if(nproc == 0) then
-   print *,'sending out observation prior ensemble perts from root ...'
-   totsize = nobstot
-   totsize = totsize*nanals
-   print *,'nobstot*nanals',totsize
-   totsize = npts
-   totsize = totsize*ndim
-   print *,'npts*ndim',totsize
-   t1 = mpi_wtime()
-end if
-if (letkf_flag) then
-   ! broadcast observation prior ensemble from root one ensemble member at a time.
-   allocate(buffer(nobstot))
-   ! allocate anal_ob on non-root tasks
-   if (nproc .ne. 0) allocate(anal_ob(nanals,nobstot))
-   ! bcast anal_ob from root one member at a time.
-   do nanal=1,nanals
-      buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
-      call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
-      if (nproc .ne. 0) anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
+! setup arrays to hold subsets of grid information for each task.
+allocate(grdloc_chunk(3,numptsperproc(nproc+1)))
+allocate(lnp_chunk(numptsperproc(nproc+1),nlevs_pres))
+do i=1,numptsperproc(nproc+1)
+   grdloc_chunk(:,i) = gridloc(:,indxproc(nproc+1,i))
+   do nn=1,nlevs_pres
+      lnp_chunk(i,nn) = logp(indxproc(nproc+1,i),nn)
    end do
-   deallocate(buffer)
-else
+end do
+
+! for serial filter, partition obs for observation space update.
+if (.not. letkf_flag) then
+   allocate(numobsperproc(numproc))
+   allocate(iprocob(nobstot))
+   ! default is to partition obs simply, since
+   ! speed up from using Graham's rule for observation process
+   ! often does not justify cost of estimating workload in ob space.
+   if (simple_partition) then
+     ! just distribute obs without trying to estimate workload
+     t1 = mpi_wtime()
+     numobsperproc = 0
+     np=0
+     do n=1,nobstot
+        np=np+1
+        if(np > numproc)np = 1
+        numobsperproc(np) = numobsperproc(np)+1
+        iprocob(n) = np-1
+     enddo
+   else
+     ! use graham's rule
+     allocate(numobs(nobstot))
+     t1 = mpi_wtime()
+     ! assume workload is proportional to number of 'nearby obs' in ob space.
+     call estimate_work_enkf2(numobs) ! fill numobs array with number of obs close to each ob
+     ! distribute the results of estimate_work to all processors.
+     call mpi_allreduce(mpi_in_place,numobs,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+     if (nproc == 0) print *,'time in estimate_work_enkf2 = ',mpi_wtime()-t1,' secs'
+     t1 = mpi_wtime()
+     allocate(rtmp(numproc))
+     rtmp = 0
+     numobsperproc = 0
+     np=0
+     do n=1,nobstot
+        np = minloc(rtmp,dim=1)
+        ! np is processor with the fewest number of close obs to process
+        rtmp(np) = rtmp(np)+numobs(n)
+        numobsperproc(np) = numobsperproc(np)+1
+        iprocob(n) = np-1
+     enddo
+     deallocate(rtmp,numobs)
+   end if
+   nobs_min = minval(numobsperproc)
+   nobs_max = maxval(numobsperproc)
+   allocate(indxproc_obs(numproc,nobs_max))
+   numobsperproc = 0
+   do n=1,nobstot
+      np=iprocob(n)+1
+      numobsperproc(np) = numobsperproc(np)+1 ! recalculate
+      ! indxproc_obs(np,i) is i'th ob index for processor np.
+      ! there are numobsperpoc(np) i values for processor np
+      indxproc_obs(np,numobsperproc(np)) = n
+   end do
+   if (nproc == 0) then
+       print *,'nobstot = ',nobstot
+       print *,'min/max number of obs per proc = ',nobs_min,nobs_max
+       print *,'time to do ob space decomp = ',mpi_wtime()-t1
+   end if
+   ! for serial enkf, send out observation priors to be updated on each processor.
+   allocate(anal_obchunk_prior(nanals,nobs_max))
    if(nproc == 0) then
+      print *,'sending out observation prior ensemble perts from root ...'
+      totsize = nobstot
+      totsize = totsize*nanals
+      print *,'nobstot*nanals',totsize
+      totsize = npts
+      totsize = totsize*ndim
+      print *,'npts*ndim',totsize
+      t1 = mpi_wtime()
       ! send one big message to each task.
       do np=1,numproc-1
          do nob1=1,numobsperproc(np+1)
@@ -266,31 +291,16 @@ else
          nob2 = indxproc_obs(1,nob1)
          anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
       end do
-      ! now we don't need anal_ob anymore for EnKF. (only defined on root)
+      ! now we don't need anal_ob anymore for serial EnKF.
       deallocate(anal_ob)
    else
       ! recv one large message on each task.
       call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
            1,mpi_comm_world,mpi_status,ierr)
    end if
-end if
-call mpi_barrier(mpi_comm_world, ierr)
-if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
-
-! setup kdtree pointers for grid and ob locations assigned to this processor.
-allocate(grdloc_chunk(3,numptsperproc(nproc+1)))
-allocate(lnp_chunk(numptsperproc(nproc+1),nlevs_pres))
-do i=1,numptsperproc(nproc+1)
-   grdloc_chunk(:,i) = gridloc(:,indxproc(nproc+1,i))
-   do nn=1,nlevs_pres
-      lnp_chunk(i,nn) = logp(indxproc(nproc+1,i),nn)
-   end do
-end do
-
-! for letkf, search all obs.
-if (letkf_flag) then
-   deallocate(iprocob, indxproc_obs, numobsperproc) ! don't need for letkf
-else ! these arrays only needed for serial filter
+   call mpi_barrier(mpi_comm_world, ierr)
+   if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
+   ! these arrays only needed for serial filter
    ! nob1 is the index of the obs to be processed on this rank
    ! nob2 maps nob1 to 1:nobstot array (nobx)
    allocate(obloc_chunk(3,numobsperproc(nproc+1)))
@@ -315,7 +325,7 @@ else ! these arrays only needed for serial filter
    if (numobsperproc(nproc+1) >= 3) then
       kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
    end if
-end if
+end if ! end if (.not. letkf_flag)
 
 end subroutine load_balance
 
