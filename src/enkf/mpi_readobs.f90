@@ -145,6 +145,9 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         obtype(nobs_conv+nobs_oz+1:nobs_tot), biaspreds,indxsat,id,id2)
     end if ! read obs.
 
+! use mpi_gather to gather ob prior ensemble on root.
+! requires allocation of nobs_tot x nanals temporory array.
+!
 !    if (nproc == 0) then
 !       t1 = mpi_wtime()
 !       allocate(anal_obtmp(nobs_tot,nanals))
@@ -170,6 +173,9 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 !        t2 = mpi_wtime()
 !        print *,'time to create ob prior ensemble on root = ',t2-t1
 !    endif
+
+! use mpi_send/mpi_recv to gather ob prior ensemble on root.
+! slower, but does not require large temporary array like mpi_gather.
 
     if (nproc <= nanals-1) then
      if (nproc == 0) then
