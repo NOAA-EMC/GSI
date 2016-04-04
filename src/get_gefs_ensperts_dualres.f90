@@ -231,20 +231,6 @@ subroutine get_gefs_ensperts_dualres
              if(use_gfs_nemsio) then
                 call general_read_gfsatm_nems(grd_t,sp_ens,filename,mype,uv_hyb_ens,.false., &
                     zflag,en_read,.true.,iret)
-!               do j=1,jm
-!                  do i=1,im
-!                      write(mype+300,*)i,j,ps(i,j)
-!                  end do
-!               end do
-!               do k=1,km
-!                  do j=1,jm
-!                     do i=1,im
-!                         write(mype+300,*)i,j,k,u(i,j,k),v(i,j,k),tv(i,j,k),q(i,j,k),cwmr(i,j,k),oz(i,j,k)
-!                     end do
-!                  end do
-!               end do
-!               stop
-                     
              else
                 call general_read_gfsatm(grd_t,sp_ens,sp_ens,filename,mype,uv_hyb_ens,.false., &
                     zflag,en_read,inithead,iret)

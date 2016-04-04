@@ -358,17 +358,6 @@ subroutine get_gefs_for_regional
        call stop2(999)
      endif
 
-!    Extract pointers ...
-     call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus)
-     call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus)
-     vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      if(use_gfs_nemsio)then
         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
                atm_bundle,.true.,iret)
@@ -377,6 +366,20 @@ subroutine get_gefs_for_regional
                atm_bundle,inithead,iret)
      end if
      inithead = .false.
+
+     ier = 0
+     call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'oz'  ,oz  ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus) ; ier = ier + istatus
+     if ( ier /= 0 ) call die(myname,': missing atm_bundle vars, aborting ...',ier)
+
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
         ku=k ; kv=k+grd_gfs%nsig ; kt=k+2*grd_gfs%nsig ; kq=k+3*grd_gfs%nsig ; koz=k+4*grd_gfs%nsig
@@ -399,7 +402,9 @@ subroutine get_gefs_for_regional
            work_sub(1,i,j,kps)=ps(i,j)
         end do
      end do
+
      call gsi_bundledestroy(atm_bundle,istatus)
+
      allocate(work(grd_gfs%inner_vars,grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
      call general_sub2grid(grd_gfs,work_sub,work)
      deallocate(work_sub)
