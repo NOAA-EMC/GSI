@@ -41,9 +41,9 @@ subroutine read_gfs_ozone_for_regional
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
   use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional,use_gfs_nemsio
-  use constants,only: zero,half,fv,rd_over_cp,one,h300
-                       use constants, only: rad2deg  !  debug
+  use constants,only: zero,half,fv,rd_over_cp,one,h300,rad2deg
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max,npe
+  use mpeu_util, only: die
   use kinds, only: r_kind,i_kind
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
@@ -54,12 +54,9 @@ subroutine read_gfs_ozone_for_regional
   use guess_grids, only: ges_prsl,ntguessig,nfldsig,ifilesig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
-  use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_bundlemod, only: gsi_bundlecreate
-  use gsi_bundlemod, only: gsi_grid
-  use gsi_bundlemod, only: gsi_gridcreate
-  use gsi_bundlemod, only: gsi_bundle
-  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_grid,gsi_gridcreate
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use gsi_4dvar, only: nhr_assimilation
   implicit none
@@ -307,17 +304,6 @@ subroutine read_gfs_ozone_for_regional
     call stop2(999)
   endif
 
-! Extract required pointers
-  call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus)
-  call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus)
-
   allocate( pri(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig+1))
   allocate(prsl(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
   if(use_gfs_nemsio)then
@@ -333,8 +319,18 @@ subroutine read_gfs_ozone_for_regional
      end if
   end if
 
-! test
-!   call grads3a(grd_gfs,u,oz,tv,q,ps,grd_gfs%nsig,mype,'gfsfields')
+  ierror = 0
+  call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'oz'  ,oz  ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus) ; ierror = ierror + istatus
+  call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus) ; ierror = ierror + istatus
+  if ( ierror /= 0 ) call die(myname,': missing atm_bundle vars, aborting ...',ierror)
 
   do k=1,grd_gfs%nsig
      ozmin=minval(oz(:,:,k))
@@ -375,7 +371,7 @@ subroutine read_gfs_ozone_for_regional
      end do
   end if
   deallocate(ak5,bk5,ck5,tref5)
-  call gsi_bundledestroy(atm_bundle,istatus)
+
   do k=1,grd_gfs%nsig+1
      ozmin=minval(pri(:,:,k))
      ozmax=maxval(pri(:,:,k))
@@ -424,10 +420,12 @@ subroutine read_gfs_ozone_for_regional
         end do
      end do
   end do
-  deallocate(oz,prsl)
+  deallocate(prsl)
   allocate(work(grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc,1))
   call general_sub2grid(grd_gfs,work_sub,work)
   deallocate(work_sub)
+
+  call gsi_bundledestroy(atm_bundle,istatus)
 
 ! then interpolate to regional analysis grid
   nord_g2r=4
