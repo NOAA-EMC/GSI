@@ -145,9 +145,10 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         obtype(nobs_conv+nobs_oz+1:nobs_tot), biaspreds,indxsat,id,id2)
     end if ! read obs.
 
+    call mpi_barrier(mpi_comm_world,ierr)  ! synch tasks.
+
 ! use mpi_gather to gather ob prior ensemble on root.
 ! requires allocation of nobs_tot x nanals temporory array.
-!
 !    if (nproc == 0) then
 !       t1 = mpi_wtime()
 !       allocate(anal_obtmp(nobs_tot,nanals))
@@ -155,39 +156,34 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 !    if (nproc <= nanals-1) then
 !       call mpi_gather(h_xnobc,nobs_tot,mpi_real4,&
 !       anal_obtmp,nobs_tot,mpi_real4,0,mpi_comm_io,ierr)
-!    endif
-!    if (nproc == 0) then
-!        anal_ob = transpose(anal_obtmp); deallocate(anal_obtmp)
-!        analsi=1._r_single/float(nanals)
-!        analsim1=1._r_single/float(nanals-1)
-!!$omp parallel do private(nob,nanal)
-!        do nob=1,nobs_tot
-!! remove ensemble mean from each member.
-!           ensmean_ob(nob)  = sum(anal_ob(:,nob))*analsi
-!! ensmean_ob is unbiascorrected ensemble mean (anal_ob
-!           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_ob(nob)
-!! compute sprd
-!           sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
-!        enddo
-!!$omp end parallel do
-!        t2 = mpi_wtime()
-!        print *,'time to create ob prior ensemble on root = ',t2-t1
+!       if (nproc .eq. 0) then
+!          anal_ob = transpose(anal_obtmp); deallocate(anal_obtmp)
+!          t2 = mpi_wtime()
+!          print *,'time to create ob prior ensemble on root = ',t2-t1
+!       endif
 !    endif
 
 ! use mpi_send/mpi_recv to gather ob prior ensemble on root.
-! slower, but does not require large temporary array like mpi_gather.
-
+! a bit slower, but does not require large temporary array like mpi_gather.
     if (nproc <= nanals-1) then
      if (nproc == 0) then
         t1 = mpi_wtime()
         anal_ob(1,:) = h_xnobc(:)
         do nanal=2,nanals
            call mpi_recv(h_xnobc,nobs_tot,mpi_real4,nanal-1, &
-                         1,mpi_comm_world,mpi_status,ierr)
+                         1,mpi_comm_io,mpi_status,ierr)
            anal_ob(nanal,:) = h_xnobc(:)
         enddo
         t2 = mpi_wtime()
         print *,'time to gather ob prior ensemble on root = ',t2-t1
+     else ! nproc != 0
+        ! send to root.
+        call mpi_send(h_xnobc,nobs_tot,mpi_real4,0,1,mpi_comm_io,ierr)
+     end if 
+    end if ! nanal <= nanals
+
+! make anal_ob contain ob prior ensemble *perturbations*
+    if (nproc == 0) then
         analsi=1._r_single/float(nanals)
         analsim1=1._r_single/float(nanals-1)
 !$omp parallel do private(nob,nanal)
@@ -200,12 +196,9 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
            sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
         enddo
 !$omp end parallel do
-     else ! nproc != 0
-        ! send to root.
-        call mpi_send(h_xnobc,nobs_tot,mpi_real4,0,1,mpi_comm_world,ierr)
-     end if 
-    end if ! nanal <= nanals
+    endif
 
+! broadcast ob prior ensemble mean and spread to every task.
     if (nproc == 0) t1 = mpi_wtime()
     call mpi_bcast(ensmean_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     call mpi_bcast(sprd_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
