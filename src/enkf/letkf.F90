@@ -181,6 +181,7 @@ if (.not. deterministic .and. nproc .eq. 0) then
    enddo
 endif
 
+t1 = mpi_wtime()
 #ifdef MPI3
 ! setup shared memory segment on each node that points to
 ! observation prior ensemble.
@@ -270,6 +271,8 @@ if (.not. deterministic) then
 endif
 deallocate(buffer)
 #endif
+t2 = mpi_wtime()
+if (nproc .eq. 0) print *,'time to broadcast ob prior ensemble = ',t2-t1
 
 if (nproc .eq. 0 .and. .not. deterministic) then
    print *,'perturbed obs LETKF'
