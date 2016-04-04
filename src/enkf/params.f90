@@ -318,8 +318,8 @@ if (nproc == 0) then
       print *,nlons,nlats,nlevs,nanals
       call stop2(19)
    end if
-   if (numproc .lt. nanals+1) then
-      print *,'total number of mpi tasks must be >= nanals+1'
+   if (numproc .lt. nanals) then
+      print *,'total number of mpi tasks must be >= nanals'
       print *,'tasks, nanals = ',numproc,nanals
       call stop2(19)
    endif
