@@ -87,7 +87,7 @@ subroutine intq_(qhead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -170,7 +170,7 @@ subroutine intq_(qhead,rval,sval)
  
 !          gradient of nonlinear operator
  
-           if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
                                 qptr%b  > tiny_r_kind) then
               q_pg=qptr%pg*varqc_iter
               cg_q=cg_term/qptr%b

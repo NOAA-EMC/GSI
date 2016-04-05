@@ -179,7 +179,14 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
    mkdir -p ${IMGNDIR}/summary
 fi
 $NCP *summary.png ${IMGNDIR}/summary/.
-$NCP *.sum.txt ${IMGNDIR}/summary/.
+
+if [[ $SUFFIX = "4devb" || $SUFFIX = "pr4dev" || $SUFFIX = "wopr" ]]; then
+   for type in ${SATYPE2}; do
+      $NCP ${type}.sum.txt ${IMGNDIR}/summary/${type}.${PDATE}.sum.txt
+   done
+else
+  $NCP *.sum.txt ${IMGNDIR}/summary/.
+fi
 
 #rm -f *.summary.png
 

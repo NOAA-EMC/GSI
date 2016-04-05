@@ -35,7 +35,7 @@ use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
                   dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
                   ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
-                  aerolhead, pm2_5head, gusthead, vishead, pblhhead, wspd10mhead, & 
+                  aerolhead, pm2_5head, pm10head, gusthead, vishead, pblhhead, wspd10mhead, & 
                   td2mhead, mxtmhead, mitmhead, pmslhead, howvhead, tcamthead, &
                   lcbashead, yobs
 use gsi_4dvar, only: nobs_bins
@@ -68,6 +68,7 @@ do ii=1,nobs_bins
    yobs(ii)%aero=> aerohead(ii)%head
    yobs(ii)%aerol=>aerolhead(ii)%head
    yobs(ii)%pm2_5=>pm2_5head(ii)%head
+   yobs(ii)%pm10=>pm10head(ii)%head
    yobs(ii)%gust=>gusthead(ii)%head
    yobs(ii)%vis=>vishead(ii)%head
    yobs(ii)%pblh=>pblhhead(ii)%head

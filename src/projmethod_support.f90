@@ -474,12 +474,12 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 ! out to file
   integer(i_kind),  parameter :: my3d = 8
   character(len=8), parameter :: myvars3d(my3d) = (/  &
-                                  'sf ',    &
-                                  'vp ',    &
-                                  't  ',    &
-                                  'q  ',    &
-                                  'oz ',    &
-                                  'cw ',    &
+                                  'sf    ', &
+                                  'vp    ', &
+                                  't     ', &
+                                  'q     ', &
+                                  'oz    ', &
+                                  'cw    ', &
                                   'sfwter', &
                                   'vpwter' /)  
   character(2) clun1
