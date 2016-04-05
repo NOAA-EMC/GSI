@@ -1734,7 +1734,7 @@ end subroutine write_ghg_grid
 !         Write updated information to surface analysis file
           call sfcio_swohdc(io_sfcanl,fname_sfcanl,head_sfcanl,data_sfcanl,iret)
 
-!         write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
+          write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
 100       format(' WRITE_NST_SFC:  sfc analysis written  for ',&
              a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 

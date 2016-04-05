@@ -2777,7 +2777,7 @@ contains
        call nemsio_writerecv(gfile_sfcanl,'tmp','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_sfcanl),'tmp','write',istop,iret)
        write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
-100    format(' WRITE_NEMSIO_SFC_NST:  update tsea in sfcanl ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
+100    format(' WRITE_NEMSIO_SFC_NST:  update tsea in ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 !
 !      update tsea record in sfctsk
 !
@@ -2785,7 +2785,7 @@ contains
        call nemsio_writerecv(gfile_sfctsk,'tmp','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_sfctsk),'tmp','write',istop,iret)
        write(6,101) fname_sfctsk,lonb,latb,houra,iadate(1:4),iret
-101    format(' WRITE_NEMSIO_SFC_NST:  update tsea in sfctsk ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
+101    format(' WRITE_NEMSIO_SFC_NST:  update tsea in ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 !
 !      update nsst records in nstanl
 !
@@ -2867,7 +2867,7 @@ contains
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstanl),'qrain','write',istop,iret)
 
        write(6,200) fname_nstanl,lonb,latb,houra,iadate(1:4),iret
-200    format(' WRITE_NEMSIO_SFC_NST:  update variables in nstanl ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
+200    format(' WRITE_NEMSIO_SFC_NST:  update variables in ',a6,2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
        deallocate(xt,xs,xu,xv,xz,zm,xtts,xzts,dt_cool,z_c,c_0,c_d,w_0,w_d,d_conv,ifd,tref,qrain)
        deallocate(rwork1d)
