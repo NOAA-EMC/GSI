@@ -142,6 +142,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: nmind, sfc_channel_index
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
+  integer(i_kind),allocatable,dimension(:):: bufr_chan_test
 
 
 ! Other work variables
@@ -291,7 +292,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find CRIS sensorindex. 
   sensorindex = 0
-  if ( sc(1)%sensor_id(1:8) == 'cris-fsr' .or. sc(1)%sensor_id(1:8) == 'cris_npp' )then
+  if ( sc(1)%sensor_id(1:4) == 'cris' )then
      sensorindex = 1
   else
      write(6,*)'READ_CRIS: ***ERROR*** sensorindex not set  NO CRIS DATA USED'
@@ -339,8 +340,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! The number of channels is obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
-  allocate(temperature(1))   ! actual values set within ireadsb
-  allocate(allchan(2,1))     ! actual values set within ireadsb
+  allocate(temperature(1))   ! actual values set after ireadsb
+  allocate(allchan(2,1))     ! actual values set after ireadsb
+  allocate(bufr_chan_test(1))! actual values set after ireadsb
 
 ! Big loop to read data file
   next=0
@@ -376,9 +378,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         bufr_size = size(temperature,1)
         if ( bufr_size /= bufr_nchan ) then    ! allocation if
 !          Allocate the arrays needed for the channel and radiance array
-           deallocate(temperature, allchan)
+           deallocate(temperature, allchan, bufr_chan_test)
            allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
            allocate(allchan(2,bufr_nchan))
+           allocate(bufr_chan_test(bufr_nchan))
         endif    ! allocation if
 
 !       CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
@@ -609,7 +612,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-! CrIS data unscaled, section removed from read_iasi
+! CrIS data read radiance values and channel numbers
 
 !    Read CRIS channel number(CHNM) and radiance (SRAD)
         call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
@@ -618,18 +621,27 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                 iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
            cycle read_loop
         endif
+ 
 !       Coordinate bufr channels with satinfo file channels
-        sfc_channel_index = 0
-        bufr_index(:) = 0
-        satinfo_chans: do i=1,satinfo_nchan
-           bufr_chans: do l=1,bufr_nchan
-              if ( channel_number(i) == int(allchan(2,l)) ) then
-                 bufr_index(i) = l
-                 if ( channel_number(i) == 501 ) sfc_channel_index = l
-                 exit bufr_chans
-              endif
-           end do bufr_chans
-        end do  satinfo_chans
+!       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
+        bufr_chan_diff: do k=1,bufr_nchan
+           if (int(allchan(2,k)) /= bufr_chan_test(k)) then                 ! Is previous bufr channel profile the same as this one
+              sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
+              bufr_index(:) = 0
+              bufr_chans: do l=1,bufr_nchan
+                 bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+                 satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
+                    if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and stainfo file
+                       bufr_index(i) = l
+                       if ( channel_number(i) == 501 ) sfc_channel_index = l
+                       exit satinfo_chans                                   ! go to next bufr channel
+                    endif
+                 end do  satinfo_chans
+              end do bufr_chans
+           exit bufr_chan_diff
+           endif
+        end do bufr_chan_diff
+
         if ( sfc_channel_index == 0 ) then
            write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
            cycle read_loop
@@ -766,7 +778,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   enddo message_loop
 
-  deallocate(temperature,allchan)
+  deallocate(temperature, allchan, bufr_chan_test)
   call closbf(lnbufr)
 
 ! deallocate crtm info

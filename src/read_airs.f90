@@ -207,6 +207,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan
   integer(i_kind)   :: bufr_start, bufr_end, bufr_nchan
   integer(i_kind),allocatable, dimension(:) :: bufr_index
+  integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
 
 
 ! Set standard parameters
@@ -367,7 +368,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! The number of channels in obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
-  allocate(allchan(3,1))
+  allocate(allchan(3,1))     ! actual values set after ireadsb
+  allocate(bufr_chan_test(1))! actual values set after ireadsb 
 
 ! Big loop to read data file
   nrec=999999
@@ -389,8 +391,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         bufr_size = size(allchan,2)
         if ( bufr_size /= bufr_nchan ) then
 !          Allocate the arrays needed for the channel and radiance array
-           deallocate(allchan)
+           deallocate(allchan, bufr_chan_test)
            allocate(allchan(3,bufr_nchan))
+           allocate(bufr_chan_test(bufr_nchan))
         endif
 
 !       Read AIRSSPOT , AMSUSPOT and HSBSPOT
@@ -580,16 +583,23 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_end = bufr_nchan - 16    ! 15 amsu chans, 1 extra (extra slot in bufr file)
         endif
 
-        bufr_index(:) = 0
-        satinfo_chans: do i=1, satinfo_nchan
-           bufr_chans: do l=bufr_start, bufr_end
-              if ( nuchan(ioff+i) == int(allchan(1,l)) ) then
-                 bufr_index(i) = l
-                 exit bufr_chans
-              endif
-           end do bufr_chans
-        end do satinfo_chans
-
+!       Coordinate bufr channels with satinfo file channels
+!       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
+        bufr_chan_diff: do k=bufr_start,bufr_end
+           if (int(allchan(1,k)) /= bufr_chan_test(k)) then                 ! Is previous bufr channel profile the same as this one
+              bufr_index(:) = 0
+              bufr_chans: do l=bufr_start, bufr_end
+                 bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+                 satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (airs) channels in the satinfo file
+                    if ( nuchan(ioff+i) == int(allchan(1,l)) ) then         ! Channel found in both bufr and stainfo file
+                       bufr_index(i) = l
+                       exit satinfo_chans                                   ! go to next bufr channel
+                    endif
+                 end do  satinfo_chans
+              end do bufr_chans
+           exit bufr_chan_diff
+           endif
+        end do bufr_chan_diff
 
 !       Channel based quality control
         if(amsua)then
@@ -821,7 +831,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_loop
 
   enddo read_subset
-  deallocate(allchan, chan_map)
+  deallocate(allchan, chan_map, bufr_chan_test)
   call closbf(lnbufr)  ! Close bufr file
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
