@@ -422,24 +422,22 @@
 !    increase in error take place
      cclr(:)=zero
      ccld(:)=zero
-!     do i=1,nchanl
-        cclr( 1)=0.05_r_kind
-        cclr( 2)=0.03_r_kind
-        cclr( 3)=0.03_r_kind
-        cclr( 4)=0.02_r_kind
-        cclr( 5)=0.00_r_kind
-        cclr( 6)=0.10_r_kind
-        cclr(15)=0.03_r_kind
-!     end do
-!     do i=1,nchanl
-        ccld( 1)=0.60_r_kind
-        ccld( 2)=0.45_r_kind
-        ccld( 3)=0.40_r_kind
-        ccld( 4)=0.45_r_kind
-        ccld( 5)=1.00_r_kind
-        ccld( 6)=1.50_r_kind
-        ccld(15)=0.20_r_kind
-!     end do
+
+     cclr( 1)=0.05_r_kind
+     cclr( 2)=0.03_r_kind
+     cclr( 3)=0.03_r_kind
+     cclr( 4)=0.02_r_kind
+     cclr( 5)=0.00_r_kind
+     cclr( 6)=0.10_r_kind
+     cclr(15)=0.03_r_kind
+
+     ccld( 1)=0.60_r_kind
+     ccld( 2)=0.45_r_kind
+     ccld( 3)=0.40_r_kind
+     ccld( 4)=0.45_r_kind
+     ccld( 5)=1.00_r_kind
+     ccld( 6)=1.50_r_kind
+     ccld(15)=0.20_r_kind
   endif
 
 ! Initialize channel related information
