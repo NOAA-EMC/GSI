@@ -1,27 +1,19 @@
 # *****************************************************************
 #  makefile.bcoef
 #
-#  Make the radmon_bcoef.glb executable.  The executable will extract
-#  bcoef radiance data from a diagnostic file from a global run.
+#  Make the radmon_bcoef executable. 
 #
 # *****************************************************************
 
-SHELL=/bin/sh
-SRCS = kinds.F90 read_diag.f90 bcoef.f90 create_ctl_bcoef.f90
+BINDIR = ../../exec
 
-OBJS = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
+LIBS   = $(W3NCO_LIB4)
+
+OBJS   = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
 
 #
 # *****************************************************************
 #
-
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
-
-
 
 CMD = radmon_bcoef
 
@@ -31,6 +23,15 @@ clean:
 	rm -f *.o
 	rm -f *.mod
 	rm -f radmon_bcoef 
+
+check_prereqs:
+	/nwprod/spa_util/check_libs.bash $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)

@@ -118,3 +118,20 @@ export MAIL_CC=${MAIL_CC:-' '}
 #  
 export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 
+#
+#  KEEPDATA switches on/off allowing the work directory to remain after data extraction.
+#  YES=keep working directory, NO=rm working directory.
+#
+export KEEPDATA=${KEEPDATA:-"YES"}
+
+#
+#  REGIONAL_RR flags the data source as a regional rapid refresh.  The output data files
+#  from these sources are identified in a different format from other data sources.  
+#  0 = not a RR source, 1 = RR source
+export REGIONAL_RR=${REGIONAL_RR:-0}
+
+#
+#  CYCLE_INTERVAL indicates the period of time between cycle runs for any given
+#  data source.  This is generally 6 hrs, but can be 3 or 1 hr for rapid refresh sources.
+#
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
