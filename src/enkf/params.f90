@@ -92,7 +92,7 @@ real(r_single),public :: covl_minfact, covl_efold
 ! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
 ! if npefiles>0, npefiles+1 pe* files read directly
 ! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
-! (<obspatsh>/gsitmp_ensmean for ensemble mean).
+! (<obspath>/gsitmp_ensmean for ensemble mean).
 integer,public :: npefiles = 0
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
