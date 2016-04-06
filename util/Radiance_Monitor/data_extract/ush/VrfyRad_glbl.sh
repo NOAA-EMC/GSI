@@ -32,6 +32,8 @@ if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
    exit 1
 fi
 
+. /usrx/local/Modules/3.2.9/init/sh
+module load /nwprod2/modulefiles/prod_util/v1.0.2
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -108,21 +110,6 @@ else
 fi
 
 . ${DE_PARM}/data_extract_config
-
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   . /usrx/local/Modules/3.2.9/init/sh
-   module load /nwprod2/modulefiles/prod_util/v1.0.2
-#elif [[ $MY_MACHINE = "cray" ]]; then
-#   . $MODULESHOME/init/ksh
-#   prod_util_ver=1.0.3
-#   export util_shared_ver=v1.0.2
-#   export gdas_radmon_ver=v2.0.0
-#   export radmon_shared_ver=v2.0.2
-#
-#   module load prod_util/${prod_util_ver}
-#   module load prod_envir
-#   module load PrgEnv-intel 
-fi
 
 
 #--------------------------------------------------------------------
@@ -240,7 +227,6 @@ data_available=0
 
 if [[ -e ${radstat} ]]; then
    data_available=1                                         
-   pid=${pid:-$$}
 
    export MP_SHARED_MEMORY=yes
    export MEMORY_AFFINITY=MCM
@@ -250,19 +236,19 @@ if [[ -e ${radstat} ]]; then
    export job=gdas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-${STMP_USER}/radmon_${SUFFIX}}
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}.${pid}
+   export DATA=${DATA:-${STMP_USER}/radmon/${SUFFIX}}
+   rm -rf ${DATA}
+   mkdir -p ${DATA}
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
- 
-   rm -rf $DATA 
-   mkdir $DATA
+  
 
    #----------------------------------------------------------------------------
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
+   satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
 
    if [[ $CYC = "00" ]]; then
       echo "Making new day directory for 00 cycle"
@@ -283,6 +269,7 @@ if [[ -e ${radstat} ]]; then
       echo "CREATED ${satype_file}"
     fi
 
+    export satype_file=${SUFFIX}_radmon_satype.txt
    
    #------------------------------------------------------------------
    #   Override the default base_file declaration if there is an  
@@ -298,7 +285,7 @@ if [[ -e ${radstat} ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "cray" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R "select[mem>100] rusage[mem=100]" -W 0:20 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -W 0:20 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgdas/jobs/JGDAS_VERFRAD
    fi
