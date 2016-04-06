@@ -33,7 +33,7 @@
  use constants, only: zero,one,cp,fv,rd,grav,zero
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,&
-                   nbackgrounds,charfhr_anal,fgfileprefixes,anlfileprefixes
+                   nbackgrounds,fgfileprefixes,anlfileprefixes
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts,ptop  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -1029,7 +1029,8 @@ module gridio
   use mpisetup, only: nproc
   use netcdf_io
   use params,   only: nlevs, nvars, nlons, nlats, cliptracers, datapath,     &
-       &              arw, nmm, datestring, pseudo_rh
+                      arw, nmm, datestring, pseudo_rh,                       &
+                      nbackgrounds,fgfileprefixes,anlfileprefixes
   use constants, only: zero,one,cp,fv,rd,grav,zero
 
   implicit none
@@ -2463,7 +2464,8 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_getheadvar,nemsio_realkind,nemsio_intkind,&
                          nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
 use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,pseudo_rh, &
-                   cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal
+                  cliptracers,nlons,nlats,datestring,datapath,massbal_adjust, &
+                  nbackgrounds,fgfileprefixes,anlfileprefixes
 use kinds, only: i_kind,r_double,r_kind,r_single
 use constants, only: zero,one,cp,fv,rd,grav,zero
 use gridinfo, only: nvarozone,npts,wind2mass,mass2wind

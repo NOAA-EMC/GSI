@@ -47,7 +47,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
     crtm_surface_create,crtm_k_matrix,crtm_forward, &   
     ssu_input_setvalue, &
-    crtm_channelinfo_type, crtm_channelinfo_subset,crtm_channelinfo_n_channels, &
+    crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
     crtm_atmosphere_associated, &
     crtm_atmosphere_destroy,crtm_atmosphere_zero, &
@@ -255,8 +255,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !                         qi are separate control variables for all-sky MW radiance DA   
 !   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
 !                         clear-sky Tb under all-sky condition 
-!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR) and 
-!                          CRTM subset code for CrIS. 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR) and
+!                         CRTM subset code for CrIS.
+
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -280,7 +281,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_metguess_mod,  only: gsi_metguess_bundle    ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
-      crtm_channelinfo_subset, toa_pressure,max_n_layers, &
+      crtm_channelinfo_subset, crtm_channelinfo_n_channels, toa_pressure,max_n_layers, &
       volume_mixing_ratio_units,h2o_id,ch4_id,n2o_id,co_id
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
@@ -367,7 +368,14 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
      indx_p25   = getindex(aero_names,'p25')
      indx_dust1 = getindex(aero_names,'dust1')
      indx_dust2 = getindex(aero_names,'dust2')
-     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
+     if (indx_p25 > 0) then
+        do ii=1,n_aerosols
+           indx=getindex(aerojacnames,trim(aero_names(ii)))
+           if(indx>0) n_aerosols_jac=n_aerosols_jac+1
+        end do
+     else
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
+     endif
      if (n_aerosols_jac >0) then
         allocate(iaero_jac(n_aerosols_jac))
         iaero_jac=-1
@@ -573,7 +581,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
     endif
 
- endif 
+ endif
 
  if (sensorindex == 0 ) then
     write(6,*)myname_,':  ***WARNING*** problem with sensorindex=',isis,&
@@ -652,11 +660,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 ! Turn off antenna correction
 
  options(1)%use_antenna_correction = .false. 
-
-! Check for consistency with information in crtm for number of channels
-
-! if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)myname_,'***ERROR** nchanl,n_channels ', &
-!    nchanl,channelinfo(sensorindex)%n_channels
 
 ! Load surface sensor data structure
 
@@ -942,6 +945,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: minsnow=one_tenth
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
+  real(r_kind),parameter:: jac_pert  = 1.0_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
   real(r_kind),parameter:: windscale = 999999.0_r_kind
   real(r_kind),parameter:: windlimit = 0.0001_r_kind
@@ -1801,6 +1805,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Call CRTM K Matrix model
 
+
+  do i=1,nchanl
+     rtsolution_k(i,1)%layer_optical_depth(:) = jac_pert
+  enddo
 
   error_status = 0
   if ( trim(obstype) /= 'modis_aod' ) then
