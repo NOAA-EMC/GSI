@@ -161,7 +161,7 @@ else
          # Check for 0 length data file here and avoid running 
          # the executable if $data_file doesn't exist or is 0 bytes
          #
-         if [[ -s $data_file ]]; then
+         if [[ -s $input_file ]]; then
             nchanl=-999
             npredr=5
 
