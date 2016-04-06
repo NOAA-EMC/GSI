@@ -18,9 +18,6 @@
 #            other supporting files into a temporary working directory.
 #
 #
-# Script history log:
-# 2012-02-02  Safford  initial script
-#
 # Usage:  radmon_verf_angle.sh PDATE
 #
 #   Input script positional parameters:
@@ -36,21 +33,11 @@
 #                       defaults to 1 (on)
 #     EXECradmon        executable directory
 #                       defaults to current directory
-#     FIXradmon         fixed data directory
-#                       defaults to current directory
 #     RAD_AREA          global or regional flag
 #                       defaults to global
 #     TANKverf_rad      data repository
 #                       defaults to current directory
 #     SATYPE            list of satellite/instrument sources
-#                       defaults to none
-#     INISCRIPT         preprocessing script
-#                       defaults to none
-#     LOGSCRIPT         log script
-#                       defaults to none
-#     ERRSCRIPT         error processing script
-#                       defaults to 'eval [[ $err = 0 ]]'
-#     ENDSCRIPT         postprocessing script
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
@@ -59,14 +46,8 @@
 #     USE_ANL           use analysis files as inputs in addition to 
 #                         the ges files.  Default is 0 (ges only)
 #
-#   Exported Shell Variables:
-#     err           Last return code
-#
 #   Modules and files referenced:
-#     scripts    : $INISCRIPT
-#                  $LOGSCRIPT
-#                  $ERRSCRIPT
-#                  $ENDSCRIPT
+#     scripts    : 
 #
 #     programs   : $NCP
 #                  $angle_exec
@@ -77,7 +58,7 @@
 #
 #     output data: $angle_file
 #                  $angle_ctl
-#                  $angle_stdout
+#                  $pgmout
 #
 # Remarks:
 #
@@ -85,33 +66,39 @@
 #      0 - no problem encountered
 #     >0 - some problem encountered
 #
-#  Control variable resolution priority
-#    1 Command line argument.
-#    2 Environment variable.
-#    3 Inline default.
-#
-# Attributes:
-#   Language: POSIX shell
-#   Machine: IBM SP
 ####################################################################
 #  Command line arguments.
+
+RAD_AREA=${RAD_AREA:-glb}
+REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
+rgnHH=${rgnHH:-}
+rgnTM=${rgnTM:-}
+
 export PDATE=${1:-${PDATE:?}}
 
+scr=radmon_verf_angle.sh
+msg="${scr} HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+which prep_step
+which startmsg
+
+if [[ "$VERBOSE" = "YES" ]]; then
+   set -ax
+fi
+
 # Directories
-FIXradmon=${FIXradmon:-$(pwd)}
+FIXgdas=${FIXgdas:-$(pwd)}
 EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
-INISCRIPT=${INISCRIPT:-}
-LOGSCRIPT=${LOGSCRIPT:-}
-ERRSCRIPT=${ERRSCRIPT:-}
-ENDSCRIPT=${ENDSCRIPT:-}
+export pgmout=${pgmout:-${jlogfile}}
+touch $pgmout
 
 # Other variables
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
-RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -127,27 +114,20 @@ err=0
 angle_exec=radmon_angle
 scaninfo=scaninfo.txt
 
-if [[ "$VERBOSE" = "YES" ]]; then
-   set -ax
-   echo "$(date) executing $0 $* >&2"
-fi
-################################################################################
-#  Preprocessing
-$INISCRIPT
-$LOGSCRIPT
-
 
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
 
 $NCP ${EXECradmon}/${angle_exec}  ./
-$NCP $FIXradmon/gdas_radmon_scaninfo.txt  ./${scaninfo}
+$NCP $FIXgdas/gdas_radmon_scaninfo.txt  ./${scaninfo}
 
 if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
    err=2
 else
 #--------------------------------------------------------------------
 #   Run program for given time
+
+   export pgm=${angle_exec}
 
    iyy=`echo $PDATE | cut -c1-4`
    imm=`echo $PDATE | cut -c5-6`
@@ -156,27 +136,33 @@ else
 
    ctr=0
    fail=0
+   touch "./errfile"
 
    for type in ${SATYPE}; do
 
       for dtype in ${gesanl}; do
 
+          echo "pgm    = $pgm"
+          echo "pgmout = $pgmout"
+#         prep_step
+         /nwprod2/util/ush/prep_step.sh
+
          ctr=`expr $ctr + 1`
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}_anl.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}_anl
-            angl_stdout=angle.${stdout_file}
          else
             data_file=${type}.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}
-            angl_stdout=angle.${stdout_file}
+         fi
+
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
+         else
+            angl_file=angle.${data_file}
          fi
 
          rm input
@@ -200,13 +186,17 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-         $TIMEX ./${angle_exec} < input >   ${stdout_file}
+
+	 startmsg
+         ./${angle_exec} < input >>   ${pgmout} 2>>errfile
+         export err=$?; err_chk
          if [[ $? -ne 0 ]]; then
              fail=`expr $fail + 1`
          fi
+
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
-#
+
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${angl_file}
             mv ${angl_file} $TANKverf_rad/.
@@ -219,13 +209,14 @@ EOF
             ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
          fi 
 
-         if [[ -s ${stdout_file} ]]; then
-            mv ${stdout_file} ${angl_stdout}
-            mv ${angl_stdout}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
-         fi
+#         if [[ -s ${stdout_file} ]]; then
+#            mv ${stdout_file} ${angl_stdout}
+#            mv ${angl_stdout}  ${TANKverf_rad}/.
+#            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
+#         fi
 
       done    # for dtype in ${gesanl} loop
+
    done    # for type in ${SATYPE} loop
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
@@ -235,11 +226,12 @@ fi
 
 ################################################################################
 #  Post processing
-$ENDSCRIPT
-set +x
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 error code ${err} >&2
 fi
+
+msg="${scr} HAS ENDED"
+postmsg "$jlogfile" "$msg"
 
 exit ${err}

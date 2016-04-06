@@ -136,7 +136,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   # Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
   # a single satellite/insrument.
 
-  if [[ $MY_MACHINE = "wcoss" ]]; then	
+  if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
      suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -159,8 +159,11 @@ ${COMPRESS} ${imgndir}/*.ctl
         wall_tm="0:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
-
+     if [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+     else
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+     fi
   else					#Zeus/linux
      for sat in ${SATLIST}; do
         suffix=${sat}
@@ -193,7 +196,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   for sat in ${bigSATLIST}; do
      suffix=$sat
 
-     if [[ $MY_MACHINE = "wcoss" ]]; then
+     if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -215,8 +218,11 @@ ${COMPRESS} ${imgndir}/*.ctl
            wall_tm="1:00"
         fi
 
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
-        
+        if [[ $MY_MACHINE = "wcoss" ]]; then
+           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        else      
+           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        fi
      else					# zeus/linux
         for var in $plot_list; do
            cmdfile=cmdfile_pbcor_${suffix}_${var}

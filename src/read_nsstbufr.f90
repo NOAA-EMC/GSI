@@ -84,7 +84,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   integer(i_kind) lunin,i,maxobs
   integer(i_kind) idate,iret,k
   integer(i_kind) kx,nreal,nchanl,ilat,ilon
-  integer(i_kind) sstq,nmind
+  integer(i_kind) nmind
   integer(i_kind):: idomsfc,isflg
 
   integer(i_kind) :: ireadmg,ireadsb,klev,msub,nmsub
