@@ -94,10 +94,10 @@ source ./PDY
 
 
 #############################################
-# COMOUT - WHERE GSI OUTPUT RESIDES
+# COMIN    - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export TANKverf=${TANKverf:-/com/verf/${envir}}
+export TANKverf=${TANKverf:-${COM}/${NET}/${envir}/${RUN}.${PDY}}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
