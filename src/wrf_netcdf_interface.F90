@@ -46,7 +46,7 @@ subroutine convert_netcdf_mass
   use gsi_4dvar, only: nhr_assimilation
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
-  use chemmod, only: laeroana_gocart, ppmv_conv
+  use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
   use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
@@ -974,6 +974,33 @@ subroutine convert_netcdf_mass
         end do ! n_gocart_var loop
      endif ! laeroana_gocart
    
+     if (wrf_pm2_5) then
+
+        rmse_var='PM2_5_DRY'
+        CALL ext_ncd_get_var_info (dh1,TRIM(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index, WrfType, ierr    )
+        write(6,*)' rmse_var=',TRIM(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index,               & !dom
+             start_index,end_index,               & !mem
+             start_index,end_index,               & !pat
+             ierr                                 )
+
+        do k=1,nsig_regional
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+        end do
+
+     endif
+
+
      deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
      close(iunit)
      call ext_ncd_ioclose(dh1, Status)
@@ -1992,7 +2019,7 @@ subroutine update_netcdf_mass
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use guess_grids, only: ntguessig
   use obsmod, only: iadate
-  use chemmod, only: laeroana_gocart, ppmv_conv
+  use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
   use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
@@ -2687,6 +2714,34 @@ subroutine update_netcdf_mass
              ierr                                 )
      end do ! n_gocart_var loop
   endif ! laeroana_gocart
+
+  if (wrf_pm2_5) then
+
+     rmse_var='PM2_5_DRY'
+
+     do k=1,nsig_regional
+        READ(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+        write(6,*)' k,max,min,mid var=',rmse_var,k,            &
+             maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  endif
 
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)

@@ -71,6 +71,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   OMP = -openmp
 
   FFLAGS_F90    = -DGFS
+  #FFLAGS_F90    = -DGFS -DMPI3 # use this if MPI-3 is available (saves memory for LETKF)
   EXE_FILE = global_enkf
   #FFLAGS_F90    = -DWRF
   #EXE_FILE = wrf_enkf

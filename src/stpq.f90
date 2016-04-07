@@ -77,7 +77,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: q_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use jfunc, only: l_foto,dhat_dt,xhat_dt
@@ -164,7 +164,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
+        if (vqc  .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
                              qptr%b  > tiny_r_kind) then
            q_pg=qptr%pg*varqc_iter
            cg_q=cg_term/qptr%b
@@ -175,7 +175,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            end do
         endif
      
-        if(njqc .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+        if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo

@@ -281,6 +281,8 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
+   elif [[ $MY_MACHINE = "cray" ]]; then
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45  -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
    fi
@@ -294,7 +296,8 @@ ${IG_SCRIPTS}/mk_time_plots.sh
 #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
 #------------------------------------------------------------------
 if [[ $DO_ARCHIVE = 1 ]]; then
-   ${IG_SCRIPTS}/make_archive.sh
+#   ${IG_SCRIPTS}/make_archive.sh
+   ${IG_SCRIPTS}/nu_make_archive.sh
 fi
 
 #--------------------------------------------------------------------
