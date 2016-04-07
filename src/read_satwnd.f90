@@ -743,11 +743,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  enddo
 !QI not applied to CAWV for now - may in the future
-                 if(qifn <85.0_r_kind .and. itype .ne. 247)  then
+                 if(qifn <85.0_r_kind .and. itype /= 247)  then
                     qm=15
                  endif
 ! Minimum speed requirement for CAWV of 10m/s
-                 if(itype .eq. 247 .and. obsdat(4) < 10.0_r_kind)  then
+                 if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
                    qm=15
                 endif
               endif

@@ -750,9 +750,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call getwdir(ugesin,vgesin,wdirgesin)
         if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
                  abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
-          error = zero
+           error = zero
         endif
-       endif
+     endif
    
 !    QC MODIS winds
      if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
@@ -772,7 +772,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
-       endif ! ???
+     endif ! ???
 
 !    QC AVHRR winds
      if (itype==244) then
@@ -967,7 +967,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val      = valu*valu+valv*valv
         exp_arg  = -half*val
         rat_err2 = ratio_errors**2
-        if(njqc .and. var_jb>tiny_r_kind .and. var_jb<10.0_r_kind .and. error >tiny_r_kind) then
+        if(njqc  .and. var_jb>tiny_r_kind .and. var_jb<10.0_r_kind .and. error >tiny_r_kind) then
            if(exp_arg  == zero) then
               wgt=one
            else
@@ -977,7 +977,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term=-two*var_jb*ratio_errors*log(cosh((sqrt(val))/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
-        else if (vqc==.true. .and. cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
+        else if (vqc .and. cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_w=cvar_b(ikx)
@@ -988,7 +988,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            valqc = -two*rat_err2*term
         else
            term = exp_arg
-           wgt  = wgtlim
+           wgt  = one 
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
         endif

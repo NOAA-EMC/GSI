@@ -44,7 +44,8 @@
                       id_bias_ps,id_bias_t,id_bias_spd, &
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
-                      stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5,&
+                      id_bias_pm2_5,conv_bias_pm2_5,&
+                      id_bias_pm10,conv_bias_pm10,&
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
@@ -128,6 +129,7 @@
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+  use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
@@ -489,6 +491,7 @@
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
+       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10, &
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
@@ -898,7 +901,8 @@
                                 i_lightpcp,i_sfct_gross
 
 ! chem(options for gsi chem analysis) :
-!     berror_chem       - ??
+!     berror_chem       - .true. when background  for chemical species that require
+!                          conversion to lower case and/or species names longer than 5 chars
 !     oneobtest_chem    - one-ob trigger for chem constituent analysis
 !     maginnov_chem     - O-B make-believe residual for one-ob chem test
 !     magoberr_chem     - make-believe obs error for one-ob chem test
@@ -906,22 +910,24 @@
 !     oblat_chem        - latitude of make-believe chem obs
 !     oblon_chem        - longitude of make-believe chem obs
 !     obpres_chem       - pressure level of make-believe chem obs
-!     diag_incr         - ??
-!     elev_tolerance    - ??
-!     tunable_error     - ??
-!     in_fname          - ??
-!     out_fname         - ??
-!     incr_fname        - ??
+!     diag_incr         - increment for CMAQ
+!     elev_tolerance    - in meters when surface PM observation rejected due to elevation
+!                         disparity in background and observation
+!     tunable_error     - a factor to calculate representativeness error for PM observations
+!     in_fname          - CMAQ input filename
+!     out_fname         - CMAQ output filename
+!     incr_fname        - CMAQ increment filename
 !     laeroana_gocart   - when true, do chem analysis with wrfchem and modis
-!     l_aoderr_table    - ??
-!     aod_qa_limit      - ??
-!     luse_deepblue     - ??
+!     l_aoderr_table    - whethee to use aod error table or default error
+!     aod_qa_limit      - minimum acceptable value of error flag for total column AOD
+!     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
+       aero_ratios,wrf_pm2_5
 
 !EOC
 
@@ -955,7 +961,6 @@
   call mpi_comm_size(mpi_comm_world,npe,ierror)
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
   if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
-
 
 ! Initialize defaults of vars in modules
   call init_4dvar
