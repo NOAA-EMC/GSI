@@ -75,4 +75,4 @@ elif [[ $MY_MACHINE = "theia" ]]; then
    export UNCOMPRESS="gunzip -f"
 fi
 
-export NDATE=${NWPROD}/util/exec/ndate
+export NDATE=${NDATE:-${NWPROD}/util/exec/ndate}
