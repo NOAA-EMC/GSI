@@ -8,6 +8,7 @@ export PS4='$SECONDS + '
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export envir=${envir:-prod}
+export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
 
 ###############################
 # Specify NET and RUN name
@@ -32,9 +33,9 @@ cd $DATA
 ###############################################################
 # This block can be modified for different test environment
 ###############################################################
-if [ $RUN_ENVIR = prod -a $envir != prod ]; then
-   export SENDCOM=${SENDCOM:-NO}
-fi
+#if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+#   export SENDCOM=${SENDCOM:-NO}
+#fi
 
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
@@ -74,11 +75,16 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Package Areas
 ##############################################
-export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+# JY export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs_minmon.${gfs_minmon_ver}}
 export PARMgfs=${PARMgfs:-$HOMEgfs/parm}
 export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
 export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 
+export HOMEminmon=${HOMEminmon:-${NWROOT}/minmon_shared.${minmon_shared_ver}}
+export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
+export USHminmon=${USHminmon:-$HOMEminmon/ush}
+export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
 
 ###################################
 # source the parm file
@@ -90,19 +96,19 @@ export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 # Run setpdy and initialize PDY variables
 #############################################
 export cycle=t${cyc}z
-${utilscript}/setpdy.sh
-source ./PDY
+setpdy.sh
+. ./PDY
 
 
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-M_TANKverf=${M_TANKverf:-/com/verf/${envir}}
+M_TANKverf=${M_TANKverf:-${COMROOT}/verf/${envir}}
 M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}}
 export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}}
 export M_TANKverf=$M_TANKverfM0
 
-export COM_IN=${COM_IN:-/com/${NET}/${envir}}
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
 mkdir -p -m 775 $M_TANKverf

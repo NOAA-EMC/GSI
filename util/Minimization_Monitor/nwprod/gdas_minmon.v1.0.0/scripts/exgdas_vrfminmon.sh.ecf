@@ -87,16 +87,8 @@ export cyc=${2:-${cyc:?}}
 #  Directories
 ########################################
 export DATA=${DATA:-$(pwd)}
-export COM_IN=${COMROOT}/${NET}/${envir}
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas_minmon.v${gdas_minmon_ver}}
-export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
-
-export HOMEminmon=${HOMEminmon:-/${NWROOT}/minmon_shared.${minmon_shared_ver}}
-export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
-export USHminmon=${USHminmon:-$HOMEminmon/ush}
-export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
+# export HOMEgdas=${HOMEgdas:-/${NWROOT}/gdas_minmon.v${gdas_minmon_ver}}
 
 ########################################
 #  Filenames
@@ -117,8 +109,8 @@ export pgm=exgdas_vrfminmon.sh.ecf
 #########################################################
 # M_TANKverf is storage location for generated files
 #########################################################
-export M_TANKverf=${M_TANKverf:-/com/verf/prod/minmon_${MINMON_SUFFIX}.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-/com/verf/prod/minmmon_${MINMON_SUFFIX}.${PDYm1}}
+export M_TANKverf=${M_TANKverf:-${COMROOT}/verf/${envir}/minmon_${MINMON_SUFFIX}.${PDY}}
+export M_TANKverfM1=${M_TANKverfM1:-${COMROOT}/verf/${envir}/minmmon_${MINMON_SUFFIX}.${PDYm1}}
 #####################################################################
 
 if [[ ! -d ${DATA} ]]; then
