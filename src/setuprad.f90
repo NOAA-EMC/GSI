@@ -777,7 +777,7 @@
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
-                temp,wmix,jacobian,error_status,tsim_clr)
+                temp,wmix,jacobian,error_status,tsim_clr=tsim_clr)
         else
            call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
