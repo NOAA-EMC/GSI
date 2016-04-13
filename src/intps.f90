@@ -87,7 +87,7 @@ subroutine intps_(pshead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -159,7 +159,7 @@ subroutine intps_(pshead,rval,sval)
         if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
-           if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
               ps_pg=psptr%pg*varqc_iter
               cg_ps=cg_term/psptr%b                           ! b is d in Enderson

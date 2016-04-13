@@ -1,0 +1,19 @@
+##################################
+# specify radmon_shared version
+##################################
+#export gdas_radmon_ver=2.0.0
+export radmon_shared_ver=2.0.2
+
+
+##################################
+# specify radmon_shared location
+##################################
+export HOMEradmon=${HOMEradmon:-${NWROOT}/radmon_shared.v${radmon_shared_ver}}
+export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+export USHradmon=${USHradmon:-$HOMEradmon/ush}
+
+
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+export Z=${Z:-gz}

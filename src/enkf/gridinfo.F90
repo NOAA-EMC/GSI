@@ -358,7 +358,7 @@ module gridinfo
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
   use enkf_obsmod,    only: obloc, obloclat, obloclon, nobstot
   use params,    only: datapath, nlevs, nvars, ndim, nlons, nlats,           &
-                       arw, nmm
+                       arw, nmm, nbackgrounds, fgfileprefixes
   use mpisetup
   use netcdf_io
 
@@ -1839,7 +1839,7 @@ module gridinfo
 
 use mpisetup
 use params, only: datapath,nlevs,nvars,ndim,datestring,&
-                  nmmb,regional,nlons,nlats
+                  nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth
 

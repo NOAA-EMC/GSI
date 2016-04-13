@@ -190,6 +190,8 @@ module obsmod
 !   def aeroltail    - aerosol level data linked list tail
 !   def pm2_5head    - pm2_5 level data linked list head
 !   def pm2_5tail    - pm2_5 level data linked list tail
+!   def pm10head     - pm10 level data linked list head
+!   def pm10tail     - pm10 level data linked list tail
 !   def radhead      - radiance linked list head
 !   def radtail      - radiance linked list tail
 !   def radheadm     - radiance linked list head for monitored radiance data
@@ -239,6 +241,7 @@ module obsmod
 !   def iout_pmsl    - output unit for conventional pressure at mean sea level
 !   def iout_howv    - output unit for conventional significant wave height stats
 !   def iout_pm2_5   - output unit for pm2_5 stats
+!   def iout_pm10    - output unit for pm10 stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
 !   def mype_uv      - task to handle wind stats
@@ -263,6 +266,7 @@ module obsmod
 !   def mype_howv    - task to handle conventional significant wave height stats
 !   def mype_aero    - task to handle aerosol stats
 !   def mype_pm2_5   - task to handle pm2_5
+!   def mype_pm10    - task to handle pm10
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -362,6 +366,7 @@ module obsmod
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
   public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
+  public :: pm10_ob_head,pm10_ob_type,i_pm10_ob_type,pm10head,pm10tail
   public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep,gps_alltail
   public :: radptrm,radtailm,radheadm
   public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
@@ -369,7 +374,7 @@ module obsmod
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
   public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
-  public :: aeroptr,aerolptr,pm2_5ptr
+  public :: aeroptr,aerolptr,pm2_5ptr,pm10ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas,tcamtptr,lcbasptr
   public :: mype_wspd10m,mype_td2m,iout_wspd10m,iout_td2m,wspd10mptr,td2mptr
@@ -389,6 +394,7 @@ module obsmod
   public :: tcp_ob_head,colvk_ob_head
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
+  public :: mype_pm10,iout_pm10
   public :: use_limit,lrun_subdirs
   public :: l_foreaft_thin,luse_obsdiag
 
@@ -449,8 +455,9 @@ module obsmod
   integer(i_kind),parameter:: i_howv_ob_type=30   ! howv_ob_type
   integer(i_kind),parameter:: i_tcamt_ob_type=31  ! tcamt_ob_type
   integer(i_kind),parameter:: i_lcbas_ob_type=32  ! lcbas_ob_type  
+  integer(i_kind),parameter:: i_pm10_ob_type=33   ! pm10_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 32      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 33      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -926,6 +933,35 @@ module obsmod
      type(pm2_5_ob_type),pointer :: head => NULL()
   end type pm2_5_ob_head
 
+  type pm10_ob_type
+! to avoid separate coding for pm10 profile e.g. from aircraft or 
+! soundings obs weights are coded as 
+! wij(8) even though for surface pm10 wij(4) would be sufficient.
+! also surface pm10 may be treated differently than now for vertical
+! interpolation
+
+     type(pm10_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  pm10 residual
+     real(r_kind)    :: err2          !  pm10 obs error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+!  to original obs error
+     real(r_kind)    :: time          !  observation time
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(8)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)         !  horizontal locations
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+     logical         :: luse          !  flag indicating if ob is used in pen.
+     
+  end type pm10_ob_type
+  
+  type pm10_ob_head
+     integer(i_kind):: n_alloc=0
+     type(pm10_ob_type),pointer :: head => NULL()
+  end type pm10_ob_head
+
+
   type gust_ob_type
      type(gust_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
@@ -1323,6 +1359,7 @@ module obsmod
      type(aero_ob_type),pointer  :: aero  => NULL()
      type(aerol_ob_type),pointer :: aerol => NULL()
      type(pm2_5_ob_type),pointer :: pm2_5  => NULL()
+     type(pm10_ob_type),pointer :: pm10  => NULL()
      type(gust_ob_type),pointer  :: gust => NULL()
      type(vis_ob_type),pointer   :: vis => NULL()
      type(pblh_ob_type),pointer  :: pblh => NULL()
@@ -1391,6 +1428,9 @@ module obsmod
   type(pm2_5_ob_head),dimension(:),pointer :: pm2_5head
   type(pm2_5_ob_head),dimension(:),pointer :: pm2_5tail
   type(pm2_5_ob_type),pointer :: pm2_5ptr => NULL()
+  type(pm10_ob_head),dimension(:),pointer :: pm10head
+  type(pm10_ob_head),dimension(:),pointer :: pm10tail
+  type(pm10_ob_type),pointer :: pm10ptr => NULL()
   type(gps_ob_head),dimension(:),pointer :: gpshead
   type(gps_ob_head),dimension(:),pointer :: gpstail
   type(gps_ob_type),pointer :: gpsptr => NULL()
@@ -1473,6 +1513,7 @@ module obsmod
                   mype_tcamt,mype_lcbas
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
+  integer(i_kind) iout_pm10, mype_pm10
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
@@ -1616,7 +1657,7 @@ contains
     iout_howv=228  ! significant wave height
     iout_tcamt=229 ! total cloud amount
     iout_lcbas=230 ! base height of lowest cloud
-
+    iout_pm10=231 ! pm10
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1643,7 +1684,8 @@ contains
     mype_howv= max(0,npe-23) ! significant wave height
     mype_tcamt=max(0,npe-24) ! total cloud amount
     mype_lcbas=max(0,npe-25) ! base height of lowest cloud
-    
+    mype_pm10= max(0,npe-26)! pm10
+
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
 
@@ -1684,6 +1726,7 @@ contains
     cobstype( i_aero_ob_type)="aerosol aod         " ! aero_ob_type
     cobstype(i_aerol_ob_type)="level aero aod      " ! aerol_ob_type
     cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
+    cobstype( i_pm10_ob_type)="in-situ pm10 obs    " ! pm10_ob_type
     cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
     cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
     cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
@@ -1833,6 +1876,8 @@ contains
     ALLOCATE(aeroltail(nobs_bins))
     ALLOCATE(pm2_5head(nobs_bins))
     ALLOCATE(pm2_5tail(nobs_bins))
+    ALLOCATE(pm10head(nobs_bins))
+    ALLOCATE(pm10tail(nobs_bins))
     ALLOCATE(radhead(nobs_bins))
     ALLOCATE(radtail(nobs_bins))
     ALLOCATE(gpshead(nobs_bins))
@@ -2185,8 +2230,8 @@ contains
         aerohead(ii)%head => aerotail(ii)%head%llpoint
         deallocate(aerotail(ii)%head%res, &
                    aerotail(ii)%head%err2,aerotail(ii)%head%raterr2, &
-                   aerotail(ii)%head%daod_dvar, aerotail(ii)%head%ipos, &
-                   aerotail(ii)%head%ich, aerotail(ii)%head%prs,&
+                   aerotail(ii)%head%daod_dvar,&
+                   aerotail(ii)%head%ich, &
                    aerotail(ii)%head%icx,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero arrays, istatus=',istatus
         deallocate(aerotail(ii)%head,stat=istatus)
@@ -2212,6 +2257,16 @@ contains
           deallocate(pm2_5tail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pm2_5, istatus=',istatus
           pm2_5tail(ii)%head => pm2_5head(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       pm10tail(ii)%head => pm10head(ii)%head
+       do while (associated(pm10tail(ii)%head))
+          pm10head(ii)%head => pm10tail(ii)%head%llpoint
+          deallocate(pm10tail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pm10, istatus=',istatus
+          pm10tail(ii)%head => pm10head(ii)%head
        end do
     end do
 
