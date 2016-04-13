@@ -114,10 +114,10 @@ echo  "m_jlogfile = $m_jlogfile"
 #############################################################
 export job=gdas_vminmon.${cyc}
 export jobid=${job}.${pid}
-export envir=para
+export envir=prod
 export DATAROOT=${DATA_IN:-${STMP_USER}}
-export COMROOT=${COMROOT:-${M_TANKverf}}
-export COMIN=${COMIN:-/com/gfs/prod}
+export COMROOT=${COMROOT:-/com}
+export COMIN=${COMIN:-${COMROOT}/gfs/${envir}}
 #############################################################
 # Load modules
 #############################################################
