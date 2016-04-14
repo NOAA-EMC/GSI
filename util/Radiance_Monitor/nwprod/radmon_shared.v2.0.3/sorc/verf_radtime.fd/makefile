@@ -26,7 +26,7 @@ clean:
 	rm -f radmon_time
 
 check_prereqs:
-	/nwprod/spa_util/check_libs.bash $(LIBS)
+	$(CHECK_LIBS) $(LIBS)
 
 install:
 	cp -f $(CMD) $(BINDIR)/

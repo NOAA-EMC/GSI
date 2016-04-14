@@ -26,8 +26,8 @@ export envir=para
 #############################################################
 # Specify versions
 #############################################################
-export gdas_ver=v13.0.0
-export global_shared_ver=v13.0.0
+export gdas_ver=v13.1.0
+export global_shared_ver=v13.1.0
 export grib_util_ver=v1.0.1
 export prod_util_ver=1.0.3
 export util_shared_ver=v1.0.2
@@ -40,14 +40,9 @@ export radmon_shared_ver=v2.0.2
 #############################################################
 . $MODULESHOME/init/ksh
 
-#module use /nwprod2/modulefiles
-#module load grib_util/$grib_util_ver
-#module load prod_util/$prod_util_ver
-#module load util_shared/$util_shared_ver
-
 module load prod_util/${prod_util_ver}
 module load prod_envir
-module load PrgEnv-intel
+#module load PrgEnv-intel
 
 module list
 
@@ -61,13 +56,15 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export DATAROOT=/gpfs/hps/ptmp/$LOGNAME/test_data
+export DATAROOT=/gpfs/hps/emc/da/noscrub/$LOGNAME/test_data
 export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
 export SUFFIX=testrad
-export NWTEST=/gpfs/hps/emc/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
-export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
+export NWTEST=/gpfs/hps/emc/da/noscrub/${LOGNAME}
+export HOMEgdas=${NWTEST}/gdas.${gdas_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
-export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
+
+export HOMEradmon=${NWTEST}/global_shared.${global_shared_ver}
+
 export COM_IN=${DATAROOT}
 export TANKverf=${COMROOT}/${SUFFIX}
 

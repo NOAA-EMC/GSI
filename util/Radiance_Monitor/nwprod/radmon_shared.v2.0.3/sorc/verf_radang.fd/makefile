@@ -25,7 +25,7 @@ clean:
 	rm -f $(CMD)
 
 check_prereqs:
-	/nwprod/spa_util/check_libs.bash $(LIBS)
+	$(PRE_REQ) $(LIBS)
 
 install:
 	cp -f $(CMD) $(BINDIR)/

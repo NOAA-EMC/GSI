@@ -1,4 +1,4 @@
-module use -a ../modulefiles/wcoss
+module use -a ../modulefiles/cray
 module load RadMonBuild
 
 
