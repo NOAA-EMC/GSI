@@ -226,7 +226,7 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   real(r_single),allocatable,dimension(:,:)::rdiagbuf,rdiagbuf2
   real(r_kind) :: errorlimit,errorlimit2,error
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical twofiles, fexist, init_pass, init_pass2
+  logical twofiles, fexist, fexist2, init_pass, init_pass2
 
 ! Error limit is made consistent with screenobs routine
   errorlimit = 1._r_kind/sqrt(1.e9_r_kind)
@@ -261,6 +261,7 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   !print *,obsfile
 
   open(iunit,form="unformatted",file=obsfile,iostat=ios)
+  rewind(iunit)
   if (init_pass) then
       read(iunit) idate
       init_pass = .false.
@@ -270,14 +271,15 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
      if (npefiles .eq. 0) then
          ! read diag file (concatenated pe* files)
          obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id2))
-         inquire(file=obsfile2,exist=fexist)
-         if (.not. fexist .or. datestring .eq. '0000000000') &
+         inquire(file=obsfile2,exist=fexist2)
+         if (.not. fexist2 .or. datestring .eq. '0000000000') &
          obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id2))
      else ! read raw, unconcatenated pe* files.
          obsfile2 =&
          trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.conv_01'
      endif
      open(iunit2,form="unformatted",file=obsfile2,iostat=ios)
+     rewind(iunit2)
      if (init_pass2) then
         read(iunit2) idate
         init_pass2 = .false.

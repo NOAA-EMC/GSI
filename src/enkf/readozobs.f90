@@ -145,7 +145,7 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
   real(r_single), allocatable, dimension(:) :: err,grs,pob
   real(r_single), allocatable, dimension(:) :: err2,grs2,pob2
   integer(i_kind), allocatable, dimension(:) :: iouse,iouse2
-  logical twofiles, fexist, init_pass, init_pass2
+  logical twofiles, fexist, fexist2, init_pass, init_pass2
   real(r_kind) :: errorlimit,errorlimit2
  
 ! make consistent with screenobs
@@ -176,6 +176,7 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
          if (.not. fexist) cycle peloop
          !print *,'obsfile=',obsfile
          open(iunit,form="unformatted",file=obsfile,iostat=ios)
+         rewind(iunit)
          if (init_pass) then
             read(iunit,err=20,end=30) isis,dplat,obstype,jiter,nlevs,idate,iint,ireal,iextra
             if(allocated(pob))deallocate(pob,grs,err,iouse)
@@ -187,8 +188,8 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
            if (npefiles .eq. 0) then
                ! read diag file (concatenated pe* files)
                obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_oz(nsat))//"_ges."//datestring//'_'//trim(adjustl(id2))
-               inquire(file=obsfile2,exist=fexist)
-               if (.not. fexist .or. datestring .eq. '0000000000') &
+               inquire(file=obsfile2,exist=fexist2)
+               if (.not. fexist2 .or. datestring .eq. '0000000000') &
                obsfile2 = trim(adjustl(obspath))//"diag_"//trim(sattypes_oz(nsat))//"_ges."//trim(adjustl(id2))
            else ! read raw, unconcatenated pe* files.
                obsfile2 =&
@@ -196,6 +197,7 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
            endif
            !print *,obsfile2
            open(iunit2,form="unformatted",file=obsfile2,iostat=ios)
+           rewind(iunit2)
            if (init_pass2) then
               read(iunit2,err=20,end=30) isis2,dplat2,obstype2,jiter2,nlevs2,idate2,iint2,ireal2,iextra2
               if(isis /= isis2 .or. dplat /= dplat2 .or. obstype /= obstype2 .or. jiter /= jiter2 .or. &
