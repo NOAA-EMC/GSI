@@ -31,7 +31,7 @@
 #			defaults to 1 (on)
 #     DO_DATA_RPT	switch to build the data report
 #                       defaults to 1 (on)
-#     SUFFIX		data source suffix
+#     RADMON_SUFFIX	data source suffix
 #                       defauls to opr
 #     MAKE_CTL          switch to construct the meta-data control file
 #                       defaults to 1 (on)
@@ -123,7 +123,7 @@ chan_hdr=chan_hdr.txt
 # Other variables
 DO_DIAG_RPT=${DO_DIAG_RPT:-1}
 DO_DATA_RPT=${DO_DATA_RPT:-1}
-SUFFIX=${SUFFIX:-opr}
+RADMON_SUFFIX=${RADMON_SUFFIX:-opr}
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
@@ -231,7 +231,7 @@ cat << EOF > input
   idhh=-720
   incr=6
   nchanl=${nchanl},
-  suffix='${SUFFIX}',
+  suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
