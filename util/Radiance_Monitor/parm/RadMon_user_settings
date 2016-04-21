@@ -88,7 +88,7 @@ export ARCHIVE_DIR=${ARCHIVE_DIR:-' '}
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
 #    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/Edward.Safford/nbns/stats}
+export HPSS_DIR=${HPSS_DIR:-' '}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily
