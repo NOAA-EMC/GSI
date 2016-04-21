@@ -25,7 +25,7 @@
 #                       yyyymmddcc format; required
 #
 #   Imported Shell Variables:
-#     SUFFIX            data source suffix
+#     RADMON_SUFFIX     data source suffix
 #                       defauls to opr
 #     MAKE_CTL          switch to construct the meta-data control file
 #                       defaults to 1 (on)
@@ -175,7 +175,7 @@ cat << EOF > input
   idhh=-720,
   incr=6,
   nchanl=${nchanl},
-  suffix='${SUFFIX}',
+  suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
