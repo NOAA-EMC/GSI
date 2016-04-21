@@ -58,7 +58,7 @@ export POE=YES
 #############################################################
 export DATAROOT=/gpfs/hps/emc/da/noscrub/$LOGNAME/test_data
 export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
-export SUFFIX=testrad
+export RADMON_SUFFIX=testrad
 export NWTEST=/gpfs/hps/emc/da/noscrub/${LOGNAME}
 export HOMEgdas=${NWTEST}/gdas.${gdas_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
@@ -66,7 +66,7 @@ export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEradmon=${NWTEST}/global_shared.${global_shared_ver}
 
 export COM_IN=${DATAROOT}
-export TANKverf=${COMROOT}/${SUFFIX}
+export TANKverf=${COMROOT}/${RADMON_SUFFIX}
 
 
 #############################################################

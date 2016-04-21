@@ -35,12 +35,12 @@ compress="/usrx/local/bin/pigz -f"
 no_diag_rpt=0
 no_error_rpt=0
 
-export SUFFIX=$1
+export RADMON_SUFFIX=$1
 export DATE=$2
 
 export RAD_AREA=glb
 
-echo SUFFIX = $SUFFIX
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 echo DATE   = $DATE
 
 

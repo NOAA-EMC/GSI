@@ -64,13 +64,13 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export SUFFIX=testrad
+export RADMON_SUFFIX=testrad
 export NWTEST=/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
 export COM_IN=${DATAROOT}
-export TANKverf=${COMROOT}/${SUFFIX}
+export TANKverf=${COMROOT}/${RADMON_SUFFIX}
 
 
 #############################################################
