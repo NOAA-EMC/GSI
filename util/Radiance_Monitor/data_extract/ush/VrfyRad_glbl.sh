@@ -47,7 +47,7 @@ export KEEPDATA="YES"
 #  
 #  if $COMOUT is defined then assume we're in a parallel.
 #--------------------------------------------------------------------
-export SUFFIX=$1
+export RADMON_SUFFIX=$1
 export RUN_ENVIR=""
 
 if [[ $nargs -ge 2 ]]; then
@@ -69,7 +69,7 @@ if [[ $RUN_ENVIR = "" ]]; then
   fi
 fi
 
-echo SUFFIX = $SUFFIX
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 
@@ -236,10 +236,10 @@ if [[ -e ${radstat} ]]; then
    export job=gdas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-${STMP_USER}/radmon/${SUFFIX}}
+   export DATA=${DATA:-${STMP_USER}/radmon/${RADMON_SUFFIX}}
    rm -rf ${DATA}
    mkdir -p ${DATA}
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
   
@@ -248,14 +248,14 @@ if [[ -e ${radstat} ]]; then
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
+   satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
 
    if [[ $CYC = "00" ]]; then
       echo "Making new day directory for 00 cycle"
       mkdir -p ${TANKverf}/radmon.${PDY}
       prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-      if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ]]; then
-         cp ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+      if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
+         cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
       fi
     fi 
 
@@ -269,7 +269,7 @@ if [[ -e ${radstat} ]]; then
       echo "CREATED ${satype_file}"
     fi
 
-    export satype_file=${SUFFIX}_radmon_satype.txt
+    export satype_file=${RADMON_SUFFIX}_radmon_satype.txt
    
    #------------------------------------------------------------------
    #   Override the default base_file declaration if there is an  
@@ -302,7 +302,7 @@ fi
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=6
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
 fi
 
 echo end VrfyRad_glbl.sh

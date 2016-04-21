@@ -63,14 +63,14 @@ export PDATE=$3
 radmon_shared_ver=2.0.2
 
 #--------------------------------------------------------------------
-#  SUFFIX is the identifying name for a given data set from either a
+#  RADMON_SUFFIX is the identifying name for a given data set from either a
 #  prod or parallel run.  For this driver we'll use radmon_test as 
 #  default.
 #--------------------------------------------------------------------
-export SUFFIX=${SUFFIX:-"radmon_test"}
+export RADMON_SUFFIX=${RADMON_SUFFIX:-"radmon_test"}
 export envir="test"
 
-export TANKverf=${PWD}/${SUFFIX}
+export TANKverf=${PWD}/${RADMON_SUFFIX}
 export DATAROOT=/gpfs/hps/stmp/${LOGNAME}
 export COMROOT=${COMROOTp1}
 export SENDCOM=NO
@@ -95,7 +95,7 @@ nwprod_dir=`echo ${this_dir} | cut -d/ -f1-${num_flds}`
 export HOMEgdas=${HOMEgdas:-${gdas_dir}}
 export HOMEradmon=${HOMEradmon:-${nwprod_dir}/radmon_shared.v${radmon_shared_ver}}
 
-export jlogfile="jlogfile_${SUFFIX}"
+export jlogfile="jlogfile_${RADMON_SUFFIX}"
 export KEEPDATA=YES
 
 export PDY=`echo ${PDATE}|cut -c1-8`
@@ -157,7 +157,7 @@ fi
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=6
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
 else
    echo "normal operation, job submitted"
 fi
