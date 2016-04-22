@@ -32,6 +32,7 @@ module ncepnems_io
 !   2016-01-01 Li       (1) Move tran_gfssfc from ncepgfs_io.f90 to here
 !                       (2) Modify write_sfc_nst_ to follows the update done in sfcio
 !                       (3) Modify read_sfc_ to follows the update done in sfcio for more effective I/O
+!   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -1714,78 +1715,7 @@ contains
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'psfc','write',istop,iret)
     endif
 
-!   Pressure depth
-    do k=1,grd%nsig
-       call mpi_gatherv(dpsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          if(diff_res)then
-             call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
-             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-             rwork1d1 = r0_001*rwork1d
-             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
-             vector(1)=.false.
-             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
-             do kk=1,grd%iglobal
-                i=grd%ltosi(kk)
-                j=grd%ltosj(kk)
-                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
-             end do
-             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
-             do j=1,latb
-                do i=1,lonb
-                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
-                end do
-             end do
-             rwork1d = reshape(grid_b,(/size(rwork1d)/))
-          else
-             call load_grid(work1,grid)
-             grid = grid*r1000
-             rwork1d = reshape(grid,(/size(rwork1d)/))
-          end if
-          call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
-          if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'dpres','write',istop,iret)
-       endif
-    end do
-
-!   Layer mean pressure
-    do k=1,grd%nsig
-       call mpi_gatherv(prslm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          if(diff_res)then
-             call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
-             if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop,iret)
-             rwork1d1 = r0_001*rwork1d
-             grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
-             vector(1)=.false.
-             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-             call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
-             do kk=1,grd%iglobal
-                i=grd%ltosi(kk)
-                j=grd%ltosj(kk)
-                grid3(i,j,1)=work1(kk)-grid3(i,j,1)
-             end do
-             call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
-             do j=1,latb
-                do i=1,lonb
-                   grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
-                end do
-             end do
-             rwork1d = reshape(grid_b,(/size(rwork1d)/))
-          else
-             call load_grid(work1,grid)
-             grid = grid*r1000
-             rwork1d = reshape(grid,(/size(rwork1d)/))
-          end if
-          call nemsio_writerecv(gfileo,'pres','mid layer',k,rwork1d,iret=iret)
-          if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'pres','write',istop,iret)
-       endif
-    end do
-
+!   u, v
     do k=1,grd%nsig
        call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
