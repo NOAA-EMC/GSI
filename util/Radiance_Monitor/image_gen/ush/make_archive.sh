@@ -133,9 +133,9 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    #------------------------------------------------------------------
    #  Copy the data_map.xml file to the $TOP_ARCHIVE_DIR 
    #------------------------------------------------------------------
-   if [[ -e ${RADMON_PARM}/data_map.xml ]]; then
-      cp -f ${RADMON_PARM}/data_map.xml ${TOP_ARCHIVE_DIR}/.
-   fi 
+#   if [[ -e ${RADMON_PARM}/data_map.xml ]]; then
+#      cp -f ${RADMON_PARM}/data_map.xml ${TOP_ARCHIVE_DIR}/.
+#   fi 
  
 fi
 
