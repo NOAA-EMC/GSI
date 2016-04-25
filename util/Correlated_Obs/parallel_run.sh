@@ -1,27 +1,28 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040200
+bdate=2014040106
 #date of last radstat file
 #edate=2013102506
-edate=2014060218
+edate=2014040500
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-a
+instr=iasi_metop-b
+#instr=cris_npp
 #location of radstat file
 #exp=para_2014
-exp=prcorriasim2
+exp=prminm2_iter2
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/m2iasia_sea
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
 type=1
-#cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
+#cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30
 #option to output the channel wavenumbers
-wave_out=.false.
+wave_out=.true.
 #option to output the assigned observation errors
 err_out=.false.
 #option to output the correlation matrix
@@ -31,7 +32,7 @@ kreq=-60
 #logical to use modified Rcov
 mod_Rcov=.false.
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=20
+num_proc=10
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
