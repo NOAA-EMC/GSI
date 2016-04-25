@@ -2,19 +2,20 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014060218
+#edate=2014041218
+edate=bdate
 #instrument name, as it would appear in the title of a diag file
 instr=iasi_metop-a
 #location of radstat file
-exp=prcorriasim2
+exp=prcorrctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/m2iasia_sea
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasi
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
 type=1
-#cloud -0 for all (cloudy and clear) radiances, 1 for clear FOVs, 2 for clear channels, 3 for cloudy FOVs
+#cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30

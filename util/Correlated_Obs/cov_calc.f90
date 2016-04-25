@@ -1,4 +1,4 @@
-program fast_cov_calc
+program cov_calc
 !This program computes a covariance matrix based on Desroziers' method
 !Kristen Bathmann
 !5-2015
@@ -40,7 +40,7 @@ character(9):: gesfile, anlfile
 character(256):: cov_file                               !name of outputted covariance file
 character(256):: wave_file                              !name of outputted file containing channel wavenumbers
 character(256):: err_file                               !name of outputted file containing assumed obs errors
-character(256):: corr_file,corr_file1                             !name of outputted correlation file
+character(256):: corr_file,corr_file1                   !name of outputted correlation file
 character(256):: instr
 integer:: Error_Status, gesid, anlid
 integer, parameter:: dsize=4500                         !cap size on the number of omg's that can be stored at each time step
@@ -99,14 +99,14 @@ real(r_kind), dimension(2):: anlloc                     !location (lat,lon) of a
 
 !Covariance Definition
 integer,dimension(:), allocatable:: obs_pairs
-real(r_kind), dimension(:,:), allocatable:: Rcov      !the covariance matrix
+real(r_kind), dimension(:,:), allocatable:: Rcov        !the covariance matrix
 real(r_kind), dimension(:,:), allocatable:: Edbadbo
 real(r_kind), dimension(:,:), allocatable:: Edbodbo
 real(r_kind), dimension(:,:), allocatable:: invE
 real(r_kind), dimension(:,:), allocatable:: Pmult
-real(r_kind), dimension(:,:), allocatable:: Rcorr,Rcorr1     !the correlation matrix
-real(r_kind), dimension(:,:), allocatable:: anl_ave   !average value of oma
-real(r_kind), dimension(:,:), allocatable:: ges_ave  !average value of omb
+real(r_kind), dimension(:,:), allocatable:: Rcorr       !the correlation matrix
+real(r_kind), dimension(:,:), allocatable:: anl_ave     !average value of oma
+real(r_kind), dimension(:,:), allocatable:: ges_ave     !average value of omb
 real(r_kind), dimension(:,:), allocatable:: ba_ave
 integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
 real(r_kind):: cov_sum, anl_sum, ges_sum
@@ -217,10 +217,6 @@ do tim=1,ntimes
          if (out_corr) then 
             allocate(Rcorr(nch_active,nch_active))
             Rcorr=zero
-            if (kreq>zero) then
-               allocate(Rcorr1(nch_active,nch_active))
-               Rcorr1=zero
-            end if
          end if
          if (kreq>zero) then
             allocate(eigs(nch_active),eigv(nch_active,nch_active))
@@ -457,24 +453,6 @@ do r=1,nch_active
       end if
    end do
 end do
-if (out_corr) then
-   do r=1,nch_active
-      do c=1,nch_active
-        if (divider(r,c)>zero) then
-            val=Rcov(r,r)*Rcov(c,c)
-            val=sqrt(abs(val))
-            if (val>errt) then
-               Rcorr(r,c)=Rcov(r,c)/val
-            else
-               Rcorr(r,c)=one
-            end if
-         else if (r==c) then
-            Rcorr(r,c)=one
-         end if
-      end do
-   end do
-   Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
-end if
 
 !make covariance matrix symmetric
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
@@ -497,24 +475,25 @@ if (mod_Rcov) then
    Pmult=MATMUL(invE,Edbodbo)
    Rcov=MATMUL(Rcov,Pmult)
 end if
-if ((kreq>zero).and.(out_corr)) then
+if (out_corr) then
    do r=1,nch_active
       do c=1,nch_active
         if (divider(r,c)>zero) then
             val=Rcov(r,r)*Rcov(c,c)
             val=sqrt(abs(val))
             if (val>errt) then
-               Rcorr1(r,c)=Rcov(r,c)/val
+               Rcorr(r,c)=Rcov(r,c)/val
             else
-               Rcorr1(r,c)=one
+               Rcorr(r,c)=one
             end if
          else if (r==c) then
-            Rcorr1(r,c)=one
+            Rcorr(r,c)=one
          end if
       end do
    end do
-   Rcorr1=(Rcorr1+TRANSPOSE(Rcorr1))/two
+   Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
+
 !output
 inquire(iolength=reclen) Rcov(1,1)
 open(26,file=trim(cov_file),form='unformatted')
@@ -536,11 +515,6 @@ if (out_corr) then
    open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
    write(25,rec=1) Rcorr
    close(25)
-   if (kreq>zero) then
-      open(34,file=trim(corr_file1),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
-      write(34,rec=1) Rcorr1
-      close(34)
-   end if
 end if
 deallocate(Rcov,chaninfo,errout)
 deallocate(indR)
@@ -549,8 +523,7 @@ deallocate(anl_ave, ges_ave)
 deallocate(obs_pairs)
 if (out_corr) then
    deallocate(Rcorr)
-   if (kreq>zero) deallocate(Rcorr1)
 end if
 if (mod_Rcov) deallocate(Edbadbo, Edbodbo, ba_ave, Pmult, invE, work, ipiv) 
 if (kreq>zero) deallocate(Rout,eigv, eigs)
-end program fast_cov_calc
+end program cov_calc
