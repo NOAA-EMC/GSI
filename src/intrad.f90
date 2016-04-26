@@ -288,7 +288,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
 !next two lines here
-  use radinfo, only: radinfo_scl_bias,radinfo_get_rsqrtinv
+  use radinfo, only: radinfo_scl_bias! eig here comment,radinfo_get_rsqrtinv
   use timermod, only:  timer_ini, timer_fnl
 
 
@@ -312,7 +312,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   type(rad_ob_type), pointer :: radptr
 
 !next three lines here
-  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+!eig here comment next line
+!  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   logical do_scl_bias
   integer(i_kind) iinstr,ic1,ix1
 
@@ -534,13 +535,13 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      endif
      ! here if statement
      do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
-     if(do_scl_bias)then
-        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
-        rsqrtinv=zero
-        call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, & !  need to talk to Jing!
-                                  radptr%err2,rsqrtinv)
-
-     endif
+!eig here dont calc rsqrtinv
+!     if(do_scl_bias)then
+!        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+!        rsqrtinv=zero
+!        call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, & !  need to talk to Jing!
+!                                  radptr%err2,rsqrtinv)
+!     endif
 
 !  For all other configurations
 !  begin channel specific calculations
@@ -565,7 +566,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
                  do mm=1,radptr%nchan
                     ic1=radptr%icx(mm)
                     ix1=(ic1-1)*npred
-                    val(nn)=val(nn)+rsqrtinv(nn,mm)*spred(ix1+n)*radptr%pred(n,mm)
+                    val(nn)=val(nn)+radptr%rsqrtinv(nn,mm)*spred(ix1+n)*radptr%pred(n,mm)
                  enddo
               enddo
            else
@@ -618,7 +619,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
                        do mm=1,radptr%nchan
                           ic1=radptr%icx(mm)
                           ix1=(ic1-1)*npred
-                          rpred(ix1+n)=rpred(ix1+n)+rsqrtinv(nn,mm)*radptr%pred(n,mm)*val(nn)
+                          rpred(ix1+n)=rpred(ix1+n)+radptr%rsqrtinv(nn,mm)*radptr%pred(n,mm)*val(nn)
                        enddo
                     enddo
                  else
@@ -631,9 +632,10 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end if
      end do
 !extra deallocate here
-     if(do_scl_bias) then      
-        deallocate(rsqrtinv)
-     endif
+!eig here dont deallocate
+!     if(do_scl_bias) then      
+!        deallocate(rsqrtinv)
+!     endif
 
 !          Begin adjoint
 

@@ -113,7 +113,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
           luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
 !next line here
-  use radinfo, only: radinfo_scl_bias,radinfo_get_rsqrtinv
+  use radinfo, only: radinfo_scl_bias! eig here comment,radinfo_get_rsqrtinv
   implicit none
   
 ! Declare passed variables
@@ -136,7 +136,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   real(r_kind),dimension(max(1,nstep)) :: term,rad
   type(rad_ob_type), pointer :: radptr
 !here, add logical do_scl_bias, rsqrtinv, iinstr
-  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+!eig here comment next line
+!  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   logical do_scl_bias
   integer(i_kind) iinstr
 
@@ -345,12 +346,13 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
         end if
 !here, add call to radinfo_scl_bias and allocate rsqrtinv
         do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
-        if(do_scl_bias)then
-           allocate(rsqrtinv(radptr%nchan,radptr%nchan))
-           rsqrtinv=zero
-           call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, &
-                                     radptr%err2,rsqrtinv)
-        endif
+!        if(do_scl_bias)then
+!eig here, rsqrt already defined
+!           allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+!           rsqrtinv=zero
+!           call radinfo_get_rsqrtinv(iinstr,radptr%nchan,radptr%icx,radptr%ich, &
+!                                     radptr%err2,rsqrtinv)
+!        endif
 
         do nn=1,radptr%nchan
 
@@ -365,8 +367,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  if (do_scl_bias) then
                     do mm=1,radptr%nchan
                        ic1=radptr%icx(mm)
-                       val2=val2+spred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
-                       val=val+rpred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val2=val2+spred(nx,ic1)*radptr%rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val=val+rpred(nx,ic1)*radptr%rsqrtinv(nn,mm)*radptr%pred(nx,mm)
                     end do
                  else
                     val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
@@ -413,9 +415,10 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
         end do
 !here, deallocate rsqrtinv
-        if(do_scl_bias) then
-           deallocate(rsqrtinv)
-        endif
+!eig here, dont deallocate
+!        if(do_scl_bias) then
+!           deallocate(rsqrtinv)
+!        endif
      end if
 
      radptr => radptr%llpoint

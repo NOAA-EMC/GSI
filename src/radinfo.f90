@@ -1802,7 +1802,8 @@ contains
 !here, args 
 ! logical function adjust_jac_ (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
 !                                 depart,obvarinv,adaptinf,jacobian)
- logical function adjust_jac_ (isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+!eig here, output iinstr
+ logical function adjust_jac_ (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
                                depart,obvarinv,adaptinf,wgtjo,jacobian)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1844,10 +1845,11 @@ contains
    real(r_kind), intent(inout) :: adaptinf(nchanl)
    real(r_kind), intent(inout) :: wgtjo(nchanl)
    real(r_kind), intent(inout) :: jacobian(nsigradjac,nchanl)
-
+   !eig here move iinstr to be out
+   integer(i_kind), intent(out) :: iinstr
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
-   integer(i_kind) iinstr
+!   integer(i_kind) iinstr
 
    adjust_jac_=.false.
 
@@ -1883,6 +1885,7 @@ contains
    adjust_jac_ = corr_ob_scale_jac(depart,obvarinv,adaptinf,jacobian,nchanl,jpch_rad,varinv,wgtjo, &
                                     iuse_rad,ich,GSI_BundleErrorCov(iinstr))
 end function adjust_jac_
+
  !added scl_bias here
 logical function scl_bias_ (isis,isfctype,iinstr)
 !$$$  subprogram documentation block

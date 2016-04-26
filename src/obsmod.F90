@@ -1264,6 +1264,10 @@ module obsmod
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
                                       !  error variances squared (nsigradjac,nchan)
+!eig here add rsqrtinv
+     real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
+                                      !square root of inverse of R, only used
+                                      !if using correlated obs
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
