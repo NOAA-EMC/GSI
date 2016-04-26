@@ -182,8 +182,7 @@
 !   output argument list:
 !     aivals - array holding sums for various statistics as a function of obs type
 !     stats  - array holding sums for various statistics as a function of channel
-!
-! attributes:
+!! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
@@ -226,7 +225,7 @@
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
-  use radinfo, only: radinfo_adjust_jacobian
+  use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv !eig here add rsqrtinv
 
 
 
@@ -331,7 +330,8 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-
+! eig here add iinstr
+  integer(i_kind):: iinstr
   logical channel_passive
   logical,dimension(nobs):: luse
 
@@ -1525,11 +1525,11 @@
 
 
 !here, channged this function call
-               account_for_corr_obs = radinfo_adjust_jacobian(isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+               account_for_corr_obs = radinfo_adjust_jacobian(iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian)
 !              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
 !                                                              utbc,obvarinv,adaptinf,jacobian)
-
+              
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1614,6 +1614,14 @@
                  end if
               end do
               radtail(ibin)%head%nchan  = iii         ! profile observation count
+!move eig here
+              if (account_for_corr_obs) then
+                 allocate(radtail(ibin)%head%rsqrtinv(radtail(ibin)%head%nchan,radtail(ibin)%head%nchan)) !nchanl is right size? 
+                 radtail(ibin)%head%rsqrtinv=zero
+                 call radinfo_get_rsqrtinv(iinstr,radtail(ibin)%head%nchan,radtail(ibin)%head%icx,radtail(ibin)%head%ich,&
+                                           radtail(ibin)%head%err2,radtail(ibin)%head%rsqrtinv)
+              end if
+
            end if ! icc
         endif ! (in_curbin)
 
