@@ -51,6 +51,15 @@ subroutine get_wrf_nmm_ensperts
     use aniso_ens_util, only: intp_spl
 
     implicit none
+    interface
+       subroutine ens_spread_dualres_regional(mype,en_bar)
+         use kinds, only: r_kind,i_kind,r_single
+         use gsi_bundlemod, only: gsi_bundle
+         integer(i_kind),intent(in):: mype
+         type(gsi_bundle),OPTIONAL,intent(in) :: en_bar
+       end subroutine ens_spread_dualres_regional
+    end interface
+
 
     real(r_kind),allocatable,dimension(:,:,:):: u,v,tv,cwmr,oz,rh
     real(r_kind),allocatable,dimension(:,:):: ps
