@@ -1,7 +1,8 @@
 subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,dval_use)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
+     llb,lll,nobs, &
+     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_iasi                  read bufr format iasi data
@@ -86,7 +87,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
+!     llb      - beginning loop for ears and DB data
+!     lll      - ending loop for ears and DB data
 !     nrec_start - first subset with useful information
+!     nrec_start_ears - first ears subset with useful information
+!     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR IASI observations read
@@ -122,7 +127,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR format for IASISPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_ears,nrec_start_DB
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -130,6 +135,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
+  integer(i_kind)  ,intent(in   ) :: lll,llb
   character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
   character(len=*), intent(in   ) :: obstype
@@ -163,8 +169,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
+  character(len=40) :: infile2
   integer(i_kind)   :: jstart
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
   integer(i_kind),allocatable,dimension(:) :: nrec
 
 
@@ -197,13 +204,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: iasi
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
-  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat
+  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent,maxinfo, bufr_nchan
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
-  integer(i_kind):: error_status
+  integer(i_kind):: error_status, irecx
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
@@ -382,9 +389,35 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec=999999
+  llll_loop: do llll=llb,lll
+
+     if(llll == 1)then
+        if ( nrec_start <= 0 ) cycle llll_loop
+        nrec_startx=nrec_start
+        infile2=trim(infile)         ! Set bufr subset names based on type of data to read
+     elseif(llll == 2) then
+        if ( nrec_start_ears <= 0 ) cycle llll_loop
+        nrec_startx=nrec_start_ears
+        infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
+     elseif(llll == 3) then
+        if ( nrec_start_DB <= 0 ) cycle llll_loop
+        nrec_startx=nrec_start_DB
+        infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
+     end if
+
+
+! Open BUFR file
+  call closbf(lnbufr)
+  open(lnbufr,file=trim(infile2),form='unformatted')
+
+! Open BUFR table
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+
+  irecx = 0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
-     irec=irec+1
-     if(irec < nrec_start) cycle read_subset
+     irecx = irecx + 1
+     if(irecx < nrec_startx) cycle read_subset
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle read_subset
@@ -538,6 +571,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif
         endif 
+        if( llll > 1 ) crit1 = crit1 + 500.0_r_kind
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 
@@ -767,12 +801,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      enddo read_loop
 
-
   enddo read_subset
 
-  deallocate(temperature, allchan, bufr_chan_test)
   call closbf(lnbufr)
 
+  end do llll_loop
+
+  deallocate(temperature, allchan, bufr_chan_test)
 ! deallocate crtm info
   error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
