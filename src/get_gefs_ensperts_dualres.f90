@@ -90,7 +90,7 @@ subroutine get_gefs_ensperts_dualres
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m,ipic
-  integer(i_kind) ipicps,inner_vars,num_fields
+  integer(i_kind) inner_vars,num_fields
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl
