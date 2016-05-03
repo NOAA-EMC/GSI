@@ -134,7 +134,7 @@ contains
     character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
                                                     'vor ', 'div ', &
                                                     'tv  ', 'q   ', &
-                                                    'cw  ', 'oz  '  /)
+                                                    'cw  ', 'oz  ' /)
 
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
@@ -405,7 +405,7 @@ contains
              endif
           else
              allocate(avefld(size(p_co2,3)))
-             call glbave(p_co2,xlats,avefld)
+             call glbave(p_co2,avefld)
              if (mype==0) then
                 write(6,'(a)') 'Mean Co2'
                 do k=1,nsig
@@ -2825,7 +2825,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   end subroutine sigio_cnvtdv8
 
-  subroutine glbave(fld,xlats,ave)
+  subroutine glbave(fld,ave)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero_quad,two_quad
   use mpimod, only: mype
@@ -2833,7 +2833,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
   use mpl_allreducemod, only: mpl_allreduce
   implicit none
   real(r_kind),intent(in)    :: fld(:,:,:) 
-  real(r_kind),intent(in)    :: xlats(:)
   real(r_kind),intent(inout) :: ave(:) 
   integer(i_kind) i,j,k,mp1,ii
   real(r_quad),allocatable,dimension(:):: xave
