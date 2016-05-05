@@ -88,6 +88,7 @@ contains
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !   2014-11-28  zhu     - assign cwgues0 right after reading in fg,
 !                       - set lower bound to cloud after assigning cwgues0
+!   2016-04-28  eliu    - save cwgues0 at desired time level  
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -102,7 +103,7 @@ contains
 
     use kinds, only: i_kind,r_kind
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,regional
-    use guess_grids, only: ifilesig,nfldsig 
+    use guess_grids, only: ifilesig,nfldsig,ntguessig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
@@ -120,6 +121,7 @@ contains
     logical:: l_cld_derived,zflag,inithead
     integer(i_kind):: it,nlon_b,num_fields,inner_vars
     integer(i_kind):: iret,iret_ql,iret_qi,istatus 
+    integer(i_kind):: i,j,k  
 
     real(r_kind),dimension(lat2,lon2  ):: aux_ps
     real(r_kind),dimension(lat2,lon2  ):: aux_z
@@ -200,6 +202,20 @@ contains
 !      Set values to actual MetGuess fields
        call set_guess_
 
+!eliu: need to extend this to save original cw field at
+!      asynoptic hours for 4densvar write out
+       if (associated(ges_cwmr_it)) then
+          if (it==ntguessig) then
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      cwgues0(i,j,k)=ges_cwmr_it(i,j,k)
+                   end do
+                end do
+             end do
+          endif
+       endif
+
        l_cld_derived = associated(ges_cwmr_it).and.&
                        associated(ges_q_it)   .and.&
                        associated(ges_ql_it)  .and.&
@@ -210,7 +226,7 @@ contains
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
        if (l_cld_derived) then
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
        end if
 
     end do

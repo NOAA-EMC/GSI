@@ -72,6 +72,7 @@ subroutine compute_derived(mype,init_pass)
 !   2014-06-19  carley/zhu - add lgues and dlcbasdlog
 !   2014-11-28  zhu     - move cwgues0 to cloud_efr
 !   2014-11-28  zhu     - re-compute ges_cwmr & cwgues the same way as in the regional when cw is not state variable
+!   2016-04-28  eliu    - copy cloud water to cwgues to be used in the inner loop     
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -213,27 +214,16 @@ subroutine compute_derived(mype,init_pass)
         do k=1,nsig
            do j=1,lon2
               do i=1,lat2
-                 cwgues(i,j,k)=max(ges_ql(i,j,k)+ges_qi(i,j,k),qcmin)
+                 cwgues(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
               end do
            end do
         end do
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
-        if (istatus==0) then  ! temporarily, revise after moist physics is ready
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ges_cwmr(i,j,k)=cwgues(i,j,k)
-                 end do
-              end do
-           end do
-        end if
      else
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
         if (istatus==0) then
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ges_cwmr(i,j,k)=max(ges_cwmr(i,j,k),qcmin)
                     cwgues(i,j,k)=ges_cwmr(i,j,k)
                  end do
               end do
