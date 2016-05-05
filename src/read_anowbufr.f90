@@ -16,6 +16,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 !   2010-09-13  pagowski adopted prepbufr reader code for 
 !  AIRNow bufr for pm2_5
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-11-01 pagowski - make code compatible with ncep/mhu airnow bufr
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !
 !   input argument list:
@@ -42,12 +43,14 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
        tll2xy,txy2ll,rlats,rlons,region_dx
   use convinfo, only: nconvtype,ctwind, &
-       icuse,ioctype,ictype,cermin,cermax
+       icuse,ioctype,ictype,cermin,cermax,&
+       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
-  use chemmod, only : obs2model_anowbufr_pm2_5,&
+  use chemmod, only : obs2model_anowbufr_pm,&
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
         elev_missing,site_scale,tunable_error,&
-        code_pm25_bufr,code_pm25_prepbufr
+        code_pm25_ncbufr,code_pm25_anowbufr,&
+        code_pm10_ncbufr,code_pm10_anowbufr
   use mpimod, only: npe
 
   implicit none
@@ -58,7 +61,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
   real(r_kind)    ,intent(in   ) :: gstime,twindin
-  character(len=20),intent(in  ) :: sis
+  character(len=*),intent(in   ) :: sis
   
   
 ! declare local parameters
@@ -100,7 +103,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   real(r_kind) :: dlat,dlon,error_1,error_2,obserror,dlat_earth,dlon_earth
   
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  integer(i_kind) ntest
+  integer(i_kind) ntest,ios
   
 
   real(r_kind) :: conc,site_elev
@@ -108,12 +111,15 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   character(len=8):: sid
   character(len=10) :: cdate
 
-  logical :: prepbufr
+  logical :: ncbufr,anowbufr
+
+  equivalence (sid,indata(nsid))
 
   data lunin / 10 /
 
-  equivalence (sid,indata(nsid))
-  
+  ncbufr=.false.
+  anowbufr=.false.
+
   site_char=1 ! set unknown site character
   site_elev=elev_missing ! set unknown site elevation
 
@@ -127,6 +133,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
 ! open, then read date from bufr data
   open(lunin,file=trim(infile),form='unformatted')
+
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -138,12 +145,22 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         
         if ( (subset == 'NC008031') .or. (subset == 'NC008032' ) ) then
            headr='PTID CLONH CLATH TPHR TYPO COPOPM'
-           prepbufr=.false.
+           ncbufr=.true.
            write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
         else if (subset == 'ANOWPM') then
            headr='SID XOB YOB DHR TYP COPOPM'
-           prepbufr=.true.
+           anowbufr=.true.
            write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+        else
+           cycle
+        endif
+
+     else if (trim(obstype)=='pm10') then
+        
+        if (subset == 'NC008033') then
+           headr='PTID CLONH CLATH TPHR TYPO COPOPM'
+           ncbufr=.true.
+           write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
         else
            cycle
         endif
@@ -159,18 +176,23 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
      do while (ireadsb(lunin) == 0)
         call ufbint(lunin,indata,nfields,1,iret,headr)
-
-        if (prepbufr) then
+        
+        if (anowbufr) then
            kx=indata(ntyp)
            read(sid,'(Z8)')site_id
-        else
+        else if (ncbufr) then
            kx=indata(ntyp)
-           if (kx/=code_pm25_bufr) then
+           if (kx/=code_pm25_ncbufr .or. kx/=code_pm10_ncbufr) then
               cycle
            else
-              kx=code_pm25_prepbufr
+              if (trim(obstype)=='pm2_5') then 
+                 kx=code_pm25_anowbufr
+              else 
+                 kx=code_pm10_anowbufr
+              endif
            endif
-           site_id=nint(indata(1))
+           read(sid,'(Z8)',iostat=ios)site_id
+           if (ios/=0) site_id=nint(indata(nsid))
         endif
         
         nread = nread + 1
@@ -184,7 +206,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
            dlon_earth=indata(nxob)*deg2rad
            dlat_earth=indata(nyob)*deg2rad
-           
+
 
            if(regional)then
 
@@ -259,7 +281,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 !for now assign default sitecharacter and unknown elevation 
            
 !calculate pm2_5 obs error
-!obs error for pm2_5 is calculated as
+!obs error for pm2_5/pm10 is calculated as
 !obserror=sqrt(error_1^2+error_2^2)
 !measurement error: 
 !error_1=cermax+cermin*conc
@@ -270,7 +292,12 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 !error_2=tunable_error*error_1*sqrt(dx/site_scale)
 !similar for ozone
 
-           conc=conc*obs2model_anowbufr_pm2_5()
+           
+           conc=conc*obs2model_anowbufr_pm()
+
+           if (kx == code_pm25_ncbufr .and. id_bias_pm2_5) conc=conc+conv_bias_pm2_5
+           if (kx == code_pm10_ncbufr .and. id_bias_pm10) conc=conc+conv_bias_pm10
+
 
            error_1=cermax(ikx)+cermin(ikx)*percent*conc
            error_2=tunable_error*error_1*&
@@ -286,7 +313,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            cdata_all(ilat,ndata)   = dlat                    ! grid relative latitude 
 
            cdata_all(ilon,ndata)   = dlon                    ! grid relative longitude 
-           cdata_all(itime,ndata)  = obstime                 ! time of obs
+           cdata_all(itime,ndata)  = tdiff                   ! time of obs
            cdata_all(iid,ndata)    = site_id                 ! site id 
            cdata_all(ielev,ndata)  = site_elev               ! elevation
            cdata_all(isite,ndata)  = site_char               ! site character
@@ -310,8 +337,6 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   if (nodata == 0) then 
      write(6,*)'did not find pm2_5 in airnow_bufr '
      write(6,*)'check input airnow_bufr file'
-     write(6,*)'stopping'
-     call stop2(450)
   endif
 
   
