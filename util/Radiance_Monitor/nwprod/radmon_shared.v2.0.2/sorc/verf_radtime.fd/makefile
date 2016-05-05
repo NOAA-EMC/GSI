@@ -1,13 +1,13 @@
 # *****************************************************************
 #  makefile
 #
-#  Make the radmon_time.glb executable.  The executable will extract
-#  time radiance data from a diagnostic file from a global run.  
+#  Make the radmon_time executable.
 #
 # *****************************************************************
-SHELL=/bin/sh
-SRCS = kinds.F90 read_diag.f90 bad_obs.f90 bad_penalty.f90 bad_chan.f90 \
-        valid.f90 time.f90 create_ctl_time.f90
+
+BINDIR = ../../exec
+
+LIBS   = $(W3NCO_LIB4)
 
 OBJS = kinds.o read_diag.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
 	time.o create_ctl_time.o
@@ -15,13 +15,6 @@ OBJS = kinds.o read_diag.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
 #
 # *****************************************************************
 #
-
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
-
 
 CMD = radmon_time
 
@@ -31,6 +24,15 @@ clean:
 	rm -f *.o
 	rm -f *.mod
 	rm -f radmon_time
+
+check_prereqs:
+	/nwprod/spa_util/check_libs.bash $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)

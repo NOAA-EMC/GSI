@@ -32,9 +32,9 @@ echo "Starting nu_plot_angle.sh"
 #  Make sure image repository exists.
 #  This is used to mirror to the web server.
 #
-#if [[ ! -d ${IMGNDIR}/angle ]]; then
-#   mkdir -p ${IMGNDIR}/angle
-#fi
+if [[ ! -d ${IMGNDIR}/angle ]]; then
+   mkdir -p ${IMGNDIR}/angle
+fi
 
 
 #----------------------------------
@@ -59,7 +59,7 @@ tmp="tmp.txt"
 #  copy over the scaninfo file 
 #
 scaninfo="scaninfo.txt"
-$NCP $HOMEgdasradmon/fix/gdas_radmon_scaninfo.txt $scaninfo
+$NCP $HOMEgdas/fix/gdas_radmon_scaninfo.txt $scaninfo
 
 
 #--------------------------------------------

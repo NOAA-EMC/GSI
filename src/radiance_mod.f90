@@ -55,6 +55,14 @@ module radiance_mod
   public :: rad_obs_type
   public :: amsua_type
 
+  interface radiance_ex_obserr
+     module procedure radiance_ex_obserr_1
+  end interface 
+ 
+  interface radiance_ex_biascor
+     module procedure radiance_ex_biascor_1
+  end interface
+
   character(len=20),save,allocatable,dimension(:) :: cloud_names
   character(len=20),save,allocatable,dimension(:) :: cloud_names_fwd
   character(len=20),save,allocatable,dimension(:) :: cloud_names_jac
@@ -801,11 +809,11 @@ contains
     if (.not. iaerosol_fwd) return
   end subroutine radiance_parameter_aerosol_init
 
-  subroutine radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval, &
+  subroutine radiance_ex_obserr_1(radmod,nchanl,clwp_amsua,clw_guess_retrieval, &
                                 tnoise,tnoise_cld,error0)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    radiance_ex_obserr
+! subprogram:    radiance_ex_obserr_1
 !
 !   prgrmmr:    yanqiu zhu      org: np23                date: 2015-09-10
 !
@@ -853,13 +861,13 @@ contains
        return
     end if
 
-  end subroutine radiance_ex_obserr
+  end subroutine radiance_ex_obserr_1
 
-  subroutine radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, & 
+  subroutine radiance_ex_biascor_1(radmod,nchanl,tsim_bc,tsavg5,zasat, & 
                        clw_guess_retrieval,clwp_amsua,cld_rbc_idx,ierrret,scat)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    radiance_ex_biascor
+! subprogram:    radiance_ex_biascor_1
 !
 !   prgrmmr:    yanqiu zhu      org: np23                date: 2015-09-20
 !
@@ -904,6 +912,6 @@ contains
        return
     end if
 
-  end subroutine radiance_ex_biascor
+  end subroutine radiance_ex_biascor_1
 end module radiance_mod
 
