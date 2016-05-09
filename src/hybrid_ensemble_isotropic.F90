@@ -123,6 +123,8 @@ module hybrid_ensemble_isotropic
   public :: ensemble_forward_model_ad
   public :: ensemble_forward_model_ad_dual_res
   public :: beta12mult
+  public :: beta_s_mult
+  public :: beta_e_mult
   public :: sqrt_beta1mult
   public :: sqrt_beta2mult
   public :: init_sf_xy
@@ -2616,6 +2618,246 @@ subroutine beta12mult(grady)
   return
 end subroutine beta12mult
 
+subroutine beta_s_mult(grady)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    beta_s_mult  multiply grady by betas_inv and betae_inv        
+!   prgmmr: parrish          org: np22                date: 2009-09-17
+!
+! abstract: when the hybrid ensemble option is turned on (l_hyb_ens=.true.)
+!            the gradient vector grady contains two parts: the first is
+!            the gradient with respect to the control variable associated
+!            with the static background error covariance; the second is the
+!            gradient with respect to the new ensemble control vector a_en.
+!            the first is multiplied by betas_inv, and the second by betae_inv. 
+!            betas_inv and betae_inv are allowed to vary vertically and can be
+!            read from a file. Default values are such that : 
+!                   betas_inv(:) = beta1_inv ; 
+!                   betae_inv(:) = 1 - beta1_inv.
+!            adjusting beta1_inv between 0 and 1 allows tuning for optimal
+!            blend between information provided by static background B and
+!            ensemble based background.  beta1_inv=1 gives full weight to B
+!            and beta1_inv=0 gives full weight to ensemble.
+!
+! program history log:
+!   2009-10-12  parrish  initial documentation
+!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-04-28  todling  update to use gsi_bundle
+!   2011-06-13  wu       used height dependent beta for regional
+!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
+!
+!   input argument list:
+!     grady    - input field  grady_x1 : grady_a_en
+!
+!   output
+!     grady    - betas_inv*grady_x1 : betae_inv*grady_a_en
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use gsi_4dvar, only: nsubwin
+  use hybrid_ensemble_parameters, only: beta1_inv,betas_inv,betae_inv,n_ens,oz_univ_static
+  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,grd_ens
+  use constants, only:  one
+  use control_vectors
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use timermod, only: timer_ini,timer_fnl
+
+  use gridmod, only: nsig,regional,lat2,lon2
+
+  implicit none
+
+! Declare passed variables
+  type(control_vector),intent(inout) :: grady
+
+! Declare local variables
+  character(len=*),parameter::myname_=myname//'*beta_s_mult'
+  integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
+  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+
+  ! Initialize timer
+  call timer_ini('beta_s_mult')
+
+  if(mype==0) write(6,*)' calling beta_s_mult'
+
+  ! Request CV pointers to vars pertinent to ensemble
+  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+     call stop2(999)
+  endif
+  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+     call stop2(999)
+  endif
+
+!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
+  ! first multiply by beta1wgt
+  do j=1,lon2
+     do ii=1,nsubwin
+        do ic3=1,nc3d
+           ! check for ozone and skip if oz_univ_static = true
+           if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+           do k=1,nsig
+              do i=1,lat2
+                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+              enddo
+           enddo
+        enddo
+        do ic2=1,nc2d
+           ! Default to static B estimate for SST
+           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
+           do i=1,lat2
+              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+           enddo
+        enddo
+     enddo
+  enddo
+
+!!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
+!  ! next multiply by beta2wgt
+!  do j=1,grd_ens%lon2
+!     do ii=1,nsubwin
+!        do nn=1,n_ens
+!           do k=1,grd_ens%nsig
+!              do i=1,grd_ens%lat2
+!                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
+!              enddo
+!           enddo
+!        enddo
+!     enddo
+!  enddo
+
+  ! Finalize timer
+  call timer_fnl('beta_s_mult')
+
+  return
+end subroutine beta_s_mult
+
+subroutine beta_e_mult(grady)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    beta_e_mult  multiply grady by betas_inv and betae_inv        
+!   prgmmr: parrish          org: np22                date: 2009-09-17
+!
+! abstract: when the hybrid ensemble option is turned on (l_hyb_ens=.true.)
+!            the gradient vector grady contains two parts: the first is
+!            the gradient with respect to the control variable associated
+!            with the static background error covariance; the second is the
+!            gradient with respect to the new ensemble control vector a_en.
+!            the first is multiplied by betas_inv, and the second by betae_inv. 
+!            betas_inv and betae_inv are allowed to vary vertically and can be
+!            read from a file. Default values are such that : 
+!                   betas_inv(:) = beta1_inv ; 
+!                   betae_inv(:) = 1 - beta1_inv.
+!            adjusting beta1_inv between 0 and 1 allows tuning for optimal
+!            blend between information provided by static background B and
+!            ensemble based background.  beta1_inv=1 gives full weight to B
+!            and beta1_inv=0 gives full weight to ensemble.
+!
+! program history log:
+!   2009-10-12  parrish  initial documentation
+!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-04-28  todling  update to use gsi_bundle
+!   2011-06-13  wu       used height dependent beta for regional
+!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
+!
+!   input argument list:
+!     grady    - input field  grady_x1 : grady_a_en
+!
+!   output
+!     grady    - betas_inv*grady_x1 : betae_inv*grady_a_en
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use gsi_4dvar, only: nsubwin
+  use hybrid_ensemble_parameters, only: beta1_inv,betas_inv,betae_inv,n_ens,oz_univ_static
+  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,grd_ens
+  use constants, only:  one
+  use control_vectors
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use timermod, only: timer_ini,timer_fnl
+
+  use gridmod, only: nsig,regional,lat2,lon2
+
+  implicit none
+
+! Declare passed variables
+  type(control_vector),intent(inout) :: grady
+
+! Declare local variables
+  character(len=*),parameter::myname_=myname//'*beta_e_mult'
+  integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
+  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+
+  ! Initialize timer
+  call timer_ini('beta_e_mult')
+
+  if(mype==0) write(6,*)' calling beta_e_mult'
+
+  ! Request CV pointers to vars pertinent to ensemble
+  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+     call stop2(999)
+  endif
+  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+  if ( istatus /= 0 ) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+     call stop2(999)
+  endif
+
+!!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
+!  ! first multiply by beta1wgt
+!  do j=1,lon2
+!     do ii=1,nsubwin
+!        do ic3=1,nc3d
+!           ! check for ozone and skip if oz_univ_static = true
+!           if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
+!           do k=1,nsig
+!              do i=1,lat2
+!                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+!              enddo
+!           enddo
+!        enddo
+!        do ic2=1,nc2d
+!           ! Default to static B estimate for SST
+!           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
+!           do i=1,lat2
+!              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+!           enddo
+!        enddo
+!     enddo
+!  enddo
+
+!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
+  ! next multiply by beta2wgt
+  do j=1,grd_ens%lon2
+     do ii=1,nsubwin
+        do nn=1,n_ens
+           do k=1,grd_ens%nsig
+              do i=1,grd_ens%lat2
+                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
+              enddo
+           enddo
+        enddo
+     enddo
+  enddo
+
+  ! Finalize timer
+  call timer_fnl('beta_e_mult')
+
+  return
+end subroutine beta_e_mult
+
 subroutine sqrt_beta1mult(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -3393,6 +3635,9 @@ subroutine bkerror_a_en(gradx,grady)
         call bkgcov_a_en_new_factorization(grady%aens(ii,1:n_ens))
     !end if
   enddo
+
+!  multiply by beta_e_mult
+  call beta_e_mult(grady)
 
 ! Finalize timer
   call timer_fnl('bkerror_a_en')

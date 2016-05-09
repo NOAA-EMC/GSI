@@ -63,6 +63,8 @@ subroutine bkerror(gradx,grady)
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use general_commvars_mod, only: s2g_raf,s2g_cv
+  use hybrid_ensemble_isotropic, only: beta_s_mult
+  use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none
 
 ! Declare passed variables
@@ -190,6 +192,9 @@ subroutine bkerror(gradx,grady)
         grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
+
+!  if ensemble run, multiply by beta_s
+  if(l_hyb_ens) call beta_s_mult(grady)
 
 ! Finalize timer
   call timer_fnl('bkerror')
