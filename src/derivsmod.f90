@@ -9,6 +9,7 @@ module derivsmod
 ! program history log:
 !   2013-10-19 Todling - Initial code.
 !   2014-06-18 Carley - add lgues and dlcbasdlog
+!   2016-05-10 Thomas - remove references to cwgues0
 !
 ! public subroutines:
 !  drv_initialized         - initialize name of fields to calc derivs for
