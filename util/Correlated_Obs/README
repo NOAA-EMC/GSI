@@ -6,8 +6,8 @@ Desroziers, GÃ©rald, et al. "Diagnosis of observation, background and analysisâ€
 This program uses the radstat.gdas.$date files, and outputs up to four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. Outputting the other files is optional. They contain the wavenumbers of the satellite instrument, the assumed obs error, and the correlation matrix.
 
 To use the computed covariance matrix in the GSI:
-1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90
-2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.
+1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90.  Note that 'global' use as defined in these comments actually only uses the diagonal of the computed covariance matrix, not the full matrix.
+2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.  For single runs of the GSI, add this line to rungsi_globalprod.sh.
 
 Before running this program, compile it by typing 'make'.
 

@@ -2,8 +2,7 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-#edate=2014041218
-edate=bdate
+edate=2014041218
 #instrument name, as it would appear in the title of a diag file
 instr=iasi_metop-a
 #location of radstat file

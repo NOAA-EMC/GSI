@@ -2,11 +2,9 @@
 #date of first radstat file
 bdate=2014040106
 #date of last radstat file
-#edate=2013102506
 edate=2014041100
 #instrument name, as it would appear in the title of a diag file
 instr=iasi_metop-a
-#instr=cris_npp
 #location of radstat file
 #exp=para_2014
 exp=priasiland0
