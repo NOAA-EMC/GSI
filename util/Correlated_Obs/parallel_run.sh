@@ -3,34 +3,32 @@
 bdate=2014040106
 #date of last radstat file
 #edate=2013102506
-edate=2014040500
+edate=2014041100
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-b
+instr=iasi_metop-a
 #instr=cris_npp
 #location of radstat file
 #exp=para_2014
-exp=prminm2_iter2
+exp=priasiland0
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasia
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
-type=1
+#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land, and mixed FOVs
+type=2
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30
 #option to output the channel wavenumbers
-wave_out=.true.
+wave_out=.false.
 #option to output the assigned observation errors
 err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=-60
-#logical to use modified Rcov
-mod_Rcov=.false.
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=10
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
@@ -233,7 +231,6 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
-mod_Rcov=$mod_Rcov
 ntot=$dattot
 EOF
 chmod +rwx params.sh
@@ -265,7 +262,6 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
-mod_Rcov=$mod_Rcov
 ntot=$dattot
 EOF
 chmod +rwx params.sh

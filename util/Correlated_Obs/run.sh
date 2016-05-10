@@ -13,7 +13,7 @@ diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasi
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow
+#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land and mixed FOVs
 type=1
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
@@ -27,8 +27,6 @@ err_out=.false.
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=-60
-#logical to use modified Rcov
-mod_Rcov=.false.
 ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
 
@@ -72,7 +70,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $mod_Rcov
+$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq
 EOF
 
 cp Rcov_$instr $savdir

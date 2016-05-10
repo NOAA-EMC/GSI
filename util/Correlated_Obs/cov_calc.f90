@@ -29,44 +29,43 @@ integer:: j, r, c, jj
 integer:: i, i1, i2, ii
 integer:: ptimes, gtim
 integer(i_kind):: div
-integer:: tim                                           !time step
-integer:: n_pair                                        !number of pairs made for one analysis obs at one time step
-integer:: ntimes                                        !number of time steps to process
+integer:: tim                                            !time step
+integer:: n_pair                                         !number of pairs made for one analysis obs at one time step
+integer:: ntimes                                         !number of time steps to process
 integer:: nc, ncc
 
 !files
 character(5):: ges_stub, anl_stub
 character(9):: gesfile, anlfile
-character(256):: cov_file                               !name of outputted covariance file
-character(256):: wave_file                              !name of outputted file containing channel wavenumbers
-character(256):: err_file                               !name of outputted file containing assumed obs errors
-character(256):: corr_file,corr_file1                   !name of outputted correlation file
+character(256):: cov_file                                !name of outputted covariance file
+character(256):: wave_file                               !name of outputted file containing channel wavenumbers
+character(256):: err_file                                !name of outputted file containing assumed obs errors
+character(256):: corr_file,corr_file1                    !name of outputted correlation file
 character(256):: instr
 integer:: Error_Status, gesid, anlid
-integer, parameter:: dsize=4500                         !cap size on the number of omg's that can be stored at each time step
+integer, parameter:: dsize=4500                          !cap size on the number of omg's that can be stored at each time step
 integer:: gcmod, gsize
 integer:: gwhile, gblock
 integer:: read_status, leninstr
 integer:: lencov, lencorr, lenwave, lenerr
 integer(i_kind):: reclen
-logical:: out_wave                                      !option to output channel wavenumbers
-logical:: out_err                                       !option to output assigned obs errors
-logical:: out_corr                                      !option to output correlation matrix
-logical:: mod_Rcov
+logical:: out_wave                                       !option to output channel wavenumbers
+logical:: out_err                                        !option to output assigned obs errors
+logical:: out_corr                                       !option to output correlation matrix
 
 !Diag data
-integer:: no_chn                                        !number of instrument channels available
-type(RadDiag_Hdr_type):: RadDiag_Hdr                    !header info about the diag data
-type(RadDiag_Data_type):: RadDiag_Data                  !diag data
-real(r_kind), dimension(:,:,:), allocatable:: ges       !background omg data for three files
-real(r_kind),dimension(:),allocatable:: anl             !analysis omg for one file
-integer, dimension(:,:,:), allocatable:: gesuse         !specifies whether a particular background omg should be used
-integer, dimension(:), allocatable:: anluse             !specifies whether a particular analysis omg should be used
-real(r_kind), dimension(:), allocatable:: chaninfo      !wavenumbers of assimilated channels
-real(r_kind), dimension(:), allocatable:: errout        !assumed obs errors of assimilated channels
-integer(i_kind):: nch_active                            !number of assimilated channels for this instrument
-integer(i_kind),dimension(:),allocatable:: indR         !indices of the assimlated channels
-integer, dimension(3):: ng                              !the number of background omg's for three time steps
+integer:: no_chn                                         !number of instrument channels available
+type(RadDiag_Hdr_type):: RadDiag_Hdr                     !header info about the diag data
+type(RadDiag_Data_type):: RadDiag_Data                   !diag data
+real(r_kind), dimension(:,:,:), allocatable:: ges        !background omg data for three files
+real(r_kind),dimension(:),allocatable:: anl              !analysis omg for one file
+integer, dimension(:,:,:), allocatable:: gesuse          !specifies whether a particular background omg should be used
+integer, dimension(:), allocatable:: anluse              !specifies whether a particular analysis omg should be used
+real(r_kind), dimension(:), allocatable:: chaninfo       !wavenumbers of assimilated channels
+real(r_kind), dimension(:), allocatable:: errout         !assumed obs errors of assimilated channels
+integer(i_kind):: nch_active                             !number of assimilated channels for this instrument
+integer(i_kind),dimension(:),allocatable:: indR          !indices of the assimlated channels
+integer, dimension(3):: ng                               !the number of background omg's for three time steps
 
 !FOV choice
 integer:: Surface_Type, Cloud_Type
@@ -75,54 +74,48 @@ integer, parameter:: Sea=1
 integer, parameter:: Land =2
 integer, parameter:: Ice=3
 integer, parameter:: Snow=4
+integer, parameter:: Mixed=5
 integer, parameter:: Clear_FOV=1
 integer, parameter:: Cloud_FOV=3
 integer, parameter:: All_Cloud=0
 integer, parameter:: Clear_Channel=2
 integer, parameter:: Cloud_Channel=3
-real(r_kind), parameter:: clear_threshold=0.01_r_kind   !if using clear sky data, do not use if above this threshold
-real(r_kind), parameter:: cloud_threshold=0.25_r_kind   !if using cloudy data, do not use if below this threshold
-real(r_kind), parameter:: sea_threshold=0.99_r_kind     !if using sea data, do not use if below this threshold
-real(r_kind), parameter:: land_threshold=0.99_r_kind    !if using land data, do not use if below this threshold
-real(r_kind), parameter:: ice_threshold=0.99_r_kind     !if using ice data, do not use if below this threshold
-real(r_kind), parameter:: snow_threshold=0.99_r_kind    !if using snow data, do not use if below this threshold
+real(r_kind), parameter:: clear_threshold=0.01_r_kind    !if using clear sky data, do not use if above this threshold
+real(r_kind), parameter:: cloud_threshold=0.25_r_kind    !if using cloudy data, do not use if below this threshold
+real(r_kind), parameter:: sea_threshold=0.99_r_kind      !if using sea data, do not use if below this threshold
+real(r_kind), parameter:: lower_sea_threshold=0.75_r_kind!if using sea data, do not use if below this threshold
+real(r_kind), parameter:: land_threshold=0.99_r_kind     !if using land data, do not use if below this threshold
+real(r_kind), parameter:: ice_threshold=0.99_r_kind      !if using ice data, do not use if below this threshold
+real(r_kind), parameter:: snow_threshold=0.99_r_kind     !if using snow data, do not use if below this threshold
 real(r_kind):: satang
 
 !Data times
-real(r_kind):: time_min                                 !time of obs, relative to time of corresponding diag file
-real(r_kind),dimension(:,:), allocatable:: ges_times    !times of background obs, relative to time of first diag file
-real(r_kind):: anl_time                                 !time of analysis obs, relative ot time of first diag file
+real(r_kind):: time_min                                  !time of obs, relative to time of corresponding diag file
+real(r_kind),dimension(:,:), allocatable:: ges_times     !times of background obs, relative to time of first diag file
+real(r_kind):: anl_time                                  !time of analysis obs, relative ot time of first diag file
 
 !Data locations
-real(r_kind), dimension(:,:,:), allocatable::gesloc     !locations (lat,lon) of background obs
-real(r_kind), dimension(2):: anlloc                     !location (lat,lon) of analysis obs
+real(r_kind), dimension(:,:,:), allocatable::gesloc      !locations (lat,lon) of background obs
+real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of analysis obs
 
 !Covariance Definition
 integer,dimension(:), allocatable:: obs_pairs
-real(r_kind), dimension(:,:), allocatable:: Rcov        !the covariance matrix
-real(r_kind), dimension(:,:), allocatable:: Edbadbo
-real(r_kind), dimension(:,:), allocatable:: Edbodbo
-real(r_kind), dimension(:,:), allocatable:: invE
-real(r_kind), dimension(:,:), allocatable:: Pmult
-real(r_kind), dimension(:,:), allocatable:: Rcorr       !the correlation matrix
-real(r_kind), dimension(:,:), allocatable:: anl_ave     !average value of oma
-real(r_kind), dimension(:,:), allocatable:: ges_ave     !average value of omb
-real(r_kind), dimension(:,:), allocatable:: ba_ave
-integer(i_kind), dimension(:,:), allocatable:: divider  !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
+real(r_kind), dimension(:,:), allocatable:: Rcov         !the covariance matrix
+real(r_kind), dimension(:,:), allocatable:: Rcorr        !the correlation matrix
+real(r_kind), dimension(:,:), allocatable:: anl_ave      !average value of oma
+real(r_kind), dimension(:,:), allocatable:: ges_ave      !average value of omb
+integer(i_kind), dimension(:,:), allocatable:: divider   !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
 real(r_kind):: cov_sum, anl_sum, ges_sum
-real(r_kind):: bobo_sum, babo_sum, ba_sum
 real(r_kind):: val
 real(r_kind),dimension(:), allocatable:: eigs
 real(r_kind),dimension(:,:), allocatable:: eigv
 !Matrix inversion
-integer(i_kind), dimension(:), allocatable:: ipiv, work
-real(r_kind):: info
 real(r_kind), dimension(:,:), allocatable:: Rout
 real(r_kind):: kreq
 real(r_kind), parameter:: errt=0.0001_r_kind
 
-read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, mod_Rcov
-if (mod_Rcov.and.(kreq<0)) kreq=70
+read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq
+
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
 cov_file(1:lencov)='Rcov_'
@@ -222,16 +215,6 @@ do tim=1,ntimes
             allocate(eigs(nch_active),eigv(nch_active,nch_active))
             allocate(Rout(nch_active,nch_active))
          end if
-         if (mod_Rcov) then
-            allocate(Edbadbo(nch_active,nch_active))
-            allocate(Edbodbo(nch_active,nch_active))
-            allocate(ba_ave(nch_active,nch_active))
-            allocate(Pmult(nch_active,nch_active),invE(nch_active,nch_active))
-            allocate(work(nch_active),ipiv(nch_active))
-            ba_ave=zero
-            Edbadbo=zero
-            Edbodbo=zero
-         end if
          do r=1,nch_active
             chaninfo(r)=RadDiag_Hdr%Channel(indR(r))%wave
             errout(r)=RadDiag_Hdr%Channel(indR(r))%varch
@@ -261,6 +244,8 @@ do tim=1,ntimes
           if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
             cycle ges_read_loop
           if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
+            cycle ges_read_loop
+          if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
             cycle ges_read_loop
           if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
             cycle ges_read_loop
@@ -335,6 +320,8 @@ do tim=1,ntimes
           cycle anl_read_loop
       if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
           cycle anl_read_loop
+      if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
+          cycle anl_read_loop
       if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
           cycle anl_read_loop
       if ((Cloud_Type==Cloud_FOV).and.(RadDiag_Data%Scalar%qcdiag1<cloud_threshold)) & 
@@ -397,31 +384,18 @@ do tim=1,ntimes
                   div=zero
                   anl_sum=zero
                   ges_sum=zero
-                  ba_sum=zero
-                  babo_sum=zero
-                  bobo_sum=zero
                   do j=1,n_pair
                      if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
                         cov_sum=cov_sum+(anl(r)*ges(obs_pairs(j),c,i))
                         anl_sum=anl_sum+anl(r)
                         ges_sum=ges_sum+ges(obs_pairs(j),c,i)
                         div=div+1
-                        if (mod_Rcov) then
-                           ba_sum=ba_sum+(ges(obs_pairs(j),r,i)-anl(r))
-                           babo_sum=babo_sum+((ges(obs_pairs(j),r,i)-anl(r))*(ges(obs_pairs(j),c,i)))
-                           bobo_sum=bobo_sum+(ges(obs_pairs(j),c,i)*ges(obs_pairs(j),r,i))
-                        end if
                      end if  
                   end do
                   Rcov(r,c)=Rcov(r,c)+cov_sum
                   anl_ave(r,c)=anl_ave(r,c)+anl_sum
                   ges_ave(r,c)=ges_ave(r,c)+ges_sum
                   divider(r,c)=divider(r,c)+div
-                  if (mod_Rcov) then
-                     ba_ave(r,c)=ba_ave(r,c)+ba_sum
-                     Edbadbo(r,c)=Edbadbo(r,c)+babo_sum
-                     Edbodbo(r,c)=Edbodbo(r,c)+bobo_sum
-                  end if
                end do
             end do
           end if  
@@ -438,18 +412,10 @@ do r=1,nch_active
       if (divider(r,c)>zero) then
          !the second term here subtracts the biases
          Rcov(r,c)=(Rcov(r,c)/divider(r,c))-((anl_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
-         if (mod_Rcov) then
-            Edbadbo(r,c)=(Edbadbo(r,c)/divider(r,c))-((ba_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
-            Edbodbo(r,c)=(Edbodbo(r,c)/divider(r,c))-((ges_ave(r,c)/divider(r,c))*(ges_ave(r,c)/divider(r,c)))
-         end if
       else if (r==c) then 
          !if there is no data passing qc for this channel, set Rcov to the
          !orignal obs error
          Rcov(r,c)=errout(r)**2
-         if (mod_Rcov) then
-            Edbadbo(r,c)=errout(r)**2
-            Edbodbo(r,c)=errout(r)**2
-         end if
       end if
    end do
 end do
@@ -460,20 +426,6 @@ if (kreq>zero) then
    call eigdecomp(Rcov,nch_active,eigs,eigv)
    call recondition(eigv,eigs,nch_active,kreq,Rout)
    Rcov=Rout
-end if
-if (mod_Rcov) then
-   Edbadbo=(Edbadbo+TRANSPOSE(Edbadbo))/two
-   Edbodbo=(Edbodbo+TRANSPOSE(Edbodbo))/two
-   call eigdecomp(Edbadbo,nch_active,eigs,eigv)
-   call recondition(eigv,eigs,nch_active,kreq,Rout)
-   Edbadbo=Rout
-   call eigdecomp(Edbodbo,nch_active,eigs,eigv)
-   call recondition(eigv,eigs,nch_active,kreq,Rout)
-   Edbodbo=Rout
-   invE=Edbadbo+Rcov
-   call iminv(invE,nch_active,info,work,ipiv)
-   Pmult=MATMUL(invE,Edbodbo)
-   Rcov=MATMUL(Rcov,Pmult)
 end if
 if (out_corr) then
    do r=1,nch_active
@@ -524,6 +476,5 @@ deallocate(obs_pairs)
 if (out_corr) then
    deallocate(Rcorr)
 end if
-if (mod_Rcov) deallocate(Edbadbo, Edbodbo, ba_ave, Pmult, invE, work, ipiv) 
 if (kreq>zero) deallocate(Rout,eigv, eigs)
 end program cov_calc
