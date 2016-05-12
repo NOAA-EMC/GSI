@@ -37,6 +37,8 @@ subroutine bkerror(gradx,grady)
 !   2013-04-23 Pondecca - bug fix in calling gsi_bundledup
 !   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2013-05-23  zhu     - add ntclen and predt for aircraft temperature bias correction
+!   2016-05-11  parrish - add call to sqbeta_s_mult before and after multiply by B when
+!                         this is a hybrid ensemble run.
 !
 !   input argument list:
 !     gradx    - input field  
@@ -63,7 +65,7 @@ subroutine bkerror(gradx,grady)
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use general_commvars_mod, only: s2g_raf,s2g_cv
-  use hybrid_ensemble_isotropic, only: beta_s_mult
+  use hybrid_ensemble_isotropic, only: sqbeta_s_mult
   use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none
 
@@ -110,6 +112,9 @@ subroutine bkerror(gradx,grady)
 
 ! Put things in grady first since operations change input variables
   grady=gradx
+
+!  if ensemble run, multiply by sqbeta_s
+   if(l_hyb_ens) call sqbeta_s_mult(grady)
 
 ! Only need to get pointer for ii=1 - all other are the same
   call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
@@ -193,8 +198,8 @@ subroutine bkerror(gradx,grady)
      end do
   end if
 
-!  if ensemble run, multiply by beta_s
-  if(l_hyb_ens) call beta_s_mult(grady)
+!  if ensemble run, multiply by sqbeta_s
+   if(l_hyb_ens) call sqbeta_s_mult(grady)
 
 ! Finalize timer
   call timer_fnl('bkerror')

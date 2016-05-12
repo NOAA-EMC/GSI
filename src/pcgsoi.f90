@@ -102,8 +102,8 @@ subroutine pcgsoi()
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
-!   2016-05-09  parrish -  remove beta12mult.  Replace with beta_s_mult, beta_e_mult, inside
-!                            bkerror and bkerror_a_en
+!   2016-05-09  parrish -  remove beta12mult.  Replace with sqbeta_s_mult, sqbeta_e_mult, inside
+!                          bkerror and bkerror_a_en.
 !                       
 !
 ! input argument list:
@@ -379,10 +379,6 @@ subroutine pcgsoi()
         else
            call bkerror_a_en(gradx,grady)
         end if
-
-!       multiply static (Jb) part of grady by betas_inv(:), and
-!       multiply ensemble (Je) part of grady by betae_inv(:) [default : betae_inv(:) = 1 - betas_inv(:)] 
-!         (this determines relative contributions from static background Jb and ensemble background Je)
 
      end if
 
@@ -704,10 +700,6 @@ subroutine pcgsoi()
        else
           call bkerror_a_en(gradx,grady)
        end if
-
-!    multiply static (Jb) part of grady by betas_inv(:), and
-!    multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
-!      (this determines relative contributions from static background Jb and ensemble background Je)
 
      end if
 
