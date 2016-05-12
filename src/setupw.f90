@@ -143,6 +143,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-05-01  Liu Ling - Added ISS Rapidscat wind (u,v) qc 
+!   2015-03-14  Nebuda  - add departure check and near surface check for clear air WV AMV (WVCS) from GOES type 247
 !
 ! REMARKS:
 !   language: f90
@@ -726,6 +727,32 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(itype ==259 .and. presw >600.0_r_kind) error=zero
         if(itype ==259 .and. presw <249.0_r_kind) error=zero
      endif ! qc_satwnds
+
+!    QC GOES CAWV - some checks above as well
+     if (itype==247) then
+        prsfc = r10*psges       ! surface pressure in hPa
+
+!       Compute observed and guess wind speeds (m/s).  
+        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
+
+!       Set and compute GOES CAWV specific departure parameters
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0_r_kind
+        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+            (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
+           error = zero
+        endif
+! check for direction departure gt 50 deg 
+        wdirdiffmax=50._r_kind
+        call getwdir(uob,vob,wdirob)
+        call getwdir(ugesin,vgesin,wdirgesin)
+        if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                 abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+           error = zero
+        endif
+     endif
    
 !    QC MODIS winds
      if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
@@ -745,7 +772,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
-       endif ! ???
+     endif ! ???
 
 !    QC AVHRR winds
      if (itype==244) then
