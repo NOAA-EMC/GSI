@@ -48,9 +48,6 @@ export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 # File To Log Msgs
 ####################################
 export jlogfile=${jlogfile:-${COMROOT}/logs/jlogfiles/jlogfile.${m_job}.${pid}}
-if [[ -e $jlogfile ]]; then
-  rm -f $jlogfile
-fi
 
 
 ##################################################
