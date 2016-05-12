@@ -123,8 +123,8 @@ module hybrid_ensemble_isotropic
   public :: ensemble_forward_model_ad
   public :: ensemble_forward_model_ad_dual_res
   public :: beta12mult
-  public :: beta_s_mult
-  public :: beta_e_mult
+  public :: sqbeta_s_mult
+  public :: sqbeta_e_mult
   public :: sqrt_beta1mult
   public :: sqrt_beta2mult
   public :: init_sf_xy
@@ -2618,7 +2618,7 @@ subroutine beta12mult(grady)
   return
 end subroutine beta12mult
 
-subroutine beta_s_mult(grady)
+subroutine sqbeta_s_mult(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    beta_s_mult  multiply grady by betas_inv and betae_inv        
@@ -2674,14 +2674,19 @@ subroutine beta_s_mult(grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  character(len=*),parameter::myname_=myname//'*beta_s_mult'
+  character(len=*),parameter::myname_=myname//'*sqbeta_s_mult'
   integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  real(r_kind) sqbeta_s(nsig)
 
   ! Initialize timer
-  call timer_ini('beta_s_mult')
+  call timer_ini('sqbeta_s_mult')
 
-  if(mype==0) write(6,*)' calling beta_s_mult'
+  if(mype==0) write(6,*)' calling sqbeta_s_mult'
+
+  do k=1,nsig
+     sqbeta_s(k)=sqrt(beta1wgt(k))
+  end do
 
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
@@ -2704,7 +2709,7 @@ subroutine beta_s_mult(grady)
            if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
            do k=1,nsig
               do i=1,lat2
-                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = sqbeta_s(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
               enddo
            enddo
         enddo
@@ -2712,36 +2717,22 @@ subroutine beta_s_mult(grady)
            ! Default to static B estimate for SST
            if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
            do i=1,lat2
-              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
+              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = sqbeta_s(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
            enddo
         enddo
      enddo
   enddo
 
-!!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
-!  ! next multiply by beta2wgt
-!  do j=1,grd_ens%lon2
-!     do ii=1,nsubwin
-!        do nn=1,n_ens
-!           do k=1,grd_ens%nsig
-!              do i=1,grd_ens%lat2
-!                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
-!              enddo
-!           enddo
-!        enddo
-!     enddo
-!  enddo
-
   ! Finalize timer
-  call timer_fnl('beta_s_mult')
+  call timer_fnl('sqbeta_s_mult')
 
   return
-end subroutine beta_s_mult
+end subroutine sqbeta_s_mult
 
-subroutine beta_e_mult(grady)
+subroutine sqbeta_e_mult(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    beta_e_mult  multiply grady by betas_inv and betae_inv        
+! subprogram:    sqbeta_e_mult  multiply grady by betas_inv and betae_inv        
 !   prgmmr: parrish          org: np22                date: 2009-09-17
 !
 ! abstract: when the hybrid ensemble option is turned on (l_hyb_ens=.true.)
@@ -2794,14 +2785,19 @@ subroutine beta_e_mult(grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  character(len=*),parameter::myname_=myname//'*beta_e_mult'
+  character(len=*),parameter::myname_=myname//'*sqbeta_e_mult'
   integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  real(r_kind) sqbeta_e(nsig)
 
   ! Initialize timer
-  call timer_ini('beta_e_mult')
+  call timer_ini('sqbeta_e_mult')
 
-  if(mype==0) write(6,*)' calling beta_e_mult'
+  if(mype==0) write(6,*)' calling sqbeta_e_mult'
+
+  do k=1,nsig
+     sqbeta_e(k)=sqrt(beta2wgt(k))
+  end do
 
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
@@ -2815,29 +2811,6 @@ subroutine beta_e_mult(grady)
      call stop2(999)
   endif
 
-!!$omp parallel do schedule(dynamic,1) private(ic3,ic2,nn,k,j,i,ii)
-!  ! first multiply by beta1wgt
-!  do j=1,lon2
-!     do ii=1,nsubwin
-!        do ic3=1,nc3d
-!           ! check for ozone and skip if oz_univ_static = true
-!           if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
-!           do k=1,nsig
-!              do i=1,lat2
-!                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = beta1wgt(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
-!              enddo
-!           enddo
-!        enddo
-!        do ic2=1,nc2d
-!           ! Default to static B estimate for SST
-!           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
-!           do i=1,lat2
-!              grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = beta1wgt(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
-!           enddo
-!        enddo
-!     enddo
-!  enddo
-
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
   ! next multiply by beta2wgt
   do j=1,grd_ens%lon2
@@ -2845,7 +2818,7 @@ subroutine beta_e_mult(grady)
         do nn=1,n_ens
            do k=1,grd_ens%nsig
               do i=1,grd_ens%lat2
-                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
+                 grady%aens(ii,nn)%r3(1)%q(i,j,k) = sqbeta_e(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
               enddo
            enddo
         enddo
@@ -2853,10 +2826,10 @@ subroutine beta_e_mult(grady)
   enddo
 
   ! Finalize timer
-  call timer_fnl('beta_e_mult')
+  call timer_fnl('sqbeta_e_mult')
 
   return
-end subroutine beta_e_mult
+end subroutine sqbeta_e_mult
 
 subroutine sqrt_beta1mult(grady)
 !$$$  subprogram documentation block
@@ -3622,6 +3595,9 @@ subroutine bkerror_a_en(gradx,grady)
      enddo
   enddo
 
+!  multiply by sqbeta_e_mult  !! NEW CORRECT
+  call sqbeta_e_mult(grady)   !! NEW CORRECT
+
 ! Apply variances, as well as vertical & horizontal parts of background error
   do ii=1,nsubwin
     !if(test_sqrt_localization) then
@@ -3636,8 +3612,11 @@ subroutine bkerror_a_en(gradx,grady)
     !end if
   enddo
 
-!  multiply by beta_e_mult
-  call beta_e_mult(grady)
+!  multiply by sqbeta_e_mult  !! NEW CORRECT
+  call sqbeta_e_mult(grady)   !! NEW CORRECT
+
+!!  multiply by beta_e_mult  !! OLD INCORRECT
+!  call beta_e_mult(grady)   !! OLD INCORRECT    
 
 ! Finalize timer
   call timer_fnl('bkerror_a_en')
@@ -4168,8 +4147,10 @@ subroutine hybens_localization_setup
             close(lunin)
             call stop2(123)
          endif
+         if(mype==0) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
          do k = 1,grd_ens%nsig
             read(lunin,101) s_ens_hv(k), s_ens_vv(k), betas_inv(k), betae_inv(k)
+            if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), betas_inv(k), betae_inv(k)
          enddo
          close(lunin)
 
@@ -4197,7 +4178,7 @@ subroutine hybens_localization_setup
       betae_inv = one - beta1_inv
    endif
 
-   if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere ) then
+   if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere .and. .not. readin_beta ) then
       do k = 1,grd_ens%nsig
          betae_inv(k) = betae_inv(k) * blend_rm(k)
          betas_inv(k) = one - betae_inv(k)
@@ -4251,6 +4232,12 @@ subroutine hybens_localization_setup
 
    ! setup vertical weighting for ensemble contribution to psfc
    call setup_pwgt
+
+   !    write out final values for s_ens_hv, s_ens_vv, betas_inv, betae_inv
+            if(mype==0) write(6,'(" FINAL VALUES FOR s_ens_hv,s_ens_vv,beta1wgt,beta2wgt FOLLOW")')
+            do k=1,grd_ens%nsig
+               if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta1wgt(k), beta2wgt(k)
+            end do
 
    return
 
