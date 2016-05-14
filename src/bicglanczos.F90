@@ -16,6 +16,8 @@ module bicglanczos
 !   2013-01-23  parrish - in subroutine pcgprecond, change variable xcvx from
 !                          intent(in) to intent(inout) (flagged by WCOSS intel debug compiler)
 !   2013-11-17  todling - implement convergence criterium (based on tolerance)
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqbeta_s in
+!                          bkerror, and sqbeta_e inside bkerror_a_en.
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -65,7 +67,7 @@ use jfunc   ,  only : iter, jiter
 use gsi_4dvar, only : nwrvecs,l4dvar,lanczosave
 use gsi_4dvar, only : nsubwin, nobs_bins
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
+use hybrid_ensemble_isotropic, only: bkerror_a_en
 
 implicit none
 private
@@ -351,13 +353,6 @@ inner_iteration: do iter=1,kmaxit
        else
          call bkerror_a_en(gradx,grady)
        end if
- 
-     ! multiply static (Jb) part of grady by betas_inv(:), and
-     ! multiply ensemble (Je) part of grady by betae_inv(:). [Default: betae_inv(:) = 1 - betas_inv(:) ]
-     !   (this determines relative contributions from static background Jb and
-     !   ensemble background Je)
-
-       call beta12mult(grady)
  
      end if
   endif
@@ -878,13 +873,6 @@ if(l_hyb_ens) then
   else
     call bkerror_a_en(xcvx,ycvx)
   end if
-
-! multiply static (Jb) part of grady by betas_inv(:), and
-! multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) = 1 - betas_inv(:) ]
-!   (this determines relative contributions from static background Jb and
-!   ensemble background Je)
-
-  call beta12mult(ycvx)
 
 end if
 

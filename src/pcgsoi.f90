@@ -102,7 +102,7 @@ subroutine pcgsoi()
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
-!   2016-05-09  parrish -  remove beta12mult.  Replace with sqbeta_s_mult, sqbeta_e_mult, inside
+!   2016-05-13  parrish -  remove beta12mult.  Replace with sqrt_beta_s_mult, sqrt_beta_e_mult, inside
 !                          bkerror and bkerror_a_en.
 !                       
 !
