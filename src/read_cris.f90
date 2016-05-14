@@ -1,7 +1,6 @@
 subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll,nobs, &
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
      nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -50,8 +49,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb      - beginning loop for ears and DB data
-!     lll      - ending loop for ears and DB data
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
 !     nrec_start_DB - first db subset with useful information
@@ -102,7 +99,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  integer(i_kind)  ,intent(in   ) :: lll,llb
   character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
   character(len=*), intent(in   ) :: obstype
@@ -347,18 +343,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec = 99999
-  llll_loop: do llll=llb,lll
+  rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle llll_loop
+        if ( nrec_start <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle llll_loop
+        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle llll_loop
+        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_DB
         infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
      end if
@@ -372,21 +368,21 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      call datelen(10)
 
      irecx = 0
-     message_loop: do while(ireadmg(lnbufr,subset,idate)>=0)
+     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
         irecx = irecx + 1
-        if(irecx < nrec_startx) cycle message_loop
+        if(irecx < nrec_startx) cycle read_subset
         irec = irec + 1
         next=next+1
         if(next == npe_sub)next=0
-        if(next /= mype_sub)cycle message_loop
+        if(next /= mype_sub)cycle read_subset
 
         read_loop: do while (ireadsb(lnbufr)==0)
 
 !          Check for data / sensor resolution mis-match 
            call ufbint(lnbufr,rchar_mtyp,1,1,iret,'MTYP')
            char_mtyp = transfer(rchar_mtyp,char_mtyp)
-           if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle message_loop 
-           if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle message_loop
+           if ( char_mtyp == 'FSR' .and. sis(1:8) /= 'cris-fsr') cycle read_subset
+           if ( char_mtyp /= 'FSR' .and. sis(1:8) == 'cris-fsr') cycle read_subset
 
 !          Get the size of the channels and radiance (allchan) array and
 !          Read FOV information
@@ -447,7 +443,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (nint(linele(5)) > sc(1) % n_channels) then 
               if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
                  nint(linele(5)),' channels, but CRTM expects ',sc(1) % n_channels
-              exit message_loop
+              exit read_subset
            endif 
        
            iscn = nint(linele(2))               ! scan line
@@ -705,6 +701,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          with the CrIS granules.  
 !          Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
 !JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
+!JAJ        write(*,*) 'JAJ cris clouds ', cloud_frac(1:2)
 !JAJ        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 !           pred = cloud_frac(1) / 10.0_r_kind
@@ -795,11 +792,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         enddo read_loop
 
-     enddo message_loop
+     enddo read_subset
 
      call closbf(lnbufr)
 
-  end do llll_loop
+  end do rars_db_loop
 
   deallocate(temperature, allchan, bufr_chan_test)
 ! deallocate crtm info
@@ -824,6 +821,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
+!JAJ        write(*,*) 'JAJ cris points ', data_all(30,n), data_all(31,n)
      end do
 
      if(dval_use .and. assim)then
