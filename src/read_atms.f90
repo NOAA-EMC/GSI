@@ -1,8 +1,7 @@
 subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll,nobs, &
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
      nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -50,8 +49,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb      - beginning loop for ears and DB data
-!     lll      - ending loop for ears and DB data
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
 !     nrec_start_DB - first db subset with useful information
@@ -102,7 +99,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind) ,intent(in   ) :: llb, lll
   logical         ,intent(in   ) :: dval_use
 
 ! Declare local parameters
@@ -265,8 +261,15 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
   end do 
 
-! IFSCALC setup
+! Allocate arrays to hold all data for given satellite
   nchanl=22
+  if(dval_use) maxinfo = maxinfo+2
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
+  allocate(data_all(nele,itxmax),nrec(itxmax))
+  nrec=999999
+
+! IFSCALC setup
   if (isfcalc==1) then
      instr=14                    ! This section isn't really updated.
      ichan=15                    ! pick a surface sens. channel
@@ -332,18 +335,19 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   iob=1
 ! Big loop over standard data feed and possible ears/db data
-  llll_loop: do llll=llb,lll
+! llll=1 normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data
+  rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle llll_loop
+        if ( nrec_start <= 0 ) cycle rars_db_loop
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle llll_loop
+        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
         nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle llll_loop
+        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx = nrec_start_DB
         infile2 = trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
      end if
@@ -371,6 +375,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            satazi     => satazi_save(iob)
            solzen     => solzen_save(iob)
            solazi     => solazi_save(iob)
+
+!          inflate selection value for rars_db data
+           crit1 = zero
+           if ( llll > 1 ) crit1 = 200.0_r_kind
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
@@ -410,9 +418,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
               if(abs(tdiff) > twind+one_minute) cycle read_loop
            endif
            if (thin4d) then
-              crit1 = zero
+              crit1 = crit1 + zero
            else
-              crit1 = two*abs(tdiff)        ! range:  0 to 6
+              crit1 = crit1 + two*abs(tdiff)        ! range:  0 to 6
            endif
  
            call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
@@ -457,10 +465,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         end do read_loop
      end do read_subset
      call closbf(lnbufr)
+  end do rars_db_loop
 
-  end do llll_loop
-
-  deallocate(data1b8)
   num_obs = iob-1
 
 500 continue
@@ -487,13 +493,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! Complete Read_ATMS thinning and QC steps
 
-! Allocate arrays to hold all data for given satellite
-  if(dval_use) maxinfo = maxinfo+2
-  nreal = maxinfo + nstinfo
-  nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax),nrec(itxmax))
-
-  nrec=999999
   ObsLoop: do iob = 1, num_obs  
 
      rsat       => rsat_save(iob)
@@ -551,7 +550,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
  
 !    Map obs to thinning grid
-     if ( llll > 1 ) crit1 = crit1 + 500.0_r_kind
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)cycle ObsLoop
 
@@ -738,6 +736,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   end do ObsLoop
 
+
+  DEALLOCATE(iscan)
+  deallocate(data1b8)
+
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)
   DEALLOCATE(t4dv_save)
@@ -749,7 +751,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solzen_save) 
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
-  DEALLOCATE(iscan)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit,nrec)

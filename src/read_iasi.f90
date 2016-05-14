@@ -1,7 +1,6 @@
 subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll,nobs, &
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
      nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -87,8 +86,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb      - beginning loop for ears and DB data
-!     lll      - ending loop for ears and DB data
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
 !     nrec_start_DB - first db subset with useful information
@@ -135,7 +132,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  integer(i_kind)  ,intent(in   ) :: lll,llb
   character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
   character(len=*), intent(in   ) :: obstype
@@ -161,8 +157,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(3,10):: cscale
-  real(r_double),dimension(6):: cloud_frac
+  real(r_double),dimension(3,10):: cscale 
+  real(r_double),dimension(7):: cloud_frac
   integer(i_kind) :: bufr_size
   
   real(r_kind)      :: step, start,step_adjust
@@ -230,6 +226,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
+
+  real(r_kind) :: test1, test2, test3
 
 
 ! Initialize variables
@@ -389,18 +387,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec=999999
-  llll_loop: do llll=llb,lll
+  rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle llll_loop
+        if ( nrec_start <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle llll_loop
+        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle llll_loop
+        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_DB
         infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
      end if
@@ -571,7 +569,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1 = 0.01_r_kind+timedif
         endif 
-        if( llll > 1 ) crit1 = crit1 + 500.0_r_kind
+        if( llll > 1 ) crit1 = crit1 + 200.0_r_kind
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 
@@ -581,7 +579,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Check  satellite zenith angle (SAZA)
         if(sat_zenang > 90._r_kind ) then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS INFO(FOVN,SLNM,SAZA):', ifov, iscn, allspot(10)
+              ' STRANGE OBS INFO(FOVN,SLNM,SAZA,BEARAZ):', ifov, iscn, allspot(10),allspot(11)
            cycle read_loop
         endif
         if ( ifov <= 60 ) sat_zenang = -sat_zenang
@@ -633,9 +631,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(.not. iuse)cycle read_loop
 
 !       Clear Amount  (percent clear)
-        call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
+        call ufbrep(lnbufr,cloud_frac,1,7,iret,'FCPH')
         clr_amt = cloud_frac(1)
-!       if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
         clr_amt=max(clr_amt,zero)
         clr_amt=min(clr_amt,100.0_r_kind)
      
@@ -646,7 +643,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
  
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
-        call ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
+        call ufbseq(lnbufr,cscale,3,10,iret,'IASIL1CB')
         if(iret /= 10) then
            write(6,*) 'READ_IASI  read scale error ',iret
            cycle read_loop
@@ -721,10 +718,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do skip_loop
 
         if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
-!       if( iskip >= 10 )cycle read_loop 
+        if( iskip > 0 )cycle read_loop 
 
         crit1=crit1 + ten*float(iskip)
-
 
 !    Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
@@ -773,8 +769,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
         data_all(28,itx)= sfcr                      ! surface roughness
         data_all(29,itx)= ff10                      ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg        ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg        ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
         if(dval_use)then
            data_all(32,itx)= val_iasi
@@ -805,9 +801,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   call closbf(lnbufr)
 
-  end do llll_loop
-
   deallocate(temperature, allchan, bufr_chan_test)
+  end do rars_db_loop
+
+!  deallocate(temperature, allchan, bufr_chan_test)
+  deallocate(channel_number,sc_index)
+  deallocate(bufr_index)
 ! deallocate crtm info
   error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
@@ -816,9 +815,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
+  write(*,*) 'JAJ before', nele, itxmax, nread, ndata
+
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
+  write(*,*) 'JAJ after', nele, itxmax, nread, ndata
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
@@ -832,6 +834,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
+!        write(*,*) 'JAJ iasi ', data_all(30,n), data_all(31,n), data_all(5,n), data_all(6,n)
+        if (data_all(30,n) > 360.0_r_kind) write(*,*) 'JAJ bad iasi ', data_all(5,n), data_all(6,n),data_all(12,n), data_all(13,n)
      end do
 
      if(dval_use .and. assim)then
@@ -850,8 +854,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
   deallocate(data_all,nrec) ! Deallocate data arrays
-  deallocate(channel_number,sc_index)
-  deallocate(bufr_index)
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.

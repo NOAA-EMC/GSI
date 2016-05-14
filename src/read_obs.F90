@@ -678,7 +678,7 @@ subroutine read_obs(ndata,mype)
     integer(i_llong) :: lenbytes
     integer(i_kind):: npetot,npeextra,mmdat
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
-    integer(i_kind):: mype_root,lll,llb
+    integer(i_kind):: mype_root
     integer(i_kind):: minuse,lunsave,maxproc,minproc
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: ntasks1,ntasks
@@ -1094,7 +1094,7 @@ subroutine read_obs(ndata,mype)
     mype_airobst = mype_root
     do ii=1,mmdat
        i=npe_order(ii)
-       if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,2i4,1x,i6,1x,i6)') &
+       if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,2i4,1x,i6,1x,i6,1x,i6)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i), & 
                read_rec(i),read_ears_rec(i),read_db_rec(i)
 
@@ -1428,27 +1428,17 @@ subroutine read_obs(ndata,mype)
                   obstype == 'mhs'   .or. obstype == 'hirs4' .or.  &
                   obstype == 'hirs3' .or. obstype == 'hirs2' .or.  &
                   obstype == 'ssu' )) then
-                llb=1
-                lll=1
-                if(ears_possible(i))lll=2
-                if(db_possible(i)) lll = 3
                 call read_bufrtovs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     llb,lll,nobs_sub1(1,i), &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), nobs_sub1(1,i), &
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_BUFRTOVS'
 
 !            Process atms data
              else if (obstype == 'atms') then
-                llb = 1
-                lll = 1
-                if(ears_possible(i))lll=2
-                if(db_possible(i)) lll = 3
                 call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),&
-                     llb,lll,nobs_sub1(1,i), &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i),&
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_ATMS'
 
@@ -1472,27 +1462,17 @@ subroutine read_obs(ndata,mype)
 
 !            Process iasi data
              else if(obstype == 'iasi')then
-                llb = 1
-                lll = 1
-                if(ears_possible(i))lll=2
-                if(db_possible(i)) lll = 3
                 call read_iasi(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     llb,lll,nobs_sub1(1,i), &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_IASI'
 
 !            Process cris data
              else if(obstype == 'cris' .or. obstype =='cris-fsr' )then
-                llb = 1
-                lll = 1
-                if(ears_possible(i))lll=2
-                if(db_possible(i)) lll = 3
                 call read_cris(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     llb,lll,nobs_sub1(1,i), &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_CRIS'
 

@@ -1,8 +1,7 @@
 subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll,nobs, &
+     mype_root,mype_sub,npe_sub,mpi_comm_sub, nobs, &
      nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -107,8 +106,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb      - beginning loop for ears and DB data
-!     lll      - ending loop for ears and DB data
 !     dval_use - logical for using dval
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
@@ -164,7 +161,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind) ,intent(in   ) :: lll,llb
   logical,         intent(in   ) :: dval_use
 
 ! Declare local parameters
@@ -469,22 +465,23 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   next=0
   irec=0
 ! Big loop over standard data feed and possible ears/db data
-  llll_loop: do llll=llb,lll
+! llll=1 is normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data)
+  rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle llll_loop
+        if ( nrec_start <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle llll_loop
+        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle llll_loop
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle rars_db_loop
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle llll_loop
+        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_DB
         infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle llll_loop
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle rars_db_loop
      end if
 
 !    Reopen unit to satellite bufr file
@@ -493,7 +490,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
      call openbf(lnbufr,'IN',lnbufr)
 
-     if(llll >= 2)then
+     if(llll >= 2 .and. (amsua .or. amsub .or. mhs))then
         allocate(data1b8x(nchanl))
         sensorlist(1)=sis
         if( crtm_coeffs_path /= "" ) then
@@ -670,8 +667,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
            else     ! EARS / DB
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
-              data1b8x=data1b8
               if ( amsua .or. amsub .or. mhs )then
+                 data1b8x=data1b8
                  data1b4=data1b8
                  call remove_antcorr(sc(instrument)%ac,ifov,data1b4)
                  data1b8=data1b4
@@ -928,17 +925,16 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   call closbf(lnbufr)
 
 
-  if(llll > 1)then
-! deallocate crtm info
+  if(llll > 1 .and. (amsua .or. amsub .or. mhs))then
+     deallocate(data1b8x)
+
+!    deallocate crtm info
      error_status = crtm_spccoeff_destroy()
      if (error_status /= success) &
         write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
   end if
 
-!   Jump here when there is a problem opening the bufr file
-  if (llll > 1) deallocate(data1b8x)
-
-  end do llll_loop
+  end do rars_db_loop
   deallocate(data1b8,data1b4)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
