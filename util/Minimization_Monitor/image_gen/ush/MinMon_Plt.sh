@@ -96,7 +96,7 @@ fi
 #--------------------------------------------------------------------
 if [[ ${#PDATE} -le 0 ]]; then
    echo "PDATE not specified:  setting PDATE using last cycle"
-   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl GDAS 1 ${TANKDIR}`
+   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl ${MINMON_SUFFIX} 1 ${TANKDIR}`
 else
    echo "PDATE was specified:  $PDATE"
 fi
