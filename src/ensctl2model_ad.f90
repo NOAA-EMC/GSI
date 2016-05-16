@@ -27,7 +27,7 @@ use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_en
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
-use hybrid_ensemble_isotropic, only: sqbeta_s_mult,sqbeta_e_mult
+use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult
 use balmod, only: strong_bk_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -218,10 +218,10 @@ do jj=1,ntlevs_ens
    else
       call ensemble_forward_model_ad(wbundle_c,ebundle,jj)
    end if
-   call sqbeta_s_mult(wbundle_c)
+   call sqrt_beta_s_mult(wbundle_c)
 
 !  Apply square-root of ensemble error covariance
-   call sqbeta_e_mult(ebundle)
+   call sqrt_beta_e_mult(ebundle)
    call ckgcov_a_en_new_factorization_ad(grade,ebundle)
 
    call gsi_bundledestroy(wbundle_c,istatus)

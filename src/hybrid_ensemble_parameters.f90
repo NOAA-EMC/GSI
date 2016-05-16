@@ -209,8 +209,8 @@ module hybrid_ensemble_parameters
 !                              for the first member of ensemble
 !   def   beta_s            - vertical weighting function for static B
 !   def   beta_e            - vertical weighting function for localization A
-!   def sqbeta_s            - sqrt(beta_s)
-!   def sqbeta_e            - sqrt(beta_e)
+!   def sqrt_beta_s            - sqrt(beta_s)
+!   def sqrt_beta_e            - sqrt(beta_e)
 !   def pwgt                - vertical integration function for influence of ensemble on Psfc
 !   def pwgtflg             - logical switch to use vertical integration function for ensemble contribution on Psfc
 !   def grid_ratio_ens:     - ratio of ensemble grid resolution to analysis resolution (default value is 1)
@@ -256,7 +256,7 @@ module hybrid_ensemble_parameters
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
   public :: eqspace_ensgrid,grid_ratio_ens
-  public :: sqbeta_s,sqbeta_e,pwgt,full_ensemble,pwgtflg
+  public :: sqrt_beta_s,sqrt_beta_e,pwgt,full_ensemble,pwgtflg
   public :: grd_ens
   public :: grd_e1
   public :: grd_loc
@@ -304,7 +304,7 @@ module hybrid_ensemble_parameters
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
   real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
-  real(r_kind),allocatable,dimension(:) :: sqbeta_s,sqbeta_e
+  real(r_kind),allocatable,dimension(:) :: sqrt_beta_s,sqrt_beta_e
   real(r_kind),allocatable,dimension(:) :: beta_s,beta_e
   real(r_kind),allocatable,dimension(:,:,:) :: pwgt
 !    nval_lenz_en is total length of ensemble extended control variable for sqrt
@@ -332,7 +332,7 @@ subroutine init_hybrid_ensemble_parameters
 !   
 !   2010-01-13  lueken - added subprogram doc block
 !   12-05-2012  el akkraoui - hybrid beta parameters now vertically varying
-!   2014-09-15  carley - moved the init of variables sqbeta_s, sqbeta_e, and
+!   2014-09-15  carley - moved the init of variables sqrt_beta_s, sqrt_beta_e, and
 !                         pwgt, to routine  create_hybens_localization_parameters.
 !                         Otherwise these variables were referenced prior to
 !                         memory allocation. 
@@ -396,11 +396,12 @@ subroutine create_hybens_localization_parameters
   
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
   allocate( beta_s(grd_ens%nsig),beta_e(grd_ens%nsig))
-  allocate( sqbeta_s(grd_ens%nsig),sqbeta_e(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  allocate( sqrt_beta_s(grd_ens%nsig),sqrt_beta_e(grd_ens%nsig) )
+  allocate( pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
   beta_s  =one
   beta_e  =zero
-  sqbeta_s=one
-  sqbeta_e=zero
+  sqrt_beta_s=one
+  sqrt_beta_e=zero
   pwgt=zero
   
 end subroutine create_hybens_localization_parameters
@@ -410,7 +411,7 @@ subroutine destroy_hybens_localization_parameters
   
   deallocate(s_ens_vv,s_ens_hv) 
   deallocate(beta_s,beta_e)
-  deallocate(sqbeta_s,sqbeta_e,pwgt)
+  deallocate(sqrt_beta_s,sqrt_beta_e,pwgt)
 
 end subroutine destroy_hybens_localization_parameters
 

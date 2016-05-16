@@ -16,8 +16,8 @@ module bicglanczos
 !   2013-01-23  parrish - in subroutine pcgprecond, change variable xcvx from
 !                          intent(in) to intent(inout) (flagged by WCOSS intel debug compiler)
 !   2013-11-17  todling - implement convergence criterium (based on tolerance)
-!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqbeta_s in
-!                          bkerror, and sqbeta_e inside bkerror_a_en.
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
+!                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
