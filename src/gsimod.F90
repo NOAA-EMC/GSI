@@ -102,7 +102,7 @@
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,pwgtflg,&
-                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
+                         beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path
@@ -768,20 +768,20 @@
 !     nlat_ens     - number of latitudes on ensemble grid (may be different from analysis grid nlat)
 !     jcap_ens     - for global spectral model, spectral truncation
 !     jcap_ens_test- for global spectral model, test spectral truncation (to test dual resolution)
-!     beta1_inv           - 1/beta1, the default weight given to static background error covariance if (.not. readin_beta)
-!                              0 <= beta1_inv <= 1,  tuned for optimal performance
+!     beta_s0      -  the default weight given to static background error covariance if (.not. readin_beta)
+!                              0 <= beta_s0 <= 1,  tuned for optimal performance
 !                             =1, then ensemble information turned off
 !                             =0, then static background turned off
 !                            the weights are applied per vertical level such that : 
-!                                        betas_inv(:) = beta1_inv     , vertically varying weights given to static B ; 
-!                                        betae_inv(:) = 1 - beta1_inv , vertically varying weights given ensemble derived covariance.
-!                            If (readin_beta) then betas_inv and betae_inv are read from a file and beta1_inv is not used.
+!                                        beta_s(:) = beta_s0     , vertically varying weights given to static B ; 
+!                                        beta_e(:) = 1 - beta_s0 , vertically varying weights given ensemble derived covariance.
+!                            If (readin_beta) then beta_s and beta_e are read from a file and beta_s0 is not used.
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
-!                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
+!                              s_ens_h, s_ens_v, and beta_s0 are tunable parameters.
 !     use_gfs_ens  - controls use of global ensemble: .t. use GFS (default); .f. uses user-defined ens
 !     readin_localization - flag to read (.true.)external localization information file
-!     readin_beta         - flag to read (.true.) the vertically varying beta parameters betas_inv and betae_inv
+!     readin_beta         - flag to read (.true.) the vertically varying beta parameters beta_s and beta_e
 !                              from a file.
 !     eqspace_ensgrid     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                               poles.  if .false., then gaussian grid assumed
@@ -819,7 +819,7 @@
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,pwgtflg,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
+                jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path
