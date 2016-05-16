@@ -2511,14 +2511,14 @@ end subroutine special_sd2h
 subroutine sqbeta_s_mult_cvec(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sqbeta_s_mult  multiply grady by sqbeta_s
+! subprogram:    sqbeta_s_mult_cvec  multiply grady by sqbeta_s
 !   prgmmr: parrish          org: np22                date: 2016-05-13
 !
 ! abstract: Multiply static part of grady by sqbeta_s.
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
-!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-03-29  kleist   comment out beta_s0 for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
 !   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
@@ -2537,7 +2537,7 @@ subroutine sqbeta_s_mult_cvec(grady)
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: oz_univ_static
-  use hybrid_ensemble_parameters, only: beta1wgt
+  use hybrid_ensemble_parameters, only: sqbeta_s
   use constants, only:  one
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use control_vectors,only: control_vector
@@ -2554,16 +2554,11 @@ subroutine sqbeta_s_mult_cvec(grady)
   character(len=*),parameter::myname_=myname//'*sqbeta_s_mult_cvec'
   integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
-  real(r_kind) sqbeta_s(nsig)
 
   ! Initialize timer
   call timer_ini('sqbeta_s_mult_cvec')
 
   if(mype==0) write(6,*)' calling sqbeta_s_mult_cvec'
-
-  do k=1,nsig
-     sqbeta_s(k)=sqrt(beta1wgt(k))
-  enddo
 
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
@@ -2609,14 +2604,14 @@ end subroutine sqbeta_s_mult_cvec
 subroutine sqbeta_s_mult_bundle(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sqbeta_s_mult  multiply grady by sqbeta_s
+! subprogram:    sqbeta_s_mult_bundle  multiply grady by sqbeta_s
 !   prgmmr: parrish          org: np22                date: 2016-05-13
 !
 ! abstract: Multiply static part of grady by sqbeta_s.
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
-!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-03-29  kleist   comment out sqbeta_s for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
 !   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
@@ -2634,7 +2629,7 @@ subroutine sqbeta_s_mult_bundle(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: oz_univ_static
-  use hybrid_ensemble_parameters, only: beta1wgt
+  use hybrid_ensemble_parameters, only: sqbeta_s
   use constants, only:  one
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -2651,16 +2646,11 @@ subroutine sqbeta_s_mult_bundle(grady)
   character(len=*),parameter::myname_=myname//'*sqbeta_s_mult_bundle'
   integer(i_kind) :: i,j,k,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
-  real(r_kind) sqbeta_s(nsig)
 
   ! Initialize timer
   call timer_ini('sqbeta_s_mult_bundle')
 
   if(mype==0) write(6,*)' calling sqbeta_s_mult_bundle'
-
-  do k=1,nsig
-     sqbeta_s(k)=sqrt(beta1wgt(k))
-  enddo
 
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady, cvars3d, ipc3d, istatus )
@@ -2711,7 +2701,7 @@ subroutine sqbeta_e_mult_cvec(grady)
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
-!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-03-29  kleist   comment out sqbeta_e for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
 !   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
@@ -2729,7 +2719,7 @@ subroutine sqbeta_e_mult_cvec(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
-  use hybrid_ensemble_parameters, only: n_ens,beta2wgt,grd_ens
+  use hybrid_ensemble_parameters, only: n_ens,sqbeta_e,grd_ens
   use control_vectors,only: control_vector
   use timermod, only: timer_ini,timer_fnl
 
@@ -2744,16 +2734,11 @@ subroutine sqbeta_e_mult_cvec(grady)
   character(len=*),parameter::myname_=myname//'*sqbeta_e_mult'
   integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
-  real(r_kind) sqbeta_e(nsig)
 
   ! Initialize timer
   call timer_ini('sqbeta_e_mult')
 
   if(mype==0) write(6,*)' calling sqbeta_e_mult'
-
-  do k=1,nsig
-     sqbeta_e(k)=sqrt(beta2wgt(k))
-  enddo
 
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
   ! multiply by sqbeta_e
@@ -2778,14 +2763,14 @@ end subroutine sqbeta_e_mult_cvec
 subroutine sqbeta_e_mult_bundle(aens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    sqbeta_e_mult_cvec  multiply grady by sqbeta_e
+! subprogram:    sqbeta_e_mult_bundle  multiply grady by sqbeta_e
 !   prgmmr: parrish          org: np22                date: 2016-05-13
 !
 ! abstract: Multiply ensemble amplitude fields by sqbeta_e.
 !
 ! program history log:
 !   2009-10-12  parrish  initial documentation
-!   2010-03-29  kleist   comment out beta1_inv for SST
+!   2010-03-29  kleist   comment out sqbeta_e for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
 !   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
@@ -2802,7 +2787,7 @@ subroutine sqbeta_e_mult_bundle(aens)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: n_ens,beta2wgt,grd_ens
+  use hybrid_ensemble_parameters, only: n_ens,sqbeta_e,grd_ens
   use gsi_bundlemod, only: gsi_bundle
   use timermod, only: timer_ini,timer_fnl
   use gridmod, only: nsig
@@ -2816,16 +2801,11 @@ subroutine sqbeta_e_mult_bundle(aens)
   character(len=*),parameter::myname_=myname//'*sqbeta_e_mult'
   integer(i_kind) :: i,j,k,nn,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
-  real(r_kind) sqbeta_e(nsig)
 
   ! Initialize timer
   call timer_ini('sqbeta_e_mult')
 
   if(mype==0) write(6,*)' calling sqbeta_e_mult'
-
-  do k=1,nsig
-     sqbeta_e(k)=sqrt(beta2wgt(k))
-  enddo
 
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
   ! multiply by sqbeta_e
@@ -3991,7 +3971,7 @@ subroutine hybens_localization_setup
    use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
    use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
                                          nval_lenz_en,regional_ensemble_option
-   use hybrid_ensemble_parameters, only: readin_beta,betas_inv,betae_inv,beta1_inv,beta1wgt,beta2wgt
+   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,sqbeta_s,sqbeta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
 
@@ -4026,8 +4006,8 @@ subroutine hybens_localization_setup
          endif
          if(mype==0) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
          do k = 1,grd_ens%nsig
-            read(lunin,101) s_ens_hv(k), s_ens_vv(k), betas_inv(k), betae_inv(k)
-            if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), betas_inv(k), betae_inv(k)
+            read(lunin,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
+            if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
          enddo
          close(lunin)
 
@@ -4051,16 +4031,16 @@ subroutine hybens_localization_setup
 101 format(F8.1,3x,F5.1,2(3x,F8.4))
 
    if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
-      betas_inv = beta1_inv
-      betae_inv = one - beta1_inv
+      beta_s = beta_s0
+      beta_e = one - beta_s0
    endif
 
    if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere .and. .not. readin_beta ) then
       do k = 1,grd_ens%nsig
-         betae_inv(k) = betae_inv(k) * blend_rm(k)
-         betas_inv(k) = one - betae_inv(k)
-         if ( mype == 0 ) write(6,*)'betas_inv, betae_inv=', &
-                          k,betas_inv(k),betae_inv(k)
+         beta_e(k) = beta_e(k) * blend_rm(k)
+         beta_s(k) = one - beta_e(k)
+         if ( mype == 0 ) write(6,*)'beta_s, beta_e=', &
+                          k,beta_s(k),beta_e(k)
       enddo
    endif
 
@@ -4092,12 +4072,12 @@ subroutine hybens_localization_setup
       call init_sf_xy(jcap_ens)
    endif
 
-   !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
+   !!!!!!!! setup beta_s, beta_e!!!!!!!!!!!!
    ! vertical variation of static and ensemble weights
 
    ! Set defaults
-   beta1wgt = betas_inv
-   beta2wgt = betae_inv
+   sqbeta_s= sqrt(beta_s)
+   sqbeta_e= sqrt(beta_e)
 
    !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
    !     and triggered by lsqrtb.
@@ -4110,10 +4090,10 @@ subroutine hybens_localization_setup
    ! setup vertical weighting for ensemble contribution to psfc
    call setup_pwgt
 
-   !    write out final values for s_ens_hv, s_ens_vv, betas_inv, betae_inv
-            if(mype==0) write(6,'(" FINAL VALUES FOR s_ens_hv,s_ens_vv,beta1wgt,beta2wgt FOLLOW")')
+   !    write out final values for s_ens_hv, s_ens_vv, beta_s, beta_e
+            if(mype==0) write(6,'(" FINAL VALUES FOR s_ens_hv,s_ens_vv,beta_s,beta_e FOLLOW")')
             do k=1,grd_ens%nsig
-               if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta1wgt(k), beta2wgt(k)
+               if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
             end do
 
    return
