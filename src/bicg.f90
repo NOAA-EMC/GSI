@@ -13,8 +13,8 @@ subroutine bicg()
 !   2012-07-10  todling - add ability to invoke hybrid ensemble
 !   2012-12-06  todling - half-backed implementation of adjoint analysis
 !                         (for now, only works in single outer loop case)
-!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqbeta_s in
-!                          bkerror, and sqbeta_e inside bkerror_a_en.
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
+!                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
 !   input argument list:
 !
