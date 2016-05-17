@@ -116,8 +116,16 @@ export job=gdas_vminmon.${cyc}
 export jobid=${job}.${pid}
 export envir=prod
 export DATAROOT=${DATA_IN:-${STMP_USER}}
-export COMROOT=${COMROOT:-/com}
-export COMIN=${COMIN:-${COMROOT}/gfs/${envir}}
+export COMROOT=${COMROOT:-/com2}
+
+#
+#  Note:  J-job's default location for the gsistat file is
+#         /com2/gfs/prod/gdas.yyyymmdd/gdas1.hhz.gsistat
+#  The directory containing the gsistat file can overriden or
+#    the gsistat file can be directly overriden by exporting 
+#    value for $gsistat
+#export COMIN=${COMIN:-${COMROOT}/gfs/${envir}}/${MINMON_SUFFIX}.${PDY}
+#export gsistat=
 #############################################################
 # Load modules
 #############################################################
