@@ -41,7 +41,7 @@ cd $DATA
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
 ###########################################################
-export MINMON_SUFFIX=${MINMON_SUFFIX:-${RUN}}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
 export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 
 
