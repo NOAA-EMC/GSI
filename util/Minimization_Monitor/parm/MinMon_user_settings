@@ -21,7 +21,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  RUN_ONLY_ON_DEV  1 = dev machine only, 0 = run anywhere
@@ -31,7 +31,7 @@ export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 #
 #  WORKDIR is working directory (temp space)
 #
-export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${SUFFIX} 
+export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${MINMON_SUFFIX} 
 
 # 
 #  GLB_AREA indicates the valid area of the data source
@@ -47,6 +47,12 @@ export GLB_AREA=${GLB_AREA:-1}
 export DO_ERROR_RPT=${DO_ERROR_RPT:-0}
 
 #
+#  DO_ARCHIVE   1 = copy data to hpss and to prod machine at completion of each day
+#               0 = no data archiving (data will remain in TANKDIR on this machine)
+#
+export DO_ARCHIVE=${DO_ARCHIVE:-0}
+
+#
 #  MAIL_TO is the mail recpient list for error reporting
 #
 export MAIL_TO=${MAIL_TO:-""}
@@ -56,4 +62,9 @@ export MAIL_TO=${MAIL_TO:-""}
 #
 export MAIL_CC=${MAIL_CC:-""}
 
-
+#
+#  KEEPDATA is the control flag for preserving/deleting the working
+#  directory.  YES = keep the WORKDIR directory and contents
+#              NO  = delete the WORKDIR directory and contents
+#
+export KEEPDATA=YES
