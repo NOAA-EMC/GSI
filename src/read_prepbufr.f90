@@ -1430,7 +1430,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            stnelev=hdr(6)
            ithin=ithin_conv(nc)
            ithinp = ithin > 0 .and. pflag /= 0
-           if(.not. driftl .and. (((tob .or. qob .or. uvob).and. levs > 1) .or. ithinp))then
+           if(.not. (driftl .or. (aircraft_t_bc .and. acft_profl_file)) .and. &
+              (((tob .or. qob .or. uvob).and. levs > 1) .or. ithinp))then
 !             Interpolate guess pressure profile to observation location
               klon1= int(dlon);  klat1= int(dlat)
               dx   = dlon-klon1; dy   = dlat-klat1
@@ -1625,33 +1626,34 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     call grdcrd1(dlat,rlats,nlat,1)
                     call grdcrd1(dlon,rlons,nlon,1)
                  endif
+              end if
 
-                 if((tob.or. qob.or. uvob .and. levs > 1) .or. ithinp)then
-!                   Interpolate guess pressure profile to observation location
-                    klon1= int(dlon);  klat1= int(dlat)
-                    dx   = dlon-klon1; dy   = dlat-klat1
-                    dx1  = one-dx;     dy1  = one-dy
-                    w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+              if((driftl .or. (aircraft_t_bc .and. acft_profl_file))  &
+                 .and. ((tob.or. qob.or. uvob .and. levs > 1) .or. ithinp))then
+!                Interpolate guess pressure profile to observation location
+                 klon1= int(dlon);  klat1= int(dlat)
+                 dx   = dlon-klon1; dy   = dlat-klat1
+                 dx1  = one-dx;     dy1  = one-dy
+                 w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
 
-                    klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
-                    if (klon1==0) klon1=nlon
-                    klatp1=min(nlat,klat1+1); klonp1=klon1+1
-                    if (klonp1==nlon+1) klonp1=1
+                 klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+                 if (klon1==0) klon1=nlon
+                 klatp1=min(nlat,klat1+1); klonp1=klon1+1
+                 if (klonp1==nlon+1) klonp1=1
 
-                    do kk=1,nsig
-                       presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
-                                 w10*prsl_full(klatp1,klon1 ,kk) + &
-                                 w01*prsl_full(klat1 ,klonp1,kk) + &
-                                 w11*prsl_full(klatp1,klonp1,kk)
+                 do kk=1,nsig
+                    presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
+                              w10*prsl_full(klatp1,klon1 ,kk) + &
+                              w01*prsl_full(klat1 ,klonp1,kk) + &
+                              w11*prsl_full(klatp1,klonp1,kk)
+                 end do
+
+!                Compute depth of guess pressure layersat observation location
+                 if (.not.twodvar_regional .and. levs > 1) then
+                    do kk=1,nsig-1
+                       dpres(kk)=presl(kk)-presl(kk+1)
                     end do
-
-!                   Compute depth of guess pressure layersat observation location
-                    if (.not.twodvar_regional .and. levs > 1) then
-                       do kk=1,nsig-1
-                          dpres(kk)=presl(kk)-presl(kk+1)
-                       end do
-                    endif
-                 end if
+                 endif
               end if
 
 !             Special block for data thinning - if requested
