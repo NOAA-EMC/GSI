@@ -46,7 +46,6 @@ subroutine control2state_ad(rval,bval,grad)
 !
 !$$$
 use kinds, only: i_kind,r_kind
-use constants, only: zero
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
@@ -63,7 +62,7 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only: max_varname_length
+use constants, only: max_varname_length,zero
 
 implicit none
 
@@ -256,9 +255,6 @@ do jj=1,nsubwin
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
       call cw2hydro_ad(rval(jj),wbundle,clouds,nclouds)
-      if(.not. do_tv_to_tsen_ad) then
-         call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
-      end if
    else
 !     Case when cloud-vars map one-to-one, take care of them together
 !     e.g. cw-to-cw

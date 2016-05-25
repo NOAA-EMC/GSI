@@ -32,9 +32,9 @@ echo "  SATYPE_LIST = $1"
 #  Make sure image repository exists.
 #  This is used to mirror to the web server.
 #
-#if [[ ! -d ${IMGNDIR}/time ]]; then
-#   mkdir -p ${IMGNDIR}/time
-#fi
+if [[ ! -d ${IMGNDIR}/time ]]; then
+   mkdir -p ${IMGNDIR}/time
+fi
 
 
 #----------------------------------
@@ -99,12 +99,10 @@ EOF
    rm $tmp
    rm $nu_tmp
 
-   export NDATE=/nwprod/util/exec/ndate
-
    echo $first_time > $times
    cdate=`$NDATE -6 $first_time` 
    ctr=1
-   while [[ $cdate -ge $last_time && $ctr -le 200 ]]; do
+   while [[ $cdate -ge $last_time && $ctr -le 400 ]]; do
       echo $cdate >> $times
       tdate=$cdate
       cdate=`$NDATE -6 $tdate`

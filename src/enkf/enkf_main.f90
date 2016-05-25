@@ -32,6 +32,7 @@ program enkf_main
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
+!   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
 !
 ! usage:
 !   input files:
@@ -66,9 +67,11 @@ program enkf_main
 
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
- use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc
+ use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
+                    numiter, nanals
  ! mpi functions and variables.
- use mpisetup, only:  mpi_initialize, mpi_cleanup, nproc, numproc, mpi_wtime
+ use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
+                      numproc, mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
                     deltapredx, nobs_sat, obfit_post, obsprd_post, &
@@ -91,9 +94,10 @@ program enkf_main
  use inflation, only: inflate_ens
  ! initialize radinfo variables
  use radinfo, only: init_rad, init_rad_vars
+ use omp_lib, only: omp_get_max_threads
 
  implicit none
- integer(i_kind) j,n
+ integer(i_kind) j,n,nth
  real(r_double) t1,t2
 
  ! initialize MPI.
@@ -106,8 +110,14 @@ program enkf_main
  ! read namelist.
  call read_namelist()
 
+ ! initialize MPI communicator for IO tasks.
+ call mpi_initialize_io(nanals)
+
  ! Initialize derived radinfo variables
  call init_rad_vars()
+
+ nth= omp_get_max_threads()
+ if(nproc== 0)write(6,*) 'enkf_main:  number of threads ',nth
 
  ! read horizontal grid information and pressure fields from
  ! 6-h forecast ensemble mean file.
@@ -115,7 +125,7 @@ program enkf_main
 
  ! read obs, initial screening.
  t1 = mpi_wtime()
- call readobs(npts,lonsgrd,latsgrd)
+ call readobs()
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in read_obs =',t2-t1,'on proc',nproc
 
@@ -159,7 +169,7 @@ program enkf_main
  if (nproc == 0) print *,'time in inflate_ens =',t2-t1,'on proc',nproc
 
  ! print innovation statistics for posterior on root task.
- if (nproc == 0) then
+ if (nproc == 0 .and. numiter > 0) then
     print *,'innovation statistics for posterior:'
     call print_innovstats(obfit_post, obsprd_post)
  ! write out bias coeffs on root.

@@ -15,8 +15,10 @@ module convinfo
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
 !   2013-08-20  s.liu - add reflectivity
-!   2013-11-20        su - add ptime_conv as time dimension,and pmot_conv as
-!                           parameter tfor the option to keep thinned data as monitored
+!   2013-11-20     su - add ptime_conv as time dimension,and pmot_conv as
+!                           parameter for the option to keep thinned data as
+!                           monitored
+
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -31,7 +33,6 @@ module convinfo
 !   def nconvtype_ps   - number of input conventional type ps
 !   def nconvtype_t    - number of input conventional type t
 !   def nconvtype_spd  - number of input conventional type spd
-!   def nconvtype_pm2_5  - number of input conventional type pm2_5
 !   def ictype         - observation type
 !   def icsubtype      - observation subtype                           
 !   def icuse          - use flag                                        
@@ -51,10 +52,11 @@ module convinfo
 !   def ptime_conv     - option to add time dimension
 !
 !
-!   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw,pm2_5
+!   def predx_conv     - conv obs bias correction coefficients: t,uv,q,ps,spd,sst,pw,pm2_5,pm10
 !                        count,max # of coefs
 !   def npred_conv_max - maximum number of conv ob bias correction coefs 
 !   def npred_conv     - conv ob bias coef count
+!   def index_sub      - index to count subtypes of a type and the position in the bufr error table 
 
 ! attributes:
 !   language: f90
@@ -79,11 +81,13 @@ module convinfo
 ! set passed variables as public
   public :: icsubtype,ioctype,nconvtype,ictype,diag_conv,icuse,conv_bias_spd,conv_bias_t,stndev_conv_ps
   public :: stndev_conv_spd,stndev_conv_t,id_bias_ps,npred_conv_max,id_bias_t,conv_bias_ps,id_bias_spd
-  public :: stndev_conv_pm2_5,conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
+  public :: conv_bias_pm2_5,id_bias_pm2_5,ihave_pm2_5
+  public :: conv_bias_pm10,id_bias_pm10
 
   public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg,pmot_conv,ptime_conv
   public :: cermin,cgross
   public :: use_prepb_satwnd
+  public :: index_sub
 
   logical diag_conv
   logical :: ihave_pm2_5
@@ -92,17 +96,16 @@ module convinfo
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
 		                          rmesh_conv,pmesh_conv,stndev_conv,pmot_conv,ptime_conv
   integer(i_kind),allocatable,dimension(:):: ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,&
-                                             ithin_conv,npred_conv
+                                             ithin_conv,npred_conv,index_sub
   character(len=16),allocatable,dimension(:)::ioctype
 
   real(r_kind),allocatable,dimension(:,:) :: predx_conv
   integer(i_kind)  npred_conv_max
-  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd,nconvtype_pm2_5
-  integer(i_kind)  id_bias_ps,id_bias_t,id_bias_spd,id_bias_pm2_5
+  integer(i_kind)  nconvtype_ps,nconvtype_t,nconvtype_spd
+  integer(i_kind)  id_bias_ps,id_bias_t,id_bias_spd,id_bias_pm2_5,id_bias_pm10
   real(r_kind)     conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       conv_bias_pm2_5,&
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,stndev_conv_pm2_5
-
+       conv_bias_pm2_5,conv_bias_pm10, &
+       stndev_conv_ps,stndev_conv_t,stndev_conv_spd
 
   logical,save :: convinfo_initialized=.false.
 
@@ -141,23 +144,23 @@ contains
     nconvtype_ps  =0
     nconvtype_t   =0
     nconvtype_spd =0
-    nconvtype_pm2_5  =0
     stndev_conv_t =one
     stndev_conv_ps =one
     stndev_conv_spd =one
-    stndev_conv_pm2_5=one
 
     id_bias_ps = 0            ! prepbufr id to have conv_bias added for testing 
     id_bias_t  = 0            ! prepbufr id to have conv_bias added for testing 
     id_bias_spd= 120          ! prepbufr id to have conv_bias added for testing 
 
     id_bias_pm2_5= 0 
+    id_bias_pm10= 0
 
     conv_bias_ps = zero       ! magnitude of ps bias(mb)
     conv_bias_t  = zero       ! magnitude of t  bias(deg K)
     conv_bias_spd= zero       ! magnitude of spd bias(m/sec)
 				
     conv_bias_pm2_5= zero
+    conv_bias_pm10= zero
 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
     use_reflectivity=.false.  ! option of using reflectivity
@@ -242,7 +245,7 @@ contains
     allocate(ctwind(nconvtype),cgross(nconvtype),cermax(nconvtype),cermin(nconvtype), &
              cvar_b(nconvtype),cvar_pg(nconvtype),ncmiter(nconvtype),ncgroup(nconvtype), &
              ncnumgrp(nconvtype),icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
-             ioctype(nconvtype), & 
+             ioctype(nconvtype), index_sub(nconvtype),& 
              ithin_conv(nconvtype),rmesh_conv(nconvtype),pmesh_conv(nconvtype),&
              npred_conv(nconvtype),pmot_conv(nconvtype),ptime_conv(nconvtype),  &
              stndev_conv(nconvtype), &
@@ -257,10 +260,11 @@ contains
        rmesh_conv(i)=99999.0_r_kind
        pmesh_conv(i)=zero
        stndev_conv(i)=one
+       index_sub(i)=2
        pmot_conv(i)=zero
        ptime_conv(i)=zero
     enddo
-    nc=zero
+    nc=0
 
     if(nconvtype*npred_conv_max>0) then
        allocate(predx_conv (nconvtype,npred_conv_max))
@@ -304,12 +308,17 @@ contains
            !                         ncnumgrp(nc),
 
        read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
-            ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
+          if(nc >=2 )then
+            if(trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
+               index_sub(nc)=index_sub(nc-1)+1
+            endif
+          endif
        if(mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
-            ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc) &
-            ,ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6)
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),npred_conv(nc),pmot_conv(nc),ptime_conv(nc),index_sub(nc)
+1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,i5)
        if (npred_conv_max > 0 ) then
           read(iunit,*,iostat=ier) cob,iob,isub,np,(predx_conv(nc,n),n=1,np)
           if (ier /= 0 ) then
@@ -335,9 +344,6 @@ contains
              case('spd')
                 nconvtype_spd=nconvtype_spd+1
                 stndev_conv(nc)=stndev_conv_spd
-             case('pm2_5')                
-                nconvtype_pm2_5=nconvtype_pm2_5+1
-                stndev_conv(nc)=stndev_conv_pm2_5
           end select
        endif
     enddo
@@ -463,7 +469,7 @@ contains
     deallocate(ctwind,cgross,cermax,cermin, &
              cvar_b,cvar_pg,ncmiter,ncgroup, &
              ncnumgrp,icuse,ictype,icsubtype, &
-             ioctype, & 
+             ioctype,index_sub, & 
              ithin_conv,rmesh_conv,pmesh_conv, &
              npred_conv,pmot_conv,ptime_conv, &
              stndev_conv, &

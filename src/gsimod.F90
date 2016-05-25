@@ -35,7 +35,7 @@
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
                        ssmis_method,ssmis_precond
-  use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
+  use radinfo, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
@@ -44,7 +44,8 @@
                       id_bias_ps,id_bias_t,id_bias_spd, &
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
-                      stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5,&
+                      id_bias_pm2_5,conv_bias_pm2_5,&
+                      id_bias_pm10,conv_bias_pm10,&
                       use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
@@ -54,7 +55,7 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save
+      buddycheck_t,buddydiag_save,njqc,vqc
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
@@ -104,7 +105,7 @@
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time
+                         l_ens_in_diff_time,ensemble_path
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -128,6 +129,7 @@
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+  use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
@@ -303,6 +305,7 @@
 !  01-15-2015 Hu        added options i_use_2mq4b,i_use_2mt4b, i_gsdcldanal_type
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
+!  03-01-2015 Li        add zsea1 & zsea2 to namelist for vertical mean temperature based on NSST T-Profile
 !  05-13-2015 wu        remove check to turn off regional 4densvar
 !
 !EOP
@@ -352,11 +355,13 @@
 !                                                           1 = input nst info, but used for monitoring only
 !                                                           2 = input nst info, and used in CRTM simulation, but no Tr analysis
 !                                                           3 = input nst info, and used in CRTM simulation and Tr analysis is on
-!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
-!                                                      1 = Do Tz retrieval and applied to QC
 !     nstinfo  - number of nst variables
+!     zsea1    - upper depth (in mm) for vertical mean of T based on NSST T-Profile
+!     zsea2    - lower depth (in mm) for vertical mean of T based on NSST T-Profile
 !     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
 !     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
+!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
+!                                                      1 = Do Tz retrieval and applied to QC
 !     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
 !     diag_rad - logical to turn off or on the diagnostic radiance file true=on
 !     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
@@ -479,13 +484,14 @@
        niter,niter_no_qc,miter,qoption,cwoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
-       nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave,&
+       nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        npred_conv_max,&
        id_bias_ps,id_bias_t,id_bias_spd, &
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
+       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10, &
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
@@ -689,10 +695,11 @@
 !     buddycheck_t - When true, run buddy check algorithm on temperature observations
 !     buddydiag_save - When true, output files containing buddy check QC info for all
 !                      obs run through the buddy check
+!     njqc  -  When true, use Purser's non linear QC
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
-       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
        buddycheck_t,buddydiag_save
 
@@ -810,6 +817,7 @@
 !                                      can be used for hybrid. (default)
 !                             =true: ensembles available time can be different
 !                                      from analysis time in hybrid analysis
+!     ensemble_path - path to ensemble members; default './'
 !              
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
@@ -817,7 +825,7 @@
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw, &
-                i_en_perts_io,l_ens_in_diff_time
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -893,7 +901,8 @@
                                 i_lightpcp,i_sfct_gross
 
 ! chem(options for gsi chem analysis) :
-!     berror_chem       - ??
+!     berror_chem       - .true. when background  for chemical species that require
+!                          conversion to lower case and/or species names longer than 5 chars
 !     oneobtest_chem    - one-ob trigger for chem constituent analysis
 !     maginnov_chem     - O-B make-believe residual for one-ob chem test
 !     magoberr_chem     - make-believe obs error for one-ob chem test
@@ -901,22 +910,24 @@
 !     oblat_chem        - latitude of make-believe chem obs
 !     oblon_chem        - longitude of make-believe chem obs
 !     obpres_chem       - pressure level of make-believe chem obs
-!     diag_incr         - ??
-!     elev_tolerance    - ??
-!     tunable_error     - ??
-!     in_fname          - ??
-!     out_fname         - ??
-!     incr_fname        - ??
+!     diag_incr         - increment for CMAQ
+!     elev_tolerance    - in meters when surface PM observation rejected due to elevation
+!                         disparity in background and observation
+!     tunable_error     - a factor to calculate representativeness error for PM observations
+!     in_fname          - CMAQ input filename
+!     out_fname         - CMAQ output filename
+!     incr_fname        - CMAQ increment filename
 !     laeroana_gocart   - when true, do chem analysis with wrfchem and modis
-!     l_aoderr_table    - ??
-!     aod_qa_limit      - ??
-!     luse_deepblue     - ??
+!     l_aoderr_table    - whethee to use aod error table or default error
+!     aod_qa_limit      - minimum acceptable value of error flag for total column AOD
+!     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
+       aero_ratios,wrf_pm2_5
 
 !EOC
 
@@ -950,7 +961,6 @@
   call mpi_comm_size(mpi_comm_world,npe,ierror)
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
   if (mype==0) call w3tagb('GSI_ANL',1999,0232,0055,'NP23')
-
 
 ! Initialize defaults of vars in modules
   call init_4dvar
@@ -1265,8 +1275,6 @@
           ' and lread_obs_skip=',lread_obs_skip,' can not both be TRUE'
      call stop2(329)
   endif
-
-
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
         if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time', &

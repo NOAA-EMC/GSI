@@ -87,7 +87,7 @@ LIBgfio   = -L$(CORELIB) -lgfio
 # --------------------------
 INChdf          = -I$(BASEDIR)/$(ARCH)/include/hdf
 LIBhdf          = -L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
-LIBnetcdf       = -L$(BASEDIR)/$(ARCH)/lib -lnetcdf
+LIBnetcdf       = -L$(BASEDIR)/$(ARCH)/lib -lnetcdf -lnetcdff
 LIBwrf          = -L$(BASEDIR)/$(ARCH)/lib -lwrflib
 LIBwrfio_int    = -L$(BASEDIR)/$(ARCH)/lib -lwrfio_int
 LIBwrfio_netcdf = -L$(BASEDIR)/$(ARCH)/lib -lwrfio_nf
@@ -184,9 +184,8 @@ clean:
 # ------------
 
   SRCSF90C = \
-	common_mtx.f90 \
 	covlocal.f90 \
-	enkf.F90 \
+	enkf.f90 \
 	enkf_main.f90 \
 	fftpack.f90 \
 	genqsat1.f90 \
@@ -198,12 +197,11 @@ clean:
 	letkf.F90 \
 	loadbal.f90 \
 	mpi_readobs.f90 \
-	mpisetup.f90 \
+	mpisetup.F90 \
 	netcdf_io_wrf.f90 \
-	netlib.f90 \
 	enkf_obsmod.f90 \
 	params.f90 \
-	quicksort.f90 \
+	sorting.f90 \
 	radbias.f90 \
 	read_locinfo.f90 \
 	readconvobs.f90 \
