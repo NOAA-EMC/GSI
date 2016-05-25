@@ -281,10 +281,7 @@ do jj=1,nsubwin
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
-      if (.not. do_tv_to_tsen) then
-         call tv_to_tsen(cv_t,sv_q,sv_tsen)
-      end if
-      call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
+      call cw2hydro_tl(sval(jj),wbundle,clouds,nclouds)
    else
 !     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
 !     e.g. cw-to-cw

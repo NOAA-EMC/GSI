@@ -175,9 +175,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
                   & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
+                  & i_pm10_ob_type, &
                   & i_wspd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    nobs_type,stpcnt,ll_jo,ib_jo
+                    i_aero_ob_type,nobs_type,stpcnt,ll_jo,ib_jo
   use stptmod, only: stpt
   use stpwmod, only: stpw
   use stppsmod, only: stpps
@@ -195,6 +196,8 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stpozmod, only: stpoz
   use stpcomod, only: stpco
   use stppm2_5mod, only: stppm2_5
+  use stppm10mod, only: stppm10
+  use stpaodmod, only: stpaod
   use stpgustmod, only: stpgust
   use stpvismod, only: stpvis
   use stppblhmod, only: stppblh
@@ -361,6 +364,13 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
           if (getindex(cvars2d,'lcbas')>0) &
           call stplcbas(yobs(ib)%lcbas,dval(ib),xval(ib),pbcjo(1,i_lcbas_ob_type,ib),sges,nstep)
 
+!   penalty, b, and c for aod
+       else if(ll == 29) then
+          call stpaod(yobs(ib)%aero,dval(ib),xval(ib),pbcjo(1,i_aero_ob_type,ib),sges,nstep)
+
+       else if(ll == 30) then
+          call stppm10(yobs(ib)%pm10,dval(ib),xval(ib),pbcjo(1,i_pm10_ob_type,ib),sges,nstep)
+
        end if
     end do
 
@@ -447,7 +457,7 @@ subroutine stpjo_setup(yobs,nobs_bins)
           end if
 
        else if (ll == 6)then
-!         penalty, b, and c for ozone
+!         penalty, b, and c for pm2_5
           if(associated(yobs(ib)%pm2_5)) then
              stpcnt = stpcnt +1
              ll_jo(stpcnt) = ll
@@ -618,6 +628,21 @@ subroutine stpjo_setup(yobs,nobs_bins)
              ll_jo(stpcnt) = ll
              ib_jo(stpcnt) = ib
           end if
+       else if (ll == 29)then
+!         penalty, b, and c for aod
+          if(associated(yobs(ib)%aero)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+       else if (ll == 30)then
+!         penalty, b, and c for pm10
+          if(associated(yobs(ib)%pm10)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
+
 
        end if
      end do

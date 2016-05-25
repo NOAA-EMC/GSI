@@ -174,6 +174,7 @@ contains
 !   2010-10-19  Huang   - remove spectral part for gridded NEMS/GFS
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2013-10-19  todling - metguess now holds background
+!   2016-03-30  todling - update interface to general read (pass bundle)
 !
 !   input argument list:
 !     mype              - mpi task id
@@ -187,10 +188,15 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a,grd_a,jcap_b
+    use gridmod, only: sp_a,grd_a,jcap_b,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_gridcreate
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe
     implicit none
@@ -199,7 +205,7 @@ contains
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
-    integer(i_kind):: it, iret, ier, inner_vars, num_fields
+    integer(i_kind):: it, istatus, inner_vars, num_fields
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -214,6 +220,18 @@ contains
     type(sub2grid_info) :: grd_t
     logical regional
 
+    type(gsi_bundle) :: atm_bundle
+    type(gsi_grid)   :: atm_grid
+    integer(i_kind),parameter :: n2d=2
+    integer(i_kind),parameter :: n3d=8
+    character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+    character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                    'vor ', 'div ', &
+                                                    'tv  ', 'q   ', &
+                                                    'cw  ', 'oz  ' /)
+    real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
+
     regional=.false.
     inner_vars=1
     num_fields=min(8*grd_a%nsig+2,npe)
@@ -221,49 +239,86 @@ contains
     call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
           grd_a%nsig,num_fields,regional)
 
+!   Allocate bundle used for reading members
+    call gsi_gridcreate(atm_grid,lat2,lon2,nsig)
+    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    if(istatus/=0) then
+      write(6,*) myname_,': trouble creating atm_bundle'
+      call stop2(999)
+    endif
 
     do it=1,nfldsig
 
-!      Get pointer to could water mixing ratio
-       ier=0
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z',ges_z_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,iret)
-       ier=ier+iret
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-       ier=ier+iret
-       if (ier/=0) cycle ! this allows code to be free from met-fields
-
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
        
+!      Read background fields into bundle
        call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
-            ges_z_it,ges_ps_it,&
-            ges_vor_it,ges_div_it,&
-            ges_u_it,ges_v_it,&
-            ges_tv_it,ges_q_it,&
-            ges_cwmr_it,ges_oz_it,.true.,ier)
-!      call read_atm_ (grd_a,filename,mype,sp_a,.true.,.true.,.true.,&
-!           ges_z_it,ges_ps_it,&
-!           ges_vor_it,ges_div_it,&
-!           ges_u_it,ges_v_it,&
-!           ges_tv_it,ges_q_it,&
-!           ges_cwmr_it,ges_oz_it)
+            atm_bundle,.true.,istatus)
+
+!      Set values to actual MetGuess fields
+       call set_guess_
+
     end do
     call general_sub2grid_destroy_info(grd_t)
+    call gsi_bundledestroy(atm_bundle,istatus)
+
+    contains
+
+    subroutine set_guess_
+
+    call gsi_bundlegetpointer (atm_bundle,'ps',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it ,istatus)
+       if(istatus==0) ges_ps_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'z',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it ,istatus)
+       if(istatus==0) ges_z_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'u',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it ,istatus)
+       if(istatus==0) ges_u_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'v',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it ,istatus)
+       if(istatus==0) ges_v_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'vor',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+       if(istatus==0) ges_vor_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'div',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
+       if(istatus==0) ges_div_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'tv',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it ,istatus)
+       if(istatus==0) ges_tv_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'q',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it ,istatus)
+       if(istatus==0) ges_q_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'oz',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it ,istatus)
+       if(istatus==0) ges_oz_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'cw',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+       if(istatus==0) ges_cwmr_it = ptr3d
+    endif
+
+    end subroutine set_guess_
+
   end subroutine read_
 
   subroutine read_chem_ ( iyear, month,idd )
@@ -869,7 +924,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -880,7 +935,7 @@ contains
     character(LEN=24)                           ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
          veg_type,veg_frac,soil_type,soil_temp,soil_moi,sfc_rough,terrain
 
 !   Declare local parameters
@@ -1081,7 +1136,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero,two
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -1091,7 +1146,7 @@ contains
 !   Declare passed variables
     character(LEN=6)                            ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: mype
-    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: tref,dt_cool, &
+    real(r_single)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: tref,dt_cool, &
          z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local parameters
@@ -1888,7 +1943,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
@@ -1939,12 +1994,13 @@ contains
     integer(i_kind) :: istop = 105
     real(r_kind)    :: fhour
 
-    real(r_kind),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2, tsea
+    real(r_kind),allocatable,dimension(:,:) :: tsea
     real(r_kind),allocatable,dimension(:)   :: rwork1d
+    real(r_single),dimension(nlon,nlat):: buffer
+    real(r_single),allocatable,dimension(:,:) :: buffer2,grid2
 
     type(nemsio_gfile) :: gfile, gfileo
 !*****************************************************************************
@@ -2121,7 +2177,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use kinds, only: r_kind,i_kind
+    use kinds, only: r_kind,i_kind,r_single
   
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
@@ -2177,11 +2233,11 @@ contains
     integer(i_kind) :: istop = 106
     real(r_kind)    :: fhour
 
-    real(r_kind),dimension(nlon,nlat):: buffer
+    real(r_single),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sfcsub
     real(r_kind),dimension(nlon,nlat):: grid
     real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
-    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2, grid2_nst
+    real(r_single),allocatable,dimension(:,:) :: buffer2, grid2, grid2_nst
     real(r_kind),allocatable,dimension(:,:) :: tsea,tref,dt_cool,xt,xz,slmsk
     real(r_kind),allocatable,dimension(:)   :: rwork1d
 
@@ -2515,10 +2571,10 @@ contains
     integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
     integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
 
-    real(r_kind), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
+    real(r_single), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
 
 ! !OUTPUT PARAMETERS:
-    real(r_kind), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
+    real(r_single), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
 
 
 !   Declare local variables

@@ -21,6 +21,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
+  use qcmod, only: njqc,vqc
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -38,7 +39,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: huge_single,r1000,wgtlim,r10,fv
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
-  use converr, only: ptabl 
+  use converr_t, only: ptabl_t 
+  use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
   use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross
@@ -146,9 +148,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
 !   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
+!   2014-04-12  su      - add non linear qc from Purser's scheme
 !   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !   2014-10-06  carley  - add call to buddy check for twodvar_regional option
-!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2014-12-30  derber  - Modify for possibility of not using obsdiag
 !   2011-10-14  Hu      - add code for using 2-m temperature as background to
 !                            calculate surface temperauture observation
 !                            innovation
@@ -188,7 +191,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm,ratiosfc
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
-  real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt
+  real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt,var_jb
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,tfact
   real(r_kind) cg_t,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
@@ -198,14 +201,16 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(npredt):: predbias
   real(r_kind),dimension(npredt):: pred
   real(r_kind),dimension(npredt):: predcoef
-  real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_kind) tgges,roges
   real(r_kind),dimension(nsig):: tvtmp,qtmp,utmp,vtmp,hsges
   real(r_kind) u10ges,v10ges,t2ges,q2ges,psges2,f10ges
+  real(r_kind),dimension(34) :: ptablt
+  real(r_single),allocatable,dimension(:,:)::rdiagbuf
+
 
   real(r_kind),dimension(nsig):: prsltmp2
 
-  integer(i_kind) i,j,nchar,nreal,k,ii,jj,l,nn,ibin,idia,idia0,ix
+  integer(i_kind) i,j,nchar,nreal,k,ii,jj,l,nn,ibin,idia,idia0,ix,ijb
   integer(i_kind) mm1,jsig,iqt
   integer(i_kind) itype,msges
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
@@ -293,21 +298,23 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iprvd=22    ! index of observation provider
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
+  ijb=25      ! index of non linear qc parameter
   if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
-     ipof=25     ! index of data pof
-     ivvlc=26    ! index of data vertical velocity
-     idx=27      ! index of tail number
-     iptrb=28    ! index of t perturbation
+     ipof=26     ! index of data pof
+     ivvlc=27    ! index of data vertical velocity
+     idx=28      ! index of tail number
+     iptrb=29    ! index of t perturbation
   else
-     iptrb=25    ! index of t perturbation
+     iptrb=26    ! index of t perturbation
   end if
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
-
   if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
+  var_jb=zero
 
+!  handle multiple reported data at a station
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -324,13 +331,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end do
   end do
 
-
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      ii=0
      nchar=1
      nreal=19
-     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
+    if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
           nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
@@ -363,6 +369,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
   
         iqtflg=nint(data(iqt,i)) == 0
+        var_jb=data(ijb,i)
+!       write(6,*) 'SETUPT:itype,var_jb,ijb=',itype,var_jb,ijb
 
 !       Load observation value and observation error into local variables
         tob=data(itob,i)
@@ -651,19 +659,29 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then                  
-        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind )then 
-            qcgross=three*qcgross                    ! Terrain aware modification
+     if (twodvar_regional) then
+
+        ! Gross error relaxation for when buddycheck_t==.true.
+        if (buddycheck_t) then 
+           if (buddyuse(i)==1) then
+              ! - Passed buddy check, relax gross qc
+              qcgross=three*qcgross
+              data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
+                                                    ! in diag files  (will show as an extra 0.50 appended) 
+           else if (buddyuse(i)==0) then
+              ! - Buddy check did not run (too few buddies, rusage >= 100, outside twindow, etc.)
+              ! - In the case of an isolated ob in complex terrain, see about relaxing the the gross qc 
+              if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+                 qcgross=three*qcgross               ! Terrain aware modification
                                                      ! to gross error check
-            if (buddycheck_t .and.buddyuse(i)==1) then
-               qcgross=two*qcgross                  ! Relax even more for terrain in cases where 
-               data(iuse,i)=data(iuse,i)+0.50_r_kind ! buddy check passes.  Label usage so we can identify obs  
-                                                     ! with extra relaxed gross qc in diag files 
-            end if                                   ! (will show as an extra 0.75 appended)
-        else if (buddycheck_t .and. buddyuse(i)==1) then
-            qcgross=three*qcgross
-            data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
-                                                  ! in diag files  (will show as an extra 0.50 appended)            
+              end if         
+           else if (buddyuse(i)==-1) then
+              ! - Observation has failed the buddy check - reject.
+              ratio_errors = zero
+           end if
+        else if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+          qcgross=three*qcgross               ! Terrain aware modification
+                                              ! to gross error check       
         end if  
      endif
 
@@ -721,7 +739,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         val2     = val*val
         exp_arg  = -half*val2
         rat_err2 = ratio_errors**2
-        if (cvar_pg(ikx) > tiny_r_kind .and. error >tiny_r_kind) then
+        if(njqc .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
+           if(exp_arg  == zero) then
+              wgt=one
+           else
+              wgt=ddiff*error/sqrt(two*var_jb)
+              wgt=tanh(wgt)/wgt
+           endif
+           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           rwgt = wgt/wgtlim
+           valqc = -two*term
+        else if (vqc .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_t=cvar_b(ikx)
@@ -729,12 +757,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            term =log((arg+wgross)/(one+wgross))
            wgt  = one-wgross/(arg+wgross)
            rwgt = wgt/wgtlim
+           valqc = -two*rat_err2*term
         else
            term = exp_arg
-           wgt  = wgtlim
+           wgt  = one 
            rwgt = wgt/wgtlim
+           valqc = -two*rat_err2*term
         endif
-        valqc = -two*rat_err2*term
 
 !       Accumulate statistics for obs belonging to this task
         if(muse(i))then
@@ -775,7 +804,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obsdiags(i_t_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
      end if
 
-!    If obs is "acceptable", load array with obs info for use
+!    If obs is "acceptable_te", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
 !    if ( .not. last .and. muse(i)) then
      if (muse(i)) then
@@ -806,6 +835,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ttail(ibin)%head%time    = dtime
         ttail(ibin)%head%b       = cvar_b(ikx)
         ttail(ibin)%head%pg      = cvar_pg(ikx)
+        ttail(ibin)%head%jb      = var_jb
         ttail(ibin)%head%use_sfc_model = sfctype.and.sfcmodel
         if(ttail(ibin)%head%use_sfc_model) then
            call get_tlm_tsfc(ttail(ibin)%head%tlm_tsfc(1), &
@@ -853,13 +883,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(oberror_tune) then
            ttail(ibin)%head%kx=ikx
            ttail(ibin)%head%tpertb=data(iptrb,i)/error/ratio_errors
-           if(prest > ptabl(2))then
+           if (njqc) then
+              ptablt=ptabl_t
+           else
+              ptablt=ptabl
+           endif
+             
+           if(prest > ptablt(2))then
               ttail(ibin)%head%k1=1
-           else if( prest <= ptabl(33)) then
+           else if( prest <= ptablt(33)) then
               ttail(ibin)%head%k1=33
            else
               k_loop: do k=2,32
-                 if(prest > ptabl(k+1) .and. prest <= ptabl(k)) then
+                 if(prest > ptablt(k+1) .and. prest <= ptablt(k)) then
                     ttail(ibin)%head%k1=k
                     exit k_loop
                  endif
@@ -901,14 +937,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark (currently qtflg only)
+        rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
         else
            rdiagbuf(12,ii) = -one
         endif
-
         err_input = data(ier2,i)
         err_adjst = data(ier,i)
         if (ratio_errors*error>tiny_r_kind) then
@@ -924,7 +959,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
         if (err_final>tiny_r_kind) errinv_final=one/err_final
 
-        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+!rdiagbuf(13,ii) is the combination of var_jb and non-linear qc relative weight
+! in the format of:  var_jb*1.0e+6 + rwgt
+        rdiagbuf(13,ii) = var_jb*1.0e+6 + rwgt ! combination of var_jb and rwgt
         rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
@@ -1033,6 +1070,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head%time    = dtime
            ttail(ibin)%head%b       = cvar_b(ikx)
            ttail(ibin)%head%pg      = cvar_pg(ikx)
+           ttail(ibin)%head%jb      = var_jb
            ttail(ibin)%head%use_sfc_model = sfctype.and.sfcmodel
            if(ttail(ibin)%head%use_sfc_model) then
               call get_tlm_tsfc(ttail(ibin)%head%tlm_tsfc(1), &

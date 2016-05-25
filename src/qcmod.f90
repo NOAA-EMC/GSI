@@ -89,6 +89,7 @@ module qcmod
 !    following used for nonlinear qc:
 !
 !   def nlnqc_iter   - logical flag (T=nonlinear qc on, F=nonlinear qc off) for iteration
+!   def njqc -  logical flag (T=Purse's nonlinear qc on, F=off)
 !
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
 !
@@ -132,7 +133,7 @@ module qcmod
   public :: qc_amsr2
   public :: qc_saphir
 ! set passed variables to public
-  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
+  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
@@ -140,7 +141,7 @@ module qcmod
 
   public :: buddycheck_t,buddydiag_save
 
-  logical nlnqc_iter
+  logical nlnqc_iter,njqc,vqc
   logical noiqc
   logical use_poq7
   logical qc_noirjaco3
@@ -314,6 +315,8 @@ contains
 
     nlnqc_iter= .false.
     noiqc = .false.
+    njqc=.false.
+    vqc=.false.
     c_varqc=one
 
     vadfile='none'

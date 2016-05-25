@@ -791,13 +791,13 @@ do ii=1,nchanl
 enddo
 if (iii/=ncp) then
    if (iamroot_) then
-       write(6,'') myname, ' iii,ncp= ',iii,ncp
+       write(6,*) myname, ' iii,ncp= ',iii,ncp
    endif
    call die(myname_,' serious dimensions insconsistency (R), aborting')
 endif
 if (jjj/=ncp) then
    if (iamroot_) then
-       write(6,'') myname, ' jjj,ncp= ',jjj,ncp
+       write(6,*) myname, ' jjj,ncp= ',jjj,ncp
    endif
    call die(myname_,' serious dimensions insconsistency (J), aborting')
 endif

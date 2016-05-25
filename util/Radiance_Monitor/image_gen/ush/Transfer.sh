@@ -71,7 +71,7 @@ log_file=${LOGdir}/Transfer_${SUFFIX}.log
 err_file=${LOGdir}/Transfer_${SUFFIX}.err
 
 if [[ ${TOP_IMGNDIR} != "/" ]]; then
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} --exclude 'horiz' ${TOP_IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi

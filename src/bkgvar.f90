@@ -210,7 +210,7 @@ subroutine bkg_stddev(cvec,svec)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only : mype
-  use constants, only: one
+  use constants, only: one,zero
   use berror, only: bkgv_flowdep
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

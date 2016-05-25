@@ -205,7 +205,7 @@
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use obsmod, only: rad_ob_type
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
-  use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
+  use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
@@ -777,7 +777,7 @@
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
-                temp,wmix,jacobian,error_status,tsim_clr)
+                temp,wmix,jacobian,error_status,tsim_clr=tsim_clr)
         else
            call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
