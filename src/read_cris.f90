@@ -1,7 +1,7 @@
 subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
+     nrec_start,nrec_start_rars,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_cris                  read bufr format cris data
@@ -28,6 +28,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-09-04  Jung    - Added mods for CrIS full spectral resolution (FSR).
+!   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -50,7 +51,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
-!     nrec_start_ears - first ears subset with useful information
+!     nrec_start_rars - first rars subset with useful information
 !     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
@@ -91,7 +92,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR format for CRISSPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_ears,nrec_start_DB
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_rars,nrec_start_DB
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -343,6 +344,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec = 99999
+! Big loop over standard data feed and possible rars/db data
+! llll=1 is normal feed, llll=2 RARS data, llll=3 DB/UW data)
   rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
@@ -350,9 +353,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
-        nrec_startx=nrec_start_ears
-        infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
+        if ( nrec_start_rars <= 0 ) cycle rars_db_loop
+        nrec_startx=nrec_start_rars
+        infile2=trim(infile)//'rars' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
         if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx=nrec_start_DB
@@ -821,7 +824,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-!JAJ        write(*,*) 'JAJ cris points ', data_all(30,n), data_all(31,n)
      end do
 
      if(dval_use .and. assim)then
