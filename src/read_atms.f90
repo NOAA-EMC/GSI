@@ -2,7 +2,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
+     nrec_start,nrec_start_rars,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_atms                  read atms 1b data
@@ -29,6 +29,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2013-12-20  eliu - change icw4crtm>0 to icw4crtm>10 (bug fix))
 !  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
 !  2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!  2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -50,7 +51,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
-!     nrec_start_ears - first ears subset with useful information
+!     nrec_start_rars - first rars subset with useful information
 !     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
@@ -88,7 +89,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
-  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_DB
+  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_rars,nrec_start_DB
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
@@ -334,8 +335,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(bt_save(max_chanl,maxobs))
 
   iob=1
-! Big loop over standard data feed and possible ears/db data
-! llll=1 normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data
+! Big loop over standard data feed and possible rars/db data
+! llll=1 normal feed, llll=2 RARS data, llll=3 DB/UW data
   rars_db_loop: do llll= 1, 3
 
      if(llll == 1)then
@@ -343,9 +344,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
-        nrec_startx = nrec_start_ears
-        infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
+        if ( nrec_start_rars <= 0 ) cycle rars_db_loop
+        nrec_startx = nrec_start_rars
+        infile2 = trim(infile)//'rars' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
         if ( nrec_start_DB <= 0 ) cycle rars_db_loop
         nrec_startx = nrec_start_DB
@@ -763,6 +764,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
                 data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
      end do
+
      if(dval_use .and. assim)then
         do n=1,ndata
            itt=nint(data_all(33,n))
