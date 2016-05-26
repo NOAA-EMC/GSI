@@ -27,8 +27,8 @@ if [[ $nargs -ne 2 ]]; then
    exit 2
 fi
 
-SUFFIX=$1
-echo SUFFIX = $SUFFIX
+RADMON_SUFFIX=$1
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 export RAD_AREA=$2
 
 this_file=`basename $0`
@@ -58,17 +58,17 @@ fi
 
 
 #--------------------------------------------------------------
-#  Get the area for this SUFFIX from the data_map file
+#  Get the area for this RADMON_SUFFIX from the data_map file
 #
 
 if [[ $RAD_AREA == "glb" ]]; then 
-   ${RADMON_IMAGE_GEN}/html/install_glb.sh $SUFFIX 
+   ${RADMON_IMAGE_GEN}/html/install_glb.sh $RADMON_SUFFIX 
 else 
    if [[ $RAD_AREA == "glb" ]]; then 
-      new_webdir=${WEBDIR}/${SUFFIX}
+      new_webdir=${WEBDIR}/${RADMON_SUFFIX}
       . ${RADMON_IMAGE_GEN}/parm/glbl_conf
    else
-      new_webdir=${WEBDIR}/regional/${SUFFIX}
+      new_webdir=${WEBDIR}/regional/${RADMON_SUFFIX}
       . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
    fi
 
@@ -79,7 +79,7 @@ echo TANKverf = $TANKverf
 #--------------------------------------------------------------
 #  Create a temporary working directory.
 #
-workdir=$STMP_USER/${SUFFIX}_html
+workdir=$STMP_USER/${RADMON_SUFFIX}_html
 rmdir $workdir
 mkdir $workdir
 cd $workdir
@@ -135,7 +135,7 @@ while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
 done
 
 if [[ $data_found -eq 0 ]]; then
-   echo Unable to locate any data files in the past 90 days for $SUFFIX 
+   echo Unable to locate any data files in the past 90 days for $RADMON_SUFFIX 
    echo in $TANKverf/angle.
    exit
 fi
@@ -344,7 +344,7 @@ $NCP ${RADMON_IMAGE_GEN}/html/intro.html  intro.html.stock
 #
 $NCP ${RADMON_IMAGE_GEN}/html/menu.html.$RAD_AREA .
 
-if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
+if [[ $RADMON_SUFFIX == "wopr" || $RADMON_SUFFIX == "nrx" ]]; then
    tmp_menu=./tmp_menu.html.${RAD_AREA}
    sed s/Experimental/Operational/1 menu.html.${RAD_AREA} > ${tmp_menu}
    mv -f ${tmp_menu} menu.html.${RAD_AREA}
@@ -393,7 +393,7 @@ for file in $plot_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} .
    
    #  switch all 'INSERT_SUFFIX' tags to the actual suffix
-   sed s/INSERT_SUFFIX/${SUFFIX}/g ${file} > ${file}.tmp
+   sed s/INSERT_SUFFIX/${RADMON_SUFFIX}/g ${file} > ${file}.tmp
    mv -f ${file}.tmp ${file}
 
    $NCP ${file} ${imgndir}/.
