@@ -70,7 +70,7 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Execution Areas
 ##############################################
-export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.$gdas_ver}
+export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas_radmon.$gdas_ver}
 export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
 export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
 export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
