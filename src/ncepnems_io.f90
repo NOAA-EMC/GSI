@@ -300,7 +300,7 @@ contains
     use mpimod,  only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2
-    use guess_grids, only: nfldsig,ntguessig
+    use guess_grids, only: nfldsig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -1298,14 +1298,14 @@ contains
 ! !USES:
     use kinds, only: r_kind,i_kind
     
-    use constants, only: r1000,fv,one,zero
+    use constants, only: r1000,fv,one,zero,qcmin
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: npe
     
-    use guess_grids, only: ntguessig, ifilesig
+    use guess_grids, only: ifilesig
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
@@ -1394,7 +1394,7 @@ contains
 
 !   Single task writes analysis data to analysis file
     if (mype==mype_out) then
-       write(fname_ges,'(''sigf'',i2.2)') ifilesig(ntguessig)
+       write(fname_ges,'(''sigf'',i2.2)') ifilesig(ibin)
 !
 !      Read header information from first guess file.
        call nemsio_init(iret)
@@ -1807,7 +1807,7 @@ contains
                 do kk=1,grd%iglobal
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
-                   grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+                   grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
                 end do
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                 do j=1,latb
