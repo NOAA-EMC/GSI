@@ -34,7 +34,7 @@
         sigio_rrdbti,sigio_rwdbti,sigio_rwopen,sigio_rclose,sigio_aldbti
     use sigio_module, only: sigio_head,sigio_alhead
     use general_sub2grid_mod, only: sub2grid_info
-    use guess_grids, only: ntguessig,ifilesig
+    use guess_grids, only: ifilesig
     use obsmod, only: iadate
     use mpimod, only: npe
     use general_specmod, only: spec_vars
@@ -93,7 +93,7 @@
     lloop=.true.
  
 !   Set guess file name
-    write(fname_ges,100) ifilesig(ntguessig)
+    write(fname_ges,100) ifilesig(ibin)
 100    format('sigf',i2.2)
 !   Handle case of NCEP SIGIO
 
