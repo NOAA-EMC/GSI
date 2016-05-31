@@ -1,7 +1,7 @@
 subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_rars,nrec_start_DB,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_iasi                  read bufr format iasi data
@@ -88,7 +88,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
-!     nrec_start_rars - first rars subset with useful information
+!     nrec_start_ears - first ears subset with useful information
 !     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
@@ -125,7 +125,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR format for IASISPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_rars,nrec_start_DB
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_ears,nrec_start_DB
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -386,19 +386,19 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   irec=0
   nrec=999999
 ! Big loop over standard data feed and possible rars/db data
-! llll=1 is normal feed, llll=2 RARS data, llll=3 DB/UW data)
-  rars_db_loop: do llll= 1, 3
+! llll=1 is normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data)
+  ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle rars_db_loop
+        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_rars <= 0 ) cycle rars_db_loop
-        nrec_startx=nrec_start_rars
-        infile2=trim(infile)//'rars' ! Set bufr subset names based on type of data to read
+        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start_ears
+        infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
+        if ( nrec_start_DB <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_DB
         infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
      end if
@@ -798,7 +798,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      call closbf(lnbufr)
 
-  end do rars_db_loop
+  end do ears_db_loop
 
   deallocate(temperature, allchan, bufr_chan_test)
   deallocate(channel_number,sc_index)
