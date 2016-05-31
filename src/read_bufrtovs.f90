@@ -2,7 +2,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub, nobs, &
-     nrec_start,nrec_start_rars,nrec_start_DB,nrec_start_ears,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bufrtovs                  read bufr tovs 1b data
@@ -108,9 +108,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !     mpi_comm_sub - sub-communicator for data read
 !     dval_use - logical for using dval
 !     nrec_start - first subset with useful information
-!     nrec_start_rars - first rars subset with useful information
-!     nrec_start_DB - first db subset with useful information
 !     nrec_start_ears - first ears subset with useful information
+!     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR TOVS 1b observations read
@@ -151,7 +150,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
-  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_rars,nrec_start_ears,nrec_start_DB
+  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_DB
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
@@ -466,28 +465,23 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   next=0
   irec=0
 ! Big loop over standard data feed and possible ears/db data
-! llll=1 is normal feed, llll=2 RARS data, llll=3 DB/UW data, llll=4 EARS data)
-  rars_db_loop: do llll= 1, 4
+! llll=1 is normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data)
+  ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle rars_db_loop
+        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_rars <= 0 ) cycle rars_db_loop
-        nrec_startx=nrec_start_rars
-        infile2=trim(infile)//'rars' ! Set bufr subset names based on type of data to read
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle rars_db_loop
-     elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
-        nrec_startx=nrec_start_DB
-        infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle rars_db_loop
-     elseif(llll == 4) then
-        if ( nrec_start_ears <= 0 ) cycle rars_db_loop
+        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle rars_db_loop
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
+     elseif(llll == 3) then
+        if ( nrec_start_DB <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start_DB
+        infile2=trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
      end if
 
 !    Reopen unit to satellite bufr file
@@ -938,7 +932,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
      end if
 
-  end do rars_db_loop
+  end do ears_db_loop
   deallocate(data1b8,data1b4)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

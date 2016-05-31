@@ -2,7 +2,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_rars,nrec_start_DB,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_atms                  read atms 1b data
@@ -51,7 +51,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
-!     nrec_start_rars - first rars subset with useful information
+!     nrec_start_ears - first ears subset with useful information
 !     nrec_start_DB - first db subset with useful information
 !
 !   output argument list:
@@ -89,7 +89,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
-  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_rars,nrec_start_DB
+  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_DB
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
@@ -336,19 +336,19 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   iob=1
 ! Big loop over standard data feed and possible rars/db data
-! llll=1 normal feed, llll=2 RARS data, llll=3 DB/UW data
-  rars_db_loop: do llll= 1, 3
+! llll=1 normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data
+  ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle rars_db_loop
+        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_rars <= 0 ) cycle rars_db_loop
-        nrec_startx = nrec_start_rars
-        infile2 = trim(infile)//'rars' ! Set bufr subset names based on type of data to read
+        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
+        nrec_startx = nrec_start_ears
+        infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle rars_db_loop
+        if ( nrec_start_DB <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_DB
         infile2 = trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
      end if
@@ -377,7 +377,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            solzen     => solzen_save(iob)
            solazi     => solazi_save(iob)
 
-!          inflate selection value for rars_db data
+!          inflate selection value for ears_db data
            crit1 = zero
            if ( llll > 1 ) crit1 = 200.0_r_kind
 
@@ -466,7 +466,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         end do read_loop
      end do read_subset
      call closbf(lnbufr)
-  end do rars_db_loop
+  end do ears_db_loop
 
   num_obs = iob-1
 
