@@ -311,9 +311,6 @@ delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
 if (.not. letkf_flag .and. numiter < 1) numiter = 1
-! simple_partition should be true for LETKF
-! (partitioning in ob space only used for serial filter)
-if (letkf_flag .and. .not. simple_partition) simple_partition=.true.
 
 if (nproc == 0) then
 
