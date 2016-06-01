@@ -362,6 +362,8 @@ subroutine write_to_disk(statstr)
    call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, cw '//trim(filenameout) )
    call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
 
+   write(6,'(3a,i5)')'Wrote netcdf4 ',trim(filenameout)
+
    return
 
 end subroutine write_to_disk
