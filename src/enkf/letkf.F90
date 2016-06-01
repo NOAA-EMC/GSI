@@ -97,7 +97,8 @@ use constants, only: pi, one, zero, rad2deg, deg2rad
 use params, only: sprd_tol, ndim, datapath, nanals, iseed_perturbed_obs,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,letkf_novlocal,&
-                  corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds,nobsl_max
+                  lupd_obspace_serial,corrlengthnh,corrlengthtr,corrlengthsh,&
+                  nbackgrounds,nobsl_max
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd,logp,npts,gridloc
@@ -290,12 +291,12 @@ else
    ! need to be computed for every vertical level.
    nnmax = nlevs_pres
 endif
-! is observation space update requested (yes if numiter !=0)?
+! is observation space update requested (yes if numiter !=0 and not lupd_obspace_serial)
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
 ! point and level will be used to update for the model state and the
 ! observation priors.
-if (numiter == 0) then
+if (numiter == 0 .or. lupd_obspace_serial) then
   update_obspace = .false.
   if (nproc == 0) print *,'no observation space update will be done'
   numiter = 1
