@@ -405,6 +405,7 @@ clean:
 	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
         native_endianness.f90 \
+	netcdf_mod.f90 \
 	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \

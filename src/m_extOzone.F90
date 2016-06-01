@@ -377,14 +377,10 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
                          gstime,twind, nreal,nchan,ilat,ilon,ithin,rmesh)
 !..................................................................................
 
-  use netcdf, only: nf90_open
-  use netcdf, only: nf90_nowrite
-  use netcdf, only: nf90_noerr
-  use netcdf, only: nf90_inq_dimid
-  use netcdf, only: nf90_inquire_dimension
-  use netcdf, only: nf90_inq_varid
-  use netcdf, only: nf90_get_var
-  use netcdf, only: nf90_close
+  use netcdf, only: nf90_open,nf90_close
+  use netcdf, only: nf90_nowrite,nf90_noerr
+  use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
+  use netcdf, only: nf90_inq_varid,nf90_get_var
 
   use satthin, only: satthin_itxmax       => itxmax
   use satthin, only: satthin_makegrids    => makegrids
@@ -397,6 +393,8 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   use obsmod, only: nloz_omi
 
   use constants, only: deg2rad,zero,rad2deg,r60inv
+
+  use netcdf_mod, only: nc_check
 !  use mpeu_util, only: mprefix,stdout
 
   implicit none
@@ -461,33 +459,33 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
      nodata = 0
      ndata  = 0
 
-     call check(nf90_open(trim(dfile),nf90_nowrite,ncid),stat=ier)
+     call nc_check(nf90_open(trim(dfile),nf90_nowrite,ncid),myname_,'open '//trim(dfile),stat=ier)
 
      ! ignore if the file is not actually present.
      if(ier/=nf90_noerr) go to 136
 
      ! Get dimensions from OMI input file
-     call check(nf90_inq_dimid(ncid, "nrec", nrecDimId),stat=ier)
+     call nc_check(nf90_inq_dimid(ncid, "nrec", nrecDimId),myname_,'inq_dimid nrec '//trim(dfile),stat=ier)
 
      ! ignore if the file header is empty
      if(ier/=nf90_noerr) then
-        call check(nf90_close(ncid),stat=ier)
+        call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile),stat=ier)
         go to 136
      endif
 
      ! Get dimensions from OMI/TOMS input file
 !!!!     nmrecs=0
-     call check(nf90_inquire_dimension(ncid, nrecDimId, len = nmrecs),stat=ier)
+     call nc_check(nf90_inquire_dimension(ncid, nrecDimId, len = nmrecs),myname_,'inquire_dimension nrec '//trim(dfile),stat=ier)
 
      ! ignore if the file header is empty
      if(ier/=nf90_noerr .or. nmrecs==0) then
-        call check(nf90_close(ncid),stat=ier)
+        call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile),stat=ier)
         go to 136
      endif
 
      ! Continue the input
-     call check(nf90_inq_dimid(ncid, "nlevs", nomilevsDimId))
-     call check(nf90_inquire_dimension(ncid, nomilevsDimId, len = nomilevs))
+     call nc_check(nf90_inq_dimid(ncid, "nlevs", nomilevsDimId),myname_,'inq_dimid nlevs '//trim(dfile))
+     call nc_check(nf90_inquire_dimension(ncid, nomilevsDimId, len = nomilevs),myname_,'inquire_dimension nlevs '//trim(dfile))
      
      ! We have dimensions so we can allocate arrays
      allocate(iya(nmrecs),ima(nmrecs),idda(nmrecs),ihha(nmrecs),imina(nmrecs), &
@@ -496,53 +494,53 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
      allocate(aprioria(nomilevs,nmrecs),efficiencya(nomilevs,nmrecs))
 
      ! Read variables and store them in these arrays
-     call check(nf90_inq_varid(ncid, "lon", lonVarId))
-     call check(nf90_get_var(ncid, lonVarId, slonsa))
+     call nc_check(nf90_inq_varid(ncid, "lon", lonVarId),myname_,'inq_varid lon '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, lonVarId, slonsa),myname_,'get_var lon '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "lat", latVarId))
-     call check(nf90_get_var(ncid, latVarId, slatsa))
+     call nc_check(nf90_inq_varid(ncid, "lat", latVarId),myname_,'inq_varid lat '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, latVarId, slatsa),myname_,'get_var lat '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "yy", yyVarId))
-     call check(nf90_get_var(ncid, yyVarId, iya))
+     call nc_check(nf90_inq_varid(ncid, "yy", yyVarId),myname_,'inq_varid yy '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, yyVarId, iya),myname_,'get_var yy '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "mm", mmVarId))
-     call check(nf90_get_var(ncid, mmVarId, ima))
+     call nc_check(nf90_inq_varid(ncid, "mm", mmVarId),myname_,'inq_varid mm '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, mmVarId, ima),myname_,'get_var mm '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "dd", ddVarId))
-     call check(nf90_get_var(ncid, ddVarId, idda))
+     call nc_check(nf90_inq_varid(ncid, "dd", ddVarId),myname_,'inq_varid dd '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, ddVarId, idda),myname_,'get_var dd '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "hh", hhVarId))
-     call check(nf90_get_var(ncid, hhVarId, ihha))
+     call nc_check(nf90_inq_varid(ncid, "hh", hhVarId),myname_,'inq_varid hh '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, hhVarId, ihha),myname_,'get_var hh '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "min", minVarId))
-     call check(nf90_get_var(ncid, minVarId, imina))
+     call nc_check(nf90_inq_varid(ncid, "min", minVarId),myname_,'inq_varid min '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, minVarId, imina),myname_,'get_var min '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "ss", ssVarId))
-     call check(nf90_get_var(ncid, ssVarId, rseca))
+     call nc_check(nf90_inq_varid(ncid, "ss", ssVarId),myname_,'inq_varid ss '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, ssVarId, rseca),myname_,'get_var ss '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "fov", fovnVarId))
-     call check(nf90_get_var(ncid, fovnVarId, fovna))
+     call nc_check(nf90_inq_varid(ncid, "fov", fovnVarId),myname_,'inq_varid fov '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, fovnVarId, fovna),myname_,'get_var fov '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "sza", szaVarId))
-     call check(nf90_get_var(ncid, szaVarId, szaa))
+     call nc_check(nf90_inq_varid(ncid, "sza", szaVarId),myname_,'inq_varid sza '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, szaVarId, szaa),myname_,'get_var sza '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "toqf", toqfVarId))
-     call check(nf90_get_var(ncid, toqfVarId, toqfa))
+     call nc_check(nf90_inq_varid(ncid, "toqf", toqfVarId),myname_,'inq_varid toqf '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, toqfVarId, toqfa),myname_,'get_var toqf '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "alqf", alqfVarId))
-     call check(nf90_get_var(ncid, alqfVarId, alqfa))
+     call nc_check(nf90_inq_varid(ncid, "alqf", alqfVarId),myname_,'inq_varid alqf '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, alqfVarId, alqfa),myname_,'get_var alqf '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "toz", totozVarId))
-     call check(nf90_get_var(ncid, totozVarId, totoza))
+     call nc_check(nf90_inq_varid(ncid, "toz", totozVarId),myname_,'inq_varid toz '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, totozVarId, totoza),myname_,'get_var toz '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "apriori", aprioriVarId))
-     call check(nf90_get_var(ncid, aprioriVarId, aprioria))
+     call nc_check(nf90_inq_varid(ncid, "apriori", aprioriVarId),myname_,'inq_varid apriori '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, aprioriVarId, aprioria),myname_,'get_var apriori '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "efficiency", efficiencyVarId))
-     call check(nf90_get_var(ncid, efficiencyVarId, efficiencya))
+     call nc_check(nf90_inq_varid(ncid, "efficiency", efficiencyVarId),myname_,'inq_varid efficiency '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, efficiencyVarId, efficiencya),myname_,'get_var efficiency '//trim(dfile))
 
      ! close the data file
-     call check(nf90_close(ncid))
+     call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile))
      
      ! now screen the data and put them into the right places
      do irec = 1, nmrecs
@@ -737,14 +735,10 @@ end subroutine ozlev_ncInquire_
 !..................................................................................
 subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gstime,twind, nreal,nchan,ilat,ilon)
 !..................................................................................
-  use netcdf, only: nf90_open
-  use netcdf, only: nf90_nowrite
-  use netcdf, only: nf90_noerr
-  use netcdf, only: nf90_inq_dimid
-  use netcdf, only: nf90_inquire_dimension
-  use netcdf, only: nf90_inq_varid
-  use netcdf, only: nf90_get_var
-  use netcdf, only: nf90_close
+  use netcdf, only: nf90_open,nf90_close
+  use netcdf, only: nf90_nowrite,nf90_noerr
+  use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
+  use netcdf, only: nf90_inq_varid,nf90_get_var
 
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
@@ -752,6 +746,7 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
   use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   use mpeu_util, only: perr,die
+  use netcdf_mod, only: nc_check
 !  use mpeu_util, only: mprefix,stdout
 
   implicit none
@@ -814,33 +809,33 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
      ! ---------------MLS NRT NetCDF -----------------------------
      ! Process MLS o3lev in NetCDF format
      ! Open file and read dimensions
-     call check(nf90_open(trim(dfile),nf90_nowrite,ncid),stat=ier)
+     call nc_check(nf90_open(trim(dfile),nf90_nowrite,ncid),myname_,'open '//trim(dfile),stat=ier)
 
      ! ignore if the file is not actually present.
      if(ier/=nf90_noerr) return ! go to 170
    
      ! Get dimensions from OMI input file
-     call check(nf90_inq_dimid(ncid, "nprofiles", nrecDimId),stat=ier)
+     call nc_check(nf90_inq_dimid(ncid, "nprofiles", nrecDimId),myname_,'inq_dimid nprofiles '//trim(dfile),stat=ier)
 
      ! ignore if the file header is empty
      if(ier/=nf90_noerr) then
-        call check(nf90_close(ncid),stat=ier)
+        call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile),stat=ier)
         return ! go to 170
      endif
 
      ! Get dimensions from MLS input file: # of profiles and # of levels
      nprofs=0
-     call check(nf90_inquire_dimension(ncid, nrecDimId, len = nprofs),stat=ier)
+     call nc_check(nf90_inquire_dimension(ncid, nrecDimId, len = nprofs),myname_,'inquire_dimension nprofiles '//trim(dfile),stat=ier)
 
      ! ignore if the file header is empty
      if(ier/=nf90_noerr .or. nprofs==0) then
-        call check(nf90_close(ncid),stat=ier)
+        call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile),stat=ier)
         return ! go to 170
      endif
 
      ! Continue the input
-     call check(nf90_inq_dimid(ncid, "nlevs", mlslevsDimId))
-     call check(nf90_inquire_dimension(ncid, mlslevsDimId, len = mlslevs))
+     call nc_check(nf90_inq_dimid(ncid, "nlevs", mlslevsDimId),myname_,'inq_dimid nlevs '//trim(dfile))
+     call nc_check(nf90_inquire_dimension(ncid, mlslevsDimId, len = mlslevs),myname_,'inquire_dimension nlevs '//trim(dfile))
 
      !  NOTE: Make sure that 'ozinfo' has the same number of levels
      ! for NRT it is 55
@@ -862,47 +857,47 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
           mlserr(mlslevs,nprofs),mlsqual(nprofs), mlsconv(nprofs), mlspress(mlslevs))
 
      ! Read variables and store them in these arrays
-     call check(nf90_inq_varid(ncid, "lon", lonVarId))
-     call check(nf90_get_var(ncid, lonVarId, slonsa))
+     call nc_check(nf90_inq_varid(ncid, "lon", lonVarId),myname_,'inq_varid lon '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, lonVarId, slonsa),myname_,'get_var lon '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "lat", latVarId))
-     call check(nf90_get_var(ncid, latVarId, slatsa))
+     call nc_check(nf90_inq_varid(ncid, "lat", latVarId),myname_,'inq_varid lat '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, latVarId, slatsa),myname_,'get_var lat '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "yy", yyVarId))
-     call check(nf90_get_var(ncid, yyVarId, iya))
+     call nc_check(nf90_inq_varid(ncid, "yy", yyVarId),myname_,'inq_varid yy '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, yyVarId, iya),myname_,'get_var yy '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "mm", mmVarId))
-     call check(nf90_get_var(ncid, mmVarId, ima))
+     call nc_check(nf90_inq_varid(ncid, "mm", mmVarId),myname_,'inq_varid mm '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, mmVarId, ima),myname_,'get_var mm '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "dd", ddVarId))
-     call check(nf90_get_var(ncid, ddVarId, idda))
+     call nc_check(nf90_inq_varid(ncid, "dd", ddVarId),myname_,'inq_varid dd '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, ddVarId, idda),myname_,'get_var dd '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "hh", hhVarId))
-     call check(nf90_get_var(ncid, hhVarId, ihha))
+     call nc_check(nf90_inq_varid(ncid, "hh", hhVarId),myname_,'inq_varid hh '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, hhVarId, ihha),myname_,'get_var hh '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "min", minVarId))
-     call check(nf90_get_var(ncid, minVarId, imina))
+     call nc_check(nf90_inq_varid(ncid, "min", minVarId),myname_,'inq_varid min '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, minVarId, imina),myname_,'get_var min '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "ss", ssVarId))
-     call check(nf90_get_var(ncid, ssVarId, iseca))
+     call nc_check(nf90_inq_varid(ncid, "ss", ssVarId),myname_,'inq_varid ss '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, ssVarId, iseca),myname_,'get_var ss '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "press", pressVarId))
-     call check(nf90_get_var(ncid, pressVarId, mlspress))
+     call nc_check(nf90_inq_varid(ncid, "press", pressVarId),myname_,'inq_varid press '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, pressVarId, mlspress),myname_,'get_var press '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "conv", convVarId))
-     call check(nf90_get_var(ncid, convVarId, mlsconv))
+     call nc_check(nf90_inq_varid(ncid, "conv", convVarId),myname_,'inq_varid conv '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, convVarId, mlsconv),myname_,'get_var conv '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "qual", qualVarId))
-     call check(nf90_get_var(ncid, qualVarId, mlsqual))
+     call nc_check(nf90_inq_varid(ncid, "qual", qualVarId),myname_,'inq_varid qual '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, qualVarId, mlsqual),myname_,'get_var qual '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "oberr", mlserrVarId))
-     call check(nf90_get_var(ncid, mlserrVarId, mlserr))
+     call nc_check(nf90_inq_varid(ncid, "oberr", mlserrVarId),myname_,'inq_varid oberr '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, mlserrVarId, mlserr),myname_,'get_var oberr '//trim(dfile))
 
-     call check(nf90_inq_varid(ncid, "ozone", mlsozoneVarId))
-     call check(nf90_get_var(ncid, mlsozoneVarId, mlsozone))
+     call nc_check(nf90_inq_varid(ncid, "ozone", mlsozoneVarId),myname_,'inq_varid ozone '//trim(dfile))
+     call nc_check(nf90_get_var(ncid, mlsozoneVarId, mlsozone),myname_,'get_var ozone '//trim(dfile))
 
      ! close the data file
-     call check(nf90_close(ncid))
+     call nc_check(nf90_close(ncid),myname_,'close '//trim(dfile))
      
      ! 'Unpack' the data
      nmrecs = 0
@@ -1325,26 +1320,4 @@ subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
 
 end subroutine ozlev_bufrread_
 
-!..................................................................................
-  subroutine check(status,stat)
-!..................................................................................
-    use netcdf, only: nf90_noerr
-    use netcdf, only: nf90_strerror
-    use mpeu_util, only: die,perr,warn
-    implicit none
-    integer, intent (in) :: status
-    integer, optional, intent(out):: stat
-    character(len=*),parameter:: myname_=myname//'::check'
-
-    if(present(stat)) stat=status
-
-    if(status /= nf90_noerr) then 
-      if(present(stat)) then
-        call warn(myname_,'ignored, nf90_strerror =',trim(nf90_strerror(status)))
-      else
-        call perr(myname_,'nf90_strerror =',trim(nf90_strerror(status)))
-        call die(myname_)
-      endif
-    endif
-  end subroutine check
 end module m_extOzone
