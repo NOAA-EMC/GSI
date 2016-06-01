@@ -96,7 +96,7 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
 use constants, only: pi, one, zero, rad2deg, deg2rad
 use params, only: sprd_tol, ndim, datapath, nanals, iseed_perturbed_obs,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
-                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,&
+                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,letkf_novlocal,&
                   corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds,nobsl_max
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
@@ -278,7 +278,7 @@ if (nproc .eq. 0) print *,'time to broadcast ob prior ensemble = ',t2-t1
 if (nproc .eq. 0 .and. .not. deterministic) then
    print *,'perturbed obs LETKF'
 endif
-if (minval(lnsigl) > 1.e3) then
+if (minval(lnsigl) > 1.e3 .or. letkf_novlocal) then
    vlocal = .false.
    if (nproc == 0) print *,'no vertical localization in LETKF'
    ! if no vertical localization, weights
