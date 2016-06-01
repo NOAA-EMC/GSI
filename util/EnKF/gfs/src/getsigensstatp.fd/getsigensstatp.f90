@@ -85,8 +85,8 @@ program getsigensstatp
         write(6,'(2a)')' datapath      = ',trim(datapath)
         write(6,'(2a)')' fileprefix    = ',trim(filepref)
         write(6,'(2a)')' nanals        = ',trim(charnanal)
-        write(6,'(3a)')' emean fileout = ',trim(adjustl(filepref))//'_ensmean'
-        write(6,'(3a)')' esprd fileout = ',trim(adjustl(filepref))//'_ensspread'
+        write(6,'(3a)')' emean fileout = ',trim(adjustl(filepref))//'_ensmean.nc4'
+        write(6,'(3a)')' esprd fileout = ',trim(adjustl(filepref))//'_ensspread.nc4'
         write(6,'(1a)')' '
     endif
 
