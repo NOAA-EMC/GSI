@@ -39,9 +39,9 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 
-echo SUFFIX    = ${SUFFIX}
+echo RADMON_SUFFIX    = ${RADMON_SUFFIX}
 
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
@@ -114,13 +114,13 @@ export PLOT=1
 #--------------------------------------------------------------------
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
+   running=`bjobs -l | grep plot_${RADMON_SUFFIX} | wc -l` 
 else
-   running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+   running=`showq -n -u ${LOGNAME} | grep plot_${RADMON_SUFFIX} | wc -l`
 fi
 
 if [[ $running -ne 0 ]]; then
-   echo "Plot jobs still running for $SUFFIX, must exit"
+   echo "Plot jobs still running for $RADMON_SUFFIX, must exit"
    exit
 fi
 
@@ -129,7 +129,7 @@ fi
 #  Create tmpdir and LOGdir
 #--------------------------------------------------------------------
 
-tmpdir=${STMP_USER}/plot_rad${SUFFIX}
+tmpdir=${STMP_USER}/plot_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -175,7 +175,7 @@ export PDY=`echo $PDATE|cut -c1-8`
 #--------------------------------------------------------------------
 proceed="NO"
 if [[ "$PRODATE" == "auto" ]]; then
-   proceed=`${IG_SCRIPTS}/confirm_data.sh ${SUFFIX} ${PDATE}`
+   proceed=`${IG_SCRIPTS}/confirm_data.sh ${RADMON_SUFFIX} ${PDATE}`
 elif [[ $PDATE -le $PRODATE ]]; then
    nfile_src=`ls -l ${TANKDIR}/radmon.${PDY}/*${PDATE}*ieee_d* | egrep -c '^-'` 
    if [[ $nfile_src -gt 0 ]]; then
@@ -276,7 +276,7 @@ fi
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=${RADSTAT_LOCATION}
 
-   jobname="plot_horiz_${SUFFIX}"
+   jobname="plot_horiz_${RADMON_SUFFIX}"
    logfile="${LOGdir}/horiz.log"
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
