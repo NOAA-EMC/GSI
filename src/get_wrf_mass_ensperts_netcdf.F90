@@ -359,28 +359,43 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
     allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
     allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
-    call nc_check( nf90_open(trim(filename),nf90_nowrite,file_id),myname_,'open '//trim(filename) )
+    call nc_check( nf90_open(trim(filename),nf90_nowrite,file_id),&
+        myname_,'open '//trim(filename) )
 !
 ! WRF FILE DIMENSIONS
-    call nc_check( nf90_inq_dimid(file_id,'Time',Time_id),myname_,'inq_dimid Time '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'south_north',s_n_id),myname_,'inq_dimid south_north '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'west_east',w_e_id),myname_,'inq_dimid west_east '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'bottom_top',b_t_id),myname_,'inq_dimid bottom_top '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'south_north_stag',s_n_stag_id),myname_,'inq_dimid south_north_stag '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'west_east_stag',w_e_stag_id),myname_,'inq_dimid west_east_stag '//trim(filename) )
-    call nc_check( nf90_inq_dimid(file_id,'bottom_top_stag',b_t_stag_id),myname_,'inq_dimid bottom_top_stag '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'Time',Time_id),&
+        myname_,'inq_dimid Time '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'south_north',s_n_id),&
+        myname_,'inq_dimid south_north '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'west_east',w_e_id),&
+        myname_,'inq_dimid west_east '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'bottom_top',b_t_id),&
+        myname_,'inq_dimid bottom_top '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'south_north_stag',s_n_stag_id),&
+        myname_,'inq_dimid south_north_stag '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'west_east_stag',w_e_stag_id),&
+        myname_,'inq_dimid west_east_stag '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'bottom_top_stag',b_t_stag_id),&
+        myname_,'inq_dimid bottom_top_stag '//trim(filename) )
 
     d_max=max(Time_id, s_n_id, w_e_id, b_t_id, s_n_stag_id, w_e_stag_id, b_t_stag_id)
     allocate(dim(d_max))
     dim(:)=-999
 
-    call nc_check( nf90_inquire_dimension(file_id,Time_id,len=Time_len),myname_,'inquire_dimension Time '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,s_n_id,len=s_n_len),myname_,'inquire_dimension south_north '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,w_e_id,len=w_e_len),myname_,'inquire_dimension west_east '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,b_t_id,len=b_t_len),myname_,'inquire_dimension bottom_top '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,s_n_stag_id,len=s_n_stag_len),myname_,'inquire_dimension south_north_stag '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,w_e_stag_id,len=w_e_stag_len),myname_,'inquire_dimension west_east_stag '//trim(filename) )
-    call nc_check( nf90_inquire_dimension(file_id,b_t_stag_id,len=b_t_stag_len),myname_,'inquire_dimension bottom_top_stag '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,Time_id,len=Time_len),&
+        myname_,'inquire_dimension Time '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,s_n_id,len=s_n_len),&
+        myname_,'inquire_dimension south_north '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,w_e_id,len=w_e_len),&
+        myname_,'inquire_dimension west_east '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,b_t_id,len=b_t_len),&
+        myname_,'inquire_dimension bottom_top '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,s_n_stag_id,len=s_n_stag_len),&
+        myname_,'inquire_dimension south_north_stag '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,w_e_stag_id,len=w_e_stag_len),&
+        myname_,'inquire_dimension west_east_stag '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,b_t_stag_id,len=b_t_stag_len),&
+        myname_,'inquire_dimension bottom_top_stag '//trim(filename) )
 
     nx=w_e_len
     ny=s_n_len
@@ -401,15 +416,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ PERTURBATION POTENTIAL TEMPERATURE (K)
 !    print *, 'read T ',filename
-    call nc_check( nf90_inq_varid(file_id,'T',var_id),myname_,'inq_varid T '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'T',var_id),&
+        myname_,'inq_varid T '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable T '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable T '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable T '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable T '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_3d),myname_,'get_var T '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var T '//trim(filename) )
     allocate(tsn(dim(dim_id(2)),dim(dim_id(1)),dim(dim_id(3))))
     tsn = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
     deallocate(temp_3d)
@@ -417,41 +436,53 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 
 !  READ MU, MUB, P_TOP  (construct psfc as done in gsi--gives different result compared to PSFC)
 
-    call nc_check( nf90_inq_varid(file_id,'P_TOP',var_id),myname_,'inq_varid P_TOP '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'P_TOP',var_id),&
+        myname_,'inq_varid P_TOP '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable P_TOP '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable P_TOP '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable P_TOP '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable P_TOP '//trim(filename) )
     allocate(temp_1d(dim(dim_id(1))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_1d),myname_,'get_var P_TOP '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_1d),&
+        myname_,'get_var P_TOP '//trim(filename) )
     allocate(p_top(dim(dim_id(1))))
     do i=1,dim(dim_id(1))
        p_top(i)=temp_1d(i)
     enddo
     deallocate(dim_id)
 
-    call nc_check( nf90_inq_varid(file_id,'MUB',var_id),myname_,'inq_varid MUB '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'MUB',var_id),&
+        myname_,'inq_varid MUB '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable MUB '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable MUB '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable MUB '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable MUB '//trim(filename) )
     allocate(temp_2d(dim(dim_id(1)),dim(dim_id(2))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_2d),myname_,'get_var MUB '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_2d),&
+        myname_,'get_var MUB '//trim(filename) )
     deallocate(dim_id)
 
-    call nc_check( nf90_inq_varid(file_id,'MU',var_id),myname_,'inq_varid MU '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'MU',var_id),&
+        myname_,'inq_varid MU '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable MU '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable MU '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable MU '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable MU '//trim(filename) )
     allocate(temp_2d2(dim(dim_id(1)),dim(dim_id(2))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_2d2),myname_,'get_var MU '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_2d2),&
+        myname_,'get_var MU '//trim(filename) )
 
     do j=1,dim(dim_id(2))
        do i=1,dim(dim_id(1))
@@ -465,15 +496,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ U (m/s)
     !print *, 'read U ',filename
-    call nc_check( nf90_inq_varid(file_id,'U',var_id),myname_,'inq_varid U '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'U',var_id),&
+        myname_,'inq_varid U '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable U '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable U '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable U '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable U '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_3d),myname_,'get_var U '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var U '//trim(filename) )
 !
 ! INTERPOLATE TO MASS GRID
     do k=1,dim(dim_id(3))
@@ -488,15 +523,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ V (m/s)
     !print *, 'read V ',filename
-    call nc_check( nf90_inq_varid(file_id,'V',var_id),myname_,'inq_varid V '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'V',var_id),&
+        myname_,'inq_varid V '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable V '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable V '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable V '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable V '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_3d),myname_,'get_var V '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var V '//trim(filename) )
 !
 ! INTERPOLATE TO MASS GRID
     do k=1,dim(dim_id(3))
@@ -513,20 +552,25 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ QVAPOR (kg/kg)
     !print *, 'read QVAPOR ',filename
-    call nc_check( nf90_inq_varid(file_id,'QVAPOR',var_id),myname_,'inq_varid QVAPOR '//trim(filename) )
+    call nc_check( nf90_inq_varid(file_id,'QVAPOR',var_id),&
+        myname_,'inq_varid QVAPOR '//trim(filename) )
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),myname_,'inquire_variable QVAPOR '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable QVAPOR '//trim(filename) )
     allocate(dim_id(ndim))
 
-    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),myname_,'inquire_variable QVAPOR '//trim(filename) )
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable QVAPOR '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    call nc_check( nf90_get_var(file_id,var_id,temp_3d),myname_,'get_var QVAPOR '//trim(filename) )
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var QVAPOR '//trim(filename) )
     gg_rh = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
     deallocate(temp_3d)
     deallocate(dim_id,dim)
 
-    call nc_check( nf90_close(file_id),myname_,'close '//trim(filename) )
+    call nc_check( nf90_close(file_id),&
+        myname_,'close '//trim(filename) )
 !
 ! CALCULATE TOTAL POTENTIAL TEMPERATURE (K)
     !print *, 'calculate total temperature ',filename
