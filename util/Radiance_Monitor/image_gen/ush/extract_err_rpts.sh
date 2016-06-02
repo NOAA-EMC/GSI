@@ -53,7 +53,7 @@ if [[ $nodiag = "" ]]; then
       diag_end=`echo $end | sed 's/:/ /2' | gawk '{print $9}'`
       diag_end=`expr $diag_end - 1`
 
-      echo "Source = ${SUFFIX}" >> $err_rpt
+      echo "Source = ${RADMON_SUFFIX}" >> $err_rpt
       echo " " >> $err_rpt
       gawk "NR>=$diag_start && NR<=$diag_end" $file >> $err_rpt
       echo " " >> $err_rpt
@@ -75,7 +75,7 @@ if [[ $noerr = "" ]]; then
       data_end=`expr $data_end - 1`
 
       if [[ ! data_start = "" && ! data_end = "" ]]; then
-         echo "Source = ${SUFFIX}" >> $err_rpt
+         echo "Source = ${RADMON_SUFFIX}" >> $err_rpt
          gawk "NR>=$data_start && NR<=$data_end" $file >> $err_rpt
       fi
    fi
@@ -84,9 +84,9 @@ if [[ $noerr = "" ]]; then
    #  change the links in $err_rpt to point to the correct suffix
    #  (opr) is hard-coded in the links in the error report at the moment
    if [[ $RAD_AREA = "rgn" ]]; then
-      sed "s/\/opr\//\/regional\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+      sed "s/\/opr\//\/regional\/${RADMON_SUFFIX}\//g"  $err_rpt > tmp.txt
    else
-      sed "s/\/opr\//\/${SUFFIX}\//g"  $err_rpt > tmp.txt
+      sed "s/\/opr\//\/${RADMON_SUFFIX}\//g"  $err_rpt > tmp.txt
    fi
    rm -f $err_rpt
    mv -f tmp.txt $err_rpt

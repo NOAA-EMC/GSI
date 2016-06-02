@@ -13,6 +13,9 @@ export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
+##################################
+# specify radmon utilities
+##################################
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 export COMPRESS=${COMPRESS:-gzip}
 export UNCOMPRESS=${UNCOMPRESS:-gunzip}

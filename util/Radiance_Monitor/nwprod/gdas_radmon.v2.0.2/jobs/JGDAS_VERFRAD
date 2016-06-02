@@ -25,6 +25,8 @@ export jobid=${jobid:-"${outid}.o${pid}"}
 export DATAROOT=${DATAROOT:-/tmpnwprod2}
 export DATA=${DATA:-${DATAROOT}/${jobid}}
 
+export RADMON_SUFFIX=${RADMON_SUFFIX:-${RUN}}
+
 mkdir -p $DATA
 cd $DATA
 
@@ -34,7 +36,6 @@ cd $DATA
 if [ $RUN_ENVIR = nco -a $envir != prod ]; then
   export SENDDBN=${SENDDBN:-NO}
 fi
-
 
 ####################################
 # File To Log Msgs
@@ -69,14 +70,14 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Execution Areas
 ##############################################
-export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.$gdas_ver}
+export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas_radmon.$gdas_ver}
 export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
 export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
 export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
-export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.${radmon_shared_ver}}
+export HOMEradmon=${HOMEradmon:-${NWROOT}/global_shared.${global_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
-export FIXradmon=${FIXradmon:-${FIXgdasradmon}}
+export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
@@ -89,18 +90,18 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-${utilscript}/setpdy.sh
-source ./PDY
+setpdy.sh
+. ./PDY
 
 
 #############################################
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export TANKverf=${TANKverf:-/com/verf/${envir}}
+export TANKverf=${TANKverf:-${COMROOT}/verf/${envir}}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
-export COM_IN=${COM_IN:-/com/${NET}/${envir}}
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
+export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}}
 
 mkdir -p -m 775 $TANKverf_rad
  

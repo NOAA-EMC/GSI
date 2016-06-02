@@ -97,7 +97,7 @@ done
 # submit plot job
 #
 
-jobname="plot_${SUFFIX}_bcoef"
+jobname="plot_${RADMON_SUFFIX}_bcoef"
 logfile="$LOGdir/plot_bcoef.log"
 rm ${logfile}
 
