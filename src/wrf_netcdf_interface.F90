@@ -2751,13 +2751,20 @@ subroutine update_netcdf_mass
   !
   !  reopen, update global attributes.
   !
-  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),myname_,'open: '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),myname_,'put_att:  START_DATE '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),myname_,'put_att: GMT '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),myname_,'put_att: JULYR'//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),myname_,'put_att: JULDAY'//trim(flnm1) )
-  call nc_check( nf90_close(dh1),myname_,'close: '//trim(flnm1) )
+  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),&
+      myname_,'open: '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(flnm1) )
+  call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(flnm1) )
 
 end subroutine update_netcdf_mass
 
@@ -3202,13 +3209,20 @@ subroutine update_netcdf_nmm
   !
   !  reopen, update global attributes.
   !
-  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),myname_,'open: '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),myname_,'put_att:  START_DATE '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),myname_,'put_att: GMT '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),myname_,'put_att: JULYR'//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),myname_,'put_att: JULDAY'//trim(flnm1) )
-  call nc_check( nf90_close(dh1),myname_,'close: '//trim(flnm1) )
+  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),&
+      myname_,'open: '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(flnm1) )
+  call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(flnm1) )
 
 end subroutine update_netcdf_nmm
 

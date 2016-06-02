@@ -40,8 +40,9 @@ OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
 
-INCnetcdf       = ${NETCDF}/include
-LIBnetcdf       = -L$(NETCDF)/lib -lnetcdff -lnetcdf
+NETCDFPATH = /apps/netcdf/4.3.0-intel
+INCnetcdf  = $(NETCDFPATH)/include
+LIBnetcdf  = -L$(NETCDFPATH)/lib -lnetcdff -lnetcdf
 
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf

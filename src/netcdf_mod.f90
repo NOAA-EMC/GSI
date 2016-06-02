@@ -18,10 +18,6 @@ module netcdf_mod
 ! program history log:
 !   2015-05-31  mahajan - initial version
 !
-!   input argument list: see Fortran 90 style document below
-!
-!   output argument list: see Fortran 90 style document below
-!
 ! attributes:
 !   language: Fortran 90 and/or above
 !   machine:
@@ -45,7 +41,13 @@ contains
 
 SUBROUTINE nc_check(ierr,subr_name,context,stat)
 
-   ! check for netcdf errors
+!  Trap for netcdf errors
+!  INPUT: 
+!       ierr - netcdf error return code
+!  subr_name - subroutine name that made the netcdf call
+!    context - what was the context of the call
+! OUTPUT: 
+!       stat - Return ierr and do not fatally fail, just warn
 
    use mpeu_util, only: die,perr,warn
 

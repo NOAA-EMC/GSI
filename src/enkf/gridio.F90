@@ -2424,13 +2424,20 @@ contains
     !
     write(DateStr,'(i4,"-",i2.2,"-",i2.2,"-",i2.2,"_",i2.2,":",i2.2)') iyear,imonth,iday,ihour,0,0
 
-    call nc_check( nf90_open(trim(filename),nf90_write,dh1),myname_,'open '//trim(filename) )
-    call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr)),myname_,'put_att:  START_DATE '//trim(filename) )
-    call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr)),myname_,'put_att:  SIMULATION_START_DATE '//trim(filename) )
-    call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),myname_,'put_att: GMT '//trim(filename) )
-    call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),myname_,'put_att: JULYR'//trim(filename) )
-    call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),myname_,'put_att: JULDAY'//trim(filename) )
-    call nc_check( nf90_close(dh1),myname_,'close: '//trim(filename) )
+    call nc_check( nf90_open(trim(filename),nf90_write,dh1),&
+        myname_,'open '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr)),&
+        myname_,'put_att:  START_DATE '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr)),&
+        myname_,'put_att:  SIMULATION_START_DATE '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+        myname_,'put_att: GMT '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+        myname_,'put_att: JULYR'//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+        myname_,'put_att: JULDAY'//trim(filename) )
+    call nc_check( nf90_close(dh1),&
+        myname_,'close: '//trim(filename) )
 
     !----------------------------------------------------------------------
 
