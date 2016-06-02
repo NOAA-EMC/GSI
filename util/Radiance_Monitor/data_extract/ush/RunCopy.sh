@@ -39,14 +39,14 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 START_DATE=$2
 END_DATE=$3
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 RAD_AREA=${RAD_AREA:-glb}
 
-echo SUFFIX     = $SUFFIX
+echo RADMON_SUFFIX     = $RADMON_SUFFIX
 echo START_DATE = $START_DATE
 echo END_DATE   = $END_DATE
 
@@ -146,9 +146,9 @@ while [[ $done -eq 0 ]]; do
    # Check for running jobs   
    #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
+      running=`bjobs -l | grep data_extract_${RADMON_SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`
+      running=`qstat -u $LOGNAME | grep data_extract_${RADMON_SUFFIX} | wc -l`
    fi
 
    if [[ $running -ne 0 ]]; then
@@ -167,11 +167,11 @@ while [[ $done -eq 0 ]]; do
       #-----------------------------------------------------------------
       # Run the copy script
       #-----------------------------------------------------------------
-      log_file=${LOGdir}/CopyRad_${SUFFIX}_${cdate}.log
-      err_file=${LOGdir}/CopyRad_${SUFFIX}_${cdate}.err
+      log_file=${LOGdir}/CopyRad_${RADMON_SUFFIX}_${cdate}.log
+      err_file=${LOGdir}/CopyRad_${RADMON_SUFFIX}_${cdate}.err
 
       echo Processing ${cdate}
-      ${DE_SCRIPTS}/${copy_script} ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
+      ${DE_SCRIPTS}/${copy_script} ${RADMON_SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
       # done is true (1) if the copy_script produced an error code, or

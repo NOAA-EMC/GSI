@@ -105,7 +105,7 @@ ${COMPRESS} -f ${imgndir}/*.ctl
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to angle subdir.
 #
-export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${SUFFIX}"
+export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${RADMON_SUFFIX}"
 
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -f $PLOT_WORK_DIR
@@ -123,7 +123,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
   if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" ]]; then
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-     jobname=plot_${SUFFIX}_ang_${suffix}
+     jobname=plot_${RADMON_SUFFIX}_ang_${suffix}
      logfile=$LOGdir/plot_angle_${suffix}.log
 
      rm -f $cmdfile
@@ -154,7 +154,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
      for sat in ${SATLIST}; do
         suffix=${sat} 
         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-        jobname=plot_${SUFFIX}_ang_${suffix}
+        jobname=plot_${RADMON_SUFFIX}_ang_${suffix}
         logfile=${LOGdir}/plot_angle_${suffix}.log
 
         rm -f $cmdfile
@@ -198,7 +198,7 @@ for sat in ${bigSATLIST}; do
       suffix="${sat}_${batch}"
       cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
       rm -f $cmdfile
-      jobname=plot_${SUFFIX}_ang_${suffix}
+      jobname=plot_${RADMON_SUFFIX}_ang_${suffix}
       logfile=${LOGdir}/plot_angle_${suffix}.log
 
       while [[ $ii -le ${#list[@]}-1 ]]; do
@@ -230,7 +230,7 @@ for sat in ${bigSATLIST}; do
          suffix="${sat}_${batch}"
          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
          rm -f $cmdfile
-         jobname=plot_${SUFFIX}_ang_${suffix}
+         jobname=plot_${RADMON_SUFFIX}_ang_${suffix}
          logfile=${LOGdir}/plot_angle_${suffix}.log
 
          (( ii=ii+1 ))
@@ -245,7 +245,7 @@ for sat in ${bigSATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}_${list[$ii]}
          rm -f $cmdfile
          logfile=${LOGdir}/plot_angle_${suffix}_${list[$ii]}.log
-         jobname=plot_${SUFFIX}_ang_${suffix}_${list[$ii]}
+         jobname=plot_${RADMON_SUFFIX}_ang_${suffix}_${list[$ii]}
 
          echo "${IG_SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
 
