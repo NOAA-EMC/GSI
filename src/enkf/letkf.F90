@@ -380,8 +380,10 @@ else
 endif
 
 ! initialize obfit_post, obsprd_post
-obfit_post(1:nobstot) = obfit_prior(1:nobstot)
-obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
+if (update_obspace) then
+   obfit_post(1:nobstot) = obfit_prior(1:nobstot)
+   obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
+endif
 
 do niter=1,numiter
 
@@ -695,7 +697,7 @@ do niter=1,numiter
   call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
   call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
   if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
-  if (nrej > 0)   print *, nrej,' obs rejected by varqc'
+  if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
   
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
