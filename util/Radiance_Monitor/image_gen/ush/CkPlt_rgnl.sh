@@ -37,8 +37,8 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
-echo SUFFIX    = ${SUFFIX}
+RADMON_SUFFIX=$1
+echo RADMON_SUFFIX    = ${RADMON_SUFFIX}
 
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
@@ -99,7 +99,7 @@ fi
 #--------------------------------------------------------------------
 
 
-tmpdir=${STMP_USER}/plot_rgnl_rad${SUFFIX}
+tmpdir=${STMP_USER}/plot_rgnl_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -117,13 +117,13 @@ mkdir -p $LOGdir
 
 running=0
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   running=`bjobs -l | grep plot_${SUFFIX} | wc -l`
+   running=`bjobs -l | grep plot_${RADMON_SUFFIX} | wc -l`
 else
-   running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+   running=`showq -n -u ${LOGNAME} | grep plot_${RADMON_SUFFIX} | wc -l`
 fi
 
 if [[ $running -ne 0 ]]; then
-   echo plot jobs still running for $SUFFIX, must exit
+   echo plot jobs still running for $RADMON_SUFFIX, must exit
    cd $tmpdir
    cd ../
    rm -rf $tmpdir
@@ -228,7 +228,7 @@ if [[ $PLOT -eq 1 ]]; then
   #------------------------------------------------------------------
   # Set environment variables.
 
-  export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
+  export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${RADMON_SUFFIX}
   mkdir -p $PLOT_WORK_DIR
   cd $PLOT_WORK_DIR
 
@@ -249,7 +249,7 @@ if [[ $PLOT -eq 1 ]]; then
      logfile=${LOGdir}/mk_horiz_plots.log
      rm ${logfile}
 
-     jobname=mk_plot_horiz_${SUFFIX}
+     jobname=mk_plot_horiz_${RADMON_SUFFIX}
      if [[ $MY_MACHINE = "wcoss" ]]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core]  -o ${logfile} -W 0:45 -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
      elif [[ $MY_MACHINE = "cray" ]]; then
@@ -271,7 +271,8 @@ if [[ $PLOT -eq 1 ]]; then
   #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
   #------------------------------------------------------------------
   if [[ $DO_ARCHIVE = 1 ]]; then
-     ${IG_SCRIPTS}/make_archive.sh
+#     ${IG_SCRIPTS}/make_archive.sh
+     ${IG_SCRIPTS}/nu_make_archive.sh
   fi
 
 fi
@@ -281,7 +282,7 @@ fi
 #--------------------------------------------------------------------
 if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
 
-   logfile=${LOGdir}/data_extract.${SUFFIX}.${sdate}.${CYA}.log
+   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
 
    if [[ -s $logfile ]]; then
       ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
