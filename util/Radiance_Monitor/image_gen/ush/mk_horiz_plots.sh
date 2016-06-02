@@ -26,7 +26,7 @@ export DATES="$D1 $D2 $D3 $D4"
 #  Set up the DATADIR, copy the radstat files to a temporary directory,
 #  untar and extract needed ges files. 
 
-DATADIR="${STMP_USER}/horiz_${SUFFIX}.${PDATE}"
+DATADIR="${STMP_USER}/horiz_${RADMON_SUFFIX}.${PDATE}"
 rm -rf $DATADIR
 mkdir -p $DATADIR
 cd $DATADIR
@@ -101,7 +101,7 @@ cat << EOF > input.$sat.$ihh
   idhh=-18,
   incr=6,
   nchanl=${nchanl},
-  suffix='${SUFFIX}',
+  suffix='${RADMON_SUFFIX}',
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
@@ -154,7 +154,7 @@ done
 #
 
 if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
-   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+   cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
    logfile=${LOGdir}/horiz_${PID}.log
    rm -f $cmdfile
 
@@ -165,7 +165,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
 
    chmod 755 $cmdfile
    ntasks=`cat $cmdfile|wc -l`
-   jobname=plot_${SUFFIX}_hrz_${PID}
+   jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
@@ -176,7 +176,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
 else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
-      cmdfile="./cmdfile_horiz_${SUFFIX}_${sat}"
+      cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${sat}"
       logfile=${LOGdir}/horiz_${sat}.log
 
       rm -f ${cmdfile}
@@ -197,7 +197,7 @@ for sat in ${bigSATLIST}; do
    export PTYPE="obs cor"
 
    PID="${sat}_1"
-   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+   cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
 
    rm -f $cmdfile
 >$cmdfile
@@ -205,7 +205,7 @@ for sat in ${bigSATLIST}; do
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
-   jobname=plot_${SUFFIX}_hrz_${PID}
+   jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
@@ -217,7 +217,7 @@ for sat in ${bigSATLIST}; do
 
 #  --------
    PID="${sat}_2"
-   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+   cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
 
    rm -f $cmdfile
@@ -226,7 +226,7 @@ for sat in ${bigSATLIST}; do
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
-   jobname=plot_${SUFFIX}_hrz_${PID}
+   jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
