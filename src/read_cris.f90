@@ -28,6 +28,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-09-04  Jung    - Added mods for CrIS full spectral resolution (FSR).
+!   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -624,23 +625,20 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
  
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
-        bufr_chan_diff: do k=1,bufr_nchan
-           if (int(allchan(2,k)) /= bufr_chan_test(k)) then                 ! Is previous bufr channel profile the same as this one
-              sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
-              bufr_index(:) = 0
-              bufr_chans: do l=1,bufr_nchan
-                 bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
-                 satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
-                    if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and stainfo file
-                       bufr_index(i) = l
-                       if ( channel_number(i) == 501 ) sfc_channel_index = l
-                       exit satinfo_chans                                   ! go to next bufr channel
-                    endif
-                 end do  satinfo_chans
-              end do bufr_chans
-           exit bufr_chan_diff
-           endif
-        end do bufr_chan_diff
+        if (ANY(int(allchan(2,:)) /= bufr_chan_test(:))) then
+           sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
+           bufr_index(:) = 0
+           bufr_chans: do l=1,bufr_nchan
+              bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+              satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
+                 if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and satinfo file
+                    bufr_index(i) = l
+                    if ( channel_number(i) == 501 ) sfc_channel_index = l
+                    exit satinfo_chans                                   ! go to next bufr channel
+                 endif
+              end do  satinfo_chans
+           end do bufr_chans
+        end if 
 
         if ( sfc_channel_index == 0 ) then
            write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
