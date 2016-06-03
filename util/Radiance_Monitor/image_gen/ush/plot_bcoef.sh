@@ -14,7 +14,7 @@ export list=$listvar
 #------------------------------------------------------------------
 # Set environment variables.
 
-tmpdir=${PLOT_WORK_DIR}/plot_bcoef_${SUFFIX}.$PDATE
+tmpdir=${PLOT_WORK_DIR}/plot_bcoef_${RADMON_SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir

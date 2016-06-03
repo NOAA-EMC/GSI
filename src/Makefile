@@ -121,10 +121,7 @@ include $(MAKE_CONF)
 # Load module
 # -----------
 
-#
-#  EXE_FILE_OLD  = global_gsi
-#  EXE_FILE = ../../exec/urma2p5_gsianl
-   EXE_FILE = global_gsi
+  EXE_FILE = global_gsi
 
 
 # --------------------
@@ -192,7 +189,6 @@ clean:
 
   SRCSF90C = \
 	gfs_stratosphere.f90 \
-	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
         adjtest_obs.f90 \
         adjust_cloudobs_mod.f90 \
@@ -241,7 +237,7 @@ clean:
 	control2model.f90 \
 	control2state.f90 \
 	control_vectors.f90 \
-        converr.f90 \
+	converr.f90 \
         converr_ps.f90 \
         converr_q.f90 \
         converr_t.f90 \

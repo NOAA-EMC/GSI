@@ -19,7 +19,7 @@ export list=$listvar
 #--------------------------------------------------------------------
 ##TESTING BRACKET BEGIN
 #PDATE=2015101312
-#SUFFIX=wopr
+#RADMON_SUFFIX=wopr
 #RAD_AREA=glb
 #this_dir=`pwd`
 #top_parm=${this_dir}/../../parm
@@ -72,13 +72,13 @@ shell=ksh
 
 # 
 # Need better reference here!
-if [[ $SUFFIX = "wopr" ]]; then
+if [[ $RADMON_SUFFIX = "wopr" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/wopr"
-elif [[ $SUFFIX = "pr4dev" ]]; then 
+elif [[ $RADMON_SUFFIX = "pr4dev" ]]; then 
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/pr4dev"
-elif [[ $SUFFIX = "4devb" ]]; then 
+elif [[ $RADMON_SUFFIX = "4devb" ]]; then 
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/4devb"
-elif [[ $SUFFIX = "nrx" ]]; then
+elif [[ $RADMON_SUFFIX = "nrx" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
 fi
 
