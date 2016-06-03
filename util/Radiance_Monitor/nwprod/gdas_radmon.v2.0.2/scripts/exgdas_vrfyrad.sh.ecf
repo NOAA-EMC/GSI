@@ -112,8 +112,8 @@ export TANKverf=${TANKverf:-/com/verf/prod}
 export TANKverf_rad=${TANKverf}/radmon.${PDY}
 
 #  Filenames
-export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
-export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
+export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
+export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
 export satype_file=${satype_file:-gdas_radmon_satype.txt}
 
 #  Other variables
