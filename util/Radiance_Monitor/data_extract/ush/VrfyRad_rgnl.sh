@@ -42,7 +42,7 @@ this_dir=`dirname $0`
 #
 #  if $COMOUT is defined then assume we're in a parallel.
 #--------------------------------------------------------------------
-export SUFFIX=$1
+export RADMON_SUFFIX=$1
 export RUN_ENVIR=""
 
 if [[ $nargs -ge 2 ]]; then
@@ -64,7 +64,7 @@ if [[ $RUN_ENVIR = "" ]]; then
   fi
 fi
 
-echo SUFFIX = $SUFFIX
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 
@@ -153,7 +153,7 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
+tmpdir=${WORKverf_rad}/check_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -289,11 +289,11 @@ if [ -s $radstat -a -s $biascr ]; then
    export PDY=`echo $PDATE|cut -c1-8`
    export cyc=`echo $PDATE|cut -c9-10`
 
-   export job=${SUFFIX}_vrfyrad_${PDY}${cyc}
+   export job=${RADMON_SUFFIX}_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-${STMP_USER}/radmon_de_${SUFFIX}}
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export DATA=${DATA:-${STMP_USER}/radmon_de_${RADMON_SUFFIX}}
+   export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
 
@@ -302,14 +302,14 @@ if [ -s $radstat -a -s $biascr ]; then
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
+   export satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
 
    if [[ $CYC = "00" ]]; then
       echo "Making new day directory for 00 cycle"
       mkdir -p ${TANKverf}/radmon.${PDY}
       prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-      if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ]]; then
-         cp ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+      if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
+         cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
       fi
     fi
 
@@ -336,7 +336,7 @@ if [ -s $radstat -a -s $biascr ]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   logfile=$LOGdir/data_extract.${SUFFIX}.${PDY}.${cyc}.log
+   logfile=$LOGdir/data_extract.${RADMON_SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
@@ -357,7 +357,7 @@ fi
 
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
    exit_value=6
 fi
 

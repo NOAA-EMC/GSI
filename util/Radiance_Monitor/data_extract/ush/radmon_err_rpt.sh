@@ -110,7 +110,7 @@ ENDSCRIPT=${ENDSCRIPT:-}
 # Other variables
 VERBOSE=${VERBOSE:-NO}
 err=0
-SUFFIX=${SUFFIX}
+RADMON_SUFFIX=${RADMON_SUFFIX}
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo EXECUTING $0 $* >&2
@@ -236,7 +236,7 @@ fi
             fi
             echo changrp = $changrp
 
-            line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${changrp}&stat=${type}"
+            line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${changrp}&stat=${type}"
             if [[ $changrp -gt 0 ]]; then
                echo "$line3" >> $outfile
                echo "" >> $outfile
