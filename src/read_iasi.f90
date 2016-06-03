@@ -638,21 +638,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
-        bufr_chan_diff: do k=1,bufr_nchan
-           if (int(allchan(2,k)) /= bufr_chan_test(k)) then                 ! Is previous bufr channel profile the same as this one
-              bufr_index(:) = 0
-              bufr_chans: do l=1,bufr_nchan
-                 bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
-                 satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (iasi) channels in the satinfo file
-                    if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and stainfo file
-                       bufr_index(i) = l
-                       exit satinfo_chans                                   ! go to next bufr channel
-                    endif
-                 end do  satinfo_chans
-              end do bufr_chans
-           exit bufr_chan_diff
-           endif
-        end do bufr_chan_diff
+        if (ANY(int(allchan(2,:)) /= bufr_chan_test(:))) then
+           bufr_index(:) = 0
+           bufr_chans: do l=1,bufr_nchan
+              bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+              satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
+                 if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and satinfo file
+                    bufr_index(i) = l
+                    exit satinfo_chans                                   ! go to next bufr channel
+                 endif
+              end do  satinfo_chans
+           end do bufr_chans
+        end if
 
         iskip = 0
         jstart=1

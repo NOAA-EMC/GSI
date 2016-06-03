@@ -40,6 +40,7 @@ module radinfo
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !   2015-03-01   li     - add zsea1 & zsea2 to handle the vertical mean temperature based on NSST T-Profile
+!   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -640,6 +641,16 @@ contains
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+             
+       ! The following is to sort out some historical naming conventions
+       select case (nusis(j)(1:4))
+         case ('airs')
+            nusis(j)='airs_aqua'
+         case ('iasi')
+            if (index(nusis(j),'metop-a') /= 0) nusis(j)='iasi_metop-a'
+            if (index(nusis(j),'metop-b') /= 0) nusis(j)='iasi_metop-b'
+            if (index(nusis(j),'metop-c') /= 0) nusis(j)='iasi_metop-c'
+       end select 
 
        if(istat/=0) then
           call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
@@ -681,6 +692,15 @@ contains
              read(lunin,'(I5,1x,A20,1x,I5,e15.7/2(4x,10e15.7/))',iostat=istat) &
                   ich,isis,ichan,ostatsx,(varx(ip),ip=1,npred)
              if (istat/=0) exit
+             ! The following is to sort out some historical naming conventions
+             select case (isis(1:4))
+               case ('airs')
+                  isis='airs_aqua'
+               case ('iasi')
+                  if (index(isis,'metop-a') /= 0) isis='iasi_metop-a'
+                  if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
+                  if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
+             end select 
              cfound = .false.
              do j =1,jpch_rad
                 if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
@@ -761,6 +781,15 @@ contains
                (cbiasx(ip),ip=1,maxscan)
           if (istat /= 0) exit
           cfound = .false.
+          ! The following is to sort out some historical naming conventions
+          select case (isis(1:4))
+             case ('airs')
+               isis='airs_aqua'
+             case ('iasi')
+               if (index(isis,'metop-a') /= 0) isis='iasi_metop-a'
+               if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
+               if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
+          end select 
           do j =1,jpch_rad
              if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                 cfound = .true.
@@ -808,6 +837,16 @@ contains
           read(lunin,1000,IOSTAT=istat,end=1222) cflg,satscan_sis,start,step,nstep,edge1,edge2
           if (istat /= 0) exit
           if (cflg == '!') cycle
+
+          ! The following is to sort out some historical naming conventions
+          select case (satscan_sis(1:4))
+             case ('airs')
+               satscan_sis='airs_aqua'
+             case ('iasi')
+               if (index(satscan_sis,'metop-a') /= 0) satscan_sis='iasi_metop-a'
+               if (index(satscan_sis,'metop-b') /= 0) satscan_sis='iasi_metop-b'
+               if (index(satscan_sis,'metop-c') /= 0) satscan_sis='iasi_metop-c'
+          end select 
 
           do j =1,jpch_rad
              if(trim(satscan_sis) == trim(nusis(j)))then
@@ -859,6 +898,15 @@ contains
           end if
           if (istat /= 0) exit
           cfound = .false.
+          ! The following is to sort out some historical naming conventions
+          select case (isis(1:4))
+             case ('airs')
+               isis='airs_aqua'
+             case ('iasi')
+               if (index(isis,'metop-a') /= 0) isis='iasi_metop-a'
+               if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
+               if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
+          end select 
           do j =1,jpch_rad
              if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                 cfound = .true.
@@ -948,6 +996,15 @@ contains
           read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat,end=1444) ich,isis,ichan,(fbiasx(i),i=1,numt)
           if (istat /= 0) exit
           cfound = .false.
+          ! The following is to sort out some historical naming conventions
+          select case (isis(1:4))
+             case ('airs')
+               isis='airs_aqua'
+             case ('iasi')
+               if (index(isis,'metop-a') /= 0) isis='iasi_metop-a'
+               if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
+               if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
+          end select 
           do j=1,jpch_rad
              if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                 cfound = .true.
@@ -1488,6 +1545,15 @@ contains
       n_chan = header_fix%nchan
 
 !     Check for consistency between specified and retrieved satellite id
+!     after first sorting out some historical naming conventions
+      select case (satsens(1:4))
+         case ('airs')
+           satsens='airs_aqua'
+         case ('iasi')
+           if (index(satsens,'metop-a') /= 0) satsens='iasi_metop-a'
+           if (index(satsens,'metop-b') /= 0) satsens='iasi_metop-b'
+           if (index(satsens,'metop-c') /= 0) satsens='iasi_metop-c'
+      end select 
       if (satsens /= satsens_id) then
          write(6,*)'INIT_PREDX:  ***ERROR*** inconsistent satellite ids ',&
               ' fdiag_rad= ',trim(fdiag_rad),' satsens,satsens_id=',satsens,satsens_id

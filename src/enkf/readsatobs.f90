@@ -19,6 +19,7 @@ module readsatobs
 !
 ! program history log:
 !   2009-02-23  Initial version.
+!   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
 ! attributes:
 !   language: f95
@@ -74,6 +75,16 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
         jpchstart=0
         do i=1,jpch_rad
           write(sat_type,'(a20)') adjustl(dsis(nsat))
+          ! The following is to sort out some historical naming conventions
+          select case (sat_type(1:4))
+             case ('airs')
+               sat_type='airs_aqua'
+             case ('iasi')
+               if (index(sat_type,'metop-a') /= 0) sat_type='iasi_metop-a'
+               if (index(sat_type,'metop-b') /= 0) sat_type='iasi_metop-b'
+               if (index(sat_type,'metop-c') /= 0) sat_type='iasi_metop-c'
+          end select
+    
           if(sat_type == trim(nusis(i)) .and. iuse_rad(i) > 0) then
             jpchstart=i
             exit
@@ -160,8 +171,19 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
   do nsat=1,nsats_rad
      jpchstart=0
      do i=1,jpch_rad
+
        write(sat_type,'(a20)') adjustl(dsis(nsat))
-       if(sat_type == trim(nusis(i)) .and. iuse_rad(i) > 0) then
+       ! The following is to sort out some historical naming conventions
+       select case (sat_type(1:4))
+          case ('airs')
+            sat_type='airs_aqua'
+          case ('iasi')
+            if (index(sat_type,'metop-a') /= 0) sat_type='iasi_metop-a'
+            if (index(sat_type,'metop-b') /= 0) sat_type='iasi_metop-b'
+            if (index(sat_type,'metop-c') /= 0) sat_type='iasi_metop-c'
+       end select
+    
+      if(sat_type == trim(nusis(i)) .and. iuse_rad(i) > 0) then
          jpchstart = i
          exit
        end if

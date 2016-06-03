@@ -29,6 +29,7 @@ module crtm_interface
 !   2014-01-01  li     - change the protection of data_s(itz_tr)
 !   2014-02-26  zhu - add non zero jacobian
 !   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
+!   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
 ! subroutines included:
 !   sub init_crtm
@@ -581,7 +582,65 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
     endif
 
- endif
+!  This is to try to keep the CrIS naming conventions more flexible.  
+!  The consistency of CRTM  and BUFR files is checked in read_cris:
+else if (channelinfo(1)%sensor_id(1:8) == 'cris-fsr' .AND. isis(1:8) == 'cris-fsr') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'iasi' .AND. isis(1:4) == 'iasi') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'airs' .AND. isis(1:4) == 'airs') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+endif 
 
  if (sensorindex == 0 ) then
     write(6,*)myname_,':  ***WARNING*** problem with sensorindex=',isis,&
