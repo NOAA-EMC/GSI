@@ -288,7 +288,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
 !next two lines here
-  use radinfo, only: radinfo_scl_bias! eig here comment,radinfo_get_rsqrtinv
+  use radinfo, only: radinfo_scl_bias !eig here comment , radinfo_get_rsqrtinv
   use timermod, only:  timer_ini, timer_fnl
 
 
@@ -313,7 +313,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !next three lines here
 !eig here comment next line
-!  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+ ! real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   logical do_scl_bias
   integer(i_kind) iinstr,ic1,ix1
 
