@@ -5,10 +5,21 @@
      echo "            pdate is the cycle to be processed in YYYYMMDDHH format"
    }
 
+##############################################################
+#
+#  validate.sh 
+#
+#     Purpose:  re-run validation from copied data files using
+#     different (usually updated) base files than the ones
+#     in oper (which can't be updated as easily/quickly)
+#
+#     This is only needed with data that has been copied 
+#     (using Copy_glb.sh). 
+##############################################################
 
 echo "--> start validate.sh"
-echo "       TEST:  COMPRESS = $COMPRESS"
-echo "       TEST:  SUFFIX   = $SUFFIX"
+echo "       TEST:  COMPRESS        = $COMPRESS"
+echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
 
    nargs=$#
    if [[ $nargs -ne 1 ]]; then
@@ -28,7 +39,8 @@ echo "       TEST:  SUFFIX   = $SUFFIX"
 #
 #  Get the gdas_radmon_base.tar file and open it
 #
-   cp ~/nbns/stats/${SUFFIX}/info/gdas_radmon_base.tar* .
+#   cp ~/nbns/stats/${RADMON_SUFFIX}/info/gdas_radmon_base.tar* .
+   cp /nwprod2/gdas_radmon.v2.0.2/fix/gdas_radmon_base.tar .
    if [[ -s gdas_radmon_base.tar.gz ]]; then
       gunzip gdas_radmon_base.tar.gz
    fi
