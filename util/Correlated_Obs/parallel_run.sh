@@ -2,19 +2,21 @@
 #date of first radstat file
 bdate=2014040106
 #date of last radstat file
-edate=2014041100
+edate=2014041018
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-a
+#instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
 #exp=para_2014
-exp=priasiland0
-diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+exp=prfullo
+#diagdir=/da/noscrub/${USER}/archive/${exp}
+diagdir=/stmpp1/Kristen.Bathmann/rads
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasia
+wrkdir=/stmpp1/${USER}/iasib_global
 #location the covariance matrix is saved to
-savdir=$wrkdir
+savdir=$diagdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land, and mixed FOVs
-type=2
+type=5
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -30,17 +32,17 @@ kreq=-60
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=10
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
-unpack_walltime=02:30:00
+unpack_walltime=02:30
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=03:00:00
+wall_time=03:00
 #job account name (needed on theia only)
 account=cloud
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
-machine=theia
+machine=wcoss
 
-ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
+ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 
 ####################################################################
 
@@ -201,6 +203,7 @@ chmod +rwx params.sh
 cat sort_diags.sh >> params.sh
 mv params.sh sort_diags.sh
 bsub -w "done(unpack)" < sort_diags.sh
+#bsub < sort_diags.sh
 else
    exit 1
 fi

@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/scratch4/NCEPDEV/da/save/Kristen.Bathmann/GSI/Desroziers/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/td2/emc/da/save/Kristen.Bathmann/GSI/Desroziers/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,15 +24,15 @@ export MY_RADMON=${MY_RADMON:-/scratch4/NCEPDEV/da/save/Kristen.Bathmann/GSI/Des
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/scratch4/NCEPDEV/stmp4/Kristen.Bathmann/RADM}
+export MY_TANKDIR=${MY_TANKDIR:-/stmpp1/Kristen.Bathmann/RADM}
 
-if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
+if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${SUFFIX}}
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
    else
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
    fi
 fi
 
@@ -55,23 +55,23 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/kbathmann}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=theia
+export MY_MACHINE=wcoss
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/scratch4/NCEPDEV/stmp4}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/scratch4/NCEPDEV/stmp3}
+export MY_STMP=${MY_STMP:-/stmpp1}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
-export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
-export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${SUFFIX}}
+export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
+export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
 
-export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${SUFFIX}}
+export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${RADMON_SUFFIX}}
 export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
   
 

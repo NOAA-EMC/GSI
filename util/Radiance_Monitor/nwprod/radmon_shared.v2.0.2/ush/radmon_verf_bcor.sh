@@ -160,8 +160,6 @@ else
 
       rm input
 
-      nchanl=-999
-
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -193,17 +191,17 @@ EOF
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #
 
-      if [[ -s ${data_file} ]]; then
-         mv ${data_file} ${bcor_file}
-         mv ${bcor_file} $TANKverf_rad/.
-         ${COMPRESS} -f $TANKverf_rad/${bcor_file}
-      fi
+            if [[ -s ${data_file} ]]; then
+               mv ${data_file} ${bcor_file}
+               mv ${bcor_file} $TANKverf_rad/.
+               ${COMPRESS} -f $TANKverf_rad/${bcor_file}
+            fi
 
-      if [[ -s ${ctl_file} ]]; then
-         mv ${ctl_file} ${bcor_ctl}
-         mv ${bcor_ctl}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
-      fi
+            if [[ -s ${ctl_file} ]]; then
+               mv ${ctl_file} ${bcor_ctl}
+               mv ${bcor_ctl}  ${TANKverf_rad}/.
+               ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
+            fi
 
       done  # dtype in $gesanl loop
    done     # type in $SATYPE loop

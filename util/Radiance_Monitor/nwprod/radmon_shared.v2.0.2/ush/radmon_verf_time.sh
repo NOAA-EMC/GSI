@@ -218,7 +218,11 @@ if [[ $err -eq 0 ]]; then
 #--------------------------------------------------------------------
 #   Run program for given satellite/instrument
 #--------------------------------------------------------------------
-         nchanl=-999
+         # Check for 0 length input file here and avoid running 
+         # the executable if $input_file doesn't exist or is 0 bytes
+         #
+         if [[ -s $input_file ]]; then
+            nchanl=-999
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -256,16 +260,28 @@ EOF
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #-------------------------------------------------------------------
 
-         if [[ -s ${data_file} ]]; then
-            mv ${data_file} ${time_file}
-            mv ${time_file} $TANKverf_rad/.
-            ${COMPRESS} -f $TANKverf_rad/${time_file}
-         fi
+            if [[ -s ${data_file} ]]; then
+               mv ${data_file} ${time_file}
+               mv ${time_file} $TANKverf_rad/.
+               ${COMPRESS} -f $TANKverf_rad/${time_file}
+            fi
 
-         if [[ -s ${ctl_file} ]]; then
-            $NCP ${ctl_file} ${time_ctl}
-            $NCP ${time_ctl}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
+            if [[ -s ${ctl_file} ]]; then
+               $NCP ${ctl_file} ${time_ctl}
+               $NCP ${time_ctl}  ${TANKverf_rad}/.
+               ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
+            fi
+
+            if [[ -s ${stdout_file} ]]; then
+               $NCP ${stdout_file} ${time_stdout}
+               mv ${time_stdout}  ${TANKverf_rad}/.
+               ${COMPRESS} -f ${TANKverf_rad}/${time_stdout}
+            fi
+
+         else	# ! -s $data_file
+            # journal warning message to log file that an expected $data_file
+            # failed the -s test
+            echo "***PROBLEM reading diagnostic file.  diag_rad=$type" >> ${pgmout}
          fi
 
       done

@@ -167,7 +167,12 @@ else
 
          rm input
 
-         nchanl=-999
+
+         # Check for 0 length data file here and avoid running 
+         # the executable if $data_file doesn't exist or is 0 bytes
+         #
+         if [[ -s $input_file ]]; then
+            nchanl=-999
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -197,17 +202,17 @@ EOF
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 
-         if [[ -s ${data_file} ]]; then
-            mv ${data_file} ${angl_file}
-            mv ${angl_file} $TANKverf_rad/.
-            ${COMPRESS} -f $TANKverf_rad/${angl_file}
-         fi
+            if [[ -s ${data_file} ]]; then
+               mv ${data_file} ${angl_file}
+               mv ${angl_file} $TANKverf_rad/.
+               ${COMPRESS} -f $TANKverf_rad/${angl_file}
+            fi
 
-         if [[ -s ${ctl_file} ]]; then
-            mv ${ctl_file} ${angl_ctl}
-            mv ${angl_ctl}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
-         fi 
+            if [[ -s ${ctl_file} ]]; then
+               mv ${ctl_file} ${angl_ctl}
+               mv ${angl_ctl}  ${TANKverf_rad}/.
+               ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
+            fi 
 
 #         if [[ -s ${stdout_file} ]]; then
 #            mv ${stdout_file} ${angl_stdout}
@@ -215,6 +220,8 @@ EOF
 #            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
 #         fi
 
+
+         fi   # -s $data_file
       done    # for dtype in ${gesanl} loop
 
    done    # for type in ${SATYPE} loop
