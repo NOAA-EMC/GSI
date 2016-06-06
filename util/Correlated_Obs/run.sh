@@ -1,10 +1,10 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040200
+bdate=2014040700
 #date of last radstat file
 edate=2014041218
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-a
+instr=iasi_metop-b
 #location of radstat file
 exp=prcorrctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
@@ -19,14 +19,14 @@ cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30
 #option to output the channel wavenumbers
-wave_out=.false.
+wave_out=.true.
 #option to output the assigned observation errors
-err_out=.false.
+err_out=.true.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=-60
-ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
+ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 ####################
 
 cdate=$bdate

@@ -22,7 +22,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/Desroziers/util/Correlated_Obs/
+rundir=/da/save/${USER}/GSI/Desroziers/util/Correlated_Obs/
 cd ${rundir}
 ./run.sh 
 
