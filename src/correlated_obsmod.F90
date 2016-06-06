@@ -1045,10 +1045,9 @@ ircv = -1
 do jj=1,nchasm
    nn=ichasm(jj)    ! index in from 1 to nchanl
    mm=ich(jj)       ! true channel number (has no bearing here except in iuse)
-!   if (iuse(mm)>=1) then
+   if (iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
-!here nn to jj
          if(nn==ErrorCov%indxR(ii)) then
             ifound=ii       
             exit
@@ -1057,7 +1056,7 @@ do jj=1,nchasm
       if(ifound/=-1) then
          ircv(jj)=ifound  ! index value in from 1 to nch_active
       endif
-!   endif
+   endif
 enddo
 ncp=count(ircv>0) ! number of active channels in profile
 ! following should never happen, but just in case ...
