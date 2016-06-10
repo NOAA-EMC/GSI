@@ -227,7 +227,7 @@ module egrid2agrid_mod
 
       if(.not.p%identity) then
 
-         e2a_only=.true.
+         e2a_only=.false.
          call get_3ops(p%e2a_lon,nlona,rlona,nlone,rlone,nord_e2a,e2a_only)
          call get_3ops(p%e2a_lat,nlata,rlata,nlate,rlate,nord_e2a,e2a_only)
 
