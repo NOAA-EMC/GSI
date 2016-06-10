@@ -806,7 +806,8 @@ end do
 ! use LAPACK dsyevd
 !call dsyevd('V','L',nanals,eivec,nanals,eival,work,size(work),iwork,size(iwork),ierr)
 ! use LAPACK dsyevr 
-call dsyevr('V','A','L',nanals,work1,nanals,vl,vu,1,nanals,-1.d0,nanals,eival,eivec,nanals,isuppz,work,size(work),iwork,size(iwork),ierr)
+call dsyevr('V','A','L',nanals,work1,nanals,vl,vu,1,nanals,-1.d0,nanals,eival,eivec, &
+            nanals,isuppz,work,size(work),iwork,size(iwork),ierr)
 if (ierr .ne. 0) print *,'warning: dsyev* failed, ierr=',ierr
 ! Pa = [ hdxb^T Rinv hdxb + (m-1) I ]inv
 do j=1,nanals
