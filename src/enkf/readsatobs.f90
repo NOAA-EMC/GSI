@@ -113,9 +113,13 @@ subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
                 if(data_chan0(n)%qcmark < 0. .or. data_chan0(n)%errinv < errorlimit &
                          .or. data_chan0(n)%errinv > errorlimit2 &
                          .or. indxsat == 0) cycle chan
-                if(data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
-                   data_extra0(1,n)%extra > 1200._r_kind  .or. &
-                   abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
+                if (header_fix0%iextra > 0) then
+                   if(data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
+                      data_extra0(1,n)%extra > 1200._r_kind  .or. &
+                      abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
+                else
+                   if(abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
+                endif
                 nkeep = nkeep + 1
               end do chan
            enddo
@@ -246,9 +250,13 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
          if(data_chan1(n)%qcmark < 0. .or. data_chan1(n)%errinv < errorlimit &
                   .or. data_chan1(n)%errinv > errorlimit2 &
                   .or. indxsat == 0) cycle chan
-         if(data_extra1(1,n)%extra <= 0.001_r_kind .or.  &
-            data_extra1(1,n)%extra > 1200._r_kind  .or. &
-            abs(data_chan1(n)%tbobs) > 1.e9_r_kind) cycle chan
+         if (header_fix1%iextra > 0) then
+            if(data_extra1(1,n)%extra <= 0.001_r_kind .or.  &
+               data_extra1(1,n)%extra > 1200._r_kind  .or.  &
+               abs(data_chan1(n)%tbobs) > 1.e9_r_kind) cycle chan
+         else
+            if(abs(data_chan1(n)%tbobs) > 1.e9_r_kind) cycle chan
+         endif
          nobs = nobs + 1 
          if (nobs > nobs_max) then
              print *,'warning:  exceeding array bounds in readinfo_from_file',&
@@ -272,7 +280,11 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
          ! data_chan%errinv is inverse error variance.
          x_errorig(nobs) = header_chan1(n)%varch**2
          x_err(nobs) = (1._r_kind/data_chan1(n)%errinv)**2
-         x_press(nobs) = data_extra1(1,n)%extra
+         if (header_fix1%iextra > 0) then
+           x_press(nobs) = data_extra1(1,n)%extra
+         else
+           x_press(nobs) = 99999
+         endif
 
 !! DTK:  **NOTE**
 !!       The bifix term will need to be expanded if/when the GSI/GDAS goes to using
