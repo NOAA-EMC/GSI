@@ -694,34 +694,32 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     surface_k(ii,1)   = surface(1)
  end do
 
-! Mapping land surface type of NMM to CRTM
- if (regional) then
-    allocate(nmm_to_crtm_ir(nvege_type))
-    allocate(nmm_to_crtm_mwave(nvege_type))
-    if(nvege_type==USGS_N_TYPES)then
-       ! Assign mapping for CRTM microwave calculations
-       nmm_to_crtm_mwave=usgs_to_gfs
-       ! nmm usgs to CRTM
-       select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
-         case('NPOESS'); nmm_to_crtm_ir=usgs_to_npoess
-         case('USGS')  ; nmm_to_crtm_ir=usgs_to_usgs
-       end select
-    else if(nvege_type==IGBP_N_TYPES)then
-       ! Assign mapping for CRTM microwave calculations
-       nmm_to_crtm_mwave=igbp_to_gfs
-       ! nmm igbp to CRTM 
-       select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
-         case('NPOESS'); nmm_to_crtm_ir=igbp_to_npoess
-         case('IGBP')  ; nmm_to_crtm_ir=igbp_to_igbp
-       end select
-    else
-       write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
-          //' for the CRTM IRland EmisCoeff file used.', &
-          ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
-          '  ***STOP IN SETUPRAD***'
-       call stop2(71)
-    endif ! nvege_type
- endif ! regional
+ ! Mapping land surface type to CRTM
+ allocate(nmm_to_crtm_ir(nvege_type))
+ allocate(nmm_to_crtm_mwave(nvege_type))
+ if(nvege_type==USGS_N_TYPES)then
+    ! Assign mapping for CRTM microwave calculations
+    nmm_to_crtm_mwave=usgs_to_gfs
+    ! nmm usgs to CRTM
+    select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
+      case('NPOESS'); nmm_to_crtm_ir=usgs_to_npoess
+      case('USGS')  ; nmm_to_crtm_ir=usgs_to_usgs
+    end select
+ else if(nvege_type==IGBP_N_TYPES)then
+    ! Assign mapping for CRTM microwave calculations
+    nmm_to_crtm_mwave=igbp_to_gfs
+    ! nmm igbp to CRTM 
+    select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
+      case('NPOESS'); nmm_to_crtm_ir=igbp_to_npoess
+      case('IGBP')  ; nmm_to_crtm_ir=igbp_to_igbp
+    end select
+ else
+    write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
+    //' for the CRTM IRland EmisCoeff file used.', &
+    ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
+    '  ***STOP IN SETUPRAD***'
+    call stop2(71)
+ endif ! nvege_type
 
 ! Calculate RH when aerosols are present and/or cloud-fraction used
  if (n_aerosols>0 .or. lcf4crtm) then
@@ -1231,26 +1229,18 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! **NOTE:  The model surface type --> CRTM surface type
 !          mapping below is specific to the versions NCEP
-!          GFS and NNM as of September 2005
+!          GFS and NNM as of Summer 2016
 
            itype  = nint(data_s(ivty))
            istype = nint(data_s(isty))
-           if (regional) then
-              itype  = min(max(1,itype),nvege_type)
-              istype = min(max(1,istype),NAM_SOIL_N_TYPES)
-              surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
-              surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
-              surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
-              lai_type = nmm_to_crtm_mwave(itype)
-           else
-              itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
-              istype = min(max(1,istype),GFS_SOIL_N_TYPES)
-              surface(1)%land_type = gfs_to_crtm(itype)
-              surface(1)%Vegetation_Type = max(1,itype)
-              surface(1)%Soil_Type = istype
-              lai_type = itype
-           end if
-                                    
+           
+           itype  = min(max(1,itype),nvege_type)
+           istype = min(max(1,istype),NAM_SOIL_N_TYPES)
+           surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
+           surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
+           surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
+           lai_type = nmm_to_crtm_mwave(itype)
+                                           
            if (lwind) then
 !        Interpolate lowest level winds to observation location 
 
