@@ -569,30 +569,28 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         if (airs ) then 
            bufr_start = 1
            bufr_end = bufr_nchan - 20  ! 15 amsu chans, 4 hsb chans, 1 extra (extra slot in the bufr file)
-           do i=1, bufr_end
-              chan_map(int(allchan(1,i))) = i    ! map channel number position into chan_map
-           end do
         elseif (amsua ) then
            bufr_start = bufr_nchan - 15 
            bufr_end = bufr_nchan  - 1
-           do i=1, 15
-              chan_map(int(allchan(1,i+bufr_start-1))) = i+bufr_start-1
-           end do
         elseif (hsb) then
            bufr_start = bufr_nchan - 19  ! 15 amsu chans, 4 hsb chans
            bufr_end = bufr_nchan - 16    ! 15 amsu chans, 1 extra (extra slot in bufr file)
         endif
+        do i=bufr_start, bufr_end
+           chan_map(int(allchan(1,i))) = i    ! map channel number position into
+        end do
+
 
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
         if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
            bufr_index(:) = 0
            bufr_chans: do l=bufr_start, bufr_end
-              bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
-              satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (airs) channels in the satinfo file
-                 if ( nuchan(ioff+i) == int(allchan(1,l)) ) then         ! Channel found in both bufr and stainfo file
+              bufr_chan_test(l) = int(allchan(1,l))                          ! Copy this bufr channel selection into array for comparison to next profile
+              satinfo_chans: do i=1,satinfo_nchan                            ! Loop through sensor (airs) channels in the satinfo file
+                 if ( nuchan(ioff+i) == bufr_chan_test(l) ) then             ! Channel found in both bufr and stainfo file
                     bufr_index(i) = l
-                    exit satinfo_chans                                   ! go to next bufr channel
+                    exit satinfo_chans                                       ! go to next bufr channel
                  endif
               end do  satinfo_chans
            end do bufr_chans
@@ -629,7 +627,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
               qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
               pred=max(zero,qval)*100.0_r_kind
            else
-              tt=168._r_kind-0.49_r_kind*ch15
+             tt=168._r_kind-0.49_r_kind*ch15
               df2 = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
               pred=zero
               if(ch1-ch15 >= three)then
@@ -849,6 +847,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
+
      end do
 
      if(dval_use .and. assim)then

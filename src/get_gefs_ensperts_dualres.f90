@@ -411,7 +411,7 @@ subroutine get_gefs_ensperts_dualres
 ! Convert to mean
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
-!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
+!!!!!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
   do m=1,ntlevs_ens
      do i=1,nelen
         en_bar(m)%values(i)=en_bar(m)%values(i)*bar_norm
