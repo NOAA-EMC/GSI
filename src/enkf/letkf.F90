@@ -96,8 +96,9 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
 use constants, only: pi, one, zero, rad2deg, deg2rad
 use params, only: sprd_tol, ndim, datapath, nanals, iseed_perturbed_obs,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
-                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,&
-                  corrlengthnh,corrlengthtr,corrlengthsh,nbackgrounds
+                  zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,letkf_novlocal,&
+                  lupd_obspace_serial,corrlengthnh,corrlengthtr,corrlengthsh,&
+                  nbackgrounds,nobsl_max
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd,logp,npts,gridloc
@@ -119,7 +120,8 @@ implicit none
 integer(i_kind) nob,nf,n1,n2,ideln,nanal,&
                 niter,i,j,n,nrej,npt,nn,nnmax,ierr
 integer(i_kind) nobsl, ngrd1, nobsl2, nthreads, nb, &
-                nobslocal_max,nobslocal_maxall
+                nobslocal_min,nobslocal_max, &
+                nobslocal_minall,nobslocal_maxall
 integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
 integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
 real(r_single) :: deglat, dist, corrsq
@@ -181,6 +183,7 @@ if (.not. deterministic .and. nproc .eq. 0) then
    enddo
 endif
 
+t1 = mpi_wtime()
 #ifdef MPI3
 ! setup shared memory segment on each node that points to
 ! observation prior ensemble.
@@ -270,11 +273,13 @@ if (.not. deterministic) then
 endif
 deallocate(buffer)
 #endif
+t2 = mpi_wtime()
+if (nproc .eq. 0) print *,'time to broadcast ob prior ensemble = ',t2-t1
 
 if (nproc .eq. 0 .and. .not. deterministic) then
    print *,'perturbed obs LETKF'
 endif
-if (minval(lnsigl) > 1.e3) then
+if (minval(lnsigl) > 1.e3 .or. letkf_novlocal) then
    vlocal = .false.
    if (nproc == 0) print *,'no vertical localization in LETKF'
    ! if no vertical localization, weights
@@ -286,12 +291,12 @@ else
    ! need to be computed for every vertical level.
    nnmax = nlevs_pres
 endif
-! is observation space update requested (yes if numiter !=0)?
+! is observation space update requested (yes if numiter !=0 and not lupd_obspace_serial)
 ! if so, each ob needs to be assigned to a horizontal grid point index
 ! and a vertical level index. Analysis weights computed at that grid
 ! point and level will be used to update for the model state and the
 ! observation priors.
-if (numiter == 0) then
+if (numiter == 0 .or. lupd_obspace_serial) then
   update_obspace = .false.
   if (nproc == 0) print *,'no observation space update will be done'
   numiter = 1
@@ -375,8 +380,10 @@ else
 endif
 
 ! initialize obfit_post, obsprd_post
-obfit_post(1:nobstot) = obfit_prior(1:nobstot)
-obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
+if (update_obspace) then
+   obfit_post(1:nobstot) = obfit_prior(1:nobstot)
+   obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
+endif
 
 do niter=1,numiter
 
@@ -457,6 +464,7 @@ do niter=1,numiter
   t5 = zero
   tbegin = mpi_wtime()
   nobslocal_max = -999
+  nobslocal_min = nobstot
   
   ! Update ensemble on model grid.
   ! Loop for each horizontal grid points on this task.
@@ -466,7 +474,8 @@ do niter=1,numiter
   !$omp                  nn,hxens,rdiag,dep,rloc,i,work,work2,trans, &
   !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
   !$omp  reduction(+:t1,t2,t3,t4,t5) &
-  !$omp  reduction(max:nobslocal_max) 
+  !$omp  reduction(max:nobslocal_max) &
+  !$omp  reduction(min:nobslocal_min) 
   grdloop: do npt=1,numptsperproc(nproc+1)
   
      t1 = mpi_wtime()
@@ -476,10 +485,17 @@ do niter=1,numiter
      deglat = latsgrd(ngrd1)*rad2deg
      corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
      corrsq = corrlength**2
-     allocate(sresults(nobstot))
      ! kd-tree fixed range search
-     call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
-          nfound=nobsl,nalloc=nobstot,results=sresults)
+     if (nobsl_max > 0) then ! only use nobsl_max nearest obs (sorted by distance).
+         allocate(sresults(nobsl_max))
+         call kdtree2_n_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),nn=nobsl_max,&
+              results=sresults)
+         nobsl = nobsl_max
+     else ! find all obs within localization radius (sorted by distance).
+         allocate(sresults(nobstot))
+         call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
+              nfound=nobsl,nalloc=nobstot,results=sresults)
+     endif
   
      t2 = t2 + mpi_wtime() - t1
      t1 = mpi_wtime()
@@ -508,12 +524,11 @@ do niter=1,numiter
            if (dist >= one) cycle
            rloc(nobsl2)=taper(dist)
            oindex(nobsl2)=nf
-           if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
-              nobsl2=nobsl2+1
-           end if
+           if(rloc(nobsl2) > tiny(rloc(nobsl2))) nobsl2=nobsl2+1
         end do
         nobsl2=nobsl2-1
         if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+        if (nobsl2 < nobslocal_min) nobslocal_min=nobsl2
         if(nobsl2 == 0) then
            deallocate(rloc,oindex)
            cycle verloop
@@ -553,6 +568,7 @@ do niter=1,numiter
         ! Compute transformation matrix of LETKF
         call letkf_core(nobsl2,hxens,rdiag,dep,rloc(1:nobsl2),trans)
         deallocate(rloc,rdiag)
+        ! if perturbed obs not used, these arrays no longer needed.
         if (deterministic) then
            deallocate(hxens,dep)
         endif
@@ -679,8 +695,9 @@ do niter=1,numiter
   call mpi_reduce(t5,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
   if (nproc .eq. 0) print *,',min/max/mean t5 = ',tmin,tmax,tmean
   call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc == 0) print *,'max number of obs in local volume',nobslocal_maxall
-  if (nrej > 0)   print *, nrej,' obs rejected by varqc'
+  call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+  if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
+  if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
   
   ! distribute the O-A stats to all processors.
   if (update_obspace) then
