@@ -1712,6 +1712,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'q2m',ges_q2_it,istatus ); ier=ier+istatus
            if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier =',ier)
         endif
+        if (l_gsd_soilTQ_nudge) then
+           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',ges_th2_it, istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn',ges_tsk_it, istatus );ier=ier+istatus 
+           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus);ier=ier+istatus
+           if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+        endif
 
 ! hydrometeors
         if(l_cloud_analysis .or. n_actual_clouds>0) then
