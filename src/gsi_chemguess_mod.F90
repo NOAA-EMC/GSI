@@ -221,6 +221,7 @@ module gsi_chemguess_mod
 ! !USES:
 
 use kinds, only: i_kind,r_kind
+use constants, only: max_varname_length
 use mpimod, only : mype
 use mpeu_util,only: die
 use file_utility, only : get_lun
@@ -291,7 +292,7 @@ type(GSI_Bundle),pointer :: GSI_ChemGuess_Bundle(:)   ! still a common for now
 ! !PRIVATE ROUTINES:
 !BOC
 
-integer(i_kind),parameter::MAXSTR=256
+integer(i_kind),parameter::MAXSTR=max_varname_length
 logical:: chem_grid_initialized_=.false.
 logical:: chem_initialized_=.false.
 character(len=*), parameter :: myname = 'gsi_chemguess_mod'

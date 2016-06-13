@@ -65,6 +65,7 @@ subroutine compute_qvar3d
   real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_q =>NULL()
+  integer(i_kind):: maxvarq1
 
 
   nrf3_q=getindex(cvars3d,'q')
@@ -129,6 +130,7 @@ subroutine compute_qvar3d
   end do
 
   if (qoption==2) then
+     maxvarq1=min(size(varq,1),25)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -137,8 +139,8 @@ subroutine compute_qvar3d
               np=n+1
               dn2=d-float(n)
               dn1=one-dn2
-              n=min0(max(1,n),25)
-              np=min0(max(1,np),25)
+              n=min0(max(1,n),maxvarq1)
+              np=min0(max(1,np),maxvarq1)
               dssv(i,j,k,nrf3_q)=(varq(n,k)*dn1 + varq(np,k)*dn2)*dssv(i,j,k,nrf3_q)
            end do
         end do
