@@ -22,15 +22,25 @@ sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 #
 #---------------------------
 
-if ($#ARGV != 3 ) {
-	print "usage: minmon_xtrct_costs.pl SUFFIX PDY cyc infile\n";
+if ($#ARGV != 4 ) {
+	print "usage: minmon_xtrct_costs.pl SUFFIX PDY cyc infile jlogfile\n";
 	exit;
 }
 my $suffix = $ARGV[0];
 
-my $pdy = $ARGV[1];
-my $cyc = $ARGV[2];
-my $infile = $ARGV[3];
+my $pdy      = $ARGV[1];
+my $cyc      = $ARGV[2];
+my $infile   = $ARGV[3];
+my $jlogfile = $ARGV[4];
+
+#--------------------------------------------------
+my $scr = "minmon_xtrct_costs.pl";
+my $msg = $scr . " HAS STARTED";
+
+my @msgcmd = ("postmsg", $jlogfile, $msg);
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
+#--------------------------------------------------
 
 my $rc    = 0;
 my $cdate = sprintf '%s%s', $pdy, $cyc;
@@ -55,8 +65,9 @@ if( (-e $infile) ) {
    my $jc_number = 7;
    my $jl_number = 8;
 
-   my $FIXgmon = $ENV{"FIXgmon"};
-   my $costfile = sprintf '%s%s', $FIXgmon, "/gmon_cost.txt";
+#   my $FIXminmon = $ENV{"FIXminmon"};
+   my $costfile = $ENV{"mm_costfile"};
+#   my $costfile = sprintf '%s', "./minmon_cost.txt";
    
    if( (-e $costfile) ) {
       open( COSTFILE, "<${costfile}" ) or die "Can't open ${costfile}: $!\n";
@@ -171,7 +182,7 @@ if( (-e $infile) ) {
       #------------------------------------------
       #  write all_costs array to costs.txt file
       #------------------------------------------
-      my $filename2 = "${suffix}.${cdate}.costs.txt";
+      my $filename2 = "${cdate}.costs.txt";
       if( @all_costs > 0 ) {
          open( OUTFILE, ">$filename2" ) or die "Can't open ${filename2}: $!\n";
          print OUTFILE @all_costs;
@@ -181,7 +192,7 @@ if( (-e $infile) ) {
       #-----------------------------------------------------
       #  write all_cost_terms array to costs_terms.txt file
       #-----------------------------------------------------
-      my $filename3 = "${suffix}.${cdate}.cost_terms.txt";
+      my $filename3 = "${cdate}.cost_terms.txt";
       if( @all_cost_terms > 0 ) {
          open( OUTFILE, ">$filename3" ) or die "Can't open ${filename3}: $!\n";
          print OUTFILE @all_cost_terms;
@@ -210,6 +221,13 @@ if( (-e $infile) ) {
 else {				# $infile does not exist
    $rc = 1;
 }
+
+#--------------------------------------------------
+$msg = $scr . " HAS ENDED";
+@msgcmd = ("postmsg", $jlogfile, $msg);
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
+#--------------------------------------------------
 
 print "$rc \n"
 
