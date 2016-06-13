@@ -1,6 +1,6 @@
 #!/bin/sh
 #############################################################
-# Set up environment for GDAS Radiance Monitor job
+# Set up environment for NAMRR Radiance Monitor job
 #############################################################
 set -xa
 echo `date` $0 `date -u` begin
@@ -8,6 +8,7 @@ export PS4='$SECONDS + '
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export envir=${envir:-prod}
+export REGIONAL_RR=${REGIONAL_RR:-1}
 
 ###############################
 # Specify NET and RUN name
