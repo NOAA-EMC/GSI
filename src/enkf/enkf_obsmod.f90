@@ -311,7 +311,8 @@ do nob=1,nobstot
       ! tcvitals obs get a free pass for background check.
       if (nproc == 0) then
       print *,'tcvitals ps ob found (lat,lon,time,ob,O-F,sprd,oberr_std):'
-      write(6,9101) stattype(nob),obloclat(nob),obloclon(nob),obtime(nob),ob(nob),obfit_prior(nob),sqrt(obsprd_prior(nob)),sqrt(oberrvar(nob))
+      write(6,9101) stattype(nob),obloclat(nob),obloclon(nob),obtime(nob),ob(nob),obfit_prior(nob), &
+                    sqrt(obsprd_prior(nob)),sqrt(oberrvar(nob))
       endif
   else
      ! background checks.
