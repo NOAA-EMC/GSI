@@ -596,7 +596,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
-        if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
+        if (ANY(int(allchan(1,bufr_start:bufr_end)) /= bufr_chan_test(bufr_start:bufr_end))) then
            bufr_index(:) = 0
            bufr_chans: do l=bufr_start, bufr_end
               bufr_chan_test(l) = int(allchan(1,l))                          ! Copy this bufr channel selection into array for comparison to next profile
