@@ -91,10 +91,10 @@ export ARCHIVE_DIR=${ARCHIVE_DIR:-' '}
 export HPSS_DIR=${HPSS_DIR:-' '}
 
 #
-#  STATIC_SATYPE switches on/off use of static satype list.  This is primarily
+#  USE_STATIC_SATYPE switches on/off use of static satype list.  This is primarily
 #    intended for use with diagnotic file error reporting and isn't needed 
 #    for most parallels.  0 = off, 1 = on
-export STATIC_SATYPE=${STATIC_SATYPE:-0}
+export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
 
 #
 #  DO_DIAG_RPT switches on/off the diagnostic error reporting.  This is check
