@@ -386,7 +386,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Get the size of the channels and radiance (allchan) array
         call ufbint(lnbufr,crchn_reps,1,1,iret, '(SCBTSEQN)')
-        bufr_nchan = int(crchn_reps) + 20  ! 15 amsu + 4 hsb + 1 extra
+        bufr_nchan = int(crchn_reps) + 24  ! 4 AIRS imager + 15 amsu + 5 HSB
+                                           ! (In the bufr format HSB has 5 not 4
+                                           ! channels!) 
 
         bufr_size = size(allchan,2)
         if ( bufr_size /= bufr_nchan ) then
@@ -558,7 +560,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Read the channel numbers, quality flags, and brightness temperatures
         call ufbrep(lnbufr, allchan,3,bufr_nchan,iret,'CHNM ACQF TMBR')
-        if( iret /= bufr_nchan + 4)then
+        if( iret /= bufr_nchan)then
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
               iret, ' TEMPERATURE CH DATA IS READ INSTEAD OF ',bufr_nchan
            cycle read_loop
@@ -568,13 +570,24 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Order in bufr file is airs, hsb, and amsua
         if (airs ) then 
            bufr_start = 1
-           bufr_end = bufr_nchan - 20  ! 15 amsu chans, 4 hsb chans, 1 extra (extra slot in the bufr file)
+           bufr_end = bufr_nchan - 24  ! 4 airs visible, 15 amsu chans, 5 hsb chans
+           
+           do i=1, bufr_end
+!             endif
+              chan_map(int(allchan(1,i))) = i    ! map channel number position into chan_map
+           end do
         elseif (amsua ) then
-           bufr_start = bufr_nchan - 15 
-           bufr_end = bufr_nchan  - 1
+           bufr_start = bufr_nchan - 19 ! 15 amsua + 5 hsb + 1
+           bufr_end = bufr_nchan  - 5   ! 5 hsb
+           do i=1, 15
+              !  Force allchan values for AMSU to be between 1 and 15 (sometimes they are
+              !  28-42!)
+              chan_map(i) = i+bufr_start-1
+              allchan(1,i+bufr_start-1)=i
+           end do
         elseif (hsb) then
-           bufr_start = bufr_nchan - 19  ! 15 amsu chans, 4 hsb chans
-           bufr_end = bufr_nchan - 16    ! 15 amsu chans, 1 extra (extra slot in bufr file)
+           bufr_start = bufr_nchan - 4  ! 5 hsb chans + 1
+           bufr_end = bufr_nchan        ! Fin
         endif
         do i=bufr_start, bufr_end
            chan_map(int(allchan(1,i))) = i    ! map channel number position into
