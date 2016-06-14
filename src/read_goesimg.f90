@@ -401,24 +401,27 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
+  if (mype_sub==mype_root.and.ndata>0) then
 
-  do n=1,ndata
-     do k=1,nchanl
-        if(data_all(k+nreal,n) > tbmin .and. &
-           data_all(k+nreal,n) < tbmax)nodata=nodata+1
-    end do
-  end do
-  if(dval_use .and. assim)then
      do n=1,ndata
-       itt=nint(data_all(37,n))
-       super_val(itt)=super_val(itt)+val_img
+        do k=1,nchanl
+           if(data_all(k+nreal,n) > tbmin .and. &
+              data_all(k+nreal,n) < tbmax)nodata=nodata+1
+       end do
      end do
-  end if
+     if(dval_use .and. assim)then
+        do n=1,ndata
+          itt=nint(data_all(37,n))
+          super_val(itt)=super_val(itt)+val_img
+        end do
+     end if
 
 ! Write final set of "best" observations to output file
-  call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+
+  endif
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)

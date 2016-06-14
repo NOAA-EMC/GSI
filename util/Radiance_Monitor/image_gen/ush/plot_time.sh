@@ -17,7 +17,7 @@ echo "Starting plot_time.sh"
 
 #------------------------------------------------------------------
 # Set environment variables.
-tmpdir=${PLOT_WORK_DIR}/plot_time_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
+tmpdir=${PLOT_WORK_DIR}/plot_time_${RADMON_SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -135,7 +135,7 @@ EOF
    #  This restriction is in place because the regional html doesn't yet
    #  use the interactive plotting by default.  That is next on the todo list.
    #  All global sources and nrx (operatioal ndas)  are supported though.
-   if [[ ${RAD_AREA} = "glb" || ${SUFFIX} = "nrx" ]]; then
+   if [[ ${RAD_AREA} = "glb" || ${RADMON_SUFFIX} = "nrx" ]]; then
       $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
       ./nu_plot_time.sh ${type}
 #     rm -f nu_plot_time.sh

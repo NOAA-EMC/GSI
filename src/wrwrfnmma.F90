@@ -57,9 +57,10 @@ subroutine wrwrfnmma_binary(mype)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use native_endianness, only: byte_swap
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
   use mpeu_util, only: die
 
   implicit none
@@ -1105,6 +1106,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
   use gsi_4dvar, only: nhr_assimilation
 
@@ -1701,9 +1703,10 @@ subroutine wrwrfnmma_netcdf(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
 
   implicit none
 
