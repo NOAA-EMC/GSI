@@ -13,6 +13,7 @@ module guess_grids
 ! !USES:
  
   use kinds, only: r_single,r_kind,i_kind
+  use constants, only: max_varname_length
   use gridmod, only: regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional
   use gridmod, only: eta1_ll
@@ -575,7 +576,7 @@ contains
 !-------------------------------------------------------------------------
    character(len=*),parameter::myname_=myname//'*create_metguess_grids'
    integer(i_kind) :: nmguess                   ! number of meteorol. fields (namelist)
-   character(len=256),allocatable:: mguess(:)   ! names of meterol. fields
+   character(len=max_varname_length),allocatable:: mguess(:)   ! names of meterol. fields
 
    istatus=0
   
@@ -686,7 +687,7 @@ contains
 !-------------------------------------------------------------------------
   character(len=*),parameter::myname_=myname//'*create_chemges_grids'
    integer(i_kind) :: ntgases                   ! number of tracer gases (namelist)
-   character(len=256),allocatable:: tgases(:)   ! names of tracer gases
+   character(len=max_varname_length),allocatable:: tgases(:)   ! names of tracer gases
 
   istatus=0
   
