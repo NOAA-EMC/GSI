@@ -860,7 +860,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-
      end do
 
      if(dval_use .and. assim)then
