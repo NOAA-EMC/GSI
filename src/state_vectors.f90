@@ -680,7 +680,7 @@ function dot_prod_st_r0(xst,yst,which) result(dotprod_red)
   zz(1)=0._r_quad
  
   zz(1)=dot_prod_st(xst,yst,which=which)
-  call mpl_allreduce(1,zz)
+  call mpl_allreduce(1,qpvals=zz)
   dotprod_red=zz(1)
 end function dot_prod_st_r0
 ! ----------------------------------------------------------------------
@@ -708,7 +708,8 @@ function dot_prod_st_r1(xst,yst,which) result(dotprod_red)
   do i=1,size(xst)
     zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
   enddo
-  call mpl_allreduce(1,zz)
+  call mpl_allreduce(1,qpvals=zz)
+
   dotprod_red=zz(1)
 end function dot_prod_st_r1
 ! ----------------------------------------------------------------------
@@ -726,7 +727,8 @@ function dot_prod_red_st_r0(xst,yst,iroot,which) result(dotprod_red)
 
   zz(1)=dot_prod_st(xst,yst,which=which)
 
-  call mpl_reduce(1,iroot,zz)
+  call mpl_reduce(1,iroot,qpvals=zz)
+
   if(mype == iroot)then
      dotprod_red=zz(1)
   else
@@ -759,7 +761,7 @@ function dot_prod_red_st_r1(xst,yst,iroot,which) result(dotprod_red)
   do i=1,size(xst)
     zz(1)=zz(1)+dot_prod_st(xst(i),yst(i),which=which)
   enddo
-  call mpl_reduce(1,iroot,zz)
+  call mpl_reduce(1,iroot,qpvals=zz)
   if(mype == iroot)then
      dotprod_red=zz(1)
   else
