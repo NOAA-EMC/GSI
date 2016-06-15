@@ -2059,7 +2059,7 @@ contains
 
     real(r_kind) helmholtz
     real(r_kind),allocatable:: f(:,:),v(:,:),w(:,:)
-              real(r_kind) time0,timef
+!             real(r_kind) time0,timef
 
 !             run tests with test_div_full
     allocate(f(0:ny1,0:nx1))
@@ -2068,7 +2068,7 @@ contains
     f=test_div
         write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
         call fmg(v,f,helmholtz_on,1,1,20,mg(1)%nx,mg(1)%ny)
-               write(6,'(" time in fmg =",f15.6," seconds")') .001*(timef()-time0)
+!              write(6,'(" time in fmg =",f15.6," seconds")') .001*(timef()-time0)
         w=zero
         helmholtz=zero
         if(helmholtz_on) helmholtz=one

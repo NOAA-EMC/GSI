@@ -430,7 +430,7 @@ subroutine pcgsoi()
      dprod(1) = qdot_prod_sub(gradx,grady)
      dprod(2) = qdot_prod_sub(xdiff,grady)
      dprod(3) = qdot_prod_sub(ydiff,gradx)
-     call mpl_allreduce(3,dprod)
+     call mpl_allreduce(3,qpvals=dprod)
 
      gnorm(1)=dprod(1)
 !    Two dot products in gnorm(2) should be same, but are slightly different due to round off
