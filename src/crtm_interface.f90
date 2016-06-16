@@ -148,8 +148,8 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 
   real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
 
-  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_ir
-  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_mwave 
+  integer(i_kind),save, allocatable,dimension(:) :: map_to_crtm_ir
+  integer(i_kind),save, allocatable,dimension(:) :: map_to_crtm_mwave 
   integer(i_kind),save, allocatable,dimension(:) :: icw
   integer(i_kind),save, allocatable,dimension(:) :: iaero_jac
   integer(i_kind),save :: isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang
@@ -197,10 +197,10 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
      BROADLEAF_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, PINE_FOREST, &
      PINE_FOREST, BROADLEAF_BRUSH, SCRUB, SCRUB, SCRUB_SOIL, TUNDRA, &
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
-! Mapping nmm to CRTM
+! Mapping surface classifications to CRTM
   integer(i_kind), parameter :: USGS_N_TYPES = 24
   integer(i_kind), parameter :: IGBP_N_TYPES = 20
-  integer(i_kind), parameter :: NAM_SOIL_N_TYPES = 16
+  integer(i_kind), parameter :: SOIL_N_TYPES = 16
   integer(i_kind), parameter :: GFS_SOIL_N_TYPES = 9
   integer(i_kind), parameter :: GFS_VEGETATION_N_TYPES = 13
   integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_npoess=(/URBAN_CONCRETE, &
@@ -226,11 +226,11 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_gfs=(/7, &
     12, 12, 12, 12, 12, 7, 9, 8, 6, 2, 5, 1, 4, 3, 0, 8, 8, 11, 10, 10, &
     10, 11, 13/)
- ! Mapping nmm soil to CRTM soil
+ ! Mapping soil types to CRTM
  ! The CRTM soil types for microwave calculations are based on the 
  ! GFS use of the 9 category Zobler dataset. The regional soil types
  ! are based on a 16 category representation of FAO/STATSGO. 
-  integer(i_kind), parameter, dimension(1:NAM_SOIL_N_TYPES) :: nmm_soil_to_crtm=(/1, &
+  integer(i_kind), parameter, dimension(1:SOIL_N_TYPES) :: map_soil_to_crtm=(/1, &
     1, 4, 2, 2, 8, 7, 2, 6, 5, 2, 3, 8, 1, 6, 9/)
   
 contains
@@ -695,23 +695,23 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  end do
 
  ! Mapping land surface type to CRTM
- allocate(nmm_to_crtm_ir(nvege_type))
- allocate(nmm_to_crtm_mwave(nvege_type))
+ allocate(map_to_crtm_ir(nvege_type))
+ allocate(map_to_crtm_mwave(nvege_type))
  if(nvege_type==USGS_N_TYPES)then
     ! Assign mapping for CRTM microwave calculations
-    nmm_to_crtm_mwave=usgs_to_gfs
-    ! nmm usgs to CRTM
+    map_to_crtm_mwave=usgs_to_gfs
+    ! map usgs to CRTM
     select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
-      case('NPOESS'); nmm_to_crtm_ir=usgs_to_npoess
-      case('USGS')  ; nmm_to_crtm_ir=usgs_to_usgs
+      case('NPOESS'); map_to_crtm_ir=usgs_to_npoess
+      case('USGS')  ; map_to_crtm_ir=usgs_to_usgs
     end select
  else if(nvege_type==IGBP_N_TYPES)then
     ! Assign mapping for CRTM microwave calculations
-    nmm_to_crtm_mwave=igbp_to_gfs
-    ! nmm igbp to CRTM 
+    map_to_crtm_mwave=igbp_to_gfs
+    ! igbp to CRTM 
     select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
-      case('NPOESS'); nmm_to_crtm_ir=igbp_to_npoess
-      case('IGBP')  ; nmm_to_crtm_ir=igbp_to_igbp
+      case('NPOESS'); map_to_crtm_ir=igbp_to_npoess
+      case('IGBP')  ; map_to_crtm_ir=igbp_to_igbp
     end select
  else
     write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
@@ -804,8 +804,8 @@ subroutine destroy_crtm
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
   if(allocated(icw)) deallocate(icw)
-  if(regional)deallocate(nmm_to_crtm_ir)
-  if(regional)deallocate(nmm_to_crtm_mwave)
+  if(regional)deallocate(map_to_crtm_ir)
+  if(regional)deallocate(map_to_crtm_mwave)
 
   return
 end subroutine destroy_crtm
@@ -1235,11 +1235,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            istype = nint(data_s(isty))
            
            itype  = min(max(1,itype),nvege_type)
-           istype = min(max(1,istype),NAM_SOIL_N_TYPES)
-           surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
-           surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
-           surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
-           lai_type = nmm_to_crtm_mwave(itype)
+           istype = min(max(1,istype),SOIL_N_TYPES)
+           surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+           surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
+           surface(1)%Soil_Type = map_soil_to_crtm(istype)
+           lai_type = map_to_crtm_mwave(itype)
                                            
            if (lwind) then
 !        Interpolate lowest level winds to observation location 

@@ -447,7 +447,11 @@ contains
     jcap=62
     jcap_b=62
     hires_b=.false.
-    nvege_type=24
+    ! -------------------------------------------------------!
+    ! nvege_type set to 20 (i.e. default vege type is IGBP)  !
+    ! Updated in EXP-crtm_sfc_intrface branch: June 16, 2016 !
+    ! -------------------------------------------------------!
+    nvege_type = 20
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio = .false.
