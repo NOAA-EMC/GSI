@@ -207,8 +207,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat=4
   bad_line=-1
 
-  if(jsatid == 'npp') then
-     kidsat=224
+  if (jsatid == 'npp') then
+     kidsat = 224
+  elseif (jsatid == 'n20') then
+     kidsat = 225
+  elseif (jsatid == 'n21') then
+     kidsat = 226
   else 
      write(*,*) 'READ_CrIS: Unrecognized value for jsatid '//jsatid//': RETURNING'
      return
