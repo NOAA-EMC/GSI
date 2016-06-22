@@ -804,8 +804,8 @@ subroutine destroy_crtm
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
   if(allocated(icw)) deallocate(icw)
-  if(regional)deallocate(map_to_crtm_ir)
-  if(regional)deallocate(map_to_crtm_mwave)
+  deallocate(map_to_crtm_ir)
+  deallocate(map_to_crtm_mwave)
 
   return
 end subroutine destroy_crtm
