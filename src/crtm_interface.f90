@@ -197,7 +197,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
      BROADLEAF_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, PINE_FOREST, &
      PINE_FOREST, BROADLEAF_BRUSH, SCRUB, SCRUB, SCRUB_SOIL, TUNDRA, &
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
-! Mapping surface classifications to CRTM
+! Mapping surface classification to CRTM
   integer(i_kind), parameter :: USGS_N_TYPES = 24
   integer(i_kind), parameter :: IGBP_N_TYPES = 20
   integer(i_kind), parameter :: SOIL_N_TYPES = 16
@@ -694,33 +694,35 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     surface_k(ii,1)   = surface(1)
  end do
 
- ! Mapping land surface type to CRTM
- allocate(map_to_crtm_ir(nvege_type))
- allocate(map_to_crtm_mwave(nvege_type))
- if(nvege_type==USGS_N_TYPES)then
-    ! Assign mapping for CRTM microwave calculations
-    map_to_crtm_mwave=usgs_to_gfs
-    ! map usgs to CRTM
-    select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
-      case('NPOESS'); map_to_crtm_ir=usgs_to_npoess
-      case('USGS')  ; map_to_crtm_ir=usgs_to_usgs
-    end select
- else if(nvege_type==IGBP_N_TYPES)then
-    ! Assign mapping for CRTM microwave calculations
-    map_to_crtm_mwave=igbp_to_gfs
-    ! igbp to CRTM 
-    select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
-      case('NPOESS'); map_to_crtm_ir=igbp_to_npoess
-      case('IGBP')  ; map_to_crtm_ir=igbp_to_igbp
-    end select
- else
-    write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
-    //' for the CRTM IRland EmisCoeff file used.', &
-    ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
-    '  ***STOP IN SETUPRAD***'
-    call stop2(71)
- endif ! nvege_type
-
+! Mapping land surface type of NMM to CRTM
+ if (regional .or. nvege_type==IGBP_N_TYPES) then
+    allocate(map_to_crtm_ir(nvege_type))
+    allocate(map_to_crtm_mwave(nvege_type))
+    if(nvege_type==USGS_N_TYPES)then
+       ! Assign mapping for CRTM microwave calculations
+       map_to_crtm_mwave=usgs_to_gfs
+       ! map usgs to CRTM
+       select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
+         case('NPOESS'); map_to_crtm_ir=usgs_to_npoess
+         case('USGS')  ; map_to_crtm_ir=usgs_to_usgs
+       end select
+    else if(nvege_type==IGBP_N_TYPES)then
+       ! Assign mapping for CRTM microwave calculations
+       map_to_crtm_mwave=igbp_to_gfs
+       ! nmm igbp to CRTM 
+       select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
+         case('NPOESS'); map_to_crtm_ir=igbp_to_npoess
+         case('IGBP')  ; map_to_crtm_ir=igbp_to_igbp
+       end select
+    else
+       write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
+          //' for the CRTM IRland EmisCoeff file used.', &
+          ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
+          '  ***STOP IN SETUPRAD***'
+       call stop2(71)
+    endif ! nvege_type
+ endif ! regional or IGBP
+    
 ! Calculate RH when aerosols are present and/or cloud-fraction used
  if (n_aerosols>0 .or. lcf4crtm) then
     allocate(gesqsat(lat2,lon2,nsig,nfldsig))
@@ -804,8 +806,8 @@ subroutine destroy_crtm
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
   if(allocated(icw)) deallocate(icw)
-  deallocate(map_to_crtm_ir)
-  deallocate(map_to_crtm_mwave)
+  if(regional .or. nvege_type==IGBP_N_TYPES)deallocate(map_to_crtm_ir)
+  if(regional .or. nvege_type==IGBP_N_TYPES)deallocate(map_to_crtm_mwave)
 
   return
 end subroutine destroy_crtm
@@ -1229,18 +1231,26 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! **NOTE:  The model surface type --> CRTM surface type
 !          mapping below is specific to the versions NCEP
-!          GFS and NNM as of Summer 2016
+!          GFS and NNM as of September 2005
 
            itype  = nint(data_s(ivty))
            istype = nint(data_s(isty))
-           
-           itype  = min(max(1,itype),nvege_type)
-           istype = min(max(1,istype),SOIL_N_TYPES)
-           surface(1)%land_type = max(1,map_to_crtm_ir(itype))
-           surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
-           surface(1)%Soil_Type = map_soil_to_crtm(istype)
-           lai_type = map_to_crtm_mwave(itype)
-                                           
+           if (regional .or. nvege_type==IGBP_N_TYPES) then
+              itype  = min(max(1,itype),nvege_type)
+              istype = min(max(1,istype),SOIL_N_TYPES)
+              surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
+              surface(1)%Soil_Type = map_soil_to_crtm(istype)
+              lai_type = map_to_crtm_mwave(itype)
+           else
+              itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
+              istype = min(max(1,istype),GFS_SOIL_N_TYPES)
+              surface(1)%land_type = gfs_to_crtm(itype)
+              surface(1)%Vegetation_Type = max(1,itype)
+              surface(1)%Soil_Type = istype
+              lai_type = itype
+           end if
+                                    
            if (lwind) then
 !        Interpolate lowest level winds to observation location 
 
