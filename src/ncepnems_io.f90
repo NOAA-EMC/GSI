@@ -175,6 +175,7 @@ contains
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2013-10-19  todling - metguess now holds background
 !   2016-03-30  todling - update interface to general read (pass bundle)
+!   2016-06-23  Li      - Add cloud partitioning, which was missed  
 !
 !   input argument list:
 !     mype              - mpi task id
@@ -199,6 +200,7 @@ contains
     use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe
+    use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -206,6 +208,19 @@ contains
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
     integer(i_kind):: it, istatus, inner_vars, num_fields
+    integer(i_kind):: i,j,k
+
+    real(r_kind),dimension(lat2,lon2  ):: aux_ps
+    real(r_kind),dimension(lat2,lon2  ):: aux_z
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
+    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
+
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -216,19 +231,23 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it  => NULL()
 
     type(sub2grid_info) :: grd_t
     logical regional
+    logical:: l_cld_derived,zflag,inithead
 
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
-    integer(i_kind),parameter :: n3d=8
+    integer(i_kind),parameter :: n3d=10
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
     character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
                                                     'vor ', 'div ', &
                                                     'tv  ', 'q   ', &
-                                                    'cw  ', 'oz  ' /)
+                                                    'cw  ', 'oz  ', &
+                                                    'ql  ', 'qi  ' /)
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
@@ -255,8 +274,23 @@ contains
        call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
             atm_bundle,.true.,istatus)
 
+       inithead=.false.
+       zflag=.false.
+
 !      Set values to actual MetGuess fields
        call set_guess_
+
+       l_cld_derived = associated(ges_cwmr_it).and.&
+                       associated(ges_q_it)   .and.&
+                       associated(ges_ql_it)  .and.&
+                       associated(ges_qi_it)  .and.&
+                       associated(ges_tv_it)
+!      call set_cloud_lower_bound(ges_cwmr_it)
+       if (mype==0) write(6,*)'READ_GFS_NEMS: l_cld_derived = ', l_cld_derived
+
+       if (l_cld_derived) then
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it)
+       end if
 
     end do
     call general_sub2grid_destroy_info(grd_t)
@@ -315,6 +349,23 @@ contains
     if (istatus==0) then
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
        if(istatus==0) ges_cwmr_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'ql',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,istatus)
+       if(istatus==0) then
+          ges_ql_it = ptr3d
+       else
+          if (mype==0) write(6,*)'read_ nemsio: cannot get pointer to ql,iret_ql=',istatus
+       endif
+    endif
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_ql_it,istatus)
+       if(istatus==0) then
+          ges_qi_it = ptr3d
+       else
+          if (mype==0) write(6,*)'read_ nemsio: cannot get pointer to qi,iret_qi=',istatus
+       endif
     endif
 
     end subroutine set_guess_
