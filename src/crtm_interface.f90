@@ -200,6 +200,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 ! Mapping surface classification to CRTM
   integer(i_kind), parameter :: USGS_N_TYPES = 24
   integer(i_kind), parameter :: IGBP_N_TYPES = 20
+  integer(i_kind), parameter :: GFS_N_TYPES = 13
   integer(i_kind), parameter :: SOIL_N_TYPES = 16
   integer(i_kind), parameter :: GFS_SOIL_N_TYPES = 9
   integer(i_kind), parameter :: GFS_VEGETATION_N_TYPES = 13
@@ -1242,13 +1243,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
               surface(1)%Soil_Type = map_soil_to_crtm(istype)
               lai_type = map_to_crtm_mwave(itype)
-           else
+           elseif (nvege_type==GFS_N_TYPES) then
               itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
               istype = min(max(1,istype),GFS_SOIL_N_TYPES)
               surface(1)%land_type = gfs_to_crtm(itype)
               surface(1)%Vegetation_Type = max(1,itype)
               surface(1)%Soil_Type = istype
               lai_type = itype
+           else
+              write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
+                 //' the information does not match any currenctly.', &
+                 ' supported surface type maps to the CRTM,', &
+                 '  ***STOP IN SETUPRAD***'
+                 call stop2(71)
            end if
                                     
            if (lwind) then
