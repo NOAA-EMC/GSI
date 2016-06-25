@@ -1231,7 +1231,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! **NOTE:  The model surface type --> CRTM surface type
 !          mapping below is specific to the versions NCEP
-!          GFS and NNM as of September 2005
+!          GFS and NNM as of Summer 2016
 
            itype  = nint(data_s(ivty))
            istype = nint(data_s(isty))
