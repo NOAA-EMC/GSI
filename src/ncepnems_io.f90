@@ -208,6 +208,7 @@ contains
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
     integer(i_kind):: it, istatus, inner_vars, num_fields
+    integer(i_kind):: iret_ql,iret_qi
     integer(i_kind):: i,j,k
 
     real(r_kind),dimension(lat2,lon2  ):: aux_ps
@@ -241,13 +242,12 @@ contains
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
-    integer(i_kind),parameter :: n3d=10
+    integer(i_kind),parameter :: n3d=8
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
     character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
                                                     'vor ', 'div ', &
                                                     'tv  ', 'q   ', &
-                                                    'cw  ', 'oz  ', &
-                                                    'ql  ', 'qi  ' /)
+                                                    'cw  ', 'oz  ' /)
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
@@ -350,25 +350,16 @@ contains
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
        if(istatus==0) ges_cwmr_it = ptr3d
     endif
-    call gsi_bundlegetpointer (atm_bundle,'ql',ptr3d,istatus)
-    if (istatus==0) then
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,istatus)
-       if(istatus==0) then
-          ges_ql_it = ptr3d
-       else
-          if (mype==0) write(6,*)'read_ nemsio: cannot get pointer to ql,iret_ql=',istatus
-       endif
+    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)
+    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)
+    if (iret_ql/=0) then
+       if (mype==0) write(6,*)'READ_ NEMSIO: cannot get pointer to ql,iret_ql=',iret_ql
     endif
-    if (istatus==0) then
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_ql_it,istatus)
-       if(istatus==0) then
-          ges_qi_it = ptr3d
-       else
-          if (mype==0) write(6,*)'read_ nemsio: cannot get pointer to qi,iret_qi=',istatus
-       endif
+    if (iret_qi/=0) then
+       if (mype==0) write(6,*)'READ_ NEMSIO: cannot get pointer to qi,iret_qi=',iret_qi
     endif
 
-    end subroutine set_guess_
+  end subroutine set_guess_
 
   end subroutine read_
 
