@@ -175,7 +175,8 @@ contains
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2013-10-19  todling - metguess now holds background
 !   2016-03-30  todling - update interface to general read (pass bundle)
-!   2016-06-23  Li      - Add cloud partitioning, which was missed  
+!   2016-06-23  Li      - Add cloud partitioning, which was missed (based on GFS
+!                         ticket #239, comment 18) 
 !
 !   input argument list:
 !     mype              - mpi task id
