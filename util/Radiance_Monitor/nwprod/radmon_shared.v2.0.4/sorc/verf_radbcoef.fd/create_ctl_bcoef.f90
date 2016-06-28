@@ -92,7 +92,7 @@ subroutine create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   write(lunctl,140) n_chan
   write(lunctl,150) 
   write(lunctl,160) 
-  write(lunctl,170) ntime,ihh2,idd2,mon(imm2),iyy2
+  write(lunctl,170) ntime,ihh2,idd2,mon(imm2),iyy2,incr
   write(lunctl,180) ntype
 
 100 format('dset ^',a40)
@@ -107,7 +107,7 @@ subroutine create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 140 format('xdef ',i4,' linear 1.0 1.0')
 150 format('ydef 1 linear 1.0 1.0')
 160 format('zdef 1 linear 1.0 1.0')
-170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' 06hr')
+170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' ',i2.2'hr')
 180 format('vars ',i7)
 
 210 format('*')

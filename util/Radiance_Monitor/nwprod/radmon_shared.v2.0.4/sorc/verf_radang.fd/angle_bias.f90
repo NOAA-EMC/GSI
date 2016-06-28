@@ -485,7 +485,7 @@ program angle
         dfile = trim(satname) // '_anl'
      endif
 
-     call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
+     call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,incr,&
        ctl_file,lunctl,rmiss,dfile,satype,dplat,surf_nregion,&
        surf_region,surf_rlonmin,surf_rlonmax,surf_rlatmin,surf_rlatmax,&
        nu_chan,use, error, frequency,wavenumbr,nstep,start,step, little_endian)

@@ -177,7 +177,7 @@ cat << EOF > input
   idd=${idd},
   ihh=${ihh},
   idhh=-720,
-  incr=6,
+  incr=${CYCLE_INTERVAL},
   nchanl=${nchanl},
   suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},

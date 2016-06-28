@@ -134,6 +134,15 @@ else
    ctr=0
    fail=0
 
+   nchanl=-999
+   npredr=5
+
+#   if [[ $REGIONAL_RR -eq 1 ]]; then
+#      incr=1 
+#   else
+#      incr=6
+#   fi
+
    for type in ${SATYPE}; do
       for dtype in ${gesanl}; do
 
@@ -160,8 +169,6 @@ else
 
       rm input
 
-      nchanl=-999
-      npredr=5
 
 cat << EOF > input
  &INPUT
@@ -173,7 +180,7 @@ cat << EOF > input
   idd=${idd},
   ihh=${ihh},
   idhh=-720,
-  incr=6,
+  incr=${CYCLE_INTERVAL},
   suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},

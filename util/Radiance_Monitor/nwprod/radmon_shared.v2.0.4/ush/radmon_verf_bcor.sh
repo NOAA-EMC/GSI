@@ -98,6 +98,7 @@ rgnTM=${rgnTM:-}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 USE_ANL=${USE_ANL:-0}
 
 bcor_exec=radmon_bcor
@@ -170,7 +171,7 @@ cat << EOF > input
   idd=${idd},
   ihh=${ihh},
   idhh=-720,
-  incr=6,
+  incr=${CYCLE_INTERVAL},
   nchanl=${nchanl},
   suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},

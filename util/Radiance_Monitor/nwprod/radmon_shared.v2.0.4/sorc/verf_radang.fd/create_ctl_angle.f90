@@ -1,4 +1,4 @@
-subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
+subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,incr,&
      ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
      region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use,error,&
      frequency,wavenumbr,nstep,start,step, little_endian)
@@ -44,7 +44,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 ! Create date for tdef based on given date and hour offset
 
   idhh=-720  ! this is 30 days back in hours.
-  incr=6     ! cycle interval
+!  incr=6     ! cycle interval
 
   fha=0.0; ida=0; jda=0; ntime=0
   iyy2=iyy; imm2=imm; idd2=idd; ihh2=ihh
@@ -132,7 +132,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
   write(lunctl,145) nstep,start,step
   write(lunctl,150) n_chan
   write(lunctl,160) nregion
-  write(lunctl,170) ntime,ihh2,idd2,mon(imm2),iyy2
+  write(lunctl,170) ntime,ihh2,idd2,mon(imm2),iyy2,incr
   write(lunctl,180) ntype
 
 100 format('dset ^',a40)
@@ -149,7 +149,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 145 format('xdef ',i3,' linear ',f5.1,1x,f5.1)
 150 format('ydef ',i4,' linear 1.0 1.0')
 160 format('zdef ',i2,' linear 1.0 1.0')
-170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' 06hr')
+170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' ',i2.2,'hr')
 180 format('vars ',i7)
 
 ! Write data portion of GraDS control file  
