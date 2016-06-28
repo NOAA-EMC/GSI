@@ -1099,7 +1099,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename,file_sfc,file_nst
     integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
-    integer(i_kind) i,j,k 
 
     real(r_kind),dimension(grd_a%lat2,grd_a%lon2  ):: aux_ps
     real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_u
