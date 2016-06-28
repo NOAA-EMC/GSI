@@ -135,6 +135,7 @@ MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
 time_exec=radmon_time
 USE_ANL=${USE_ANL:-0}
@@ -227,7 +228,7 @@ cat << EOF > input
   idd=${idd},
   ihh=${ihh},
   idhh=-720
-  incr=6
+  incr=${CYCLE_INTERVAL}
   nchanl=${nchanl},
   suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},

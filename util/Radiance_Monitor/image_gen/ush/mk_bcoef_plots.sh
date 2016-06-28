@@ -10,8 +10,10 @@
 
 set -ax
 date
+echo "begin mk_bcoef_plots.sh"
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
 imgndir="${IMGNDIR}/bcoef"
 tankdir="${TANKDIR}/bcoef"
@@ -28,7 +30,9 @@ fi
 #
 allmissing=1
 PDY=`echo $PDATE|cut -c1-8`
-ndays=$(($NUM_CYCLES/4))
+cycdy=$((24/$CYCLE_INTERVAL))
+ndays=$(($NUM_CYCLES/$cycdy))
+
 test_day=$PDATE
 
 for type in ${SATYPE}; do
@@ -38,14 +42,24 @@ for type in ${SATYPE}; do
    ctr=$ndays
 
    while [[ $found -eq 0 && $done -ne 1 ]]; do
-
-      pdy=`echo $test_day|cut -c1-8`   
+      if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next
+         tdate=`$NDATE +6 ${test_day}`          # day's radmon.yyymmdd directory
+         pdy=`echo $test_day|cut -c1-8`
+      else
+         pdy=`echo $test_day|cut -c1-8`
+      fi
 
       if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+         fi
          found=1
       elif [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl ]]; then
+            $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+         fi
          found=1
       fi
 
@@ -77,16 +91,17 @@ fi
 #   Update the time definition (tdef) line in the bcoef control
 #   files.  Conditionally remove any cray_32bit_ieee flags.
 
+
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
    ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
-      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
-   fi
+#   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+#      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
+#      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
+#   fi
 
    ${COMPRESS} ${imgndir}/${type}.ctl
 done
@@ -109,4 +124,5 @@ elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
 fi
 
+echo "end mk_bcoef_plots.sh"
 exit

@@ -13,9 +13,8 @@
 
 function usage {
   echo "Usage:  CkPlt_rgnl.sh suffix [plot_date]"
-  echo "            File name for CkPlt_rgnl.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in"
-  echo "              TANKDIR/stats directory."
+  echo "              TANKDIR/stats/regional directory."
   echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot"
   echo "              will be for the specified cycle, provided data files are available."
   echo "              If not included, the plot cycle will be the last processed cycle."
@@ -54,6 +53,8 @@ fi
 #--------------------------------------------------------------------
 export RAD_AREA=rgn
 export PLOT_ALL_REGIONS=
+export REGIONAL_RR=${REGIONAL_RR:-0}
+echo REGIONAL_RR      = ${REGIONAL_RR}
 
 top_parm=${this_dir}/../../parm
 export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
@@ -148,11 +149,25 @@ else
    export PDATE=$PRODATE
 fi
 export START_DATE=`$NDATE -720 $PDATE`
-echo $PRODATE  $PDATE
+echo "START_DATE, PRODATE, PDATE =  $START_DATE $PRODATE  $PDATE"
 
+
+#--------------------------------------------------------------------
+#  Note:  for REGIONAL_RR cases the 19z-00z data files are stored in
+#         the next day's radmon.yyyymmdd file.  So for those cases
+#         add 6 hrs to pdate and then set the $PDY value.
+#
 sdate=`echo $PDATE|cut -c1-8`
 export CYA=`echo $PDATE|cut -c9-10`
-export PDY=`echo $PDATE|cut -c1-8`
+echo "sdate, CYA = $sdate, $CYA"
+
+if [[ $REGIONAL_RR -eq 1 ]]; then
+   echo "getting date for REGIONAL_RR model"
+   tdate=`$NDATE +6 $PDATE`
+   export PDY=`echo $tdate|cut -c1-8`
+else 
+   export PDY=`echo $PDATE|cut -c1-8`
+fi
 
 #--------------------------------------------------------------------
 #  exit if no new data is available
@@ -185,16 +200,19 @@ if [[ $PLOT -eq 1 ]]; then
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
       if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d.*`
-      else
-         test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
+         test_list=`ls ${TANKDIR}/radmon.${PDY}/*angle.*${PDATE}.ieee_d.*`
+      fi
+
+      cut_grp=2
+      if [[ $REGIONAL_RR ]]; then
+         cut_grp=3
       fi
 
       for test in ${test_list}; do
          this_file=`basename $test`
          test_anl=`echo $this_file | grep "_anl"`
          if [[ $test_anl = "" ]]; then
-            tmp=`echo "$this_file" | cut -d. -f2`
+            tmp=`echo "$this_file" | cut -d. -f${cut_grp}`
             echo $tmp
             SATYPE_LIST="$SATYPE_LIST $tmp"
          fi
@@ -259,40 +277,41 @@ if [[ $PLOT -eq 1 ]]; then
      fi
   fi
 
-  ${IG_SCRIPTS}/mk_angle_plots.sh
+   ${IG_SCRIPTS}/mk_angle_plots.sh
 
-  ${IG_SCRIPTS}/mk_bcoef_plots.sh
+   ${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-  ${IG_SCRIPTS}/mk_bcor_plots.sh
+   if [[ ${PLOT_STATIC_IMGS} -eq 1 ]]; then
+      ${IG_SCRIPTS}/mk_bcor_plots.sh
+   fi
 
-  ${IG_SCRIPTS}/mk_time_plots.sh
+   ${IG_SCRIPTS}/mk_time_plots.sh
 
   #------------------------------------------------------------------
   #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
   #------------------------------------------------------------------
-  if [[ $DO_ARCHIVE = 1 ]]; then
-#     ${IG_SCRIPTS}/make_archive.sh
-     ${IG_SCRIPTS}/nu_make_archive.sh
-  fi
+#  if [[ $DO_ARCHIVE = 1 ]]; then
+#     ${IG_SCRIPTS}/nu_make_archive.sh
+#  fi
 
 fi
 
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
-
-   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
-
-   if [[ -s $logfile ]]; then
-      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
-   fi
-fi
+#if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
+#
+#   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
+#
+#   if [[ -s $logfile ]]; then
+#      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+#   fi
+#fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 exit

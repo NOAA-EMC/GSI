@@ -13,7 +13,7 @@
 
 set -x
 
-export PDATE=2016060515
+export PDATE=2016062712
 
 #############################################################
 # Specify whether the run is production or development
@@ -76,7 +76,7 @@ export TANKverf=${COMROOT}/${RADMON_SUFFIX}
 #############################################################
 # Execute job
 #############################################################
-$JOBregional/JNAMRR_VERFRAD_T
+$JOBregional/JNAMRR_VERFRAD
 
 exit
 
