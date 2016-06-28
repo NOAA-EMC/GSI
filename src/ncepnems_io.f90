@@ -209,18 +209,6 @@ contains
     character(24) filename
     integer(i_kind):: it, istatus, inner_vars, num_fields
     integer(i_kind):: iret_ql,iret_qi
-    integer(i_kind):: i,j,k
-
-    real(r_kind),dimension(lat2,lon2  ):: aux_ps
-    real(r_kind),dimension(lat2,lon2  ):: aux_z
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_u
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_v
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_vor
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_div
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_tv
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_q
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_oz
-    real(r_kind),dimension(lat2,lon2,nsig):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
