@@ -288,7 +288,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
 !next two lines here
-  use radinfo, only: radinfo_scl_bias !eig here comment , radinfo_get_rsqrtinv
+!  use radinfo, only: radinfo_scl_bias !eig here comment , radinfo_get_rsqrtinv
   use timermod, only:  timer_ini, timer_fnl
 
 
@@ -314,9 +314,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !next three lines here
 !eig here comment next line
  ! real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
-  logical do_scl_bias
-  integer(i_kind) iinstr,ic1,ix1
-
+!  logical do_scl_bias
+!  integer(i_kind) iinstr,ic1,ix1
+  integer(i_kind) :: ic1,ix1
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -534,7 +534,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
  
      endif
      ! here if statement
-     do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
+!     do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
 !eig here dont calc rsqrtinv
 !     if(do_scl_bias)then
 !        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
@@ -561,7 +561,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !       Include contributions from remaining bias correction terms
 ! change if statement here
         if( .not. ladtest_obs) then
-           if(do_scl_bias)then
+           if(radptr%use_corr_obs)then
               do n=1,npred
                  do mm=1,radptr%nchan
                     ic1=radptr%icx(mm)
@@ -614,7 +614,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            if( .not. ladtest_obs) then
               if(radptr%luse)then
 !extra if here, if (do_scl_bias)
-                 if(do_scl_bias)then
+                 if(radptr%use_corr_obs)then
                     do n=1,npred
                        do mm=1,radptr%nchan
                           ic1=radptr%icx(mm)

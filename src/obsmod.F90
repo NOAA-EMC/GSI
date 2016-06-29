@@ -1276,6 +1276,7 @@ module obsmod
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
+     logical         :: use_corr_obs  ! logical to indicate if correlated obs are used
 !here, added isis
      character(20) :: isis            ! sensor/instrument/satellite id, e.g. amsua_n15
 
@@ -2404,6 +2405,8 @@ contains
        radtail(ii)%head => radhead(ii)%head
        do while (associated(radtail(ii)%head))
           radhead(ii)%head => radtail(ii)%head%llpoint
+       if (radtail(ii)%head%use_corr_obs) deallocate(radtail(ii)%head%rsqrtinv, stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad rsqrtinv, istatus=',istatus
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
                      radtail(ii)%head%dtb_dvar,&

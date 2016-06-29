@@ -113,7 +113,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
           luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
 !next line here
-  use radinfo, only: radinfo_scl_bias! eig here comment,radinfo_get_rsqrtinv
+!  use radinfo, only: radinfo_scl_bias! eig here comment,radinfo_get_rsqrtinv
   implicit none
   
 ! Declare passed variables
@@ -138,8 +138,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !here, add logical do_scl_bias, rsqrtinv, iinstr
 !eig here comment next line
 !  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
-  logical do_scl_bias
-  integer(i_kind) iinstr
+!  logical do_scl_bias
+!  integer(i_kind) iinstr
 
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
@@ -345,7 +345,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end if
         end if
 !here, add call to radinfo_scl_bias and allocate rsqrtinv
-        do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
+!        do_scl_bias=radinfo_scl_bias(radptr%isis,radptr%isfctype,iinstr)
 !        if(do_scl_bias)then
 !eig here, rsqrt already defined
 !           allocate(rsqrtinv(radptr%nchan,radptr%nchan))
@@ -364,7 +364,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               ic=radptr%icx(nn)
               do nx=1,npred
 !here, would need to multiply both by rsqrtinv
-                 if (do_scl_bias) then
+                 if (radptr%use_corr_obs) then
                     do mm=1,radptr%nchan
                        ic1=radptr%icx(mm)
                        val2=val2+spred(nx,ic1)*radptr%rsqrtinv(nn,mm)*radptr%pred(nx,mm)
