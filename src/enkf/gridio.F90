@@ -2039,6 +2039,7 @@ contains
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write
     use netcdf, only: nf90_put_att
+    use netcdf, only: nf90_global
     use constants
     use netcdf_mod, only: nc_check
 
@@ -2083,7 +2084,8 @@ contains
     character(len=50)                                                                          :: attstr
     character(len=12)                                                                          :: varstagger,varstrname
     character(len=12)                                                                          :: varmemoryorder
-    character(len=19)  :: DateStr
+    character(len=19)                                                                          :: DateStr
+    character(len=24),parameter                                                                :: myname_ = 'gridio'
 
     !----------------------------------------------------------------------
 
