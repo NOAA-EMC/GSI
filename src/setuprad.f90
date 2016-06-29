@@ -1615,11 +1615,13 @@
               end do
               radtail(ibin)%head%nchan  = iii         ! profile observation count
 !move eig here
+              radtail(ibin)%head%use_corr_obs=.false.
               if (account_for_corr_obs) then
                  allocate(radtail(ibin)%head%rsqrtinv(radtail(ibin)%head%nchan,radtail(ibin)%head%nchan)) 
                  radtail(ibin)%head%rsqrtinv=zero
                  call radinfo_get_rsqrtinv(iinstr,radtail(ibin)%head%nchan,radtail(ibin)%head%icx,radtail(ibin)%head%ich,&
                                            radtail(ibin)%head%err2,radtail(ibin)%head%rsqrtinv)
+                 radtail(ibin)%head%use_corr_obs=.true.
               end if
 
            end if ! icc
