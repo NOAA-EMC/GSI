@@ -162,7 +162,7 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis,nobs
             endif
 ! read in observations
             call ufbint(lunin,obs,1,35,iret,obsstr)
-            numlvl=iret
+            numlvl=min(iret,maxlvl)
 
             ref3d_column(1,ntb)=hdr(2)*10.0_r_kind    ! observation location, grid index i
             ref3d_column(2,ntb)=hdr(3)*10.0_r_kind       ! observation location, grid index j

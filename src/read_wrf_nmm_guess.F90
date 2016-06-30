@@ -105,7 +105,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use native_endianness, only: byte_swap
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,add_gfs_stratosphere
 
   implicit none
 
@@ -1056,7 +1056,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr,add_gfs_stratosphere
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
@@ -1671,7 +1671,7 @@ subroutine read_nems_nmmb_guess(mype)
   use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint, cold_start
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr,add_gfs_stratosphere  
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
