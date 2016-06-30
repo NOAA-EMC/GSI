@@ -463,7 +463,7 @@ contains
 
 !   Declare passed variables
     type(sub2grid_info)                   ,intent(in   ) :: grd
-    character(LEN=24)                     ,intent(in   ) :: filename
+    character(len=24)                     ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
     logical                               ,intent(in   ) :: uvflag,vordivflag,zflag
     real(r_kind),dimension(grd%lat2,grd%lon2)     ,intent(  out) :: g_z,g_ps
@@ -948,7 +948,7 @@ contains
 
 
 !   Declare local variables
-    character(LEN=24)  :: filename
+    character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_NEMSSFC'
     character(len=1)   :: null = ' '
     integer(i_kind) :: i,j,it,n,nsfc
@@ -1198,7 +1198,7 @@ contains
     call mpi_bcast(fact10,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     call mpi_bcast(sno,       nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     if(sfcmod_mm5 .or. sfcmod_gfs)then
-    call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
     else
        sfc_rough = zero
     end if
@@ -1265,10 +1265,10 @@ contains
     integer(i_kind),dimension(4) :: odate
 
 !   Declare local variables
-    character(LEN=6)   :: filename
+    character(len=6)   :: filename
     character(len=120) :: my_name = 'READ_NEMSNST'
     character(len=1)   :: null = ' '
-    integer(i_kind) :: it,i,j,k,latb,lonb
+    integer(i_kind) :: it,latb,lonb
     integer(i_kind) :: iret, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 103
@@ -1539,7 +1539,7 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    character(LEN=24)                          ,intent(in   ) :: filename     ! file to open and write to
+    character(len=24)                          ,intent(in   ) :: filename     ! file to open and write to
 
     integer(i_kind)                            ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                            ,intent(in   ) :: mype_out  ! mpi task to write output file
@@ -2321,7 +2321,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, mm1
     integer(i_kind) :: lonb, latb, nlatm2, n, nrec_sfc, nrec_nst, iret
     integer(i_kind) :: lonb_nst, latb_nst
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
