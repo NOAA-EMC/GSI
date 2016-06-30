@@ -1046,7 +1046,7 @@ end subroutine write_ghg_grid
 
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
-    character(24):: filename,file_sfc,file_nst
+    character(24):: filename
     integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
     integer(i_kind) i,j,k 
 
