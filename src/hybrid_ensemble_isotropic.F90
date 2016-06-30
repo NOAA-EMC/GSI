@@ -98,7 +98,6 @@ module hybrid_ensemble_isotropic
   use gsi_bundlemod, only: gsi_gridcreate
 
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
-  use hybrid_ensemble_parameters, only: nval_lenz_en
   use string_utility, only: StrUpCase
 
   implicit none
@@ -3442,7 +3441,6 @@ subroutine bkerror_a_en(gradx,grady)
   call timer_ini('bkerror_a_en')
 
 ! Put things in grady first since operations change input variables
-!??????????????????CHECK TO SEE IF THIS STILL NEEDS TO BE DONE
   call gsi_bundlegetpointer ( grady%aens(1,1),'a_en',ip,istatus)
   if(istatus/=0) then
      write(6,*)'bkerror_a_en: trouble getting pointer to ensemble CV'
@@ -4079,8 +4077,9 @@ subroutine hybens_localization_setup
    sqrt_beta_s= sqrt(beta_s)
    sqrt_beta_e= sqrt(beta_e)
 
-   !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
-   !     and triggered by lsqrtb.
+   ! set value of nval_lenz_en here for now,
+   ! but will need to rearrange so this can be set in control_vectors
+   ! and triggered by lsqrtb.
    if ( regional ) then
       nval_lenz_en = grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
    else
@@ -4090,11 +4089,13 @@ subroutine hybens_localization_setup
    ! setup vertical weighting for ensemble contribution to psfc
    call setup_pwgt
 
-   !    write out final values for s_ens_hv, s_ens_vv, beta_s, beta_e
-            if(mype==0) write(6,'(" FINAL VALUES FOR s_ens_hv,s_ens_vv,beta_s,beta_e FOLLOW")')
-            do k=1,grd_ens%nsig
-               if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
-            end do
+   ! write out final values for s_ens_hv, s_ens_vv, beta_s, beta_e
+   if ( mype == 0 ) then
+      write(6,*) 'HYBENS_LOCALIZATION_SETUP: s_ens_hv,s_ens_vv,beta_s,beta_e'
+      do k=1,grd_ens%nsig
+         write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
+      enddo
+   endif
 
    return
 
