@@ -26,13 +26,13 @@ export MY_RADMON=${MY_RADMON:-}
 #
 export MY_TANKDIR=${MY_TANKDIR:-}
 
-if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
+if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${SUFFIX}}
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
    else
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
    fi
 fi
 
@@ -68,10 +68,10 @@ export MY_STMP=${MY_STMP:-/stmpp1}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
-export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
-export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${SUFFIX}}
+export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
+export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
 
-export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${SUFFIX}}
+export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${RADMON_SUFFIX}}
 export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
   
 

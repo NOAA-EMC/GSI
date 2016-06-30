@@ -107,7 +107,7 @@ fi
 #
 #-------------------------------------------------------------------
 
-   jobname=plot_${SUFFIX}_sum
+   jobname=plot_${RADMON_SUFFIX}_sum
    logfile=${LOGdir}/plot_summary.log
    rm ${logfile}
 
@@ -131,7 +131,7 @@ fi
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to time subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${SUFFIX}"
+  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${RADMON_SUFFIX}"
   if [ -d $PLOT_WORK_DIR ] ; then
      rm -f $PLOT_WORK_DIR
   fi
@@ -148,7 +148,7 @@ fi
    if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
-      jobname=plot_${SUFFIX}_tm_${suffix}
+      jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
       logfile=${LOGdir}/plot_time_${suffix}.log
 
       rm -f $cmdfile
@@ -176,7 +176,7 @@ fi
    else							# zeus||theia
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-         jobname=plot_${SUFFIX}_tm_${sat}
+         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}
 
          rm -f ${cmdfile}
@@ -206,7 +206,7 @@ fi
 
       if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-         jobname=plot_${SUFFIX}_tm_${sat}
+         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}.log
 
          rm -f ${logfile}
@@ -233,7 +233,7 @@ fi
       else						# zeus||theia
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
-            jobname=plot_${SUFFIX}_tm_${sat}_${var}
+            jobname=plot_${RADMON_SUFFIX}_tm_${sat}_${var}
             logfile=${LOGdir}/plot_time_${sat}_${var}.log
             rm -f ${logfile}
             rm -f ${cmdfile}
