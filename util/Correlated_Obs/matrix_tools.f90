@@ -306,7 +306,7 @@ do i=1,niter
 end do
 end subroutine eigdecomp
 
-subroutine recondition(Q,D,n,kreq,A)
+subroutine recondition(Q,D,n,kreq,A,method)
 use kinds, only: r_kind, i_kind
 use constants, only: zero
 implicit none
@@ -316,9 +316,12 @@ real(r_kind),intent(in):: kreq
 integer(i_kind),intent(in):: n
 real(r_kind),dimension(:,:),allocatable:: Dn
 real(r_kind),dimension(:,:),intent(out):: A
+integer,intent(in)::method
 real(r_kind):: mx, mn
 real(r_kind):: laminc
 integer:: i
+integer,parameter:: weston2=2
+integer,parameter:: trace=1
 allocate(Dn(n,n))
 Dn=zero
 mn=D(1)
@@ -327,13 +330,26 @@ do i=2,n
    if (D(i)<=mn) mn=D(i)
    if (D(i)>=mx) mx=D(i)
 end do
-laminc=(mx-mn*kreq)/(kreq-1)
+if (method==weston2) then
+   laminc=(mx-mn*kreq)/(kreq-1)
+   do i=1,n
+      Dn(i,i)=D(i)+laminc
+   end do
+else if (method==trace) then
+print *, 'trace'
+   laminc=mx/kreq
 print *, 'max', mx
-print *, 'min', mn
-print *, 'incr', laminc
-do i=1,n
-   Dn(i,i)=D(i)+laminc
-end do
+print *, 'kreq', kreq
+print *, 'laminc',laminc
+   do i=1,n
+      if (D(i)<=laminc) then
+         Dn(i,i)=laminc
+print *, 'here', i, D(i)
+      else
+         Dn(i,i)=D(i)
+      end if
+   end do
+end if
 A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q))))
 end subroutine recondition
 

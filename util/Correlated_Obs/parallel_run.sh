@@ -1,6 +1,6 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040106
+bdate=2014040100
 #date of last radstat file
 edate=2014041018
 #instrument name, as it would appear in the title of a diag file
@@ -9,8 +9,7 @@ instr=iasi_metop-b
 #location of radstat file
 #exp=para_2014
 exp=prfullo
-#diagdir=/da/noscrub/${USER}/archive/${exp}
-diagdir=/stmpp1/Kristen.Bathmann/rads
+diagdir=/da/noscrub/${USER}/archive/${exp}
 #working directory
 wrkdir=/stmpp1/${USER}/iasib_global
 #location the covariance matrix is saved to
@@ -28,7 +27,9 @@ err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=-60
+kreq=180
+#method to recondition:  1 for trace method, 2 for Weston's second method
+method=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=10
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
@@ -232,6 +233,7 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
+method=$method
 ntot=$dattot
 EOF
 chmod +rwx params.sh
@@ -263,6 +265,7 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
+method=$method
 ntot=$dattot
 EOF
 chmod +rwx params.sh
