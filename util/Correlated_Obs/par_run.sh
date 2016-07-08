@@ -24,7 +24,7 @@ while [[ $nt -le $ntot ]] ; do
 done
 
 ./cov_calc <<EOF
-$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq
+$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method
 EOF
 
 cp Rcov_$instr $savdir

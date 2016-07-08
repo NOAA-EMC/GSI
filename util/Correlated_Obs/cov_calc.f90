@@ -112,9 +112,10 @@ real(r_kind),dimension(:,:), allocatable:: eigv
 !Matrix inversion
 real(r_kind), dimension(:,:), allocatable:: Rout
 real(r_kind):: kreq
+integer:: method
 real(r_kind), parameter:: errt=0.0001_r_kind
 
-read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq
+read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, method
 
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
@@ -424,7 +425,7 @@ end do
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
 if (kreq>zero) then
    call eigdecomp(Rcov,nch_active,eigs,eigv)
-   call recondition(eigv,eigs,nch_active,kreq,Rout)
+   call recondition(eigv,eigs,nch_active,kreq,Rout,method)
    Rcov=Rout
 end if
 if (out_corr) then
