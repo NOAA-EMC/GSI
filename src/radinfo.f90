@@ -518,6 +518,7 @@ contains
 !                         additional SSMIS bias correction coefficients)
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !   2014-04-13  todling - add initialization of correlated R-covariance
+!   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
 !
 !   input argument list:
 !
@@ -564,8 +565,6 @@ contains
     real(r_kind) :: ermax_rad_temp    ! error maximum (qc)
     real(r_kind) :: b_rad_temp        ! variational b value
     real(r_kind) :: pg_rad_temp       ! variational pg value
-    real(r_kind) :: ang_rad_temp      ! 0 or 1 depending on iuse_rad (1 - use angle bias correction)
-    real(r_kind) :: air_rad_temp      ! 0 or 1 depending on iuse_rad (1 - use air mass bias correction)
     integer(i_kind) :: icld_det_temp  ! Use this channel in cloud detection (only used for
 !                                                        certain instruments. Set to greater than zero to use
     logical,allocatable,dimension(:):: nfound
@@ -1433,6 +1432,7 @@ contains
 !   2015-03-23  zaizhong ma - added the Himawari-8 ahi
 !   2015-10-22  jung    - changed from using satinfo information in the radstat file to
 !                         using information from the satinfo file.
+!   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
 !
 ! attributes:
 !   language: f90
@@ -1473,7 +1473,6 @@ contains
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
    integer(i_kind):: i,j,jj,n_chan,k,lunout
-   integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end

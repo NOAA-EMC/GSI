@@ -198,7 +198,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   integer(i_kind)  :: ifov, ioff, instr, ichan
   logical          :: outside,iuse,assim,lluse,valid
-  integer(i_kind)  :: i, l, ll, iskip
+  integer(i_kind)  :: i, l, iskip
   integer(i_kind),allocatable,dimension(:)::nrec
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
