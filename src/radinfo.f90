@@ -587,14 +587,20 @@ contains
        nlines=nlines+1
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis_temp,nuchan_temp,iuse_rad_temp,&
-            varch_temp,varch_cld_temp,ermax_rad_temp,b_rad_temp,pg_rad_temp,icld_det_temp
+            varch_temp,varch_cld_temp,ermax_rad_temp,b_rad_temp,pg_rad_temp,icld_det_temp  
        if ( .not. diag_rad .and. iuse_rad_temp < 0 .and. icld_det_temp < 0 .and. &
           ( nusis_temp(1:4) == 'cris' .or. nusis_temp(1:4) == 'iasi' .or. nusis_temp(1:4) == 'airs')) cycle
+       if ( nusis_temp(1:6) == 'seviri' .and. (nuchan_temp == 1 .or. nuchan_temp == 2 .or. nuchan_temp == 3)) then
+          write(6,*) 'RADINFO_READ:  *** ERROR **** This is an obsolete satinfo file '
+          write(6,*) 'RADINFO_READ:  Use an updated file or change the SEVIRI channels from 1-8 to 4-11'
+          write(6,*) 'RADINFO_READ:  stop program execution' 
+          call stop2(79)
+       endif
        j=j+1
     end do read1
     if (istat>0) then
        close(lunin)
-       write(6,*)'RADINFO_READ:  ***ERROR*** error reading radinfo, istat=',istat
+       write(6,*)'RADINFO_READ:  ***ERROR*** error reading satinfo, istat=',istat
        write(6,*)'RADINFO_READ:  stop program execution'
        call stop2(79)
     endif
