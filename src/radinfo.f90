@@ -593,6 +593,9 @@ contains
        if ( nusis_temp(1:6) == 'seviri' .and. (nuchan_temp == 1 .or. nuchan_temp == 2 .or. nuchan_temp == 3)) then
           write(6,*) 'RADINFO_READ:  *** ERROR **** This is an obsolete satinfo file '
           write(6,*) 'RADINFO_READ:  Use an updated file or change the SEVIRI channels from 1-8 to 4-11'
+          write(6,*) 'RADINFO_READ:  Your bias correction file(s) may also have the wrong channel numbers.'
+          write(6,*) 'RADINFO_READ:  You can either edit them to the correct channel numbers (4-11) '
+          write(6,*) 'RADINFO_READ:  or the GSI will perform a cold start on the seviri entries.' 
           write(6,*) 'RADINFO_READ:  stop program execution' 
           call stop2(79)
        endif
