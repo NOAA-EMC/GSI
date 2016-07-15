@@ -956,8 +956,8 @@ subroutine read_obs(ndata,mype)
              end if
              if (db_possible(i))then
 
-                call gsi_inquire(lenbytes,lexistdb,trim(dfile(i))//'_DB',mype)
-                call read_obs_check (lexistdb,trim(dfile(i))//'_DB',dplat(i),dtype(i),minuse, &
+                call gsi_inquire(lenbytes,lexistdb,trim(dfile(i))//'_db',mype)
+                call read_obs_check (lexistdb,trim(dfile(i))//'_db',dplat(i),dtype(i),minuse, &
                     read_db_rec1(i))
 
                 lexist=lexist .or. lexistdb
