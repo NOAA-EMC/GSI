@@ -200,22 +200,10 @@ fi
          #  grouping number in order to produce an accurate hyperlink.
          #
          #  Update: with the new js plotting the actual channel number
-         #  can be sent.  This applies to all glb sources now; it's not
-         #  yet implemented for regional sources.
-         if [[ $RAD_AREA == 'glb' ]]; then
-            changrp=${channel}
-            echo "for glb using actual channel as changrp value"
-         else 
-            ctlfile="time.${satname}.ctl"
-            if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
-               uncompress ${ctlfile}.*
-            fi
-            changrp=`${HOMEradmon}/ush/radmon_getchgrp.pl ${ctlfile} ${channel}`
-         fi
-         echo changrp = $changrp
+         #  can be sent so the chgrp is no longer used here. 
 
-         line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${changrp}&stat=${type}"
-         if [[ $changrp -gt 0 ]]; then
+         line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${channel}&stat=${type}"
+         if [[ $channel -gt 0 ]]; then
             echo "$line3" >> $outfile
             echo "" >> $outfile
          fi

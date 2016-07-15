@@ -382,6 +382,9 @@ if [ -s $radstat -a -s $biascr ]; then
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
    export DATA=${DATA:-${STMP_USER}/radmon_de_${RADMON_SUFFIX}}
+   cd ${STMP_USER}
+   rm -rf ${DATA}
+   mkdir ${DATA}
    export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}

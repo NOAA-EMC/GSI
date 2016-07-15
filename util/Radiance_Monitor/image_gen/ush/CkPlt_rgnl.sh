@@ -299,19 +299,19 @@ fi
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-#if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
-#
-#   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
-#
-#   if [[ -s $logfile ]]; then
-#      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
-#   fi
-#fi
+if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
+
+   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
+
+   if [[ -s $logfile ]]; then
+      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+   fi
+fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 exit
