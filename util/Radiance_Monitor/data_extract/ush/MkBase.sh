@@ -25,7 +25,7 @@ function usage {
 }
 
 nargs=$#
-if [[ $nargs -lt 1 && $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -80,6 +80,8 @@ fi
 
 
 REGIONAL_RR=${REGIONAL_RR:-0}
+echo "REGIONAL_RR   = $REGIONAL_RR"
+echo "CYCLE_ITERVAL = $CYCLE_INTERVAL"
 
 #-------------------------------------------------------------------
 #  Set dates
@@ -91,7 +93,7 @@ echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
 EDATE=${sdate}00
-BDATE=`$NDATE -720 $EDATE`
+BDATE=`$NDATE -1080 $EDATE`
 
 echo EDATE = $EDATE
 echo BDATE = $BDATE
@@ -186,9 +188,6 @@ for type in ${SATYPE}; do
             $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-#      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKverf/time/${type}.${cdate}.ieee_d* ./
-#      fi
 
       adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
       cdate=$adate
@@ -196,7 +195,6 @@ for type in ${SATYPE}; do
 
 
 
-#   day=`echo $EDATE | cut -c1-8 `
    test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
  
    if [[ -s ${test_file} ]]; then
@@ -226,7 +224,6 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-#   $NCP ${HOMEradmon}/exec/make_base ./
    $NCP ${DE_EXEC}/make_base ./
 
 cat << EOF > input
@@ -251,7 +248,6 @@ EOF
    #  Clean up
    #-------------------------------------------------------------------
    cd $tmpdir
-   rm -rf $workdir
 
 done
 
@@ -301,15 +297,13 @@ if [[ -e ${TANKverf}/info/${basefile} || -e ${TANKverf}/info/${basefile}.${Z} ]]
    rm -f ${TANKverf}/info/${basefile}*
 fi
 
-#${COMPRESS} ${basefile}
-#$NCP ${basefile}.${Z} ${TANKverf}/info/.
+
 $NCP ${basefile} ${TANKverf}/info/.
 
 #-------------------------------------------------------------------
 #  Clean up $tmpdir
 #-------------------------------------------------------------------
-# keep for testing
-#cd ..
-#rm -rf $tmpdir
+cd ..
+rm -rf $tmpdir
 
 exit

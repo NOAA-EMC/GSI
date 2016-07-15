@@ -113,14 +113,14 @@ fi
 
 err=0
 angle_exec=radmon_angle
+shared_scaninfo=${shared_scaninfo:-$FIXgdas/gdas_radmon_scaninfo.txt}
 scaninfo=scaninfo.txt
-
 
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
 
 $NCP ${EXECradmon}/${angle_exec}  ./
-$NCP $FIXgdas/gdas_radmon_scaninfo.txt  ./${scaninfo}
+$NCP $shared_scaninfo  ./${scaninfo}
 
 if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
    err=2

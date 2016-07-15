@@ -370,7 +370,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    bad_pen=bad_pen.${PDATE}
    bad_chan=bad_chan.${PDATE}
 
-   qdate=`$NDATE -06 $PDATE`
+   qdate=`$NDATE -${CYCLE_INTERVAL} $PDATE`
    pday=`echo $qdate | cut -c1-8`
    
    prev_bad_pen=bad_pen.${qdate}
@@ -454,7 +454,8 @@ EOF
 EOF
          cat ${pen_hdr} >> $report
          cat ${pen_err} >> $report
-         rm ${pen_hdr} ${pen_err}
+         rm -f ${pen_hdr} 
+         rm -f ${pen_err}
       fi 
 
       if [[ $USE_MAIL -eq 1 ]]; then

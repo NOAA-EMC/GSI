@@ -95,7 +95,7 @@ for type in ${SATYPE2}; do
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file2=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
                test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
             fi

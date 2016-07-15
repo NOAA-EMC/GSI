@@ -39,11 +39,11 @@ test_day=$PDATE
 
 for type in ${SATYPE}; do
    found=0
-   done=0
+   finished=0
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ $found -eq 0 && $done -ne 1 ]]; do
+   while [[ $found -eq 0 && $finished -ne 1 ]]; do
       if [[ $REGIONAL_RR -eq 1 ]]; then		# REGIONAL_RR stores hrs 18-23 in next 
          tdate=`$NDATE +6 ${test_day}`		# day's radmon.yyymmdd directory
          pdy=`echo $test_day|cut -c1-8`
@@ -70,7 +70,7 @@ for type in ${SATYPE}; do
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
          else
-            done=1
+            finished=1
          fi
       fi
    done

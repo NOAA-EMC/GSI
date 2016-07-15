@@ -37,14 +37,15 @@ PDY=`echo $PDATE|cut -c1-8`
 cycdy=$((24/$CYCLE_INTERVAL))           # number cycles per day
 ndays=$(($NUM_CYCLES/$cycdy))		# number of days in plot period
 
+echo SATYPE=$SATYPE
 
 for type in ${SATYPE}; do
    found=0
-   done=0
+   finished=0
    ctr=$ndays
    test_day=$PDATE
 
-   while [[ $found -eq 0 && $done -ne 1 ]]; do
+   while [[ $found -eq 0 && $finished -ne 1 ]]; do
 
       if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next 
          tdate=`$NDATE +6 ${test_day}`          # day's radmon.yyymmdd directory
@@ -52,6 +53,7 @@ for type in ${SATYPE}; do
       else
          pdy=`echo $test_day|cut -c1-8`    
       fi
+      echo "testing with pdy = $pdy"
 
       if [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
@@ -72,7 +74,7 @@ for type in ${SATYPE}; do
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1)) 
          else
-            done=1
+            finished=1
          fi
       fi
    done
