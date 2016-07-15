@@ -2,7 +2,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_ears,nrec_start_DB,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_db,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_atms                  read atms 1b data
@@ -52,7 +52,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
-!     nrec_start_DB - first db subset with useful information
+!     nrec_start_db - first db subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR ATMS 1b observations read
@@ -89,7 +89,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
-  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_DB
+  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_db
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
@@ -352,9 +352,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_DB <= 0 ) cycle ears_db_loop
-        nrec_startx = nrec_start_DB
-        infile2 = trim(infile)//'_DB'  ! Set bufr subset names based on type of data to read
+        if ( nrec_start_db <= 0 ) cycle ears_db_loop
+        nrec_startx = nrec_start_db
+        infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Reopen unit to satellite bufr file

@@ -571,6 +571,7 @@ contains
     logical,allocatable,dimension(:):: nfound
     logical cfound
     logical pcexist
+    logical cold_start_seviri         ! flag to fix wrong channel numbers for seviri.  True = fix, false = already correct
 
     data lunin / 49 /
     data lunout / 51 /
@@ -688,6 +689,7 @@ contains
        if (pcexist) then
           open(lunin,file='satbias_pc',form='formatted')
           nfound = .false.
+          cold_start_seviri = .false.
           read3: do
              read(lunin,'(I5,1x,A20,1x,I5,e15.7/2(4x,10e15.7/))',iostat=istat) &
                   ich,isis,ichan,ostatsx,(varx(ip),ip=1,npred)
@@ -702,17 +704,27 @@ contains
                   if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
              end select 
              cfound = .false.
-             do j =1,jpch_rad
-                if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
-                   cfound = .true.
-                   nfound(j) = .true.
-                   do i=1,npred
-                      varA(i,j)=varx(i)
-                   end do
-                   ostats(j)=ostatsx
-                   if (any(varx/=zero) .and. iuse_rad(j)>-2) inew_rad(j)=.false.
-                end if
-             end do
+
+!            Set flag to fix seviri channel mismatch.  Channels should start at 4.  If it is
+!            wrong, set falg to zero out entries.
+             if( isis(1:6) == 'seviri' .and. ichan < 4 ) cold_start_seviri = .true.
+
+!            If not seviri or seviri channels are correct, proceed. 
+             if( .not. cold_start_seviri .or. isis(1:6) /= 'seviri' ) then
+                do j =1,jpch_rad
+                   if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
+                      cfound = .true.
+                      nfound(j) = .true.
+                      do i=1,npred
+                         varA(i,j)=varx(i)
+                      end do
+                      ostats(j)=ostatsx
+                      if (any(varx/=zero) .and. iuse_rad(j)>-2) inew_rad(j)=.false.
+                      cycle read3
+                   end if
+                end do
+             endif
+
              if(.not. cfound .and. mype == 0) &
                   write(6,*) '***WARNING instrument/channel ',isis,ichan, &
                   'found in satbias_pc file but not found in satinfo'
@@ -798,6 +810,7 @@ contains
                    cbias(i,j)=cbiasx(i)
                 end do
                 tlapmean(j)=tlapm
+                cycle read2
              end if
           end do
           if(.not. cfound .and. mype == 0) &
@@ -888,6 +901,7 @@ contains
 
        open(lunin,file='satbias_in' ,form='formatted')
        nfound = .false.
+       cold_start_seviri = .false.
        read4: do
           if (.not. adp_anglebc) then
              read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat,end=1333) ich,isis,&
@@ -907,22 +921,32 @@ contains
                if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
                if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
           end select 
-          do j =1,jpch_rad
-             if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
-                cfound = .true.
-                nfound(j) = .true.
-                do i=1,npred
-                   predx(i,j)=predr(i)
-                end do
-                if (adp_anglebc) then 
-                   tlapmean(j)=tlapm
-                   tsum_tlapmean(j)=tsum
-                   count_tlapmean(j)=ntlapupdate
-                   if (ntlapupdate > ntlapthresh) update_tlapmean(j)=.false.
+
+!         Set flag to fix seviri channel mismatch.  Channels should start at 4.  If it is
+!         wrong, set falg to zero out entries.
+          if( isis(1:6) == 'seviri' .and. ichan < 4 ) cold_start_seviri = .true.
+
+!         If not seviri or seviri channels are correct, proceed.
+          if(  .not. cold_start_seviri .or. isis(1:6) /= 'seviri' ) then
+             do j =1,jpch_rad
+                if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
+                   cfound = .true.
+                   nfound(j) = .true.
+                   do i=1,npred
+                      predx(i,j)=predr(i)
+                   end do
+                   if (adp_anglebc) then 
+                      tlapmean(j)=tlapm
+                      tsum_tlapmean(j)=tsum
+                      count_tlapmean(j)=ntlapupdate
+                      if (ntlapupdate > ntlapthresh) update_tlapmean(j)=.false.
+                   end if
+                   if (any(predr/=zero)) inew_rad(j)=.false.
+                   cycle read4
                 end if
-                if (any(predr/=zero)) inew_rad(j)=.false.
-             end if
-          end do
+             end do
+          endif
+
           if(mype == 0 .and. .not. cfound) &
              write(6,*) '***WARNING instrument/channel ',isis,ichan, &
              'found in satbias_in file but not found in satinfo'
@@ -1005,6 +1029,7 @@ contains
                if (index(isis,'metop-b') /= 0) isis='iasi_metop-b'
                if (index(isis,'metop-c') /= 0) isis='iasi_metop-c'
           end select 
+
           do j=1,jpch_rad
              if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                 cfound = .true.
@@ -1012,6 +1037,7 @@ contains
                    fbias(i,j)=fbiasx(i)
                 end do
                 tlapmean(j)=tlapm
+                cycle read5
              end if
           end do
           if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
@@ -1574,6 +1600,13 @@ contains
 !     Extract satinfo relative index and get new_chan
       new_chan=0
       update=.false.
+
+!     Seviri channels should start at 4.  If the first seviri channel is less than 4
+!     do not use this diag* file
+      if ( satsens(1:6) == 'seviri' .and. header_chan(1)%nuchan < 4) then
+        close(lndiag)
+        cycle loopf
+      endif
 
       jjstart = sensor_start
       loop_a: do j=1,n_chan
