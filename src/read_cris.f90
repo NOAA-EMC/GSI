@@ -126,7 +126,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(6):: cloud_frac
+!  real(r_double),dimension(6):: cloud_frac
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
