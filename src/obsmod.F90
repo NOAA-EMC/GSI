@@ -100,6 +100,7 @@ module obsmod
 !   2014-10-06  carley - add obs_sub_comm
 !   2014-12-03  derber  - ensure obsdiag used for 4dvar and non-pcgsoi
 !                         minimizations
+!   2016-07-19  kbathmann - added variables necessary for correlated obs use to rad_ob_type
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -469,21 +470,22 @@ module obsmod
      real(r_kind) :: wgtjo
      integer(i_kind) :: indxglb
      integer(i_kind) :: nchnperobs           ! number of channels per observations
+                                             !  (dummy, except for radiances)
      integer(i_kind) :: idv,iob,ich   ! device id and obs index for verification
      logical, pointer :: muse(:)             ! (miter)
      logical :: luse
 
   end type obs_diag
 
-  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
-      type(obs_diag), pointer :: ptr => NULL()
-  end type aofp_obs_diag
-
   type obs_diags
      integer(i_kind):: n_alloc=0
      type(obs_diag), pointer :: head => NULL()
      type(obs_diag), pointer :: tail => NULL()
   end type obs_diags
+
+  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
+     type(obs_diag), pointer :: ptr => NULL()
+  end type aofp_obs_diag
 
 ! Main observation data structure
 
@@ -558,6 +560,7 @@ module obsmod
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_sfc_model !  logical flag for using boundary model
      logical         :: tv_ob         !  logical flag for virtual temperature or
@@ -1263,10 +1266,10 @@ module obsmod
      real(r_kind),dimension(:,:),pointer :: pred => NULL()
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
-                                      !  error variances squared (nsigradjac,nchan)
      real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
                                       !square root of inverse of R, only used
                                       !if using correlated obs
+                                      !  error variances squared (nsigradjac,nchan)
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
@@ -1274,8 +1277,8 @@ module obsmod
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
-     logical         :: use_corr_obs  ! logical to indicate if correlated obs are used
-     character(20) :: isis            ! sensor/instrument/satellite id, e.g. amsua_n15
+     logical         :: use_corr_obs
+     character(20) :: isis            ! sensor/instrument/satellite id,e.g.amsua_n15
 
   end type rad_ob_type
 
@@ -2402,7 +2405,7 @@ contains
        radtail(ii)%head => radhead(ii)%head
        do while (associated(radtail(ii)%head))
           radhead(ii)%head => radtail(ii)%head%llpoint
-       if (radtail(ii)%head%use_corr_obs) deallocate(radtail(ii)%head%rsqrtinv, stat=istatus)
+          if (radtail(ii)%head%use_corr_obs) deallocate(radtail(ii)%head%rsqrtinv, stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad rsqrtinv, istatus=',istatus
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
@@ -2509,7 +2512,7 @@ contains
           radheadm(ii)%head => radtailm(ii)%head%llpoint
           deallocate(radtailm(ii)%head%res,radtailm(ii)%head%err2, &
                      radtailm(ii)%head%raterr2,radtailm(ii)%head%pred, &
-                     radtailm(ii)%head%ich,& 
+                     radtailm(ii)%head%ich,&
                      radtailm(ii)%head%icx,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad arrays, istatus=',istatus
           deallocate(radtailm(ii)%head,stat=istatus)

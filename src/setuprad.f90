@@ -165,6 +165,7 @@
 !   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
+!   2016-07-19  kbathmann -for correlated observations, moved the eigendecompostion here
 !                         change quality control interface for AMSUA and ATMS.
 !
 !  input argument list:

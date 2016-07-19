@@ -92,9 +92,6 @@ touch $pgmout
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
-REGIONAL_RR=${REGIONAL_RR:-0}
-rgnHH=${rgnHH:-}
-rgnTM=${rgnTM:-}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -144,21 +141,29 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
+            bcor_file=bcor.${data_file}
             ctl_file=${type}_anl.ctl
             bcor_ctl=bcor.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            bcor_stdout=bcor.${stdout_file}
+            input_file=${type}_anl
          else
             data_file=${type}.${PDATE}.ieee_d
+            bcor_file=bcor.${data_file}
             ctl_file=${type}.ctl
             bcor_ctl=bcor.${ctl_file}
+            stdout_file=stdout.${type}
+            bcor_stdout=bcor.${stdout_file}
+            input_file=${type}
          fi
 
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            bcor_file=${rgnHH}.bcor.${data_file}.${rgnTM}
-         else
-            bcor_file=bcor.${data_file}
-         fi
+         rm input
 
-      rm input
+      # Check for 0 length input file here and avoid running 
+      # the executable if $input_file doesn't exist or is 0 bytes
+      #
+         if [[ -s $input_file ]]; then
+            nchanl=-999
 
 cat << EOF > input
  &INPUT
@@ -178,13 +183,13 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-
-      startmsg
-      ./${bcor_exec} < input >> ${pgmout} 2>>errfile
-      export err=$?; err_chk
-      if [[ $? -ne 0 ]]; then
-          fail=`expr $fail + 1`
-      fi
+   
+            startmsg
+            ./${bcor_exec} < input >> ${pgmout} 2>>errfile
+            export err=$?; err_chk
+            if [[ $? -ne 0 ]]; then
+               fail=`expr $fail + 1`
+            fi
  
 
 #-------------------------------------------------------------------
@@ -203,6 +208,14 @@ EOF
                ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
             fi
 
+            if [[ -s ${stdout_file} ]]; then
+               mv ${stdout_file} ${bcor_stdout}
+               mv ${bcor_stdout}  ${TANKverf_rad}/.
+               ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
+            fi
+
+         fi # -s $data_file 
+    
       done  # dtype in $gesanl loop
    done     # type in $SATYPE loop
 

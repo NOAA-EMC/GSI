@@ -69,6 +69,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !   2011-05-04  todling - merge in Min-Jeong Kim's cloud clear assimilation (connect to Metguess)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  augline/todling - add hydrometeors
+!   2016-07-19  kbathmann- adjustment to bias correction when using correlated obs
 !
 !   input argument list:
 !     radhead

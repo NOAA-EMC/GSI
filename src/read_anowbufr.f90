@@ -52,6 +52,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         code_pm25_ncbufr,code_pm25_anowbufr,&
         code_pm10_ncbufr,code_pm10_anowbufr
   use mpimod, only: npe
+  use mpimod, only: npe
 
   implicit none
   
@@ -295,8 +296,8 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            
            conc=conc*obs2model_anowbufr_pm()
 
-           if (kx == code_pm25_ncbufr .and. id_bias_pm2_5) conc=conc+conv_bias_pm2_5
-           if (kx == code_pm10_ncbufr .and. id_bias_pm10) conc=conc+conv_bias_pm10
+           if (kx == code_pm25_ncbufr .and. id_bias_pm2_5 == 1 ) conc=conc+conv_bias_pm2_5
+           if (kx == code_pm10_ncbufr .and. id_bias_pm10 == 1 ) conc=conc+conv_bias_pm10
 
 
            error_1=cermax(ikx)+cermin(ikx)*percent*conc

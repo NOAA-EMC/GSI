@@ -127,9 +127,6 @@ SUFFIX=${SUFFIX:-opr}
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
-REGIONAL_RR=${REGIONAL_RR:-0}
-rgnHH=${rgnHH:-}
-rgnTM=${rgnTM:-}
 SATYPE=${SATYPE:-}
 MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
@@ -201,20 +198,21 @@ if [[ $err -eq 0 ]]; then
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
+            time_file=time.${data_file}
             ctl_file=${type}_anl.ctl
             time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            time_stdout=time.${stdout_file}
+            input_file=${type}_anl
          else
             data_file=${type}.${PDATE}.ieee_d
+            time_file=time.${data_file}
             ctl_file=${type}.ctl
             time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}
+            time_stdout=time.${stdout_file}
+            input_file=${type}
          fi
-
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            time_file=${rgnHH}.time.${data_file}.${rgnTM}
-         else
-            time_file=time.${data_file}
-         fi
-
 #--------------------------------------------------------------------
 #   Run program for given satellite/instrument
 #--------------------------------------------------------------------
@@ -241,20 +239,13 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-	startmsg
+   	   startmsg
+           ./${time_exec} < input >>   ${pgmout} 2>>errfile
+           export err=$?; err_chk
 
-        ./${time_exec} < input >>   stdout.${type} 2>>errfile
-        export err=$?; err_chk
-
-        #
-        #  stdout.${type} is needed by radmon_ck_stdout.sh 
-        #  NCO requirement is executable output goes to jlogfile, so 
-        #  cat it there now:
-        cat stdout.${type} >> ${pgmout}
-
-        if [[ $? -ne 0 ]]; then
-            fail=`expr $fail + 1`
-        fi
+           if [[ $? -ne 0 ]]; then
+               fail=`expr $fail + 1`
+           fi
 
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
@@ -416,6 +407,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 #-------------------------------------------------------------------
 #  run radmon_err_rpt.sh for chan and pen to create the error files
 #
+#   ${USHradmon}/radmon_err_rpt.sh ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
    ${radmon_err_rpt} ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
 
 
@@ -512,10 +504,6 @@ EOF
    fi
 
 fi
-
-for type in ${SATYPE}; do
-   rm -f stdout.${type}
-done
 
 ################################################################################
 #-------------------------------------------------------------------
