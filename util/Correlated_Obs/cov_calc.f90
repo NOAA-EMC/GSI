@@ -121,7 +121,7 @@ integer, parameter:: shrinkage=3
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, method
 tim1=1
 tim2=1
-if (method==shrinkage) tim2=2
+if ((method==shrinkage).and.(kreq>zero))  tim2=2
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
 cov_file(1:lencov)='Rcov_'
