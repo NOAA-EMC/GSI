@@ -11,6 +11,8 @@ subroutine make_pairs(ges_locs,anl_loc,ges_times,anl_time,Tg,obs_pairs,n_pair)
 !For a given analysis omg, this subroutine searches through an array of
 !background omg's and identifies all that are within a certain distance and time 
 !of the analysis omg
+!Kristen Bathmann
+!5-2015
 implicit none
 real(r_kind), dimension(:),intent(in):: anl_loc  !location of analysis omg (lat,lon)
 real(r_kind),intent(in):: anl_time               !time of analysis omg (minutes)

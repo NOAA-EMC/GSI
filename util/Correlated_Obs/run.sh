@@ -2,33 +2,33 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014040218
+edate=2014040300
 #instrument name, as it would appear in the title of a diag file
-instr=iasi_metop-b
+instr=airs_aqua
 #location of radstat file
-exp=prfullo
-diagdir=/da/noscrub/${USER}/archive/${exp}
+exp=prfull
+diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/stmpp1/${USER}/iasi
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land and mixed FOVs
-type=1
+type=2
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
 angle=30
 #option to output the channel wavenumbers
-wave_out=.true.
+wave_out=.false.
 #option to output the assigned observation errors
-err_out=.true.
+err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=180
-#method to recondition:  1 for trace method, 2 for Weston's second method
-method=1
-ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
+kreq=120
+#method to recondition:  1 for trace method, 2 for Weston's second method, 3 for linear shrinkage
+method=3
+ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
 
 cdate=$bdate

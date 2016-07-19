@@ -52,6 +52,7 @@ MODULE RadDiag_IO
   PUBLIC :: RADDIAG_APPENDMODE
   ! Module subprograms
   PUBLIC :: RadDiag_OpenFile
+  PUBLIC :: RadDiag_CloseFile
   PUBLIC :: RadDiag_Hdr_ReadFile
   PUBLIC :: RadDiag_Data_ReadFile
   PUBLIC :: RadDiag_Hdr_WriteFile
@@ -183,7 +184,7 @@ CONTAINS
         RETURN
     END SELECT
 
-
+!fid=FileID
     ! Get a free unit number
     fid = Get_Lun()
     IF ( fid < 0 ) THEN
@@ -216,7 +217,32 @@ CONTAINS
     FileID = fid
 
   END FUNCTION RadDiag_OpenFile
+FUNCTION RadDiag_CloseFile( &
+    FileID    ) &  ! Input
+  RESULT( err_stat )
+    ! Arguments
+    INTEGER,           INTENT(IN) :: FileID
+    ! Function result
+    INTEGER :: err_stat
+    ! Local Parameters
+    CHARACTER(*), PARAMETER :: ROUTINE_NAME = 'RadDiag_CloseFile'
+    ! Local Variables
+    CHARACTER(ML) :: msg
+!    INTEGER :: fid
+!    INTEGER :: mode
+    INTEGER :: io_stat
+!    CHARACTER(10) :: File_Status
+!    CHARACTER(10) :: File_Position
+!    CHARACTER(10) :: File_Action
+    msg='file close error'
+    Close(FileID,IOSTAT=io_stat)
+    IF ( io_stat /= 0 ) THEN
+      err_stat = FAILURE
+      CALL Display_Message( ROUTINE_NAME, msg, err_stat )
+      RETURN
+    END IF
 
+  END FUNCTION RadDiag_CloseFile
 
 !------------------------------------------------------------------------------------
 !:sdoc+:
