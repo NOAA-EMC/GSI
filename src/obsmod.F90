@@ -1264,20 +1264,17 @@ module obsmod
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
                                       !  error variances squared (nsigradjac,nchan)
-!eig here add rsqrtinv
      real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
                                       !square root of inverse of R, only used
                                       !if using correlated obs
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
-!here, added isfctype
      integer(i_kind) :: isfctype      ! surf mask: ocean=0, land=1, ice=2, snow=3, mixed=4
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_corr_obs  ! logical to indicate if correlated obs are used
-!here, added isis
      character(20) :: isis            ! sensor/instrument/satellite id, e.g. amsua_n15
 
   end type rad_ob_type
