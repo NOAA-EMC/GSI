@@ -225,7 +225,7 @@
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
-  use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv !eig here add rsqrtinv
+  use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
 
 
 
@@ -263,7 +263,6 @@
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
-!here isfctype
   integer(i_kind) isfctype
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
@@ -305,7 +304,7 @@
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
-  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf,wgtjo !here wgtjo
+  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf,wgtjo 
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -330,7 +329,6 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-! eig here add iinstr
   integer(i_kind):: iinstr
   logical channel_passive
   logical,dimension(nobs):: luse
@@ -750,7 +748,7 @@
         snow = data_s(ifrac_sno,n)  >= 0.99_r_kind
         mixed = .not. sea  .and. .not. ice .and.  &
                 .not. land .and. .not. snow
-!here, added if statements
+
        if(sea) then
           isfctype=0
        else if(land) then
@@ -1482,7 +1480,6 @@
               nchan_total=nchan_total+icc
  
               if(.not. associated(radhead(ibin)%head))then
-!here, radhead=0
                  radhead(ibin)%n_alloc = 0
                  allocate(radhead(ibin)%head,stat=istat)
                  if(istat /= 0)write(6,*)' failure to write radhead '
@@ -1492,7 +1489,6 @@
                  if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
                  radtail(ibin)%head => radtail(ibin)%head%llpoint
               end if
-!here, next two lines
               radhead(ibin)%n_alloc = radhead(ibin)%n_alloc +1
               radtail(ibin)%n_alloc = radhead(ibin)%n_alloc
 
@@ -1511,25 +1507,16 @@
               call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
               radtail(ibin)%head%time=dtime
               radtail(ibin)%head%luse=luse(n)
-!              radtail(ibin)%head%ich(:)=-1  !here, commented out
-!here, next two lines
+!              radtail(ibin)%head%ich(:)=-1  
               radtail(ibin)%head%isis=isis
               radtail(ibin)%head%isfctype=isfctype
               utbc=tbc
- !here, added wgtjo
               wgtjo= varinv     ! weight used in Jo term
-!              adaptinf = error0 ! on input here commented
-!here, added next two lines
+!              adaptinf = error0 ! on input 
               adaptinf = varinv
               obvarinv = error0
-
-
-!here, channged this function call
-               account_for_corr_obs = radinfo_adjust_jacobian(iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+              account_for_corr_obs = radinfo_adjust_jacobian(iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian)
-!              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
-!                                                              utbc,obvarinv,adaptinf,jacobian)
-              
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1547,7 +1534,7 @@
                       radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     endif
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
-                    radtail(ibin)%head%ich(iii)=ii              !here, added
+                    radtail(ibin)%head%ich(iii)=ii              
                     do k=1,npred
                        radtail(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
                     end do
@@ -1614,7 +1601,6 @@
                  end if
               end do
               radtail(ibin)%head%nchan  = iii         ! profile observation count
-!move eig here
               radtail(ibin)%head%use_corr_obs=.false.
               if (account_for_corr_obs) then
                  allocate(radtail(ibin)%head%rsqrtinv(radtail(ibin)%head%nchan,radtail(ibin)%head%nchan)) 
@@ -1634,7 +1620,6 @@
           if (luse_obsdiag) then
            if (.not.lobsdiag_allocated) then
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
-!here, added obsdiag line
                  obsdiags(i_rad_ob_type,ibin)%n_alloc = 0
                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
                  if (istat/=0) then
@@ -1650,7 +1635,6 @@
                  end if
                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
               end if
-!here, added obsdiag line
               obsdiags(i_rad_ob_type,ibin)%n_alloc = obsdiags(i_rad_ob_type,ibin)%n_alloc +1
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
               allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+1))
@@ -1676,7 +1660,6 @@
               else
                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
               end if
-!here, added next if statement
               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
                  call die(myname,'.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)')
               end if
@@ -1692,7 +1675,6 @@
               if (ii==1) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
               obsdiags(i_rad_ob_type,ibin)%tail%luse = luse(n)
               obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = tbc(ii)
-!here changed varinv(ii) to wgtjo(ii)
               obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=wgtjo(ii)
  
 !             Load data into output arrays
@@ -1737,7 +1719,6 @@
         if(in_curbin) then
            if(iccm > 0)then
               if(.not. associated(radheadm(ibin)%head))then
-!here, added radheadm line
                  radheadm(ibin)%n_alloc = 0
 
                  allocate(radheadm(ibin)%head,stat=istat)
@@ -1748,7 +1729,6 @@
                  if(istat /= 0)write(6,*)' failure to write radtailm%llpoint '
                  radtailm(ibin)%head => radtailm(ibin)%head%llpoint
               end if
-!here, added next two lines
               radheadm(ibin)%n_alloc = radheadm(ibin)%n_alloc +1
               radtailm(ibin)%n_alloc = radheadm(ibin)%n_alloc
 
@@ -1765,7 +1745,6 @@
               radtailm(ibin)%head%time=dtime
               radtailm(ibin)%head%luse=luse(n)
               radtailm(ibin)%head%ich(:)=-1
-!here next two lines
               radtailm(ibin)%head%isis=isis
               radtailm(ibin)%head%isfctype=isfctype
               iii=0
@@ -1779,7 +1758,6 @@
                     radtailm(ibin)%head%err2(iii)=one/error0(ii)**2      ! 1/(obs error)**2  (original uninflated error)
                     radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     radtailm(ibin)%head%icx(iii)=m                       ! channel index
-!here, added
                     radtailm(ibin)%head%ich(iii)=ii
                     do k=1,npred
                        radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)

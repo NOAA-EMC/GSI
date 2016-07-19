@@ -21,6 +21,10 @@ statistics on the observation-minus-background and observation-minus-analysis
 residuals, following the so-called Desroziers approach (e.g., Desroziers et al.
 2005; Q. J. R. Meteorol. Soc., 131, 3385-3396).
 
+At NCEP, the offline estimation of the error covariances can be computed 
+by the cov_calc module, located in util/Correlated_Obs.  This module is also
+based on Desroziers method.  
+
 This module defines the so-called Obs\_Error\_Cov.
 
 As Met\_Guess and other like-modules, the idea is for this module to define nearly 
@@ -51,27 +55,34 @@ usually embedded in the {\it anavinfo} file. An example of such table follows:
 \begin{verbatim}
 correlated_observations::
 ! isis       method   kreq   type    cov_file
-  airs281_aqua  1      60.   global  airs_rcov.bin
+  airs281_aqua  1      60.   ice     airs_rcov.bin
   airs281_aqua  1      60.   land    airs_rcov.bin
   airs281_aqua  1      60.   sea     airs_rcov.bin
-# cris_npp      1     -99.   global  cris_rcov.bin
+  airs281_aqua  1      60.   snow    airs_rcov.bin
+  airs281_aqua  1      60.   mixed   airs_rcov.bin
+# cris_npp      1     -99.   snow    cris_rcov.bin
 # cris_npp      1     -99.   land    cris_rcov.bin
 # cris_npp      1     -99.   sea     cris_rcov.bin
-  iasi_metop-a  1      60.   global  iasi_sea_rcov.bin
-  iasi_metop-a  1      60.   land    iasi_land_rcov.bin
-  iasi_metop-a  1      60.   sea     iasi_sea_rcov.bin
-# ssmis_f17     1     -99.   global  ssmis_rcov.bin
+  iasi_metop-a  2      0.12  snow    iasi_sea_rcov.bin
+  iasi_metop-a  2      0.22  land    iasi_land_rcov.bin
+  iasi_metop-a  2      0.05  sea     iasi_sea_rcov.bin
+  iasi_metop-a  2      0.12  ice     iasi_sea_rcov.bin
+  iasi_metop-a  2      0.12  mixed   iasi_sea_rcov.bin
+# ssmis_f17     1     -99.   mixed   ssmis_rcov.bin
 # ssmis_f17     1     -99.   land    ssmis_rcov.bin
 # ssmis_f17     1     -99.   sea     ssmis_rcov.bin
 ::
 \end{verbatim}
-Notice that the covariance much be supplied for all three surface types,
-namely, global, land, and sea. However, they can be made the same, by simply
+Notice that the covariance can be supplied for all five surface types,
+namely, ice, snow, mixed, land, and sea. However, they can be made the same, by simply
 pointing the three types to the same file. In the example above, only AIRS and
 IASI from Metop-A are being specially handled by this module. In the case of
 AIRS, no distinction is made among the different types of surfaces, whereas 
 in the case of IASI, a distinction is made between land and sea, with everything
-(global; namely ice) being treated as sea.
+else being treated as sea.  It is not necessary to specify a covariance file for
+each surface type.
+
+The instrument name is the same as it would be in the satinfo file  .
 
 As usual, this table follows INPAK/ESMF convention, begining with a name
 (correlated\_observations), followed by double colons (::) to open the table and 
@@ -91,10 +102,17 @@ Column 2: method - specify different possibilities for handling the correspondin
            3 - diag of estimate R used as scaling factor to internally-defined errors
 Column 3: kreq   - level of required condition for the corresponding cov(R)
           at present:
-          if<0    does not recondition matrix
-          if>0    recondition matrix following the 2nd method in Weston et al. (2014; 
-                  Q. J. R. Meteorol. Soc., DOI: 10.1002/qj.2306)
-Column 4: type - determines whether to apply covariance globally, or over ocean or land
+          if<0 and method=0, 1 or 3  does not recondition matrix
+          if>0 and method=1          recondition (the correlation) matrix following 
+                                     the 2nd method in Weston et al. (2014; 
+                                     Q. J. R. Meteorol. Soc., DOI: 10.1002/qj.2306)
+                                     Note that the resulting correlation matrix has
+                                     condition number equal to approximatetly twice kreq.
+          if>0 and method=0 or 3     recondition (the covariance) matrix using Westons 2nd method
+          if method=2                recondition the covariance matrix by inflating the
+                                     diagional so that R_{r,r}=(sqrt{R_{r,r}+kreq)^2
+                                     Note that kreq should be specified as  0<kreq<1
+Column 4: type - determines whether to apply covariance over ocean, land, ice, snow or mixed FOVs
 Column 5: cov_file - name of file holding estimate of error covariance for the
                      instrument specified in column 1
 \end{verbatim}
@@ -593,12 +611,6 @@ if ( ErrorCov%method==2 ) then
 !wgu
    ErrorCov%Revecs=ErrorCov%R
    call decompose_(trim(ErrorCov%name),ErrorCov%Revals,ErrorCov%Revecs,ndim,.true.)
-!wgu
-!   call westonEtAl_spectrum_boost_(adjspec)
-!   if (adjspec) then
-!      call rebuild_rcov_
-!   endif
-!wgu
    ! In this case, we can wipe out the eigen-decomp since it will be redone for
    ! each profile at each location at setup time.
    ErrorCov%Revals=zero
@@ -702,7 +714,7 @@ use constants, only: tiny_r_kind
      if (lprt) then
         cond=-999._r_kind
         lambda_max=maxval(Evals)
-        lambda_min=minval(Evals)
+        lambda_min=minval(abs(Evals))
         if(lambda_min>tiny_r_kind) cond=abs(lambda_max/lambda_min) ! formal definition (lambda>0 for SPD matrix)
         if (iamroot_) then
            write(6,'(2a,1x,a,1x,es10.3)') 'Rcov(Evals) for Instrument: ', trim(instrument), ' cond= ', cond
@@ -798,8 +810,6 @@ do jj=1,nchanl
    if (varinv(jj)>tiny_r_kind .and. iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
-
-!here, jj should be mm
          if(jj==ErrorCov%indxR(ii)) then
             ifound=ii       
             exit
@@ -849,17 +859,7 @@ endif
 
 ! decompose the sub-matrix - returning the result in the 
 !                            structure holding the full covariance
-if( ErrorCov%method==1 .or. ErrorCov%method==2 ) then
-!wgu
-   if( ErrorCov%method==2 ) then
-     do jj=1,ncp
-        mm=IJsubset(jj)
-        qcadjusted = obvarinv(mm)**2*adaptinf(mm)
-!wgu        ErrorCov%R(IRsubset(jj),IRsubset(jj)) = ErrorCov%R(IRsubset(jj),IRsubset(jj))/qcadjusted
-        ErrorCov%R(IRsubset(jj),IRsubset(jj)) = ErrorCov%R(IRsubset(jj),IRsubset(jj))
-     enddo
-   endif
-!wgu
+if( ErrorCov%method==1) then
    subset = decompose_subset_ (IRsubset,ErrorCov)
    if(.not.subset) then
       call die(myname_,' failed to decompose correlated R')
@@ -1035,7 +1035,6 @@ real(r_kind) coeff,qcadjusted
 logical subset
 logical, save:: first = .true.
 nch_active=ErrorCov%nch_active
-!wgu if(nch_active<0) return
 call timer_ini('inv_rsqrt')
 
 ! get indexes for the internal channels matching those
@@ -1063,16 +1062,6 @@ ncp=count(ircv>0) ! number of active channels in profile
 if(ncp==0 .or. ncp>ErrorCov%nch_active .or. ncp .ne. nchasm) then
    call die(myname_,'serious inconsitency in handling correlated obs')
 endif
-
-!wgu
-   if(ErrorCov%method==2)then
-     do jj=1,ncp
-        qcadjusted = varinv(jj)
-!wgu        ErrorCov%R(ircv(jj),ircv(jj)) = ErrorCov%R(ircv(jj),ircv(jj))/qcadjusted
-        ErrorCov%R(ircv(jj),ircv(jj)) = ErrorCov%R(ircv(jj),ircv(jj))
-     enddo
-   endif
-!wgu
 
    subset = decompose_subset_ (ircv,ErrorCov)
    if(.not.subset) then
@@ -1210,7 +1199,6 @@ implicit none
         if (iuse_rad(mm)>=1) then
           ifound=-1
           do ii=1,nch_active
-!here, should jj actually be mm?
             if(jj==GSI_BundleErrorCov(itbl)%indxR(ii)) then
                ifound=ii       
                exit

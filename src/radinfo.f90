@@ -95,9 +95,6 @@ module radinfo
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
-!here next two lines
-!eig here can comment
-!  public :: radinfo_scl_bias
   public :: radinfo_get_rsqrtinv
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
@@ -185,9 +182,6 @@ module radinfo
   logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
 
   interface radinfo_adjust_jacobian; module procedure adjust_jac_; end interface
-!two new interfaces here
-!eig here can comment
-!  interface radinfo_scl_bias; module procedure scl_bias_; end interface
   interface radinfo_get_rsqrtinv; module procedure get_rsqrtinv_; end interface
 
   character(len=*),parameter :: myname='radinfo'
@@ -538,7 +532,6 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-!added corr_oberr_qc here
     use correlated_obsmod, only: corr_ob_initialize, corr_oberr_qc
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
@@ -958,7 +951,6 @@ contains
 !   Initialize observation error covariance for 
 !   instruments we account for inter-channel correlations
     call corr_ob_initialize
-!here call corr_oberr_qc
     call corr_oberr_qc(jpch_rad,iuse_rad,nusis,varch)
 !   Close unit for runtime output.  Return to calling routine
     if(mype==mype_rad)close(iout_rad)
@@ -1801,10 +1793,6 @@ contains
 !  End of program
    return
    end subroutine init_predx
-!here, args 
-! logical function adjust_jac_ (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
-!                                 depart,obvarinv,adaptinf,jacobian)
-!eig here, output iinstr
  logical function adjust_jac_ (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
                                depart,obvarinv,adaptinf,wgtjo,jacobian)
 !$$$  subprogram documentation block
@@ -1835,7 +1823,7 @@ contains
    use mpeu_util, only: die
    use mpimod, only: mype
    implicit none
-!changed everything here
+
    character(len=*),intent(in) :: isis
    integer(i_kind), intent(in) :: isfctype
    integer(i_kind), intent(in) :: nchanl
@@ -1847,7 +1835,6 @@ contains
    real(r_kind), intent(inout) :: adaptinf(nchanl)
    real(r_kind), intent(inout) :: wgtjo(nchanl)
    real(r_kind), intent(inout) :: jacobian(nsigradjac,nchanl)
-   !eig here move iinstr to be out
    integer(i_kind), intent(out) :: iinstr
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
@@ -1888,78 +1875,6 @@ contains
                                     iuse_rad,ich,GSI_BundleErrorCov(iinstr))
 end function adjust_jac_
 
- !added scl_bias here
-!eig here commented scl_bias
-!logical function scl_bias_ (isis,isfctype,iinstr)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    scl_bias_
-!
-!   prgrmmr:     Wei  org: gmao                date: 2015-03-11
-!
-! abstract:  provide hook to scale the bias term for instruments with the
-! inter-channel correlated errors
-!
-! program history log:
-!   2015-03-11  W. Gu - initial code
-!   2015-08-18  W. Gu - include the dependence of the correlated errors on the
-!   different surface types
-!
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
-!
-!$$$ end documentation block
-!   use constants, only: tiny_r_kind,zero,one
-!   use correlated_obsmod, only: idnames
-!   use correlated_obsmod, only: corr_ob_amiset
-!   use correlated_obsmod, only: GSI_BundleErrorCov
-!   use mpeu_util, only: getindex
-!   use mpeu_util, only: die
-!   use mpimod, only: mype
-!   implicit none
-!   character(len=*),intent(in) :: isis
-!   integer(i_kind),intent(in) :: isfctype
-!   integer(i_kind),intent(out) :: iinstr
-
-!   character(len=*),parameter::myname_ = myname//'*scl_bias_'
-!   character(len=80) covtype
-
-!   scl_bias_=.false.
-
-!   if(.not.allocated(idnames)) then
-!     return
-!   endif
-
-!   iinstr=-1
-!   if(isfctype==0)then
-!      covtype = trim(isis)//':sea'
-!      iinstr=getindex(idnames,trim(covtype))
-!   else if(isfctype==1)then
-!      covtype = trim(isis)//':land'
-!      iinstr=getindex(idnames,trim(covtype))
-!   else if(isfctype==2)then
-!      covtype = trim(isis)//':ice'
-!      iinstr=getindex(idnames,trim(covtype))
-!   else if(isfctype==3)then
-!      covtype = trim(isis)//':snow'
-!      iinstr=getindex(idnames,trim(covtype))
-!   else if(isfctype==4)then
-!      covtype = trim(isis)//':mixed'
-!      iinstr=getindex(idnames,trim(covtype))
-!   endif
-!   if(iinstr<0) return  ! do not use the correlated errors
-
-!   if(.not.corr_ob_amiset(GSI_BundleErrorCov(iinstr))) then
-!      call die(myname_,' improperly set GSI_BundleErrorCov')
-!   endif
-
-!   if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
-
-!   if( GSI_BundleErrorCov(iinstr)%method==1 .or.GSI_BundleErrorCov(iinstr)%method==2 ) scl_bias_=.true.
-
-!end function scl_bias_
-!added get_rsqrtinv here
 subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
 !$$$  subprogram documentation block
 !                .      .    .
