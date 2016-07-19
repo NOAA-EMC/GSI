@@ -7,13 +7,12 @@ edate=2014060800
 instr=airs_aqua
 #instr=iasi_metop-b
 #location of radstat file
-#exp=para_2014
 exp=prfull
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
-savdir=$wrkdir/matrix
+savdir=$wrkdir
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land, and mixed FOVs
 type=2
 #cloud 1 for clear FOVs, 2 for clear channels
