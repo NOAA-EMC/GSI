@@ -1,196 +1,14 @@
 module matrix_tools
 
 implicit none
-public:: iminv
 public:: eigdecomp
 public:: recondition
 
 contains
 
-subroutine iminv(a,n,d,l,m)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    iminv    invert a matrix
-!
-!   prgrmmr:
-!
-! abstract:      the standard gauss-jordan method is used. the
-! determinant
-!                is also calculated. a determinant of zero indicates
-!                that
-!                the matrix is singular.
-!
-! remarks        matrix a must be a general matrix
-!
-! program history log:
-!   2008-06-04  safford -- add subprogram doc block
-!
-!   input argument list:
-!     a - input matrix, destroyed in computation and replaced by
-!     resultant
-!     inverse
-!     n - order of matrix a
-!     d - resultant determinant
-!     l - work vector of length n
-!     m - work vector of length n
-!
-!   output argument list:
-!     a - input matrix, destroyed in computation and replaced by
-!     resultant
-!     inverse
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-        use kinds,only: r_kind,i_kind
-        implicit none
-        integer(i_kind)             ,intent(in   ) :: n
-        integer(i_kind),dimension(n),intent(inout) :: l,m
-        real(r_kind)                ,intent(inout) :: d
-        real(r_kind),dimension(n*n) ,intent(inout) :: a
-
-        integer(i_kind):: nk,k,j,iz,i,ij
-        integer(i_kind):: kj,ik,jr,jq,jk,ki,kk,jp,ji
-
-        real(r_kind):: biga,hold
-        real(r_kind):: zero=0.0_r_kind
-        real(r_kind):: one=1.0_r_kind
-!
-!        if a double precision version of this routine is desired, the
-!        ! in column 1 should be removed from the double precision
-!        statement which follows.
-!
-!     double precision a, d, biga, hold
-!
-!        the ! must also be removed from double precision statements
-!        appearing in other routines used in conjunction with this
-!        routine.
-!
-!        the double precision version of this sr........ must also
-!        contain double precision fortran functions.  abs in statemen
-!        10 must be changed to dabs  .
-!
-!        ...............................................................
-!
-!        search for largest element
-!
-         d=one
-         nk=-n
-         do 80 k=1,n
-            nk=nk+n
-            l(k)=k
-            m(k)=k
-            kk=nk+k
-            biga=a(kk)
-            do 20 j=k,n
-               iz=n*(j-1)
-               do 20 i=k,n
-                  ij=iz+i
-                  if(abs(biga)-abs(a(ij))) 15,20,20
-   15             biga=a(ij)
-                  l(k)=i
-                  m(k)=j
-   20       continue
-!
-!        interchange rows
-!
-            j=l(k)
-            if(j-k) 35,35,25
-   25       ki=k-n
-            do 30 i=1,n
-               ki=ki+n
-               hold=-a(ki)
-               ji=ki-k+j
-               a(ki)=a(ji)
-   30          a(ji) =hold
-!
-!        interchange columns
-!
-   35          i=m(k)
-               if(i-k) 45,45,38
-   38          jp=n*(i-1)
-               do 40 j=1,n
-                  jk=nk+j
-                  ji=jp+j
-                  hold=-a(jk)
-                  a(jk)=a(ji)
-   40             a(ji) =hold
-!        divide column by minus pivot (value of pivot element is
-!        contained in biga)
-!
-   45             if(biga) 48,46,48
-   46             d=zero
-                  return
-   48             do 55 i=1,n
-                     if(i-k) 50,55,50
-   50                ik=nk+i
-                     a(ik)=a(ik)/(-biga)
-   55             continue
-!
-!        reduce matrix
-!
-                  do 65 i=1,n
-                     ik=nk+i
-                     ij=i-n
-                     do 65 j=1,n
-                        ij=ij+n
-                        if(i-k) 60,65,60
-   60                   if(j-k) 62,65,62
-   62                   kj=ij-i+k
-                        a(ij)=a(ik)*a(kj)+a(ij)
-   65             continue
-!
-!        divide row by pivot
-!
-                  kj=k-n
-                  do 75 j=1,n
-                     kj=kj+n
-                     if(j-k) 70,75,70
-   70                a(kj)=a(kj)/biga
-   75             continue
-!
-!        product of pivots
-!
-                  d=d*biga
-!
-!        replace pivot by reciprocal
-!
-                  a(kk)=one/biga
-   80    continue
-!
-!        final row and column interchange
-!
-         k=n
-  100    k=(k-1)
-         if(k) 150,150,105
-  105    i=l(k)
-         if(i-k) 120,120,108
-  108    jq=n*(k-1)
-         jr=n*(i-1)
-         do 110 j=1,n
-            jk=jq+j
-            hold=a(jk)
-            ji=jr+j
-            a(jk)=-a(ji)
-  110       a(ji) =hold
-  120       j=m(k)
-            if(j-k) 100,100,125
-  125       ki=k-n
-            do 130 i=1,n
-               ki=ki+n
-               hold=a(ki)
-               ji=ki-k+j
-               a(ki)=-a(ji)
-  130          a(ji) =hold
-               go to 100
-  150          return
-end subroutine iminv
-
 subroutine eigdecomp(Ain,n,D,Q)
-!performs an eigendecomposition of a symmetric matrix
+!this subroutine uses the Jacobi rotation method to
+!perform an eigendecomposition of a symmetric matrix
 !input:  
 !Ain, a symmetric matrix of size n
 !n, dim of Ain
@@ -304,24 +122,35 @@ do i=1,niter
    end do
 
 end do
+
 end subroutine eigdecomp
 
-subroutine recondition(Q,D,n,kreq,A,method)
+
+subroutine recondition(Q,D,R,n,Xd,kreq,A,method)
+!This subroutine reconditions the covariance matrix
+!based on a user's choice of method.
+!It is necessary to preform an eigendecompositon first
+!Kristen Bathmann 
+!8-2015
 use kinds, only: r_kind, i_kind
 use constants, only: zero
 implicit none
-real(r_kind),dimension(:),intent(in):: D
-real(r_kind),dimension(:,:),intent(in):: Q
-real(r_kind),intent(in):: kreq
-integer(i_kind),intent(in):: n
-real(r_kind),dimension(:,:),allocatable:: Dn
-real(r_kind),dimension(:,:),intent(out):: A
+real(r_kind),dimension(:),intent(in):: D     !eigenvalues
+real(r_kind),dimension(:,:),intent(in):: Q   !eigenvectors
+real(r_kind),dimension(:,:),intent(in):: R   !original Rcov
+real(r_kind),intent(in):: Xd
+real(r_kind),intent(in):: kreq               !condition number
+integer(i_kind),intent(in):: n               !number of channels
+real(r_kind),dimension(:,:),allocatable:: Dn !new eigenvalues
+real(r_kind),dimension(:,:),intent(out):: A  !reconditioned covariance
+real(r_kind),dimension(:,:),allocatable:: R2
 integer,intent(in)::method
-real(r_kind):: mx, mn
-real(r_kind):: laminc
-integer:: i
-integer,parameter:: weston2=2
+real(r_kind):: mx, mn, m,r12,r22,dc,K
+real(r_kind):: laminc, a1, a2, nreal
+integer:: i,j,coun, dw
 integer,parameter:: trace=1
+integer,parameter:: weston2=2
+integer,parameter:: shrinkage=3
 allocate(Dn(n,n))
 Dn=zero
 mn=D(1)
@@ -335,24 +164,59 @@ if (method==weston2) then
    do i=1,n
       Dn(i,i)=D(i)+laminc
    end do
+   A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q))))
 else if (method==trace) then
-print *, 'trace'
-   laminc=mx/kreq
-print *, 'max', mx
-print *, 'kreq', kreq
-print *, 'laminc',laminc
-   do i=1,n
-      if (D(i)<=laminc) then
-         Dn(i,i)=laminc
-print *, 'here', i, D(i)
-      else
-         Dn(i,i)=D(i)
+   K=kreq
+   dw=0
+   do while (dw==0)
+      coun=0
+      laminc=mx/K
+      do i=1,n
+         if (D(i)<=laminc) then
+            Dn(i,i)=laminc
+            coun=coun+1
+         else
+            Dn(i,i)=D(i)
+         end if
+      end do
+      dw=1
+      if (coun>K) then
+         dw=0
+         K=K+1
       end if
    end do
+      
+   A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q))))
+else if (method==shrinkage) then
+   nreal=real(n,r_kind)
+   allocate(R2(n,n))
+   R2=R
+   m=0
+   dc=0
+   do i=1,n
+      m=m+D(i)
+   end do
+   r22=Xd
+   m=m/nreal
+   do i=1,n
+      R2(i,i)=R2(i,i)-m
+   end do
+   R2=MATMUL(R2,TRANSPOSE(R2))
+   do i=1,n
+      dc=dc+R2(i,i)
+   end do
+   dc=dc/nreal
+   r12=dc-r22
+   a1=r22*m/dc
+   a2=r12/dc
+   do i=1,n
+      do j=1,n
+         A(i,j)=R(i,j)*a2
+      end do
+      A(i,i)=A(i,i)+a1
+   end do 
 end if
-A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q))))
+
 end subroutine recondition
-
-
 
 end module matrix_tools

@@ -1,21 +1,21 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040100
+bdate=2014040200
 #date of last radstat file
-edate=2014041018
+edate=2014060800
 #instrument name, as it would appear in the title of a diag file
-#instr=airs_aqua
-instr=iasi_metop-b
+instr=airs_aqua
+#instr=iasi_metop-b
 #location of radstat file
 #exp=para_2014
-exp=prfullo
-diagdir=/da/noscrub/${USER}/archive/${exp}
+exp=prfull
+diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/stmpp1/${USER}/iasib_global
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
-savdir=$diagdir
+savdir=$wrkdir/matrix
 #type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land, and mixed FOVs
-type=5
+type=2
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -28,22 +28,22 @@ err_out=.false.
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=180
-#method to recondition:  1 for trace method, 2 for Weston's second method
-method=1
+#method to recondition:  1 for trace method, 2 for Weston's second method, 3 for linear shrinkage
+method=3
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=10
+num_proc=20
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
-unpack_walltime=02:30
+unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=03:00
+wall_time=03:00:00
 #job account name (needed on theia only)
 account=cloud
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
-machine=wcoss
+machine=theia
 
-ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
+ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 
 ####################################################################
 
