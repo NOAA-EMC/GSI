@@ -50,6 +50,7 @@ module tendsmod
 !$$$ end documentation block
 
   use kinds, only: i_kind,r_kind
+  use constants, only: max_varname_length
   use gridmod, only: lat2,lon2,nsig
   use mpimod, only : mype
   use GSI_BundleMod, only : GSI_BundleCreate
@@ -89,8 +90,8 @@ module tendsmod
   real(r_kind) ctph0,stph0,tlm0
 
   type(gsi_bundle) :: gsi_tendency_bundle
-  character(len=32),allocatable,dimension(:):: tvars2d, tvars3d
-  character(len=32),allocatable,dimension(:):: tsrcs2d, tsrcs3d
+  character(len=max_varname_length),allocatable,dimension(:):: tvars2d, tvars3d
+  character(len=max_varname_length),allocatable,dimension(:):: tsrcs2d, tsrcs3d
 
 ! below this point: declare vars not to be made public
   logical,save :: tnd_set_        = .false.
@@ -137,8 +138,8 @@ integer(i_kind) luin,ii,nrows,ntot,ipnt,istatus
 integer(i_kind) i2d,i3d,n2d,n3d,irank
 integer(i_kind),allocatable,dimension(:)::nlevs
 character(len=256),allocatable,dimension(:):: utable
-character(len=32),allocatable,dimension(:):: vars
-character(len=32),allocatable,dimension(:):: sources
+character(len=max_varname_length),allocatable,dimension(:):: vars
+character(len=max_varname_length),allocatable,dimension(:):: sources
 logical iamroot_,matched
 
 if(tnd_set_) return

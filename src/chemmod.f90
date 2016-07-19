@@ -127,7 +127,7 @@ module chemmod
         naero_gocart_wrf=15  !number of gocart aerosol species
 
   character(len=max_varname_length), dimension(naero_cmaq), parameter :: &
-        aeronames_cmaq=(/&
+        aeronames_cmaq=(/ character(len=max_varname_length) :: &
         'ASO4I',  'ANO3I',  'ANH4I',  'AORGPAI',  'AECI',   'ACLI', &
         'ASO4J',  'ANO3J',  'ANH4J',  'AORGPAJ',  'AECJ',   'ANAJ',&
         'ACLJ',   'A25J',   'AXYL1J', 'AXYL2J',   'AXYL3J', 'ATOL1J',&

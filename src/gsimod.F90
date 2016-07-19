@@ -1030,13 +1030,13 @@
   read(5,chem)
 #else
 ! Initialize table of instruments and data types
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
         if(ios/=0) call die(myname_,'read(setup)',ios)  
 !  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,gridopts,iostat=ios)
         if(ios/=0) call die(myname_,'read(gridopts)',ios)
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   read(11,bkgerr,iostat=ios)
         if(ios/=0) call die(myname_,'read(bkgerr)',ios)
   read(11,anbkgerr,iostat=ios)

@@ -2916,23 +2916,29 @@ CONTAINS
   endif
 
   if(bundi%n1d>0) then
-     bundo%r1(1:bundo%n1d)%shortname=bundi%r1%shortname
-     bundo%r1(1:bundo%n1d)%longname =bundi%r1%longname
-     bundo%r1(1:bundo%n1d)%units    =bundi%r1%units
-     bundo%r1(1:bundo%n1d)%mykind   =bundi%r1%mykind
+     do ii=1,bundi%n1d
+        bundo%r1(ii)%shortname=bundi%r1(ii)%shortname
+        bundo%r1(ii)%longname =bundi%r1(ii)%longname
+        bundo%r1(ii)%units    =bundi%r1(ii)%units
+        bundo%r1(ii)%mykind   =bundi%r1(ii)%mykind
+     enddo
   endif
   if(bundi%n2d>0) then
-     bundo%r2(1:bundo%n2d)%shortname=bundi%r2%shortname
-     bundo%r2(1:bundo%n2d)%longname =bundi%r2%longname
-     bundo%r2(1:bundo%n2d)%units    =bundi%r2%units
-     bundo%r2(1:bundo%n2d)%mykind   =bundi%r2%mykind
+     do ii=1,bundi%n2d
+        bundo%r2(ii)%shortname=bundi%r2(ii)%shortname
+        bundo%r2(ii)%longname =bundi%r2(ii)%longname
+        bundo%r2(ii)%units    =bundi%r2(ii)%units
+        bundo%r2(ii)%mykind   =bundi%r2(ii)%mykind
+     enddo
   endif
   if(bundi%n3d>0) then
-     bundo%r3(1:bundo%n3d)%shortname=bundi%r3%shortname
-     bundo%r3(1:bundo%n3d)%longname =bundi%r3%longname
-     bundo%r3(1:bundo%n3d)%units    =bundi%r3%units
-     bundo%r3(1:bundo%n3d)%level    =bundi%r3%level
-     bundo%r3(1:bundo%n3d)%mykind   =bundi%r3%mykind
+     do ii=1,bundi%n3d
+        bundo%r3(ii)%shortname=bundi%r3(ii)%shortname
+        bundo%r3(ii)%longname =bundi%r3(ii)%longname
+        bundo%r3(ii)%units    =bundi%r3(ii)%units
+        bundo%r3(ii)%level    =bundi%r3(ii)%level
+        bundo%r3(ii)%mykind   =bundi%r3(ii)%mykind
+     enddo
   endif
 
   if (bundo%AllKinds==r_single) then

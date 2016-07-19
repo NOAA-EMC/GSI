@@ -242,6 +242,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  auligne/todling - add hydrometeors
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2016-07-19  kbathmann - adjustment to bias correction when using correlated obs
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
@@ -287,7 +288,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
-  use timermod, only:  timer_ini, timer_fnl
 
 
   implicit none
@@ -322,8 +322,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 ! Set required parameters
   if(lgoback) return
 
-  call timer_ini('intrad')
- 
+
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0
   if(luseu)then
@@ -773,7 +772,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      radptr => radptr%llpoint
   end do
 
-  call timer_fnl('intrad')
 
   return
 end subroutine intrad_

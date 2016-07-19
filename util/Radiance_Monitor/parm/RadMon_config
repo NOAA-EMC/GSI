@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/td2/emc/da/save/Kristen.Bathmann/GSI/Desroziers/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/td2/emc/da/save/Kristen.Bathmann/GSI/Desrozi
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/stmpp1/Kristen.Bathmann/RADM}
+export MY_TANKDIR=${MY_TANKDIR:-}
 
 if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
@@ -41,9 +41,9 @@ fi
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEB_SVR=${WEB_SVR:-emcrzdm}
-export WEB_USER=${WEB_USER:-kbathmann}
-export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/kbathmann}
+export WEB_SVR=${WEB_SVR:-}
+export WEB_USER=${WEB_USER:-}
+export WEBDIR=${WEBDIR:-}
 
 
 ###############################################################################

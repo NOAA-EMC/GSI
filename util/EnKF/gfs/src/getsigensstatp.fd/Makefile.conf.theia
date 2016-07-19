@@ -21,6 +21,8 @@ SIGIO_LIB4=$(CORELIB)/sigio/v$(SIGIO_VER)/libsigio_v$(SIGIO_VER)_4.a
 SP_LIB4=$(CORELIB)/sp/v$(SP_VER)/libsp_v$(SP_VER)_4.a
 W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
+NETCDF_INC=$(NETCDF)/include
+NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 # ---------------------------
 # General targets/definitions
 # ---------------------------
@@ -39,7 +41,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   OMP = #-qsmp=noauto
 
   FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCnemsio)
+  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCnemsio) -I $(NETCDF_INC)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
@@ -69,7 +71,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4) $(NETCDF_LIB)
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt
 

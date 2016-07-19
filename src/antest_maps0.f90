@@ -296,6 +296,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
+  use constants, only: max_varname_length
   use anberror, only: kvar_start,kvar_end,var_names,levs_jdvar,indices,pf2aP1
   use gridmod, only: nsig,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,zero,one,rd_over_cp,r100
@@ -340,7 +341,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   integer(i_kind):: nlatf,nlonf
   type(gsi_bundle):: bundle_work
   type(gsi_grid) :: grid
-  character(2) :: names2dwork(1),names3dwork(4)
+  character(max_varname_length) :: names2dwork(1),names3dwork(4)
 
   names2dwork(1)='ps'
   names3dwork(1)='sf'
