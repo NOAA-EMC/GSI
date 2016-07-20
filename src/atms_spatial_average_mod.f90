@@ -459,10 +459,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 
      ! Set the ends of the image to missing in the along track direction
      ! (doing the same across track will remove too much data)
-!    gooddata_map(:,1:qc_dist)=.FALSE.
-!    gooddata_map(:,ny-qc_dist+1:ny)=.FALSE.
-     gooddata_map(:,1:MIN(qc_dist,ny))=.FALSE. 
-     gooddata_map(:,MAX(ny-qc_dist+1,1):ny)=.FALSE.  
+     gooddata_map(:,1:MIN(qc_dist,ny))=.FALSE.
+     gooddata_map(:,MAX(ny-qc_dist+1,1):ny)=.FALSE.
      
      DO j=1,ny
         DO i=1,nx
