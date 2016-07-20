@@ -153,11 +153,14 @@ for type in ${SATYPE}; do
    #  Create the cycle_hrs.txt file
    #-------------------------------------------------------------------
    cdate=$BDATE
+   nfiles=0
    while [[ $cdate -le $EDATE ]]; do
       echo $cdate >> cycle_hrs.txt
       adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
       cdate=$adate
+      nfiles=`expr $nfiles + 1`
    done
+
 
    #-------------------------------------------------------------------
    #  Copy the data files and ctl file to workdir
@@ -231,7 +234,7 @@ cat << EOF > input
   satname='${type}',
   n_chan=${nchan},
   nregion=1,
-  nfile=121,
+  nfile=${nfiles},
   date='${EDATE}',
   out_file='${out_file}',
  /
