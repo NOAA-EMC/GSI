@@ -102,7 +102,7 @@ contains
 
     use kinds, only: i_kind,r_kind
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,regional
-    use guess_grids, only: ifilesig,nfldsig 
+    use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundlecreate
@@ -116,7 +116,6 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
-    use derivsmod, only: cwgues0
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -219,7 +218,7 @@ contains
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
        if (l_cld_derived) then
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,cwgues0) 
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
        end if
 
     end do
@@ -1036,7 +1035,6 @@ end subroutine write_ghg_grid
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
     use constants, only: qcmin 
-    use derivsmod, only: cwgues0  
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl
@@ -1048,7 +1046,6 @@ end subroutine write_ghg_grid
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
     integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
-    integer(i_kind) i,j,k 
 
     real(r_kind),dimension(grd_a%lat2,grd_a%lon2  ):: aux_ps
     real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_u
@@ -1113,18 +1110,6 @@ end subroutine write_ghg_grid
        endif
 
        call set_analysis_(itoutsig)
-
-!   Get final cloud increments and add to the original cloud guess fields
-       if (associated(ges_cwmr_it)) then
-          do k=1,nsig
-             do j=1,lon2
-                 do i=1,lat2
-                    aux_cwmr(i,j,k) = cwgues0(i,j,k)  &
-                                 +(ges_cwmr_it(i,j,k)-max(cwgues0(i,j,k),qcmin))
-                 enddo
-             enddo
-          enddo
-       endif  
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b

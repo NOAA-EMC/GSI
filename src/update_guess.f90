@@ -82,6 +82,7 @@ subroutine update_guess(sval,sbias)
 !   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !   2014-11-28  zhu     - move update of cw to compute_derived when cw is not 
 !                         state variable for all-sky radiance assimilation
+!   2016-04-28  eliu    - revise update for cloud water 
 !
 !   input argument list:
 !    sval
@@ -138,7 +139,7 @@ subroutine update_guess(sval,sbias)
   character(max_varname_length),allocatable,dimension(:) :: gases
   character(max_varname_length),allocatable,dimension(:) :: guess
   character(max_varname_length),allocatable,dimension(:) :: cloud
-  integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
+  integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus,ier
   integer(i_kind) is_t,is_q,is_oz,is_cw,is_sst
   integer(i_kind) icloud,ncloud
   integer(i_kind) idq
@@ -150,6 +151,8 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3daux =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_ql   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qi   =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 
@@ -288,6 +291,15 @@ subroutine update_guess(sval,sbias)
            cycle
         endif
      enddo
+     if (getindex(svars3d,'ql')>0 .and. getindex(svars3d,'qi')>0) then
+        ier=0
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3dges,istatus) ; ier=istatus                                                              
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,  istatus) ; ier=ier+istatus                                        
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,  istatus) ; ier=ier+istatus                                
+        if (ier==0) then
+           ptr3dges = ges_ql + ges_qi
+        endif
+     endif
 !    At this point, handle the Tv exception since by now Q has been updated 
 !    NOTE 1: This exceptions is unnecessary: all we need to do is put tsens in the
 !    state-vector instead of tv (but this will require changes elsewhere).
