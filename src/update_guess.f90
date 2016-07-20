@@ -82,6 +82,7 @@ subroutine update_guess(sval,sbias)
 !   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !   2014-11-28  zhu     - move update of cw to compute_derived when cw is not 
 !                         state variable for all-sky radiance assimilation
+!   2015-07-10  pondeca  - add cldch
 !   2016-04-28  eliu    - revise update for cloud water 
 !
 !   input argument list:
@@ -288,6 +289,7 @@ subroutine update_guess(sval,sbias)
            if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have > 100% or < 0% cloud amount
            if (trim(guess(ic))=='lcbas') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+           if (trim(guess(ic))=='cldch') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
            cycle
         endif
      enddo

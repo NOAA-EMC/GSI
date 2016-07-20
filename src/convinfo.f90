@@ -18,6 +18,7 @@ module convinfo
 !   2013-11-20     su - add ptime_conv as time dimension,and pmot_conv as
 !                           parameter for the option to keep thinned data as
 !                           monitored
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 
 !
 ! Subroutines Included:
@@ -67,7 +68,6 @@ module convinfo
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   use obsmod, only: use_limit
-  use gridmod, only: use_reflectivity
   implicit none
 
 ! set default as private
@@ -163,7 +163,6 @@ contains
     conv_bias_pm10= zero
 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
-    use_reflectivity=.false.  ! option of using reflectivity
 
     call init_pm2_5
 		  
