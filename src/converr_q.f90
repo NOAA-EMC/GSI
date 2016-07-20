@@ -63,11 +63,11 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- add ld, the size of error table.
-!                          ld=300 is sufficient for current conventional
-!                          observing systems.  No need to do the subtraction to get error
-!                          table array index.
-
+!   2015-03-06  yang    -- add ld=300, the size of the error table.
+!                          Remove the original calculation to get error table
+!                          array
+!                          index. ld=300 is sufficient for current conventional
+!                          observing systems.
 !
 !   input argument list:
 !
@@ -170,4 +170,3 @@ subroutine converr_q_destroy
   end subroutine converr_q_destroy
 
 end module converr_q
-

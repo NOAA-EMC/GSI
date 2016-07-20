@@ -82,6 +82,7 @@ module gridmod
 !   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
 !                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
 !                        to allow spectral to grid transformation to a lower resolution grid
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !                      
 !                        
 !
@@ -141,7 +142,6 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
-  public :: use_reflectivity
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
 
@@ -173,7 +173,6 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
-  logical use_reflectivity  ! .t. for using reflectivity for NMMB
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
