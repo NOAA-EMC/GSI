@@ -1,4 +1,4 @@
-SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
+SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,krad_bot_in,ref_mos_3d,h_bk,pblh)
 !
 !  radar observation
 !
@@ -18,6 +18,7 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-20  Hu  Add NCO document block
+!    2011-04-08  Hu  Clean the reflectivity below PBL height or level 7
 !
 !
 !   input argument list:
@@ -25,8 +26,10 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
 !     nlon        - no. of lons on subdomain (buffer points on ends)
 !     nlat        - no. of lats on subdomain (buffer points on ends)
 !     nsig        - no. of levels
+!     krad_bot    - radar bottom level
 !     ref_mos_3d  - 3D radar reflectivity
 !     h_bk        - 3D background height
+!     pblh        - PBL height in grid
 !
 !   output argument list:
 !     ref_mos_3d  - 3D radar reflectivity
@@ -54,9 +57,10 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
   INTEGER(i_kind), intent(in)   :: nlon,nlat,nsig
   real(r_single),  intent(in)   :: h_bk(nlon,nlat,nsig)           ! 3D height
   real(r_kind),    intent(inout):: ref_mos_3d(nlon,nlat,nsig)     ! reflectivity in grid
+  real(r_single),  intent(in)   :: pblh(nlon,nlat)                ! PBL height
+  real(r_single),  intent(in)   :: krad_bot_in                                   
 !
   integer(i_kind) :: krad_bot,ifmissing
-  parameter (krad_bot=6)
 !
   integer(i_kind) :: maxlvl
   parameter (maxlvl=31)
@@ -156,7 +160,7 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
 !
 !  vertical reflectivity distribution
 !
-  season=2
+  season=1
   DO k=1,maxlvl
      newlvlAll(k)=newlvlAll(k)*1000.0_r_kind
   ENDDO
@@ -164,7 +168,12 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
   DO j=2,nlat-1
     DO i=2,nlon-1
       ifmissing=0
-      maxref=-9999.9_r_kind
+      maxref=-9999.0_r_kind
+!mhu      krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
+! Here, we only use PBL height to build missing corn and clean the reflectivity lower than 
+! PBL height. The krad_bot_in will be used when calculate the radar tten but not the hydrometer retrieval.
+!  Nov 21, 2011. Ming Hu
+      krad_bot= int( pblh(i,j) + 0.5_r_single )  ! consider PBL height
 !
 !  in our case, -99 is no echo
 !
@@ -226,6 +235,10 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,ref_mos_3d,h_bk)
          endif
 !
       ENDIF
+! clean echo less than PBL height and level 7
+      DO k2=1,krad_bot
+         ref_mos_3d(i,j,k2) = -99999.0_r_kind
+      ENDDO
     ENDDO
   ENDDO
 
