@@ -180,6 +180,8 @@ contains
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2013-10-19  todling - metguess now holds background
 !   2016-03-30  todling - update interface to general read (pass bundle)
+!   2016-06-23  Li      - Add cloud partitioning, which was missed (based on GFS
+!                         ticket #239, comment 18) 
 !
 !   input argument list:
 !     mype              - mpi task id
@@ -204,6 +206,7 @@ contains
     use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe
+    use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -211,6 +214,8 @@ contains
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
     integer(i_kind):: it, istatus, inner_vars, num_fields
+    integer(i_kind):: iret_ql,iret_qi
+
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -221,9 +226,12 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it  => NULL()
 
     type(sub2grid_info) :: grd_t
     logical regional
+    logical:: l_cld_derived,zflag,inithead
 
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
@@ -260,8 +268,23 @@ contains
        call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
             atm_bundle,.true.,istatus)
 
+       inithead=.false.
+       zflag=.false.
+
 !      Set values to actual MetGuess fields
        call set_guess_
+
+       l_cld_derived = associated(ges_cwmr_it).and.&
+                       associated(ges_q_it)   .and.&
+                       associated(ges_ql_it)  .and.&
+                       associated(ges_qi_it)  .and.&
+                       associated(ges_tv_it)
+!      call set_cloud_lower_bound(ges_cwmr_it)
+       if (mype==0) write(6,*)'READ_GFS_NEMS: l_cld_derived = ', l_cld_derived
+
+       if (l_cld_derived) then
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it)
+       end if
 
     end do
     call general_sub2grid_destroy_info(grd_t)
@@ -321,8 +344,16 @@ contains
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
        if(istatus==0) ges_cwmr_it = ptr3d
     endif
+    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)
+    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)
+    if (iret_ql/=0) then
+       if (mype==0) write(6,*)'READ_ NEMSIO: cannot get pointer to ql,iret_ql=',iret_ql
+    endif
+    if (iret_qi/=0) then
+       if (mype==0) write(6,*)'READ_ NEMSIO: cannot get pointer to qi,iret_qi=',iret_qi
+    endif
 
-    end subroutine set_guess_
+  end subroutine set_guess_
 
   end subroutine read_
 
@@ -360,7 +391,7 @@ contains
     use mpimod,  only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2
-    use guess_grids, only: nfldsig,ntguessig
+    use guess_grids, only: nfldsig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -1510,14 +1541,14 @@ contains
 ! !USES:
     use kinds, only: r_kind,i_kind
     
-    use constants, only: r1000,fv,one,zero
+    use constants, only: r1000,fv,one,zero,qcmin
   
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: npe
     
-    use guess_grids, only: ntguessig, ifilesig
+    use guess_grids, only: ifilesig
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
@@ -1606,7 +1637,7 @@ contains
 
 !   Single task writes analysis data to analysis file
     if (mype==mype_out) then
-       write(fname_ges,'(''sigf'',i2.2)') ifilesig(ntguessig)
+       write(fname_ges,'(''sigf'',i2.2)') ifilesig(ibin)
 !
 !      Read header information from first guess file.
        call nemsio_init(iret)
@@ -1948,7 +1979,7 @@ contains
                 do kk=1,grd%iglobal
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
-                   grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+                   grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
                 end do
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                 do j=1,latb
