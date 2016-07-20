@@ -70,6 +70,8 @@ subroutine intps_(pshead,rval,sval)
 !   2010-05-13  todling  - update to use gsi_bundlemod; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
+
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -170,7 +172,7 @@ subroutine intps_(pshead,rval,sval)
            endif
            if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
               val=sqrt(two*psptr%jb)*tanh(sqrt(psptr%err2)*val/sqrt(two*psptr%jb))
-              grad = val*sqrt(psptr%raterr2*psptr%err2)
+              grad = val*psptr%raterr2*sqrt(psptr%err2)
            else
               grad = val*psptr%raterr2*psptr%err2
            endif
