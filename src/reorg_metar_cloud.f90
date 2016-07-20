@@ -10,6 +10,9 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 ! PROGRAM HISTORY LOG:
 !    2010-04-21  Hu  initial
 !    2011-10-21  Hu  add code to delete dust and haze report
+!    2015-08-06  S.Liu cross-check low cloud and T-Td and reject 
+!                low cloud if T-Td > 2.0 deg
+!    2016-06-21  S.Liu give number precision
 !
 !  input argument list:
 !     cdata     - METRA cloud observation
@@ -71,6 +74,7 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
   integer(i_kind) ::  ista_min
   real(r_kind) ::  min_dist, dist
   real(r_kind) ::  awx, cg_dewpdep, cldamt,cldhgt,cl_base_ista
+  real(r_kind) ::  cl_mt_ista
   integer(i_kind) ::  idust,ihaze
 
   real(r_double) rstation_id
@@ -100,9 +104,9 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
       ci=cstation1
       if(trim(cc) == trim(ci) ) then
         if(abs(cdata(21,ic)) >= abs(cdata(21,i))) then   ! 21= observation time
-          cdata(22,ic)=100                               ! 22= usage
+          cdata(22,ic)=100.0_r_kind                               ! 22= usage
         else
-          cdata(22,i)=100
+          cdata(22,i)=100.0_r_kind
         endif
       endif
     ENDDO  !  ic
@@ -112,6 +116,8 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 !
   DO i=1,ndata
      rstation_id=cdata(1,i)
+     cc=cstation1
+                        
      if(cdata(22,i) < 50 ) then
         idust=0
         ihaze=0
@@ -123,6 +129,29 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
                (awx ==76._r_kind .or. awx == 111._r_kind)        &
              )     idust=idust+1
         ENDDO ! j
+
+!* check cloud base and T-Td
+           cl_base_ista=spval_p
+           DO j=1,3
+              cldamt =  cdata(5+j,i)         ! cloud amount
+              cldhgt =  int(cdata(11+j,i))   ! cloud bottom height
+              if(abs(cldamt) < spval_p .and. abs(cldhgt) < spval_p) then
+                 if(cl_base_ista>cldhgt)then
+                 if( (cldamt > 3.5_r_kind .and. cldamt < 9.5_r_kind ) .or.  abs(cldamt-12._r_kind) < 0.0001_r_kind  ) then
+                    cl_base_ista = cldhgt
+                    cl_mt_ista = cldamt
+                 endif ! cloud ceiling
+                 endif
+              endif
+           ENDDO ! j
+ 
+!* case1: low cloud with full coverage, but saturation height derived from T-Td(>1.5 deg) > 150
+        if(cl_base_ista < 100.0_r_kind                             .and. &
+           cl_mt_ista>6.0_r_kind .and. cl_mt_ista < 9.5_r_kind .and. &
+           cdata(24,i)>2.5 ) then
+           cdata(22,i)=200
+           write(6,*)'block station::',cc
+        end if
 
         if(ihaze > 0 .or. idust > 0 ) then
 !           write(*,'(a,a8,3F10.1)') 'dust or haze report at station ',rstation_id, (cdata(17+j,i),j=1,1)

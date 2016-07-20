@@ -1,5 +1,4 @@
-SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
-                  lghtn_region_mask,lghtn_ref_bias,h_bk)
+SUBROUTINE convert_lghtn2ref_nmmb(mype,nlon,nlat,nsig,ref_mos_3d,lightning,h_bk)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -12,12 +11,10 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
 !  on Jing's statistic analysis
 
 ! PROGRAM HISTORY LOG:
-!    2015-10-06  s.Liu  Add NCO document block
+!    2015-10-06  S.Liu  Add NCO document block
 !    2015-10-06  s.liu   -add new algorithm from Jing Her to retrieve REF from lghtn for NMMB
 !    2015-10-26  s.liu   -reduce estimated reflectivity, appears the current
 !                         algorithm overestimated ref (5dBz)
-!    2016-05-05  s.liu   -add region adjustment parameter.
-!    2016-05-08  s.liu   -add parameter to control the layers for adjustment based on region.
 
 !
 !
@@ -61,9 +58,6 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
 ! local
 !
   real(r_kind) :: dbz_lightning(nlon,nlat)
-  real(r_kind) :: lghtn_region_mask(nlon,nlat)
-  real(r_kind) :: lghtn_ref_bias(nlon,nlat)
-
   real(r_kind) :: table_lghtn2ref_winter(30)   ! table content the map from lightning strakes 
                                                ! to maximum reflectivity 
   DATA table_lghtn2ref_winter/       &
@@ -145,23 +139,11 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
   REAL(r_kind)    :: heightGSI,upref,downref,wght
   INTEGER(i_kind) :: ilvl,numref
   REAL(r_kind)    :: lowest,highest,tempref, tempprofile(maxlvl)
-  real(r_kind)    :: profile_wgt
 
 
 !
 ! map lightning strokes to maximum reflectiivty 
 !
-!*  lghtn_region_mask=1.0  outside of radar coverage
-  Do j=2,nlat-1
-    Do i=2,nlon-1
-      if(lghtn_region_mask(i,j)==0.0) then
-         lghtn_ref_bias(i,j)=lghtn_ref_bias(i,j)+16.0
-      else 
-         lghtn_ref_bias(i,j)=lghtn_ref_bias(i,j)+8.0
-      end if
-    End do
-  End do
-
   season=1
   dbz_lightning = -9999.0_r_kind
   DO j=2,nlat-1
@@ -169,11 +151,9 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
       if(lightning(i,j) > 1.0_r_kind ) then
         num_lightning = max(1,min(30,int(lightning(i,j))))
         if(season== 2 ) then
-           dbz_lightning(i,j) = &
-                7.62*log10(lightning(i,j))+30.0-lghtn_ref_bias(i,j)
+           dbz_lightning(i,j) = 7.62*log10(lightning(i,j))+30.0
         else if(season== 1 ) then
-           dbz_lightning(i,j) = &
-                7.62*log10(lightning(i,j))+30.0-lghtn_ref_bias(i,j)
+           dbz_lightning(i,j) = 7.62*log10(lightning(i,j))+30.0
         endif
       endif
     ENDDO
@@ -200,27 +180,13 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
          mref =  min(4,(int((dbz_lightning(i,j) - 30.0_r_kind)/5.0_r_kind) + 1 ))
          if(season== 2 ) then
            DO k=1,maxlvl
-              if(lghtn_region_mask(i,j)==0.0.and.refprofile_winter(k,mref)<0.995) then
-                 profile_wgt=0.0
-              else if(lghtn_region_mask(i,j)==1.0.and.refprofile_winter(k,mref)<0.993) then
-                 profile_wgt=0.0
-              else
-                 profile_wgt=refprofile_winter(k,mref)
-              end if
-              tempprofile(k)=profile_wgt*dbz_lightning(i,j)
+              tempprofile(k)=refprofile_winter(k,mref)*dbz_lightning(i,j)
            enddo
            lowest=newlvlAll(2)
            highest=7000.0_r_kind
          else if(season== 1 ) then
            DO k=1,maxlvl
-              if(lghtn_region_mask(i,j)==0.0.and.refprofile_summer(k,mref)<0.995) then
-                 profile_wgt=0.0
-              else if(lghtn_region_mask(i,j)==1.0.and.refprofile_summer(k,mref)<0.993) then
-                 profile_wgt=0.0
-              else
-                 profile_wgt=refprofile_summer(k,mref)
-              end if
-              tempprofile(k)=profile_wgt*dbz_lightning(i,j)
+              tempprofile(k)=refprofile_summer(k,mref)*dbz_lightning(i,j)
            enddo
            lowest=newlvlAll(3)
            highest=12000.0_r_kind
@@ -242,4 +208,4 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning, &
     ENDDO
   ENDDO
 
-END SUBROUTINE convert_lghtn2ref
+END SUBROUTINE convert_lghtn2ref_nmmb

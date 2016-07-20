@@ -1,5 +1,6 @@
 SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,& 
-                  numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation)
+                  numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation, &
+                  OIstation,OJstation)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -64,14 +65,16 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
   INTEGER(i_kind), intent(in) :: numsao
   INTEGER(i_kind), intent(in) :: NVARCLD_P
 
-  real(r_single),  intent(out) :: OI(numsao)              ! x location
-  real(r_single),  intent(out) :: OJ(numsao)              ! y location
+  real(r_single),  intent(out) :: OI(numsao)              ! x location, grid
+  real(r_single),  intent(out) :: OJ(numsao)              ! y location, grid
   INTEGER(i_kind), intent(out) :: OCLD(NVARCLD_P,numsao)  ! cloud amount, cloud height,
                                                           ! visibility
   CHARACTER*10,    intent(out) :: OWX(numsao)             ! weather
   real(r_single),  intent(out) :: Oelvtn(numsao)          ! elevation
   real(r_single),  intent(out) :: Odist(numsao)           ! distance from the nearest station
   character(8),    intent(out) :: cstation(numsao)        ! station name
+  real(r_single),  intent(out) :: OIstation(numsao)       ! x location, station
+  real(r_single),  intent(out) :: OJstation(numsao)       ! y location, station
 
 !
 ! temp.
@@ -137,6 +140,8 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
        if( OJ(i) < 1 .or. OJ(i) > nlat ) write(6,*) 'read_Surface: Error in reading jj:',mype,OJ(i),ib,jb
        Oelvtn(i)  = data_s(4,i)
        Odist(i)   = data_s(23,i)
+       OIstation(i) = data_s(24,i)
+       OJstation(i) = data_s(25,i)
        if(data_s(22,i) > 50 ) cycle   ! do not use this data
        VIS   = data_s(5,i)
 ! cloud amonut and base height
