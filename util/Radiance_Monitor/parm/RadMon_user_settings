@@ -36,7 +36,7 @@ export RAD_AREA=${RAD_AREA:-glb}
 #    need to be set to the directory of the radstat files (we only extract 
 #    horizontal data when it's needed rather than storing huge files all the time).
 #
-export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/scratch4/NCEPDEV/da/noscrub/Kristen.Bathmann/archive/prfulli}
+export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/scratch4/NCEPDEV/da/noscrub/Kristen.Bathmann/archive/prCtl}
 
 #
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
