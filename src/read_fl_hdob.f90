@@ -18,6 +18,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 ! program history log:
 !   2013-02-05  eliu     - initial coding
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-02-26  su      - add njqc as an option to choose new non linear qc
+!   2016-03-15  Su      - modified the code so that the program won't stop when no subtype is found in non 
+!                         linear qc error table and b table
+
 !
 !   input argument list:
 !     infile    - unit from which to read BUFR data
@@ -48,7 +52,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
          rlats,rlons,twodvar_regional
      use convinfo, only: nconvtype,ctwind, &
          ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-         ithin_conv,rmesh_conv,pmesh_conv,index_sub, &
+         ithin_conv,rmesh_conv,pmesh_conv, &
          id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
      use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
      use obsmod, only: blacklst,offtime_data,bmiss
@@ -103,7 +107,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind), parameter :: mxib  = 31
      integer(i_kind), parameter :: ietabl= 19 
 
-     integer(i_kind) :: i,k,kl,k1,k2 
+     integer(i_kind) :: i,k,kl,k1,k2,j 
      integer(i_kind) :: lunin 
      integer(i_kind) :: ireadmg,ireadsb
      integer(i_kind) :: idate
@@ -116,8 +120,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: ntmatch,ntb
      integer(i_kind) :: nmsg   
      integer(i_kind) :: maxobs 
-     integer(i_kind) :: itype,iobsub,itypey,iecol
-     integer(i_kind) :: ierr_ps,ierr_q,ierr_t,ierr_uv 
+     integer(i_kind) :: itype,itypey,iecol
+     integer(i_kind) :: ierr_ps,ierr_q,ierr_t,ierr_uv,ncount_ps,ncount_q,ncount_t,ncount_uv 
      integer(i_kind) :: qcm,lim_qm
      integer(i_kind) :: p_qm,g_qm,t_qm,q_qm,uv_qm,wspd_qm,ps_qm
      integer(i_kind) :: ntest,nvtest
@@ -319,6 +323,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         write(6,*) ' READ_FL_HDOB: Processing FL HDOB data : ', ntmatch, nc, ioctype(nc), ictype(nc), itype 
      end if
 
+     ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0
 !    Setup thinning parameters
      use_all = .true.
      ithin   =  ithin_conv(nc)
@@ -610,13 +615,26 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
-                 ierr_ps=index_sub(nc)
-                 if(ierr_ps >maxsub_ps) ierr_ps=2
-                 if( icsubtype(nc) /= isuble_ps(itypey,ierr_ps)) then
-                    write(6,*) ' READ_FL_HDOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',iobsub,isuble_ps(itypey,ierr_ps-1),itypey,itype
-                    call stop2(49)
-                 endif
+                 ierr_ps=0
+                 do i =1,maxsub_ps
+                    if( icsubtype(nc) == isuble_ps(itypey,i) ) then
+                       ierr_ps=i+1
+                       exit
+                    else if( i == maxsub_ps .and. icsubtype(nc)  /= isuble_ps(itypey,i)) then
+                       ncount_ps=ncount_ps+1
+                       do j=1,maxsub_ps
+                          if(isuble_ps(itypey,j) ==0 ) then
+                             ierr_ps=j+1
+                             exit
+                          endif
+                       enddo
+                       if (ncount_ps ==1) then
+                          write(6,*) 'READ_FL_HDOB,WARNING!!psob: cannot find subtyep in the error,&
+                                      table,itype,iosub=',itypey,icsubtype(nc)
+                          write(6,*) 'read error table at colomn subtype as 0, error table column= ',ierr_ps
+                       endif
+                    endif
+                 enddo
                  if(ppb >= etabl_ps(itypey,1,1)) k1 = 1
                  do kl = 1,32
                     if(ppb >= etabl_ps(itypey,kl+1,1) .and. ppb <= etabl_ps(itypey,kl,1)) k1 = kl
@@ -679,13 +697,26 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
-                 ierr_t=index_sub(nc)
-                 if(ierr_t >maxsub_t) ierr_t=2
-                 if( icsubtype(nc) /= isuble_t(itypey,ierr_t)) then
-                    write(6,*) ' READ_FL_HDOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',iobsub,isuble_t(itypey,ierr_t-1),itypey,itype
-                    call stop2(49)
-                 endif
+                 ierr_t=0
+                 do i =1,maxsub_t
+                    if( icsubtype(nc)  == isuble_t(itypey,i) ) then
+                       ierr_t=i+1
+                       exit
+                    else if( i == maxsub_t .and. icsubtype(nc)  /= isuble_t(itypey,i)) then
+                       ncount_t=ncount_t+1
+                       do j=1,maxsub_t
+                          if(isuble_t(itypey,j) ==0 ) then
+                             ierr_t=j+1
+                             exit
+                          endif
+                       enddo
+                       if(ncount_t ==1) then
+                          write(6,*) 'READ_FL_HDOB,WARNING!! tob:cannot find subtyep in the error table,&
+                                      itype,iosub=',itype,icsubtype(nc) 
+                          write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_t
+                       endif
+                    endif
+                 enddo
                  if(ppb >= etabl_t(itypey,1,1)) k1 = 1
                  do kl = 1,32
                     if(ppb >= etabl_t(itypey,kl+1,1) .and. ppb <= etabl_t(itypey,kl,1)) k1 = kl
@@ -741,14 +772,26 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
-                 ierr_q=index_sub(nc)
-                 if(ierr_q >maxsub_q) ierr_q=2
-                 if( icsubtype(nc)  /= isuble_q(itypey,ierr_q)) then
-                    write(6,*) ' READ_FL_HDOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',iobsub,isuble_q(itypey,ierr_q-1),itypey,itype
-                    call stop2(49)
-                 endif
-
+                 ierr_q=0
+                 do i =1,maxsub_q
+                    if( icsubtype(nc)  == isuble_q(itypey,i) ) then
+                       ierr_q=i+1
+                       exit
+                    else if( i == maxsub_q .and. icsubtype(nc)  /= isuble_q(itypey,i)) then
+                       ncount_q=ncount_q+1
+                       do j=1,maxsub_q
+                          if(isuble_q(itypey,j) ==0 ) then
+                             ierr_q=j+1
+                             exit
+                          endif
+                       enddo
+                       if( ncount_q ==1 ) then
+                          write(6,*) 'READ_FL_HDOB,WARNING!! qob:cannot find subtyep in the error table,&
+                                      itype,iosub=',itype,icsubtype(nc) 
+                          write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_q
+                       endif
+                    endif
+                 enddo
                  if(ppb >= etabl_q(itypey,1,1)) k1 = 1
                  do kl = 1,32
                     if(ppb >= etabl_q(itypey,kl+1,1) .and. ppb <= etabl_q(itypey,kl,1)) k1 = kl
@@ -798,14 +841,26 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
                  itypey=itype
-                 ierr_uv=index_sub(nc)
-                 if(ierr_uv >maxsub_uv) ierr_uv=2
-                 if( icsubtype(nc) /= isuble_q(itypey,ierr_uv)) then
-                    write(6,*) ' READ_FL_HDOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',iobsub,isuble_q(itypey,ierr_uv-1),itypey,itype
-                    call stop2(49)
-                 endif
-
+                 ierr_uv=0
+                 do i =1,maxsub_uv
+                    if( icsubtype(nc)  == isuble_uv(itypey,i) ) then
+                       ierr_uv=i+1
+                       exit
+                    else if( i == maxsub_uv .and. icsubtype(nc)  /= isuble_uv(itypey,i)) then
+                       ncount_uv=ncount_uv+1
+                       do j=1,maxsub_uv
+                          if(isuble_uv(itypey,j) ==0 ) then
+                             ierr_uv=j+1
+                             exit
+                          endif
+                       enddo
+                       if(ncount_uv ==1) then
+                          write(6,*) 'READ_FL_HDOB,WARNING!! uvob:cannot find subtyep in the error table,&
+                                      itype,iosub=',itype,icsubtype(nc) 
+                          write(6,*) 'read error table at colomn subtype 0,error table column=',ierr_uv
+                       endif
+                    endif
+                 enddo
                  if(ppb >= etabl_uv(itypey,1,1)) k1 = 1
                  do kl = 1,32
                     if(ppb >= etabl_uv(itypey,kl+1,1) .and. ppb <= etabl_uv(itypey,kl,1)) k1 = kl
@@ -904,7 +959,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !-------------------------------------------------------------------------------------------------          
 !          Write data into output arrays
-           if (var_jb >10.0_r_kind) var_jb=zero 
+           if (var_jb >=10.0_r_kind) var_jb=zero 
            if (qcm == 3) inflate_error = .true.
 
            if (lpsob) then

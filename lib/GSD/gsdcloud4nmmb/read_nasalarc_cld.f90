@@ -12,6 +12,7 @@ SUBROUTINE read_nasalarc(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-20  Hu  Add NCO document block
+!    2013-12-20  S.Liu modify to read bufr file and do interpolation in GSI
 !
 !
 !   input argument list:

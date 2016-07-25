@@ -102,6 +102,7 @@ subroutine pcgsoi()
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
+!   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
 !                       
 !
 ! input argument list:
@@ -127,7 +128,7 @@ subroutine pcgsoi()
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        ltlint, iorthomax
-  use gridmod, only: twodvar_regional, use_reflectivity
+  use gridmod, only: twodvar_regional
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -779,10 +780,11 @@ subroutine pcgsoi()
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
-  if(jiter == miter .and. i_gsdcldanal_type==1) then
-    if(use_reflectivity) then
+! if(jiter == miter .and. i_gsdcldanal_type==1) then
+  if(jiter == miter) then
+    if(i_gsdcldanal_type==2) then
      call gsdcloudanalysis4nmmb(mype)
-    else
+    else if(i_gsdcldanal_type==1) then
      call gsdcloudanalysis(mype)
     endif
   endif
