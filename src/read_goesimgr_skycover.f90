@@ -16,6 +16,10 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 ! program history log:
 !   2014-11-07 J. Carley - Initial code     
 !   2015-03-06 C. Thomas - Add thin4d logical for removal of time thinning
+!   2016-01-11 D. Keyser - Enable use of efclam dump as the primary observation
+!                          source file. However, if ob is missing, will look for it in old
+!                          BUFR mnemonic sequence
+!   2016-04-22 M. Pondeca  - Replace "if (goescld(3)==bmiss)" condition with "if (goescld(3) > r0_01_bmiss)"
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -79,7 +83,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   character(8),parameter:: cspval= '88888888'
 
 ! Declare local variables
-  character(len=80) :: hdrstr,goescldstr
+  character(len=80) :: hdrstr,goescldstr,goescldstr_new
   character(len=8) ::  subset
   character(len=22) :: myname
   character(len=8) :: c_prvstg,c_sprvstg ,c_station_id
@@ -116,8 +120,9 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   ithin=-9_i_kind
   rmesh=-99.999_r_kind
   myname='READ_GOESIMGR_SKYCOVER'
-  hdrstr='RPID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
-  goescldstr='SAID TOCC TOCC_AVG'   
+  hdrstr='NUL  YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
+  goescldstr='SAID TOCC TOCC_AVG'
+  goescldstr_new='SAID ECAS ECAM'
   nreal=20
 
   nc=0
@@ -142,7 +147,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
   call openbf(lunin,'IN',lunin)
   call datelen(10)
-  subset='GEOCLDUW'
 
 
 
@@ -250,11 +254,15 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
             ! Read in the obs
             goescld=bmiss
-            call ufbint(lunin,goescld,3,1,levs,goescldstr)
+            call ufbint(lunin,goescld,3,1,levs,goescldstr_new)
+            if (goescld(3) > r0_01_bmiss) then
+! if ob is missing, look for it in old BUFR mnemonic sequence
+               goescld=bmiss
+               call ufbint(lunin,goescld,3,1,levs,goescldstr)
+               if (goescld(3) > r0_01_bmiss) cycle loop_readsb !If obs are missing, cycle
+            endif
             c_prvstg=cspval
             c_sprvstg=cspval
-
-            if (goescld(3)==bmiss) cycle loop_readsb !If obs are missing, cycle
    
             ! -  Set station ID
             rstation_id=goescld(1)

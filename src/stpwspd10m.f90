@@ -36,6 +36,7 @@ subroutine stpwspd10m(wspd10mhead,rval,sval,out,sges,nstep)
 !
 ! program history log:
 !   2014-03-19  pondeca  - update
+!   2015-07-10  pondeca  - force return if no wspd10m data available
 !
 !   input argument list:
 !     wspd10mhead
@@ -80,6 +81,9 @@ subroutine stpwspd10m(wspd10mhead,rval,sval,out,sges,nstep)
   type(wspd10m_ob_type), pointer :: wspd10mptr
 
   out=zero_quad
+
+! If no wspd10m data return
+  if(.not. associated(wspd10mhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

@@ -34,14 +34,14 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 export RUN_ENVIR=dev
 
-echo SUFFIX    = $SUFFIX
+echo RADMON_SUFFIX    = $RADMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 
-jobname=make_ctl_${SUFFIX}
+jobname=make_ctl_${RADMON_SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -79,7 +79,7 @@ mkdir -p $TANKverf
 mkdir -p $LOGdir
 
 
-tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
+tmpdir=${WORKverf_rad}/check_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -146,7 +146,7 @@ if [ -s $radstat -a -s $biascr ]; then
    export SENDSMS=NO
    export DATA_IN=${WORKverf_rad}
    export DATA=${WORKverf_rad}/radmon_regional
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
    export USER_CLASS=dev
    export DO_DIAG_RPT=0
    export DO_DATA_RPT=0
@@ -162,9 +162,9 @@ if [ -s $radstat -a -s $biascr ]; then
    #   Submit data processing jobs.
    #
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEradmon/jobs/JGDAS_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/mk_ctl.${RADMON_SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEradmon/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGdir}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEradmon}/jobs/JGDAS_VERFRAD
+      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGdir}/make_ctl.${RADMON_SUFFIX}.${PDY}.${cyc}.log -v ${HOMEradmon}/jobs/JGDAS_VERFRAD
    fi
 
 fi
@@ -178,7 +178,7 @@ fi
 
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
    exit_value=5
 fi
 

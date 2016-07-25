@@ -138,7 +138,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
   real(r_kind),dimension(nsig):: prsltmp2
 
-  integer(i_kind) ii
   integer(i_kind) mm1
   integer(i_kind) itype,msges,iqt,i
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
@@ -314,7 +313,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
      vals(i,2)=data(ilate,i)
      vals(i,3)=data(ilone,i)
      vals(i,4)=data(iobshgt,i)
-     vals(i,5)=data(iuse,ii)
+     vals(i,5)=data(iuse,i)
      vals(i,6)=data(id,i)
      vals(i,7)=dtime-time_offset 
 ! End of loop over observations
