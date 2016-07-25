@@ -40,8 +40,6 @@ implicit none
 ! set passed variables as public
   public :: etabl_t,ptabl_t,isuble_t,maxsub_t
 
-!RY: I think both itypex and itypey should be local variables
-
   integer(i_kind),save:: ietabl_t,itypex,itypey,lcount,iflag,k,m,n,maxsub_t
   real(r_single),save,allocatable,dimension(:,:,:) :: etabl_t
   real(r_kind),save,allocatable,dimension(:)  :: ptabl_t
@@ -64,10 +62,10 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- add ld, the size of error table. 
-!                          ld=300 is sufficient for current conventional
-!                          observing systems.  No need to do the subtraction to get error 
-!                          table array index.
+!   2015-03-06  yang    -- add ld=300, the size of the error table.
+!                          Remove the original calculation to get error table
+!                          array index. ld=300 is sufficient for current conventional
+!                          observing systems.
 !
 !   input argument list:
 !
@@ -125,7 +123,7 @@ contains
            write(6,*)'CONVERR_T:  using observation errors from user provided table'
         endif
         allocate(ptabl_t(34))
-! use itypex pressure values.  itypex is the last valid observation type
+! use itypex to get pressure values.  itypex is the last valid observation type
         if (itypex > 0 ) then
            ptabl_t=zero
            ptabl_t(1)=etabl_t(itypex,1,1)
@@ -133,10 +131,10 @@ contains
               ptabl_t(k)=half*(etabl_t(itypex,k-1,1)+etabl_t(itypex,k,1))
            enddo
            ptabl_t(34)=etabl_t(itypex,33,1)
-         else
+        else
             write(6,*)'ERROR IN CONVERR_T: NO OBSERVATION TYPE READ IN'
             return
-         endif
+        endif
      endif
 
      close(ietabl_t)
@@ -172,6 +170,4 @@ subroutine converr_t_destroy
   end subroutine converr_t_destroy
 
 end module converr_t
-
-
 
