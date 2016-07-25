@@ -427,6 +427,7 @@ subroutine allocate_cv(ycv)
   type(control_vector), intent(  out) :: ycv
   integer(i_kind) :: ii,jj,nn,ndim,ierror,n_step,n_aens
   character(len=256)::bname
+  character(len=max_varname_length)::ltmp(1) 
   type(gsi_grid) :: grid_motley
 
   if (ycv%lallocated) then
@@ -499,10 +500,11 @@ subroutine allocate_cv(ycv)
 !    Set ensemble-based part of control vector
      if (l_hyb_ens) then
 
+         ltmp(1)='a_en'
          do nn=1,n_ens
             ycv%aens(jj,nn)%values => ycv%values(ii+1:ii+n_aens)
             write(bname,'(a,i3.3,a,i4.4)') 'Ensemble Control Bundle subwin-',jj,' and member-',nn
-            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=(/'a_en'/),bundle_kind=r_kind)
+            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=ltmp,bundle_kind=r_kind)
             if (ierror/=0) then
                 write(6,*)'allocate_cv: error alloc(ensemble bundle)'
                 call stop2(109)

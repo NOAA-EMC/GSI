@@ -18,6 +18,9 @@ subroutine get_gefs_for_regional
 !   2014-11-30  todling - update interface to general_read_gfs routines
 !   2014-12-03  derber - changes to call for general_read_gfsatm
 !   2015-05-12  wu      - changes to read in multiple ensemble for 4DEnVar
+!   2015-09-20  s.liu   - use general sub2grid in grads1a
+!   2016-05-19  Carley/s.liu   - prevent the GSI from printing out erroneous error  
+!                               when using ensembles from different time
 !
 !   input argument list:
 !
@@ -254,9 +257,9 @@ subroutine get_gefs_for_regional
   end if
            call w3fs21(iadate,nming1)
            call w3fs21(iadate_gfs,nming2)
-  if( nming1/=nming2 ) then
+  if( (nming1/=nming2) .and. (.not.l_ens_in_diff_time) ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
-     if(.not.l_ens_in_diff_time) call stop2(85)
+     call stop2(85)
   end if
      
 
@@ -1630,13 +1633,15 @@ subroutine grads1a(f,nvert,mype,fname)
   use kinds, only: r_single,r_kind,i_kind
   use gridmod, only: nlat,nlon,lon2,lat2,rlats,rlons,regional
   use constants, only: rad2deg
+  use general_sub2grid_mod, only: sub2grid_info,general_gather2grid,general_sub2grid_create_info
+  use general_sub2grid_mod, only: general_sub2grid_destroy_info
   implicit none
 
   integer(i_kind),intent(in):: nvert,mype
   character(*),intent(in):: fname
-  real(r_kind),intent(in):: f(lat2,lon2,nvert)
+  real(r_single),intent(in):: f(1,lat2,lon2,nvert)
 
-  real(r_kind),dimension(nlat,nlon)::work
+  real(r_single),dimension(1,nlat,nlon)::work
   real(r_single) outfield(nlon,nlat)
 
   character(50) dsname,title,filename
@@ -1653,6 +1658,7 @@ subroutine grads1a(f,nvert,mype,fname)
   real(r_single) startp,pinc
   real(r_single) rlons_deg(nlon)
   real(r_single) rlats_deg(nlat)
+  type(sub2grid_info) s
 
   if(mype==0) then
      if(regional) then
@@ -1716,11 +1722,12 @@ subroutine grads1a(f,nvert,mype,fname)
 
   end if
 
+  call general_sub2grid_create_info(s,1,nlat,nlon,1,1,.true.)
   do k=1,nvert
-     call sub2grid_1a(f(1,1,k),work,0,mype)
+     call general_gather2grid(s,f(:,:,:,k),work,0)
      if(mype==0) then
         do j=1,nlon ; do i=1,nlat
-           outfield(j,i)=work(i,j)
+           outfield(j,i)=work(1,i,j)
         end do ; end do
         write(ioutdat)outfield
      end if
@@ -1730,6 +1737,7 @@ subroutine grads1a(f,nvert,mype,fname)
      close(ioutdes)
      close(ioutdat)
   end if
+  call general_sub2grid_destroy_info(s)
 
 end subroutine grads1a
 
@@ -1740,7 +1748,7 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
 !  2013-10-24 todling - revist strip interface
 !                     - reposition ltosi and others to commvar
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
          iglobal,ijn,displs_g,itotsub,strip
@@ -1749,11 +1757,11 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   implicit none
 
   integer(i_kind), intent(in)::gridpe,mype
-  real(r_kind),dimension(lat2,lon2),intent(in):: sub
-  real(r_kind),dimension(nlat,nlon),intent(out)::grid
+  real(r_single),dimension(lat2,lon2),intent(in):: sub
+  real(r_single),dimension(nlat,nlon),intent(out)::grid
 
-  real(r_kind),dimension(lat1*lon1):: zsm
-  real(r_kind),dimension(itotsub):: work1
+  real(r_single),dimension(lat1*lon1):: zsm
+  real(r_single),dimension(itotsub):: work1
   integer(i_kind) mm1,i,j,k
 
   mm1=mype+1
