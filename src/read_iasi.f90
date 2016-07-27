@@ -566,7 +566,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
               crit1 = 0.01_r_kind+timedif
            endif 
-           if( llll > 1 ) crit1 = crit1 + 200.0_r_kind
+           if( llll > 1 ) crit1 = crit1 + 200.0_r_kind + float(llll)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
            if(.not. iuse)cycle read_loop
 
