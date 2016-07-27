@@ -616,7 +616,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind + terrain + timedif
-           if (llll >  1 ) crit1 = crit1 + 500.0_r_kind 
+           if (llll >  1 ) crit1 = crit1 + 200.0_r_kind  + float(llll)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
            if(.not. iuse)cycle read_loop
 

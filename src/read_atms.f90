@@ -383,7 +383,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !          inflate selection value for ears_db data
            crit1 = zero
-           if ( llll > 1 ) crit1 = 200.0_r_kind
+           if ( llll > 1 ) crit1 = 200.0_r_kind + float(llll)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
@@ -471,6 +471,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      end do read_subset
      call closbf(lnbufr)
   end do ears_db_loop
+  deallocate(data1b8)
 
   num_obs = iob-1
 
@@ -743,8 +744,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 
   DEALLOCATE(iscan)
-  deallocate(data1b8)
-
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)
   DEALLOCATE(t4dv_save)
