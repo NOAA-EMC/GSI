@@ -10,6 +10,7 @@ module derivsmod
 !   2013-10-19 Todling - Initial code.
 !   2014-06-18 Carley - add lgues and dlcbasdlog
 !   2015-07-10 Pondeca - add cldchgues and dcldchdlog
+!   2016-05-10 Thomas - remove references to cwgues0
 !
 ! public subroutines:
 !  drv_initialized         - initialize name of fields to calc derivs for
@@ -59,7 +60,7 @@ public :: gsi_xderivative_bundle
 public :: gsi_yderivative_bundle
 public :: dvars2d, dvars3d
 public :: dsrcs2d, dsrcs3d
-public :: cwgues,cwgues0  
+public :: cwgues
 public :: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 public :: w10mgues,howvgues,cldchgues,dcldchdlog
 public :: qsatg,qgues,dqdt,dqdrh,dqdp
@@ -74,7 +75,7 @@ character(len=max_varname_length),allocatable,dimension(:):: dsrcs2d, dsrcs3d
 real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp
 real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 real(r_kind),allocatable,dimension(:,:):: w10mgues,howvgues,cldchgues,dcldchdlog
-real(r_kind),target,allocatable,dimension(:,:,:):: cwgues,cwgues0        
+real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
 
 ! below this point: declare vars not to be made public
 
@@ -442,12 +443,10 @@ drv_set_=.true.
     endif
 
     allocate(cwgues(lat2,lon2,nsig))
-    allocate(cwgues0(lat2,lon2,nsig))  
     do k=1,nsig
        do j=1,lon2
           do i=1,lat2
              cwgues(i,j,k)=zero
-             cwgues0(i,j,k)=zero  
           end do
         end do
     end do
@@ -552,7 +551,6 @@ drv_set_=.true.
     if(allocated(qsatg)) deallocate(qsatg)
     if(allocated(qgues)) deallocate(qgues)
     if(allocated(cwgues)) deallocate(cwgues)
-    if(allocated(cwgues0)) deallocate(cwgues0)
     if(allocated(ggues)) deallocate(ggues)
     if(allocated(vgues)) deallocate(vgues)
     if(allocated(dvisdlog)) deallocate(dvisdlog)
