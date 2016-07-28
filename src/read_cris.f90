@@ -78,7 +78,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use crtm_planck_functions, only: crtm_planck_temperature
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
@@ -561,7 +561,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
               crit1 = 0.01_r_kind+timedif
            endif
-           if( llll > 1 ) crit1 = crit1 + 200.0_r_kind + float(llll)
+           if( llll > 1 ) crit1 = crit1 + r100 * float(llll)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
            if(.not. iuse)cycle read_loop
 

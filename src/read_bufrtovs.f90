@@ -130,7 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
+  use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300,r100
   use crtm_module, only: success, &
       crtm_kind => fp, &
       MAX_SENSOR_ZENITH_ANGLE
@@ -616,7 +616,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind + terrain + timedif
-           if (llll >  1 ) crit1 = crit1 + 200.0_r_kind  + float(llll)
+           if (llll >  1 ) crit1 = crit1 + r100 * float(llll)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
            if(.not. iuse)cycle read_loop
 
