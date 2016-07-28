@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exnamrr_vrfyrad.sh.ecf
+# Script name:         exnam_vrfyrad.sh.ecf
 # Script description:  Runs data extract/validation for global radiance diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2012-01-18
@@ -23,7 +23,7 @@
 #     RAD_AREA      flag for global or regional
 #     TANKDIR       repository for radmon data files
 #     DATA          data working space
-#     FIXnamrr      fixed file directory, namrr specific
+#     FIXnam        fixed file directory, nam specific
 #     FIXradmon     radmon fixed file directory
 #     USHradmon     radmon scripts directory
 #     PDY           processing day; 
@@ -71,7 +71,7 @@
 #      >0 - some problem encountered
 #
 ################################################################################
-export scr=exnamrr_vrfyrad.sh.ecf
+export scr=exnam_vrfyrad.sh.ecf
 
 msg="${scr} HAS STARTED"
 postmsg "$jlogfile" "$msg"
@@ -87,8 +87,8 @@ fi
 
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
-export NET=${NET:-namrr}
-export RUN=${RUN:-namrr}
+export NET=${NET:-nam}
+export RUN=${RUN:-nam}
 export envir=${envir:-prod}
 
 #  Command line arguments
@@ -100,8 +100,8 @@ export DATA=${DATA:-$(pwd)}
 export COM_IN=${COMROOT}/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEnamrr=${HOMEnamrr:-${NWROOT}/namrr.${namrr_ver}}
-export FIXnamrr=${FIXnamrr:-$HOMEnamrr/fix}
+export HOMEnam=${HOMEnam:-${NWROOT}/nam.${nam_ver}}
+export FIXnam=${FIXnam:-$HOMEnam/fix}
 
 export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.v${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
@@ -109,9 +109,9 @@ export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 #  Filenames
-export biascr=${biascr:-$COMOUT/namrr.t${cyc}z.satbias.${rgnTM}}
-export radstat=${radstat:-$COMOUT/namrr.t${cyc}z.radstat.${rgnTM}}
-export satype_file=${satype_file:-namrr_radmon_satype.txt}
+export biascr=${biascr:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.satbias.${rgnTM}}
+export radstat=${radstat:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.radstat.${rgnTM}}
+export satype_file=${satype_file:-nam_radmon_satype.txt}
 
 #  Other variables
 export RAD_AREA=${RAD_AREA:-rgn}
@@ -143,7 +143,7 @@ export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
 #    script for the moment.  I'll ask Jacob what the parallel job uses for
 #    a PDY definition so I may not have to modify the output.
 #  
-export TANKverf=${TANKverf:-/com/verf/prod}
+export TANKverf=${TANKverf:-/com/${NET}/prod}
 export TANKverf_rad=${TANKverf_rad:-${TANKverf}/radmon.${PDY}}
 
 ###########################################################################
@@ -185,7 +185,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #  SATYPE is the list of expected satellite/instrument sources
    #  in the radstat file.  It should be stored in the $TANKverf 
-   #  directory.  If it isn't there then use the $FIXnamrr copy.  In all 
+   #  directory.  If it isn't there then use the $FIXnam copy.  In all 
    #  cases write it back out to the radmon.$PDY directory.  Add any
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
@@ -209,13 +209,13 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    fi
 
    if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
-      if [[ ! -e ${FIXnamrr}/${satype_file} ]]; then 
+      if [[ ! -e ${FIXnam}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
             echo " ${satype_file} not found.  Adding it now using radstat file contents."
          fi
       else
-         export SATYPE=`cat ${FIXnamrr}/${satype_file}`
+         export SATYPE=`cat ${FIXnam}/${satype_file}`
       fi
    else
       export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
@@ -280,7 +280,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #   Run the child sccripts.
    #------------------------------------------------------------------
-   export shared_scaninfo=$FIXnamrr/namrr_radmon_scaninfo.txt
+   export shared_scaninfo=$FIXnam/nam_radmon_scaninfo.txt
    ${USHradmon}/radmon_verf_angle.sh ${PDATE}
    rc_angle=$?
 
@@ -312,7 +312,7 @@ elif [[ $rc_time -ne 0 ]]; then
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exnamrr_vrfyrad.sh.ecf, exit value = ${err}"
+   echo "end exnam_vrfyrad.sh.ecf, exit value = ${err}"
 fi
 
 msg="${scr} HAS ENDED"

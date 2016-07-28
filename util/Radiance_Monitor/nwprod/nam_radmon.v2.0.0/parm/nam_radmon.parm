@@ -3,7 +3,7 @@
 ##################################
 export gdas_radmon_ver=v2.0.2
 export radmon_shared_ver=v2.0.4
-export namrr_radmon_ver=v2.0.0
+export nam_radmon_ver=v2.0.0
 
 ##################################
 # specify radmon_shared location
