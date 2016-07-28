@@ -451,11 +451,11 @@ if [ -s $radstat -a -s $biascr ]; then
    logfile=$LOGdir/data_extract.${RADMON_SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEnamrr/jobs/JNAMRR_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
    elif [[ $MY_MACHINE = "cray" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 -J ${jobname} $HOMEnamrr/jobs/JNAMRR_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia"  ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEnamrr}/jobs/JNAMRR_VERFRAD
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
    fi
 
 fi

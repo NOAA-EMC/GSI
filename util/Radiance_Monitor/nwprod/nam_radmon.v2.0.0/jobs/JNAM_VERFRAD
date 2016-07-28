@@ -1,6 +1,6 @@
 #!/bin/sh
 #############################################################
-# Set up environment for NAMRR Radiance Monitor job
+# Set up environment for NAM Radiance Monitor job
 #############################################################
 set -xa
 echo `date` $0 `date -u` begin
@@ -14,7 +14,7 @@ export REGIONAL_RR=${REGIONAL_RR:-1}
 # Specify NET and RUN name
 ##############################
 export NET=${NET:-nam}
-export RUN=${RUN:-namrr}
+export RUN=${RUN:-nam}
 
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
@@ -23,6 +23,7 @@ export pid=$$
 export outid=${outid:-"LL$job"}
 export jobid=${jobid:-"${outid}.o${pid}"}
 
+export RADMON_SUFFIX=${RADMON_SUFFIX:-$RUN}
 export DATAROOT=${DATAROOT:-/tmpnwprod2}
 export DATA=${DATA:-${DATAROOT}/${jobid}}
 
@@ -72,15 +73,15 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Execution Areas
 ##############################################
-export HOMEnamrr=${HOMEnamrr:-${NWROOT}/namrr_radmon.v2.0.0}  # need to use version here
-export SCRnamrr=${SCRnamrr:-$HOMEnamrr/scripts}
-export PARMnamrr=${PARMnamrr:-${HOMEnamrr}/parm}
+export HOMEnam=${HOMEnam:-${NWROOT}/nam_radmon.v2.0.0}  # need to use version here
+export SCRnam=${SCRnam:-$HOMEnam/scripts}
+export PARMnam=${PARMnam:-${HOMEnam}/parm}
 
 
 ###################################
 # source the parm file
 ###################################
-.  ${PARMnamrr}/namrr_radmon.parm
+.  ${PARMnam}/nam_radmon.parm
 
 #export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.$gdas_ver}
 #export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
@@ -177,8 +178,8 @@ case $cyc in
        export rgnTM=tm01;;
 esac
 
-export biascr=${biascr:-$COMIN/namrr.${rgnHH}.satbias.${rgnTM}}
-export radstat=${radstat:-$COMIN/namrr.${rgnHH}.radstat.${rgnTM}}
+export biascr=${biascr:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.satbias.${rgnTM}}
+export radstat=${radstat:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.radstat.${rgnTM}}
 
 
 msg="JOB HAS STARTED"
@@ -186,8 +187,8 @@ postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-echo "EXECUTING ${SCRnamrr}/exnamrr_vrfyrad.sh.ecf"
-${RADMONSH:-${SCRnamrr}/exnamrr_vrfyrad.sh.ecf} ${PDY} ${cyc}
+echo "EXECUTING ${SCRnam}/exnam_vrfyrad.sh.ecf"
+${RADMONSH:-${SCRnam}/exnam_vrfyrad.sh.ecf} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"

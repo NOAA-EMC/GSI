@@ -1,8 +1,8 @@
 #!/bin/ksh
 
-#BSUB -o namrr_verfrad.o%J
-#BSUB -e namrr_verfrad.o%J
-#BSUB -J namrr_verfrad
+#BSUB -o nam_testrad.o%J
+#BSUB -e nam_testrad.o%J
+#BSUB -J nam_testrad
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
@@ -13,18 +13,18 @@
 
 set -x
 
-export PDATE=2016062712
+export PDATE=2016062707
 
 #############################################################
 # Specify whether the run is production or development
 #############################################################
 export PDY=`echo $PDATE | cut -c1-8`
 export cyc=`echo $PDATE | cut -c9-10`
-export job=namrr_verfrad.${cyc}
+export job=nam_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=para
-export DATAROOT=/ptmpp1/$LOGNAME/test_data
+export DATAROOT=/gpfs/td2/emc/da/noscrub/Edward.Safford/test_data
 export COMROOT=/ptmpp1/$LOGNAME/com
 
 
@@ -36,7 +36,7 @@ export global_shared_ver=v13.0.0
 export grib_util_ver=v1.0.1
 export prod_util_ver=v1.0.2
 export util_shared_ver=v1.0.2
-export namrr_radmon_ver=v2.0.0
+export nam_radmon_ver=v2.0.0
 export radmon_shared_ver=v2.0.4
 
 
@@ -64,10 +64,10 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export RADMON_SUFFIX=testrad
+export RADMON_SUFFIX=namrr
 export NWTEST=/da/noscrub/${LOGNAME}/RadMon_552/util/Radiance_Monitor/nwprod
-export HOMEnamrr=${NWTEST}/namrr_radmon.${namrr_radmon_ver}
-export JOBregional=${HOMEnamrr}/jobs
+export HOMEnam=${NWTEST}/nam_radmon.${nam_radmon_ver}
+export JOBregional=${HOMEnam}/jobs
 export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
 export COM_IN=${DATAROOT}
 export TANKverf=${COMROOT}/${RADMON_SUFFIX}
@@ -76,7 +76,7 @@ export TANKverf=${COMROOT}/${RADMON_SUFFIX}
 #############################################################
 # Execute job
 #############################################################
-$JOBregional/JNAMRR_VERFRAD
+$JOBregional/JNAM_VERFRAD
 
 exit
 
