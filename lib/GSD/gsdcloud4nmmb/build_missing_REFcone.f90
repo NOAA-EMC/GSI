@@ -186,10 +186,10 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,krad_bot_in,ref_mos_3d,h_bk
          DO k2=krad_bot,1,-1
            if(ref_mos_3d(i,j,k2) >maxref) maxref=ref_mos_3d(i,j,k2)
          ENDDO
-         if(maxref < 19.0_r_kind) then
-           write(6,*) 'build_missing_REFcone:',ifmissing,i,j,ifmissing
-           write(6,*) (ref_mos_3d(i,j,k2),k2=1,nsig)
-         endif
+!        if(maxref < 19.0_r_kind) then
+!          write(6,*) 'build_missing_REFcone:',ifmissing,i,j,ifmissing
+!          write(6,*) (ref_mos_3d(i,j,k2),k2=1,nsig)
+!        endif
       endif
       IF(ifmissing > 1 .and. maxref > 19.0_r_kind ) then
          mref =  min(6,(int((maxref - 20.0_r_kind)/5.0_r_kind) + 1 ))

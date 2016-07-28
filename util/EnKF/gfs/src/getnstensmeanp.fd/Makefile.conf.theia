@@ -4,15 +4,17 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-SFCIO_VER = 1.0.0
-W3NCO_VER = 2.0.6
+BACIO_VER = v2.0.1
+NEMSIO_VER = v2.2.1
+W3NCO_VER = v2.0.6
 
 CORELIB  = /scratch3/NCEPDEV/nwprod/lib
 
-INCsfcio = $(CORELIB)/sfcio/v$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)_4
+NEMSIO_INC=$(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_$(NEMSIO_VER)
 
-SFCIO_LIB4=$(CORELIB)/sfcio/v$(SFCIO_VER)/libsfcio_v$(SFCIO_VER)_4.a
-W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
+BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
+NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
+W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
 
 # ---------------------------
 # General targets/definitions
@@ -32,12 +34,12 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
   OMP = #-qsmp=noauto
 
   FFLAGS_F90    = -convert big_endian -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsfcio)
+  FFLAGS_COM_N  = -I ./ -I $(NEMSIO_INC)
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
+  FFLAGS_COM_D  =  -I ./ -I $(NEMSIO_INC) -O0 -xHOST -traceback -assume byterecl -debug full -g
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
 
 
 # ----------------------
