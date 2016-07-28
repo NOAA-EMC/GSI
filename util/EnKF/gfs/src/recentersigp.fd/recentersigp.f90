@@ -27,7 +27,7 @@ program recentersigp
   USE SIGIO_MODULE
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
-       nemsio_writerec,nemsio_readrecv,nemsio_writerecv
+       nemsio_writerec,nemsio_readrecv,nemsio_writerecv,nemsio_getrechead
 
   implicit none
 
@@ -41,8 +41,11 @@ program recentersigp
   character*500 filename_meani,filename_meano,filenamein,filenameout
   character*3 charnanal
   character(len=4) charnin
+  character(16),dimension(:),allocatable:: fieldname_di,fieldname_mi,fieldname_mo
+  character(16),dimension(:),allocatable:: fieldlevtyp_di,fieldlevtyp_mi,fieldlevtyp_mo
+  integer,dimension(:),allocatable:: fieldlevel_di,fieldlevel_mi,fieldlevel_mo,orderdi,ordermi
   integer nsigi,nsigo,iret,mype,mype1,npe,nanals,ierr
-  integer:: nrec,latb,lonb,npts,n,i
+  integer:: nrec,latb,lonb,levs,npts,n,i,k,nn
   real,allocatable,dimension(:):: rwork1d
   real,allocatable,dimension(:,:)   :: rwork1di,rwork1do,rwork1dmi,rwork1dmo
 
@@ -100,8 +103,8 @@ program recentersigp
         if (iret == 0 ) then
            nemsio = .true.
            write(6,*)'Read nemsio ',trim(filename_meani),' iret=',iret
-           call nemsio_getfilehead(gfilemi, nrec=nrec, dimx=lonb, dimy=latb, iret=iret)
-           write(6,*)' lonb=',lonb,' latb=',latb,' nrec=',nrec
+           call nemsio_getfilehead(gfilemi, nrec=nrec, dimx=lonb, dimy=latb, dimz=levs, iret=iret)
+           write(6,*)' lonb=',lonb,' latb=',latb,' levs=',levs,' nrec=',nrec
         else
            write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
         endif
@@ -134,7 +137,7 @@ program recentersigp
         write(charnanal,'(i3.3)') mype1
         call nemsio_open(gfilei,trim(filenamein)//"_mem"//charnanal,'READ',iret)
 
-        gfileo=gfilei
+        gfileo=gfilemo
         call nemsio_open(gfileo,trim(filenameout)//"_mem"//charnanal,'WRITE',iret)
         
         npts=lonb*latb
@@ -143,20 +146,36 @@ program recentersigp
         allocate(rwork1dmo(npts,nrec))
         allocate(rwork1do(npts,nrec))
 
+        allocate(fieldname_di(nrec), fieldlevtyp_di(nrec),fieldlevel_di(nrec))
+        allocate(fieldname_mi(nrec),fieldlevtyp_mi(nrec),fieldlevel_mi(nrec))
+        allocate(fieldname_mo(nrec),fieldlevtyp_mo(nrec),fieldlevel_mo(nrec))
+        allocate(orderdi(nrec),ordermi(nrec))
+
         do n=1,nrec
-           call nemsio_readrec(gfilei, n,rwork1di(:,n),iret)
+           call nemsio_readrec(gfilei, n,rwork1di(:,n),iret) ! member analysis
+           call nemsio_getrechead(gfilei,n,fieldname_di(n),fieldlevtyp_di(n),fieldlevel_di(n),iret)
         end do
         do n=1,nrec
-           call nemsio_readrec(gfilemi,n,rwork1dmi(:,n),iret)
+           call nemsio_readrec(gfilemi,n,rwork1dmi(:,n),iret) ! ensemble mean analysis
+           call nemsio_getrechead(gfilemi,n,fieldname_mi(n),fieldlevtyp_mi(n),fieldlevel_mi(n),iret)
         end do
         do n=1,nrec
-           call nemsio_readrec(gfilemo,n,rwork1dmo(:,n),iret)
+           call nemsio_readrec(gfilemo,n,rwork1dmo(:,n),iret) ! chgres hi-res analysis
+           call nemsio_getrechead(gfilemo,n,fieldname_mo(n),fieldlevtyp_mo(n),fieldlevel_mo(n),iret)
         end do
+
+
+        call getorder(fieldname_mo,fieldname_di,fieldlevtyp_mo,fieldlevtyp_di,fieldlevel_mo,fieldlevel_di,nrec,orderdi)
+        call getorder(fieldname_mo,fieldname_mi,fieldlevtyp_mo,fieldlevtyp_mi,fieldlevel_mo,fieldlevel_mi,nrec,ordermi)
+
+!       Recenter ensemble member about chgres hi-res analysis
         do n=1,nrec
            do i=1,npts
-              rwork1do(i,n) = rwork1di(i,n) - rwork1dmi(i,n) + rwork1dmo(i,n)
+              rwork1do(i,n) = rwork1di(i,orderdi(n)) - rwork1dmi(i,ordermi(n)) + rwork1dmo(i,n)
            end do
         end do
+
+!       Write recentered member analysis using ordering of chgres hi-res analysis fields
         do n=1,nrec
            call nemsio_writerec(gfileo,n,rwork1do(:,n),iret)
         end do
@@ -202,3 +221,23 @@ program recentersigp
   end if
 
 END program recentersigp
+
+subroutine getorder(flnm1,flnm2,fllevtyp1,fllevtyp2,fllev1,fllev2,nrec,order)
+  integer nrec
+  character(16):: flnm1(nrec),flnm2(nrec),fllevtyp1(nrec),fllevtyp2(nrec)
+  integer ::  fllev1(nrec),fllev2(nrec)
+  integer, intent(out) ::  order(nrec)
+  
+  integer i,j
+  
+  order=0
+  do i=1,nrec
+     doloopj: do j=1,nrec
+        if(flnm1(i)==flnm2(j).and.fllevtyp1(i)==fllevtyp2(j).and.fllev1(i)==fllev2(j)) then
+           order(i)=j
+           exit doloopj
+        endif
+     enddo doloopj
+  enddo
+  
+end subroutine getorder

@@ -64,6 +64,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !   2015_05_12  wu      - bug fixes for FGAT
 !   2015_09_20  s.liu   - convert nmmb F_ICE, F_RAIN to water content before interpolation
 !   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
+!   2016_04_28  eliu    - remove cwgues0 
 !
 !   input argument list:
 !     mype     - pe number
@@ -1683,7 +1684,6 @@ subroutine read_nems_nmmb_guess(mype)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
-  use derivsmod, only: cwgues0
   implicit none
 
 ! Declare passed variables here
@@ -1861,7 +1861,7 @@ subroutine read_nems_nmmb_guess(mype)
                       efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
               end if
            end do
-           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv,cwgues0)
+           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv)
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 
