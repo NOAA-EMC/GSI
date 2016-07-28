@@ -73,7 +73,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv
+  use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
@@ -383,7 +383,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !          inflate selection value for ears_db data
            crit1 = zero
-           if ( llll > 1 ) crit1 = 200.0_r_kind + float(llll)
+           if ( llll > 1 ) crit1 = r100 * float(llll)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
