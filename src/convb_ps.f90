@@ -52,14 +52,11 @@ contains
 !     prgmmr:    su    org: np2                date: 2014-03-28
 !
 ! abstract:  This routine reads the conventional b table file
-!   2015-03-06  yang    -- minor modification: add ld to denote the size of nlqc_b table, then
-!                          eliminate the hard wired values and subtraction in
-!                          order to get error table array index.
+
+!   2015-03-06  yang    -- add ld = 3000 for the size of nlqc_b table. Remove
+!                          the hardwired value in the calculation of table array index.
 !                          ld=300 is sufficient for current conventional
 !                          observing systems.
-
-
-!
 !
 !   input argument list:
 !
@@ -103,7 +100,6 @@ contains
         itypex=itypey
         read(ibtabl,105,IOSTAT=iflag,end=120) (isuble_bps(itypex,n),n=1,5)
 105     format(8x,5i12)
-!        write(6,*)'CONVB_PS:  read in nlqc b table', itypex, (isuble_bps(itypex,n),n=1,5) 
         do k=1,33
            read(ibtabl,110)(btabl_ps(itypex,k,m),m=1,6)
 110        format(1x,6e12.5)
@@ -165,6 +161,3 @@ subroutine convb_ps_destroy
   end subroutine convb_ps_destroy
 
 end module convb_ps
-
-
-

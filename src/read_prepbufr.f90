@@ -129,7 +129,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset  number from fixed number to
 !                        dynamic allocated array
+!   2015-07-10  pondeca - add cloud ceiling height (cldch)
+!   2016-02-10  s.liu  - thin new VAD wind in time level
+!   2016-03-15  Su      - modified the code so that the program won't stop when no subtype
+!                         is found in non linear qc error tables and b table
 !
+
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
@@ -159,7 +164,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       rlats,rlons,twodvar_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-      ithin_conv,rmesh_conv,pmesh_conv,index_sub, &
+      ithin_conv,rmesh_conv,pmesh_conv, &
       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
@@ -231,7 +236,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
 
 ! Declare local variables
-  logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob
+  logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob,cldchob
   logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
   logical sfctype
@@ -242,7 +247,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
-  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqstr,cld2seqstr
+  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqstr,cld2seqstr,cldceilhstr
   character(40) maxtmintstr,owavestr
   character(80) obstr
   character(10) date
@@ -264,7 +269,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs,cldseqlevs,cld2seqlevs
   integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
-  integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm,tdqm,mxtmqm,mitmqm,howvqm
+  integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm,tdqm,mxtmqm,mitmqm,howvqm,cldchqm
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) ntmp,iout
@@ -279,7 +284,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) tcamt_qc,lcbas_qc
   integer(i_kind) low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
   integer(i_kind) iyyyymm
-  integer(i_kind) jj,start,next
+  integer(i_kind) jj,start,next,ncount_ps,ncount_q,ncount_uv,ncount_t,ncount_pw
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm,pmq
   integer(i_kind),dimension(nconvtype)::ntxall
@@ -287,13 +292,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) ibfms,thisobtype_usage
-  integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr2_uv,ierr_pw !  the position of error table collum
+  integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr_pw !  the position of error table collum
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
-  real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe
+  real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe,cldchoe
   real(r_kind) selev,elev,stnelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00
@@ -328,6 +333,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(4,1) :: goescld
   real(r_double),dimension(2,255):: maxtmint
   real(r_double),dimension(1,255):: owave
+  real(r_double),dimension(1,255):: cldceilh
   real(r_double),dimension(1):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
   real(r_double),dimension(1,255):: levdat
@@ -364,6 +370,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
   data maxtmintstr  /'MXTM MITM'/
   data owavestr  /'HOWV'/
+  data cldceilhstr /'CEILING'/
 
   data lunin / 13 /
   data ithin / -9 /
@@ -412,10 +419,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   goesctpobs = obstype == 'gos_ctp'
   tcamtob = obstype == 'tcamt'
   lcbasob = obstype == 'lcbas'
+  cldchob = obstype == 'cldch'
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob .or. &
             tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob .or. &
-            tcamtob .or. lcbasob
+            tcamtob .or. lcbasob .or. cldchob
   aircraftobst=.false.
   if(tob)then
      nreal=25
@@ -457,6 +465,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      nreal=20
   else if(lcbasob) then
      nreal=23
+  else if(cldchob) then
+     nreal=18
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR ',obstype
      call stop2(94)
@@ -466,7 +476,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if (noiqc) then
      lim_qm=8
      if (psob)         lim_zqm=7
-     if (qob .or.tdob) lim_tqm=7
+     if (qob.or.tdob)  lim_tqm=7
      if (tob)          lim_qqm=8
   else
      lim_qm=4
@@ -553,6 +563,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ntb = 0
 
   irec = 0
+  ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0;ncount_pw=0
+
 ! Open, then read date from bufr data
   call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
@@ -845,13 +857,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               !* thin new VAD in time level
               if(kx==224.and.newvad)then
                 icase=0
-                if(abs(hdr(4))>0.75_r_kind) icase=1
-!               if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
-!               if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
-!               if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
-!               if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
-!               if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
-!               if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
+                if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
+                if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
+                if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
+                if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
+                if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
                 if(icase/=1) cycle
               end if
 
@@ -972,6 +983,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (twodvar_regional) then
               if (mxtmob .or. mitmob) call ufbint(lunin,maxtmint,2,255,levs,maxtmintstr)
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
+              if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
            if(kx==224 .and. newvad) then
            call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
@@ -998,13 +1010,26 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if( njqc) then
                  if (psob)  then
                     itypex=itypey
-                    ierr_ps=index_sub(nc)
-                    if(ierr_ps >maxsub_ps) ierr_ps=2
-                    if( icsubtype(nc) /= isuble_ps(itypex,ierr_ps-1)) then
-                       write(6,*) ' READ_PREPBUFR_PSOB: the subtypes do not match subtype &
-                         in the errortable,iobsub=',icsubtype(nc),nc,ierr_ps,isuble_ps(itypex,ierr_ps-1),itypey,itypex
-                       call stop2(49)
-                    endif
+                    ierr_ps=0
+                    do i =1,maxsub_ps
+                       if(icsubtype(nc)==isuble_ps(itypex,i)) then
+                          ierr_ps=i+1
+                          exit
+                       else if(i== maxsub_ps .and. icsubtype(nc) /= isuble_ps(itypex,i)) then
+                          ncount_ps=ncount_ps+1
+                          do j=1,maxsub_ps
+                             if(isuble_ps(itypex,j) ==0 ) then
+                                ierr_ps=j+1
+                                exit
+                             endif
+                          enddo
+                          if (ncount_ps ==1) then
+                             write(6,*) 'READ_PREPBUFR: WARNING!!psob: cannot find subtyep in the &
+                                        error table,itype,iosub=',itypex,icsubtype(nc)
+                             write(6,*) 'read error table at colomn subtype as 0, error table column=',ierr_ps
+                          endif
+                       endif
+                    enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
                       cat=nint(min(obsdat(10,k),qcmark_huge))
@@ -1033,20 +1058,33 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       var_jb(1,k)=(one-del_ps)*btabl_ps(itypex,k1_ps,ierr_ps)+del_ps*btabl_ps(itypex,k2_ps,ierr_ps)
                        var_jb(1,k)=max(var_jb(1,k),pjbmin)
                        if (var_jb(1,k) >=10.0_r_kind) var_jb(1,k)=zero
-!                      if(itypey==180 .and. ierr_ps == 0 ) then
-!                         write(6,*) 'READ_PREPBUFR:180_ps,obserr,var_jb=',obserr(1,k),var_jb(1,k),ppb,k,hdr(2),hdr(3)
-!                      endif
+                       if(itypey==180 .and. ierr_ps == 0 ) then
+                          write(6,*) 'READ_PREPBUFR:180_ps,obserr,var_jb=',obserr(1,k),var_jb(1,k),ppb,k,hdr(2),hdr(3)
+                       endif
                     enddo
                  endif
                 if (tob) then
                     itypex=itypey
-                    ierr_t=index_sub(nc)
-                    if(ierr_t >maxsub_t) ierr_t=2
-                    if( icsubtype(nc) /= isuble_t(itypex,ierr_t-1)) then
-                       write(6,*) ' READ_PREPBUFR_TOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',icsubtype(nc),nc,ierr_t,isuble_t(itypex,ierr_t-1),itypey,itypex
-                       call stop2(49)
-                    endif
+                    ierr_t=0
+                    do i =1,maxsub_t
+                       if( icsubtype(nc) == isuble_t(itypex,i) ) then
+                          ierr_t=i+1
+                          exit
+                       else if( i == maxsub_t .and. icsubtype(nc) /= isuble_t(itypex,i)) then
+                          ncount_t=ncount_t+1
+                          do j=1,maxsub_t
+                             if(isuble_t(itypex,j) ==0 ) then
+                                ierr_t=j+1
+                                exit
+                             endif
+                          enddo
+                          if( ncount_t ==1) then
+                             write(6,*) 'READ_PREPBUFR,WARNING!! tob:cannot find subtyep in the error,& 
+                                         table,itype,iosub=',itypex,icsubtype(nc)
+                             write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_t
+                          endif
+                       endif
+                    enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
                        if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
@@ -1074,20 +1112,33 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        var_jb(3,k)=(one-del_t)*btabl_t(itypex,k1_t,ierr_t)+del_t*btabl_t(itypex,k2_t,ierr_t)
                        var_jb(3,k)=max(var_jb(3,k),tjbmin)
                        if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
-!                       if(itypey==120) then
-!                         write(6,*) 'READ_PREPBUFR:120_t,obserr,var_jb=',obserr(3,k),var_jb(3,k),ppb
-!                       endif
+                        if(itypey==180) then
+                          write(6,*) 'READ_PREPBUFR:180_t,obserr,var_jb=',obserr(3,k),var_jb(3,k),ppb
+                        endif
                     enddo
                  endif
                  if (qob) then
                     itypex=itypey
-                    ierr_q=index_sub(nc)
-                    if(ierr_q >maxsub_q) ierr_q=2
-                    if( icsubtype(nc) /= isuble_q(itypex,ierr_q-1)) then
-                       write(6,*) ' READ_PREPBUFR_QOB: the subtypes do not match subtype &
-                            in the errortable,iobsub=',icsubtype(nc),nc,ierr_q,isuble_q(itypex,ierr_q-1),itypey,itypex
-                       call stop2(49)
-                    endif
+                    ierr_q=0
+                    do i =1,maxsub_q
+                       if( icsubtype(nc) == isuble_q(itypex,i) ) then
+                          ierr_q=i+1
+                          exit
+                       else if( i == maxsub_q .and. icsubtype(nc) /= isuble_q(itypex,i)) then
+                          ncount_q=ncount_q+1
+                          do j=1,maxsub_q
+                             if(isuble_q(itypex,j) ==0 ) then
+                                ierr_q=j+1
+                                exit
+                             endif
+                          enddo
+                          if(ncount_q ==1 ) then
+                             write(6,*) 'READ_PREPBUFR,WARNING!! qob:cannot find subtyep in the & 
+                                        error table,itype,iosub=',itypex,icsubtype(nc)
+                             write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_q
+                          endif
+                       endif
+                    enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
                        if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
@@ -1122,14 +1173,26 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                 endif
                 if (uvob) then
                    itypex=itypey
-                   ierr_uv=index_sub(nc)
-                   ierr2_uv=ierr_uv-1
-                   if(ierr_uv >maxsub_uv) ierr_uv=2
-                   if( icsubtype(nc) /= isuble_uv(itypex,ierr2_uv)) then
-                      write(6,*) ' READ_PEPBUFR_UV: the subtypes do not match subtype &
-                            in the errortable,iobsub=',icsubtype(nc),nc,ierr2_uv,isuble_uv(itypex,ierr2_uv),itypey,itypex
-                      call stop2(49)
-                   endif
+                   ierr_uv=0
+                   do i =1,maxsub_uv
+                      if( icsubtype(nc) == isuble_uv(itypex,i) ) then
+                          ierr_uv=i+1
+                          exit
+                       else if( i == maxsub_uv .and. icsubtype(nc) /= isuble_uv(itypex,i)) then
+                          ncount_uv=ncount_uv+1
+                          do j=1,maxsub_uv
+                             if(isuble_uv(itypex,j) ==0 ) then
+                                ierr_uv=j+1
+                                exit
+                             endif
+                          enddo
+                          if( ncount_uv == 1) then
+                             write(6,*) 'READ_PREPBUFR,WARNING!! uvob:cannot find subtyep in the error,&
+                                         table,itype,iosub=',itypex,icsubtype(nc)
+                             write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_uv
+                          endif
+                       endif
+                    enddo
                    do k=1,levs
                       ppb=obsdat(1,k)
                       if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
@@ -1162,13 +1225,26 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                 endif
                 if (pwob)  then
                    itypex=itypey
-                   ierr_pw=index_sub(nc)
-                   if(ierr_pw >maxsub_pw) ierr_pw=2
-                   if( icsubtype(nc) /= isuble_pw(itypex,ierr_pw-1)) then
-                      write(6,*) ' READ_PREPBUFR_PW: the subtypes do not match subtype &
-                            in the errortable,iobsub=',icsubtype(nc),nc,ierr_pw,isuble_pw(itypex,ierr_pw-1),itypey,itypex
-                      call stop2(49)
-                   endif
+                   ierr_pw=0
+                   do i =1,maxsub_pw
+                      if(icsubtype(nc) == isuble_pw(itypex,i) ) then
+                         ierr_pw=i+1
+                         exit
+                      else if( i == maxsub_pw .and. icsubtype(nc) /= isuble_pw(itypex,i)) then
+                         ncount_pw=ncount_pw+1
+                         do j=1,maxsub_pw
+                            if(isuble_pw(itypex,j) ==0 ) then
+                               ierr_pw=j+1
+                               exit
+                            endif
+                         enddo
+                         if(ncount_pw ==1 ) then
+                            write(6,*) 'READ_PREPBUFR,WARNING!! pwob:cannot find subtyep in the error,&
+                                        table,itypex,iosub=',itypex,icsubtype(nc)
+                            write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_pw
+                         endif
+                      endif
+                   enddo
                    do k=1,levs
                       ppb=obsdat(1,k)
                       if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
@@ -1493,20 +1569,23 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qm=visqm
 !! RY: check this late when using tdob??
               else if(tdob) then
-                 if(obsdat(12,k) > r0_01_bmiss)cycle loop_k_levs !you have a similar statement further down / MPondeca
+                 if(obsdat(12,k) > r0_01_bmiss)cycle loop_k_levs
                  tdqm=qqm(k)
                  qm=tdqm
               else if(mxtmob) then
-                 mxtmqm=0                    !fix this /not trivial to use value for T /MPondeca
+                 mxtmqm=0
                  qm=mxtmqm
               else if(mitmob) then
-                 mitmqm=0                    !fix this /not trivial to use value for T /MPondeca
+                 mitmqm=0
                  qm=mitmqm
               else if(pmob) then
-                 qm=pmq(k)                   !check this. see Dennis email/ MPondeca
+                 qm=pmq(k)
               else if(howvob) then
-                 howvqm=0                    !fix this / MPondeca
+                 howvqm=0
                  qm=howvqm
+              else if(cldchob) then
+                 cldchqm=0
+                 qm=cldchqm
               else if(metarcldobs) then
                  qm=0      
               else if(goesctpobs) then
@@ -1721,11 +1800,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if((kx>=192.and.kx<=195) .and. psob )usage=r100
               if (gustob .and. obsdat(8,k) > r0_1_bmiss) usage=103._r_kind
               if (visob  .and. obsdat(9,k) > r0_1_bmiss) usage=103._r_kind
-              if (tdob  .and. obsdat(12,k) > r0_1_bmiss) usage=103._r_kind     !do you need this ? / MPondeca
-              if (pmob  .and. obsdat(13,k) > r0_1_bmiss) usage=103._r_kind     !do you need this ? / MPondeca
-              if (mxtmob  .and. maxtmint(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
-              if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
-              if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind   !do you need this ? / MPondeca
+              if (tdob  .and. obsdat(12,k) > r0_1_bmiss) usage=103._r_kind
+              if (pmob  .and. obsdat(13,k) > r0_1_bmiss) usage=103._r_kind
+              if (mxtmob  .and. maxtmint(1,k) > r0_1_bmiss) usage=103._r_kind
+              if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind
+              if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind
+              if (cldchob  .and. cldceilh(1,k) > r0_1_bmiss) usage=103._r_kind
 
               if (sfctype) then 
                  if (i_gsdsfc_uselist==1 ) then
@@ -1762,7 +1842,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
               if(lhilbert) & 
-                  call accum_hilbertcurve(usage,c_station_id,c_prvstg,c_sprvstg, &  !no need for obstype ? /MPondeca
+                  call accum_hilbertcurve(usage,c_station_id,c_prvstg,c_sprvstg, &
                        dlat_earth,dlon_earth,dlat,dlon,t4dv,toff,nc,kx,iout)
 
 
@@ -1942,7 +2022,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
                     cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
-                 if (obstype == 'wspd10m') cdata_all(7,iout)=sqrt(uob*uob+vob*vob)
  
               else if(spdob) then 
                  woe=obserr(5,k)
@@ -2222,7 +2301,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
                  cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-                 cdata_all(5,iout)=obsdat(12,k)+t0c        ! td ob               !Do you need t0c ? /MPondeca
+                 cdata_all(5,iout)=obsdat(12,k)+t0c        ! td ob
                  cdata_all(6,iout)=rstation_id             ! station id
                  cdata_all(7,iout)=t4dv                    ! time
                  cdata_all(8,iout)=nc                      ! type
@@ -2510,6 +2589,33 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                     cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  end if
+
+!             Cloud ceiling height
+              else if(cldchob) then
+
+                 cldchoe=4000.0  ! temporarily
+                 if (inflate_error) cldchoe=cldchoe*r1_2
+
+                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error (m)
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=cldceilh(1,k)           ! cloud ceiling height obs
+                 cdata_all(5,iout)=rstation_id             ! station id
+                 cdata_all(6,iout)=t4dv                    ! time
+                 cdata_all(7,iout)=nc                      ! type
+                 cdata_all(8,iout)=cldchoe*three           ! max error
+                 cdata_all(9,iout)=cldchqm                 ! quality mark
+                 cdata_all(10,iout)=usage                  ! usage parameter
+                 if (lhilbert) thisobtype_usage=10         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
+                 cdata_all(11,iout)=idomsfc                ! dominate surface type
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(14,iout)=stnelev                ! station elevation (m)
+                 cdata_all(15,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(16,iout)=zz                     ! terrain height at ob location
+                 cdata_all(17,iout)=r_prvstg(1,1)          ! provider name
+                 cdata_all(18,iout)=r_sprvstg(1,1)         ! subprovider name
+
               end if
 
 !
@@ -2532,7 +2638,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
 
 ! Apply hilbert curve for cross validation if requested
 

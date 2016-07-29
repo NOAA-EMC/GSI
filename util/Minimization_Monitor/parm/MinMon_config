@@ -22,7 +22,7 @@ export M_IG_PARM=${M_IG_PARM:-${MINMON_IG}/parm}
 export MY_STMP=${MY_STMP:-/stmpp1}
 export MY_PTMP=${MY_PTMP:-/ptmpp1}
 
-export envir=prod
+export envir=${RUN_ENVIR:-prod}
 export DATA_IN=${DATA_IN:-${MY_STMP}/${LOGNAME}/minmon}	# working directory
 
 export LOGdir=${LOGdir:-${MY_PTMP}/${LOGNAME}/logs}
