@@ -1,7 +1,7 @@
 subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_db,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_iasi                  read bufr format iasi data
@@ -65,6 +65,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-02-26  collard - fix satid issues for MetOp-B and MetOp-C
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-22  Jung    - added logic to allow subset changes based on the satinfo file
+!   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -87,6 +88,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
 !     nrec_start - first subset with useful information
+!     nrec_start_ears - first ears subset with useful information
+!     nrec_start_db - first db subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR IASI observations read
@@ -111,7 +114,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
@@ -122,7 +125,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! BUFR format for IASISPOT 
 ! Input variables
-  integer(i_kind)  ,intent(in   ) :: mype,nrec_start
+  integer(i_kind)  ,intent(in   ) :: mype,nrec_start,nrec_start_ears,nrec_start_db
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -155,16 +158,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(5)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(3,10):: cscale
-  real(r_double),dimension(6):: cloud_frac
+  real(r_double),dimension(3,10):: cscale 
+  real(r_double),dimension(7):: cloud_frac
   integer(i_kind) :: bufr_size
   
   real(r_kind)      :: step, start,step_adjust
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
+  character(len=40) :: infile2
   integer(i_kind)   :: jstart
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
   integer(i_kind),allocatable,dimension(:) :: nrec
 
 
@@ -197,13 +201,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: iasi
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
-  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat
+  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent,maxinfo, bufr_nchan
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
-  integer(i_kind):: error_status
+  integer(i_kind):: error_status, irecx
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
@@ -223,7 +227,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
-
 
 ! Initialize variables
   maxinfo    =  31
@@ -382,394 +385,421 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   next=0
   irec=0
   nrec=999999
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
-     irec=irec+1
-     if(irec < nrec_start) cycle read_subset
-     next=next+1
-     if(next == npe_sub)next=0
-     if(next /= mype_sub)cycle read_subset
+! Big loop over standard data feed and possible rars/db data
+! llll=1 is normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data)
+  ears_db_loop: do llll= 1, 3
 
+     if(llll == 1)then
+        if ( nrec_start <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start
+        infile2=trim(infile)         ! Set bufr subset names based on type of data to read
+     elseif(llll == 2) then
+        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start_ears
+        infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
+     elseif(llll == 3) then
+        if ( nrec_start_db <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start_db
+        infile2=trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
+     end if
 
-     read_loop: do while (ireadsb(lnbufr)==0)
+!    Open BUFR file
+     call closbf(lnbufr)
+     open(lnbufr,file=trim(infile2),form='unformatted')
 
+!    Open BUFR table
+     call openbf(lnbufr,'IN',lnbufr)
+     call datelen(10)
 
-!       Get the size of the channels and radiance (allchan) array
-        call ufbint(lnbufr,crchn_reps,1,1,iret,'(IASICHN)')
-        bufr_nchan = int(crchn_reps)
+     irecx = 0
+     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+        irecx = irecx + 1
+        if(irecx < nrec_startx) cycle read_subset
+        irec = irec + 1
+        next=next+1
+        if(next == npe_sub)next=0
+        if(next /= mype_sub)cycle read_subset
 
-        bufr_size = size(temperature,1)
-        if ( bufr_size /= bufr_nchan ) then      ! allocation if
-!          Allocate the arrays needed for the channel and radiance array
-           deallocate(temperature,allchan,bufr_chan_test)
-           allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
-           allocate(allchan(2,bufr_nchan))
-           allocate(bufr_chan_test(bufr_nchan))
-        endif       !  allocation if
+        read_loop: do while (ireadsb(lnbufr)==0)
 
-!       Read IASI FOV information
-        call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ SELV SAID')
+!          Get the size of the channels and radiance (allchan) array
+           call ufbint(lnbufr,crchn_reps,1,1,iret,'(IASICHN)')
+           bufr_nchan = int(crchn_reps)
 
-!       Extract satellite id.  If not the one we want, read next subset
-        ksatid=nint(linele(5))
-        if(ksatid /= kidsat) cycle read_loop
+           bufr_size = size(temperature,1)
+           if ( bufr_size /= bufr_nchan ) then      ! allocation if
+!             Allocate the arrays needed for the channel and radiance array
+              deallocate(temperature,allchan,bufr_chan_test)
+              allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
+              allocate(allchan(2,bufr_nchan))
+              allocate(bufr_chan_test(bufr_nchan))
+           endif       !  allocation if
 
-        if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QGFQ)
+!          Read IASI FOV information
+           call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QGFQ SELV SAID')
 
-!       zenith angle/scan spot mismatch, reject entire line
-        if ( bad_line == nint(linele(2))) then
-           cycle read_loop
-        else
-           bad_line = -1
-        endif
+!          Extract satellite id.  If not the one we want, read next subset
+           ksatid=nint(linele(5))
+           if(ksatid /= kidsat) cycle read_loop
 
-        ifov = nint(linele(1))               ! field of view
+           if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QGFQ)
 
-!       IASI fov ranges from 1 to 120.   Current angle dependent bias
-!       correction has a maximum of 90 scan positions.   Geometry
-!       of IASI scan allows us to remap 1-120 to 1-60.   Variable
-!       ifovn below contains the remapped IASI fov.  This value is
-!       passed on to and used in setuprad
-        ifovn = (ifov-1)/2 + 1
+!          zenith angle/scan spot mismatch, reject entire line
+           if ( bad_line == nint(linele(2))) then
+              cycle read_loop
+           else
+              bad_line = -1
+           endif
 
-!       Remove data on edges
-        if (.not. use_edges .and. &
+           ifov = nint(linele(1))               ! field of view
+
+!          IASI fov ranges from 1 to 120.   Current angle dependent bias
+!          correction has a maximum of 90 scan positions.   Geometry
+!          of IASI scan allows us to remap 1-120 to 1-60.   Variable
+!          ifovn below contains the remapped IASI fov.  This value is
+!          passed on to and used in setuprad
+           ifovn = (ifov-1)/2 + 1
+
+!          Remove data on edges
+           if (.not. use_edges .and. &
              (ifovn < radedge_min .OR. ifovn > radedge_max )) cycle read_loop
 
-!       Check field of view (FOVN) and satellite zenith angle (SAZA)
-        iscn = nint(linele(2))               ! scan line
-        if( ifov <= 0 .or. ifov > 120) then
-           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS INFO(FOVN,SLNM):', ifov, iscn
-           cycle read_loop
-        endif
+!          Check field of view (FOVN) and satellite zenith angle (SAZA)
+           iscn = nint(linele(2))               ! scan line
+           if( ifov <= 0 .or. ifov > 120) then
+              write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                 ' STRANGE OBS INFO(FOVN,SLNM):', ifov, iscn
+              cycle read_loop
+           endif
+
+           call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
+           if(iret /= 1) cycle read_loop
 
 
-        call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
-        if(iret /= 1) cycle read_loop
+!          Check observing position
+           dlat_earth = allspot(8)   ! latitude
+           dlon_earth = allspot(9)   ! longitude
+           if( abs(dlat_earth) > R90  .or. abs(dlon_earth) > R360 .or. &
+              (abs(dlat_earth) == R90 .and. dlon_earth /= ZERO) )then
+              write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                 ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
+              cycle read_loop
+           endif
+
+!          Retrieve observing position
+           if(dlon_earth >= R360)then
+              dlon_earth = dlon_earth - R360
+           else if(dlon_earth < ZERO)then
+              dlon_earth = dlon_earth + R360
+           endif
+
+           dlat_earth_deg = dlat_earth
+           dlon_earth_deg = dlon_earth
+           dlat_earth = dlat_earth * deg2rad
+           dlon_earth = dlon_earth * deg2rad
+
+!          If regional, map obs lat,lon to rotated grid.
+           if(regional)then
+
+!             Convert to rotated coordinate.  dlon centered on 180 (pi),
+!             so always positive for limited area
+              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+              if(diagnostic_reg) then
+                 call txy2ll(dlon,dlat,dlon00,dlat00)
+                 ntest=ntest+1
+                 cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
+                 disterrmax=max(disterrmax,disterr)
+              end if
+
+!             Check to see if in domain.  outside=.true. if dlon_earth,
+!             dlat_earth outside domain, =.false. if inside
+              if(outside) cycle read_loop
+
+!          Global case 
+           else
+              dlat = dlat_earth
+              dlon = dlon_earth
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
+           endif
+
+!          Check obs time
+           idate5(1) = nint(allspot(2)) ! year
+           idate5(2) = nint(allspot(3)) ! month
+           idate5(3) = nint(allspot(4)) ! day
+           idate5(4) = nint(allspot(5)) ! hour
+           idate5(5) = nint(allspot(6)) ! minute
+
+           if( idate5(1) < 1900 .or. idate5(1) > 3000 .or. &
+              idate5(2) < 1    .or. idate5(2) >   12 .or. &
+              idate5(3) < 1    .or. idate5(3) >   31 .or. &
+              idate5(4) <0     .or. idate5(4) >   24 .or. &
+              idate5(5) <0     .or. idate5(5) >   60 )then
+
+              write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                 ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
+              cycle read_loop
+
+           endif
+
+!          Retrieve obs time
+           call w3fs21(idate5,nmind)
+           t4dv = (real(nmind-iwinbgn,r_kind) + real(allspot(7),r_kind)*r60inv)*r60inv ! add in seconds
+           sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
+           tdiff = (sstime - gstime)*r60inv
+
+           if (l4dvar.or.l4densvar) then
+              if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           else
+              if (abs(tdiff)>twind) cycle read_loop
+           endif
+
+!          Increment nread counter by satinfo_nchan
+           nread = nread + satinfo_nchan
+
+           if (thin4d) then
+              crit1 = 0.01_r_kind
+           else
+              timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+              crit1 = 0.01_r_kind+timedif
+           endif 
+           if( llll > 1 ) crit1 = crit1 + r100 * float(llll)
+           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           if(.not. iuse)cycle read_loop
+
+!          Observational info
+           sat_zenang  = allspot(10)            ! satellite zenith angle
+
+!          Check  satellite zenith angle (SAZA)
+           if(sat_zenang > 90._r_kind ) then
+              write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                 ' STRANGE OBS INFO(FOVN,SLNM,SAZA,BEARAZ):', ifov, iscn, allspot(10),allspot(11)
+              cycle read_loop
+           endif
+           if ( ifov <= 60 ) sat_zenang = -sat_zenang
+
+!          Compare IASI satellite scan angle and zenith angle
+           piece = -step_adjust
+           if ( mod(ifovn,2) == 1) piece = step_adjust
+           lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
+           sat_height_ratio = (earth_radius + linele(4))/earth_radius
+           lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
+           if (abs(sat_zenang - lzaest) > one) then
+              write(6,*)' READ_IASI WARNING uncertainty in lza ', &
+                 lza*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
+              bad_line = iscn
+              cycle read_loop
+           endif
 
 
-!       Check observing position
-        dlat_earth = allspot(8)   ! latitude
-        dlon_earth = allspot(9)   ! longitude
-        if( abs(dlat_earth) > R90  .or. abs(dlon_earth) > R360 .or. &
-           (abs(dlat_earth) == R90 .and. dlon_earth /= ZERO) )then
-           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
-           cycle read_loop
-        endif
-
-!       Retrieve observing position
-        if(dlon_earth >= R360)then
-           dlon_earth = dlon_earth - R360
-        else if(dlon_earth < ZERO)then
-           dlon_earth = dlon_earth + R360
-        endif
-
-        dlat_earth_deg = dlat_earth
-        dlon_earth_deg = dlon_earth
-        dlat_earth = dlat_earth * deg2rad
-        dlon_earth = dlon_earth * deg2rad
-
-!       If regional, map obs lat,lon to rotated grid.
-        if(regional)then
-
-!          Convert to rotated coordinate.  dlon centered on 180 (pi),
-!          so always positive for limited area
-           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-           if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+1
-              cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
-              cdist=max(-one,min(cdist,one))
-              disterr=acos(cdist)*rad2deg
-              disterrmax=max(disterrmax,disterr)
-           end if
-
-!          Check to see if in domain.  outside=.true. if dlon_earth,
-!          dlat_earth outside domain, =.false. if inside
-           if(outside) cycle read_loop
-
-!       Global case 
-        else
-           dlat = dlat_earth
-           dlon = dlon_earth
-           call grdcrd1(dlat,rlats,nlat,1)
-           call grdcrd1(dlon,rlons,nlon,1)
-        endif
-
-!       Check obs time
-        idate5(1) = nint(allspot(2)) ! year
-        idate5(2) = nint(allspot(3)) ! month
-        idate5(3) = nint(allspot(4)) ! day
-        idate5(4) = nint(allspot(5)) ! hour
-        idate5(5) = nint(allspot(6)) ! minute
-
-        if( idate5(1) < 1900 .or. idate5(1) > 3000 .or. &
-            idate5(2) < 1    .or. idate5(2) >   12 .or. &
-            idate5(3) < 1    .or. idate5(3) >   31 .or. &
-            idate5(4) <0     .or. idate5(4) >   24 .or. &
-            idate5(5) <0     .or. idate5(5) >   60 )then
-
-           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
-           cycle read_loop
-
-        endif
-
-!       Retrieve obs time
-        call w3fs21(idate5,nmind)
-        t4dv = (real(nmind-iwinbgn,r_kind) + real(allspot(7),r_kind)*r60inv)*r60inv ! add in seconds
-        sstime = real(nmind,r_kind) + real(allspot(7),r_kind)*r60inv ! add in seconds
-        tdiff = (sstime - gstime)*r60inv
-
-        if (l4dvar.or.l4densvar) then
-           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
-        else
-           if (abs(tdiff)>twind) cycle read_loop
-        endif
-
-!       Increment nread counter by satinfo_nchan
-        nread = nread + satinfo_nchan
-
-        if (thin4d) then
-           crit1 = 0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-           crit1 = 0.01_r_kind+timedif
-        endif 
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-        if(.not. iuse)cycle read_loop
-
-!       Observational info
-        sat_zenang  = allspot(10)            ! satellite zenith angle
-
-!       Check  satellite zenith angle (SAZA)
-        if(sat_zenang > 90._r_kind ) then
-           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS INFO(FOVN,SLNM,SAZA):', ifov, iscn, allspot(10)
-           cycle read_loop
-        endif
-        if ( ifov <= 60 ) sat_zenang = -sat_zenang
-
-!       Compare IASI satellite scan angle and zenith angle
-        piece = -step_adjust
-        if ( mod(ifovn,2) == 1) piece = step_adjust
-        lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
-        sat_height_ratio = (earth_radius + linele(4))/earth_radius
-        lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
-        if (abs(sat_zenang - lzaest) > one) then
-           write(6,*)' READ_IASI WARNING uncertainty in lza ', &
-              lza*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
-           bad_line = iscn
-           cycle read_loop
-        endif
-
-
-!   "Score" observation.  We use this information to identify "best" obs
-!    Locate the observation on the analysis grid.  Get sst and land/sea/ice
-!    mask.  
-!     isflg    - surface flag
+!          "Score" observation.  We use this information to identify "best" obs
+!          Locate the observation on the analysis grid.  Get sst and land/sea/ice
+!          mask.  
+!          isflg    - surface flag
 !                0 sea
 !                1 land
 !                2 sea ice
 !                3 snow
 !                4 mixed 
 
-!       When using FOV-based surface code, must screen out obs with bad fov numbers.
-        if (isfcalc == 1) then
-           call fov_check(ifov,instr,ichan,valid)
-           if (.not. valid) cycle read_loop
+!          When using FOV-based surface code, must screen out obs with bad fov numbers.
+           if (isfcalc == 1) then
+              call fov_check(ifov,instr,ichan,valid)
+              if (.not. valid) cycle read_loop
 
-!       When isfcalc is set to one, calculate surface fields using size/shape of fov.
-!       Otherwise, use bilinear interpolation.
+!          When isfcalc is set to one, calculate surface fields using size/shape of fov.
+!          Otherwise, use bilinear interpolation.
 
-           call deter_sfc_fov(fov_flag,ifov,instr,ichan,real(allspot(11),r_kind),dlat_earth_deg, &
+              call deter_sfc_fov(fov_flag,ifov,instr,ichan,real(allspot(11),r_kind),dlat_earth_deg, &
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-        else
-           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
-              ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        endif
+           else
+              call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
+                 ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           endif
 
-!       Set common predictor parameters
-        crit1 = crit1 + rlndsea(isflg)
+!          Set common predictor parameters
+           crit1 = crit1 + rlndsea(isflg)
  
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
+           call checkob(dist1,crit1,itx,iuse)
+           if(.not. iuse)cycle read_loop
 
-!       Clear Amount  (percent clear)
-        call ufbrep(lnbufr,cloud_frac,1,6,iret,'FCPH')
-        clr_amt = cloud_frac(1)
-!       if ( clr_amt < zero .or. clr_amt > 100.0_r_kind ) clr_amt = zero
-        clr_amt=max(clr_amt,zero)
-        clr_amt=min(clr_amt,100.0_r_kind)
+!          Clear Amount  (percent clear)
+           call ufbrep(lnbufr,cloud_frac,1,7,iret,'FCPH')
+           clr_amt = cloud_frac(1)
+           clr_amt=max(clr_amt,zero)
+           clr_amt=min(clr_amt,100.0_r_kind)
      
-!       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-        pred = 100.0_r_kind - clr_amt
+!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+           pred = 100.0_r_kind - clr_amt
 
-        crit1 = crit1 + pred
+           crit1 = crit1 + pred
  
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
-        call ufbrep(lnbufr,cscale,3,10,iret,'STCH ENCH CHSF')
-        if(iret /= 10) then
-           write(6,*) 'READ_IASI  read scale error ',iret
-           cycle read_loop
-        end if
+           call checkob(dist1,crit1,itx,iuse)
+           if(.not. iuse)cycle read_loop
+           call ufbseq(lnbufr,cscale,3,10,iret,'IASIL1CB')
+           if(iret /= 10) then
+              write(6,*) 'READ_IASI  read scale error ',iret
+              cycle read_loop
+           end if
 
-! The scaling factors are as follows, cscale(1) is the start channel number,
+!          The scaling factors are as follows, cscale(1) is the start channel number,
 !                                     cscale(2) is the end channel number,
 !                                     cscale(3) is the exponent scaling factor
-! In our case (616 channels) there are 10 groups of cscale (dimension :: cscale(3,10))
-!  The units are W/m2..... you need to convert to mW/m2.... (subtract 5 from cscale(3)
-        do i=1,10  ! convert exponent scale factor to int and change units
-           iexponent = -(nint(cscale(3,i)) - 5)
-           sscale(i)=ten**iexponent
-        end do
+!          In our case (616 channels) there are 10 groups of cscale (dimension :: cscale(3,10))
+!          The units are W/m2..... you need to convert to mW/m2.... (subtract 5 from cscale(3)
+           do i=1,10  ! convert exponent scale factor to int and change units
+              iexponent = -(nint(cscale(3,i)) - 5)
+              sscale(i)=ten**iexponent
+           end do
 
-!       Read IASI channel number(CHNM) and radiance (SCRA)
-        call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SCRA CHNM')
-        if (iret /= bufr_nchan) then
-           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
-           cycle read_loop
-        endif
-
-!       Coordinate bufr channels with satinfo file channels
-!       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
-        if (ANY(int(allchan(2,:)) /= bufr_chan_test(:))) then
-           bufr_index(:) = 0
-           bufr_chans: do l=1,bufr_nchan
-              bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
-              satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
-                 if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and satinfo file
-                    bufr_index(i) = l
-                    exit satinfo_chans                                   ! go to next bufr channel
-                 endif
-              end do  satinfo_chans
-           end do bufr_chans
-        end if
-
-        iskip = 0
-        jstart=1
-        channel_loop: do i=1,satinfo_nchan
-           sc_chan = sc_index(i)
-           if ( bufr_index(i) == 0 ) cycle channel_loop
-           bufr_chan = bufr_index(i)
-!          check that channel number is within reason
-           if (( allchan(1,bufr_chan) > zero .and. allchan(1,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
-              radiance = allchan(1,bufr_chan)
-              scaleloop: do j=jstart,10
-                 if(allchan(2,bufr_chan) >= cscale(1,j) .and. allchan(2,bufr_chan) <= cscale(2,j))then
-                    radiance = allchan(1,bufr_chan)*sscale(j)
-                    jstart=j
-                    exit scaleloop
-                 end if
-              end do scaleloop
-              call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
-           else
-              temperature(bufr_chan) = tbmin
+!          Read IASI channel number(CHNM) and radiance (SCRA)
+           call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'IASICHN')
+           if (iret /= bufr_nchan) then
+              write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                 iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
+              cycle read_loop
            endif
-        end do channel_loop
 
-!       Check for reasonable temperature values
-        skip_loop: do i=1,satinfo_nchan
-           if ( bufr_index(i) == 0 ) cycle skip_loop
-           bufr_chan = bufr_index(i)
+!          Coordinate bufr channels with satinfo file channels
+!          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
+           if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
+              bufr_index(:) = 0
+              bufr_chans: do l=1,bufr_nchan
+                 bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+                 satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (iasi) channels in the satinfo file
+                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and stainfo file
+                       bufr_index(i) = l
+                       exit satinfo_chans                                   ! go to next bufr channel
+                    endif
+                 end do  satinfo_chans
+              end do bufr_chans
+           endif
+
+           iskip = 0
+           jstart=1
+           channel_loop: do i=1,satinfo_nchan
+              sc_chan = sc_index(i)
+              if ( bufr_index(i) == 0 ) cycle channel_loop
+              bufr_chan = bufr_index(i)
+!             check that channel number is within reason
+              if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
+                 radiance = allchan(2,bufr_chan)
+                 scaleloop: do j=jstart,10
+                    if(allchan(1,bufr_chan) >= cscale(1,j) .and. allchan(1,bufr_chan) <= cscale(2,j))then
+                       radiance = allchan(2,bufr_chan)*sscale(j)
+                       jstart=j
+                       exit scaleloop
+                    end if
+                 end do scaleloop
+                 call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
+              else
+                 temperature(bufr_chan) = tbmin
+              endif
+           end do channel_loop
+
+!          Check for reasonable temperature values
+           skip_loop: do i=1,satinfo_nchan
+              if ( bufr_index(i) == 0 ) cycle skip_loop
+              bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
                  temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
-        end do skip_loop
+           end do skip_loop
 
-        if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
-!       if( iskip >= 10 )cycle read_loop 
+           if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
+           if( iskip > 0 )cycle read_loop 
 
-        crit1=crit1 + ten*float(iskip)
+           crit1=crit1 + ten*float(iskip)
 
-
-!    Map obs to grids
-        call finalcheck(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
+!          Map obs to grids
+           call finalcheck(dist1,crit1,itx,iuse)
+           if(.not. iuse)cycle read_loop
 
 !
-!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-        if ( nst_gsi > 0 ) then
-           tref  = ts(0)
-           dtw   = zero
-           dtc   = zero
-           tz_tr = one
-           if ( sfcpct(0) > zero ) then
-              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+           if ( nst_gsi > 0 ) then
+              tref  = ts(0)
+              dtw   = zero
+              dtc   = zero
+              tz_tr = one
+              if ( sfcpct(0) > zero ) then
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              endif
            endif
-        endif
 
-        rsat=allspot(1) 
-        data_all(1,itx) = rsat                      ! satellite ID 
-        data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
-        data_all(3,itx) = dlon                      ! grid relative longitude
-        data_all(4,itx) = dlat                      ! grid relative latitude
-        data_all(5,itx) = sat_zenang*deg2rad        ! satellite zenith angle (rad)
-        data_all(6,itx) = allspot(11)               ! satellite azimuth angle (deg)
-        data_all(7,itx) = lza                       ! look angle (rad)
-        data_all(8,itx) = ifovn                     ! fov number
-        data_all(9,itx) = allspot(12)               ! solar zenith angle (deg)
-        data_all(10,itx)= allspot(13)               ! solar azimuth angle (deg)
-        data_all(11,itx) = sfcpct(0)                ! sea percentage of
-        data_all(12,itx) = sfcpct(1)                ! land percentage
-        data_all(13,itx) = sfcpct(2)                ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)                ! snow percentage
-        data_all(15,itx)= ts(0)                     ! ocean skin temperature
-        data_all(16,itx)= ts(1)                     ! land skin temperature
-        data_all(17,itx)= ts(2)                     ! ice skin temperature
-        data_all(18,itx)= ts(3)                     ! snow skin temperature
-        data_all(19,itx)= tsavg                     ! average skin temperature
-        data_all(20,itx)= vty                       ! vegetation type
-        data_all(21,itx)= vfr                       ! vegetation fraction
-        data_all(22,itx)= sty                       ! soil type
-        data_all(23,itx)= stp                       ! soil temperature
-        data_all(24,itx)= sm                        ! soil moisture
-        data_all(25,itx)= sn                        ! snow depth
-        data_all(26,itx)= zz                        ! surface height
-        data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
-        data_all(28,itx)= sfcr                      ! surface roughness
-        data_all(29,itx)= ff10                      ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg        ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg        ! earth relative latitude (degrees)
+           rsat=allspot(1) 
+           data_all(1,itx) = rsat                      ! satellite ID 
+           data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
+           data_all(3,itx) = dlon                      ! grid relative longitude
+           data_all(4,itx) = dlat                      ! grid relative latitude
+           data_all(5,itx) = sat_zenang*deg2rad        ! satellite zenith angle (rad)
+           data_all(6,itx) = allspot(11)               ! satellite azimuth angle (deg)
+           data_all(7,itx) = lza                       ! look angle (rad)
+           data_all(8,itx) = ifovn                     ! fov number
+           data_all(9,itx) = allspot(12)               ! solar zenith angle (deg)
+           data_all(10,itx)= allspot(13)               ! solar azimuth angle (deg)
+           data_all(11,itx) = sfcpct(0)                ! sea percentage of
+           data_all(12,itx) = sfcpct(1)                ! land percentage
+           data_all(13,itx) = sfcpct(2)                ! sea ice percentage
+           data_all(14,itx) = sfcpct(3)                ! snow percentage
+           data_all(15,itx)= ts(0)                     ! ocean skin temperature
+           data_all(16,itx)= ts(1)                     ! land skin temperature
+           data_all(17,itx)= ts(2)                     ! ice skin temperature
+           data_all(18,itx)= ts(3)                     ! snow skin temperature
+           data_all(19,itx)= tsavg                     ! average skin temperature
+           data_all(20,itx)= vty                       ! vegetation type
+           data_all(21,itx)= vfr                       ! vegetation fraction
+           data_all(22,itx)= sty                       ! soil type
+           data_all(23,itx)= stp                       ! soil temperature
+           data_all(24,itx)= sm                        ! soil moisture
+           data_all(25,itx)= sn                        ! snow depth
+           data_all(26,itx)= zz                        ! surface height
+           data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+           data_all(28,itx)= sfcr                      ! surface roughness
+           data_all(29,itx)= ff10                      ! ten meter wind factor
+           data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
+           data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
-        if(dval_use)then
-           data_all(32,itx)= val_iasi
-           data_all(33,itx)= itt
-        end if
+           if(dval_use)then
+              data_all(32,itx)= val_iasi
+              data_all(33,itx)= itt
+           end if
 
-        if ( nst_gsi > 0 ) then
-           data_all(maxinfo+1,itx) = tref         ! foundation temperature
-           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
-        endif
-
-!       Put satinfo defined channel temperatures into data array
-        do l=1,satinfo_nchan
-           i = bufr_index(l)
-           if ( bufr_index(l) /= 0 ) then
-              data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
-           else
-              data_all(l+nreal,itx) = tbmin
+           if ( nst_gsi > 0 ) then
+              data_all(maxinfo+1,itx) = tref         ! foundation temperature
+              data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+              data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+              data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
            endif
-        end do
-        nrec(itx)=irec
 
-     enddo read_loop
+!          Put satinfo defined channel temperatures into data array
+           do l=1,satinfo_nchan
+              i = bufr_index(l)
+              if ( bufr_index(l) /= 0 ) then
+                 data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              else
+                 data_all(l+nreal,itx) = tbmin
+              endif
+           end do
+           nrec(itx)=irec
 
+        enddo read_loop
 
-  enddo read_subset
+     enddo read_subset
+
+     call closbf(lnbufr)
+
+  end do ears_db_loop
 
   deallocate(temperature, allchan, bufr_chan_test)
-  call closbf(lnbufr)
-
+  deallocate(channel_number,sc_index)
+  deallocate(bufr_index)
 ! deallocate crtm info
   error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
@@ -780,7 +810,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
-
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
@@ -812,8 +841,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
   deallocate(data_all,nrec) ! Deallocate data arrays
-  deallocate(channel_number,sc_index)
-  deallocate(bufr_index)
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.

@@ -369,7 +369,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
   allocate(allchan(3,1))     ! actual values set after ireadsb
-  allocate(bufr_chan_test(1))! actual values set after ireadsb 
+  allocate(bufr_chan_test(1))! actual values set after ireadsb
 
 ! Big loop to read data file
   nrec=999999
@@ -593,7 +593,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            chan_map(int(allchan(1,i))) = i    ! map channel number position into
         end do
 
-
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
         if (ANY(int(allchan(1,bufr_start:bufr_end)) /= bufr_chan_test(bufr_start:bufr_end))) then
@@ -607,7 +606,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
                  endif
               end do  satinfo_chans
            end do bufr_chans
-        end if                 
+        end if
+
 
 !       Channel based quality control
         if(amsua)then
