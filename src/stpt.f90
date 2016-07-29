@@ -67,6 +67,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !                       - on-the-spot handling of non-essential vars
 !   2013-05-23  zhu     - add search direction for aircraft data bias predictors
 !   2013-10-29  todling - tendencies now in bundle
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     thead
@@ -325,15 +326,13 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !              reduces to the linear case (no qc)
 
 !  Jim Purse's non linear QC scheme
-
         if(njqc .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*tptr%jb*log(cosh(sqrt(pen(kk)/(two*tptr%jb))))
            enddo
-
-           out(1) = out(1)+pen(1)*sqrt(tptr%raterr2)
+           out(1) = out(1)+pen(1)*tptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(tptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*tptr%raterr2
@@ -342,7 +341,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            end do
         endif
 
-  endif
+     endif
      tptr => tptr%llpoint
 
   end do

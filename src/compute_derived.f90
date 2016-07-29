@@ -72,6 +72,8 @@ subroutine compute_derived(mype,init_pass)
 !   2014-06-19  carley/zhu - add lgues and dlcbasdlog
 !   2014-11-28  zhu     - move cwgues0 to cloud_efr
 !   2014-11-28  zhu     - re-compute ges_cwmr & cwgues the same way as in the regional when cw is not state variable
+!   2015-07-10  pondeca - load dcldchdlog used in weak-constraint for cldch
+!   2016-04-28  eliu    - copy cloud water to cwgues to be used in the inner loop     
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -100,7 +102,7 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
   use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,lgues,dlcbasdlog,&
-       dvisdlog,w10mgues,howvgues,cwgues
+       dvisdlog,w10mgues,howvgues,cwgues,cldchgues,dcldchdlog
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o  
@@ -213,27 +215,16 @@ subroutine compute_derived(mype,init_pass)
         do k=1,nsig
            do j=1,lon2
               do i=1,lat2
-                 cwgues(i,j,k)=max(ges_ql(i,j,k)+ges_qi(i,j,k),qcmin)
+                 cwgues(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
               end do
            end do
         end do
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
-        if (istatus==0) then  ! temporarily, revise after moist physics is ready
-           do k=1,nsig
-              do j=1,lon2
-                 do i=1,lat2
-                    ges_cwmr(i,j,k)=cwgues(i,j,k)
-                 end do
-              end do
-           end do
-        end if
      else
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
         if (istatus==0) then
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    ges_cwmr(i,j,k)=max(ges_cwmr(i,j,k),qcmin)
                     cwgues(i,j,k)=ges_cwmr(i,j,k)
                  end do
               end do
@@ -351,7 +342,7 @@ subroutine compute_derived(mype,init_pass)
      end do
   end if
 
-! Load guess gust, vis, pblh, & lcbas for use in limg, limv, limp, & liml.
+! Load guess gust, vis, pblh, lcbas, & cldch for use in limg, limv, limp, & liml.
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'gust',ptr2d,istatus)
   if (istatus==0) then
      do j=1,lon2
@@ -399,6 +390,15 @@ subroutine compute_derived(mype,init_pass)
         do i=1,lat2
            lgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
            dlcbasdlog(i,j)=log(ten)*ptr2d(i,j)  !d(lcbas)/d(log(lcbas))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'cldch',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           cldchgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
+           dcldchdlog(i,j)=log(ten)*ptr2d(i,j)  !d(cldch)/d(log(cldch))
         end do
      end do
   end if

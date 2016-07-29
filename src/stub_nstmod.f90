@@ -50,14 +50,21 @@ end subroutine nst_init_
 subroutine nst_set_(mype,mype_io)
 
      use kinds,       only: i_kind
+     use gridmod,     only: use_gfs_nemsio 
      use ncepgfs_io,  only: read_gfsnst
+     use ncepnems_io, only: read_nemsnst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                       c_0_full,c_d_full,w_0_full,w_d_full
      implicit none
-     integer(i_kind),intent(in   ) :: mype,mype_io
+     integer(i_kind),  intent(in   ) :: mype,mype_io
 
-     call read_gfsnst(mype_io,mype,tref_full,dt_cool_full,z_c_full, &
-                      dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+     if ( use_gfs_nemsio ) then
+        call read_nemsnst(mype_io,mype,tref_full,dt_cool_full,z_c_full, &
+                          dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+     else
+        call read_gfsnst(mype_io,mype,tref_full,dt_cool_full,z_c_full, &
+                         dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+     endif
                          
 end subroutine nst_set_
 !*******************************************************************************************
