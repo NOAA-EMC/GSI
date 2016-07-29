@@ -14,6 +14,7 @@
 !   2010-03-29  todling - add prologue; load_grid now in commvars
 !   2014-12-03  derber - simplify if structure and use guess surface height
 !               directly
+!   2016-05-06  thomas - recalculate cw increment to account for qcmin
 !
 !   input argument list:
 !
@@ -33,14 +34,14 @@
         sigio_rrdbti,sigio_rwdbti,sigio_rwopen,sigio_rclose,sigio_aldbti
     use sigio_module, only: sigio_head,sigio_alhead
     use general_sub2grid_mod, only: sub2grid_info
-    use guess_grids, only: ntguessig,ifilesig
+    use guess_grids, only: ifilesig
     use obsmod, only: iadate
     use mpimod, only: npe
     use general_specmod, only: spec_vars
     use gridmod, only: ntracer,ncepgfs_head,idpsfc5,idthrm5,cp5,idvc5,idvm5
     use general_commvars_mod, only: load_grid
     use ncepgfs_io, only: sigio_cnvtdv8,sighead
-    use constants, only: zero,zero_single,one,fv
+    use constants, only: zero,zero_single,one,fv,qcmin
     use gsi_4dvar, only: ibdate,nhr_obsbin,lwrite4danl
     implicit none
 
@@ -92,7 +93,7 @@
     lloop=.true.
  
 !   Set guess file name
-    write(fname_ges,100) ifilesig(ntguessig)
+    write(fname_ges,100) ifilesig(ibin)
 100    format('sigf',i2.2)
 !   Handle case of NCEP SIGIO
 
@@ -248,7 +249,15 @@
 !   Convert full resolution guess to analysis grid
                   call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
 !   Calculation grid increment on analysis grid
-                  grid=grid-grid2
+                  if (kvar == 8) then
+                     do i=1,sp_a%imax
+                        do j=1,sp_a%jmax
+                          grid(i,j) = grid(i,j) - max(grid2(i,j),qcmin)
+                        enddo
+                     enddo
+                  else
+                     grid=grid-grid2
+                  endif
 !   Convert grid increment to spectral space
                   call general_sptez_s(sp_a,spec_work_sm,grid,-1)
 !   Add increment in spectral space (possibly lower resolution) to guess (taken
