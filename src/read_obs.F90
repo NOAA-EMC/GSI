@@ -601,6 +601,7 @@ subroutine read_obs(ndata,mype)
 !   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
 !   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR)
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
+!   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   
 !
 !   input argument list:
@@ -665,9 +666,9 @@ subroutine read_obs(ndata,mype)
     integer(i_llong),parameter:: lenbuf=8388608_i_llong  ! lenbuf=8*1024*1024
 
 !   Declare local variables
-    logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
+    logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,lexistdb,use_prsl_full,use_hgtl_full
     logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
-    logical,dimension(ndat):: belong,parallel_read,ears_possible
+    logical,dimension(ndat):: belong,parallel_read,ears_possible,db_possible
     logical :: modis,use_sfc_any
     logical :: acft_profl_file
     character(10):: obstype,platid
@@ -679,11 +680,13 @@ subroutine read_obs(ndata,mype)
     integer(i_llong) :: lenbytes
     integer(i_kind):: npetot,npeextra,mmdat
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
-    integer(i_kind):: mype_root,lll,llb
+    integer(i_kind):: mype_root
     integer(i_kind):: minuse,lunsave,maxproc,minproc
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: ntasks1,ntasks
-    integer(i_kind),dimension(ndat):: read_rec1,read_ears_rec1,read_rec,read_ears_rec
+    integer(i_kind),dimension(ndat):: read_rec1,read_rec
+    integer(i_kind),dimension(ndat):: read_ears_rec1,read_ears_rec
+    integer(i_kind),dimension(ndat):: read_db_rec1,read_db_rec
     integer(i_kind),dimension(ndat,3):: ndata1
     integer(i_kind),dimension(npe,ndat):: mype_work,nobs_sub1
     integer(i_kind),dimension(npe,ndat):: mype_sub
@@ -751,9 +754,11 @@ subroutine read_obs(ndata,mype)
     ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
     ears_possible = .false.
+    db_possible = .false.
     nmls_type=0
     read_rec1 = 0
     read_ears_rec1=0
+    read_db_rec1=0
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
@@ -911,12 +916,29 @@ subroutine read_obs(ndata,mype)
              end if
            end if
           end if
-          ears_possible(i) = ditype(i) == 'rad'  .and.       & 
-                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
-                   obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
-                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. &
+! direct broadcast from EUMETSAT (EARS)
+          ears_possible(i) = ditype(i) == 'rad'  .and. & 
+                  (obstype == 'amsua' .or. obstype == 'amsub' .or. & 
+                   obstype == 'mhs'   .or. obstype == 'hirs3' .or. &
+                   obstype == 'cris'  .or. obstype == 'cris-fsr' .or. &
+                   obstype == 'iasi'  .or. obstype == 'atms') .and. &
+                  (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
+                   dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
+                   dplat(i) == 'n20' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
                    dplat(i) == 'metop-c') 
+! direct broadcast from NESDIS/UW
+          db_possible(i) = ditype(i) == 'rad'  .and.       & 
+                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
+                   obstype == 'mhs' .or. obstype == 'atms' .or. &
+                   obstype == 'cris' .or. obstype == 'cris-fsr' .or. &
+                   obstype == 'iasi') .and. &
+                  (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
+                   dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
+                   dplat(i) == 'n20' .or. &
+                   dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
+                   dplat(i) == 'metop-c') 
+
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
           if (ii>npem1) ii=0
@@ -934,6 +956,16 @@ subroutine read_obs(ndata,mype)
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
              end if
+             if (db_possible(i))then
+
+                call gsi_inquire(lenbytes,lexistdb,trim(dfile(i))//'_db',mype)
+                call read_obs_check (lexistdb,trim(dfile(i))//'_db',dplat(i),dtype(i),minuse, &
+                    read_db_rec1(i))
+
+                lexist=lexist .or. lexistdb
+                len4file=len4file+lenbytes/4
+             end if
+
  
              if(lexist) then
 !      Initialize number of reader tasks to 1.  For the time being
@@ -963,6 +995,7 @@ subroutine read_obs(ndata,mype)
     call mpi_allreduce(ntasks1,ntasks,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
     call mpi_allreduce(read_rec1,read_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
     call mpi_allreduce(read_ears_rec1,read_ears_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
+    call mpi_allreduce(read_db_rec1,read_db_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
 
 !   Limit number of requested tasks per type to be <= total available tasks
     npemax=0
@@ -1063,9 +1096,9 @@ subroutine read_obs(ndata,mype)
     mype_airobst = mype_root
     do ii=1,mmdat
        i=npe_order(ii)
-       if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,2i4,1x,i6,1x,i6)') &
+       if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,2i4,1x,i6,1x,i6,1x,i6)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i), & 
-               read_rec(i),read_ears_rec(i)
+               read_rec(i),read_ears_rec(i),read_db_rec(i)
 
        acft_profl_file = index(dfile(i),'_profl')/=0
        if ((aircraft_t_bc_pof .or. aircraft_t_bc_ext .or. &
@@ -1397,22 +1430,18 @@ subroutine read_obs(ndata,mype)
                   obstype == 'mhs'   .or. obstype == 'hirs4' .or.  &
                   obstype == 'hirs3' .or. obstype == 'hirs2' .or.  &
                   obstype == 'ssu' )) then
-                llb=1
-                lll=1
-                if(ears_possible(i))lll=2
                 call read_bufrtovs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     llb,lll,nobs_sub1(1,i), &
-                     read_rec(i),read_ears_rec(i),dval_use)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), nobs_sub1(1,i), &
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_BUFRTOVS'
 
 !            Process atms data
              else if (obstype == 'atms') then
                 call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),&
-                     nobs_sub1(1,i),read_rec(i),dval_use)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i),&
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_ATMS'
 
 !            Process saphir data
@@ -1437,16 +1466,16 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'iasi')then
                 call read_iasi(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_IASI'
 
 !            Process cris data
              else if(obstype == 'cris' .or. obstype =='cris-fsr' )then
                 call read_cris(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_CRIS'
 
 !            Process GOES sounder data
@@ -1502,6 +1531,7 @@ subroutine read_obs(ndata,mype)
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                      nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_GOESMIMG'
+
 !            Process GMI data
              else if (obstype == 'gmi') then
                 call read_gmi(mype,val_dat,ithin,rmesh,platid,gstime,&
