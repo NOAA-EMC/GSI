@@ -1401,7 +1401,8 @@ module egrid2agrid_mod
       logical,intent(in),optional:: eqspace
 
       integer(i_kind) i,ilona,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
-      real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
+      real(r_single) errtest
+      real(r_kind) half_pi,two_pi,dlona,dlone,diffmax,range_lat,range_lon
       real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
       logical fail_tests
 
@@ -1438,7 +1439,7 @@ module egrid2agrid_mod
 
 !   check that lats and lons satisfy requirements:
 
-      errtest=10._r_kind*pi*epsilon(one)
+      errtest=10._r_single*pi*epsilon(1._r_single)
       half_pi=half*pi
       two_pi=two*pi
       fail_tests=.false.

@@ -240,7 +240,7 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
             OCLD(13,i)=int(VIS)
           elseif(VIS <=100.0_r_kind .and. VIS > 0.0_r_kind ) then
             OCLD(13,i)=100
-            write(6,*) 'read_Surface, Warning: change visibility to 100 m !!!'
+!           write(6,*) 'read_Surface, Warning: change visibility to 100 m !!!'
           ENDIF
        endif
 
