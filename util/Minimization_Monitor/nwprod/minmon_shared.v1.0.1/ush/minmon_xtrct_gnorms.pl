@@ -60,7 +60,7 @@ sub updateGnormData {
 #   amount of data plotted (on the fly).
 
       my $cyc_interval = $ENV{'CYCLE_INTERVAL'}; 
-      if( $cyc_interval == "" ) {
+      if( $cyc_interval eq "" ) {
          $cyc_interval = 6;
       }
 
