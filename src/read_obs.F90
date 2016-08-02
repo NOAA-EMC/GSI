@@ -1114,7 +1114,8 @@ subroutine read_obs(ndata,mype)
     use_prsl_full_proc=.false.
     use_hgtl_full_proc=.false.
     mype_io_sfc=mype_io
-    do i=1,ndat
+    do ii=1,mmdat
+       i=npe_order(ii)
        if(ditype(i) =='conv')then
           obstype=dtype(i)
           if (obstype == 't' .or. obstype == 'q'  .or. &
@@ -1134,7 +1135,7 @@ subroutine read_obs(ndata,mype)
              if(belong(i))use_hgtl_full_proc=.true.
           end if
           if(obstype == 'sst')then
-            use_sfc=.true.
+            if(belong(i))use_sfc=.true.
           endif
        else if(ditype(i) == 'rad' )then
           if(belong(i)) use_sfc=.true.
@@ -1143,16 +1144,17 @@ subroutine read_obs(ndata,mype)
     use_sfc_any=.false.
     loop: do ii=1,mmdat
        i=npe_order(ii)
-       if(ditype(i) == 'rad' )then
+       if(ditype(i) == 'rad' .or. ditype(i) == 'sst')then
           mype_io_sfc=mype_root_sub(i)
           use_sfc_any=.true.
           exit loop
        end if
-     end do loop
+    end do loop
+    if(use_sfc_any .and. mype == mype_io)use_sfc=.true.
 
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,mype_io_sfc,use_sfc,use_sfc_any)
-    if(use_sfc) call prt_guessfc2('sfcges2')
+    if(mype == mype_io) call prt_guessfc2('sfcges2',use_sfc)
 
 !   Get guess 3d pressure on full grid
     allocate(work1(max(iglobal,itotsub)),prslsm(lat1*lon1))
