@@ -2,7 +2,7 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014040300
+edate=2014041000
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
 #location of radstat file
@@ -12,8 +12,8 @@ diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land and mixed FOVs
-type=2
+#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for mixed
+type=5
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -26,8 +26,8 @@ err_out=.false.
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=120
-#method to recondition:  1 for trace method, 2 for Weston's second method, 3 for linear shrinkage
-method=3
+#method to recondition:  1 for trace method, 2 for Weston's second method
+method=2
 ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
 

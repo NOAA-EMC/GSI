@@ -77,17 +77,17 @@ integer, parameter:: Ice=3
 integer, parameter:: Snow=4
 integer, parameter:: Mixed=5
 integer, parameter:: Clear_FOV=1
-integer, parameter:: Cloud_FOV=3
-integer, parameter:: All_Cloud=0
 integer, parameter:: Clear_Channel=2
 integer, parameter:: Cloud_Channel=3
-real(r_kind), parameter:: clear_threshold=0.01_r_kind    !if using clear sky data, do not use if above this threshold
-real(r_kind), parameter:: cloud_threshold=0.25_r_kind    !if using cloudy data, do not use if below this threshold
-real(r_kind), parameter:: sea_threshold=0.99_r_kind      !if using sea data, do not use if below this threshold
-real(r_kind), parameter:: lower_sea_threshold=0.75_r_kind!if using sea data, do not use if below this threshold
-real(r_kind), parameter:: land_threshold=0.99_r_kind     !if using land data, do not use if below this threshold
-real(r_kind), parameter:: ice_threshold=0.99_r_kind      !if using ice data, do not use if below this threshold
-real(r_kind), parameter:: snow_threshold=0.99_r_kind     !if using snow data, do not use if below this threshold
+real(r_kind), parameter:: clear_threshold=0.01_r_kind     !if using clear sky data, do not use if above this threshold
+real(r_kind), parameter:: sea_threshold=0.99_r_kind       !if using sea data, do not use if below this threshold
+real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind !if using mixed data, do not use if below this threshold
+real(r_kind), parameter:: lower_land_threshold=0.9_r_kind!if using mixed data, do not use if below this threshold
+real(r_kind), parameter:: lower_ice_threshold=0.9_r_kind !if using mixed data, do not use if below this threshold
+real(r_kind), parameter:: lower_snow_threshold=0.9_r_kind!if using mixed data, do not use if below this threshold
+real(r_kind), parameter:: land_threshold=0.99_r_kind      !if using land data, do not use if below this threshold
+real(r_kind), parameter:: ice_threshold=0.97_r_kind       !if using ice data, do not use if below this threshold
+real(r_kind), parameter:: snow_threshold=0.97_r_kind      !if using snow data, do not use if below this threshold
 real(r_kind):: satang
 
 !Data times
@@ -113,15 +113,17 @@ real(r_kind):: val, divreal, nreal
 real(r_kind),dimension(:), allocatable:: eigs            !Eigenvalue array (if reconditioning)
 real(r_kind),dimension(:,:), allocatable:: eigv          !Eigenvectors (if reconditioning)
 real(r_kind), dimension(:,:), allocatable:: Rout, Xdiff
-real(r_kind):: kreq, Xdiag, mx, mn
+real(r_kind):: kreq, Xdiag, mx, mn, aave,gave, Xnorm, prof
 integer:: method, tim1,tim2,tt
 real(r_kind), parameter:: errt=0.0001_r_kind
 integer, parameter:: shrinkage=3
+integer(i_kind):: pair_count
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err, out_corr, kreq, method
 tim1=1
 tim2=1
 if ((method==shrinkage).and.(kreq>zero))  tim2=2
+pair_count=0
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
 cov_file(1:lencov)='Rcov_'
@@ -216,7 +218,9 @@ do tt=tim1,tim2
                allocate(chaninfo(nch_active),errout(nch_active))
                allocate(obs_pairs(dsize))
                if (method==shrinkage)  then
-                  allocate(Xdiff(nch_active,nch_active))
+!                  allocate(Xdiff(nch_active,nch_active))
+!                  allocate(indf(nch_active),indanl(nch_active),indanl1(nch_active))
+!                  allocate(indges(nch_active),indges1(nch_active))
                   Xdiag=zero
                end if
                if (out_corr) then 
@@ -260,9 +264,13 @@ do tt=tim1,tim2
                cycle ges_read_loop
              if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
                cycle ges_read_loop
-             if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
+             if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Land_Frac>=lower_land_threshold)) &
+               cycle ges_read_loop             
+             if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Ice_Frac>=lower_ice_threshold)) &
                cycle ges_read_loop
-             if ((Cloud_Type==Cloud_FOV).and.(RadDiag_Data%Scalar%qcdiag1<cloud_threshold)) &
+             if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Snow_Frac>=lower_snow_threshold)) &
+               cycle ges_read_loop
+             if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
                cycle ges_read_loop
              if (abs(RadDiag_Data%Scalar%satzen_ang)>satang) cycle ges_read_loop
              nc=0
@@ -273,8 +281,7 @@ do tt=tim1,tim2
              end if
              ges_channel_loop: do jj=1,nch_active
                 j=indR(jj)
-                if (((Cloud_Type>All_Cloud).and.&
-                (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and. &
+                if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and. &
                 (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
                    ges(ng(gblock),jj,gblock)=RadDiag_Data%Channel(j)%omgbc
                    gesuse(ng(gblock),jj,gblock)=1
@@ -343,16 +350,19 @@ do tt=tim1,tim2
             cycle anl_read_loop
          if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
             cycle anl_read_loop
-         if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
+         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Land_Frac>=lower_land_threshold)) &
             cycle anl_read_loop
-         if ((Cloud_Type==Cloud_FOV).and.(RadDiag_Data%Scalar%qcdiag1<cloud_threshold)) & 
+         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Ice_Frac>=lower_ice_threshold)) &
+            cycle anl_read_loop
+         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Snow_Frac>=lower_snow_threshold)) &
+            cycle anl_read_loop
+         if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
             cycle anl_read_loop
          if (abs(RadDiag_Data%Scalar%satzen_ang)>satang) cycle anl_read_loop
          nc=0
          anl_channel_loop: do jj=1,nch_active
             j=indR(jj)
-            if (((Cloud_Type>All_Cloud).and.&
-            (abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
+            if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
             (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
                anl(jj)=RadDiag_Data%Channel(j)%omgbc
                anluse(jj)=1
@@ -422,23 +432,43 @@ do tt=tim1,tim2
                   end do  !r=1,nch_active
                else 
                   do j=1,n_pair
+                     allocate(Xdiff(nch_active,nch_active))
+                     Xdiff=zero
                      do r=1,nch_active
                         do c=1,nch_active
-                             Xdiff(r,c)=zero
-                             if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
-                                 divreal=real(divider(r,c),r_kind)
-                                 if (divreal>zero) then
-                                    Xdiff(r,c)=anl(r)*ges(obs_pairs(j),c,i)
-                                    Xdiff(r,c)=Xdiff(r,c)-Rcov(r,c)-((anl_ave(r,c)/divreal)*(ges_ave(r,c)/divreal))
-                                 end if
-                             end if
-                         end do 
-                     end do     
-                     Xdiff=MATMUL(Xdiff,TRANSPOSE(Xdiff))
+                           if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c,i)>zero)) then
+                              divreal=real(divider(r,c),r_kind)
+                              if (divreal>zero) then
+                                 aave=anl_ave(r,c)/divreal
+                                 gave=ges_ave(r,c)/divreal
+                                 Xdiff(r,c)=anl(r)*ges(obs_pairs(j),c,i)-(aave*gave)
+                              end if
+                           end if
+                        end do 
+                     end do  
+                     Xdiff=(Xdiff+TRANSPOSE(Xdiff))/two
                      do r=1,nch_active
-                        divreal=real(divider(r,r),r_kind)
-                        if (divreal>zero) Xdiag=Xdiag+(Xdiff(r,r)*divreal)
+                        do c=1,nch_active
+                           if (Xdiff(r,c)>zero) then
+                                 Xdiff(r,c)=Xdiff(r,c)-Rcov(r,c)
+!                              end if
+                           end if
+                        end do
                      end do
+                     Xdiff=MATMUL(Xdiff,TRANSPOSE(Xdiff))
+                     Xnorm=zero
+                     prof=0
+                     do r=1,nch_active
+                         divreal=real(divider(r,r),r_kind)
+                         divreal=divreal*divreal
+                         Xnorm=Xnorm+(Xdiff(r,r)/divreal)
+                         if (Xdiff(r,r)>zero) prof=prof+1
+                     end do
+                     nreal=real(prof,r_kind)
+                     Xnorm=Xnorm/nreal
+                     Xdiag=Xdiag+Xnorm
+                     deallocate(Xdiff)
+                     pair_count=pair_count+1
                  end do !j=1,n_pair
                end if !tt=tim1
             end if  !npair>zero
@@ -467,9 +497,9 @@ do tt=tim1,tim2
             end if
          end do
       end do
+      Rcov=(Rcov+TRANSPOSE(Rcov))/two
    end if
    if ((tt>tim1).or.(tim1==tim2)) then
-      Rcov=(Rcov+TRANSPOSE(Rcov))/two
       if (kreq>zero) then
          call eigdecomp(Rcov,nch_active,eigs,eigv)
          mx=0
@@ -480,13 +510,9 @@ do tt=tim1,tim2
             if (eigs(r)<0) print *, 'Negative eigenvalue, before reconditioning:',  eigs(r)
          end do
          print *, 'Original condition number: ', mx/mn
-         nreal=real(nch_active,r_kind)
-         Xdiag=Xdiag/nreal
-         divreal=zero
-         do r=1,nch_active
-            divreal=divreal+(real(divider(r,r),r_kind)*real(divider(r,r),r_kind))
-         end do
-         Xdiag=Xdiag/divreal
+!         divreal=real(pair_count,r_kind)
+!         divreal=divreal*divreal
+!         Xdiag=Xdiag/divreal
          call recondition(eigv,eigs,Rcov,nch_active,Xdiag,kreq,Rout,method)
          Rcov=Rout
       end if
@@ -549,7 +575,7 @@ if (out_corr) then
    write(25,rec=1) Rcorr
    close(25)
 end if
-if (method==shrinkage) deallocate(Xdiff) 
+!if (method==shrinkage) deallocate(indf,indanl, indanl1, indges, indges1) !Xdiff) 
 deallocate(Rcov,chaninfo,errout)
 deallocate(indR)
 deallocate(divider)

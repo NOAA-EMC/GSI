@@ -13,7 +13,7 @@ diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for ice, snow, land, and mixed FOVs
+#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for mixed
 type=2
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
@@ -27,8 +27,8 @@ err_out=.false.
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=180
-#method to recondition:  1 for trace method, 2 for Weston's second method, 3 for linear shrinkage
-method=3
+#method to recondition:  1 for trace method, 2 for Weston's second method
+method=2
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=20
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss

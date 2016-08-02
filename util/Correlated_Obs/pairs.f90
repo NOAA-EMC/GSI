@@ -26,7 +26,7 @@ integer:: g
 real(r_kind):: d1
 real(r_kind)::dt
 real(r_kind), parameter:: time_threshold=60.0_r_kind !minutes, max time between the omg's
-real(r_kind), parameter:: dist_threshold=25.0_r_kind !km, max distance between the omg's
+real(r_kind), parameter:: dist_threshold=30.0_r_kind !km, max distance between the omg's
 
 n_pair=0
 do g=1,Tg

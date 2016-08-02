@@ -194,7 +194,8 @@ else if (method==shrinkage) then
    m=0
    dc=0
    do i=1,n
-      m=m+D(i)
+!      m=m+D(i)
+      m=m+R2(i,i)
    end do
    r22=Xd
    m=m/nreal
