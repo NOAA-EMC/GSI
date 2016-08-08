@@ -2,7 +2,7 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014060506
+edate=2014040506
 #instrument name, as it would appear in the title of a diag file
 instr=iasi_metop-a
 #location of radstat file
@@ -60,7 +60,7 @@ while [[ $cdate -le $edate ]] ; do
    else
       fon=$nt
    fi
-   if [ $radstats_processed -lt 1] ; then
+   if [ $radstats_processed -lt 1 ] ; then
       if [ ! -f danl_${fon} ];
       then
          cp $diagdir/radstat.gdas.$cdate .
@@ -75,10 +75,10 @@ while [[ $cdate -le $edate ]] ; do
             nt=`expr $nt - 1`
          fi
          ntt=$nt
-      else
-         if [ -f danl_${fon} ] ; then
-	    ntt=`expr $ntt + 1`
-         fi
+      fi
+   else
+      if [ -f danl_${fon} ] ; then
+         ntt=`expr $ntt + 1`
       fi
    fi
    cdate=`$ndate +06 $cdate`

@@ -41,7 +41,7 @@ character(9):: gesfile, anlfile
 character(256):: cov_file                                !name of outputted covariance file
 character(256):: wave_file                               !name of outputted file containing channel wavenumbers
 character(256):: err_file                                !name of outputted file containing assumed obs errors
-character(256):: corr_file,corr_file1                    !name of outputted correlation file
+character(256):: corr_file                               !name of outputted correlation file
 character(256):: instr
 integer:: Error_Status, gesid, anlid
 integer, parameter:: dsize=4500                          !cap size on the number of omg's that can be stored at each time step
@@ -70,7 +70,6 @@ integer, dimension(3):: ng                               !the number of backgrou
 
 !FOV choice
 integer:: Surface_Type, Cloud_Type
-integer, parameter:: All_Surfaces=0
 integer, parameter:: Sea=1
 integer, parameter:: Land =2
 integer, parameter:: Snow=3
@@ -79,7 +78,6 @@ integer, parameter:: Ice=5
 integer, parameter:: Snow_and_Ice=6
 integer, parameter:: Clear_FOV=1
 integer, parameter:: Clear_Channel=2
-integer, parameter:: Cloud_Channel=3
 real(r_kind), parameter:: clear_threshold=0.01_r_kind     !if using clear sky data, do not use if above this threshold
 real(r_kind), parameter:: sea_threshold=0.99_r_kind       !if using sea data, do not use if below this threshold
 real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind !if using mixed data, do not use if above this threshold
@@ -132,9 +130,6 @@ cov_file(lencov+1:lencov+leninstr)=instr
 lencorr=len_trim('Rcorr_')
 corr_file(1:lencorr)='Rcorr_'
 corr_file(lencorr+1:leninstr+lencorr)=instr
-corr_file1(1:lencorr)='Rcorr_'
-corr_file1(lencorr+1:leninstr+lencorr)=instr
-corr_file1(lencorr+leninstr+1:lencorr+leninstr+7)='recond'
 lenwave=len_trim('wave_')
 wave_file(1:lenwave)='wave_'
 wave_file(lenwave+1:lenwave+leninstr)=instr
