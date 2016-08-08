@@ -1838,7 +1838,6 @@ contains
    integer(i_kind), intent(out) :: iinstr
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
-!   integer(i_kind) iinstr
 
    adjust_jac_=.false.
 

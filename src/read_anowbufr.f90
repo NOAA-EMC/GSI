@@ -52,7 +52,6 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         code_pm25_ncbufr,code_pm25_anowbufr,&
         code_pm10_ncbufr,code_pm10_anowbufr
   use mpimod, only: npe
-  use mpimod, only: npe
 
   implicit none
   
