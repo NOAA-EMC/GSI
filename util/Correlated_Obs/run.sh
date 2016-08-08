@@ -31,7 +31,7 @@ kreq=40
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=2
 #Have the radstats already been processed? 1 for yes, 0 for no
-radstats_processed=0
+radstats_processed=1
 
 ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
@@ -61,6 +61,7 @@ while [[ $cdate -le $edate ]] ; do
       fon=$nt
    fi
    if [ $radstats_processed -lt 1 ] ; then
+echo here
       if [ ! -f danl_${fon} ];
       then
          cp $diagdir/radstat.gdas.$cdate .

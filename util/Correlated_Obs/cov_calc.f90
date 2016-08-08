@@ -546,9 +546,6 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
-do r=1,nch_active
-print *, 'div', divider(r,r)
-end do
 
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)
