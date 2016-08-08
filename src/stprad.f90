@@ -134,7 +134,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
   type(rad_ob_type), pointer :: radptr
-
+  real(r_kind), dimension(:,:), allocatable:: rsqrtinv
+  integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: rst,sst
@@ -210,6 +211,17 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            w3=radptr%wij(3)
            w4=radptr%wij(4)
            if(luseu)then
+           if (radptr%use_corr_obs) then
+              allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+              chan_count=0
+              do ii=1,radptr%nchan
+                 do jj=ii,radptr%nchan
+                    chan_count=chan_count+1
+                    rsqrtinv(ii,jj)=radptr%rsqrtinv(chan_count)
+                    rsqrtinv(jj,ii)=radptr%rsqrtinv(chan_count)
+                 end do
+              end do
+           end if
               tdir(ius+1)=w1* su(j1) + w2* su(j2) + w3* su(j3) + w4* su(j4)
               rdir(ius+1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
            endif
@@ -350,15 +362,13 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  if (radptr%use_corr_obs) then
                     do mm=1,radptr%nchan
                        ic1=radptr%icx(mm)
-                       val2=val2+spred(nx,ic1)*radptr%rsqrtinv(nn,mm)*radptr%pred(nx,mm)
-                       val=val+rpred(nx,ic1)*radptr%rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val2=val2+spred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val=val+rpred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
                     end do
                  else
                     val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
                     val =val +rpred(nx,ic)*radptr%pred(nx,nn)
                  end if
-!                 val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
-!                 val =val +rpred(nx,ic)*radptr%pred(nx,nn)
               end do
  
 !             contribution from atmosphere
@@ -397,6 +407,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end do
 
         end do
+     if (radptr%use_corr_obs) then
+        deallocate(rsqrtinv)
+     end if
      end if
 
      radptr => radptr%llpoint

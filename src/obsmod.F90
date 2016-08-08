@@ -1296,7 +1296,7 @@ module obsmod
      real(r_kind),dimension(:,:),pointer :: pred => NULL()
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
-     real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
+     real(r_kind),dimension(:),pointer :: rsqrtinv => NULL()
                                       !square root of inverse of R, only used
                                       !if using correlated obs
                                       !  error variances squared (nsigradjac,nchan)
