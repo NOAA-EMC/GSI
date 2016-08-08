@@ -2,18 +2,20 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014041000
+edate=2014060506
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
+instr=iasi_metop-a
 #location of radstat file
-exp=prfull
+exp=prctlfull
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasia
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for mixed
-type=5
+#FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow,
+#4 for mixed (recommended to use 0 for mixed)
+#5 for ice and 6 for snow and ice combined (recommended when using ice)
+type=0
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -25,9 +27,12 @@ err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=120
+kreq=40
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=2
+#Have the radstats already been processed? 1 for yes, 0 for no
+radstats_processed=0
+
 ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
 ####################
 
@@ -36,6 +41,7 @@ cdate=$bdate
 [ ! -d ${savdir} ] && mkdir ${savdir}
 cp cov_calc $wrkdir
 nt=0
+ntt=0
 cd $wrkdir
 while [[ $cdate -le $edate ]] ; do
    while [[ ! -f $diagdir/radstat.gdas.$cdate ]] ; do 
@@ -54,24 +60,31 @@ while [[ $cdate -le $edate ]] ; do
    else
       fon=$nt
    fi
-   if [ ! -f danl_${fon} ];
-   then
-      cp $diagdir/radstat.gdas.$cdate .
-      tar --extract --file=radstat.gdas.${cdate} diag_${instr}_ges.${cdate}.gz diag_${instr}_anl.${cdate}.gz
-      gunzip *.gz
-      rm radstat.gdas.$cdate
-      if [ -f diag_${instr}_ges.${cdate} ];
+   if [ $radstats_processed -lt 1] ; then
+      if [ ! -f danl_${fon} ];
       then
-         mv diag_${instr}_anl.${cdate} danl_${fon}
-         mv diag_${instr}_ges.${cdate} dges_${fon}
+         cp $diagdir/radstat.gdas.$cdate .
+         tar --extract --file=radstat.gdas.${cdate} diag_${instr}_ges.${cdate}.gz diag_${instr}_anl.${cdate}.gz
+         gunzip *.gz
+         rm radstat.gdas.$cdate
+         if [ -f diag_${instr}_ges.${cdate} ];
+         then
+            mv diag_${instr}_anl.${cdate} danl_${fon}
+            mv diag_${instr}_ges.${cdate} dges_${fon}
+         else
+            nt=`expr $nt - 1`
+         fi
+         ntt=$nt
       else
-         nt=`expr $nt - 1`
+         if [ -f danl_${fon} ] ; then
+	    ntt=`expr $ntt + 1`
+         fi
       fi
    fi
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$nt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method
 EOF
 
 cp Rcov_$instr $savdir
