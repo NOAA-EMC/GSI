@@ -73,21 +73,22 @@ integer:: Surface_Type, Cloud_Type
 integer, parameter:: All_Surfaces=0
 integer, parameter:: Sea=1
 integer, parameter:: Land =2
-integer, parameter:: Ice=3
-integer, parameter:: Snow=4
-integer, parameter:: Mixed=5
+integer, parameter:: Snow=3
+integer, parameter:: Mixed=4
+integer, parameter:: Ice=5
+integer, parameter:: Snow_and_Ice=6
 integer, parameter:: Clear_FOV=1
 integer, parameter:: Clear_Channel=2
 integer, parameter:: Cloud_Channel=3
 real(r_kind), parameter:: clear_threshold=0.01_r_kind     !if using clear sky data, do not use if above this threshold
 real(r_kind), parameter:: sea_threshold=0.99_r_kind       !if using sea data, do not use if below this threshold
-real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind !if using mixed data, do not use if below this threshold
-real(r_kind), parameter:: lower_land_threshold=0.9_r_kind!if using mixed data, do not use if below this threshold
-real(r_kind), parameter:: lower_ice_threshold=0.9_r_kind !if using mixed data, do not use if below this threshold
-real(r_kind), parameter:: lower_snow_threshold=0.9_r_kind!if using mixed data, do not use if below this threshold
-real(r_kind), parameter:: land_threshold=0.99_r_kind      !if using land data, do not use if below this threshold
-real(r_kind), parameter:: ice_threshold=0.97_r_kind       !if using ice data, do not use if below this threshold
-real(r_kind), parameter:: snow_threshold=0.97_r_kind      !if using snow data, do not use if below this threshold
+real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind !if using mixed data, do not use if above this threshold
+real(r_kind), parameter:: lower_land_threshold=0.9_r_kind!if using mixed data, do not use if above this threshold
+real(r_kind), parameter:: lower_ice_threshold=0.9_r_kind !if using mixed data, do not use if above this threshold
+real(r_kind), parameter:: lower_snow_threshold=0.9_r_kind!if using mixed data, do not use if above this threshold
+real(r_kind), parameter:: land_threshold=0.99_r_kind      !if using land data, do not use if above this threshold
+real(r_kind), parameter:: ice_threshold=0.95_r_kind       !if using ice data, do not use if below this threshold
+real(r_kind), parameter:: snow_threshold=0.99_r_kind      !if using snow data, do not use if below this threshold
 real(r_kind):: satang
 
 !Data times
@@ -218,9 +219,6 @@ do tt=tim1,tim2
                allocate(chaninfo(nch_active),errout(nch_active))
                allocate(obs_pairs(dsize))
                if (method==shrinkage)  then
-!                  allocate(Xdiff(nch_active,nch_active))
-!                  allocate(indf(nch_active),indanl(nch_active),indanl1(nch_active))
-!                  allocate(indges(nch_active),indges1(nch_active))
                   Xdiag=zero
                end if
                if (out_corr) then 
@@ -258,9 +256,12 @@ do tt=tim1,tim2
                cycle ges_read_loop
              if ((Surface_Type==Land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) & 
                cycle ges_read_loop
-             if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
+             if ((Surface_Type==Snow_And_Ice).and.((RadDiag_Data%Scalar%Snow_Frac<snow_threshold).and. &
+                (RadDiag_Data%Scalar%Ice_Frac<ice_threshold))) &
                cycle ges_read_loop
              if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
+               cycle ges_read_loop
+             if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
                cycle ges_read_loop
              if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
                cycle ges_read_loop
@@ -320,7 +321,6 @@ do tt=tim1,tim2
          call display_message(program_name,'Error opening'//trim(anlfile),failure)
          stop
       end if
-!      end if
       !read anl header
       Error_Status=RadDiag_Hdr_ReadFile(anlid,RadDiag_Hdr)
       if (Error_Status /= success ) then
@@ -344,9 +344,12 @@ do tt=tim1,tim2
             cycle anl_read_loop
          if ((Surface_Type==Land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) &
             cycle anl_read_loop
-         if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
+         if ((Surface_Type==Snow_and_Ice).and.((RadDiag_Data%Scalar%Snow_Frac<snow_threshold).and. &
+            (RadDiag_Data%Scalar%Ice_Frac<ice_threshold))) &
             cycle anl_read_loop
          if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
+            cycle anl_read_loop
+         if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
             cycle anl_read_loop
          if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
             cycle anl_read_loop
@@ -548,6 +551,9 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
+do r=1,nch_active
+print *, 'div', divider(r,r)
+end do
 
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)

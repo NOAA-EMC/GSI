@@ -7,14 +7,16 @@ edate=2014060800
 instr=airs_aqua
 #instr=iasi_metop-b
 #location of radstat file
-exp=prfull
+exp=prctlfull
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
 #location the covariance matrix is saved to
 savdir=$wrkdir
-#type- 0 for all, 1 for sea, 2 for land, 3 for ice, 4 for snow, 5 for mixed
-type=2
+#FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
+#4 for mixed (recommended to use 0 for mixed)
+#5 for ice and 6 for snow and ice combined (recommended when using ice)
+type=1
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -26,9 +28,9 @@ err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=180
+kreq=150
 #method to recondition:  1 for trace method, 2 for Weston's second method
-method=2
+method=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=20
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
