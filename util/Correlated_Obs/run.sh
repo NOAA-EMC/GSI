@@ -61,7 +61,6 @@ while [[ $cdate -le $edate ]] ; do
       fon=$nt
    fi
    if [ $radstats_processed -lt 1 ] ; then
-echo here
       if [ ! -f danl_${fon} ];
       then
          cp $diagdir/radstat.gdas.$cdate .
