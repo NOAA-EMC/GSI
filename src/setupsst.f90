@@ -308,7 +308,6 @@ if(.not.in_curbin) cycle
      if ( isli == 0 ) then
        nobs_qc = nobs_qc + 1
        call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
-
      else
        dsfct_obx = zero
      endif

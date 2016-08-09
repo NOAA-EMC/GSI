@@ -476,7 +476,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if (noiqc) then
      lim_qm=8
      if (psob)         lim_zqm=7
-     if (qob .or.tdob) lim_tqm=7
+     if (qob.or.tdob)  lim_tqm=7
      if (tob)          lim_qqm=8
   else
      lim_qm=4
@@ -2638,7 +2638,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
 
 ! Apply hilbert curve for cross validation if requested
 
