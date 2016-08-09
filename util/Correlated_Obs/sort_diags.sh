@@ -40,4 +40,4 @@ while [[ $nt -le $ntot ]] ; do
    nt=$(( nt + one))
     
 done
-
+exit 0
