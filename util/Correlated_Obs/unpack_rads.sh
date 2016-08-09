@@ -42,3 +42,4 @@ while [[ $cdate -le $edate ]] ; do
 done
 cp danl* $wrkdir
 cp dges* $wrkdir
+exit 0

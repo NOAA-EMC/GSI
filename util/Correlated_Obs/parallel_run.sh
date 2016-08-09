@@ -221,7 +221,7 @@ cat << EOF > params.sh
 #PBS -l procs=1
 #PBS -N cov_calc
 #PBS -W depend=afterany:${jobid}
-bdate=$bate
+bdate=$bdate
 edate=$edate
 instr=$instr
 diagdir=$diagdir
@@ -253,7 +253,7 @@ cat << EOF > params.sh
 #BSUB -R span[ptile=1]
 #BSUB -P ${project_code}
 #BSUB -J cov_calc
-bdate=$bate
+bdate=$bdate
 edate=$edate
 instr=$instr
 diagdir=$diagdir
@@ -276,3 +276,4 @@ bsub -w "done(sort_diag)" < par_run.sh
 else 
    exit 1
 fi
+exit 0

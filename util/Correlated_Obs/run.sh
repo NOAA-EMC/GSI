@@ -92,3 +92,4 @@ cp Rcov_$instr $savdir
 [ -f Rcorr_$instr ] && cp Rcorr_$instr $savdir
 [ -f wave_$instr ] && cp wave_$instr $savdir
 [ -f err_$instr ] && cp err_$instr $savdir
+exit 0
