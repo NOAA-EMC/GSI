@@ -133,6 +133,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   LIBS_N        = $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIBd) \
   		  $(W3EMC_LIBd) $(SIGIO_LIB4) $(SFCIO_LIB4) $(CRTM_LIB) \
 		  $(BUFR_LIBd) $(WRFLIB) $(NETCDF_LDFLAGS_F)
+#                 -L../../lib/GSD/gsdcloud4nmmb -lgsdcloud
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 

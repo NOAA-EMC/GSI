@@ -597,7 +597,9 @@ subroutine read_obs(ndata,mype)
 !   2015-05-30  li     - modify for no radiance cases but sst (nsstbufr) and read processor for
 !                        surface fields (use_sfc = .true. for data type of sst),
 !                        to use deter_sfc in read_nsstbufr.f90)
+!   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   
 !
 !   input argument list:
@@ -782,7 +784,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'td2m' .or. obstype=='mxtm' .or. &
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
-           obstype=='lcbas') then
+           obstype=='lcbas' .or. obstype=='cldch') then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -1081,7 +1083,7 @@ subroutine read_obs(ndata,mype)
        if(ditype(i) =='conv')then
           obstype=dtype(i)
           if (obstype == 't' .or. obstype == 'q'  .or. &
-              obstype == 'uv') then
+              obstype == 'uv' .or. obstype == 'wspd10m') then
               use_prsl_full=.true.
               if(belong(i))use_prsl_full_proc=.true.
           else
@@ -1212,11 +1214,11 @@ subroutine read_obs(ndata,mype)
              if (obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
-                 obstype == 'wspd10m' .or. obstype == 'td2m' .or. &
+                 obstype == 'td2m' .or. &
 !                obstype=='mxtm' .or. obstype == 'mitm' .or. &
                  obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
-                 obstype == 'lcbas'  ) then
+                 obstype == 'lcbas' .or. obstype == 'cldch' ) then
 
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
@@ -1327,11 +1329,11 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-                if( i_gsdcldanal_type==1) then
-                   call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
-                else
+                if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis,nobs_sub1(1,i))
-                endif
+                else if( i_gsdcldanal_type==1) then
+                   call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                end if
                 string='READ_NASA_LaRC'
 
 !            Process radar winds

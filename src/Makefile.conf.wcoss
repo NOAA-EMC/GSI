@@ -75,7 +75,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -D_REAL8_ -DWRF
+  FFLAGS_F90    = -D_REAL8_ -DWRF #-DNMMB_CLOUDANALYSIS
 
   FFLAGS_COM_N  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
