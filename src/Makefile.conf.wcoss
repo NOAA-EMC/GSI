@@ -36,9 +36,8 @@ SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
 W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/libw3emc_$(W3EMC_VER)_d.a
 W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_d.a
 
-NETCDFPATH = /usrx/local/NetCDF/4.2/serial
-NETCDF_INCLUDE = $(NETCDFPATH)/include
-NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdff -lnetcdf
+NETCDF_INCLUDE = ${NETCDF}/include
+NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf
 
 
 # WRF locations
