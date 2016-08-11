@@ -101,6 +101,8 @@ module obsmod
 !   2014-12-03  derber  - ensure obsdiag used for 4dvar and non-pcgsoi
 !                         minimizations
 !   2015-07-10  pondeca  - add could ceiling height (cldch)
+!   2016-05-18  collard  - Added code to allow for historical naming conventions
+!                          for satellite instruments
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -2901,6 +2903,16 @@ do ii=1,nrows
                       dval(ii), & ! 
                       dthin(ii),& ! thinning flag (1=thinning on; otherwise off)
                       dsfcalc(ii) ! use orig bilinear FOV surface calculation (routine deter_sfc)
+
+   ! The following is to sort out some historical naming conventions
+   select case (dsis(ii)(1:4))
+      case ('airs')
+         dsis(ii)='airs_aqua'
+      case ('iasi')
+         if (index(dsis(ii),'metop-a') /= 0) dsis(ii)='iasi_metop-a'
+         if (index(dsis(ii),'metop-b') /= 0) dsis(ii)='iasi_metop-b'
+         if (index(dsis(ii),'metop-c') /= 0) dsis(ii)='iasi_metop-c'
+   end select
 
    if(trim(dplat(ii))=='null') dplat(ii)=' '
    if(dval(ii) > 0.0) dval_use = .true.

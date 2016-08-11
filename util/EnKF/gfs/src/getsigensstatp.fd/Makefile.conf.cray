@@ -36,7 +36,7 @@ W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/$(COMPILER)/libw3emc_$(W3EMC_VER)_d.a
 W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/$(COMPILER)/libw3nco_$(W3NCO_VER)_d.a
 
 NETCDF_INC=$(NETCDF)/include
-NETCDF_LIB=-L$(NETCDF)/lib -lnetcdff -lnetcdf
+NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 
 
 # WRF locations
