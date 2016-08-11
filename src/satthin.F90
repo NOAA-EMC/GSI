@@ -489,11 +489,10 @@ contains
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
-    if(use_sfc_any .or. (mype_io/=0))then
-       allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
-       allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
-       allocate(veg_type_full(nlat_sfc,nlon_sfc))
-    end if
+    allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
+    allocate(veg_type_full(nlat_sfc,nlon_sfc))
+
     do j=1,lon1*lat1
        zsm(j)=zero
     end do
@@ -537,7 +536,7 @@ contains
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
        end if
 
-       if(.not. use_sfc .and. (use_sfc_any .or. mype_io))then
+       if(.not. use_sfc)then
           deallocate(soil_moi_full,soil_temp_full)
           deallocate(veg_frac_full,soil_type_full)
           deallocate(veg_type_full)

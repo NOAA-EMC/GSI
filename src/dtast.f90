@@ -150,7 +150,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
         end if
      end do
 690  format(i3.3,1x,i4.4)
-700  format(1x,a14,1x,a4,a8,1x,i9,1x,f9.4,1x,f9.4,1x,f9.4,1x,f9.4)
+700  format(1x,a14,1x,a4,a7,1x,i10,1x,f9.4,1x,f9.4,1x,f9.4,1x,f9.4)
 
 ! Print statistics for multi-level obs
   else
