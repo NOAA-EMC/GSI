@@ -299,7 +299,7 @@ if (lupdfgs) then
       if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Setting increment for output'
       call inc2guess(sval)
       call view_st (sval,'xinc')
-      call write_all(iwrtinc,mype)
+      call write_all(iwrtinc)
       ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent when
       ! as when in 3dvar - that is, the state is not updated, but the biases are.
       ! This assumes GSI handles a single iteration of the outer loop at a time
@@ -308,7 +308,7 @@ if (lupdfgs) then
    else
       if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
       call update_guess(sval,sbias)
-      call write_all(-1,mype)
+      call write_all(-1)
    endif
    call xhat_vordiv_clean
 endif

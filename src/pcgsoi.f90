@@ -793,18 +793,18 @@ subroutine pcgsoi()
   if(.not.l4dvar) call prt_guess('analysis')
   call prt_state_norms(sval(1),'increment')
   if (twodvar_regional) then
-      call write_all(-1,mype)
+      call write_all(-1)
     else
       if(jiter == miter) then
          call clean_
-         call write_all(-1,mype)
+         call write_all(-1)
       endif
   endif
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
      call inc2guess(sval)
-     call write_all(iwrtinc,mype)
+     call write_all(iwrtinc)
      call prt_guess('increment')
      ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent way
      ! as when in 3dvar - that is, the state is not updated, but the biases are.

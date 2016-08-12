@@ -1172,7 +1172,7 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal nst fields from local fields in guess_grids/read it from nst file
     if (nst_gsi > 0) then
-      call gsi_nstcoupler_set(mype,mype_io_sfc)         ! Set NST fields (each proc needs full NST fields)
+      call gsi_nstcoupler_set(mype_io_sfc)         ! Set NST fields (each proc needs full NST fields)
     endif
 !   Create moored buoy station ID
     call mbuoy_info(mype)

@@ -141,10 +141,6 @@ module hybrid_ensemble_isotropic
   public :: acceptable_for_essl_fft
 
 ! set passed variables to public
-  public :: nelen
-  public :: en_perts,ps_bar
-  public :: region_lat_ens,region_lon_ens
-  public :: region_dx_ens,region_dy_ens
 
   character(len=*),parameter::myname='hybrid_ensemble_isotropic'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -165,20 +161,6 @@ module hybrid_ensemble_isotropic
 ! Other local variables for horizontal/spectral localization
   real(r_kind),allocatable,dimension(:,:)  :: spectral_filter,sqrt_spectral_filter
   integer(i_kind),allocatable,dimension(:) :: k_index
-
-! following is for storage of ensemble perturbations:
-
-!   def en_perts            - array of ensemble perturbations
-!   def nelen               - length of one ensemble perturbation vector
-
-  integer(i_kind) nelen
-  type(gsi_bundle),save,allocatable :: en_perts(:,:)
-  real(r_single),dimension(:,:,:),allocatable:: ps_bar
-
-!    following is for interpolation of global ensemble to regional ensemble grid
-
-  real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
-  real(r_kind),allocatable:: region_dx_ens(:,:),region_dy_ens(:,:)
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
@@ -235,6 +217,9 @@ subroutine init_rf_z(z_len)
                      regional
   use constants, only: half,one,rd_over_cp,zero,one_tenth,ten,two
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v
+  use hybrid_ensemble_parameters, only: ps_bar
+
+  implicit none
 
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
@@ -369,7 +354,10 @@ subroutine init_rf_x(x_len,kl)
 !$$$
 
   use hybrid_ensemble_parameters, only: grd_loc
+  use hybrid_ensemble_parameters, only: region_dx_ens,region_dy_ens
   use constants, only: half
+
+  implicit none
 
   real(r_kind),intent(in   ) :: x_len(kl)
   integer(i_kind),intent(in   ) :: kl
@@ -430,6 +418,8 @@ subroutine init_rf_y(y_len,kl)
 
   use hybrid_ensemble_parameters, only: grd_loc
   use constants, only: half
+
+  implicit none
 
   real(r_kind),intent(in   ) :: y_len(kl)
   integer(i_kind),intent(in   ) :: kl
@@ -867,6 +857,8 @@ subroutine normal_new_factorization_rf_x
   use hybrid_ensemble_parameters, only: grd_loc,vvlocal
   use constants, only: zero,one
 
+  implicit none
+
   integer(i_kind) i,j,k,iadvance,iback,kl
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:,:)
@@ -1081,6 +1073,7 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,ntlevs_ens
+    use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
 
     implicit none
 
@@ -1155,6 +1148,7 @@ end subroutine normal_new_factorization_rf_y
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
                                           pseudo_hybens,regional_ensemble_option,&
                                           i_en_perts_io
+    use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype,ierror
     implicit none
@@ -1252,7 +1246,7 @@ end subroutine normal_new_factorization_rf_y
              do ii=1,nelen
                 en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
              end do
-             call gsi_enscoupler_put_gsi_ens(n,m,grd_ens,en_perts(n,m),istatus)
+             call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,en_perts(n,m),istatus)
              if(istatus/=0) then
                  write(6,*)trim(myname_),': trouble writing perts'
                  call stop2(999)
@@ -1602,6 +1596,7 @@ end subroutine normal_new_factorization_rf_y
     use kinds, only: r_kind,i_kind
     use gridmod, only: regional
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,ntlevs_ens
+    use hybrid_ensemble_parameters, only: en_perts
     use general_sub2grid_mod, only: general_suba2sube
     use berror, only: qvar3d
     implicit none
@@ -1666,6 +1661,7 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,ntlevs_ens
+    use hybrid_ensemble_parameters, only: en_perts,ps_bar
     implicit none
 
     integer(i_kind) istatus,n,m
@@ -1726,6 +1722,7 @@ end subroutine normal_new_factorization_rf_y
 !$$$
     use hybrid_ensemble_parameters, only: n_ens
     use hybrid_ensemble_parameters, only: pwgt,pwgtflg
+    use hybrid_ensemble_parameters, only: en_perts
     use constants, only: zero
 
     implicit none
@@ -1880,6 +1877,7 @@ end subroutine normal_new_factorization_rf_y
 !$$$
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
     use hybrid_ensemble_parameters, only: pwgt,pwgtflg
+    use hybrid_ensemble_parameters, only: en_perts
     use general_sub2grid_mod, only: general_sube2suba
     use gridmod,only: regional
     use constants, only: zero
@@ -2058,6 +2056,7 @@ end subroutine normal_new_factorization_rf_y
 
     use hybrid_ensemble_parameters, only: n_ens
     use hybrid_ensemble_parameters, only: pwgt,pwgtflg
+    use hybrid_ensemble_parameters, only: en_perts
     implicit none
 
     type(gsi_bundle),intent(inout) :: cvec
@@ -2191,6 +2190,7 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: zero
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
     use hybrid_ensemble_parameters, only: pwgt,pwgtflg
+    use hybrid_ensemble_parameters, only: en_perts
     use general_sub2grid_mod, only: general_sube2suba_ad
     use gridmod,only: regional
     implicit none
@@ -3812,6 +3812,8 @@ subroutine hybens_grid_setup
                       s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                       grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,&
                       dual_res,uv_hyb_ens,grid_ratio_ens
+  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens,&
+                                        region_dx_ens,region_dy_ens
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons,use_sp_eqspace
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use general_specmod, only: general_init_spec_vars
@@ -4111,6 +4113,7 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
 
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_loc,n_ens,s_ens_hv
+  use hybrid_ensemble_parameters, only: region_dx_ens,region_dy_ens
   implicit none
 
   integer(i_kind) ,intent(in   ) ::nz

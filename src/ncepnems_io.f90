@@ -165,7 +165,7 @@ module ncepnems_io
 
 contains
 
-  subroutine read_ (mype)
+  subroutine read_
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_nems
@@ -205,11 +205,9 @@ contains
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
-    use mpimod, only: npe
+    use mpimod, only: npe,mype
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
     implicit none
-
-    integer(i_kind),intent(in   ) :: mype
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
@@ -265,7 +263,7 @@ contains
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
        
 !      Read background fields into bundle
-       call general_read_gfsatm_nems(grd_t,sp_a,filename,mype,.true.,.true.,.true.,&
+       call general_read_gfsatm_nems(grd_t,sp_a,filename,.true.,.true.,.true.,&
             atm_bundle,.true.,istatus)
 
        inithead=.false.
@@ -1245,7 +1243,7 @@ contains
 
   end subroutine read_nemssfc_
 
-  subroutine read_nst_ (mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+  subroutine read_nst_ (tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1260,7 +1258,6 @@ contains
 !   2016-03-13  Li       Modify for more effective I/O
 !
 !   input argument list:
-!     mype     - mpi task id
 !
 !   output argument list:
 !   tref     (:,:)                ! oceanic foundation temperature
@@ -1279,6 +1276,7 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_single
+    use mpimod, only: mype
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero,two
     use guess_grids, only: nfldnst,ifilenst
@@ -1287,7 +1285,6 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),                                       intent(in   ) :: mype
     real(r_single) , dimension(nlat_sfc,nlon_sfc,nfldnst), intent(  out) ::  &
          tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 !   Declare local parameters
@@ -1426,7 +1423,7 @@ contains
   end subroutine read_nst_
 
 
-  subroutine read_nemsnst_ (iope,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+  subroutine read_nemsnst_ (iope,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1437,7 +1434,6 @@ contains
 !
 !   input argument list:
 !     iope     - mpi task handling i/o
-!     mype     - mpi task id
 !
 !   output argument list:
 !   tref     (:,:)                        ! oceanic foundation temperature
@@ -1459,11 +1455,12 @@ contains
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst
     use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world
+    use mpimod, only: mype
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),                                      intent(in   ) :: iope,mype
+    integer(i_kind),                                      intent(in   ) :: iope
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst), intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
@@ -1474,7 +1471,7 @@ contains
 !   Read nst file on processor iope
     if(mype == iope)then
        write(*,*) 'read_nst nemsio'
-       call read_nst_(mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+       call read_nst_(tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
     end if
 
 !   Load onto all processors
@@ -1494,9 +1491,8 @@ contains
 
   end subroutine read_nemsnst_
 
-  subroutine write_atm_ (grd,sp_a,filename,mype,mype_out,sub_ps,&
-       sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
-       sub_u,sub_v,sub_prsi,ibin)
+
+  subroutine write_atm_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1514,20 +1510,12 @@ contains
 !   2011-02-14  Huang    Re-arrange the write sequence to be same as model
 !                        read/rite sequence.
 !   2013-10-25  todling  reposition load_grid to commvars
+!   2016-07-28  mahajan  update with bundling ability
 !
 !   input argument list:
 !     filename  - file to open and write to
-!     mype      - mpi task number
 !     mype_out  - mpi task to write output file
-!     sub_ps    - surface pressure on subdomains
-!     sub_tv    - virtual temperature on subdomains
-!     sub_q     - specific humidity on subdomains
-!     sub_oz    - ozone on subdomains
-!     sub_cwmr  - cloud condensate mixing ratio on subdomains
-!     sub_prsl  - layer midpoint pressure
-!     sub_u     - zonal wind
-!     sub_v     - meridional wind
-!     sub_prsi  - interface  pressure
+!    gfs_bundle - bundle containing fields on subdomains
 !     ibin      - time bin
 !
 !   output argument list:
@@ -1546,9 +1534,10 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
-    use mpimod, only: npe
+    use mpimod, only: npe,mype
     
     use guess_grids, only: ifilesig
+    use guess_grids, only: ges_prsl,ges_prsi
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
@@ -1565,46 +1554,44 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
   
     implicit none
 
 ! !INPUT PARAMETERS:
 
-    character(len=24)                          ,intent(in   ) :: filename     ! file to open and write to
-
-    integer(i_kind)                            ,intent(in   ) :: mype      ! mpi task number
-    integer(i_kind)                            ,intent(in   ) :: mype_out  ! mpi task to write output file
-    integer(i_kind)                            ,intent(in   ) :: ibin      ! time bin
-    
-    real(r_kind),parameter:: r0_001 = 0.001_r_kind
-    type(sub2grid_info)                    ,intent(in   ) :: grd
-    real(r_kind),dimension(grd%lat2,grd%lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_u    ! zonal wind
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig)     ,intent(in   ) :: sub_v    ! meridional wind
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
-    type(spec_vars)                        ,intent(in   ) :: sp_a
+    type(sub2grid_info), intent(in) :: grd
+    type(spec_vars),     intent(in) :: sp_a
+    character(len=24),   intent(in) :: filename  ! file to open and write to
+    integer(i_kind),     intent(in) :: mype_out  ! mpi task to write output file
+    type(gsi_bundle),    intent(in) :: gfs_bundle
+    integer(i_kind),     intent(in) :: ibin      ! time bin
 
 !-------------------------------------------------------------------------
 
+    real(r_kind),parameter:: r0_001 = 0.001_r_kind
     character(6):: fname_ges
     character(len=120) :: my_name = 'WRITE_NEMSATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
     integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
-    integer(i_kind) :: iret, lonb, latb, levs
+    integer(i_kind) :: iret, lonb, latb, levs, istatus
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
     integer(i_kind),dimension(5):: mydate
     integer(i_kind),dimension(8) :: ida,jda
     real(r_kind),dimension(5)    :: fha
     real(r_kind)    :: fhour
+
+    real(r_kind),pointer,dimension(:,:) :: sub_ps
+    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tv
+    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz,sub_cwmr
     
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
+
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
@@ -1627,41 +1614,58 @@ contains
     nlatm2=grd%nlat-2
     diff_res=.false.
 
-    if(sp_a%jcap /= jcap_b) then
-       if ( mype == 0 ) write(6, &
-          '('' dual resolution for nems sp_a%jcap,jcap_b = '',2i6)') &
-          sp_a%jcap,jcap_b
-        diff_res=.true.
-    end if
+    istatus=0
+    call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'u',  sub_u,   iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'v',  sub_v,   iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'tv', sub_tv,  iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'q',  sub_q,   iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'oz', sub_oz,  iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'cw', sub_cwmr,iret); istatus=istatus+iret
+    if ( istatus /= 0 ) then
+       if ( mype == 0 ) then
+         write(6,*) 'write_atm_: ERROR'
+         write(6,*) 'Missing some of the required fields'
+         write(6,*) 'Aborting ... '
+      endif
+      call stop2(999)
+    endif
+
+    if ( sp_a%jcap /= jcap_b ) then
+        if ( mype == 0 ) write(6, &
+            '('' dual resolution for nems sp_a%jcap,jcap_b = '',2i6)') &
+            sp_a%jcap,jcap_b
+        diff_res = .true.
+    endif
 
 
-!   Single task writes analysis data to analysis file
-    if (mype==mype_out) then
+    ! Single task writes analysis data to analysis file
+    if ( mype == mype_out ) then
        write(fname_ges,'(''sigf'',i2.2)') ifilesig(ibin)
-!
-!      Read header information from first guess file.
+
+       ! Read header information from first guess file.
        call nemsio_init(iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),null,null,'init',istop,iret)
+       if ( iret /= 0 ) call error_msg(0,trim(my_name),null,null,'init',istop,iret)
 
        call nemsio_open(gfile,trim(fname_ges),'read',iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges),null,'open',istop,iret)
+       if ( iret /= 0 ) call error_msg(0,trim(my_name),trim(fname_ges),null,'open',istop,iret)
 
-       call nemsio_getfilehead(gfile, iret=iret, nfhour=nfhour,        &
-          nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-          idate=idate, dimx=lonb, dimy=latb, dimz=levs )
-       if ( iret/=0 ) then
-          write(6,*)trim(my_name),': problem with nemsio_getfilehead, Status = ',iret
+       call nemsio_getfilehead(gfile, iret=iret, nfhour=nfhour, &
+            nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
+            idate=idate, dimx=lonb, dimy=latb, dimz=levs)
+       if ( iret /= 0 ) then
+          write(6,*) trim(my_name),': problem with nemsio_getfilehead, Status = ',iret
           call stop2(103)
-       end if
-       if(levs/=grd%nsig) then
-          write(6,*)trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',grd%nsig
+       endif
+       if ( levs /= grd%nsig ) then
+          write(6,*) trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',grd%nsig
           call stop2(103)
-       end if
+       endif
 
-!      copy input header info to output header info
+       ! copy input header info to output header info
        gfileo=gfile
  
-!      Update header information (with ibdate) and write it to analysis file (w/ _open statement).
+       ! Update header information (with ibdate) and write it to analysis file (w/ _open statement).
        mydate=ibdate
        fha(:)=zero ; ida=0; jda=0
        fha(2)=real(nhr_obsbin*(ibin-1))  ! relative time interval in hours
@@ -1671,7 +1675,7 @@ contains
        ida(4)=0         ! time zone
        ida(5)=mydate(4) ! hour
 
-   ! Move date-time forward by nhr_assimilation hours
+       ! Move date-time forward by nhr_assimilation hours
        call w3movdat(fha,ida,jda)
 
        jdate(1) = jda(1)     ! analysis year
@@ -1692,18 +1696,18 @@ contains
        odate(2) = jdate(2)  !month
        odate(3) = jdate(3)  !day
        odate(4) = jdate(1)  !year
-!
-!      open new output file with new header gfileo with "write" access. 
-!      Use this call to update header as well
-!
+
+       ! open new output file with new header gfileo with "write" access. 
+       ! Use this call to update header as well
+
        call nemsio_open(gfileo,trim(filename),'write',iret=iret, &
           idate=jdate, nfhour=nfhour, nfminute=nfminute, &
           nfsecondn=nfsecondn, nfsecondd=nfsecondd)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),null,'open',istop,iret)
+       if ( iret /= 0 ) call error_msg(0,trim(my_name),trim(filename),null,'open',istop,iret)
 
-!      Allocate structure arrays to hold data
+       ! Allocate structure arrays to hold data
        allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
-       if(diff_res)then
+       if ( diff_res ) then
           allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid3(grd%nlat,grd%nlon,1))
           allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
           allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
@@ -1711,16 +1715,16 @@ contains
           call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
           do j=1,latb
             rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
-          end do
+          enddo
           rlats(1)=-half*pi
           rlats(latb+2)=half*pi
           do j=1,lonb
             rlons(j)=deg2rad*r4lons(j)
-          end do
+          enddo
           do j=1,lonb
              clons(j)=cos(rlons(j))
              slons(j)=sin(rlons(j))
-          end do
+          enddo
 
           nord_int=4
           eqspace=.false.
@@ -1732,22 +1736,25 @@ contains
                                 nord_int,p_high,.false.,eqspace=eqspace)
 
           deallocate(rlats,rlons,r4lats,r4lons)
-       end if
+       endif ! if ( diff_res )
 
-!   Terrain
-!   Write out input file surface height
+       !   Terrain
+       !   Write out input file surface height
 
        call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','writeread',istop,iret)
        call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'hgt','write',istop,iret)
-    end if
+    endif ! if ( mype == mype_out )
+
+    sub_prsl = ges_prsl(:,:,:,ibin)
+    sub_prsi = ges_prsi(:,:,:,ibin)
 
     do k=1,grd%nsig
-       sub_dp(:,:,k) = sub_prsi(:,:,k)-sub_prsi(:,:,k+1)
+       sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
     end do
 
-!   Strip off boundary points from subdomains
+    ! Strip off boundary points from subdomains
     call strip(sub_ps  ,psm)
     call strip(sub_tv  ,tvsm  ,grd%nsig)
     call strip(sub_q   ,qsm   ,grd%nsig)
@@ -1757,16 +1764,17 @@ contains
     call strip(sub_prsl,prslm ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
-!
-!   Thermodynamic variable
-!   The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
-!   output we need the sensible temperature.
-!
-!   Convert Tv to T
-    tvsm = tvsm/(one+fv*qsm)
-!   Generate and write analysis fields
 
-!   Surface pressure.  
+    ! Thermodynamic variable
+    ! The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
+    ! output we need the sensible temperature.
+
+    ! Convert Tv to T
+    tvsm = tvsm/(one+fv*qsm)
+
+    ! Generate and write analysis fields
+
+    ! Surface pressure.  
     call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
          work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
@@ -1851,10 +1859,10 @@ contains
              rwork1d1 = reshape(grid,(/size(rwork1d1)/))
           end if
 
-!   Zonal wind
+          ! Zonal wind
           call nemsio_writerecv(gfileo,'ugrd','mid layer',k,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'ugrd','write',istop,iret)
-!   Meridional wind
+          ! Meridional wind
           call nemsio_writerecv(gfileo,'vgrd','mid layer',k,rwork1d1,iret=iret)
           if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'vgrd','write',istop,iret)
        endif
@@ -2018,7 +2026,7 @@ contains
 
   end subroutine write_atm_
 
-  subroutine write_sfc_ (filename,mype,mype_sfc,dsfct)
+  subroutine write_sfc_ (filename,mype_sfc,dsfct)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    write_nemssfc --- Write surface analysis to file
@@ -2048,7 +2056,6 @@ contains
 !   input argument list:
 !     filename  - file to open and write to
 !     dsfct     - delta skin temperature
-!     mype      - mpi task number
 !     mype_sfc  - mpi task to write output file
 !
 !   output argument list:
@@ -2065,6 +2072,7 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
     
     use gridmod, only: nlat,nlon
     use gridmod, only: lat1,lon1
@@ -2091,7 +2099,6 @@ contains
 
     real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct   ! delta skin temperature
 
-    integer(i_kind)                  ,intent(in   ) :: mype     ! mpi task number
     integer(i_kind)                  ,intent(in   ) :: mype_sfc ! mpi task to write output file
 
 ! !OUTPUT PARAMETERS:
@@ -2253,7 +2260,7 @@ contains
     endif
   end subroutine write_sfc_
 
-  subroutine write_sfc_nst_ (mype,mype_so,dsfct)
+  subroutine write_sfc_nst_ (mype_so,dsfct)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -2281,7 +2288,6 @@ contains
 !
 !   input argument list:
 !     dsfct     - delta skin temperature
-!     mype      - mpi task number
 !     mype_so   - mpi task to write output file
 !
 !   output argument list:
@@ -2298,6 +2304,7 @@ contains
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
     
     use gridmod, only: nlat,nlon
     use gridmod, only: lat1,lon1
@@ -2328,7 +2335,6 @@ contains
 ! !INPUT PARAMETERS:
 
     real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct     ! delta skin temperature
-    integer(i_kind)                  ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                  ,intent(in   ) :: mype_so   ! mpi task to write output file
 
 ! !OUTPUT PARAMETERS:

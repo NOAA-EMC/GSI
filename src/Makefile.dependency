@@ -63,6 +63,8 @@ convinfo.o : convinfo.f90 gsi_chemguess_mod.o mpimod.o obsmod.o constants.o kind
 convthin.o : convthin.f90 satthin.o constants.o kinds.o 
 convthin_time.o : convthin_time.f90 satthin.o constants.o kinds.o 
 correlated_obsmod.o : correlated_obsmod.F90 mpeu_util.o timermod.o mpimod.o constants.o kinds.o 
+cplr_gfs_ensmod.o : cplr_gfs_ensmod.f90 gsi_bundlemod.o hybrid_ensemble_parameters.o gsi_4dvar.o general_sub2grid_mod.o gridmod.o kinds.o mpimod.o 
+cplr_gfs_nstmod.o : cplr_gfs_nstmod.f90 satthin.o radinfo.o constants.o ncepnems_io.o ncepgfs_io.o kinds.o mpeu_util.o gsi_nstcouplermod.o guess_grids.o gridmod.o mpimod.o 
 crtm_interface.o : crtm_interface.f90 set_crtm_cloudmod.o set_crtm_aerosolmod.o regional_io.o ncepgfs_ghg.o cloud_efr_mod.o mpimod.o obsmod.o constants.o control_vectors.o guess_grids.o aeroinfo.o radinfo.o gsi_metguess_mod.o gsi_chemguess_mod.o gsi_bundlemod.o mpeu_util.o gridmod.o kinds.o 
 cvsection.o : cvsection.f90 control_vectors.o jfunc.o gridmod.o mpimod.o kinds.o 
 cwhydromod.o : cwhydromod.f90 gsi_bundlemod.o derivsmod.o guess_grids.o gridmod.o constants.o kinds.o 
@@ -71,7 +73,7 @@ deter_sfc_mod.o : deter_sfc_mod.f90 calc_fov_conical.o calc_fov_crosstrk.o guess
 dtast.o : dtast.f90 qcmod.o convinfo.o constants.o kinds.o 
 egrid2agrid_mod.o : egrid2agrid_mod.f90 blendmod.o constants.o kinds.o 
 enorm_state.o : enorm_state.f90 gsi_metguess_mod.o gsi_bundlemod.o state_vectors.o guess_grids.o mpimod.o gridmod.o jcmod.o constants.o kinds.o 
-en_perts_io.o : en_perts_io.f90 mpeu_util.o gsi_metguess_mod.o constants.o kinds.o mpimod.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o hybrid_ensemble_isotropic.o gridmod.o 
+en_perts_io.o : en_perts_io.f90 mpeu_util.o gsi_metguess_mod.o constants.o kinds.o mpimod.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o gridmod.o 
 ensctl2model_ad.o : ensctl2model_ad.f90 timermod.o mod_strong.o gsi_metguess_mod.o mpeu_util.o constants.o gsi_bundlemod.o balmod.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o gsi_4dvar.o control_vectors.o kinds.o 
 ensctl2model.o : ensctl2model.f90 timermod.o mod_strong.o gsi_metguess_mod.o mpeu_util.o gsi_bundlemod.o balmod.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o gsi_4dvar.o control_vectors.o kinds.o constants.o 
 ensctl2state_ad.o : ensctl2state_ad.f90 timermod.o cwhydromod.o gridmod.o mod_strong.o gsi_metguess_mod.o mpeu_util.o constants.o gsi_bundlemod.o balmod.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o gsi_4dvar.o control_vectors.o kinds.o 
@@ -84,7 +86,7 @@ fill_mass_grid2.o : fill_mass_grid2.f90 mod_wrfmass_to_a.o general_commvars_mod.
 fill_nmm_grid2.o : fill_nmm_grid2.f90 general_commvars_mod.o gridmod.o constants.o kinds.o 
 fpvsx_ad.o : fpvsx_ad.f90 constants.o kinds.o 
 general_commvars_mod.o : general_commvars_mod.f90 constants.o mpeu_util.o control_vectors.o mpimod.o gridmod.o general_sub2grid_mod.o kinds.o 
-general_read_gfsatm.o : general_read_gfsatm.f90 general_commvars_mod.o egrid2agrid_mod.o ncepnems_io.o gsi_bundlemod.o ncepgfs_io.o constants.o mpimod.o general_specmod.o general_sub2grid_mod.o gridmod.o kinds.o 
+general_read_gfsatm.o : general_read_gfsatm.f90 general_commvars_mod.o egrid2agrid_mod.o ncepnems_io.o gsi_bundlemod.o ncepgfs_io.o constants.o general_specmod.o general_sub2grid_mod.o gridmod.o mpimod.o kinds.o 
 general_read_nmmb.o : general_read_nmmb.f90 general_sub2grid_mod.o gsi_nemsio_mod.o constants.o gridmod.o kinds.o 
 general_specmod.o : general_specmod.f90 constants.o kinds.o 
 general_spectral_transforms.o : general_spectral_transforms.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o constants.o kinds.o general_sub2grid_mod.o general_specmod.o 
@@ -99,25 +101,25 @@ gesinfo.o : gesinfo.f90 constants.o gridmod.o mpimod.o gsi_4dvar.o obsmod.o kind
 getcount_bufr.o : getcount_bufr.f90 kinds.o 
 get_derivatives2.o : get_derivatives2.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gridmod.o constants.o kinds.o 
 get_derivatives.o : get_derivatives.f90 mpeu_util.o general_commvars_mod.o general_sub2grid_mod.o gsi_bundlemod.o compact_diffs.o gridmod.o constants.o kinds.o 
-get_gefs_ensperts_dualres.o : get_gefs_ensperts_dualres.f90 general_sub2grid_mod.o gsi_enscouplermod.o gsi_bundlemod.o gsi_4dvar.o control_vectors.o kinds.o mpimod.o constants.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o gridmod.o 
-get_gefs_for_regional.o : get_gefs_for_regional.f90 balmod.o general_commvars_mod.o gsi_4dvar.o mpeu_util.o gsi_metguess_mod.o obsmod.o aniso_ens_util.o guess_grids.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o mpimod.o constants.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o hybrid_ensemble_isotropic.o gridmod.o 
-get_nmmb_ensperts.o : get_nmmb_ensperts.f90 gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o hybrid_ensemble_isotropic.o gridmod.o kinds.o 
+get_gefs_ensperts_dualres.o : get_gefs_ensperts_dualres.f90 general_sub2grid_mod.o gsi_enscouplermod.o gsi_bundlemod.o control_vectors.o kinds.o mpimod.o constants.o hybrid_ensemble_parameters.o gridmod.o 
+get_gefs_for_regional.o : get_gefs_for_regional.f90 balmod.o general_commvars_mod.o gsi_4dvar.o mpeu_util.o gsi_metguess_mod.o obsmod.o aniso_ens_util.o guess_grids.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o mpimod.o constants.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o gridmod.o 
+get_nmmb_ensperts.o : get_nmmb_ensperts.f90 gsi_bundlemod.o control_vectors.o mpimod.o constants.o hybrid_ensemble_parameters.o gridmod.o kinds.o 
 getprs.o : getprs.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o constants.o kinds.o 
-get_pseudo_ensperts.o : get_pseudo_ensperts.F90 blendmod.o gsi_bundlemod.o control_vectors.o gsi_io.o general_sub2grid_mod.o hybrid_ensemble_parameters.o gsi_4dvar.o kinds.o mpimod.o constants.o hybrid_ensemble_isotropic.o gridmod.o 
+get_pseudo_ensperts.o : get_pseudo_ensperts.F90 blendmod.o gsi_bundlemod.o control_vectors.o gsi_io.o general_sub2grid_mod.o gsi_4dvar.o kinds.o mpimod.o constants.o hybrid_ensemble_parameters.o gridmod.o 
 get_semimp_mats.o : get_semimp_mats.f90 gridmod.o constants.o kinds.o 
 getsiga.o : getsiga.f90 bias_predictors.o control_vectors.o gsi_bundlemod.o gsi_4dcouplermod.o state_vectors.o lanczos.o jfunc.o gsi_4dvar.o constants.o mpimod.o kinds.o 
 getuv.o : getuv.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
-get_wrf_mass_ensperts_netcdf.o : get_wrf_mass_ensperts_netcdf.F90 general_sub2grid_mod.o netcdf_mod.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o hybrid_ensemble_isotropic.o gridmod.o kinds.o 
-get_wrf_nmm_ensperts.o : get_wrf_nmm_ensperts.F90 blendmod.o aniso_ens_util.o gfs_stratosphere.o gsi_4dvar.o gsi_bundlemod.o egrid2agrid_mod.o general_tll2xy_mod.o general_sub2grid_mod.o gsi_io.o mpeu_util.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o hybrid_ensemble_isotropic.o gridmod.o kinds.o 
+get_wrf_mass_ensperts_netcdf.o : get_wrf_mass_ensperts_netcdf.F90 general_sub2grid_mod.o netcdf_mod.o gsi_bundlemod.o control_vectors.o mpimod.o constants.o hybrid_ensemble_parameters.o gridmod.o kinds.o 
+get_wrf_nmm_ensperts.o : get_wrf_nmm_ensperts.F90 blendmod.o aniso_ens_util.o gfs_stratosphere.o gsi_4dvar.o gsi_bundlemod.o egrid2agrid_mod.o general_tll2xy_mod.o general_sub2grid_mod.o gsi_io.o mpeu_util.o control_vectors.o mpimod.o constants.o hybrid_ensemble_parameters.o gridmod.o kinds.o 
 gfs_stratosphere.o : gfs_stratosphere.f90 control_vectors.o obsmod.o aniso_ens_util.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o gsi_metguess_mod.o gsi_bundlemod.o mpimod.o gridmod.o guess_grids.o blendmod.o constants.o mpeu_util.o kinds.o 
 glbsoi.o : glbsoi.f90 aircraftinfo.o gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o zrnmi_mod.o convb_uv.o convb_t.o convb_q.o convb_ps.o converr_pw.o converr_uv.o converr_t.o converr_q.o converr_ps.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o qcmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o adjtest_obs.o mpimod.o constants.o kinds.o 
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
 gridmod.o : gridmod.F90 mpimod.o mod_wrfmass_to_a.o mod_nmmb_to_a.o constants.o mpeu_util.o general_sub2grid_mod.o general_specmod.o kinds.o 
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
 gscond_ad.o : gscond_ad.f90 constants.o kinds.o 
-gsdcloudanalysis4NMMB.o : gsdcloudanalysis4NMMB.F90 kinds.o 
-gsdcloudanalysis.o : gsdcloudanalysis.F90 kinds.o 
+gsdcloudanalysis4NMMB.o : gsdcloudanalysis4NMMB.F90 gsi_bundlemod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o obsmod.o guess_grids.o gridmod.o mpimod.o kinds.o constants.o 
+gsdcloudanalysis.o : gsdcloudanalysis.F90 gsi_bundlemod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o mpimod.o jfunc.o wrf_mass_guess_mod.o obsmod.o guess_grids.o gridmod.o kinds.o constants.o 
 gsd_terrain_match_surfTobs.o : gsd_terrain_match_surfTobs.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o convinfo.o guess_grids.o gridmod.o constants.o kinds.o 
 gsd_update_mod.o : gsd_update_mod.f90 general_commvars_mod.o general_sub2grid_mod.o rapidrefresh_cldsurf_mod.o wrf_mass_guess_mod.o guess_grids.o gridmod.o constants.o derivsmod.o jfunc.o mpimod.o kinds.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o 
 gsi_4dcouplermod.o : gsi_4dcouplermod.f90 constants.o kinds.o gsi_bundlemod.o 
@@ -137,7 +139,7 @@ guess_grids.o : guess_grids.F90 mpimod.o gsi_nstcouplermod.o radinfo.o mpeu_util
 half_nmm_grid2.o : half_nmm_grid2.f90 general_commvars_mod.o gridmod.o constants.o kinds.o 
 hilbert_curve.o : hilbert_curve.f90 kinds.o phil1.o phil.o 
 hybrid_ensemble_isotropic.o : hybrid_ensemble_isotropic.F90 general_commvars_mod.o gfs_stratosphere.o raflib.o egrid2agrid_mod.o general_specmod.o timermod.o gsi_4dvar.o berror.o jfunc.o general_sub2grid_mod.o gsi_enscouplermod.o constants.o gridmod.o hybrid_ensemble_parameters.o control_vectors.o gsi_bundlemod.o mpimod.o kinds.o 
-hybrid_ensemble_parameters.o : hybrid_ensemble_parameters.f90 constants.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o 
+hybrid_ensemble_parameters.o : hybrid_ensemble_parameters.f90 constants.o gsi_bundlemod.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o 
 inc2guess.o : inc2guess.f90 mpeu_util.o gsi_chemguess_mod.o gsi_metguess_mod.o gsi_bundlemod.o xhat_vordivmod.o gsi_4dvar.o state_vectors.o guess_grids.o gridmod.o mpimod.o kinds.o 
 init_jcdfi.o : init_jcdfi.f90 jcmod.o mpimod.o constants.o gsi_4dvar.o kinds.o 
 insitu_info.o : insitu_info.f90 kinds.o 
@@ -224,8 +226,8 @@ m_tick.o : m_tick.F90 kinds.o
 m_uniq.o : m_uniq.f90 m_find.o kinds.o 
 native_endianness.o : native_endianness.f90 kinds.o 
 ncepgfs_ghg.o : ncepgfs_ghg.f90 constants.o kinds.o 
-ncepgfs_io.o : ncepgfs_io.f90 mpl_allreduce.o obsmod.o general_commvars_mod.o ncepnems_io.o gsi_4dvar.o radinfo.o hybrid_ensemble_parameters.o nstio_module.o constants.o gsi_chemguess_mod.o ncepgfs_ghg.o derivsmod.o general_specmod.o gsi_io.o cloud_efr_mod.o mpeu_util.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o 
-ncepnems_io.o : ncepnems_io.f90 radinfo.o gsi_4dvar.o obsmod.o egrid2agrid_mod.o general_specmod.o general_commvars_mod.o gsi_chemguess_mod.o ncepgfs_ghg.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o constants.o 
+ncepgfs_io.o : ncepgfs_io.f90 mpl_allreduce.o obsmod.o general_commvars_mod.o gsi_4dvar.o radinfo.o hybrid_ensemble_parameters.o nstio_module.o constants.o gsi_chemguess_mod.o ncepgfs_ghg.o general_specmod.o gsi_io.o cloud_efr_mod.o mpeu_util.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o ncepnems_io.o 
+ncepnems_io.o : ncepnems_io.f90 radinfo.o gsi_4dvar.o obsmod.o egrid2agrid_mod.o general_specmod.o general_commvars_mod.o gsi_chemguess_mod.o ncepgfs_ghg.o cloud_efr_mod.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o constants.o 
 netcdf_mod.o : netcdf_mod.f90 mpeu_util.o 
 nlmsas_ad.o : nlmsas_ad.f90 constants.o kinds.o 
 normal_rh_to_q.o : normal_rh_to_q.f90 constants.o gridmod.o jfunc.o derivsmod.o kinds.o 
@@ -318,7 +320,7 @@ read_tcps.o : read_tcps.f90 mpimod.o gsi_4dvar.o tcv_mod.o obsmod.o convinfo.o c
 read_wrf_mass_files.o : read_wrf_mass_files.F90 obsmod.o constants.o gridmod.o gsi_4dvar.o guess_grids.o mpimod.o kinds.o 
 read_wrf_mass_guess.o : read_wrf_mass_guess.F90 gsi_chemguess_mod.o chemmod.o mpeu_util.o native_endianness.o gsi_metguess_mod.o gsi_bundlemod.o wrf_mass_guess_mod.o rapidrefresh_cldsurf_mod.o gsi_io.o constants.o gridmod.o guess_grids.o mpimod.o kinds.o 
 read_wrf_nmm_files.o : read_wrf_nmm_files.F90 obsmod.o constants.o gsi_4dvar.o guess_grids.o mpimod.o kinds.o 
-read_wrf_nmm_guess.o : read_wrf_nmm_guess.F90 derivsmod.o gsi_nemsio_mod.o rapidrefresh_cldsurf_mod.o gfs_stratosphere.o native_endianness.o control_vectors.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o gsi_io.o regional_io.o constants.o general_commvars_mod.o gridmod.o cloud_efr_mod.o guess_grids.o mpimod.o kinds.o 
+read_wrf_nmm_guess.o : read_wrf_nmm_guess.F90 gsi_nemsio_mod.o rapidrefresh_cldsurf_mod.o gfs_stratosphere.o native_endianness.o control_vectors.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o gsi_io.o regional_io.o constants.o general_commvars_mod.o gridmod.o cloud_efr_mod.o guess_grids.o mpimod.o kinds.o 
 regional_io.o : regional_io.f90 native_endianness.o hybrid_ensemble_parameters.o kinds.o rapidrefresh_cldsurf_mod.o mpimod.o gridmod.o 
 reorg_metar_cloud.o : reorg_metar_cloud.f90 rapidrefresh_cldsurf_mod.o constants.o gridmod.o kinds.o 
 rfdpar.o : rfdpar.f90 constants.o kinds.o 
@@ -419,7 +421,7 @@ strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global
 strong_baldiag_inc.o : strong_baldiag_inc.f90 constants.o gsi_metguess_mod.o gsi_bundlemod.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o mpimod.o kinds.o 
 strong_fast_global_mod.o : strong_fast_global_mod.f90 mod_strong.o mod_vtrans.o mpimod.o constants.o gridmod.o kinds.o 
 stub_ensmod.o : stub_ensmod.f90 gsi_bundlemod.o general_sub2grid_mod.o hybrid_ensemble_parameters.o kinds.o 
-stub_nstmod.o : stub_nstmod.f90 satthin.o radinfo.o constants.o ncepgfs_io.o kinds.o mpeu_util.o gsi_nstcouplermod.o guess_grids.o gridmod.o mpimod.o 
+stub_nstmod.o : stub_nstmod.f90 constants.o kinds.o mpimod.o 
 stub_pertmod.o : stub_pertmod.F90 mytrace.H constants.o gsi_bundlemod.o gsi_4dcouplermod.o mpeu_util.o kinds.o 
 stub_set_crtm_aerosol.o : stub_set_crtm_aerosol.f90 mpeu_util.o mpimod.o constants.o kinds.o 
 stub_timermod.o : stub_timermod.f90 kinds.o 
@@ -448,7 +450,7 @@ ut_gsibundle.o : ut_gsibundle.F90 m_rerank.o gsi_bundlemod.o constants.o kinds.o
 wind_fft.o : wind_fft.f90 constants.o kinds.o 
 wrf_binary_interface.o : wrf_binary_interface.F90 native_endianness.o gfs_stratosphere.o constants.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o gsi_io.o gsi_4dvar.o kinds.o 
 wrf_mass_guess_mod.o : wrf_mass_guess_mod.f90 guess_grids.o gridmod.o constants.o kinds.o 
-wrf_netcdf_interface.o : wrf_netcdf_interface.F90 control_vectors.o mpeu_util.o regional_io.o netcdf_mod.o obsmod.o guess_grids.o gsi_bundlemod.o hybrid_ensemble_parameters.o gridmod.o gfs_stratosphere.o gsi_chemguess_mod.o chemmod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o gsi_4dvar.o constants.o kinds.o 
+wrf_netcdf_interface.o : wrf_netcdf_interface.F90 control_vectors.o mpeu_util.o regional_io.o netcdf_mod.o guess_grids.o gsi_bundlemod.o hybrid_ensemble_parameters.o gridmod.o gfs_stratosphere.o gsi_chemguess_mod.o chemmod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o gsi_4dvar.o constants.o kinds.o 
 write_all.o : write_all.F90 mpeu_util.o gsi_metguess_mod.o gsi_bundlemod.o ncepgfs_io.o regional_io.o gsi_io.o m_gsiBiases.o guess_grids.o gridmod.o jfunc.o constants.o mpimod.o kinds.o 
 write_bkgvars_grid.o : write_bkgvars_grid.f90 berror.o control_vectors.o constants.o mpimod.o gridmod.o kinds.o 
 write_obsdiags.o : write_obsdiags.F90 mytrace.H radinfo.o pcpinfo.o gridmod.o aircraftinfo.o m_obdiag.o timermod.o jfunc.o mpimod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 

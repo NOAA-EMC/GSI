@@ -68,7 +68,7 @@ module ncepgfs_io
 
 contains
 
-  subroutine read_gfs(mype)
+  subroutine read_gfs
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_gfs
@@ -111,14 +111,12 @@ contains
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundledestroy
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
-    use mpimod, only: npe
+    use mpimod, only: npe,mype
     use mpeu_util, only: die
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     implicit none
-
-    integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
     logical:: l_cld_derived,zflag,inithead
@@ -190,7 +188,7 @@ contains
 !         If hires_b, spectral to grid transform for background
 !         uses double FFT.   Need to pass in sp_a and sp_b
 
-          call general_read_gfsatm(grd_t,sp_a,sp_b,filename,mype,.true.,.true.,zflag, &
+          call general_read_gfsatm(grd_t,sp_a,sp_b,filename,.true.,.true.,zflag, &
                atm_bundle,&
                inithead,iret)
 
@@ -198,7 +196,7 @@ contains
 
 !         Otherwise, use standard transform.  Use sp_a in place of sp_b.
 
-          call general_read_gfsatm(grd_t,sp_a,sp_a,filename,mype,.true.,.true.,zflag, &
+          call general_read_gfsatm(grd_t,sp_a,sp_a,filename,.true.,.true.,zflag, &
                atm_bundle,&
                inithead,iret)
        endif
@@ -914,7 +912,7 @@ end subroutine write_ghg_grid
   end subroutine read_nst
 
 
-  subroutine read_gfsnst(iope,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+  subroutine read_gfsnst(iope,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -929,7 +927,6 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     iope     - mpi task handling i/o
-!     mype     - mpi task id
 !
 !   output argument list:
 !   tref     (:,:)                        ! oceanic foundation temperature
@@ -951,12 +948,12 @@ end subroutine write_ghg_grid
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldnst
     use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world
+    use mpimod, only: mype
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
-    integer(i_kind)                      ,intent(in   ) :: mype
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst),intent(  out) :: &
                     tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
@@ -987,7 +984,7 @@ end subroutine write_ghg_grid
     return
   end subroutine read_gfsnst
 
-  subroutine write_gfs(increment,mype,mype_atm,mype_sfc)
+  subroutine write_gfs(increment,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    write_gfs
@@ -1013,7 +1010,6 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
-!     mype               - mpi task id
 !     mype_atm,mype_sfc  -
 !
 !   output argument list:
@@ -1025,12 +1021,18 @@ end subroutine write_ghg_grid
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
+    use mpimod, only: mype
     use guess_grids, only: dsfct,isli2
-    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig,ges_prsl,ges_prsi
+    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,use_gfs_nemsio
     use gridmod, only: lat2,lon2,nsig   
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_gridcreate
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_bundledestroy
     use hybrid_ensemble_parameters, only: l_hyb_ens
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
@@ -1043,19 +1045,19 @@ end subroutine write_ghg_grid
     implicit none
 
     integer(i_kind),intent(in   ) :: increment
-    integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
+    integer(i_kind),intent(in   ) :: mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
+    integer(i_kind) :: itoutsig,istatus,iret_write,nlon_b,ntlevs,it
 
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2  ):: aux_ps
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_u
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_v
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_vor
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_div
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_tv
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_q
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_oz
-    real(r_kind),dimension(grd_a%lat2,grd_a%lon2,grd_a%nsig):: aux_cwmr
+    real(r_kind),pointer,dimension(:,:  ):: aux_ps
+    real(r_kind),pointer,dimension(:,:,:):: aux_u
+    real(r_kind),pointer,dimension(:,:,:):: aux_v
+    real(r_kind),pointer,dimension(:,:,:):: aux_vor
+    real(r_kind),pointer,dimension(:,:,:):: aux_div
+    real(r_kind),pointer,dimension(:,:,:):: aux_tv
+    real(r_kind),pointer,dimension(:,:,:):: aux_q
+    real(r_kind),pointer,dimension(:,:,:):: aux_oz
+    real(r_kind),pointer,dimension(:,:,:):: aux_cwmr
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
@@ -1067,145 +1069,168 @@ end subroutine write_ghg_grid
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
 
+    type(gsi_bundle) :: atm_bundle
+    type(gsi_grid)   :: atm_grid
+    integer(i_kind),parameter :: n2d=2
+    integer(i_kind),parameter :: n3d=8
+    character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+    character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                    'vor ', 'div ', &
+                                                    'tv  ', 'q   ', &
+                                                    'cw  ', 'oz  ' /)
+
     logical :: inithead
     type(spec_vars):: sp_b
 
-!   Write atmospheric analysis file
+    ! Write atmospheric analysis file
     if ( lwrite4danl ) then
        ntlevs=nfldsig
     else
        ntlevs=1
     end if
 
-    aux_ps=zero
-    aux_u=zero
-    aux_v=zero
-    aux_vor=zero
-    aux_div=zero
-    aux_tv=zero
-    aux_q=zero
-    aux_oz=zero
-    aux_cwmr=zero
+    ! Allocate bundle used for writing
+    call gsi_gridcreate(atm_grid,grd_a%lat2,grd_a%lon2,grd_a%nsig)
+    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-write',istatus,names2d=vars2d,names3d=vars3d)
+    if ( istatus /= 0 ) then
+      write(6,*)' write_gfs: trouble creating atm_bundle'
+      call stop2(999)
+    endif
+
+    call gsi_bundlegetpointer(atm_bundle,'ps',aux_ps,istatus)
+    if ( istatus == 0 ) aux_ps = zero
+    call gsi_bundlegetpointer(atm_bundle,'u',aux_u,istatus)
+    if ( istatus == 0 ) aux_u = zero
+    call gsi_bundlegetpointer(atm_bundle,'v',aux_v,istatus)
+    if ( istatus == 0 ) aux_v = zero
+    call gsi_bundlegetpointer(atm_bundle,'vor',aux_vor,istatus)
+    if ( istatus == 0 ) aux_vor = zero
+    call gsi_bundlegetpointer(atm_bundle,'div',aux_div,istatus)
+    if ( istatus == 0 ) aux_div = zero
+    call gsi_bundlegetpointer(atm_bundle,'tv',aux_tv,istatus)
+    if ( istatus == 0 ) aux_tv = zero
+    call gsi_bundlegetpointer(atm_bundle,'q',aux_q,istatus)
+    if ( istatus == 0 ) aux_q = zero
+    call gsi_bundlegetpointer(atm_bundle,'oz',aux_oz,istatus)
+    if ( istatus == 0 ) aux_oz = zero
+    call gsi_bundlegetpointer(atm_bundle,'cw',aux_cwmr,istatus)
+    if ( istatus == 0 ) aux_cwmr = zero
 
     inithead=.true.
     do it=1,ntlevs
-       if (increment>0) then
-          filename='siginc'
-          itoutsig=increment
-          if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
-       else
-          if ( lwrite4danl ) then
-             if ( it == ntguessig ) then
-                filename='siganl'
-             else
-                write(filename,"('siga',i2.2)") ifilesig(it)
-             endif
-             itoutsig=it
-             if(mype==0) write(6,*) 'WRITE_GFS: writing full analysis state for F ', itoutsig
-          else
-             filename='siganl'
-             itoutsig=ntguessig
-             if(mype==0) write(6,*) 'WRITE_GFS: writing single analysis state for F ', itoutsig
-          endif
-       endif
 
-       call set_analysis_(itoutsig)
+        if ( lwrite4danl ) then
+            itoutsig = it
+            if ( it == ntguessig ) then
+               if ( increment > 0 ) then
+                   filename = 'siginc'
+               else
+                   filename = 'siganl'
+               endif
+            else
+               if ( increment > 0 ) then
+                   write(filename,"('sigi',i2.2)") ifilesig(it)
+               else
+                   write(filename,"('siga',i2.2)") ifilesig(it)
+               endif
+            endif
+        else
+            itoutsig = ntguessig
+            if ( increment > 0 ) then
+                filename = 'siginc'
+            else
+                filename = 'siganl'
+            endif
+        endif
 
-!   If hires_b, spectral to grid transform for background
-!   uses double FFT.   Need to pass in sp_a and sp_b
-       if(use_gfs_nemsio)then
-          call write_nemsatm(grd_a,sp_a,filename,mype,mype_atm, &
-            aux_ps,&
-            aux_tv,aux_q,&
-            aux_oz,aux_cwmr,ges_prsl(:,:,:,itoutsig), &
-            aux_u,aux_v,ges_prsi(:,:,:,itoutsig),itoutsig)
-       else
-          nlon_b=((2*jcap_b+1)/nlon+1)*nlon
-          if (nlon_b /= sp_a%imax) then
-             hires_b=.true.
-             call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
-             if (mype==0) &
-                  write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
-                  sp_b%jcap,sp_b%imax,sp_b%jmax
+        if ( mype == 0 ) then
+            if ( increment > 0 ) then
+                write(6,'(A,I2.2)') 'WRITE_GFS: writing analysis increment for FHR ', ifilesig(itoutsig)
+            else
+                write(6,'(A,I2.2)') 'WRITE_GFS: writing full analysis state for FHR ', ifilesig(itoutsig)
+            endif
+        endif
+        
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ps',ges_ps_it  ,istatus) 
+        if ( istatus == 0 ) aux_ps = ges_ps_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'u' ,ges_u_it   ,istatus) 
+        if ( istatus == 0 ) aux_u = ges_u_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'v' ,ges_v_it   ,istatus) 
+        if ( istatus == 0 ) aux_v = ges_v_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'vor',ges_vor_it,istatus) 
+        if ( istatus == 0 ) aux_vor = ges_vor_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'div',ges_div_it,istatus) 
+        if ( istatus == 0 ) aux_div = ges_div_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'tv',ges_tv_it  ,istatus) 
+        if ( istatus == 0 ) aux_tv = ges_tv_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'q' ,ges_q_it   ,istatus) 
+        if ( istatus == 0 ) aux_q = ges_q_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'oz',ges_oz_it  ,istatus) 
+        if ( istatus == 0 ) aux_oz = ges_oz_it
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,istatus) 
+        if ( istatus == 0 ) aux_cwmr = ges_cwmr_it
 
-             call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
-                  aux_ps,&
-                  aux_vor,aux_div,&
-                  aux_tv,aux_q,&
-                  aux_oz,aux_cwmr,itoutsig,inithead,&
-                  iret_write)
+        if ( use_gfs_nemsio ) then
 
-             call general_destroy_spec_vars(sp_b)
+            call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
+                 atm_bundle,itoutsig)
 
-!   Otherwise, use standard transform.  Use sp_a in place of sp_b.
-          else
-             call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
-               aux_ps,&
-               aux_vor,aux_div,&
-               aux_tv,aux_q,&
-               aux_oz,aux_cwmr,itoutsig,inithead,&
-               iret_write)
-          end if
-       endif
-       inithead=.false.
-    end do ! end do over ntlevs
+        else
 
-!   Write surface analysis file
-    if (increment>0) then
-       filename='sfcinc.gsi'
-       if(use_gfs_nemsio)then
-         call write_nemssfc(filename,mype,mype_sfc,dsfct(:,:,ntguessfc))
-       else
-         call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
-       end if
+            ! If hires_b, spectral to grid transform for background
+            ! uses double FFT.   Need to pass in sp_a and sp_b
+            nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+            if ( nlon_b /= sp_a%imax ) then
+                hires_b=.true.
+                call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+                if ( mype == 0 ) &
+                    write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+                              sp_b%jcap,sp_b%imax,sp_b%jmax
+             
+                call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype_atm, &
+                     atm_bundle,itoutsig,inithead,iret_write)
+             
+                call general_destroy_spec_vars(sp_b)
+            ! Otherwise, use standard transform.  Use sp_a in place of sp_b.
+            else
+                call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig,inithead,iret_write)
+            endif
+
+        endif
+
+        inithead=.false.
+
+    enddo ! end do over ntlevs
+
+    ! Write surface analysis file
+    if ( increment > 0 ) then
+        filename='sfcinc.gsi'
+        if ( use_gfs_nemsio ) then
+            call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
+        else
+            call write_gfssfc(filename,mype_sfc,dsfct(1,1,ntguessfc))
+        endif
     else
-      if ( nst_gsi > 0 ) then
-        if(use_gfs_nemsio)then
-          call write_nems_sfc_nst(mype,mype_sfc,dsfct(:,:,ntguessfc))
+        if ( nst_gsi > 0 ) then
+          if ( use_gfs_nemsio ) then
+              call write_nems_sfc_nst(mype_sfc,dsfct(:,:,ntguessfc))
+          else
+              call write_gfs_sfc_nst (mype_sfc,dsfct(1,1,ntguessfc))
+          endif
         else
-          call write_gfs_sfc_nst (mype,mype_sfc,dsfct(1,1,ntguessfc))
-        end if
-      else
-        filename='sfcanl.gsi'
-        if(use_gfs_nemsio)then
-          call write_nemssfc(filename,mype,mype_sfc,dsfct(:,:,ntguessfc))
-        else
-          call write_gfssfc (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
-        end if
-      endif
+            filename='sfcanl.gsi'
+            if ( use_gfs_nemsio ) then
+                call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
+            else
+                call write_gfssfc (filename,mype_sfc,dsfct(1,1,ntguessfc))
+            endif
+        endif
     endif
-
-  contains
-
-
-  subroutine set_analysis_(it)
-  implicit none
-  integer(i_kind),intent(in) :: it
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it  ,istatus) 
-  if(istatus==0) aux_ps = ges_ps_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it   ,istatus) 
-  if(istatus==0) aux_u = ges_u_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it   ,istatus) 
-  if(istatus==0) aux_v = ges_v_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus) 
-  if(istatus==0) aux_vor = ges_vor_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
-  if(istatus==0) aux_div = ges_div_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it  ,istatus) 
-  if(istatus==0) aux_tv = ges_tv_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it   ,istatus) 
-  if(istatus==0) aux_q = ges_q_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it  ,istatus) 
-  if(istatus==0) aux_oz = ges_oz_it
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
-  if(istatus==0) aux_cwmr = ges_cwmr_it
-
-  end subroutine set_analysis_
 
   end subroutine write_gfs
 
-  subroutine write_gfssfc(filename,mype,mype_sfc,dsfct)
+  subroutine write_gfssfc(filename,mype_sfc,dsfct)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    write_gfssfc --- Write surface analysis to file
@@ -1265,7 +1290,6 @@ end subroutine write_ghg_grid
 !   input argument list:
 !     filename  - file to open and write to
 !     dsfct     - delta skin temperature
-!     mype      - mpi task number
 !     mype_sfc  - mpi task to write output file
 !
 !   output argument list:
@@ -1282,6 +1306,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
     
     use gridmod, only: nlat,nlon
     use gridmod, only: lat1,lon1
@@ -1308,7 +1333,6 @@ end subroutine write_ghg_grid
 
     real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct   ! delta skin temperature
 
-    integer(i_kind)                  ,intent(in   ) :: mype     ! mpi task number
     integer(i_kind)                  ,intent(in   ) :: mype_sfc ! mpi task to write output file
 
 ! !OUTPUT PARAMETERS:
@@ -1432,7 +1456,7 @@ end subroutine write_ghg_grid
     return
   end subroutine write_gfssfc
 
-  subroutine write_gfs_sfc_nst(mype,mype_so,dsfct)
+  subroutine write_gfs_sfc_nst(mype_so,dsfct)
 !
 ! abstract: write both sfc and nst analysis files (nst_gsi dependent) for static (full resolution) run
 !
@@ -1507,6 +1531,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
 
     use gridmod, only: nlat,nlon,lat1,lon1,lat2,lon2,nlat_sfc,nlon_sfc
     use gridmod, only: iglobal,ijn,displs_g,itotsub
@@ -1528,7 +1553,6 @@ end subroutine write_ghg_grid
 !
 !  INPUT PARAMETERS:
 !
-    integer(i_kind),                   intent(in) :: mype                  ! mpi task number
     integer(i_kind),                   intent(in) :: mype_so               ! mpi task to write output file
     real(r_kind),dimension(lat2,lon2), intent(in) :: dsfct                 ! tr analysis increment in subdomain
 
@@ -1883,7 +1907,7 @@ end subroutine write_ghg_grid
 !   End of routine
   end subroutine write_gfs_sfc_nst
 
-  subroutine write_ens_sfc_nst(mype,mype_so,dsfct)
+  subroutine write_ens_sfc_nst(mype_so,dsfct)
 !
 ! abstract: write sfc and nst analysis files (nst_gsi dependent) for
 !           ensemble (lower resolution)
@@ -1968,6 +1992,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
 
     use gridmod, only: nlat,nlon,lat1,lon1,lat2,lon2
     use gridmod, only: iglobal,ijn,displs_g,itotsub
@@ -1988,7 +2013,6 @@ end subroutine write_ghg_grid
 !
 !  INPUT PARAMETERS:
 !
-    integer(i_kind),                   intent(in) :: mype                  ! mpi task number
     integer(i_kind),                   intent(in) :: mype_so               ! mpi task to write output file
     real(r_kind),dimension(lat2,lon2), intent(in) :: dsfct                 ! tr analysis increment in subdomain
 
@@ -2349,7 +2373,7 @@ end subroutine write_ghg_grid
 !   End of routine
   end subroutine write_ens_sfc_nst
 
-  subroutine write_ens_dsfct(mype,mype_so,dsfct)
+  subroutine write_ens_dsfct(mype_so,dsfct)
 !
 ! abstract: write out dsfct (nst_gsi dependent) for ensemble (lower resolution)
 !
@@ -2423,6 +2447,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
 
     use gridmod, only: nlat,nlon,lat1,lon1,lat2,lon2
     use gridmod, only: iglobal,ijn,displs_g,itotsub
@@ -2443,7 +2468,6 @@ end subroutine write_ghg_grid
 !
 !  INPUT PARAMETERS:
 !
-    integer(i_kind),                   intent(in) :: mype                  ! mpi task number
     integer(i_kind),                   intent(in) :: mype_so               ! mpi task to write output file
     real(r_kind),dimension(lat2,lon2), intent(in) :: dsfct                 ! tr analysis increment in subdomain
 

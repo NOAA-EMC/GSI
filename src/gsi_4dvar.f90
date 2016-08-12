@@ -72,10 +72,10 @@ module gsi_4dvar
 !   idmodel           - Run w/ identity GCM TLM and ADM; test mode
 !
 !   l4densvar         - Logical flag for 4d-ensemble-var option
-!   ens4d_nhr         - Time between time levels for ensemble (currently same as nhr_obsbins)
-!   ens4d_fhrlevs     - Forecast length for each time level for ensemble perturbations
+!   ens_nhr           - Time between time levels for ensemble (currently same as nhr_obsbins)
+!   ens_fhrlevs       - Forecast length for each time level for ensemble perturbations
 !                       this variable defines the assumed filenames for ensemble
-!   ens4d_nstarthr    - Integer namelist option for first time level for ensemble
+!   ens_nstarthr      - Integer namelist option for first time level for ensemble
 !                       this should generally match with min_offset
 !   ibin_anl          - Analysis update bin.  This will be one for any 3D of 4DVAR mode, but
 !                       will be set to center of window for 4D-ens mode
@@ -110,7 +110,7 @@ module gsi_4dvar
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
-  public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
+  public :: l4densvar,ens_nhr,ens_fhrlevs,ens_nstarthr,ibin_anl
   public :: lwrite4danl,thin4d
 
   logical         :: l4dvar
@@ -140,8 +140,8 @@ module gsi_4dvar
   integer(i_kind) :: nwrvecs
   integer(i_kind) :: iorthomax
   integer(i_kind) :: jsiga
-  integer(i_kind) :: ens4d_nhr,ens4d_nstarthr,ibin_anl
-  integer(i_kind),allocatable,dimension(:) :: ens4d_fhrlevs
+  integer(i_kind) :: ens_nhr,ens_nstarthr,ibin_anl
+  integer(i_kind),allocatable,dimension(:) :: ens_fhrlevs
 
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 
@@ -202,9 +202,9 @@ nwrvecs=-1
 jsiga  =-1
 iorthomax=0
 
-ens4d_nhr=3
-ens4d_nstarthr=3
-ibin_anl=1
+ens_nhr = 0
+ens_nstarthr = 6
+ibin_anl = 1
 
 lwrite4danl = .false.
 thin4d = .false.
@@ -313,35 +313,45 @@ if ( iwrtinc>0 .and. lwrite4danl) then
    write(6,*) 'SETUP_4DVAR: iwrtinc>0, cannot write out 4d analysis state, setting lwrite4danl to false'
 end if
 
+if ( l4densvar ) then
 
-if (l4densvar) then
-   ntlevs_ens=nobs_bins
-   ens4d_nhr=nhr_obsbin
+   ntlevs_ens = nobs_bins
+   ens_nhr    = nhr_obsbin
 
-   if (mype==0)  write(6,*)'SETUP_4DVAR: 4densvar mode, resetting nsubwin to 1'
-   nsubwin=1
-
-   if (mype==0)  write(6,*)'SETUP_4DVAR: allocate array containing time levels for 4d ensemble'
-   allocate(ens4d_fhrlevs(ntlevs_ens))
-
-! Set up the time levels (nobs_bins) for the ensemble
-   do k=1,ntlevs_ens
-      ens4d_fhrlevs(k) = ens4d_nstarthr + (k-1)*ens4d_nhr
-      if (mype==0)  write(6,*)'SETUP_4DVAR: timelevel, ens4d_fhrlevs = ',k,ens4d_fhrlevs(k)
-   enddo
+   if ( mype == 0 ) &
+      write(6,'(A)')' SETUP_4DVAR: 4densvar mode, resetting nsubwin to 1'
+   nsubwin = 1
 
    ibin_anl = (nhr_assimilation/(2*nhr_obsbin))+1
-   if (mype==0) write(6,*)'SETUP_4DVAR: 4densvar mode, ibin_anl and nobs_bins = ',ibin_anl,nobs_bins
+   if ( mype == 0 ) &
+      write(6,'(A,I4)')' SETUP_4DVAR: 4densvar mode, ibin_anl = ', ibin_anl
+
 else
-   ntlevs_ens=1
-   if (l4dvar .and. mype==0) write(6,*)'SETUP_4DVAR: option to run hybrid 4dvar chosen.  nobs_bins,ntlevs_ens = ',&
-      nobs_bins,ntlevs_ens
+
+   ntlevs_ens = 1
+
+   if ( l4dvar .and. mype == 0 ) &
+      write(6,'(2(A,I4))')' SETUP_4DVAR: option to run hybrid 4dvar chosen.'
+
 endif !l4densvar
 
-if( (.not.l4dvar) .and. (.not.l4densvar) ) then
+if ( mype == 0 ) &
+      write(6,'(2(A,I4))')' SETUP_4DVAR: nobs_bins = ', nobs_bins, ', ntlevs_ens = ', ntlevs_ens
+
+! Set up the time levels (nobs_bins) for the ensemble
+if ( mype == 0 ) &
+    write(6,'(A)')' SETUP_4DVAR: allocate array containing time levels for ensemble'
+allocate(ens_fhrlevs(ntlevs_ens))
+do k=1,ntlevs_ens
+   ens_fhrlevs(k) = ens_nstarthr + (k-1)*ens_nhr
+   if ( mype == 0 ) &
+      write(6,'(2(A,I5))')' SETUP_4DVAR: timelevel = ', k, ' , ens_fhrlevs = ', ens_fhrlevs(k)
+enddo
+
+if ( (.not. l4dvar) .and. (.not. l4densvar) ) then
    nobs_bins=1
    ljc4tlevs=.false.
-end if
+endif
 
 ! Prints
 if (mype==0) then
@@ -454,9 +464,10 @@ subroutine clean_4dvar()
 !
 !$$$ end documentation block
 
-implicit none
-! no-op left
-   if (l4densvar) deallocate(ens4d_fhrlevs)
+   implicit none
+   ! no-op left
+   deallocate(ens_fhrlevs)
+   return
 end subroutine clean_4dvar
 ! --------------------------------------------------------------------
 end module gsi_4dvar

@@ -167,10 +167,10 @@ subroutine read_guess(iyear,month,idd,mype)
 #ifndef HAVE_ESMF
         if ( use_gfs_nemsio ) then
 !!           WRITE(6,*)'WARNING :: you elect to read first guess field in NEMSIO format'
-           call read_nems(mype)
+           call read_nems
            call read_nems_chem(iyear,month,idd)
         else
-           call read_gfs(mype)
+           call read_gfs
            call read_gfs_chem(iyear,month,idd)
         end if
 #endif

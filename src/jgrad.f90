@@ -277,7 +277,7 @@ if (lupdfgs) then
     if (mype==0) write(6,*)trim(seqcalls),': Saving increment to file'
     call inc2guess(sval)
     call view_st (sval,'xinc')
-    call write_all(iwrtinc,mype)
+    call write_all(iwrtinc)
     call prt_guess('increment')
       ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent when
       ! as when in 3dvar - that is, the state is not updated, but the biases are.
@@ -287,7 +287,7 @@ if (lupdfgs) then
   else ! Update guess (model background, bias correction) fields
      if (mype==0) write(6,*)trim(seqcalls),': Updating guess'
      call update_guess(sval,sbias)
-     if(jiter == jiterend)call write_all(iwrtinc,mype)
+     if(jiter == jiterend)call write_all(iwrtinc)
      call prt_guess('analysis')
   endif
 
