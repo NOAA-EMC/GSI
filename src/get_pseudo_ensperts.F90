@@ -22,7 +22,7 @@ subroutine get_pseudo_ensperts
 !$$$ end documentation block
 
   use gridmod, only: half_grid,filled_grid,regional
-  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use hybrid_ensemble_parameters, only: en_perts,nelen
   use constants,only: zero,one,two
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype
   use kinds, only: r_kind,i_kind,r_single

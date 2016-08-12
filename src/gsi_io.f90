@@ -374,7 +374,7 @@ contains
 ! !INTERFACE:
 !
 
-  subroutine write_bias(filename,mype,mype_out,nbc,sub_z,sub_ps,&
+  subroutine write_bias(filename,mype_out,nbc,sub_z,sub_ps,&
        sub_tskin,sub_vor,sub_div,sub_u,sub_v,sub_tv,sub_q,sub_cwmr,sub_oz,istatus)
 !
 ! !USES:
@@ -384,6 +384,7 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
+    use mpimod, only: mype
     
     use gridmod, only: nlat, nlon     ! no. lat/lon
     use gridmod, only: lat1, lon1     ! no. lat/lon on subdomain (no buffer)
@@ -410,7 +411,6 @@ contains
 
     character(24)                             ,intent(in):: filename     ! file to open and write to
 
-    integer(i_kind)                           ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                           ,intent(in   ) :: mype_out  ! mpi task to write output file
     integer(i_kind)                           ,intent(in   ) :: nbc       ! number of bias coefficients in bias model
     integer(i_kind)                           ,intent(  out) :: istatus   ! write status

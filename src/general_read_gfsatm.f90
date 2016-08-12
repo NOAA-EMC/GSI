@@ -1,4 +1,4 @@
-subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zflag, &
+subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,uvflag,vordivflag,zflag, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -26,7 +26,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !                     fields
 !                    (initialized by general_init_spec_vars, located in general_specmod.f90)
 !     filename - input sigma file name
-!     mype     - mpi task id
 !     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
@@ -44,6 +43,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !
 !$$$
    use kinds, only: r_kind,r_single,i_kind
+   use mpimod, only: mype
    use gridmod, only: ncepgfs_head,idpsfc5,idthrm5,&
                       ntracer,idvc5,cp5,idvm5
    use general_sub2grid_mod, only: sub2grid_info
@@ -65,7 +65,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
    character(*)                          ,intent(in   ) :: filename
-   integer(i_kind)                       ,intent(in   ) :: mype
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -568,7 +567,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     return
 end subroutine general_read_gfsatm
 
-subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zflag, &
+subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -596,7 +595,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !                     fields
 !                    (initialized by general_init_spec_vars, located in general_specmod.f90)
 !     filename - input sigma file name
-!     mype     - mpi task id
 !     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
@@ -614,6 +612,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !
 !$$$
    use kinds, only: r_kind,r_single,i_kind
+   use mpimod, only: mype
    use gridmod, only: ntracer,ncloud,itotsub,jcap_b
    use general_sub2grid_mod, only: sub2grid_info
    use general_specmod, only: spec_vars
@@ -637,7 +636,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
    character(*)                          ,intent(in   ) :: filename
-   integer(i_kind)                       ,intent(in   ) :: mype
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -1855,3 +1853,105 @@ subroutine general_fillv_ns(grd,sp,gridu_in,gridv_in,gridv_out)
 
    return
 end subroutine general_fillv_ns
+
+subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
+
+   use kinds, only: r_kind,i_kind
+   use constants, only: zero
+   use mpimod, only: mpi_comm_world,ierror,mype
+   use mpimod, only: mpi_mode_rdonly,mpi_info_null,mpi_rtype,mpi_offset_kind
+   use mpi, only: mpi_status_ignore
+   use hybrid_ensemble_parameters, only: grd_ens
+   use general_sub2grid_mod, only: general_grid2sub
+   use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
+
+   implicit none
+
+   character(len=*),intent(in   ) :: filename
+   type(gsi_bundle),intent(inout) :: gfs_bundle
+   integer(i_kind), intent(  out) :: iret
+
+   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2) :: g_z,g_ps
+   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) :: &
+                g_u,g_v,g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
+
+   real(r_kind),dimension(:,:,:,:),allocatable:: work_grd,work_sub
+   integer(i_kind) :: count,lunges
+   integer(i_kind) :: i,j,k,im,jm,km
+   integer(mpi_offset_kind) :: offset
+ 
+   ! Assume all goes well
+   iret = 0
+
+   im=grd_ens%lat2
+   jm=grd_ens%lon2
+   km=grd_ens%nsig
+
+   allocate(work_grd(grd_ens%inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%kbegin_loc:grd_ens%kend_alloc))
+
+   call mpi_file_open(mpi_comm_world,trim(adjustl(filename)), &
+                      mpi_mode_rdonly,mpi_info_null,lunges,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_OPEN failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   count  = grd_ens%nlat * grd_ens%nlon *  grd_ens%nlevs_alloc
+   offset = grd_ens%nlat * grd_ens%nlon * (grd_ens%kbegin_loc-1) * r_kind
+   call mpi_file_read_at(lunges,offset,work_grd,count,mpi_rtype,mpi_status_ignore,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   call mpi_file_close(lunges,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_CLOSE failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   allocate(work_sub(grd_ens%inner_vars,im,jm,grd_ens%num_fields))
+
+   call general_grid2sub(grd_ens,work_grd,work_sub)
+
+   deallocate(work_grd)
+
+   !$omp parallel do schedule(dynamic,1) private(k,j,i)
+   do k = 1,km
+      do j = 1,jm
+         do i = 1,im
+         g_u(   i,j,k) = work_sub(1,i,j,k+0*km)
+         g_v(   i,j,k) = work_sub(1,i,j,k+1*km)
+         g_tv(  i,j,k) = work_sub(1,i,j,k+2*km)
+         g_q(   i,j,k) = work_sub(1,i,j,k+3*km)
+         g_oz(  i,j,k) = work_sub(1,i,j,k+4*km)
+         g_cwmr(i,j,k) = work_sub(1,i,j,k+5*km)
+         enddo
+      enddo
+   enddo
+
+   g_vor = zero
+   g_div = zero
+
+   !$omp parallel do schedule(dynamic,1) private(j,i)
+   do j = 1,jm
+      do i = 1,im
+         g_ps(i,j) = work_sub(1,i,j,grd_ens%num_fields-1)
+         g_z( i,j) = work_sub(1,i,j,grd_ens%num_fields  )
+      enddo
+   enddo
+
+   deallocate(work_sub)
+
+   return
+
+1000 continue
+
+   write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
+              trim(filename),' IRET=',iret
+   return
+
+end subroutine preproc_read_gfsatm

@@ -308,14 +308,14 @@ subroutine read_gfs_ozone_for_regional
   allocate( pri(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig+1))
   allocate(prsl(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
   if(use_gfs_nemsio)then
-     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false., &
+     call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.false., &
                               atm_bundle,.true.,iret)
   else
      if (hires) then
-        call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,uv_hyb_ens,.false.,.false., &
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,uv_hyb_ens,.false.,.false., &
                               atm_bundle,.true.,iret)
      else
-        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.false., &
+        call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,uv_hyb_ens,.false.,.false., &
                               atm_bundle,.true.,iret)
      end if
   end if
