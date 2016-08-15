@@ -59,7 +59,20 @@ sub updateGnormData {
 #   it.  I can add this as a later change once I add a user mechanism to vary the 
 #   amount of data plotted (on the fly).
 
-      while( $#filearray > 119 ) {  # 30 days worth of data = 120 cycles
+      my $cyc_interval = $ENV{'CYCLE_INTERVAL'}; 
+      if( $cyc_interval eq "" ) {
+         $cyc_interval = 6;
+      }
+
+      my $max_cyc = 119;	#	default 30 days worth of data = 120 cycles
+				#	If CYCLE_INTERVAL is other than "" or 6
+				#	then set the $max_cyc using that interval
+      if( $cyc_interval != 6 && $cyc_interval != 0 ) {
+         my $cyc_per_day = 24 / $cyc_interval;
+         $max_cyc = (30 * $cyc_per_day) - 1;
+      } 
+  
+      while( $#filearray > $max_cyc ) { 
          shift( @filearray );
       }
       close( INFILE );
