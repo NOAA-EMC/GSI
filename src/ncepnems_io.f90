@@ -2323,7 +2323,7 @@ contains
     use constants, only: zero_single
     
     use guess_grids, only: isli2
-    use radinfo, only: nst_gsi,zsea1,zsea2
+    use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
 
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close,nemsio_readrecv

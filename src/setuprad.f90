@@ -195,8 +195,8 @@
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,ssmis_precond,emiss_bc,upd_pred, &
-      passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
-      nstinfo,nst_tzr
+      passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac
+  use gsi_nstcouplermod, only: nstinfo,nst_tzr
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &

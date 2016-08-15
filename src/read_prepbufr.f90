@@ -169,7 +169,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
-  use radinfo,only: nst_gsi,nstinfo
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -194,6 +193,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
