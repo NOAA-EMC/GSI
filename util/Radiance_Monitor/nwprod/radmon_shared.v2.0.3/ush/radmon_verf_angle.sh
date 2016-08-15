@@ -68,11 +68,18 @@
 #
 ####################################################################
 #  Command line arguments.
+
+RAD_AREA=${RAD_AREA:-glb}
+REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
+rgnHH=${rgnHH:-}
+rgnTM=${rgnTM:-}
+
 export PDATE=${1:-${PDATE:?}}
 
 scr=radmon_verf_angle.sh
 msg="${scr} HAS STARTED"
 postmsg "$jlogfile" "$msg"
+echo " REGIONAL_RR, rgnHH, rgnTM = $REGIONAL_RR, $rgnHH, $rgnTM"
 
 which prep_step
 which startmsg
@@ -93,7 +100,6 @@ touch $pgmout
 # Other variables
 MAKE_CTL=${MAKE_CTL:-1}
 MAKE_DATA=${MAKE_DATA:-1}
-RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
@@ -139,7 +145,6 @@ else
 
           echo "pgm    = $pgm"
           echo "pgmout = $pgmout"
-
 #         prep_step
          /nwprod2/util/ush/prep_step.sh
 
@@ -147,30 +152,23 @@ else
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}_anl.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}_anl
-            angl_stdout=angle.${stdout_file}
-            input_file=${type}_anl
          else
             data_file=${type}.${PDATE}.ieee_d
-            angl_file=angle.${data_file}
             ctl_file=${type}.ctl
             angl_ctl=angle.${ctl_file}
-            stdout_file=stdout.${type}
-            angl_stdout=angle.${stdout_file}
-            input_file=${type}
+         fi
+
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
+         else
+            angl_file=angle.${data_file}
          fi
 
          rm input
 
-
-         # Check for 0 length data file here and avoid running 
-         # the executable if $data_file doesn't exist or is 0 bytes
-         #
-         if [[ -s $input_file ]]; then
-            nchanl=-999
+         nchanl=-999
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -190,37 +188,36 @@ cat << EOF > input
  /
 EOF
 
-   	    startmsg
-            ./${angle_exec} < input >>   ${pgmout} 2>>errfile
-            export err=$?; err_chk
-            if [[ $? -ne 0 ]]; then
-               fail=`expr $fail + 1`
-            fi
+	 startmsg
+         ./${angle_exec} < input >>   ${pgmout} 2>>errfile
+         export err=$?; err_chk
+         if [[ $? -ne 0 ]]; then
+             fail=`expr $fail + 1`
+         fi
 
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 
-            if [[ -s ${data_file} ]]; then
-               mv ${data_file} ${angl_file}
-               mv ${angl_file} $TANKverf_rad/.
-               ${COMPRESS} -f $TANKverf_rad/${angl_file}
-            fi
+         if [[ -s ${data_file} ]]; then
+            mv ${data_file} ${angl_file}
+            mv ${angl_file} $TANKverf_rad/.
+            ${COMPRESS} -f $TANKverf_rad/${angl_file}
+         fi
 
-            if [[ -s ${ctl_file} ]]; then
-               mv ${ctl_file} ${angl_ctl}
-               mv ${angl_ctl}  ${TANKverf_rad}/.
-               ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
-            fi 
+         if [[ -s ${ctl_file} ]]; then
+            mv ${ctl_file} ${angl_ctl}
+            mv ${angl_ctl}  ${TANKverf_rad}/.
+            ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
+         fi 
 
-            if [[ -s ${stdout_file} ]]; then
-               mv ${stdout_file} ${angl_stdout}
-               mv ${angl_stdout}  ${TANKverf_rad}/.
-               ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
-            fi
+#         if [[ -s ${stdout_file} ]]; then
+#            mv ${stdout_file} ${angl_stdout}
+#            mv ${angl_stdout}  ${TANKverf_rad}/.
+#            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
+#         fi
 
-
-         fi   # -s $data_file
       done    # for dtype in ${gesanl} loop
+
    done    # for type in ${SATYPE} loop
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
