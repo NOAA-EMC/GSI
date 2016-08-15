@@ -49,12 +49,12 @@ end subroutine nst_init_
 
 subroutine nst_set_(mype_io)
 
-     use kinds,       only: i_kind
-     use gridmod,     only: use_gfs_nemsio 
-     use ncepgfs_io,  only: read_gfsnst
+     use kinds, only: i_kind
+     use gridmod, only: use_gfs_nemsio 
+     use ncepgfs_io, only: read_gfsnst
      use ncepnems_io, only: read_nemsnst
-     use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                      c_0_full,c_d_full,w_0_full,w_d_full
+     use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                  c_0_full,c_d_full,w_0_full,w_d_full
      implicit none
      integer(i_kind),  intent(in   ) :: mype_io
 
@@ -119,7 +119,7 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      use constants,   only: zero,one,z_w_max
      use gridmod,     only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldnst,hrdifnst
-     use radinfo,     only: fac_dtl,fac_tsl
+     use gsi_nstcouplermod, only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                   c_0_full,c_d_full,w_0_full,w_d_full
      use satthin, only: isli_full
@@ -349,7 +349,7 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
 
   use kinds, only: r_kind
   use constants, only: one,half,zero
-  use radinfo, only: fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: fac_dtl,fac_tsl
   real(kind=r_kind), intent(in)  :: dt_warm,c_0,c_d,w_0,w_d,zc,zw,z
   real(kind=r_kind), intent(out) :: tztr
 ! local variables

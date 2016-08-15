@@ -1035,7 +1035,7 @@ end subroutine write_ghg_grid
     use gsi_bundlemod, only: gsi_bundledestroy
     use hybrid_ensemble_parameters, only: l_hyb_ens
     use mpeu_util, only: die
-    use radinfo, only: nst_gsi
+    use gsi_nstcouplermod, only: nst_gsi
     use constants, only: qcmin 
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
@@ -1542,7 +1542,7 @@ end subroutine write_ghg_grid
     use obsmod,  only: iadate,ianldate
     use constants, only: zero,zero_single,two,tfrozen,z_w_max,rad2deg
     use guess_grids, only: isli2
-    use radinfo, only: nst_gsi,zsea1,zsea2
+    use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 
@@ -2002,7 +2002,7 @@ end subroutine write_ghg_grid
     use obsmod,  only: iadate,ianldate
     use constants, only: zero_single,zero,half,two,pi,tfrozen,z_w_max,rad2deg
     use guess_grids, only: isli2
-    use radinfo, only: nst_gsi
+    use gsi_nstcouplermod, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 
@@ -2457,7 +2457,7 @@ end subroutine write_ghg_grid
     use obsmod,  only: iadate,ianldate
     use constants, only: zero_single,zero,half,two,pi,tfrozen
     use guess_grids, only: isli2
-    use radinfo, only: nst_gsi
+    use gsi_nstcouplermod, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 

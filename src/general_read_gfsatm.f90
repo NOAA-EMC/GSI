@@ -1854,25 +1854,25 @@ subroutine general_fillv_ns(grd,sp,gridu_in,gridv_in,gridv_out)
    return
 end subroutine general_fillv_ns
 
-subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
+subroutine preproc_read_gfsatm(grd,filename,gfs_bundle,iret)
 
    use kinds, only: r_kind,i_kind
    use constants, only: zero
    use mpimod, only: mpi_comm_world,ierror,mype
    use mpimod, only: mpi_mode_rdonly,mpi_info_null,mpi_rtype,mpi_offset_kind
    use mpi, only: mpi_status_ignore
-   use hybrid_ensemble_parameters, only: grd_ens
-   use general_sub2grid_mod, only: general_grid2sub
+   use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
    use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 
    implicit none
 
-   character(len=*),intent(in   ) :: filename
-   type(gsi_bundle),intent(inout) :: gfs_bundle
-   integer(i_kind), intent(  out) :: iret
+   type(sub2grid_info), intent(in   ) :: grd
+   character(len=*),    intent(in   ) :: filename
+   type(gsi_bundle),    intent(inout) :: gfs_bundle
+   integer(i_kind),     intent(  out) :: iret
 
-   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2) :: g_z,g_ps
-   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) :: &
+   real(r_kind),dimension(grd%lat2,grd%lon2) :: g_z,g_ps
+   real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: &
                 g_u,g_v,g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
 
    real(r_kind),dimension(:,:,:,:),allocatable:: work_grd,work_sub
@@ -1883,11 +1883,11 @@ subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
    ! Assume all goes well
    iret = 0
 
-   im=grd_ens%lat2
-   jm=grd_ens%lon2
-   km=grd_ens%nsig
+   im=grd%lat2
+   jm=grd%lon2
+   km=grd%nsig
 
-   allocate(work_grd(grd_ens%inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%kbegin_loc:grd_ens%kend_alloc))
+   allocate(work_grd(grd%inner_vars,grd%nlat,grd%nlon,grd%kbegin_loc:grd%kend_alloc))
 
    call mpi_file_open(mpi_comm_world,trim(adjustl(filename)), &
                       mpi_mode_rdonly,mpi_info_null,lunges,ierror)
@@ -1897,8 +1897,8 @@ subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
       goto 1000
    endif
 
-   count  = grd_ens%nlat * grd_ens%nlon *  grd_ens%nlevs_alloc
-   offset = grd_ens%nlat * grd_ens%nlon * (grd_ens%kbegin_loc-1) * r_kind
+   count  = grd%nlat * grd%nlon *  grd%nlevs_alloc
+   offset = grd%nlat * grd%nlon * (grd%kbegin_loc-1) * r_kind
    call mpi_file_read_at(lunges,offset,work_grd,count,mpi_rtype,mpi_status_ignore,ierror)
    if ( ierror /= 0 ) then
       write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task = ', mype, ' ierror = ', ierror
@@ -1913,9 +1913,9 @@ subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
       goto 1000
    endif
 
-   allocate(work_sub(grd_ens%inner_vars,im,jm,grd_ens%num_fields))
+   allocate(work_sub(grd%inner_vars,im,jm,grd%num_fields))
 
-   call general_grid2sub(grd_ens,work_grd,work_sub)
+   call general_grid2sub(grd,work_grd,work_sub)
 
    deallocate(work_grd)
 
@@ -1939,8 +1939,8 @@ subroutine preproc_read_gfsatm(filename,gfs_bundle,iret)
    !$omp parallel do schedule(dynamic,1) private(j,i)
    do j = 1,jm
       do i = 1,im
-         g_ps(i,j) = work_sub(1,i,j,grd_ens%num_fields-1)
-         g_z( i,j) = work_sub(1,i,j,grd_ens%num_fields  )
+         g_ps(i,j) = work_sub(1,i,j,grd%num_fields-1)
+         g_z( i,j) = work_sub(1,i,j,grd%num_fields  )
       enddo
    enddo
 

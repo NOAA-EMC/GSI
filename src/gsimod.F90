@@ -35,7 +35,6 @@
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
                        ssmis_method,ssmis_precond
-  use radinfo, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
@@ -133,6 +132,8 @@
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
+  use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
 
   implicit none
 
@@ -311,6 +312,8 @@
 !  05-13-2015 wu        remove check to turn off regional 4densvar
 !  02-29-2015 S.Liu     added option l_use_hydroretrieval_all
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
+!  12-08-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
+!                       option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -323,7 +326,7 @@
 ! Declare namelists with run-time gsi options.
 !
 ! Namelists:  setup,gridopts,jcopts,bkgerr,anbkgerr,obsqc,obs_input,
-!             singleob_test,superob_radar,emissjac
+!             singleob_test,superob_radar,emissjac,chem,nst
 !
 ! SETUP (general control namelist) :
 !
@@ -355,18 +358,6 @@
 !     iout_iter- output file number for iteration information
 !     npredp   - number of predictors for precipitation bias correction
 !     retrieval- logical to turn off or on the SST physical retrieval
-!     nst_gsi  - indicator to control the Tr Analysis mode: 0 = no nst info ingsi at all;
-!                                                           1 = input nst info, but used for monitoring only
-!                                                           2 = input nst info, and used in CRTM simulation, but no Tr analysis
-!                                                           3 = input nst info, and used in CRTM simulation and Tr analysis is on
-!     nstinfo  - number of nst variables
-!     zsea1    - upper depth (in mm) for vertical mean of T based on NSST T-Profile
-!     zsea2    - lower depth (in mm) for vertical mean of T based on NSST T-Profile
-!     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
-!     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
-!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
-!                                                      1 = Do Tz retrieval and applied to QC
-!     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
 !     diag_rad - logical to turn off or on the diagnostic radiance file true=on
 !     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
@@ -488,7 +479,6 @@
        niter,niter_no_qc,miter,qoption,cwoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
-       nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
@@ -935,6 +925,21 @@
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
        aero_ratios,wrf_pm2_5
 
+! NST (NSST control namelist) :
+!     nst_gsi  - indicator to control the Tr Analysis mode: 0 = no nst info ingsi at all;
+!                                                           1 = input nst info, but used for monitoring only
+!                                                           2 = input nst info, and used in CRTM simulation, but no Tr analysis
+!                                                           3 = input nst info, and used in CRTM simulation and Tr analysis is on
+!     nstinfo  - number of nst variables
+!     zsea1    - upper depth (in mm) for vertical mean of T based on NSST T-Profile
+!     zsea2    - lower depth (in mm) for vertical mean of T based on NSST T-Profile
+!     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
+!     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
+!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
+!                                                      1 = Do Tz retrieval and applied to QC
+!     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
+   namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
+
 !EOC
 
 !---------------------------------------------------------------------------
@@ -1008,6 +1013,7 @@
   call init_aircraft
   call init_gfs_stratosphere
   call set_fgrid2agrid
+  call gsi_nstcoupler_init_nml
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional
 
@@ -1033,6 +1039,7 @@
   read(5,hybrid_ensemble)
   read(5,rapidrefresh_cldsurf)
   read(5,chem)
+  read(5,nst)
 #else
 ! Initialize table of instruments and data types
   call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
@@ -1063,6 +1070,8 @@
         if(ios/=0) call die(myname_,'read(rapidrefresh_cldsurf)',ios)
   read(11,chem,iostat=ios)
         if(ios/=0) call die(myname_,'read(chem)',ios)
+  read(11,nst,iostat=ios)
+        if(ios/=0) call die(myname_,'read(nst)',ios)
   close(11)
 #endif
 
@@ -1365,6 +1374,7 @@
      write(6,rapidrefresh_cldsurf)
      write(6,chem)
      if (oneobtest) write(6,singleob_test)
+     write(6,nst)
   endif
 
 ! Set up directories (or pe specific filenames)

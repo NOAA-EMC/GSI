@@ -75,7 +75,7 @@ subroutine get_user_ens_(grd,member,ntindex,atm_bundle,iret)
 21     format(a,'ens_mem',i3.3,'_f',i2.2,'.pe',i4.4)
 
        ! This is all that needs to be done.
-       !call preproc_read_gfsatm(filename,atm_bundle,iret)
+       !call preproc_read_gfsatm(grd,filename,atm_bundle,iret)
 
        ! Keeping this for now
        im = en_perts(1,1)%grid%im

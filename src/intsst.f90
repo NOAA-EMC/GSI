@@ -77,7 +77,7 @@ subroutine intsst(ssthead,rval,sval)
   use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
-  use radinfo, only: nst_gsi
+  use gsi_nstcouplermod, only: nst_gsi
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

@@ -105,7 +105,8 @@ module qcmod
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
   use constants, only: deg2rad,rad2deg,t0c,one_tenth
   use obsmod, only: rmiss_single
-  use radinfo, only: iuse_rad,nst_tzr,passive_bc
+  use radinfo, only: iuse_rad,passive_bc
+  use gsi_nstcouplermod, only: nst_tzr
   implicit none
 
 ! set default to private

@@ -640,7 +640,7 @@ subroutine read_obs(ndata,mype)
     use convb_t,only:convb_t_read
     use convb_uv,only:convb_uv_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
-    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad,nst_gsi
+    use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
     use insitu_info, only: mbuoy_info,read_ship_info
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
@@ -648,6 +648,7 @@ subroutine read_obs(ndata,mype)
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv,ithin_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext,mype_airobst
+    use gsi_nstcouplermod, only: nst_gsi
     use gsi_nstcouplermod, only: gsi_nstcoupler_set,gsi_nstcoupler_final
     use gsi_io, only: mype_io
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
