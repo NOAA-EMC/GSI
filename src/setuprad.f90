@@ -166,6 +166,7 @@
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
 !                         change quality control interface for AMSUA and ATMS.
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR).
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -323,6 +324,7 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
+  integer(i_kind),allocatable,dimension(:) :: sc_index
 
   logical channel_passive
   logical,dimension(nobs):: luse
@@ -390,7 +392,7 @@
   ssmis_img  = obstype == 'ssmis_img'
   ssmis_env  = obstype == 'ssmis_env'
   iasi       = obstype == 'iasi'
-  cris       = obstype == 'cris'
+  cris       = obstype == 'cris' .or. obstype == 'cris-fsr'
   seviri     = obstype == 'seviri'
   atms       = obstype == 'atms'
   saphir     = obstype == 'saphir'
@@ -420,24 +422,22 @@
 !    increase in error take place
      cclr(:)=zero
      ccld(:)=zero
-     do i=1,nchanl
-        cclr( 1)=0.05_r_kind
-        cclr( 2)=0.03_r_kind
-        cclr( 3)=0.03_r_kind
-        cclr( 4)=0.02_r_kind
-        cclr( 5)=0.00_r_kind
-        cclr( 6)=0.10_r_kind
-        cclr(15)=0.03_r_kind
-     end do
-     do i=1,nchanl
-        ccld( 1)=0.60_r_kind
-        ccld( 2)=0.45_r_kind
-        ccld( 3)=0.40_r_kind
-        ccld( 4)=0.45_r_kind
-        ccld( 5)=1.00_r_kind
-        ccld( 6)=1.50_r_kind
-        ccld(15)=0.20_r_kind
-     end do
+
+     cclr( 1)=0.05_r_kind
+     cclr( 2)=0.03_r_kind
+     cclr( 3)=0.03_r_kind
+     cclr( 4)=0.02_r_kind
+     cclr( 5)=0.00_r_kind
+     cclr( 6)=0.10_r_kind
+     cclr(15)=0.03_r_kind
+
+     ccld( 1)=0.60_r_kind
+     ccld( 2)=0.45_r_kind
+     ccld( 3)=0.40_r_kind
+     ccld( 4)=0.45_r_kind
+     ccld( 5)=1.00_r_kind
+     ccld( 6)=1.50_r_kind
+     ccld(15)=0.20_r_kind
   endif
 
 ! Initialize channel related information
@@ -446,6 +446,7 @@
   l_may_be_passive = .false.
   toss = .true.
   jc=0
+
   do j=1,jpch_rad
      if(isis == nusis(j))then 
         jc=jc+1
@@ -477,6 +478,7 @@
         if (passive_bc .and. (iuse_rad(j)==-1)) tnoise_cld(jc)=varch_cld(j)
      end if
   end do
+
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
      obstype,nchanl,' --> ',jc
   if(jc == 0) then
@@ -484,17 +486,20 @@
      if(nobs > 0)read(lunin)
      go to 135
   end if
+
   if (toss) then
      if(mype == 0)write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
         'data from satellite is=',isis
      if(nobs >0)read(lunin)                    
      goto 135
   endif
+
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
 
 !  Logic to turn off print of reading coefficients if not first interation or not mype_diaghdr or not init_pass
   iwrmype=-99
   if(mype==mype_diaghdr(is) .and. init_pass .and. jiterstart == jiter)iwrmype = mype_diaghdr(is)
+
 ! Initialize radiative transfer and pointers to values in data_s
   call init_crtm(init_pass,iwrmype,mype,nchanl,isis,obstype)
 
@@ -605,9 +610,6 @@
   endif
 
 
-  do i=1,nchanl
-     wavenumber(i)=sc(sensorindex)%wavenumber(i)
-  end do
 
 !  Find number of channels written to diag file
   if(reduce_diag)then
@@ -649,6 +651,22 @@
   if (lobsdiagsave) idiag=idiag+4*miter+1
   allocate(diagbufchan(idiag,nchanl_diag))
 
+  allocate(sc_index(nchanl))
+  sc_index(:) = 0
+  satinfo_chan: do i=1, nchanl
+     n = ich(i)
+     spec_coef: do k=1, sc(1)%n_channels
+         if ( nuchan(n) == sc(1)%sensor_channel(k)) then
+            sc_index(i) = k
+            exit spec_coef
+         endif
+      end do spec_coef
+   end do satinfo_chan
+
+  do i=1,nchanl
+     wavenumber(i)=sc(sensorindex)%wavenumber(sc_index(i))
+  end do
+
 ! If diagnostic file requested, open unit to file and write header.
   if (rad_diagsave .and. nchanl_diag > 0) then
      filex=obstype
@@ -677,8 +695,8 @@
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
            varch4=varch(n)
            tlap4=tlapmean(n)
-           freq4=sc(sensorindex)%frequency(i)
-           pol4=sc(sensorindex)%polarization(i)
+           freq4=sc(sensorindex)%frequency(sc_index(i))
+           pol4=sc(sensorindex)%polarization(sc_index(i))
            wave4=wavenumber(i)
            write(4)freq4,pol4,wave4,varch4,tlap4,iuse_rad(n),&
               nuchan(n),ich(i)
@@ -974,7 +992,6 @@
 
 !          tbc    = obs - guess after bias correction
 !          tbcnob = obs - guess before bias correction
-
            tbcnob(i)    = tb_obs(i) - tsim(i)  
            tbc(i)       = tbcnob(i)                     
  
@@ -1928,6 +1945,8 @@
 ! Jump here when there is no data to process for current satellite
 ! Deallocate arrays
   deallocate(diagbufchan)
+  deallocate(sc_index)
+
   if (rad_diagsave) then
      call dtime_show(myname,'diagsave:rad',i_rad_ob_type)
      close(4)
