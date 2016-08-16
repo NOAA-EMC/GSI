@@ -2,21 +2,21 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014040400
+edate=2014052400
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-b
+#instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
 exp=prctlfull
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib
 #location the covariance matrix is saved to
-savdir=$diagdir
+savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
-type=1
+type=5
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -32,7 +32,7 @@ kreq=150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=4
+num_proc=20
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
