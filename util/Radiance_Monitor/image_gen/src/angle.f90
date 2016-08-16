@@ -33,7 +33,7 @@ program angle
 !************************************************************************
   implicit none
 
-  integer ftyp,cyc,chan,open_status,nregion,prd
+  integer ftyp,cyc,chan,open_status,prd
   integer d1, d7, d30, ctr
   integer ges, anl, avg, sdv
 
@@ -107,14 +107,14 @@ program angle
    real                  :: scan_start           = 0.00
    real                  :: scan_stepsz          = 1.00
    integer               :: scan_nstep           = 90
+   integer               :: nregion              = 5
    namelist /input/ satname, nchanl, ncycle, scan_start, &
-                    scan_stepsz, scan_nstep
+                    scan_stepsz, scan_nstep, nregion
 
 
 !************************************************************************
 !  Data assignments
 !************************************************************************
-   data nregion / 5 /
    data luname,ldname,lpname / 5,50,51 /
    data rmiss /-999.0/
    data ges, anl, avg, sdv / 1, 2, 1, 2 /

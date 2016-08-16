@@ -74,12 +74,10 @@ shell=ksh
 # Need better reference here!
 if [[ $RADMON_SUFFIX = "wopr" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/wopr"
-elif [[ $RADMON_SUFFIX = "pr4dev" ]]; then 
-   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/pr4dev"
-elif [[ $RADMON_SUFFIX = "4devb" ]]; then 
-   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/4devb"
 elif [[ $RADMON_SUFFIX = "nrx" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
+elif [[ $RADMON_SUFFIX = "namrr" ]]; then
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/namrr"
 fi
 
 HTAR="/usrx/local/hpss/htar"
