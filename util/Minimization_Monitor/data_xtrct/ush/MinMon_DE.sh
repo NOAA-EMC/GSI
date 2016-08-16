@@ -112,8 +112,8 @@ export m_jlogfile="${lfile}.log"
 echo  "m_jlogfile = $m_jlogfile"
 
 #############################################################
-export job=gdas_vminmon.${cyc}
-export jobid=${job}.${pid}
+export job=${job:-${MINMON_SUFFIX}_vminmon}
+export jobid=${jobid:-${job}.${cyc}.${pid}}
 export envir=prod
 export DATAROOT=${DATA_IN:-${STMP_USER}}
 export COMROOT=${COMROOT:-/com2}
@@ -168,17 +168,18 @@ echo "JOB_QUEUE  = $JOB_QUEUE"
 echo "PROJECT    = $PROJECT"
 echo "jobname    = $jobname" 
 
-jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+if [[ $GLB_AREA -eq 0 ]]; then
+   jobfile=${jobfile:-${HOMEnam}/jobs/JNAM_VMINMON}
+else
+   jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+fi
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
-   echo "submitting job $jobname"
-
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
-
 elif [[ $MY_MACHINE = "cray" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 80 -R "select[mem>80] rusage[mem=80]" -W 0:10 -J ${jobname} $jobfile
-
+elif [[ $MY_MACHINE = "theia" ]]; then
+   echo "theia job sumission goes here"
 fi
 
 

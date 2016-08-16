@@ -7,7 +7,7 @@ program make_base
   !
   ! note mregion (max region) in time.f90 is 25, while nregion is 5
   !
-  parameter ( mregion=25, mfile=999 )
+  parameter ( mregion=25, mfile=2000 )
   parameter ( rmiss = -999.0 )
 
   character(20) satname

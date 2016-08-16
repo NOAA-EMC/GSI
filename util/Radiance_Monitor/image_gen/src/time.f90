@@ -34,6 +34,7 @@ program gatime
   
    integer luname,ldname,lpname,lsatchan,lsatout
    integer cyc,ii,jj,iflag,j,k,res,chan,ftyp,open_status
+   integer max_region
 
    logical exist
 
@@ -62,6 +63,7 @@ program gatime
 
 
    data luname,ldname,lpname,lsatchan / 5, 50, 51, 52 /
+   data max_region / 5 /
    data rmiss /-999./
 
 !************************************************************************
@@ -91,13 +93,14 @@ program gatime
 !************************************************************************
    allocate( chan_nums (nchanl) )
    allocate( useflg(nchanl), wave(nchanl), freq(nchanl) )
-   allocate( chi(2, nchanl, nregion) )
+!   allocate( chi(2, nchanl, nregion) )
+   allocate( chi(2, nchanl, max_region) )
 
    open( lpname, file='chan.txt' )
 
    do ii=1,nchanl
       read(lpname, *) chan_nums(ii), useflg(ii), wave(ii), freq(ii)
-      do jj=1,nregion
+      do jj=1,max_region
          chi(1,ii,jj) = 0.00
       end do
    end do
@@ -376,15 +379,15 @@ program gatime
 !     write channel information to sat_chan_file
 !
    do j=1,nchanl
-      if( nregion == 1 ) then
-         write(lsatchan,72) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
-                       chi(1,j,1), chi(2,j,1), wave(j), freq(j)
-      else
+!      if( nregion == 1 ) then
+!         write(lsatchan,72) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
+!                       chi(1,j,1), chi(2,j,1), wave(j), freq(j)
+!      else
          write(lsatchan,73) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
                        chi(1,j,1), chi(1,j,2), chi(1,j,3), chi(1,j,4), chi(1,j,5), &
                        chi(2,j,1), chi(2,j,2), chi(2,j,3), chi(2,j,4), chi(2,j,5), &
                        wave(j), freq(j)
-      end if
+!      end if
 
    end do
    write(6,*) 'wrote all channel lines to lsatchan'
@@ -424,16 +427,17 @@ program gatime
      write(6,*)' cnt_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         if( nregion == 1 ) then
-            write(lsatout,78) trim(chan_nums(chan)), trim(times(cyc)),    &
-                          int(cnt(1,cyc,chan,1)), int(cnt(2,cyc,chan,1))
-         else
-            write(lsatout,79) trim(chan_nums(chan)), trim(times(cyc)),       &
-                          int(cnt(1,cyc,chan,1)), int(cnt(1,cyc,chan,2)), &
-                          int(cnt(1,cyc,chan,3)), int(cnt(1,cyc,chan,4)), &
-                          int(cnt(1,cyc,chan,5)), int(cnt(2,cyc,chan,1)), &
-                          int(cnt(2,cyc,chan,2)), int(cnt(2,cyc,chan,3)), &
-                          int(cnt(2,cyc,chan,4)), int(cnt(2,cyc,chan,5))
+        if( nregion == 1 ) then
+           write(6,*) 'nregion = 1, writing cnt_out_file'
+           write(lsatout,78) trim(chan_nums(chan)), trim(times(cyc)),    &
+                         int(cnt(1,cyc,chan,1)), int(cnt(2,cyc,chan,1))
+        else
+           write(lsatout,79) trim(chan_nums(chan)), trim(times(cyc)),       &
+                         int(cnt(1,cyc,chan,1)), int(cnt(1,cyc,chan,2)), &
+                         int(cnt(1,cyc,chan,3)), int(cnt(1,cyc,chan,4)), &
+                         int(cnt(1,cyc,chan,5)), int(cnt(2,cyc,chan,1)), &
+                         int(cnt(2,cyc,chan,2)), int(cnt(2,cyc,chan,3)), &
+                         int(cnt(2,cyc,chan,4)), int(cnt(2,cyc,chan,5))
         end if
      end do
      close(lsatout)
@@ -462,7 +466,7 @@ program gatime
                           avg_pen(1,cyc,chan,5), avg_pen(2,cyc,chan,1), &
                           avg_pen(2,cyc,chan,2), avg_pen(2,cyc,chan,3), &
                           avg_pen(2,cyc,chan,4), avg_pen(2,cyc,chan,5)
-        end if
+         end if
      end do
      close(lsatout)
 
@@ -499,7 +503,7 @@ program gatime
                           sdv_omgnbc(1,cyc,chan,5), sdv_omgnbc(2,cyc,chan,1), &
                           sdv_omgnbc(2,cyc,chan,2), sdv_omgnbc(2,cyc,chan,3), &
                           sdv_omgnbc(2,cyc,chan,4), sdv_omgnbc(2,cyc,chan,5)
-        end if
+         end if
      end do
      close(lsatout)
 
@@ -522,7 +526,12 @@ program gatime
      write(6,*)' totcor_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),     &
+         if( nregion == 1 ) then 
+            write(lsatout,83) trim(chan_nums(chan)), trim(times(cyc)),        &
+                          avg_biascr(1,cyc,chan,1), avg_biascr(2,cyc,chan,1), &
+                          sdv_biascr(1,cyc,chan,1), sdv_biascr(2,cyc,chan,1)
+         else
+            write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),     &
                           avg_biascr(1,cyc,chan,1), avg_biascr(1,cyc,chan,2), &
                           avg_biascr(1,cyc,chan,3), avg_biascr(1,cyc,chan,4), &
                           avg_biascr(1,cyc,chan,5), avg_biascr(2,cyc,chan,1), &
@@ -533,6 +542,7 @@ program gatime
                           sdv_biascr(1,cyc,chan,5), sdv_biascr(2,cyc,chan,1), &
                           sdv_biascr(2,cyc,chan,2), sdv_biascr(2,cyc,chan,3), &
                           sdv_biascr(2,cyc,chan,4), sdv_biascr(2,cyc,chan,5)
+         end if
      end do
      close(lsatout)
 
@@ -554,7 +564,12 @@ program gatime
      write(6,*)' omgbc_out_file opened, status:  ', open_status
 
      do cyc=1,ncycle
-         write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),     &
+         if( nregion == 1 ) then 
+            write(lsatout,83) trim(chan_nums(chan)), trim(times(cyc)),        &
+                          avg_omgbc(1,cyc,chan,1), avg_omgbc(2,cyc,chan,1), &
+                          sdv_omgbc(1,cyc,chan,1), sdv_omgbc(2,cyc,chan,1)
+         else
+            write(lsatout,82) trim(chan_nums(chan)), trim(times(cyc)),     &
                           avg_omgbc(1,cyc,chan,1), avg_omgbc(1,cyc,chan,2), &
                           avg_omgbc(1,cyc,chan,3), avg_omgbc(1,cyc,chan,4), &
                           avg_omgbc(1,cyc,chan,5), avg_omgbc(2,cyc,chan,1), &
@@ -565,6 +580,7 @@ program gatime
                           sdv_omgbc(1,cyc,chan,5), sdv_omgbc(2,cyc,chan,1), &
                           sdv_omgbc(2,cyc,chan,2), sdv_omgbc(2,cyc,chan,3), &
                           sdv_omgbc(2,cyc,chan,4), sdv_omgbc(2,cyc,chan,5)
+         end if
      end do
      close(lsatout)
 
