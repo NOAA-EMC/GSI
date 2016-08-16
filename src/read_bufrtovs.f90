@@ -1,9 +1,8 @@
 subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll,nobs, &
-     nrec_start,nrec_start_ears,dval_use)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub, nobs, &
+     nrec_start,nrec_start_ears,nrec_start_db,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bufrtovs                  read bufr tovs 1b data
@@ -86,6 +85,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
 !   2014-04-27  eliu/zhu - add thinning options for AMSU-A under allsky condition 
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -106,11 +106,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb
-!     lll
 !     dval_use - logical for using dval
 !     nrec_start - first subset with useful information
 !     nrec_start_ears - first ears subset with useful information
+!     nrec_start_db - first db subset with useful information
 !
 !   output argument list:
 !     nread    - number of BUFR TOVS 1b observations read
@@ -130,7 +129,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
+  use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300,r100
   use crtm_module, only: success, &
       crtm_kind => fp, &
       MAX_SENSOR_ZENITH_ANGLE
@@ -151,7 +150,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
-  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears
+  integer(i_kind) ,intent(in   ) :: nrec_start,nrec_start_ears,nrec_start_db
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind),dimension(npe) ,intent(inout) :: nobs
@@ -162,7 +161,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind) ,intent(in   ) :: lll,llb
   logical,         intent(in   ) :: dval_use
 
 ! Declare local parameters
@@ -178,9 +176,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
-  character(40):: infile2
-  character(8) subset
-  character(80) hdr1b,hdr2b
+  character(len=40):: infile2
+  character(len=8) :: subset
+  character(len=80):: hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,next,nrec_startx
   integer(i_kind) i,j,k,ifov,ntest,llll
@@ -466,32 +464,33 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   next=0
   irec=0
-! Big loop over standard data feed and possible ears data
-  do llll=llb,lll
-
+! Big loop over standard data feed and possible ears/db data
+! llll=1 is normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data)
+  ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
+        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
-     end if
-     if(llll == 2) then
+        infile2=trim(infile)         ! Set bufr subset names based on type of data to read
+     elseif(llll == 2) then
+        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_ears
-     end if
-!    Set bufr subset names based on type of data to read
-
-!    Open unit to satellite bufr file
-     infile2=trim(infile)
-     if(llll == 2)then
-        infile2=trim(infile)//'ears'
-        if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
+        infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
+     elseif(llll == 3) then
+        if ( nrec_start_db <= 0 ) cycle ears_db_loop
+        nrec_startx=nrec_start_db
+        infile2=trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
      end if
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old')
 
      call openbf(lnbufr,'IN',lnbufr)
 
-     if(llll == 2)then
+     if(llll >= 2 .and. (amsua .or. amsub .or. mhs))then
         allocate(data1b8x(nchanl))
         sensorlist(1)=sis
         if( crtm_coeffs_path /= "" ) then
@@ -530,7 +529,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         if(next/=mype_sub)cycle read_subset
         read_loop: do while (ireadsb(lnbufr)==0)
 
-!          Read header record.  (llll=1 is normal feed, 2=EARS data)
+!          Read header record.  (llll=1 is normal feed, 2=EARS data, 3=DB data)
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
@@ -616,7 +615,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
-           crit1 = 0.01_r_kind+terrain + (llll-1)*500.0_r_kind + timedif 
+           crit1 = 0.01_r_kind + terrain + timedif
+           if (llll >  1 ) crit1 = crit1 + r100 * float(llll)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
            if(.not. iuse)cycle read_loop
 
@@ -665,10 +665,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          sounders.
            if (llll == 1) then
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
-           else     ! EARS
+           else     ! EARS / DB
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
-              data1b8x=data1b8
-              if(.not. hirs)then
+              if ( amsua .or. amsub .or. mhs )then
+                 data1b8x=data1b8
                  data1b4=data1b8
                  call remove_antcorr(sc(instrument)%ac,ifov,data1b4)
                  data1b8=data1b4
@@ -918,27 +918,22 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            end do
            nrec(itx)=irec
 
-
 !       End of bufr read loops
-     enddo read_loop
-  enddo read_subset
-  call closbf(lnbufr)
+        enddo read_loop
+     enddo read_subset
+     call closbf(lnbufr)
 
+     if(llll > 1 .and. (amsua .or. amsub .or. mhs))then
+        deallocate(data1b8x)
 
-  if(llll == 2)then
-! deallocate crtm info
-     error_status = crtm_spccoeff_destroy()
-     if (error_status /= success) &
-        write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
-  end if
+!       deallocate crtm info
+        error_status = crtm_spccoeff_destroy()
+        if (error_status /= success) &
+           write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
+     end if
 
-!   Jump here when there is a problem opening the bufr file
-  if (llll==2) deallocate(data1b8x)
-500  continue
-
-  end do
+  end do ears_db_loop
   deallocate(data1b8,data1b4)
-!  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)

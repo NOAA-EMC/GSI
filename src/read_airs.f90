@@ -70,6 +70,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-03-05  akella  nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-22  Jung    - added logic to allow subset changes based on the satinfo file
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -109,7 +110,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad, &
-      air_rad,predx,adp_anglebc,use_edges,radedge1,radedge2, &
+      nuchan, adp_anglebc,use_edges,radedge1,radedge2, &
       radstep,radstart,newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
@@ -117,20 +118,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
 
   implicit none
-
-
-! Number of channels for sensors in BUFR
-  integer(i_kind),parameter :: n_airschan = 281                           !--- 281 subset ch out of 2378 ch for AIRS
-  integer(i_kind),parameter :: n_amsuchan =  15
-  integer(i_kind),parameter :: n_hsbchan  =   4
-  integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+1
-  integer(i_kind),parameter :: n_totchanp4 = n_totchan + 4
-
 
 ! BUFR format for AQUASPOT 
 ! Input variables
@@ -167,16 +159,17 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)     :: irec,next
 
 ! Variables for BUFR IO    
+  real(r_double) :: crchn_reps
   real(r_double),dimension(2) :: aquaspot
   real(r_double),dimension(12,3) :: allspot
-  real(r_double),dimension(n_totchan) :: allchan
-  real(r_double),dimension(n_totchanp4) :: airflag
+  real(r_double),allocatable,dimension(:,:) :: allchan
+  integer(i_kind),allocatable, dimension(:) :: chan_map
+  integer(i_kind) :: bufr_size
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
-  integer(i_kind)   :: nchanl,nchanlr
   integer(i_kind)   :: iret, ireadmg,ireadsb
 
 
@@ -188,8 +181,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset,ioffset_acqf
-  integer(i_kind)  :: itx, k, nele, itt, n,iscbtseqn,ix
+  integer(i_kind)  :: nreal, isflg
+  integer(i_kind)  :: itx, k, nele, itt, n,ix
+  integer(i_kind)  :: qc_1, qc_2, qc_3, qc_15    ! amsua quality control bufr_index values
   real(r_kind)     :: chsstf,chsst,chsst_all,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
   real(r_kind)     :: dlon, dlat
@@ -203,14 +197,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
 
-  integer(i_kind)  :: ifov, ioff, ilat, ilon, instr, ichan
+  integer(i_kind)  :: ifov, ioff, instr, ichan
   logical          :: outside,iuse,assim,lluse,valid
-  integer(i_kind)  :: i, l, ll, iskip
+  integer(i_kind)  :: i, l, iskip
   integer(i_kind),allocatable,dimension(:)::nrec
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: radedge_min, radedge_max, maxinfo
+  integer(i_kind)   :: subset_start, subset_end, satinfo_nchan
+  integer(i_kind)   :: bufr_start, bufr_end, bufr_nchan
+  integer(i_kind),allocatable, dimension(:) :: bufr_index
+  integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
 
 
 ! Set standard parameters
@@ -221,8 +219,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: d2     = -2.265_r_kind
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
+  integer(i_kind),parameter :: ilon = 3
+  integer(i_kind),parameter :: ilat = 4
 
-  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
+  real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
   logical           :: airs, amsua, hsb, airstab
@@ -239,10 +239,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   airs=      obstype == 'airs'
   amsua=     obstype == 'amsua'
   hsb=       obstype == 'hsb'
-  r01=0.01_r_kind
-
-  ilon=3
-  ilat=4
 
   if (nst_gsi > 0 ) then
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
@@ -250,59 +246,64 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   radedge_min = 0
   radedge_max = 1000
+
+! find the airs/amsu/hsb offset in the jpch_rad list.  This is for the isue flag
+! and count the number of channels in the satinfo file.
+  ioff=jpch_rad
+  subset_start = 0
+  subset_end = 0
+  assim = .false.
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
-        step  = radstep(i)
-        start = radstart(i)
-        if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
-           radedge_min=radedge1(i)
-           radedge_max=radedge2(i)
-        end if
-        exit 
+        ioff = min(ioff,i) ! airs/amsu/hsp offset
+        if (subset_start == 0) then
+           step  = radstep(i)
+           start = radstart(i)
+           if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+              radedge_min=radedge1(i)
+              radedge_max=radedge2(i)
+           end if
+           subset_start = i
+        endif
+        if (iuse_rad(i) > 0) assim = .true.    ! Are any of the airs/amsu/hsb channels being used?
+        subset_end = i
      endif
   end do 
+  satinfo_nchan = subset_end - subset_start + 1
+  allocate(bufr_index(satinfo_nchan)) 
+  ioff = ioff -1
+
+! If all channels of a given sensor are set to monitor or not
+! assimilate mode (iuse_rad<1), reset relative weight to zero.
+! We do not want such observations affecting the relative
+! weighting between observations within a given thinning group.
+  if ( .not. assim) val_airs=zero
 
   if(airs)then
      ix=1
      senname = 'AIRS'
-     nchanl  = n_airschan
-     nchanlr = n_airschan
-     ioff=newchn(sis,1)-1
-     ioffset=0
-     ioffset_acqf=0
-     ichansst   = newchn(sis,914)
-     ichsst     = ichansst-ioff+ioffset
+     allocate( chan_map(2378))
      if(isfcalc==1) then
         instr=17
         ichan=-999  ! not used for airs
         expansion=one ! use one for ir sensors
      endif
      if (mype_sub==mype_root) &
-        write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
+        write(6,*)'READ_AIRS:  airs offset ',ioff
   else if(amsua)then
      ix=2
      senname = 'AMSU'
-     nchanl  = n_amsuchan
-     nchanlr = n_amsuchan
-     ioff=newchn(sis,1)-1
-     ioffset=n_airschan
-     ioffset_acqf=n_airschan+4
-     ichansst   = newchn(sis,1)
-     ichsst     = ioffset +1            !channel 1
+     allocate( chan_map(15))
      if(isfcalc==1) then
         instr=11
         ichan=15  ! for now pick a surface channel
         expansion=2.9_r_kind ! use almost three for microwave
      endif
+     if (mype_sub==mype_root) &
+        write(6,*)'READ_AIRS:  amsu offset ',ioff
   else if(hsb)then
      ix=3
      senname = 'HSB'
-     nchanl  = n_hsbchan
-     nchanlr = n_hsbchan+1
-     ioff=newchn(sis,1)-1
-     ioffset=iscbtseqn+n_amsuchan
-     ichansst   = newchn(sis,4)
-     ichsst     = ichansst-ioff+ioffset
      if(isfcalc==1) then
         instr=12 ! similar to amsu-b according to tom kleespies
         ichan=-999 ! not used for hsb
@@ -312,22 +313,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   allspotlist='SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ FOVN'
 
-! If all channels of a given sensor are set to monitor or not
-! assimilate mode (iuse_rad<1), reset relative weight to zero.
-! We do not want such observations affecting the relative
-! weighting between observations within a given thinning group.
-
-  assim=.false.
-  search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
-        assim=.true.
-        exit search
-     endif
-  end do search
-  if (.not.assim) val_airs=zero
-
-! When calculating surface fields based on size/shape of fov, need
-! to initialize several variables.
+! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc == 1) then
      call instrument_init(instr,jsatid,expansion,valid)
      if (.not. valid) then
@@ -380,23 +366,41 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   call datelen(10)
 
 ! Allocate arrays to hold data
-  nele=nreal+nchanl
+! The number of channels in obtained from the satinfo file being used.
+  nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
+  allocate(allchan(3,1))     ! actual values set after ireadsb
+  allocate(bufr_chan_test(1))! actual values set after ireadsb
 
 ! Big loop to read data file
   nrec=999999
   next=0
   irec=0
-  read_msg: do while(ireadmg(lnbufr,subset,idate)>=0)
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
      irec=irec+1
-     if(irec < nrec_start) cycle read_msg
+     if(irec < nrec_start) cycle read_subset
      next=next+1
      if(next == npe_sub)next=0
-     if(next /= mype_sub)cycle
+     if(next /= mype_sub)cycle read_subset
+
      read_loop: do while (ireadsb(lnbufr)==0)
 
-!       Read AIRSSPOT , AMSUSPOT and HSBSPOT
+!       Get the size of the channels and radiance (allchan) array
+        call ufbint(lnbufr,crchn_reps,1,1,iret, '(SCBTSEQN)')
+        bufr_nchan = int(crchn_reps) + 24  ! 4 AIRS imager + 15 amsu + 5 HSB
+                                           ! (In the bufr format HSB has 5 not 4
+                                           ! channels!) 
 
+        bufr_size = size(allchan,2)
+        if ( bufr_size /= bufr_nchan ) then
+!          Allocate the arrays needed for the channel and radiance array
+           deallocate(allchan, bufr_chan_test)
+           allocate(allchan(3,bufr_nchan))
+           allocate(bufr_chan_test(bufr_nchan))
+        endif
+
+!       Read AIRSSPOT , AMSUSPOT and HSBSPOT
+!       AIRS > ix = 1, AMSU > ix = 2, HSB > ix = 3
         call ufbrep(lnbufr,allspot,12,3,iret,allspotlist)
 
         if(iret /= 3) cycle read_loop
@@ -415,11 +419,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Check observational info
         sat_zenang  = allspot(10,ix) 
         if( ifov < 0 .or. ifov > 100 .or. abs(sat_zenang) > 360._r_kind ) then
-
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
               ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
            cycle read_loop
-
         endif
 
         dlat_earth = allspot(8,ix)
@@ -505,7 +507,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
-        nread = nread + nchanl
+!       Increment nread ounter by satinfo_nchan
+        nread = nread + satinfo_nchan
 
         if (thin4d) then
            crit1 = 0.01_r_kind
@@ -515,7 +518,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
-
 
 !      "Score" observation.  We use this information to identify "best" obs
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -527,7 +529,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                   3 snow
 !                   4 mixed 
 
-!       The fov of view number is used when calculating the surface fields
+!       The field of view number is used when calculating the surface fields
 !       based on the fov's size/shape.  if it is out-of-range, skip ob.
 
         if (isfcalc == 1) then
@@ -545,25 +547,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
               idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         endif
 
-        crit1=crit1 + rlndsea(isflg)
+        crit1 = crit1 + rlndsea(isflg)
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-!       Check that number of airs channel equals n_airschan
-!       only done until they match for one record and ndata is updated
-
-!       Read AIRSCHAN or AMSUCHAN or HSBCHAN
-
-!       Read the brightness temperatures
-        call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
-        if( iret /= n_totchan)then
-           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              iret, ' TEMPERATURE CH DATA IS READ INSTEAD OF ',n_totchan
-           cycle read_loop
-        endif
-
 !       Set common predictor parameters
-
         sat_zenang  = sat_zenang  * deg2rad
         sat_aziang  = allspot(11,ix)  
 
@@ -571,23 +559,81 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
         sol_zenang = aquaspot(1)
 
+!       Read the channel numbers, quality flags, and brightness temperatures
+        call ufbrep(lnbufr, allchan,3,bufr_nchan,iret,'CHNM ACQF TMBR')
+        if( iret /= bufr_nchan)then
+           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+              iret, ' TEMPERATURE CH DATA IS READ INSTEAD OF ',bufr_nchan
+           cycle read_loop
+        endif
+
+!       Coordinate bufr channels with satinfo file channels
+!       Order in bufr file is airs, hsb, and amsua
+        if (airs ) then 
+           bufr_start = 1
+           bufr_end = bufr_nchan - 24  ! 4 airs visible, 15 amsu chans, 5 hsb chans
+           
+           do i=1, bufr_end
+!             endif
+              chan_map(int(allchan(1,i))) = i    ! map channel number position into chan_map
+           end do
+        elseif (amsua ) then
+           bufr_start = bufr_nchan - 19 ! 15 amsua + 5 hsb + 1
+           bufr_end = bufr_nchan  - 5   ! 5 hsb
+           do i=1, 15
+              !  Force allchan values for AMSU to be between 1 and 15 (sometimes they are
+              !  28-42!)
+              chan_map(i) = i+bufr_start-1
+              allchan(1,i+bufr_start-1)=i
+           end do
+        elseif (hsb) then
+           bufr_start = bufr_nchan - 4  ! 5 hsb chans + 1
+           bufr_end = bufr_nchan        ! Fin
+        endif
+        do i=bufr_start, bufr_end
+           chan_map(int(allchan(1,i))) = i    ! map channel number position into
+        end do
+
+!       Coordinate bufr channels with satinfo file channels
+!       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
+        if (ANY(int(allchan(1,bufr_start:bufr_end)) /= bufr_chan_test(bufr_start:bufr_end))) then
+           bufr_index(:) = 0
+           bufr_chans: do l=bufr_start, bufr_end
+              bufr_chan_test(l) = int(allchan(1,l))                          ! Copy this bufr channel selection into array for comparison to next profile
+              satinfo_chans: do i=1,satinfo_nchan                            ! Loop through sensor (airs) channels in the satinfo file
+                 if ( nuchan(ioff+i) == bufr_chan_test(l) ) then             ! Channel found in both bufr and stainfo file
+                    bufr_index(i) = l
+                    exit satinfo_chans                                       ! go to next bufr channel
+                 endif
+              end do  satinfo_chans
+           end do bufr_chans
+        end if
+
+
+!       Channel based quality control
         if(amsua)then
 
+           qc_1 = newchn(sis,1)
+           qc_2 = newchn(sis,2)
+           qc_3 = newchn(sis,3)
+           qc_15 = newchn(sis,15)
+
            if(ifov <= 15)sat_zenang = -sat_zenang
+
            if (adp_anglebc .and. newpc4pred) then
-              ch1 = allchan(ichsst)-ang_rad(ichansst)*cbias(ifov,ichansst) 
-              ch2 = allchan(ichsst+1)-ang_rad(ichansst+1)*cbias(ifov,ichansst+1) 
-              ch3 = allchan(ichsst+2)-ang_rad(ichansst+2)*cbias(ifov,ichansst+2) 
-              ch15= allchan(ichsst+14)-ang_rad(ichansst+14)*cbias(ifov,ichansst+14) 
+              ch1 = allchan(3,chan_map(1))-ang_rad(qc_1)*cbias(ifov,qc_1) 
+              ch2 = allchan(3,chan_map(2))-ang_rad(qc_2)*cbias(ifov,qc_2) 
+              ch3 = allchan(3,chan_map(3))-ang_rad(qc_3)*cbias(ifov,qc_3) 
+              ch15= allchan(3,chan_map(15))-ang_rad(qc_15)*cbias(ifov,qc_15) 
            else
-              ch1    = allchan(ichsst  )-ang_rad(ichansst    )* &
-                 (cbias(ifov,ichansst   )-cbias(15,ichansst   ))
-              ch2    = allchan(ichsst+1)-ang_rad(ichansst+1  )* &
-                 (cbias(ifov,ichansst+1 )-cbias(15,ichansst+1 ))
-              ch3    = allchan(ichsst+2)-ang_rad(ichansst+2  )* &
-                 (cbias(ifov,ichansst+2 )-cbias(15,ichansst+2 ))
-              ch15   = allchan(ichsst+14)-ang_rad(ichansst+14)* &
-                 (cbias(ifov,ichansst+14)-cbias(15,ichansst+14))
+              ch1    = allchan(3,chan_map(1))-ang_rad(qc_1)* &
+                 (cbias(ifov,qc_1 )-cbias(15,qc_1 ))
+              ch2    = allchan(3,chan_map(2))-ang_rad(qc_2 )* &
+                 (cbias(ifov,qc_2)-cbias(15,qc_2 ))
+              ch3    = allchan(3,chan_map(3))-ang_rad(qc_3 )* &
+                 (cbias(ifov,qc_3 )-cbias(15,qc_3 ))
+              ch15   = allchan(3,chan_map(15))-ang_rad(qc_15)* &
+                 (cbias(ifov,qc_15)-cbias(15,qc_15))
            end if
            if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
               cosza = cos(sat_zenang)
@@ -595,7 +641,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
               qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
               pred=max(zero,qval)*100.0_r_kind
            else
-              tt=168._r_kind-0.49_r_kind*ch15
+             tt=168._r_kind-0.49_r_kind*ch15
               df2 = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
               pred=zero
               if(ch1-ch15 >= three)then
@@ -606,23 +652,23 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
               end if
            endif
 
-        else
+        elseif( airs ) then
 
            chsst_all=zero  ! value weighted according to surface type
            if ( sfcpct(0) > zero ) then
 ! cloud checks over ocean
-              chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126+ioffset) + 0.60529_r_kind * &  ! AIRS science team
-                 allchan(129+ioffset) + 1.74444_r_kind * allchan(165+ioffset) &                    ! SST calculation for
-                 - .40379_r_kind * allchan(166+ioffset)                                            ! AIRS data
+              chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(3,chan_map(791)) + 0.60529_r_kind * &  ! AIRS science team
+                 allchan(3,chan_map(914)) + 1.74444_r_kind * allchan(3,chan_map(1285)) &            ! SST calculation for
+                 - .40379_r_kind * allchan(3,chan_map(1301))                                           ! AIRS data
 ! 917 cm-1 minus 2500 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus (ice), positive >> stratus (water)
 ! 917 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus ( ice), positive >> stratus (water)
 ! 2500 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! sensitivity test li, Jun et al. (2000) JAM
-              ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .10_r_kind)
-              ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .39_r_kind)
-              ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .49_r_kind)
+              ch8ch18 = abs(allchan(3,chan_map(787)) - allchan(3,chan_map(2197)) - .10_r_kind)
+              ch8ch19 = abs(allchan(3,chan_map(787)) - allchan(3,chan_map(2377)) + .39_r_kind)
+              ch18ch19 = abs(allchan(3,chan_map(2197)) - allchan(3,chan_map(2377)) + .49_r_kind)
               if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .55_r_kind .and. &
                  ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
                  chsst = tsavg
@@ -631,10 +677,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif ! water
            if ( sfcpct(1) > zero ) then
 ! cloud checks over land
-              chsst = allchan(123+ioffset)
-              ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .39_r_kind)
-              ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .13_r_kind)
-              ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .52_r_kind)
+              chsst = allchan(3,chan_map(587))
+              ch8ch18 = abs(allchan(3,chan_map(787)) - allchan(3,chan_map(2197)) - .39_r_kind)
+              ch8ch19 = abs(allchan(3,chan_map(787)) - allchan(3,chan_map(2377)) + .13_r_kind)
+              ch18ch19 = abs(allchan(3,chan_map(2197)) - allchan(3,chan_map(2377)) + .52_r_kind)
               if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .70_r_kind .and. &
                  ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
                  chsst = tsavg
@@ -651,27 +697,27 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! these tests should not be solar zenigh angle dependent.
 ! Holz and Ackerman 2006 AMS Sat Conf.
 
-              chsst = allchan(128+ioffset)
-              ch8ch18 = allchan(119+ioffset) - allchan(157+ioffset)
-              ch8ch19 = allchan(129+ioffset) - allchan(157+ioffset)
+              chsst = allchan(3,chan_map(870))
+              ch8ch18 = allchan(3,chan_map(475)) - allchan(3,chan_map(1199))
+              ch8ch19 = allchan(3,chan_map(914)) - allchan(3,chan_map(1199))
               if (ch8ch18 > -.05_r_kind .and. ch8ch18 < one .and. &
                   ch8ch19 > -.05_r_kind .and. ch8ch19 < one .and. &
                  chsst < 263.0_r_kind) then
                  chsst = tsavg
               endif
-              if ( allchan(108+ioffset) > allchan(107+ioffset) .and. &
-                   allchan(115+ioffset) > allchan(114+ioffset) .and. &
-                   allchan(181+ioffset) > allchan(180+ioffset) .and. &
-                   allchan(194+ioffset) > allchan(195+ioffset)) then
-                 tmpinv = allchan(87+ioffset)
-                 l = 88+ioffset
-                 do k = 88+ioffset,125+ioffset
-                    if ( allchan(k) > tmpinv ) then
-                       tmpinv = allchan(k)
+              if ( allchan(3,chan_map(300)) > allchan(3,chan_map(299)) .and. &
+                   allchan(3,chan_map(355)) > allchan(3,chan_map(338)) .and. &
+                   allchan(3,chan_map(1565)) > allchan(3,chan_map(1545)) .and. &
+                   allchan(3,chan_map(1708)) > allchan(3,chan_map(1717))) then
+                 tmpinv = allchan(3,chan_map(198))
+                 l = chan_map(201)
+                 do k = l, chan_map(787)
+                    if ( allchan(3,k) > tmpinv ) then
+                       tmpinv = allchan(3,k)
                        l = k
                     endif
                  end do
-                 if ( tmpinv > allchan(125+ioffset) + five) then
+                 if ( tmpinv > allchan(3,chan_map(787)) + five) then
                     chsst = tsavg
                  endif
               endif
@@ -685,6 +731,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         end if
 
+
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
         crit1 = crit1+pred 
         call checkob(dist1,crit1,itx,iuse)
@@ -692,41 +739,32 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       check for missing channels (if key channel reject)
         iskip = 0
-        do l=1+ioffset,nchanl+ioffset
-           ll=(l-ioffset)+ioff
-           lluse = iuse_rad(ll) >= 0
-           if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
+        skip_loop: do l=1, satinfo_nchan
+           if ( bufr_index(l) == 0 ) cycle skip_loop
+           lluse = iuse_rad(ioff+l) >= 0
+           if( lluse .and. (allchan(3,bufr_index(l)) < tbmin .or. allchan(3,bufr_index(l)) > tbmax) ) then
               iskip = iskip + 1
               if(airs) then
-                 if(l == ichsst) cycle read_loop
+                 if( bufr_index(l) == chan_map(914) ) cycle read_loop
               else if(amsua)then
-                 ll=l-ioffset
-                 if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
-                     ll == 6 .or. ll == 15)cycle read_loop
+                 if (bufr_index(l) == 1 .or. bufr_index(l) == 2 .or. bufr_index(l) == 3 .or. &
+                     bufr_index(l) == 4 .or. bufr_index(l) == 6 .or. bufr_index(l) == 15 ) cycle read_loop
               else
-                 ll=l-ioffset
-                 if(ll == 1 .or. ll == 2)cycle read_loop
+                 if(bufr_index(l) == 1 .or. bufr_index(l) == 2)cycle read_loop
               end if
            endif
-        end do
+        end do skip_loop
 
-        if( iskip >= nchanl )cycle read_loop
+        if( iskip >= satinfo_nchan )cycle read_loop
 
 !       Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
+        if(.not. iuse) cycle read_loop
 
-!       Replace popped AIRS channel Tb with zero  (should be moved before iskip)
+!       Replace popped AIRS channel Tb with zero
         if (airs) then
-!          Read the quality flag. Will catch "popped" channels
-           call ufbrep(lnbufr,airflag,1,n_totchanp4,iret,'ACQF')
-           if( iret /= n_totchanp4)then
-             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                iret, ' QUALITY FLAG DATA IS READ INSTEAD OF ',n_totchanp4
-             cycle read_loop
-           endif
-           do l=1,nchanl
-              if (airflag(l+ioffset_acqf) /= zero) allchan(l+ioffset) = zero
+           do l=1, bufr_end
+              if ( allchan(2,l) /= zero ) allchan(3,l) = zero
            end do
         endif
 
@@ -789,14 +827,21 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
         endif
 
-        do l=1,nchanl
-           data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
+!       Put satinfo defined channel temperature into data array
+        do i=1, satinfo_nchan
+           if ( bufr_index(i) /= 0 ) then
+              data_all(i+nreal,itx) = allchan(3,bufr_index(i))   ! brightness temerature
+           else
+              data_all(i+nreal,itx) = tbmin
+           endif
         end do
-
         nrec(itx)=irec
 
      enddo read_loop
-  enddo read_msg
+
+  enddo read_subset
+  deallocate(allchan, chan_map, bufr_chan_test)
+  call closbf(lnbufr)  ! Close bufr file
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
@@ -812,11 +857,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Update superobs sum according to observation location
 
      do n=1,ndata
-        do i=1,nchanl
+        do i=1, satinfo_nchan
            if(data_all(i+nreal,n) > tbmin .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
      end do
+
      if(dval_use .and. assim)then
         do n=1,ndata
            itt=nint(data_all(33,n))
@@ -826,21 +872,18 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Write final set of "best" observations to output file
      call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) obstype,sis,nreal,satinfo_nchan,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   
   endif
 
-1000 continue
 
   deallocate(data_all,nrec) ! Deallocate data arrays
+  deallocate(bufr_index)
   call destroygrids    ! Deallocate satthin arrays
-  call closbf(lnbufr)  ! Close bufr file
 
 ! deallocate arrays and nullify pointers.
-  if (isfcalc == 1) then
-     call fov_cleanup
-  endif
+  if (isfcalc == 1) call fov_cleanup
 
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
      write(6,*)'READ_AIRS:  mype,ntest,disterrmax=',&
