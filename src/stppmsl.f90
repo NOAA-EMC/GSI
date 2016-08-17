@@ -9,6 +9,7 @@ module stppmslmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2015-07-10  pondeca  - force return if no pmsl data available
 !
 ! subroutines included:
 !   sub stppmsl
@@ -80,6 +81,9 @@ subroutine stppmsl(pmslhead,rval,sval,out,sges,nstep)
   type(pmsl_ob_type), pointer :: pmslptr
 
   out=zero_quad
+
+! If no pmsl data return
+  if(.not. associated(pmslhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

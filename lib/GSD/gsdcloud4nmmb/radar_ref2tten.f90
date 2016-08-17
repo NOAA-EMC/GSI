@@ -1,5 +1,5 @@
 SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mos_3d, & 
-                         cld_cover_3d,p_bk,t_bk,ges_tten,dfi_rlhtp,sat_ctp)
+                         cld_cover_3d,p_bk,t_bk,ges_tten,dfi_rlhtp,krad_bot_in,pblh,sat_ctp)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -12,6 +12,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-02  Hu  Add NCO document block
+!    2016-05-08  S.Liu tune the relation between ref and tten
 !
 !
 !   input argument list:
@@ -27,6 +28,8 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 !     sat_ctp      - 2D NESDIS cloud top pressure (hPa)
 !     ges_tten     - 3D radar temperature tendency 
 !     dfi_rlhtp    - dfi radar latent heat time period. DFI forward integration window in minutes
+!     krad_bot_in  - radar bottome height
+!     pblh         - PBL height in grid unit
 !
 !   output argument list:
 !     ges_tten     - 3D radar temperature tendency 
@@ -55,12 +58,14 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
   INTEGER(i_kind),INTENT(IN) ::  istat_radar
   INTEGER(i_kind),INTENT(IN) ::  istat_lightning
   real(r_kind),INTENT(IN)    ::  dfi_rlhtp
+  real(r_single),INTENT(IN)  ::  krad_bot_in
+  real(r_single),INTENT(IN)  ::  pblh(nlon,nlat)
 
   real(r_kind),INTENT(IN)    :: ref_mos_3d(nlon,nlat,nsig)  ! reflectivity in grid
   real(r_single),INTENT(IN)  :: cld_cover_3d(nlon,nlat,nsig)
   real(r_single),INTENT(IN)  :: p_bk(nlon,nlat,nsig)
   real(r_single),INTENT(IN)  :: t_bk(nlon,nlat,nsig)   ! potential temperature
-  real(r_kind), INTENT(INOUT):: ges_tten(nlat,nlon,nsig)
+  real(r_kind), INTENT(INOUT):: ges_tten(nlat,nlon,nsig,1)
   real(r_single),INTENT(IN),OPTIONAL  :: sat_ctp(nlon,nlat)
 
   real (r_single) :: tbk_k
@@ -69,7 +74,6 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
   real(r_kind), allocatable :: dummy(:,:)                ! 
 
   integer krad_bot                    ! RUC bottom level for TTEN_RAD
-  parameter (krad_bot = 6)
 !
 !  convection suppression
 !
@@ -135,10 +139,11 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
     DO k=2,nsig-1
       DO j=2,nlat-1
         DO i=2,nlon-1
+          krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
           tbk_k=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp  ! convert to temperature(K) 
-          if (ref_mos_3d(i,j,k)<5.0_r_kind.and.abs(ref_mos_3d(i,j,k))>100) then     ! no echo
+          if (ref_mos_3d(i,j,k)<0.001_r_kind.and.ref_mos_3d(i,j,k)>-100) then     ! no echo
              tten_radar(i,j,k) = 0._r_kind
-          else if (ref_mos_3d(i,j,k)>=5.0_r_kind) then  ! echo
+          else if (ref_mos_3d(i,j,k)>=0.001_r_kind) then  ! echo
           iskip=0
           if (PRESENT(sat_ctp) ) then
             if (sat_ctp(i,j)>1010._r_kind .and. sat_ctp(i,j)<1100._r_kind) then
@@ -163,17 +168,19 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 !          - cloudy and under GOES cloud top
 !          - dfi_rlhtp in minutes
             if (k>=krad_bot) then
-               if (abs(cld_cover_3d(i,j,k))<=0.5_r_kind .and. (sat_ctp(i,j)>p_bk(i,j,k))) then
+! can not use cld_cover_3d because we don't use reflectivity to build cld_cover_3d
+!               if (abs(cld_cover_3d(i,j,k))<=0.5_r_kind .and. (sat_ctp(i,j)>p_bk(i,j,k))) then
+               if (sat_ctp(i,j)>p_bk(i,j,k)) then
                    addsnow=0.0_r_kind
                else
-                   addsnow = 10**(ref_mos_3d(i,j,k)/17.8_r_kind)/264083._r_kind*1.5_r_kind
+                   addsnow = 10**(ref_mos_3d(i,j,k)/(17.8_r_kind*2.0))/264083._r_kind*9.0_r_kind
                endif
                tten = ((1000.0_r_kind/p_bk(i,j,k))**(1._r_kind/cpovr_p))    &
                    *(((LV_P+LF0_P)*addsnow)/                &
-                   (dfi_rlhtp*60.0_r_kind*CPD_P))
-               tten_radar(i,j,k)= min(0.01_r_kind,max(-0.001_r_kind,tten))
-                end if
-            end if
+                   (2.0*dfi_rlhtp*60.0_r_kind*CPD_P))
+               tten_radar(i,j,k)= min(0.01_r_kind,max(-0.01_r_kind,tten))
+             end if
+          end if
           end if  ! ref_mos_3d
 
         ENDDO
@@ -201,9 +208,8 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
     DO k=1,nsig
       DO j=1,nlat
         DO i=1,nlon
-          ges_tten(j,i,k)=tten_radar(i,j,k)  !*10000
-!         ges_tten(j,i,k)=ref_mos_3d(i,j,k)
-          if(ref_mos_3d(i,j,k)<=-200.0_r_kind ) ges_tten(j,i,k)=-spval_p   ! no obs
+          ges_tten(j,i,k,1)=tten_radar(i,j,k)
+          if(ref_mos_3d(i,j,k)<=-200.0_r_kind ) ges_tten(j,i,k,1)=-spval_p   ! no obs
         ENDDO
       ENDDO
     ENDDO
@@ -248,7 +254,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
          dpint = 0._r_kind
          DO k=2,nsig-1
            if ((ref_mos_3d(i,j,k))<=-200.0_r_kind) tten_radar(i,j,k) = -spval_p
-           if (tten_radar(i,j,k)>-20._r_kind) then
+           if (tten_radar(i,j,k)>-15._r_kind) then
              nrad=nrad+1
              dpint = dpint + 0.5_r_kind*(p_bk(i,j,k-1)-p_bk(i,j,k+1))
              radmax = max(radmax,tten_radar(i,j,k))
@@ -257,6 +263,12 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
          if (dpint>=300._r_kind ) then 
            radyn(i,j) = 0._r_kind
            if (radmax>0.00002_r_kind) radyn(i,j) = 1.
+           if( abs(radyn(i,j)) < 0.00001_r_kind ) then
+             krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
+             do k=krad_bot,nsig-1
+                 ges_tten(j,i,k,1) = 0._r_kind
+             end do
+           endif
          else
 ! outside radar coverage area where satellite shows clear conditions, 
 !    then add this area to the convection suppress area.
@@ -266,6 +278,17 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
              endif
            endif
          endif
+
+!  2. Extend depth of no-echo zone from dpint zone down to PBL top, 
+!   similarly to how lowest echo (with convection) is extended down to PBL top
+!    5/27/2010 - Stan B.
+!         if (dpint >= 300. .and. radmax<=0.001) then
+!             krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
+!             do k=krad_bot,nsig-1
+!                 ges_tten(j,i,k,1) = 0._r_kind
+!             end do
+!         end if
+
          if(dpintmax < dpint ) dpintmax=dpint
          if(radmaxall< radmax) radmaxall=radmax
       ENDDO
@@ -273,8 +296,8 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 
     DO j=1,nlat
       DO i=1,nlon
-!        ges_tten(j,i,nsig)=radyn(i,j)
-         ges_tten(j,i,nsig)=0.0
+!        ges_tten(j,i,nsig,1)=radyn(i,j)
+         ges_tten(j,i,nsig,1)=0.0
       ENDDO
     ENDDO
 
@@ -284,7 +307,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
   else   ! no radar observation i this subdomain
 
      ges_tten=-spval_p
-     ges_tten(:,:,nsig)=-10.0_r_kind
+     ges_tten(:,:,nsig,1)=-10.0_r_kind
 
      DO j=1,nlat
        DO i=1,nlon
@@ -292,7 +315,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 ! outside radar observation domain and satellite show clean, the suppress convection
           if (PRESENT(sat_ctp) ) then
           if (sat_ctp(i,j)>=1010._r_kind .and. sat_ctp(i,j)<=1100._r_kind) then
-           ges_tten(j,i,nsig) = 0.
+           ges_tten(j,i,nsig,1) = 0.
         endif
         endif
      ENDDO
@@ -303,7 +326,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
   DO k=1,nsig
     DO j=1,nlat
       DO i=1,nlon
-       if(ges_tten(j,i,k) <= -200.0_r_kind ) ges_tten(j,i,k)=-20.0_r_kind   ! no obs
+       if(ges_tten(j,i,k,1) <= -200.0_r_kind ) ges_tten(j,i,k,1)=-20.0_r_kind   ! no obs
       ENDDO
     ENDDO
   ENDDO
@@ -311,7 +334,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 END SUBROUTINE radar_ref2tten
 
 SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mos_3d,cld_cover_3d,& 
-                         p_bk,t_bk,ges_tten,dfi_rlhtp)
+                         p_bk,t_bk,ges_tten,dfi_rlhtp,krad_bot_in,pblh)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -324,6 +347,7 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-02  Hu  Add NCO document block
+!    2016-05-08  S.Liu tune the relation between ref and tten
 !
 !
 !   input argument list:
@@ -338,6 +362,8 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
 !     t_bk         - 3D background potential temperature (K)
 !     ges_tten     - 3D radar temperature tendency 
 !     dfi_rlhtp    - dfi radar latent heat time period
+!     krad_bot_in  - radar bottome height
+!     pblh         - PBL height in grid unit
 !
 !   output argument list:
 !     ges_tten     - 3D radar temperature tendency 
@@ -366,12 +392,14 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
   INTEGER(i_kind),INTENT(IN) :: istat_radar
   INTEGER(i_kind),INTENT(IN) :: istat_lightning 
   real(r_kind),INTENT(IN)    ::  dfi_rlhtp
+  real(r_single),INTENT(IN)  ::  krad_bot_in
+  real(r_single),INTENT(IN)  ::  pblh(nlon,nlat)
 
   real(r_kind),INTENT(IN)    :: ref_mos_3d(nlon,nlat,nsig) ! reflectivity in grid
   real(r_single),INTENT(IN)  :: cld_cover_3d(nlon,nlat,nsig)
   real(r_single),INTENT(IN)  :: p_bk(nlon,nlat,nsig)
   real(r_single),INTENT(IN)  :: t_bk(nlon,nlat,nsig)
-  real(r_kind), INTENT(INOUT):: ges_tten(nlat,nlon,nsig)
+  real(r_kind), INTENT(INOUT):: ges_tten(nlat,nlon,nsig,1)
 
   real (r_single) :: tbk_k
 
@@ -380,7 +408,6 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
 
   integer(i_kind) :: krad_bot             ! RUC bottom level for TTEN_RAD
                                           !  and for filling from above
-  parameter (krad_bot = 6)
 !
 !  convection suppression
 !
@@ -451,10 +478,11 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
     DO k=2,nsig-1
       DO j=2,nlat-1
         DO i=2,nlon-1
+          krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
           tbk_k=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp  ! convert to temperature(K) 
-          if (ref_mos_3d(i,j,k)<5.0_r_kind.and.abs(ref_mos_3d(i,j,k))>100) then     ! no echo
+          if (ref_mos_3d(i,j,k)<0.001_r_kind.and.ref_mos_3d(i,j,k)>-100) then     ! no echo
              tten_radar(i,j,k) = 0._r_kind
-          else if (ref_mos_3d(i,j,k)>=5.0_r_kind) then  ! echo
+          else if (ref_mos_3d(i,j,k)>=0.001_r_kind) then  ! echo
             iskip=0
             if (tbk_k>277.15_r_kind .and. ref_mos_3d(i,j,k)<28._r_kind) then
             iskip=iskip+1
@@ -469,17 +497,18 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
 !          - for temp < 4K, any ruc_refl dbZ is OK.
 !          - cloudy and under GOES cloud top
               if (k>=krad_bot) then
-                 if (abs(cld_cover_3d(i,j,k))<=0.5_r_kind) then
-                   addsnow=0.0_r_kind
-                 else
-                   addsnow = 10**(ref_mos_3d(i,j,k)/17.8_r_kind)/264083._r_kind*1.5_r_kind
-                 endif
+! can not use cld_cover_3d because we don't use reflectivity to build cld_cover_3d
+!                 if (abs(cld_cover_3d(i,j,k))<=0.5_r_kind) then
+!                   addsnow=0.0_r_kind
+!                 else
+                   addsnow = 10**(ref_mos_3d(i,j,k)/(17.8_r_kind*2.0))/264083._r_kind*9.0_r_kind
+!                 endif
                  tten = ((1000.0_r_kind/p_bk(i,j,k))**(1./cpovr_p))    &
                      *(((LV_P+LF0_P)*addsnow)/                &
-                      (dfi_rlhtp*60.0_r_kind*CPD_P))
+                      (2.0*dfi_rlhtp*60.0_r_kind*CPD_P))
 !      60 = sec/min, and dfi_rlhtp is in minutes.
 !      NOTE:  tten is in K/seconds
-                 tten_radar(i,j,k)= min(0.01_r_kind,max(-0.001_r_kind,tten))
+                 tten_radar(i,j,k)= min(0.01_r_kind,max(-0.01_r_kind,tten))
               end if
             end if
           end if  ! ref_mos_3d
@@ -488,10 +517,10 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
       ENDDO
     ENDDO
 
-!   DO k=1,nsig
-!     call smooth(tten_radar(1,1,k),dummy,nlon,nlat,0.5_r_kind)
-!     call smooth(tten_radar(1,1,k),dummy,nlon,nlat,0.5_r_kind)
-!   ENDDO
+    DO k=1,nsig
+      call smooth(tten_radar(1,1,k),dummy,nlon,nlat,0.5_r_kind)
+      call smooth(tten_radar(1,1,k),dummy,nlon,nlat,0.5_r_kind)
+    ENDDO
 
 !  KEY element -- Set tten_radar to no-coverage AFTER smoothing
 !      where ref_mos_3d had been previously set to no-coverage (-99.0 dbZ)
@@ -499,10 +528,8 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
     DO k=1,nsig
       DO j=1,nlat
         DO i=1,nlon
-           ges_tten(j,i,k)=tten_radar(i,j,k)  ! *10000
-!          ges_tten(j,i,k)=ref_mos_3d(i,j,k)
-           if(ref_mos_3d(i,j,k)<=-200.0_r_kind ) ges_tten(j,i,k)=-spval_p   ! no obs
-!          if(ges_tten(j,i,k)>0.0) write(6,*)'ges_tten 11::',ges_tten(j,i,k)
+           ges_tten(j,i,k,1)=tten_radar(i,j,k)
+           if(ref_mos_3d(i,j,k)<=-200.0_r_kind ) ges_tten(j,i,k,1)=-spval_p   ! no obs
         ENDDO
       ENDDO
     ENDDO
@@ -544,7 +571,7 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
         dpint = 0._r_kind
         DO k=2,nsig-1
           if ((ref_mos_3d(i,j,k))<=-200.0_r_kind) tten_radar(i,j,k) = -spval_p
-          if (tten_radar(i,j,k)>-20._r_kind) then
+          if (tten_radar(i,j,k)>-15._r_kind) then
             nrad=nrad+1
             dpint = dpint + 0.5_r_kind*(p_bk(i,j,k-1)-p_bk(i,j,k+1))
             radmax = max(radmax,tten_radar(i,j,k))
@@ -553,7 +580,24 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
         if (dpint>=300._r_kind ) then 
           radyn(i,j) = 0._r_kind
           if (radmax>0.00002_r_kind) radyn(i,j) = 1._r_kind
+          if( abs(radyn(i,j)) < 0.00001_r_kind ) then
+             krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
+             do k=krad_bot,nsig-1
+                 ges_tten(j,i,k,1) = 0._r_kind
+             end do
+          endif
         endif
+
+!  2. Extend depth of no-echo zone from dpint zone down to PBL top, 
+!   similarly to how lowest echo (with convection) is extended down to PBL top
+!    5/27/2010 - Stan B.
+!        if (dpint.ge.300. .and. radmax.le.0.00001) then
+!           krad_bot= int( max(krad_bot_in,pblh(i,j)) + 0.5_r_single )  ! consider PBL height
+!           do k=krad_bot,nsig-1
+!               ges_tten(j,i,k,1) = 0.
+!           end do
+!        end if
+
         if(dpintmax < dpint ) dpintmax=dpint
         if(radmaxall< radmax) radmaxall=radmax
       ENDDO
@@ -561,8 +605,8 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
 
     DO j=1,nlat
       DO i=1,nlon
-!       ges_tten(j,i,nsig)=radyn(i,j)
-        ges_tten(j,i,nsig)=0.0
+!       ges_tten(j,i,nsig,1)=radyn(i,j)
+        ges_tten(j,i,nsig,1)=0.0
       ENDDO
     ENDDO
 
@@ -572,19 +616,16 @@ SUBROUTINE radar_ref2tten_nosat(mype,istat_radar,istat_lightning,nlon,nlat,nsig,
   else
 
      ges_tten=-spval_p
-     ges_tten(:,:,nsig)=-10.0_r_kind
+     ges_tten(:,:,nsig,1)=-10.0_r_kind
 
   endif
 
   DO k=1,nsig
     DO j=1,nlat
       DO i=1,nlon
-         if(ges_tten(j,i,k) <= -200.0_r_kind ) ges_tten(j,i,k)=-20.0_r_kind   ! no obs
-!          if(ges_tten(j,i,k,1)>0.0) write(6,*)'ges_tten 22::',ges_tten(j,i,k,1)
+         if(ges_tten(j,i,k,1) <= -200.0_r_kind ) ges_tten(j,i,k,1)=-20.0_r_kind   ! no obs
       ENDDO                  
     ENDDO
   ENDDO
-
-! write(6,*)'sliu get ges_tten'
 
 END SUBROUTINE radar_ref2tten_nosat

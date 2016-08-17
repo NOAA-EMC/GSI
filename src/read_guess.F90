@@ -67,6 +67,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         temperature after clipping supersaturation
 !   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
 !                         proximity over full domain instead of subdomain
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -88,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gsi_io, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,use_reflectivity,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
   use gridmod, only: use_gfs_nemsio
   use gfs_stratosphere, only: use_gfs_stratosphere
@@ -145,10 +146,6 @@ subroutine read_guess(iyear,month,idd,mype)
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
            call read_nems_nmmb_guess(mype)
-!          if(use_reflectivity) then
-!          if(mype==0)write(6,*)'sliu in read_guess to read reflectivity',use_reflectivity
-!          call read_nems_nmmb_guess_ref(mype)
-!          end if
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if

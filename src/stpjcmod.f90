@@ -11,6 +11,7 @@ module stpjcmod
 !   2014-03-19  pondeca - add stepzise calculation for wspd10m weak constraint term
 !   2014-05-07  pondeca - add stepzise calculation for howv weak constraint term
 !   2014-06-17  carley/zhu - add stepzise calculation for lcbas weak constraint term
+!   2015-07-10  pondeca - add stepzise calculation for cldch weak constraint term
 !
 ! subroutines included:
 !
@@ -28,7 +29,7 @@ use gsi_metguess_mod, only: gsi_metguess_bundle
 implicit none
 
 PRIVATE
-PUBLIC stplimq,stplimg,stplimp,stplimv,stplimw10m,stplimhowv,stpliml,stpjcdfi,stpjcpdry
+PUBLIC stplimq,stplimg,stplimp,stplimv,stplimw10m,stplimhowv,stplimcldch,stpliml,stpjcdfi,stpjcpdry
 
 contains
 
@@ -526,8 +527,82 @@ subroutine stplimhowv(rval,sval,sges,out,nstep)
   end do
   return
 end subroutine stplimhowv
- 
- 
+
+subroutine stplimcldch(rval,sval,sges,out,nstep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    stplimcldch     calculate penalty and stepsize for limit of cldch
+!   prgmmr: derber           org: np23                date: 1996-11-19
+!
+! abstract: calculate stepsize contribution and penalty for limiting cldch
+!
+! program history log:
+!   2015-07-10  pondeca
+!
+!   input argument list:
+!     rg       - search direction
+!     sg       - increment in grid space
+!     sges     - step size estimates (4)
+!     nstep    - number of step size estimates if == 0 then just do outer loop
+!
+!   output argument list:
+!     out(1:nstep)  - current penalty for negative cldch sges(1:nstep)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use jfunc, only: factcldch
+  use derivsmod, only: cldchgues
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(  out) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+
+! Declare local variables
+  integer(i_kind) i,j,kk,ier,istatus
+  real(r_kind) cldch,cx
+  real(r_kind),pointer,dimension(:,:) :: rg,sg
+
+  out=zero_quad
+
+  if (factcldch==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'cldch',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'cldch',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+
+! Loop over interior of subdomain
+  if(nstep > 0)then
+     do j = 2,lon1+1
+        do i = 2,lat1+1
+
+!          Values for cldch using stepsizes
+           cldch  = cldchgues(i,j) + sg(i,j)
+           do kk=1,nstep
+              cx = cldch + sges(kk)*rg(i,j)
+              if(cx < zero)then
+                 out(kk)=out(kk)+factcldch*cx*cx/(cldchgues(i,j)*cldchgues(i,j))
+              end if
+           end do
+        end do
+     end do
+  end if
+
+  do kk=2,nstep
+     out(kk)=out(kk)-out(1)
+  end do
+  return
+end subroutine stplimcldch
+
 subroutine stpliml(rval,sval,sges,out,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -659,6 +734,8 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
   integer(i_kind) i,j,k,it,mm1,ii,ier,icw,iql,iqi,istatus,n
   real(r_kind),pointer,dimension(:,:,:) :: rq,sq,rc,sc,rql,rqi,sql,sqi
   real(r_kind),pointer,dimension(:,:)   :: rp,sp
+  logical return_now
+  real(r_quad) :: dmn, dmn2
 
   pen=zero_quad ; b=zero_quad ; c=zero_quad
   it=ntguessig
@@ -666,7 +743,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
   dmass=zero_quad
   rcon=one_quad/(two_quad*float(nlon))
   mm1=mype+1
-
+  return_now = .false.
   do n=1,nbins
 !    Retrieve pointers
 !    Simply return if any pointer not found
@@ -685,35 +762,44 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
        if (mype==0) write(6,*)'stpjcpdry: checking ier+icw*(iql+iqi)=', ier+icw*(iql+iqi)
        return
      end if
- 
 
 !    Calculate mean surface pressure contribution in subdomain
+     dmn = dmass(n)
+     dmn2 = dmass(n + nbins)
+!$omp parallel do private(i,j,ii) firstprivate(rcon,con) reduction(+:dmn) reduction(+:dmn2) collapse(2)
      do j=2,lon2-1
        do i=2,lat2-1
          ii=istart(mm1)+i-2
          con=wgtlats(ii)*rcon
-         dmass(n)=dmass(n)+sp(i,j)*con
-         dmass(n+nbins)=dmass(n+nbins)+rp(i,j)*con
+         dmn=dmn+sp(i,j)*con
+         dmn2=dmn2+rp(i,j)*con
        end do
      end do
+!$omp end parallel do
+     dmass(n) = dmn
+     dmass(n+nbins) = dmn2
 !    Remove water to get incremental dry ps
+!$omp parallel do private(k,j,i,ii) firstprivate(rcon,con) reduction(-:dmn) reduction(-:dmn2) collapse(2)
      do k=1,nsig
         do j=2,lon2-1
            do i=2,lat2-1
               ii=istart(mm1)+i-2
               con=(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)*rcon
-              dmass(n)=dmass(n) - sq(i,j,k)*con
-              dmass(n+nbins)=dmass(n+nbins) - rq(i,j,k)*con
+              dmn=dmn - sq(i,j,k)*con
+              dmn2=dmn2 - rq(i,j,k)*con
               if(icw==0)then
-                 dmass(n)=dmass(n) - sc(i,j,k)*con
-                 dmass(n+nbins)=dmass(n+nbins) - rc(i,j,k)*con
+                 dmn=dmn - sc(i,j,k)*con
+                 dmn2=dmn2 - rc(i,j,k)*con
               else
-                 dmass(n)=dmass(n) - (sql(i,j,k)+sqi(i,j,k))*con
-                 dmass(n+nbins)=dmass(n+nbins) - (rql(i,j,k)+rqi(i,j,k))*con
+                 dmn=dmn - (sql(i,j,k)+sqi(i,j,k))*con
+                 dmn2=dmn2 - (rql(i,j,k)+rqi(i,j,k))*con
               endif
            end do
         end do
      end do
+!$omp end parallel do
+     dmass(n) = dmn
+     dmass(n+nbins) = dmn2
   end do
 
   call mpl_reduce(2*nbins,0,qpvals=dmass)
