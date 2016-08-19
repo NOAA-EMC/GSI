@@ -33,6 +33,7 @@ module ncepnems_io
 !                       (2) Modify write_sfc_nst_ to follows the update done in sfcio
 !                       (3) Modify read_sfc_ to follows the update done in sfcio for more effective I/O
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
+!   2016-08-18 li     - tic591: add read_sfc_ens_ & read_nemssfc_ens to read nemsio ensemble sfc file (isli only)
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface

@@ -9,6 +9,8 @@ program getsfcnstensupdp
 !
 ! program history log:
 !   2014-05-01  Initial version.
+!   2016-02-15  Add to read nemsio
+!   2016-08-18  Fix two bugs  (tsea, dtf_ens)
 !
 ! usage:
 !   input files:
