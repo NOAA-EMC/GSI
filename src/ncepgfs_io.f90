@@ -33,6 +33,8 @@ module ncepgfs_io
 !   sub write_gfs         - driver to write ncep gfs atmospheric and surface
 !                           analysis files
 !   sub write_gfssfc      - gather/write on grid ncep surface analysis file
+!   sub read_gfssfc_ens   - read ncep gfs ensemble surface file, scatter on grid to 
+!                           analysis subdomains
 !   sub read_nst          - driver to read ncep nst file
 !   sub read_gfsnst       - read ncep nst filea from one task and then broadcast to others
 !   sub write_gfs_sfc_nst - gather/write on grid ncep surface & nst analysis file
@@ -56,6 +58,8 @@ module ncepgfs_io
   public read_gfs
   public read_gfs_chem
   public read_gfssfc
+  public read_sfc_ens
+  public read_gfssfc_ens
   public read_nst
   public read_gfsnst
   public write_gfs
@@ -789,6 +793,134 @@ end subroutine write_ghg_grid
 
     return
   end subroutine read_gfssfc
+
+  subroutine read_sfc_ens(isli_ens)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_sfc_ens
+!
+!   prgrmmr: li
+!
+! abstract: read a ncep GFS EnKF surface file on a specified task,
+!           broadcast data to other tasks. Currently, isli only.
+!
+! program history log:
+!   2016-08-18  xuli - create routine
+!
+!
+!   output argument list:
+!     isli_ens      - sea/land/ice mask of ensemble members
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    ! read data from sfc file on a single task, bcast data to other tasks.
+    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_intkind
+    use sfcio_module, only: sfcio_axdata,sfcio_sclose
+    use kinds, only: i_kind,r_single,r_kind
+    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use guess_grids, only: nfldsfc,ifilesfc
+
+    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+    integer(i_kind) :: latb,lonb
+    integer(i_kind) :: iret,i,j
+    type(sfcio_head) :: sfc_head
+    type(sfcio_data) :: sfc_data
+    real(r_single), allocatable, dimension(:,:):: outtmp
+    character(24) :: filename
+!   Declare local parameters
+    integer(sfcio_intkind):: lunens = 21
+
+! read an ens surface file on the task : isli only currently
+    filename='sfcf06_ensmean'
+    call sfcio_srohdc(lunens,filename,sfc_head,sfc_data,iret)
+!   Check for possible problems
+    if (iret /= 0) then
+       write(6,*)'READ_SFC_ENS:  ***ERROR*** problem reading ',filename,&
+            ', iret=',iret
+       call sfcio_axdata(sfc_data,iret)
+       call stop2(80)
+    endif
+    lonb = sfc_head%lonb
+    latb = sfc_head%latb
+    if ( (latb /= nlat_ens-2) .or. (lonb /= nlon_ens) ) then
+         write(6,*)'READ_SFC_ENS:  ***ERROR*** inconsistent grid dimensions.  ',&
+              ', nlon,nlat-2=',nlon_ens,nlat_ens-2,' -vs- sfc file lonb,latb=',&
+                 lonb,latb
+         call sfcio_axdata(sfc_data,iret)
+         call stop2(80)
+    endif
+
+    allocate(outtmp(latb+2,lonb))
+    call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
+    do j=1,lonb
+       do i=1,latb+2
+          isli_ens(i,j) = nint(outtmp(i,j))
+       end do
+    end do
+    deallocate(outtmp)
+
+!   Print date/time stamp
+    write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
+700 format('READ_SFC_ENS:  ges read/scatter, nlat,nlon=',&
+         2i6,', hour=',f10.1,', idate=',4i5)
+    call sfcio_axdata(sfc_data,iret)
+    call sfcio_sclose(lunens,iret)
+
+  end subroutine read_sfc_ens
+
+  subroutine read_gfssfc_ens(iope,mype,isli_ens)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_gfssfc_ens     read gfs ensemble surface file
+!   prgmmr: li          org: np23                date: 2016-08-18
+!
+! abstract: read gfs ens surface file
+!
+! program history log:
+!
+!   input argument list:
+!     iope     - mpi task handling i/o
+!     mype     - mpi task id
+!
+!   output argument list:
+!     isli_ens      - sea/land/ice mask 
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use guess_grids, only: nfldsfc
+    use mpimod, only: mpi_itype,mpi_comm_world
+    use constants, only: zero
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind)                      ,intent(in   ) :: iope
+    integer(i_kind)                      ,intent(in   ) :: mype
+    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+
+!   Declare local variables
+    integer(i_kind):: iret,npts
+!-----------------------------------------------------------------------------
+!   Read ens surface file on processor iope
+    if (mype == iope) then
+       call read_sfc_ens(isli_ens)
+    end if
+
+!   Load onto all processors
+    npts=nlat_ens*nlon_ens
+
+    call mpi_bcast(isli_ens,npts,mpi_itype,iope,mpi_comm_world,iret)
+
+    return
+  end subroutine read_gfssfc_ens
 
   subroutine read_nst(tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 !$$$  subprogram documentation block

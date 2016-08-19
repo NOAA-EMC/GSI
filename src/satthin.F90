@@ -105,6 +105,7 @@ module satthin
   public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
   public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
   public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
+  public :: isli_ens,sno_ens
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
@@ -130,6 +131,10 @@ module satthin
   integer(i_kind),allocatable, dimension(:,:)   :: isli_full
   real(r_single), allocatable, dimension(:,:,:) :: sfc_rough_full
   real(r_single), allocatable, dimension(:,:)   :: zs_full_gfs
+! declare the dummy variables of routine read_gfssfc_ens
+  integer(i_kind),allocatable, dimension(:,:)   :: isli_ens
+! declare local array sno_ens 
+  real(r_single),allocatable, dimension(:,:,:)   :: sno_ens
 
   logical use_all
 
@@ -431,17 +436,18 @@ contains
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
+    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
-    use jfunc, only: biascor
+    use jfunc, only: biascor,miter
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
-    use ncepgfs_io, only: read_gfssfc
-    use ncepnems_io, only: read_nemssfc,sfc_interpolate
+    use ncepgfs_io, only: read_gfssfc,read_gfssfc_ens
+    use ncepnems_io, only: read_nemssfc,sfc_interpolate,read_nemssfc_ens
     use sfcio_module, only: sfcio_realfill
 
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -488,6 +494,8 @@ contains
     allocate(sst_full(nlat_sfc,nlon_sfc,nfldsfc),sno_full(nlat_sfc,nlon_sfc,nfldsfc))
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(isli_ens(nlat_ens,nlon_ens))
+    allocate(sno_ens(nlat_ens,nlon_ens,nfldsfc))
 
     allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
     allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
@@ -529,11 +537,21 @@ contains
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
+
+          if ( miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+             call read_nemssfc_ens(mype_io,mype,isli_ens)
+          endif
+
        else
           call read_gfssfc (mype_io,mype, &
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
+
+          if ( miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+             call read_gfssfc_ens(mype_io,mype,isli_ens) 
+          endif
+
        end if
 
        if(.not. use_sfc)then
@@ -761,28 +779,55 @@ contains
           end do
        end do
     else
-       ailoc=rlats
-       ajloc=rlons
-       call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,1)
-       call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,1)
-       do j=1,lon2
-          jl=j+jstart(mm1)-2
-          jl=min0(max0(1,jl),nlon)
-          jl=nint(ajloc(jl))
-          jl=min0(max0(1,jl),nlon_sfc)
-          do i=1,lat2
-             il=i+istart(mm1)-2
-             il=min0(max0(1,il),nlat)
-             il=nint(ailoc(il))
-             il=min0(max0(1,il),nlat_sfc)
-             isli2(i,j)=isli_full(il,jl)
-             do k=1,nfldsfc
-                sno2(i,j,k) =sno_full(il,jl,k)
+!
+! get subdomain isli2 from EnKF mask (isli_ens) if anl and ens has the same resolution
+!
+       if ( nlon == nlon_ens .and. nlat == nlat_ens ) then
+          do k = 1, nfldsfc
+             call sfc_interpolate(sno_ens(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
+          enddo
+          do j=1,lon2
+             jl=j+jstart(mm1)-2
+             jl=min0(max0(1,jl),nlon)
+             do i=1,lat2
+                il=i+istart(mm1)-2
+                il=min0(max0(1,il),nlat)
+                isli2(i,j)=isli_ens(il,jl)
+                do k=1,nfldsfc
+                   sno2(i,j,k)=sno_ens(il,jl,k)
+                   if ( isli2(i,j) == 0 ) then
+                      sno2(i,j,k) = zero
+                   endif
+                end do
              end do
           end do
-       end do
+
+       else
+
+          ailoc=rlats
+          ajloc=rlons
+          call grdcrd(ailoc,nlat,rlats_sfc,nlat_sfc,1)
+          call grdcrd(ajloc,nlon,rlons_sfc,nlon_sfc,1)
+          do j=1,lon2
+             jl=j+jstart(mm1)-2
+             jl=min0(max0(1,jl),nlon)
+             jl=nint(ajloc(jl))
+             jl=min0(max0(1,jl),nlon_sfc)
+             do i=1,lat2
+                il=i+istart(mm1)-2
+                il=min0(max0(1,il),nlat)
+                il=nint(ailoc(il))
+                il=min0(max0(1,il),nlat_sfc)
+                isli2(i,j)=isli_full(il,jl)
+                do k=1,nfldsfc
+                   sno2(i,j,k) =sno_full(il,jl,k)
+                end do
+             end do
+          end do
+       end if
 
     end if
+
     if(allocated(veg_frac)) deallocate(veg_frac)
     if(allocated(veg_type)) deallocate(veg_type)
     if(allocated(soil_type)) deallocate(soil_type)
