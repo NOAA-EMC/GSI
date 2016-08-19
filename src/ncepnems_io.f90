@@ -41,6 +41,8 @@ module ncepnems_io
 !                         on grid to analysis subdomains
 !   sub read_nemssfc    - read ncep nems surface file, scatter on grid to 
 !                         analysis subdomains
+!   sub read_nemssfc_ens- read ncep EnKF nems surface file, scatter on grid to 
+!                         analysis subdomains
 !   sub write_nems      - driver to write ncep nems atmospheric and surface
 !                         analysis files
 !   sub write_nemsatm   - gather on grid, write ncep nems atmospheric analysis file
@@ -117,6 +119,7 @@ module ncepnems_io
   public read_nems_chem
   public read_nemsatm
   public read_nemssfc
+  public read_nemssfc_ens
   public write_nemsatm
   public write_nemssfc
   public read_nemsnst
@@ -139,6 +142,10 @@ module ncepnems_io
 
   interface read_nemssfc
      module procedure read_nemssfc_
+  end interface
+
+  interface read_nemssfc_ens
+     module procedure read_nemssfc_ens_
   end interface
 
   interface read_nemsnst
@@ -1244,6 +1251,176 @@ contains
     end if
 
   end subroutine read_nemssfc_
+
+
+  subroutine read_sfc_ens_(mype,isli_ens)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_sfc_ens_     read ensemble nems surface file
+!   prgmmr: li            org: np23                date: 2016-08-18
+!
+! abstract: read ens nems surface file
+!
+! program history log:
+!  
+!   input argument list:
+!     mype        - mpi task id
+!
+!   output argument list:
+!     isli      - sea/land/ice mask
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use guess_grids, only: nfldsfc,ifilesfc
+    use constants, only: zero
+    use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+    use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind),                                 intent(in   ) :: mype
+    integer(i_kind), dimension(nlat_ens,nlon_ens),   intent(  out) :: isli_ens
+
+!   Declare local parameters
+    integer(i_kind),dimension(7):: idate
+    integer(i_kind),dimension(4):: odate
+
+
+!   Declare local variables
+    character(len=24)  :: filename
+    character(len=120) :: my_name = 'READ_NEMSSFC_ENS'
+    character(len=1)   :: null = ' '
+    integer(i_kind) :: i,j
+    integer(i_kind) :: iret, nframe, lonb, latb
+    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+    real(r_single) :: fhour
+    integer(i_kind) :: istop = 102
+    real(r_single), allocatable, dimension(:)   :: rwork2d
+    real(r_single), allocatable, dimension(:,:) :: work,outtmp
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!  Define read variable property   !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+    type(nemsio_gfile) :: gfile
+!-----------------------------------------------------------------------------
+
+    call nemsio_init(iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
+
+
+    filename='sfcf06_ensmean'
+    call nemsio_open(gfile,filename,'READ',iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
+
+    call nemsio_getfilehead(gfile, idate=idate, iret=iret, nframe=nframe,   &
+       nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
+       dimx=lonb, dimy=latb )
+
+    if( nframe /= 0 ) then
+       if ( mype == 0 ) &
+       write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
+       call stop2(102)
+    end if
+
+    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+    odate(1) = idate(4)  !hour
+    odate(2) = idate(2)  !month
+    odate(3) = idate(3)  !day
+    odate(4) = idate(1)  !year
+
+    if ( (latb /= nlat_ens-2) .or. (lonb /= nlon_ens) ) then
+       if ( mype == 0 ) write(6, &
+          '(a,'': inconsistent spatial dimension '',''nlon,nlatm2 = '',2(i4,tr1),''-vs- sfc file lonb,latb = '',i4)') &
+          trim(my_name),nlon_ens,nlat_ens-2,lonb,latb
+       call stop2(102)
+    endif
+!
+!   Read the surface records (lonb, latb)  and convert to GSI array pattern (nlat_ens,nlon_ens)
+!   Follow the read order sfcio in ncepgfs_io
+!
+    allocate(work(lonb,latb))
+    allocate(rwork2d(size(work,1)*size(work,2)))
+    work    = zero
+    rwork2d = zero
+
+!   slmsk
+    call nemsio_readrecv(gfile, 'land', 'sfc', 1, rwork2d, iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'land','read',istop,iret)
+    work(:,:)=reshape(rwork2d(:),(/size(work,1),size(work,2)/))
+    allocate(outtmp(latb+2,lonb))
+    call tran_gfssfc(work,outtmp,lonb,latb)
+    do j=1,lonb
+       do i=1,latb+2
+          isli_ens(i,j) = nint(outtmp(i,j))
+       end do
+    end do
+    deallocate(outtmp)
+
+!   Deallocate local work arrays
+    deallocate(work,rwork2d)
+
+    call nemsio_close(gfile,iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop,iret)
+!
+!   Print date/time stamp
+    if ( mype == 0 ) write(6, &
+       '(a,'': read_sfc_ens_ ,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
+       trim(my_name),lonb,latb,fhour,odate
+  end subroutine read_sfc_ens_
+
+  subroutine read_nemssfc_ens_(iope,mype,isli_ens)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_nemssfc_ens_     read nems ensemble surface file
+!   prgmmr: xuli          org: np23                date: 2016-08-18
+!
+! abstract: read nems ens surface file
+!
+! program history log:
+!
+!   input argument list:
+!     iope        - mpi task handling i/o
+!     mype        - mpi task id
+!
+!   output argument list:
+!     isli      - sea/land/ice mask
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use mpimod, only: mpi_itype,mpi_comm_world
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind),                               intent(in   ) :: iope,mype
+    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+
+
+!   Declare local variables
+    integer(i_kind):: iret,npts
+
+!-----------------------------------------------------------------------------
+!   Read surface file on processor iope
+    if(mype == iope)then
+       write(*,*) 'read_sfc nemsio'
+       call read_sfc_ens_(mype,isli_ens)
+    end if
+
+!   Load onto all processors
+    npts=nlat_ens*nlon_ens
+    call mpi_bcast(isli_ens,npts,mpi_itype,iope,mpi_comm_world,iret)
+
+  end subroutine read_nemssfc_ens_
 
   subroutine read_nst_ (mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
