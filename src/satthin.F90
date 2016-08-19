@@ -36,6 +36,9 @@ module satthin
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !   2012-03-05  akella  - remove create_nst,getnst and destroy_nst; nst fields now handled by gsi_nstcoupler
 !   2015-05-01  li      - modify to use single precision for the variables read from sfc files
+!   2016-08-18  li      - tic591: add read sili from ensemble sfc file (sfcf06)ensmean) 
+!                                 modify to use ensemble surface mask when nlon = nlon_ens, nlat = nlat_ens
+!                                 determine sno2 with interpolate, accordingly 
 
 !
 ! Subroutines Included:

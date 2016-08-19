@@ -24,6 +24,7 @@ module ncepgfs_io
 !                        temperature based on NSST T-Profile. And move Tf analysis increment
 !                        interpolation (analysis grid to ensemble grid) to re-center step
 !   2015-04-25  li     - modify read_nst, read_gfsnst routines to minimize communications/IO
+!   2016-08-18  li     - tic591: add read_sfc_ens & read_gfssfc_ens to read ensemble sfc file (isli only)
 
 !
 ! Subroutines Included:
