@@ -278,7 +278,7 @@ program getsfcnstensupdp
                      'nlon_anl,nlat_anl-2 = ',nlon_anl,nlat_anl-2,' lonb,latb = ',lonb,latb
     do j=1,latb
       do i=1,lonb
-        dtf_ens(i,j)=dtf_anl(latb+1-j,i)
+        dtf_ens(i,j)=dtf_anl(latb+2-j,i)
       enddo
     enddo
   endif ! if ( (nlat_ens /= nlat_anl) .or. (nlon_ens /= nlon_anl) ) then
