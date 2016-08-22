@@ -29,7 +29,7 @@ module radinfo
 !   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
-!   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
+!   2011-04-02  li      - add index tzr_qc,tzr_bufrsave for NSST and QC_tzr
 !   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !   2012-11-02  collard - add icld_det for greater flexibility in QC step and
 !                         add number of scan positions to satang file
@@ -92,6 +92,7 @@ module radinfo
   public :: newpc4pred
   public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
+  public :: tzr_bufrsave,tzr_qc
 
   public :: radedge1, radedge2
   public :: ssmis_precond
@@ -102,12 +103,14 @@ module radinfo
 
   logical diag_rad    ! logical to turn off or on the diagnostic radiance file (true=on)
   logical retrieval   ! logical to turn off or on the SST retrieval with AVHRR data
+  logical tzr_bufrsave! logical to turn off or on the bufr file output for Tz retrieval (true=on)
 
   logical adp_anglebc ! logical to turn off or on the variational radiance angle bias correction
   logical emiss_bc    ! logical to turn off or on the emissivity predictor
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
+  integer(i_kind) tzr_qc        ! indicator of Tz retrieval QC tzr
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
 
   integer(i_kind) jpch_rad      ! number of channels*sat
@@ -220,6 +223,8 @@ contains
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
     npred=7                 ! number of bias correction predictors
+    tzr_qc = 0              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
+    tzr_bufrsave = .false.  ! .true.=generate bufr file for Tz retrieval
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
