@@ -518,7 +518,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           cycle
        else
           if (aircraft_t_bc) then
-             aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. ictype(nc) == 133 .or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. ictype(nc) == 233 )
              if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
              if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
           end if
@@ -532,7 +533,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             cycle
         else
            if (aircraft_t_bc) then
-              aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. ictype(nc) == 133 .or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. ictype(nc) == 233 )
               if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
               if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
            end if
@@ -553,7 +555,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   call getcount_bufr(infile,nmsgmax,mxtb)
   allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
-
 
   lmsg = .false.
   maxobs=0
