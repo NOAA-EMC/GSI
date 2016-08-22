@@ -35,6 +35,7 @@
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
                        ssmis_method,ssmis_precond
+  use radinfo, only: tzr_qc,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
@@ -133,7 +134,7 @@
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
   implicit none
 
@@ -232,7 +233,7 @@
 !  01-05-2011 Cucurull  add gpstop to setup namelist for the usage of gpsro data assimilation
 !  04-08-2011 Li        (1) add integer variable nst_gsi and nstinfo for the use of oceanic first guess
 !                       (2) add integer variable fac_dtl & fac_tsl to control the use of NST model
-!                       (3) add integer variable nst_tzr to control the Tzr QC
+!                       (3) add integer variable tzr_qc to control the Tzr QC
 !                       (4) add integer tzr_bufrsave to control if save Tz retrieval or not
 !  04-07-2011 todling   move newpc4pred to radinfo
 !  04-19-2011 El Akkraoui add iorthomax to control numb of vecs in orthogonalization for CG opts
@@ -358,6 +359,9 @@
 !     iout_iter- output file number for iteration information
 !     npredp   - number of predictors for precipitation bias correction
 !     retrieval- logical to turn off or on the SST physical retrieval
+!     tzr_qc  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
+!                                                     1 = Do Tz retrieval and applied to QC
+!     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
 !     diag_rad - logical to turn off or on the diagnostic radiance file true=on
 !     diag_conv-logical to turn off or on the diagnostic conventional file (true=on)
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
@@ -479,6 +483,7 @@
        niter,niter_no_qc,miter,qoption,cwoption,nhr_assimilation,&
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
+       tzr_qc,tzr_bufrsave,&
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
@@ -935,10 +940,7 @@
 !     zsea2    - lower depth (in mm) for vertical mean of T based on NSST T-Profile
 !     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
 !     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
-!     nst_tzr  - indicator to control the Tzr_QC mode: 0 = no Tz retrieval;
-!                                                      1 = Do Tz retrieval and applied to QC
-!     tzr_bufrsave - logical to turn off or on the bufr Tz retrieval file true=on
-   namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,nst_tzr,tzr_bufrsave
+   namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
 !EOC
 

@@ -957,7 +957,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use mpimod, only: mype
   use radinfo, only: ifactq
   use radinfo, only: radjacindxs,nsigradjac
-  use gsi_nstcouplermod, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
