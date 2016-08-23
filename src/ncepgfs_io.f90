@@ -90,7 +90,6 @@ contains
 !                       - set lower bound to cloud after assigning cwgues0
 !
 !   input argument list:
-!     mype               - mpi task id
 !
 !   output argument list:
 !
@@ -413,7 +412,7 @@ contains
           endif
           char_ghg='co2'
 ! take comment out for printing out the interpolated tracer gas fields.
-!        call write_ghg_grid (ptr3d_co2,char_ghg,mype)
+!        call write_ghg_grid (ptr3d_co2,char_ghg)
        endif
     endif ! <co2>
 
@@ -433,7 +432,7 @@ contains
              enddo
           endif
 ! take comment out for printing out the interpolated tracer gas fields.
-!         call write_ghg_grid (ptr3d_ch4,char_ghg,mype)
+!         call write_ghg_grid (ptr3d_ch4,char_ghg)
        endif
     endif ! <ch4>
 
@@ -453,7 +452,7 @@ contains
              enddo
           endif
 ! take comment out for printing out the interpolated tracer gas fields.
-!        call write_ghg_grid (ptr3d_n2o,char_ghg,mype)
+!        call write_ghg_grid (ptr3d_n2o,char_ghg)
        endif
     endif ! <n2o>
 
@@ -473,11 +472,11 @@ contains
              enddo
           endif
 ! take comment out for printing out the interpolated tracer gas fields.
-!        call write_ghg_grid (ptr3d_co,char_ghg,mype)
+!        call write_ghg_grid (ptr3d_co,char_ghg)
        endif
     endif ! <co>
   end subroutine read_gfs_chem
-subroutine write_ghg_grid(a,char_ghg,mype)
+subroutine write_ghg_grid(a,char_ghg)
 !$$$  subroutine documentation block
 !
 ! subprogram:    write_ghg_grid
@@ -486,7 +485,6 @@ subroutine write_ghg_grid(a,char_ghg,mype)
 !
 !
 !   input argument list:
-!     mype     - mpi task id
 !
 !   output argument list:
 !
@@ -495,12 +493,11 @@ subroutine write_ghg_grid(a,char_ghg,mype)
 !   machine:
 !
 !$$$
+  use mpimod, only: mype
   use kinds, only: r_kind,i_kind,r_single
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
   use file_utility, only : get_lun
   implicit none
-
-  integer(i_kind)                       ,intent(in   ) :: mype
 
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: a
   character(len=3),intent(in) :: char_ghg
@@ -692,7 +689,7 @@ end subroutine write_ghg_grid
 
   end subroutine read_sfc
 
-  subroutine read_gfssfc(iope,mype,sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+  subroutine read_gfssfc(iope,sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any)
 
 !$$$  subprogram documentation block
@@ -715,7 +712,6 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     iope     - mpi task handling i/o
-!     mype     - mpi task id
 !     use_sfc_any - true if any processor uses extra surface fields
 !
 !   output argument list:
@@ -739,13 +735,12 @@ end subroutine write_ghg_grid
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,sfcmod_mm5,sfcmod_gfs
-    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world,mype
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
-    integer(i_kind)                      ,intent(in   ) :: mype
     logical                              ,intent(in   ) :: use_sfc_any
     real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
     real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
