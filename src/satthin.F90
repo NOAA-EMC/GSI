@@ -445,7 +445,7 @@ contains
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
     use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
-    use jfunc, only: biascor,miter
+    use jfunc, only: biascor
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
@@ -541,8 +541,8 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( l_hyb_ens .and. miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
-             call read_nemssfc_ens(mype_io,mype,isli_ens)
+          if ( l_hyb_ens .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+             call read_nemssfc_ens(mype_io,isli_ens)
           endif
 
        else
@@ -551,8 +551,8 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( l_hyb_ens .and. miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
-             call read_gfssfc_ens(mype_io,mype,isli_ens) 
+          if ( l_hyb_ens .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+             call read_gfssfc_ens(mype_io,isli_ens) 
           endif
 
        end if

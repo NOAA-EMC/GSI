@@ -872,7 +872,7 @@ end subroutine write_ghg_grid
 
   end subroutine read_sfc_ens
 
-  subroutine read_gfssfc_ens(iope,mype,isli_ens)
+  subroutine read_gfssfc_ens(iope,isli_ens)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -885,7 +885,6 @@ end subroutine write_ghg_grid
 !
 !   input argument list:
 !     iope     - mpi task handling i/o
-!     mype     - mpi task id
 !
 !   output argument list:
 !     isli_ens      - sea/land/ice mask 
@@ -898,13 +897,12 @@ end subroutine write_ghg_grid
     use kinds, only: r_kind,i_kind,r_single
     use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
     use guess_grids, only: nfldsfc
-    use mpimod, only: mpi_itype,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_comm_world,mype
     use constants, only: zero
     implicit none
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
-    integer(i_kind)                      ,intent(in   ) :: mype
     integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
 
 !   Declare local variables

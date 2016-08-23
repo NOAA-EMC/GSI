@@ -1254,7 +1254,7 @@ contains
   end subroutine read_nemssfc_
 
 
-  subroutine read_sfc_ens_(mype,isli_ens)
+  subroutine read_sfc_ens_(isli_ens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_sfc_ens_     read ensemble nems surface file
@@ -1265,7 +1265,6 @@ contains
 ! program history log:
 !  
 !   input argument list:
-!     mype        - mpi task id
 !
 !   output argument list:
 !     isli      - sea/land/ice mask
@@ -1275,6 +1274,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use mpimod, only: mype
     use kinds, only: r_kind,i_kind,r_single
     use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
     use guess_grids, only: nfldsfc,ifilesfc
@@ -1284,7 +1284,6 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),                                 intent(in   ) :: mype
     integer(i_kind), dimension(nlat_ens,nlon_ens),   intent(  out) :: isli_ens
 
 !   Declare local parameters
@@ -1375,7 +1374,7 @@ contains
        trim(my_name),lonb,latb,fhour,odate
   end subroutine read_sfc_ens_
 
-  subroutine read_nemssfc_ens_(iope,mype,isli_ens)
+  subroutine read_nemssfc_ens_(iope,isli_ens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_nemssfc_ens_     read nems ensemble surface file
@@ -1387,7 +1386,6 @@ contains
 !
 !   input argument list:
 !     iope        - mpi task handling i/o
-!     mype        - mpi task id
 !
 !   output argument list:
 !     isli      - sea/land/ice mask
@@ -1399,11 +1397,11 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind,r_single
     use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
-    use mpimod, only: mpi_itype,mpi_comm_world
+    use mpimod, only: mpi_itype,mpi_comm_world,mype
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),                               intent(in   ) :: iope,mype
+    integer(i_kind),                               intent(in   ) :: iope
     integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
 
 
@@ -1414,7 +1412,7 @@ contains
 !   Read surface file on processor iope
     if(mype == iope)then
        write(*,*) 'read_sfc nemsio'
-       call read_sfc_ens_(mype,isli_ens)
+       call read_sfc_ens_(isli_ens)
     end if
 
 !   Load onto all processors
