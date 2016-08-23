@@ -137,6 +137,11 @@ else
 
    for type in ${SATYPE}; do
 
+      if [[ ! -s ${type} ]]; then
+         echo "ZERO SIZED:  ${type}"
+         continue
+      fi
+
       for dtype in ${gesanl}; do
 
          prep_step

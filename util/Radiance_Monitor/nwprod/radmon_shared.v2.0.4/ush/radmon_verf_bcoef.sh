@@ -80,6 +80,7 @@ if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
 fi
 
+
 # Directories
 FIXgdas=${FIXgdas:-$(pwd)}
 EXECradmon=${EXECradmon:-$(pwd)}
@@ -144,6 +145,12 @@ else
 #   fi
 
    for type in ${SATYPE}; do
+
+      if [[ ! -s ${type} ]]; then
+         echo "ZERO SIZED:  ${type}"
+         continue
+      fi
+
       for dtype in ${gesanl}; do
 
       prep_step
