@@ -439,7 +439,7 @@ contains
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
-    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens,nlat_ens,nlon_ens
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
@@ -541,7 +541,7 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+          if ( l_hyb_ens .and. miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
              call read_nemssfc_ens(mype_io,mype,isli_ens)
           endif
 
@@ -551,7 +551,7 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
+          if ( l_hyb_ens .and. miter > 0 .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
              call read_gfssfc_ens(mype_io,mype,isli_ens) 
           endif
 
@@ -785,7 +785,7 @@ contains
 !
 ! get subdomain isli2 from EnKF mask (isli_ens) if anl and ens has the same resolution
 !
-       if ( nlon == nlon_ens .and. nlat == nlat_ens ) then
+       if ( l_hyb_ens .and. nlon == nlon_ens .and. nlat == nlat_ens ) then
           do k = 1, nfldsfc
              call sfc_interpolate(sno_ens(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
           enddo
