@@ -192,6 +192,12 @@ if [[ $err -eq 0 ]]; then
 #   Loop over each entry in SATYPE
 #--------------------------------------------------------------------
    for type in ${SATYPE}; do
+
+      if [[ ! -s ${type} ]]; then
+         echo "ZERO SIZED:  ${type}"
+         continue
+      fi
+
       ctr=`expr $ctr + 1`
 
       for dtype in ${gesanl}; do

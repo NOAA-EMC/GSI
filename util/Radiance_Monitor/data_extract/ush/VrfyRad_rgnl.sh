@@ -394,7 +394,7 @@ if [ -s $radstat -a -s $biascr ]; then
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   export satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
+   my_satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
 
    #  logic here needs work.
    #  point TANKverf_rad to radmon.${next_day} for all of the t00z cycles
@@ -425,14 +425,14 @@ if [ -s $radstat -a -s $biascr ]; then
          fi
        fi
     fi
-    echo "TESTING for $satype_file"
-    if [[ -s ${satype_file} ]]; then
-      echo "${satype_file} is good to go"
+    echo "TESTING for $my_satype_file"
+    if [[ -s ${my_satype_file} ]]; then
+      echo "${my_satype_file} is good to go"
     else
       echo "CREATING satype file"
       radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
-      echo $radstat_satype > ${satype_file}
-      echo "CREATED ${satype_file}"
+      echo $radstat_satype > ${my_satype_file}
+      echo "CREATED ${my_satype_file}"
     fi
 
  

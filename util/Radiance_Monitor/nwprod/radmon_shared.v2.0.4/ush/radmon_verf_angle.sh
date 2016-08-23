@@ -141,6 +141,11 @@ else
 
    for type in ${SATYPE}; do
 
+      if [[ ! -s ${type} ]]; then
+         echo "ZERO SIZED:  ${type}"
+         continue
+      fi
+
       for dtype in ${gesanl}; do
 
           echo "pgm    = $pgm"
@@ -165,6 +170,7 @@ else
          else
             angl_file=angle.${data_file}
          fi
+
 
          rm input
 
