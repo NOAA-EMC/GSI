@@ -340,7 +340,7 @@ subroutine get_gefs_ensperts_dualres
      end do
 
 ! Before converting to perturbations, get ensemble spread
-     if (m == 1 .and. write_ens_sprd )  call ens_spread_dualres(en_bar(1),1,mype)
+     if (m == 1 .and. write_ens_sprd )  call ens_spread_dualres(en_bar(1),1)
 
 
      if(s_ens_v <= zero)then
@@ -392,7 +392,7 @@ subroutine get_gefs_ensperts_dualres
 !
 !! This will get full 2d nlat x nlon sst field
 !    if(mype==0)write(6,*) 'CALL READ_GFSSFC FOR ENS FILE : ',filename
-!    call read_gfssfc(filename,mype,&
+!    call read_gfssfc(filename,&
 !         dum,sst_full,dum, &
 !         dum,dum,dum,dum,dum,idum,dum,dum)
 !
@@ -440,7 +440,7 @@ subroutine get_gefs_ensperts_dualres
   return
 end subroutine get_gefs_ensperts_dualres
 
-subroutine ens_spread_dualres(en_bar,ibin,mype)
+subroutine ens_spread_dualres(en_bar,ibin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ens_spread_dualres  output ensemble spread for diagnostics
@@ -458,7 +458,6 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
 !
 !   input argument list:
 !     en_bar - ensemble mean
-!      mype  - current processor number
 !
 !   output argument list:
 !
@@ -467,6 +466,7 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use mpimod, only: mype
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
   use hybrid_ensemble_parameters, only: en_perts,nelen
@@ -482,7 +482,7 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
   implicit none
 
   type(gsi_bundle),intent(in):: en_bar
-  integer(i_kind),intent(in):: mype,ibin
+  integer(i_kind),intent(in):: ibin
 
   type(gsi_bundle):: sube,suba
   type(gsi_grid):: grid_ens,grid_anl
@@ -594,13 +594,13 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
      ps => dum2
   end if
 
-  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps)
 
   return
 end subroutine ens_spread_dualres
 
 
-subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
+subroutine write_spread_dualres(a,b,c,d,e,f,g2in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_spread_dualres   write ensemble spread for diagnostics
@@ -622,7 +622,6 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 !     e    -  spread variable 5
 !     f    -  spread variable 6
 !     g    -  spread variable 7
-!     mype -  current processor number
 !
 !   output argument list:
 !
@@ -631,12 +630,12 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use mpimod, only: mype
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_anl
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in):: mype
   character(255):: grdfile
 
   real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),intent(in):: a,b,c,d,e,f
