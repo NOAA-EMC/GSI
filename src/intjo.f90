@@ -160,6 +160,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !   2014-03-19  pondeca  - add intwspd10m
 !   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
 !   2014-05-07  pondeca  - add inthowv
+!   2015-07-10  pondeca  - add intcldch
 !
 !   input argument list:
 !     ibin
@@ -213,6 +214,7 @@ use intpcpmod, only: intpcp
 use intozmod, only: intoz
 use intcomod, only: intco
 use intpm2_5mod, only: intpm2_5
+use intpm10mod, only: intpm10
 use intlagmod, only: intlag
 use intgustmod, only: intgust
 use intvismod, only: intvis
@@ -225,6 +227,7 @@ use intpmslmod, only: intpmsl
 use inthowvmod, only: inthowv
 use inttcamtmod, only: inttcamt
 use intlcbasmod, only: intlcbas
+use intcldchmod, only: intcldch
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -289,6 +292,9 @@ real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 ! RHS for pm2_5
   call intpm2_5(yobs%pm2_5,rval,sval)
 
+! RHS for pm10
+  call intpm10(yobs%pm10,rval,sval)
+
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)
 
@@ -345,6 +351,9 @@ real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 ! RHS for lcbas observations
   call intlcbas(yobs%lcbas,rval,sval)
+
+! RHS for cldch observations
+  call intcldch(yobs%cldch,rval,sval)
 
 ! Take care of background error for bias correction terms
 

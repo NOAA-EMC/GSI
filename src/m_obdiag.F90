@@ -81,7 +81,9 @@ module m_obdiag
   colvk_verify_, &  ! 18
    aero_verify_, &  ! 19
   aerol_verify_, &  ! 20
-  pm2_5_verify_; end interface
+  pm2_5_verify_, &  ! 21
+   pm10_verify_; end interface
+
 
 !!! usage:
 !!!
@@ -1940,5 +1942,84 @@ _EXIT_(myname_)
   call timer_fnl(ob_verify_name)
 _EXIT_(myname_)
 end function pm2_5_verify_
+
+function pm10_verify_(hd,count,perr) result(good)
+  use obsmod,only: pm10_ob_head
+  use obsmod,only: pm10_ob_type
+  use obsmod,only: obs_diag
+  use mpeu_util, only: iperr => perr
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+  logical:: good
+  type(pm10_ob_head),intent(in) :: hd
+  integer(i_kind),optional,intent(in) :: count
+  logical,optional,intent(in) :: perr
+
+  character(len=*),parameter :: myname_=myname//'.pm10_verify_'
+
+  logical:: perr_
+  type(pm10_ob_type),pointer:: my_node
+  type(obs_diag),pointer:: my_diag
+  integer(i_kind):: n
+_ENTRY_(myname_)
+  good = .true.
+  if(SKIP_VERIFY_) then
+_EXIT_(myname_)
+    return
+  endif
+  call timer_ini(ob_verify_name)
+
+  perr_=.false.
+  if(present(perr)) perr_=perr
+
+  my_node => hd%head    ! top
+  n=0
+  do while(associated(my_node))
+    n=n+1
+
+    if(good) then
+      ! check #1
+      my_diag => my_node%diags
+      good = associated(my_diag)
+      if(.not.good .and. perr_) then
+        call iperr(myname_,'unassociated %diags, @count =',n)
+        call iperr(myname_,'%(idv,iob,ich) =',(/my_node%idv,my_node%iob,1/))
+      endif
+
+      ! check #2
+      if(good) then
+        good = my_node%idv == my_diag%idv .and. &
+               my_node%iob == my_diag%iob .and. &
+                         1 == my_diag%ich
+        if(.not.good .and. perr_) then
+          call iperr(myname_,'mismatching keys, @count =',n)
+          call iperr(myname_,'%(idv,iob,ich) ='      ,(/my_node%idv,my_node%iob,          1/))
+          call iperr(myname_,'%diags%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+        endif
+      endif
+    endif
+
+    if(.not.(good.or.present(count))) then
+      call iperr(myname_,'test failed, @count =',n)
+      call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+      return
+    endif
+
+    my_node => my_node%llpoint ! i.e. %next
+
+  enddo
+
+  ! check #3
+  if(present(count)) then
+    if(n/=count) then
+      good = .false.
+      if(perr_) call iperr(myname_,'mismatching count, (expected,actual) =',(/count,n/))
+    endif
+  endif
+  call timer_fnl(ob_verify_name)
+_EXIT_(myname_)
+end function pm10_verify_
+
 
 end module m_obdiag

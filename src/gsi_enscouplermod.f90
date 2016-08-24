@@ -31,18 +31,17 @@ interface gsi_enscoupler_localization_grid
 end interface
 
 interface gsi_enscoupler_get_user_ens
-   subroutine get_user_ens_(grd,member,ntindex,g_z,g_ps,g_vor,g_div,g_u,g_v,g_tv,g_q,g_cwmr,g_oz,iret)
+   subroutine get_user_ens_(grd,member,ntindex,en_read,iret)
    use kinds, only: i_kind,r_kind
+   use gsi_bundlemod, only: gsi_bundle
    use general_sub2grid_mod, only: sub2grid_info
    implicit none
 !  Declare passed variables
       type(sub2grid_info)                   ,intent(in   ) :: grd
       integer(i_kind)                       ,intent(in   ) :: member  ! member index
       integer(i_kind)                       ,intent(in   ) :: ntindex ! time index
+      type(gsi_bundle)                      ,intent(inout) :: en_read
       integer(i_kind)                       ,intent(  out) :: iret
-      real(r_kind),dimension(grd%lat2,grd%lon2),intent(  out) :: g_z,g_ps
-      real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
-           g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
    end subroutine get_user_ens_
 end interface
 
@@ -69,6 +68,7 @@ end interface
 ! !REVISION HISTORY:
 !
 !  19Sep2011 Todling - Initial code
+!  30Nov2014 Todling - Update interface to get (bundle passed in)
 !
 !EOP
 !-------------------------------------------------------------------------

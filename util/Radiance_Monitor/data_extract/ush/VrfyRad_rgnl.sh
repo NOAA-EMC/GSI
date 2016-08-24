@@ -30,6 +30,9 @@ if [[ $nargs -lt 1 || $nags -gt 3 ]]; then
    exit 1
 fi
 
+. /usrx/local/Modules/3.2.9/init/sh
+module load /nwprod2/modulefiles/prod_util/v1.0.2
+
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -39,8 +42,9 @@ this_dir=`dirname $0`
 #
 #  if $COMOUT is defined then assume we're in a parallel.
 #--------------------------------------------------------------------
-export SUFFIX=$1
+export RADMON_SUFFIX=$1
 export RUN_ENVIR=""
+increment=1          
 
 if [[ $nargs -ge 2 ]]; then
    if [[ $2 = "dev" || $2 = "para" ]]; then
@@ -61,7 +65,7 @@ if [[ $RUN_ENVIR = "" ]]; then
   fi
 fi
 
-echo SUFFIX = $SUFFIX
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 
@@ -150,10 +154,13 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
+tmpdir=${WORKverf_rad}/check_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
+
+export REGIONAL_RR=${REGIONAL_RR:-0} 		#  regional rapid refresh flag
+echo "REGIONAL_RR = ${REGIONAL_RR}"
 
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
@@ -179,23 +186,72 @@ if [[ $RUN_ENVIR = dev ]]; then
 
    if [[ $PDATE = "" ]]; then
       pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Re-run this script with a specified starting cycle"
          exit 5
       fi
 
-      qdate=`${NDATE} +06 $pdate`
+      # --------------------------------------------------------------------
+      #  CYCLE_INTERVAL comes from the ../../parm/RadMon_user_settings file
+      # --------------------------------------------------------------------
+      if [[ $REGIONAL_RR -eq 1 ]]; then
+         # if there is no $pdate we may or may not increment the $pdate
+         # depending on the rgnHH and rgnTM settings
+         # get PDY, rgnHH, rgnTM      
 
-      fdate=`${DE_SCRIPTS}/find_ndas_radstat.pl 0 $com`
-      echo $fdate
+         new_day=0
+         hr=`echo $pdate|cut -c9-10`
+         if [[ $hr = "00" || $hr = "06" || $hr = "12" || $hr = "18" ]]; then
+            rgnHH=`${DE_SCRIPTS}/rr_get_tHHz.pl $pdate ${TANKverf}` 
+            
+            if [[ $hr = "00" && $rgnHH = "t00z" ]]; then
+               increment=0
+               rgnHH="t06z"
+               rgnTM="tm06"
+            elif [[ $hr = "06" && $rgnHH = "t06z" ]]; then
+               increment=0
+               rgnHH="t12z"
+               rgnTM="tm06"
+            elif [[ $hr = "12" && $rgnHH = "t12z" ]]; then
+               increment=0
+               rgnHH="t18z"
+               rgnTM="tm06"
+            elif [[ $hr = "18" && $rgnHH = "t18z" ]]; then
+               increment=0
+               rgnHH="t00z"
+               rgnTM="tm06"
+            fi
+         fi
 
-      if [[ $qdate -ge $fdate ]]; then
+         if [[ $increment -eq 1 ]]; then          
+            qdate=`${NDATE} +${CYCLE_INTERVAL} $pdate`	# namrr is peculiar in that that
+#         elif [[ $new_day -eq 1 ]]; then		# day rolls over with the
+#            qdate=`${NDATE} +24 $pdate`			# t00z.radstat.tm06 file
+#            echo "ADVANCE from $pdate to $qdate"	# t18z.radstat.tm00 was yesterday
+         else 
+            qdate=$pdate
+         fi 
+
+      else
+         qdate=`${NDATE} +${CYCLE_INTERVAL} $pdate`
+      fi
+
+      if [[ $REGIONAL_RR -eq 0 ]]; then
+         fdate=`${DE_SCRIPTS}/find_ndas_radstat.pl 0 $com`
+         echo $fdate
+
+         if [[ $qdate -ge $fdate ]]; then
+            export PDATE=$qdate
+         else 
+            export PDATE=$fdate
+         fi
+      else		# REGIONAL_RR 
          export PDATE=$qdate
-      else 
-         export PDATE=$fdate
       fi
    fi 
+
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
 
@@ -203,24 +259,85 @@ if [[ $RUN_ENVIR = dev ]]; then
    # Locate required files.
    #---------------------------------------------------------------
    echo $PDATE
-   DATEM12=`${NDATE} +12 $PDATE`
-   echo $DATEM12 
 
-   PDY00=`echo $PDATE | cut -c 1-8` 
-   HH00=`echo $PDATE | cut -c 9-10`
-   PDY12=`echo $DATEM12 | cut -c 1-8`
-   HH12=`echo $DATEM12 | cut -c 9-10`
+   if [[ $REGIONAL_RR -eq 1 ]]; then
+      echo increment = $increment
 
-   radstat=$com/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbiasc.tm12
+      if [[ $increment -eq 1 ]]; then   
+         PDY00=`echo $PDATE | cut -c 1-8` 
+         HH00=`echo $PDATE | cut -c 9-10`
+         case $HH00 in  
+            00) export rgnHH=t00z
+                export rgnTM=tm00;;
+            01) export rgnHH=t06z
+                export rgnTM=tm05;;
+            02) export rgnHH=t06z
+                export rgnTM=tm04;;
+            03) export rgnHH=t06z
+                export rgnTM=tm03;;
+            04) export rgnHH=t06z
+                export rgnTM=tm02;;
+            05) export rgnHH=t06z
+                export rgnTM=tm01;;
+            06) export rgnHH=t06z
+                export rgnTM=tm00;;
+            07) export rgnHH=t12z
+                export rgnTM=tm05;;
+            08) export rgnHH=t12z
+                export rgnTM=tm04;;
+            09) export rgnHH=t12z
+                export rgnTM=tm03;;
+            10) export rgnHH=t12z
+                export rgnTM=tm02;;
+            11) export rgnHH=t12z
+                export rgnTM=tm01;;
+            12) export rgnHH=t12z
+                export rgnTM=tm00;;
+            13) export rgnHH=t18z
+                export rgnTM=tm05;;
+            14) export rgnHH=t18z
+                export rgnTM=tm04;;
+            15) export rgnHH=t18z
+                export rgnTM=tm03;;
+            16) export rgnHH=t18z
+                export rgnTM=tm02;;
+            17) export rgnHH=t18z
+                export rgnTM=tm01;;
+            18) export rgnHH=t18z	# day changes here?!
+                export rgnTM=tm00;;
+            19) export rgnHH=t00z
+                export rgnTM=tm05;;
+            20) export rgnHH=t00z
+                export rgnTM=tm04;;
+            21) export rgnHH=t00z
+                export rgnTM=tm03;;
+            22) export rgnHH=t00z
+                export rgnTM=tm02;;
+            23) export rgnHH=t00z
+                export rgnTM=tm01;;
+         esac
+      fi
+
+      echo "PDATE = $PDATE"
+      echo "DATDIR = $DATDIR"
+      echo "com    = $com"
+      echo "rgnHH  = $rgnHH"
+      echo "rgnTM  = $rgnTM"
+      /bin/sh ${DE_SCRIPTS}/getbestnamrr_radstat.sh ${PDATE} ${DATDIR} ${com} ${rgnHH} ${rgnTM}
+
+   else
+
+      /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+   fi
 
    echo RADSTAT = $radstat
    echo BIASCR  = $biascr
 
-   /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
 
 elif [[ ${RUN_ENVIR} = para ]]; then
+   #  need to change this logic in line with glbl version
+   #  can't default to ndas 
 
    #---------------------------------------------------------------
    # Locate required files.
@@ -240,12 +357,9 @@ else
    exit 1
 fi
 
+
 export biascr=$DATDIR/satbias.${PDATE}
 export radstat=$DATDIR/radstat.${PDATE}
-
-echo "via getbestndas_radstat.sh:"
-echo RADSTAT = $radstat
-echo BIASCR  = $biascr
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -264,11 +378,14 @@ if [ -s $radstat -a -s $biascr ]; then
    export PDY=`echo $PDATE|cut -c1-8`
    export cyc=`echo $PDATE|cut -c9-10`
 
-   export job=ndas_vrfyrad_${PDY}${cyc}
+   export job=${RADMON_SUFFIX}_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-${STMP_USER}/radmon_regional}
-   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export DATA=${DATA:-${STMP_USER}/radmon_de_${RADMON_SUFFIX}}
+   cd ${STMP_USER}
+   rm -rf ${DATA}
+   mkdir ${DATA}
+   export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
 
@@ -277,17 +394,37 @@ if [ -s $radstat -a -s $biascr ]; then
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   export satype_file=${TANKverf}/radmon.${PDY}/${SUFFIX}_radmon_satype.txt
+   export satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
 
-   if [[ $CYC = "00" ]]; then
-      echo "Making new day directory for 00 cycle"
-      mkdir -p ${TANKverf}/radmon.${PDY}
-      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-      if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ]]; then
-         cp ${TANKverf}/radmon.${prev_day}/${SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
-      fi
+   #  logic here needs work.
+   #  point TANKverf_rad to radmon.${next_day} for all of the t00z cycles
+   #  maybe always try to make the directory just to be sure its there.
+
+   if [[ $REGIONAL_RR -eq 1 ]]; then
+      if [[ $cyc -ge 18 ]]; then
+         echo "Making new day directory for 18 cycle"
+         next_day=`${NDATE} +06 $PDATE | cut -c1-8`
+
+         export TANKverf_rad=${TANKverf}/radmon.${next_day}
+#         if [[ ! -d ${TANKverf_rad} ]]; then
+#            mkdir -p ${TANKverf_rad}
+#         fi
+
+#         prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
+         if [[ -s ${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
+            cp ${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${next_day}/.
+         fi
+       fi
+    else
+      if [[ $cyc = "00" ]]; then
+         echo "Making new day directory for 00 cycle"
+         mkdir -p ${TANKverf}/radmon.${PDY}
+         prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
+         if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
+            cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+         fi
+       fi
     fi
-
     echo "TESTING for $satype_file"
     if [[ -s ${satype_file} ]]; then
       echo "${satype_file} is good to go"
@@ -311,12 +448,14 @@ if [ -s $radstat -a -s $biascr ]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   logfile=$LOGdir/data_extract.${SUFFIX}.${PDY}.${cyc}.log
+   logfile=$LOGdir/data_extract.${RADMON_SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgdasradmon/jobs/JGDAS_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
+   elif [[ $MY_MACHINE = "cray" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia"  ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgdasradmon}/jobs/JGDAS_VERFRAD
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
    fi
 
 fi
@@ -330,9 +469,11 @@ fi
 
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
    exit_value=6
 fi
+
+module unload /nwprod2/modulefiles/prod_util/v1.0.2
 
 echo end VrfyRad_rgn.sh
 exit ${exit_value}

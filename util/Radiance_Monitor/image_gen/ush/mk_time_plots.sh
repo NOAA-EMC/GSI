@@ -15,6 +15,7 @@ echo Start mk_time_plots.sh
 echo USE_ANL = $USE_ANL
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
 imgndir=${IMGNDIR}/time
 tankdir=${TANKDIR}/time
@@ -30,22 +31,37 @@ fi
 #
 allmissing=1
 PDY=`echo $PDATE|cut -c1-8`
-ndays=$(($NUM_CYCLES/4))
+
+cycdy=$((24/$CYCLE_INTERVAL))		# number cycles per day
+ndays=$(($NUM_CYCLES/$cycdy))		# number days in plot period
+
 test_day=$PDATE
 
 for type in ${SATYPE}; do
    found=0
-   done=0
+   finished=0
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ $found -eq 0 && $done -ne 1 ]]; do
-      pdy=`echo $test_day|cut -c1-8`
+   while [[ $found -eq 0 && $finished -ne 1 ]]; do
+      if [[ $REGIONAL_RR -eq 1 ]]; then		# REGIONAL_RR stores hrs 18-23 in next 
+         tdate=`$NDATE +6 ${test_day}`		# day's radmon.yyymmdd directory
+         pdy=`echo $test_day|cut -c1-8`
+      else
+         pdy=`echo $test_day|cut -c1-8`
+      fi
+
       if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+         fi
          found=1
       elif [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}.ctl ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/time.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl ]]; then
+            $NCP ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+         fi
          found=1
       fi
 
@@ -54,7 +70,7 @@ for type in ${SATYPE}; do
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
          else
-            done=1
+            finished=1
          fi
       fi
    done
@@ -81,11 +97,16 @@ fi
         ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
       fi
       ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
- 
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-         sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
-         mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
+
+      if [[ -s ${imgndir}/${type}_anl.ctl ]]; then
+         ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}_anl.ctl ${START_DATE} ${NUM_CYCLES}
       fi
+ 
+#      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+#         sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
+#         mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
+#      fi
+      
    done
 
    for sat in ${SATYPE}; do
@@ -107,12 +128,14 @@ fi
 #
 #-------------------------------------------------------------------
 
-   jobname=plot_${SUFFIX}_sum
+   jobname=plot_${RADMON_SUFFIX}_sum
    logfile=${LOGdir}/plot_summary.log
    rm ${logfile}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+   elif [[ $MY_MACHINE = "cray" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
@@ -129,7 +152,7 @@ fi
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to time subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${SUFFIX}"
+  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${RADMON_SUFFIX}"
   if [ -d $PLOT_WORK_DIR ] ; then
      rm -f $PLOT_WORK_DIR
   fi
@@ -143,10 +166,11 @@ fi
 
    list="count penalty omgnbc total omgbc"
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then	
+
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
-      jobname=plot_${SUFFIX}_tm_${suffix}
+      jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
       logfile=${LOGdir}/plot_time_${suffix}.log
 
       rm -f $cmdfile
@@ -165,12 +189,16 @@ fi
          wall_tm="0:45"
       fi
 
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      if [[ $MY_MACHINE = "wcoss" ]]; then
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      else
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      fi
       
    else							# zeus||theia
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-         jobname=plot_${SUFFIX}_tm_${sat}
+         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}
 
          rm -f ${cmdfile}
@@ -198,9 +226,9 @@ fi
 #---------------------------------------------------------------------------
    for sat in ${bigSATLIST}; do 
 
-      if [[ $MY_MACHINE = "wcoss" ]]; then	
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-         jobname=plot_${SUFFIX}_tm_${sat}
+         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}.log
 
          rm -f ${logfile}
@@ -219,13 +247,15 @@ fi
          else
             wall_tm="1:00"
          fi
-
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
-
+         if [[ $MY_MACHINE = "wcoss" ]]; then
+            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         else
+            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         fi
       else						# zeus||theia
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
-            jobname=plot_${SUFFIX}_tm_${sat}_${var}
+            jobname=plot_${RADMON_SUFFIX}_tm_${sat}_${var}
             logfile=${LOGdir}/plot_time_${sat}_${var}.log
             rm -f ${logfile}
             rm -f ${cmdfile}

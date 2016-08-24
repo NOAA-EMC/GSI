@@ -32,10 +32,10 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-export SUFFIX=$1
-jobname=make_ctl_${SUFFIX}
+export RADMON_SUFFIX=$1
+jobname=make_ctl_${RADMON_SUFFIX}
 
-echo SUFFIX = $SUFFIX
+echo RADMON_SUFFIX = $RADMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 #--------------------------------------------------------------------
@@ -169,7 +169,7 @@ fi
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=5
-   echo No data available for ${SUFFIX}
+   echo No data available for ${RADMON_SUFFIX}
 fi
 
 echo end MkCtl_glbl.sh

@@ -13,6 +13,7 @@ SUBROUTINE  BckgrndCC(nlon,nlat,nsig,tbk,pbk,q,hbk,zh,   &
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-20  Hu  Add NCO document block
+!    2016-02-10  S.Liu Change subdomain boundary to cover full subdomain
 !
 !
 !   input argument list:
@@ -93,8 +94,8 @@ SUBROUTINE  BckgrndCC(nlon,nlat,nsig,tbk,pbk,q,hbk,zh,   &
 ! get the RH
 !
   do k=1,nsig
-    do j=2,nlat-1
-      do i=2,nlon-1
+    do j=1,nlat
+      do i=1,nlon
         t_k(i,j,k)=tbk(i,j,k)*(pbk(i,j,k)/h1000)**rd_over_cp
         qvsat=f_qvsat(pbk(i,j,k)*100.0_r_kind,t_k(i,j,k))   
                     ! Saturation water vapor specific humidity 
@@ -108,8 +109,8 @@ SUBROUTINE  BckgrndCC(nlon,nlat,nsig,tbk,pbk,q,hbk,zh,   &
 !  Find the lifting condensation level
 !
   z_lcl = -99999.0_r_kind
-  do j=2,nlat-1
-    do i=2,nlon-1
+  do j=2,nlat
+    do i=2,nlon
       z_ref = z_ref_lcl + zh(i,j)
       IF (z_ref <= hbk(i,j,2) .OR. z_ref > hbk(i,j,nsig-1)) THEN
         write(6,*) 'Error, ref.level is out of bounds at pt:' &
@@ -143,8 +144,8 @@ SUBROUTINE  BckgrndCC(nlon,nlat,nsig,tbk,pbk,q,hbk,zh,   &
 !
   cv_bk=0.0_r_kind
   do k=1,nsig
-    do j=2,nlat-1
-      do i=2,nlon-1
+    do j=1,nlat
+      do i=1,nlon
         IF (hbk(i,j,k) >= z_lcl(i,j)) THEN
            arg = hbk(i,j,k) - zh(i,j)
            arg2=rhbk(i,j,k)*0.01_r_kind

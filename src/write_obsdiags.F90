@@ -31,7 +31,7 @@ use obsmod, only: i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                   i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type
+                  i_pm2_5_ob_type,i_pm10_ob_type
 use gsi_4dvar, only: nobs_bins,l4dvar
 use mpimod, only: mype
 use jfunc, only: jiter, miter, last
@@ -130,6 +130,7 @@ _TRACE_(myname,'looping through obshead pointers')
       if(jj==i_aero_ob_type)   call write_aerohead_  ()
       if(jj==i_aerol_ob_type)  call write_aerolhead_ ()
       if(jj==i_pm2_5_ob_type)  call write_pm2_5head_  ()
+      if(jj==i_pm10_ob_type)  call write_pm10head_  ()
 !tmp
     endif
 
@@ -1532,5 +1533,64 @@ _ENTRY_(myname_)
 
 _EXIT_(myname_)
 end subroutine write_pm2_5head_
+
+
+subroutine write_pm10head_ ()
+!$$$  subprogram documentation block
+!
+! abstract: Write obs-specific data structure to file.
+!
+! program history log:
+!   2015-02-18  Pagowski
+!
+!   input argument list:
+!
+!$$$
+    use obsmod, only: pm10head, pm10ptr
+    use m_obdiag, only: ob_verify
+    implicit none 
+    integer(i_kind) mobs
+    logical:: all_sorted,passed
+    integer(i_kind):: idv,iob
+    character(len=*),parameter:: myname_=myname//'.write_pm10head_'
+_ENTRY_(myname_)
+
+    pm10ptr   => pm10head(ii)%head
+    mobs=0
+    idv=-huge(idv); iob=-huge(iob)
+    all_sorted=.true.
+    do while (associated(pm10ptr))
+      if(all_sorted) then
+        all_sorted = isinorder_( (/idv,iob/), (/pm10ptr%idv,pm10ptr%iob/) )
+	idv=pm10ptr%idv; iob=pm10ptr%iob
+      endif
+      pm10ptr => pm10ptr%llpoint
+      mobs=mobs+1
+    enddo
+      passed = ob_verify(pm10head(ii),count=mobs,perr=.true.)
+      	if(.not.passed) then
+	  call die(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+	endif
+    write(iunit)mobs,jj
+    icount(jj,ii) = mobs
+#ifdef VERBOSE
+    if(all_sorted) then
+      call tell(myname_,'pm10head is sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    else
+      call tell(myname_,'pm10head is NOT sorted, (ob_type,ibin,mobs)=',(/jj,ii,mobs/))
+    endif
+#endif
+    if(mobs==0) return
+    pm10ptr   => pm10head(ii)%head
+    do while (associated(pm10ptr))
+       write(iunit) pm10ptr%idv,  pm10ptr%iob
+       write(iunit) pm10ptr%res,  pm10ptr%err2,pm10ptr%raterr2,&
+                    pm10ptr%time, pm10ptr%b,   pm10ptr%pg, &
+                    pm10ptr%luse, pm10ptr%wij, pm10ptr%ij 
+       pm10ptr => pm10ptr%llpoint
+    enddo
+
+_EXIT_(myname_)
+end subroutine write_pm10head_
 
 end subroutine write_obsdiags

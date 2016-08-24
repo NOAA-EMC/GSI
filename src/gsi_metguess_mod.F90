@@ -207,6 +207,7 @@ module gsi_metguess_mod
 ! !USES:
 
 use kinds, only: i_kind,r_kind
+use constants, only: max_varname_length
 use mpimod, only : mype
 use mpeu_util,only: die
 use file_utility, only : get_lun
@@ -272,7 +273,7 @@ type(GSI_Bundle),pointer :: GSI_MetGuess_Bundle(:)   ! still a common block for 
 ! !PRIVATE ROUTINES:
 !BOC
 
-integer(i_kind),parameter::MAXSTR=256
+integer(i_kind),parameter::MAXSTR=max_varname_length
 logical:: guess_grid_initialized_=.false.
 logical:: guess_initialized_=.false.
 character(len=*), parameter :: myname = 'gsi_metguess_mod'
