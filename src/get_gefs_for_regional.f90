@@ -15,8 +15,12 @@ subroutine get_gefs_for_regional
 !   2012-10-11  wu      - dual resolution for options of regional hybens
 !   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
 !   2013-10-19  todling - all guess variables in met-guess
+!   2014-11-30  todling - update interface to general_read_gfs routines
 !   2014-12-03  derber - changes to call for general_read_gfsatm
 !   2015-05-12  wu      - changes to read in multiple ensemble for 4DEnVar
+!   2015-09-20  s.liu   - use general sub2grid in grads1a
+!   2016-05-19  Carley/s.liu   - prevent the GSI from printing out erroneous error  
+!                               when using ensembles from different time
 !
 !   input argument list:
 !
@@ -58,7 +62,12 @@ subroutine get_gefs_for_regional
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   use mpimod, only: npe
-  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
@@ -66,8 +75,17 @@ subroutine get_gefs_for_regional
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
   type(spec_vars) sp_gfs
-  real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl,prsl1000
-  real(r_kind),allocatable,dimension(:,:)   :: z,ps
+  real(r_kind),allocatable,dimension(:,:,:) :: pri,prsl,prsl1000
+  real(r_kind),pointer,dimension(:,:,:) :: vor =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: div =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: u   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: v   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: tv  =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: q   =>null()
+  real(r_kind),pointer,dimension(:,:,:) :: cwmr=>null()
+  real(r_kind),pointer,dimension(:,:,:) :: oz  =>null()
+  real(r_kind),pointer,dimension(:,:)   :: z =>null()
+  real(r_kind),pointer,dimension(:,:)   :: ps=>null()
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable :: tmp_ens(:,:,:,:),tmp_anl(:,:,:,:),tmp_ens2(:,:,:,:)
@@ -116,6 +134,16 @@ subroutine get_gefs_for_regional
   integer(i_kind) nming1,nming2
   integer(i_kind) its,ite
   real(r_kind) ratio_x,ratio_y
+
+  type(gsi_bundle) :: atm_bundle
+  type(gsi_grid)   :: atm_grid
+  integer(i_kind),parameter :: n2d=2
+  integer(i_kind),parameter :: n3d=8
+  character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+  character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+                                                  'vor ', 'div ', &
+                                                  'tv  ', 'q   ', &
+                                                  'cw  ', 'oz  '  /)
 
   real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
   real(r_kind), pointer :: ges_z (:,:  )=>NULL()
@@ -229,9 +257,9 @@ subroutine get_gefs_for_regional
   end if
            call w3fs21(iadate,nming1)
            call w3fs21(iadate_gfs,nming2)
-  if( nming1/=nming2 ) then
+  if( (nming1/=nming2) .and. (.not.l_ens_in_diff_time) ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
-     if(.not.l_ens_in_diff_time) call stop2(85)
+     call stop2(85)
   end if
      
 
@@ -324,28 +352,37 @@ subroutine get_gefs_for_regional
 !100  format('sigf06_ens_mem',i3.3)
 
 
-!!   allocate necessary space on global grid
 
-     allocate( vor(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate( div(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   u(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   v(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(  tv(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   q(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(cwmr(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(  oz(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig))
-     allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
-     allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
-     vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
+!    allocate necessary space on global grid
+     call gsi_gridcreate(atm_grid,grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig)
+     call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+     if(istatus/=0) then
+       write(6,*)myname,': trouble creating atm_bundle'
+       call stop2(999)
+     endif
+
      if(use_gfs_nemsio)then
         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
-               z,ps,vor,div,u,v,tv,q,cwmr,oz,.true.,iret)
+               atm_bundle,.true.,iret)
      else
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,.false.,.true., &
-               z,ps,vor,div,u,v,tv,q,cwmr,oz,inithead,iret)
+               atm_bundle,inithead,iret)
      end if
      inithead = .false.
-     deallocate(vor,div)
+
+     ier = 0
+     call gsi_bundlegetpointer(atm_bundle,'vor' ,vor ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'div' ,div ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'u'   ,u   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'v'   ,v   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'tv'  ,tv  ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'q'   ,q   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'oz'  ,oz  ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'cw'  ,cwmr,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'z'   ,z   ,istatus) ; ier = ier + istatus
+     call gsi_bundlegetpointer(atm_bundle,'ps'  ,ps  ,istatus) ; ier = ier + istatus
+     if ( ier /= 0 ) call die(myname,': missing atm_bundle vars, aborting ...',ier)
+
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
         ku=k ; kv=k+grd_gfs%nsig ; kt=k+2*grd_gfs%nsig ; kq=k+3*grd_gfs%nsig ; koz=k+4*grd_gfs%nsig
@@ -361,7 +398,6 @@ subroutine get_gefs_for_regional
            end do
         end do
      end do
-     deallocate(u,v,tv,q,oz,cwmr)
      kz=num_fields ; kps=kz-1
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
@@ -369,7 +405,9 @@ subroutine get_gefs_for_regional
            work_sub(1,i,j,kps)=ps(i,j)
         end do
      end do
-     deallocate(z,ps)
+
+     call gsi_bundledestroy(atm_bundle,istatus)
+
      allocate(work(grd_gfs%inner_vars,grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
      call general_sub2grid(grd_gfs,work_sub,work)
      deallocate(work_sub)
@@ -1595,13 +1633,15 @@ subroutine grads1a(f,nvert,mype,fname)
   use kinds, only: r_single,r_kind,i_kind
   use gridmod, only: nlat,nlon,lon2,lat2,rlats,rlons,regional
   use constants, only: rad2deg
+  use general_sub2grid_mod, only: sub2grid_info,general_gather2grid,general_sub2grid_create_info
+  use general_sub2grid_mod, only: general_sub2grid_destroy_info
   implicit none
 
   integer(i_kind),intent(in):: nvert,mype
   character(*),intent(in):: fname
-  real(r_kind),intent(in):: f(lat2,lon2,nvert)
+  real(r_single),intent(in):: f(1,lat2,lon2,nvert)
 
-  real(r_kind),dimension(nlat,nlon)::work
+  real(r_single),dimension(1,nlat,nlon)::work
   real(r_single) outfield(nlon,nlat)
 
   character(50) dsname,title,filename
@@ -1618,6 +1658,7 @@ subroutine grads1a(f,nvert,mype,fname)
   real(r_single) startp,pinc
   real(r_single) rlons_deg(nlon)
   real(r_single) rlats_deg(nlat)
+  type(sub2grid_info) s
 
   if(mype==0) then
      if(regional) then
@@ -1681,11 +1722,12 @@ subroutine grads1a(f,nvert,mype,fname)
 
   end if
 
+  call general_sub2grid_create_info(s,1,nlat,nlon,1,1,.true.)
   do k=1,nvert
-     call sub2grid_1a(f(1,1,k),work,0,mype)
+     call general_gather2grid(s,f(:,:,:,k),work,0)
      if(mype==0) then
         do j=1,nlon ; do i=1,nlat
-           outfield(j,i)=work(i,j)
+           outfield(j,i)=work(1,i,j)
         end do ; end do
         write(ioutdat)outfield
      end if
@@ -1695,6 +1737,7 @@ subroutine grads1a(f,nvert,mype,fname)
      close(ioutdes)
      close(ioutdat)
   end if
+  call general_sub2grid_destroy_info(s)
 
 end subroutine grads1a
 
@@ -1705,7 +1748,7 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
 !  2013-10-24 todling - revist strip interface
 !                     - reposition ltosi and others to commvar
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
          iglobal,ijn,displs_g,itotsub,strip
@@ -1714,11 +1757,11 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   implicit none
 
   integer(i_kind), intent(in)::gridpe,mype
-  real(r_kind),dimension(lat2,lon2),intent(in):: sub
-  real(r_kind),dimension(nlat,nlon),intent(out)::grid
+  real(r_single),dimension(lat2,lon2),intent(in):: sub
+  real(r_single),dimension(nlat,nlon),intent(out)::grid
 
-  real(r_kind),dimension(lat1*lon1):: zsm
-  real(r_kind),dimension(itotsub):: work1
+  real(r_single),dimension(lat1*lon1):: zsm
+  real(r_single),dimension(itotsub):: work1
   integer(i_kind) mm1,i,j,k
 
   mm1=mype+1

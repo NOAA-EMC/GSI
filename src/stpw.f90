@@ -61,6 +61,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-05-13  todling - update to use gsi_bundle
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     whead
@@ -81,7 +82,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: w_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -189,7 +190,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
+        if (vqc .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                              wptr%b  > tiny_r_kind) then
            w_pg=wptr%pg*varqc_iter
            cg_w=cg_term/wptr%b
@@ -205,12 +206,9 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*wptr%jb*log(cosh(sqrt(pen(kk)/(two*wptr%jb))))
            enddo
-        endif
-
-        if(njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
-           out(1) = out(1)+pen(1)*sqrt(wptr%raterr2)
+           out(1) = out(1)+pen(1)*wptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(wptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*wptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*wptr%raterr2

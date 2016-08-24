@@ -16,7 +16,7 @@ if [[ $nargs -ne 1 ]]; then
    exit 1
 fi
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -50,7 +50,7 @@ if [[ $area == "glb" ]]; then
 elif [[ $area == "rgn" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
 else
-  echo "ERROR:  Unable to determine area for ${SUFFIX}"
+  echo "ERROR:  Unable to determine area for ${RADMON_SUFFIX}"
   exit
 fi
 
@@ -67,11 +67,11 @@ fi
 
 #--------------------------------------------------------------------
 
-log_file=${LOGdir}/Transfer_${SUFFIX}.log
-err_file=${LOGdir}/Transfer_${SUFFIX}.err
+log_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
+err_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.err
 
 if [[ ${TOP_IMGNDIR} != "/" ]]; then
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} --exclude 'horiz' ${TOP_IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi

@@ -195,7 +195,8 @@ if (smoothparm .gt. zero) then
       print *,'min/max var 2 inflation = ',minval(covinfglobal(:,nlevs+1:2*nlevs)),maxval(covinfglobal(:,nlevs+1:2*nlevs))
       print *,'min/max var 3 inflation = ',minval(covinfglobal(:,2*nlevs+1:3*nlevs)),maxval(covinfglobal(:,2*nlevs+1:3*nlevs))
       if (nvarhumid .gt. 0) then
-      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
+      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),&
+           maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
       endif
       print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
       ! write out inflation.
@@ -267,12 +268,28 @@ call mpi_reduce(suma,sumatot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(suma2,suma2tot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 if (nproc == 0) then
-   print *,'inflation stats, time level: ',nb
-   print *,'---------------------------------'
-   sumftot = sqrt(sumftot/sumcoslattot)
-   sumatot = sqrt(sumatot/sumcoslattot)
-   suma2tot = sqrt(suma2tot/sumcoslattot)
-   sumitot = sumitot/sumcoslattot
+   do i=1,ndiag
+      if (sumcoslattot(i) .gt. 1.E-6 .and. sumftot(i) .gt. 1.E-6) then
+         sumftot(i) = sqrt(sumftot(i)/sumcoslattot(i))
+      else
+         sumftot(i)=-99.0
+      endif
+      if (sumcoslattot(i) .gt. 1.E-6 .and. sumatot(i) .gt. 1.E-6) then
+         sumatot(i) = sqrt(sumatot(i)/sumcoslattot(i))
+      else
+         sumatot(i)=-99.0
+      endif
+      if (sumcoslattot(i) .gt. 1.E-6 .and. suma2tot(i) .gt. 1.E-6) then
+         suma2tot(i) = sqrt(suma2tot(i)/sumcoslattot(i))
+      else
+         suma2tot(i)=-99.0
+      endif
+      if (sumcoslattot(i) .gt. 1.E-6 .and. sumitot(i) .gt. 1.E-6) then
+         sumitot(i) = sumitot(i)/sumcoslattot(i)
+      else
+         sumitot(i)=-99.0
+      endif
+   end do
    print *,'global ps prior std. dev min/max = ',sqrt(sprdminall),sqrt(sprdmaxall)
 ! NH first.
    if (sumcoslattot(1) .gt. tiny(sumcoslattot(1))) then
