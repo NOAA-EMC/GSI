@@ -518,8 +518,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           cycle
        else
           if (aircraft_t_bc) then
-             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. ictype(nc) >= 133 .or. &
-                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. ictype(nc) >= 233 )
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140) .or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
              if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
              if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
           end if
@@ -533,8 +533,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             cycle
         else
            if (aircraft_t_bc) then
-             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. ictype(nc) >= 133 .or. &
-                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. ictype(nc) >= 233 )
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140).or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
               if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
               if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
            end if
@@ -1318,7 +1318,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else if(tob) then
 !             aircraft temperature data
 !             aircraftobst = kx>129.and.kx<140
-              aircraftobst = (kx==131) .or. (kx>=133) .or. (kx==130)
+              aircraftobst = (kx==131) .or. (kx>=133 .and. kx<=135) .or. (kx==130) ! for currently known types
 
               aircraftwk = bmiss
               if (aircraftobst) then
