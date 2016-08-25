@@ -136,6 +136,7 @@ MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+USE_MAIL=${USE_MAIL:-0}
 
 time_exec=radmon_time
 USE_ANL=${USE_ANL:-0}
@@ -173,9 +174,8 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
       $NCP ${base_file}  ./${local_base}
    fi
 
-   if [[ ! -s ./${local_file} ]]; then
+   if [[ ! -s ./${local_base} ]]; then
       echo "RED LIGHT: local_base file not found"
-      err=9
    else
       echo "Confirming local_base file is good = ${local_base}"
       tar -xf ./${local_base}

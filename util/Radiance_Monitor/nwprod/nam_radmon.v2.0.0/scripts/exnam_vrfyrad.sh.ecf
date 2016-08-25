@@ -112,6 +112,7 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 export biascr=${biascr:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.satbias.${rgnTM}}
 export radstat=${radstat:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.radstat.${rgnTM}}
 export satype_file=${satype_file:-nam_radmon_satype.txt}
+export base_file=${base_file:-${FIXnam}/nam_radmon_base.tar}
 
 #  Other variables
 export RAD_AREA=${RAD_AREA:-rgn}
