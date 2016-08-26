@@ -24,7 +24,7 @@ module ncepgfs_io
 !                        temperature based on NSST T-Profile. And move Tf analysis increment
 !                        interpolation (analysis grid to ensemble grid) to re-center step
 !   2015-04-25  li     - modify read_nst, read_gfsnst routines to minimize communications/IO
-!   2016-08-18  li     - tic591: add read_sfc_ens & read_gfssfc_ens to read ensemble sfc file (isli only)
+!   2016-08-18  li     - tic591: add read_sfc_anl & read_gfssfc_anl to read ensemble sfc file (isli only)
 
 !
 ! Subroutines Included:
@@ -59,8 +59,8 @@ module ncepgfs_io
   public read_gfs
   public read_gfs_chem
   public read_gfssfc
-  public read_sfc_ens
-  public read_gfssfc_ens
+  public read_sfc_anl
+  public read_gfssfc_anl
   public read_nst
   public read_gfsnst
   public write_gfs
@@ -795,14 +795,14 @@ end subroutine write_ghg_grid
     return
   end subroutine read_gfssfc
 
-  subroutine read_sfc_ens(isli_ens)
+  subroutine read_sfc_anl(isli_anl)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    read_sfc_ens
+! subprogram:    read_sfc_anl
 !
 !   prgrmmr: li
 !
-! abstract: read a ncep GFS EnKF surface file on a specified task,
+! abstract: read a ncep GFS surface file with analysis grids resolution on a specified task,
 !           broadcast data to other tasks. Currently, isli only.
 !
 ! program history log:
@@ -810,7 +810,7 @@ end subroutine write_ghg_grid
 !
 !
 !   output argument list:
-!     isli_ens      - sea/land/ice mask of ensemble members
+!     isli_anl      - sea/land/ice mask at analysis grids (nlat by nlon)
 !
 ! attributes:
 !   language:  f90
@@ -821,10 +821,10 @@ end subroutine write_ghg_grid
     use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data,sfcio_intkind
     use sfcio_module, only: sfcio_axdata,sfcio_sclose
     use kinds, only: i_kind,r_single,r_kind
-    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use gridmod, only: nlat,nlon
     use guess_grids, only: nfldsfc,ifilesfc
 
-    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+    integer(i_kind), dimension(nlat,nlon), intent(  out) :: isli_anl
     integer(i_kind) :: latb,lonb
     integer(i_kind) :: iret,i,j
     type(sfcio_head) :: sfc_head
@@ -832,23 +832,23 @@ end subroutine write_ghg_grid
     real(r_single), allocatable, dimension(:,:):: outtmp
     character(24) :: filename
 !   Declare local parameters
-    integer(sfcio_intkind):: lunens = 21
+    integer(sfcio_intkind):: lunanl = 21
 
-! read an ens surface file on the task : isli only currently
-    filename='sfcf06_ensmean'
-    call sfcio_srohdc(lunens,filename,sfc_head,sfc_data,iret)
+! read a surface file with analysis resolution on the task : isli only currently
+    filename='sfcf06_anl'
+    call sfcio_srohdc(lunanl,trim(filename),sfc_head,sfc_data,iret)
 !   Check for possible problems
     if (iret /= 0) then
-       write(6,*)'READ_SFC_ENS:  ***ERROR*** problem reading ',filename,&
+       write(6,*)'READ_SFC_ANL:  ***ERROR*** problem reading ',filename,&
             ', iret=',iret
        call sfcio_axdata(sfc_data,iret)
        call stop2(80)
     endif
     lonb = sfc_head%lonb
     latb = sfc_head%latb
-    if ( (latb /= nlat_ens-2) .or. (lonb /= nlon_ens) ) then
-         write(6,*)'READ_SFC_ENS:  ***ERROR*** inconsistent grid dimensions.  ',&
-              ', nlon,nlat-2=',nlon_ens,nlat_ens-2,' -vs- sfc file lonb,latb=',&
+    if ( (latb /= nlat-2) .or. (lonb /= nlon) ) then
+         write(6,*)'READ_SFC_ANL:  ***ERROR*** inconsistent grid dimensions.  ',&
+              ', nlon,nlat-2=',nlon,nlat-2,' -vs- sfc file lonb,latb=',&
                  lonb,latb
          call sfcio_axdata(sfc_data,iret)
          call stop2(80)
@@ -858,28 +858,29 @@ end subroutine write_ghg_grid
     call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
     do j=1,lonb
        do i=1,latb+2
-          isli_ens(i,j) = nint(outtmp(i,j))
+          isli_anl(i,j) = nint(outtmp(i,j))
        end do
     end do
     deallocate(outtmp)
 
 !   Print date/time stamp
     write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
-700 format('READ_SFC_ENS:  ges read/scatter, nlat,nlon=',&
+700 format('READ_SFC_ANL:  ges read/scatter, nlat,nlon=',&
          2i6,', hour=',f10.1,', idate=',4i5)
     call sfcio_axdata(sfc_data,iret)
-    call sfcio_sclose(lunens,iret)
+    call sfcio_sclose(lunanl,iret)
 
-  end subroutine read_sfc_ens
+  end subroutine read_sfc_anl
 
-  subroutine read_gfssfc_ens(iope,isli_ens)
+  subroutine read_gfssfc_anl(iope,isli_anl)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_gfssfc_ens     read gfs ensemble surface file
+! subprogram:    read_gfssfc_anl     read gfs ges surface file at analysis resolution
+!
 !   prgmmr: li          org: np23                date: 2016-08-18
 !
-! abstract: read gfs ens surface file
+! abstract: read gfs surface file
 !
 ! program history log:
 !
@@ -887,7 +888,7 @@ end subroutine write_ghg_grid
 !     iope     - mpi task handling i/o
 !
 !   output argument list:
-!     isli_ens      - sea/land/ice mask 
+!     isli_anl      - sea/land/ice mask at analysis grids
 !
 ! attributes:
 !   language: f90
@@ -895,7 +896,7 @@ end subroutine write_ghg_grid
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_single
-    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use gridmod, only: nlat,nlon
     use guess_grids, only: nfldsfc
     use mpimod, only: mpi_itype,mpi_comm_world,mype
     use constants, only: zero
@@ -903,23 +904,23 @@ end subroutine write_ghg_grid
 
 !   Declare passed variables
     integer(i_kind)                      ,intent(in   ) :: iope
-    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+    integer(i_kind), dimension(nlat,nlon), intent(  out) :: isli_anl
 
 !   Declare local variables
     integer(i_kind):: iret,npts
 !-----------------------------------------------------------------------------
-!   Read ens surface file on processor iope
+!   Read a  surface file on processor iope
     if (mype == iope) then
-       call read_sfc_ens(isli_ens)
+       call read_sfc_anl(isli_anl)
     end if
 
 !   Load onto all processors
-    npts=nlat_ens*nlon_ens
+    npts=nlat*nlon
 
-    call mpi_bcast(isli_ens,npts,mpi_itype,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli_anl,npts,mpi_itype,iope,mpi_comm_world,iret)
 
     return
-  end subroutine read_gfssfc_ens
+  end subroutine read_gfssfc_anl
 
   subroutine read_nst(tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 !$$$  subprogram documentation block
