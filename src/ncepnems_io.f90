@@ -33,7 +33,7 @@ module ncepnems_io
 !                       (2) Modify write_sfc_nst_ to follows the update done in sfcio
 !                       (3) Modify read_sfc_ to follows the update done in sfcio for more effective I/O
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
-!   2016-08-18 li     - tic591: add read_sfc_ens_ & read_nemssfc_ens to read nemsio ensemble sfc file (isli only)
+!   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -42,7 +42,7 @@ module ncepnems_io
 !                         on grid to analysis subdomains
 !   sub read_nemssfc    - read ncep nems surface file, scatter on grid to 
 !                         analysis subdomains
-!   sub read_nemssfc_ens- read ncep EnKF nems surface file, scatter on grid to 
+!   sub read_nemssfc_anl- read ncep EnKF nems surface file, scatter on grid to 
 !                         analysis subdomains
 !   sub write_nems      - driver to write ncep nems atmospheric and surface
 !                         analysis files
@@ -120,7 +120,7 @@ module ncepnems_io
   public read_nems_chem
   public read_nemsatm
   public read_nemssfc
-  public read_nemssfc_ens
+  public read_nemssfc_anl
   public write_nemsatm
   public write_nemssfc
   public read_nemsnst
@@ -145,8 +145,8 @@ module ncepnems_io
      module procedure read_nemssfc_
   end interface
 
-  interface read_nemssfc_ens
-     module procedure read_nemssfc_ens_
+  interface read_nemssfc_anl
+     module procedure read_nemssfc_anl_
   end interface
 
   interface read_nemsnst
@@ -1254,13 +1254,14 @@ contains
   end subroutine read_nemssfc_
 
 
-  subroutine read_sfc_ens_(isli_ens)
+  subroutine read_sfc_anl_(isli_anl)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_sfc_ens_     read ensemble nems surface file
+! subprogram:    read_sfc_anl_     read nems surface file with analysis resolution
+!
 !   prgmmr: li            org: np23                date: 2016-08-18
 !
-! abstract: read ens nems surface file
+! abstract: read nems surface file at analysis grids when nlon /= nlon_sfc or nlat /= nlat_sfc
 !
 ! program history log:
 !  
@@ -1276,7 +1277,7 @@ contains
 !$$$
     use mpimod, only: mype
     use kinds, only: r_kind,i_kind,r_single
-    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use gridmod, only: nlat,nlon
     use guess_grids, only: nfldsfc,ifilesfc
     use constants, only: zero
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -1284,7 +1285,7 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind), dimension(nlat_ens,nlon_ens),   intent(  out) :: isli_ens
+    integer(i_kind), dimension(nlat,nlon),   intent(  out) :: isli_anl
 
 !   Declare local parameters
     integer(i_kind),dimension(7):: idate
@@ -1293,7 +1294,7 @@ contains
 
 !   Declare local variables
     character(len=24)  :: filename
-    character(len=120) :: my_name = 'READ_NEMSSFC_ENS'
+    character(len=120) :: my_name = 'READ_NEMSSFC_ANL'
     character(len=1)   :: null = ' '
     integer(i_kind) :: i,j
     integer(i_kind) :: iret, nframe, lonb, latb
@@ -1314,8 +1315,8 @@ contains
     if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
 
 
-    filename='sfcf06_ensmean'
-    call nemsio_open(gfile,filename,'READ',iret=iret)
+    filename='sfcf06_anl'
+    call nemsio_open(gfile,trim(filename),'READ',iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
 
     call nemsio_getfilehead(gfile, idate=idate, iret=iret, nframe=nframe,   &
@@ -1334,14 +1335,14 @@ contains
     odate(3) = idate(3)  !day
     odate(4) = idate(1)  !year
 
-    if ( (latb /= nlat_ens-2) .or. (lonb /= nlon_ens) ) then
+    if ( (latb /= nlat-2) .or. (lonb /= nlon) ) then
        if ( mype == 0 ) write(6, &
           '(a,'': inconsistent spatial dimension '',''nlon,nlatm2 = '',2(i4,tr1),''-vs- sfc file lonb,latb = '',i4)') &
-          trim(my_name),nlon_ens,nlat_ens-2,lonb,latb
+          trim(my_name),nlon,nlat-2,lonb,latb
        call stop2(102)
     endif
 !
-!   Read the surface records (lonb, latb)  and convert to GSI array pattern (nlat_ens,nlon_ens)
+!   Read the surface records (lonb, latb)  and convert to GSI array pattern (nlat,nlon)
 !   Follow the read order sfcio in ncepgfs_io
 !
     allocate(work(lonb,latb))
@@ -1357,7 +1358,7 @@ contains
     call tran_gfssfc(work,outtmp,lonb,latb)
     do j=1,lonb
        do i=1,latb+2
-          isli_ens(i,j) = nint(outtmp(i,j))
+          isli_anl(i,j) = nint(outtmp(i,j))
        end do
     end do
     deallocate(outtmp)
@@ -1370,17 +1371,18 @@ contains
 !
 !   Print date/time stamp
     if ( mype == 0 ) write(6, &
-       '(a,'': read_sfc_ens_ ,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
+       '(a,'': read_sfc_anl_ ,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
        trim(my_name),lonb,latb,fhour,odate
-  end subroutine read_sfc_ens_
+  end subroutine read_sfc_anl_
 
-  subroutine read_nemssfc_ens_(iope,isli_ens)
+  subroutine read_nemssfc_anl_(iope,isli_anl)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_nemssfc_ens_     read nems ensemble surface file
+! subprogram:    read_nemssfc_anl     read nems surface guess file with analysis resolution
+!
 !   prgmmr: xuli          org: np23                date: 2016-08-18
 !
-! abstract: read nems ens surface file
+! abstract: read nems surface file at analysis grids
 !
 ! program history log:
 !
@@ -1396,13 +1398,13 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_single
-    use hybrid_ensemble_parameters, only: nlat_ens,nlon_ens
+    use gridmod, only: nlat,nlon
     use mpimod, only: mpi_itype,mpi_comm_world,mype
     implicit none
 
 !   Declare passed variables
     integer(i_kind),                               intent(in   ) :: iope
-    integer(i_kind), dimension(nlat_ens,nlon_ens), intent(  out) :: isli_ens
+    integer(i_kind), dimension(nlat,nlon),         intent(  out) :: isli_anl
 
 
 !   Declare local variables
@@ -1411,15 +1413,15 @@ contains
 !-----------------------------------------------------------------------------
 !   Read surface file on processor iope
     if(mype == iope)then
+       call read_sfc_anl_(isli_anl)
        write(*,*) 'read_sfc nemsio'
-       call read_sfc_ens_(isli_ens)
     end if
 
 !   Load onto all processors
-    npts=nlat_ens*nlon_ens
-    call mpi_bcast(isli_ens,npts,mpi_itype,iope,mpi_comm_world,iret)
+    npts=nlat*nlon
+    call mpi_bcast(isli_anl,npts,mpi_itype,iope,mpi_comm_world,iret)
 
-  end subroutine read_nemssfc_ens_
+  end subroutine read_nemssfc_anl_
 
   subroutine read_nst_ (mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 

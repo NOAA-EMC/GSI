@@ -36,8 +36,8 @@ module satthin
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !   2012-03-05  akella  - remove create_nst,getnst and destroy_nst; nst fields now handled by gsi_nstcoupler
 !   2015-05-01  li      - modify to use single precision for the variables read from sfc files
-!   2016-08-18  li      - tic591: add read sili from ensemble sfc file (sfcf06)ensmean) 
-!                                 modify to use ensemble surface mask when nlon = nlon_ens, nlat = nlat_ens
+!   2016-08-18  li      - tic591: add read sili_anlfrom analysis grid/resolution sfc file (sfcf06_anl) 
+!                                 modify to use isli_anl
 !                                 determine sno2 with interpolate, accordingly 
 
 !
@@ -108,7 +108,7 @@ module satthin
   public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
   public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
   public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
-  public :: isli_ens,sno_ens
+  public :: isli_anl,sno_anl
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
@@ -134,10 +134,10 @@ module satthin
   integer(i_kind),allocatable, dimension(:,:)   :: isli_full
   real(r_single), allocatable, dimension(:,:,:) :: sfc_rough_full
   real(r_single), allocatable, dimension(:,:)   :: zs_full_gfs
-! declare the dummy variables of routine read_gfssfc_ens
-  integer(i_kind),allocatable, dimension(:,:)   :: isli_ens
-! declare local array sno_ens 
-  real(r_single),allocatable, dimension(:,:,:)   :: sno_ens
+! declare the dummy variables of routine read_gfssfc_anl
+  integer(i_kind),allocatable, dimension(:,:)   :: isli_anl
+! declare local array sno_anl 
+  real(r_single),allocatable, dimension(:,:,:)   :: sno_anl
 
   logical use_all
 
@@ -439,7 +439,7 @@ contains
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
-    use hybrid_ensemble_parameters, only: l_hyb_ens,nlat_ens,nlon_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
@@ -449,8 +449,8 @@ contains
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
-    use ncepgfs_io, only: read_gfssfc,read_gfssfc_ens
-    use ncepnems_io, only: read_nemssfc,sfc_interpolate,read_nemssfc_ens
+    use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
+    use ncepnems_io, only: read_nemssfc,sfc_interpolate,read_nemssfc_anl
     use sfcio_module, only: sfcio_realfill
 
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -473,6 +473,7 @@ contains
     real(r_single),allocatable,dimension(:,:)::dum,work
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt,istatus
     character(24) filename
+    logical :: fexist, use_anl_res
 
     real(r_kind),dimension(:,:),pointer:: ges_z =>NULL()
 
@@ -497,8 +498,8 @@ contains
     allocate(sst_full(nlat_sfc,nlon_sfc,nfldsfc),sno_full(nlat_sfc,nlon_sfc,nfldsfc))
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
-    allocate(isli_ens(nlat_ens,nlon_ens))
-    allocate(sno_ens(nlat_ens,nlon_ens,nfldsfc))
+    allocate(isli_anl(nlat,nlon))
+    allocate(sno_anl(nlat,nlon,nfldsfc))
 
     allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
     allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
@@ -533,6 +534,18 @@ contains
           deallocate(slatx,wlatx)
        end if
 
+!
+!     determine if read isli_anl or not
+!
+       inquire(file='sfcf06_anl',exist=fexist)
+       if (fexist .and. l_hyb_ens .and. (nlon_sfc /= nlon .or. nlat_sfc /= nlat) ) then
+          use_anl_res = .true.
+       else
+          use_anl_res = .false.
+          if ( nlon_sfc /= nlon .or. nlat_sfc /= nlat ) then
+             write(*,*) 'GETSFC: Inconsistent sfc mask between analysis and ensemble grids used'
+          endif
+       endif
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
        if ( use_gfs_nemsio ) then
@@ -541,8 +554,8 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( l_hyb_ens .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
-             call read_nemssfc_ens(mype_io,isli_ens)
+          if ( use_anl_res ) then
+             call read_nemssfc_anl(mype_io,isli_anl)
           endif
 
        else
@@ -551,8 +564,8 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( l_hyb_ens .and. (nlon_sfc /= nlon_ens .or. nlat_sfc /= nlat_ens) ) then
-             call read_gfssfc_ens(mype_io,isli_ens) 
+          if ( use_anl_res ) then
+             call read_gfssfc_anl(mype_io,isli_anl) 
           endif
 
        end if
@@ -782,12 +795,10 @@ contains
           end do
        end do
     else
-!
-! get subdomain isli2 from EnKF mask (isli_ens) if anl and ens has the same resolution
-!
-       if ( l_hyb_ens .and. nlon == nlon_ens .and. nlat == nlat_ens ) then
+
+       if ( use_anl_res ) then
           do k = 1, nfldsfc
-             call sfc_interpolate(sno_ens(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
+             call sfc_interpolate(sno_anl(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
           enddo
           do j=1,lon2
              jl=j+jstart(mm1)-2
@@ -795,9 +806,9 @@ contains
              do i=1,lat2
                 il=i+istart(mm1)-2
                 il=min0(max0(1,il),nlat)
-                isli2(i,j)=isli_ens(il,jl)
+                isli2(i,j)=isli_anl(il,jl)
                 do k=1,nfldsfc
-                   sno2(i,j,k)=sno_ens(il,jl,k)
+                   sno2(i,j,k)=sno_anl(il,jl,k)
                    if ( isli2(i,j) == 0 ) then
                       sno2(i,j,k) = zero
                    endif
