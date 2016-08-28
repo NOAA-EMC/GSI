@@ -36,7 +36,8 @@ module satthin
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !   2012-03-05  akella  - remove create_nst,getnst and destroy_nst; nst fields now handled by gsi_nstcoupler
 !   2015-05-01  li      - modify to use single precision for the variables read from sfc files
-!   2016-08-18  li      - tic591: add read sili_anlfrom analysis grid/resolution sfc file (sfcf06_anl) 
+!   2016-08-18  li      - tic591: when use_readin_anl_sfcmask is true, 
+!                                 add read sili_anl from analysis grid/resolution sfc file (sfcf06_anl) 
 !                                 modify to use isli_anl
 !                                 determine sno2 with interpolate, accordingly 
 
@@ -80,6 +81,8 @@ module satthin
 !   def sli_full       - 0=sea/1=land/2=ice mask
 !   def sst_full       - skin temperature
 !   def sno_full       - snow-ice mask
+!   def isli_anl       - snow/land/ice mask mask at analysis grid resolution
+!   def sno_anl        - snow-ice mask at analysis grid resolution
 !   def zs_full        - model terrain elevation
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
@@ -438,7 +441,8 @@ contains
     use kinds, only: r_kind,r_single
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
-       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip, use_gfs_nemsio
+       rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip,&
+       use_gfs_nemsio,use_readin_anl_sfcmask
     use hybrid_ensemble_parameters, only: l_hyb_ens
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
@@ -473,7 +477,7 @@ contains
     real(r_single),allocatable,dimension(:,:)::dum,work
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt,istatus
     character(24) filename
-    logical :: fexist, use_anl_res
+    logical :: fexist
 
     real(r_kind),dimension(:,:),pointer:: ges_z =>NULL()
 
@@ -534,15 +538,8 @@ contains
           deallocate(slatx,wlatx)
        end if
 
-!
-!     determine if read isli_anl or not
-!
-       inquire(file='sfcf06_anl',exist=fexist)
-       if (fexist .and. l_hyb_ens .and. (nlon_sfc /= nlon .or. nlat_sfc /= nlat) ) then
-          use_anl_res = .true.
-       else
-          use_anl_res = .false.
-          if ( nlon_sfc /= nlon .or. nlat_sfc /= nlat ) then
+       if ( .not. use_readin_anl_sfcmask .and. l_hyb_ens .and. (nlon_sfc /= nlon .or. nlat_sfc /= nlat) ) then
+          if (mype == 0 ) then
              write(*,*) 'GETSFC: Inconsistent sfc mask between analysis and ensemble grids used'
           endif
        endif
@@ -554,7 +551,7 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( use_anl_res ) then
+          if ( use_readin_anl_sfcmask ) then
              call read_nemssfc_anl(mype_io,isli_anl)
           endif
 
@@ -564,7 +561,7 @@ contains
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
-          if ( use_anl_res ) then
+          if ( use_readin_anl_sfcmask ) then
              call read_gfssfc_anl(mype_io,isli_anl) 
           endif
 
@@ -796,7 +793,7 @@ contains
        end do
     else
 
-       if ( use_anl_res ) then
+       if ( use_readin_anl_sfcmask ) then
           do k = 1, nfldsfc
              call sfc_interpolate(sno_anl(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
           enddo

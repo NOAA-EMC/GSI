@@ -1315,7 +1315,7 @@ contains
     if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
 
 
-    filename='sfcf06_anl'
+    filename='sfcf06_anlgrid'
     call nemsio_open(gfile,trim(filename),'READ',iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
 
