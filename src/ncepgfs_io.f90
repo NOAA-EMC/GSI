@@ -835,7 +835,7 @@ end subroutine write_ghg_grid
     integer(sfcio_intkind):: lunanl = 21
 
 ! read a surface file with analysis resolution on the task : isli only currently
-    filename='sfcf06_anl'
+    filename='sfcf06_anlgrid'
     call sfcio_srohdc(lunanl,trim(filename),sfc_head,sfc_data,iret)
 !   Check for possible problems
     if (iret /= 0) then
