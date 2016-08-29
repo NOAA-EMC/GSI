@@ -33,7 +33,7 @@ module nstio_module
 !                       (hour, month, day, 4-digit year)
 !     latb              Integer(nstio_intkind) latitudes
 !     lonb              Integer(nstio_intkind) longitudes
-!     ivn               Integer(nstio_intkind) version number
+!     ivo               Integer(nstio_intkind) version number
 !     lsea              Integer(nstio_intkind) sea levels
 !     irealf            Integer(sigio_intkind) floating point flag
 !                       (=1 for 4-byte ieee, =2 for 8-byte ieee)
@@ -171,9 +171,9 @@ module nstio_module
 !
 ! Remarks:
 !   (1) Here's the supported nst file formats.
-!       For ivn=200907 
+!       For ivo=200907 
 !         Label containing
-!           'GFS ','NST ',ivn,nhead,ndata,reserved(3) (8 4-byte words)
+!           'GFS ','NST ',ivo,nhead,ndata,reserved(3) (8 4-byte words)
 !         Header records
 !           lhead(nhead),ldata(ndata) (nhead+ndata 4-byte words)
 !           fhour, idate(4), lonb, latb, lsea, irealf,
@@ -238,7 +238,7 @@ module nstio_module
   type,public:: nstio_head
     character(nstio_lhead1):: clabnst='                                '
     real(nstio_realkind):: fhour=0.
-    integer(nstio_intkind):: idate(4)=(/0,0,0,0/),latb=0,lonb=0,lsea=0,ivn=0
+    integer(nstio_intkind):: idate(4)=(/0,0,0,0/),latb=0,lonb=0,lsea=0,ivo=0
     integer(nstio_intkind):: irealf=1
     integer(nstio_intkind),allocatable:: lpl(:)
     real(nstio_realkind),allocatable:: zsea(:)
@@ -308,7 +308,7 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     open(lu,file=cfname,form='unformatted',&
          status='old',action='read',iostat=ios)
-!   write(*,*) ' successfully opened : ',cfname, ios
+    write(*,*) ' successfully opened : ',cfname, ios
     iret=ios
     if(iret.ne.0) iret=-1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -352,22 +352,24 @@ contains
     iret=-2
     rewind lu
     read(lu,iostat=ios) head%clabnst(1:8)
-!   write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
+    write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
     if(ios.ne.0) return
     if(head%clabnst(1:8).eq.'GFS NST ') then  ! modern nst file
       rewind lu
-      read(lu,iostat=ios) cgfs,cnst,head%ivn,nhead,nresv
-!     write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivn,nhead
+      read(lu,iostat=ios) cgfs,cnst,head%ivo,nhead,nresv
+      write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivo,nhead
       if(ios.ne.0) return
-      if(head%ivn.eq.200907) then
+      if(head%ivo.eq.200907) then
         read(lu,iostat=ios)
         if(ios.ne.0) return
         read(lu,iostat=ios) head%fhour,head%idate,head%lonb,head%latb,&
                             head%lsea,head%irealf
+        write(*,*) ' head%fhour, ios : ',head%fhour, ios
         if(ios.ne.0) return
         call nstio_alhead(head,ios)
         if(ios.ne.0) return
         read(lu,iostat=ios) head%lpl
+        write(*,*) ' head%lpl, ios : ',head%lpl, ios
         if(ios.ne.0) return
         read(lu,iostat=ios) head%zsea
         if(ios.ne.0) return
@@ -388,9 +390,9 @@ contains
     integer i
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-2
-    if(head%ivn.eq.200907) then
+    if(head%ivo.eq.200907) then
       rewind lu
-      write(lu,iostat=ios) 'GFS NST ',head%ivn,ngrids_nst+4*head%lsea,0,0,0
+      write(lu,iostat=ios) 'GFS NST ',head%ivo,ngrids_nst+4*head%lsea,0,0,0
       if(ios.ne.0) return
       write(lu,iostat=ios) 4*(/8,ngrids_nst+4*head%lsea,25,head%latb/2,head%lsea/),&
                            4*head%irealf*(/(head%lonb*head%latb,&
@@ -450,7 +452,7 @@ contains
     dim1=head%lonb
     dim2=head%latb
     dim3=head%lsea
-!   write(*,*) 'in nstio_aldata, dim1, dim2, dim3 : ', dim1, dim2, dim3
+    write(*,*) 'in nstio_aldata, dim1, dim2, dim3 : ', dim1, dim2, dim3
     allocate(&
       data%slmsk(dim1,dim2),&
       data%xt(dim1,dim2),&
@@ -590,7 +592,7 @@ contains
        mdim3.lt.dim3) return
     iret=-4
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    if(head%ivn.eq.200907) then
+    if(head%ivo.eq.200907) then
       if(head%irealf.ne.2) then
         read(lu,iostat=ios)    data%slmsk(:dim1,:dim2)
         if(ios.ne.0) return
@@ -720,7 +722,7 @@ contains
        mdim3.lt.dim3) return
     iret=-4
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    if(head%ivn.eq.200907) then
+    if(head%ivo.eq.200907) then
       if(head%irealf.ne.2) then
         write(lu,iostat=ios) data%slmsk(:dim1,:dim2)
         if(ios.ne.0) return
@@ -1009,7 +1011,7 @@ contains
         dbta%Qrain(:dim1,:dim2)    = data%Qrain(:dim1,:dim2)
       call nstio_axdata(data,iret)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    elseif(head%ivn == 200907) then
+    elseif(head%ivo == 200907) then
       read(lu,iostat=ios) dbta%slmsk(:dim1,:dim2)
       if(ios.ne.0) return
       read(lu,iostat=ios) dbta%xt(:dim1,:dim2)
@@ -1139,7 +1141,7 @@ contains
       if(iret.ne.0) return
       call nstio_axdata(data,iret)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    elseif(head%ivn == 200907) then
+    elseif(head%ivo == 200907) then
       write(lu,iostat=ios) dbta%slmsk(:dim1,:dim2)
       if(ios.ne.0) return
       write(lu,iostat=ios) dbta%xt(:dim1,:dim2)
