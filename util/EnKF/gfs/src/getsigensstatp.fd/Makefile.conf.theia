@@ -21,6 +21,9 @@ SIGIO_LIB4=$(CORELIB)/sigio/v$(SIGIO_VER)/libsigio_v$(SIGIO_VER)_4.a
 SP_LIB4=$(CORELIB)/sp/v$(SP_VER)/libsp_v$(SP_VER)_4.a
 W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
+NETCDF_INC=$(NETCDF)/include
+#NETCDF_LIB=-L$(NETCDF)/lib -lnetcdff -lnetcdf
+NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 # ---------------------------
 # General targets/definitions
 # ---------------------------
