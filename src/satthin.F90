@@ -477,7 +477,6 @@ contains
     real(r_single),allocatable,dimension(:,:)::dum,work
     integer(i_kind) mm1,i,j,k,it,il,jl,jmax,idrt,istatus
     character(24) filename
-    logical :: fexist
 
     real(r_kind),dimension(:,:),pointer:: ges_z =>NULL()
 
@@ -537,12 +536,6 @@ contains
           rlats_sfc(nlat_sfc)=half*pi
           deallocate(slatx,wlatx)
        end if
-
-       if ( .not. use_readin_anl_sfcmask .and. l_hyb_ens .and. (nlon_sfc /= nlon .or. nlat_sfc /= nlat) ) then
-          if (mype == 0 ) then
-             write(*,*) 'GETSFC: Inconsistent sfc mask between analysis and ensemble grids used'
-          endif
-       endif
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
        if ( use_gfs_nemsio ) then
