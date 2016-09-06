@@ -25,6 +25,7 @@ module ncepgfs_io
 !                        interpolation (analysis grid to ensemble grid) to re-center step
 !   2015-04-25  li     - modify read_nst, read_gfsnst routines to minimize communications/IO
 !   2016-08-18  li     - tic591: add read_sfc_anl & read_gfssfc_anl to read ensemble sfc file (isli only)
+!                                use the modified 2d interpolation (sfc_interpolate to intrp22)
 
 !
 ! Subroutines Included:
@@ -1422,11 +1423,12 @@ end subroutine write_ghg_grid
     use gridmod, only: ijn
     use gridmod, only: displs_g
     use gridmod, only: itotsub
+    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     
     use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod, only: iadate
-    use ncepnems_io, only: sfc_interpolate
+    use ncepnems_io, only: intrp22
     
     use constants, only: zero_single
     
@@ -1523,7 +1525,8 @@ end subroutine write_ghg_grid
           write(6,*)'WRITE_GFSSFC:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
                ', nlon,nlat-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',&
                lonb,latb
-          call sfc_interpolate(buffer,nlon,nlat,buffer2,lonb,latb)
+          call intrp22(buffer, rlons,rlats,nlon,nlat, &
+                       buffer2,rlons_sfc,rlats_sfc,lonb,latb)
        else
           do j=1,latb
              do i=1,lonb
@@ -1644,7 +1647,6 @@ end subroutine write_ghg_grid
     use gridmod, only: iglobal,ijn,displs_g,itotsub
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     use general_commvars_mod, only: ltosi,ltosj
-    use ncepnems_io, only: sfc_interpolate
 
     use obsmod,  only: iadate,ianldate
     use constants, only: zero,zero_single,two,tfrozen,z_w_max,rad2deg

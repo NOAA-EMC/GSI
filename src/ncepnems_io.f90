@@ -34,6 +34,7 @@ module ncepnems_io
 !                       (3) Modify read_sfc_ to follows the update done in sfcio for more effective I/O
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
+!                               change/modify sfc_interpolate to be intrp22 to handle more general interpolation (2d to 2d)
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -50,7 +51,7 @@ module ncepnems_io
 !   sub write_nemssfc   - gather/write on grid ncep surface analysis file
 !   sub read_nemsnst    - read ncep nst file, scatter on grid to analysis subdomains
 !   sub write_nems_sfc_nst - gather/write on grid ncep surface & nst analysis file
-!   sub sfc_interpolate   - interpolate from gfs atm grid to gfs sfc grid
+!   sub intrp22         - interpolate from one grid to another grid (2D)
 !
 ! Variable Definitions:
 !   The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
@@ -125,7 +126,7 @@ module ncepnems_io
   public write_nemssfc
   public read_nemsnst
   public write_nems_sfc_nst
-  public sfc_interpolate
+  public intrp22
   public tran_gfssfc
   public error_msg
 
@@ -2251,6 +2252,7 @@ contains
     use gridmod, only: ijn
     use gridmod, only: displs_g
     use gridmod, only: itotsub
+    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     
     use general_commvars_mod, only: ltosi,ltosj
 
@@ -2401,7 +2403,8 @@ contains
           write(6,*)trim(my_name),':  different grid dimensions analysis', &
              ' vs sfc. interpolating sfc temperature nlon,nlat-2=',nlon,  &
              nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
-          call sfc_interpolate(buffer,nlon,nlat,buffer2,lonb,latb)
+          call intrp22(buffer, rlons,rlats,nlon,nlat, &
+                       buffer2,rlons_sfc,rlats_sfc,lonb,latb)
        else
           do j=1,latb
              do i=1,lonb
@@ -3115,32 +3118,31 @@ contains
      if ( stop_code /= 0 ) call stop2(stop_code)
   end subroutine error_msg_
 
-
-  subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
+  subroutine intrp22(a,rlons_a,rlats_a,nlon_a,nlat_a, &
+                     b,rlons_b,rlats_b,nlon_b,nlat_b)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    sfc_interpolate --- interpolates from analysis grid to 
-!                                    surface grid
-!   prgrmmr:     derber -  initial version; org: np2
+! subprogram:    intrp22 --- interpolates from one 2-d grid to another 2-d grid 
+!                            like analysis to surface grid or vice versa
+!   prgrmmr:     li -  initial version; org: np2
 !
-! abstract:      This routine interpolates a on analysis grid to b on 
-!                surface grid
+! abstract:      This routine interpolates a grid to b grid 
 !
 ! program history log:
-!   2008-02-26  derber  - original routine
-!   2008-05-28  safford - add subprogram doc block, rm unused uses
-!   2011-04-01  li - change kind of output field (b: single to r_kind)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
-!     na_lon  - number of longitude grid analysis 
-!     na_lat  - number of latitude grid analysis
-!     ns_lon  - number of longitude grid sfc 
-!     ns_lat  - number of latitude grid sfc
-!     a       - analysis values
+!     rlons_a - longitudes of input array
+!     rlats_a - latitudes of input array
+!     nlon_a  - number of longitude of input array
+!     nlat_a  - number of latitude of input array
+!     rlons_b - longitudes of output array
+!     rlats_b - latitudes of output array
+!     nlon_b  - number of longitude of output array
+!     nlat_b  - number of latitude of output array
+!     a       - input values 
 !
 !   output argument list:
-!     b       - surface values
+!     b       - output values
 !
 ! attributes:
 !   language: f90
@@ -3151,21 +3153,20 @@ contains
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
     use constants, only: zero,one
-    use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     
     implicit none
 
 ! !INPUT PARAMETERS:
-    integer(i_kind)                        ,intent(in   ) :: na_lon  ! number of longitude grid analysis 
-    integer(i_kind)                        ,intent(in   ) :: na_lat  ! number of latitude grid analysis
-    integer(i_kind)                        ,intent(in   ) :: ns_lon  ! number of longitude grid sfc 
-    integer(i_kind)                        ,intent(in   ) :: ns_lat  ! number of latitude grid sfc
+    integer(i_kind)                 ,intent(in   ) :: nlon_a,nlat_a,nlon_b,nlat_b
+    real(r_kind), dimension(nlon_a) ,intent(in   ) :: rlons_a
+    real(r_kind), dimension(nlat_a) ,intent(in   ) :: rlats_a
+    real(r_kind), dimension(nlon_b) ,intent(in   ) :: rlons_b
+    real(r_kind), dimension(nlat_b) ,intent(in   ) :: rlats_b
 
-    real(r_single), dimension(na_lon,na_lat),intent(in   ) :: a   ! analysis values
+    real(r_single), dimension(nlon_a,nlat_a),intent(in   ) :: a  
 
 ! !OUTPUT PARAMETERS:
-    real(r_single), dimension(ns_lon,ns_lat),intent(  out) :: b   ! surface values
-
+    real(r_single), dimension(nlon_b,nlat_b),intent(  out) :: b 
 
 !   Declare local variables
     integer(i_kind) i,j,ix,iy,ixp,iyp
@@ -3175,29 +3176,28 @@ contains
 
     b=zero
 !   Loop over all points to get interpolated value
-    do j=1,ns_lat
-       dlat=rlats_sfc(j)
-       call grdcrd1(dlat,rlats,na_lat,1)
+    do j=1,nlat_b
+       dlat=rlats_b(j)
+       call grdcrd1(dlat,rlats_a,nlat_a,1)
        iy=int(dlat)
-       iy=min(max(1,iy),na_lat)
+       iy=min(max(1,iy),nlat_a)
        dy  =dlat-iy
        dy1 =one-dy
-       iyp=min(na_lat,iy+1)
+       iyp=min(nlat_a,iy+1)
 
-
-       do i=1,ns_lon
-          dlon=rlons_sfc(i)
-          call grdcrd1(dlon,rlons,na_lon,1)
+       do i=1,nlon_b
+          dlon=rlons_b(i)
+          call grdcrd1(dlon,rlons_a,nlon_a,1)
           ix=int(dlon)
           dx  =dlon-ix
           dx=max(zero,min(dx,one))
           dx1 =one-dx
           w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
 
-          ix=min(max(0,ix),na_lon)
+          ix=min(max(0,ix),nlon_a)
           ixp=ix+1
-          if(ix==0) ix=na_lon
-          if(ixp==na_lon+1) ixp=1
+          if(ix==0) ix=nlon_a
+          if(ixp==nlon_a+1) ixp=1
           bout=w00*a(ix,iy)+w01*a(ix,iyp)+w10*a(ixp,iy)+w11*a(ixp,iyp)
           b(i,j)=bout
 
@@ -3207,7 +3207,7 @@ contains
     
 !   End of routine
     return
-  end subroutine sfc_interpolate
+  end subroutine intrp22
 
   subroutine tran_gfssfc(ain,aout,lonb,latb)
 !$$$  subprogram documentation block
