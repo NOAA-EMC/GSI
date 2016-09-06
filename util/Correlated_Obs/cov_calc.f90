@@ -147,9 +147,9 @@ do tt=tim1,tim2
       call get_filename(tim,anl_stub,anlfile)
       gwhile=0
       if ((tim==ntimes).and.(tim>1)) gwhile=1
-      gtim=1
-      if (tim>1) gtim=tim+1
+      gtim=tim+1 !gtim=1 for tim=1
       gcmod=mod(gtim,3)
+      if (tim==1) gtim=1
       gblock=gcmod+1
       ncc=0
       !we read in one analysis diag file at each time step.
@@ -389,15 +389,16 @@ do tt=tim1,tim2
             ptimes=3
          end if
          if ((tim==ntimes).and.(ntimes>2)) then
-            gtim=tim-1
+            gtim=tim+1
             gcmod=mod(gtim,3)
             i1=gcmod+1
-            gtim=tim-2
+            gtim=tim
             gcmod=mod(gtim,3)
             i2=gcmod+1
          end if
          do ii=1,ptimes
-            i=mod(ii,3)+1
+            i=ii+1
+            i=mod(i,3)+1
             if ((tim==ntimes).and.(ntimes>2)) then
                i=i2
                if (ii==1) i=i1
@@ -546,9 +547,6 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
-do r=1,nch_active
-print *, 'div', divider(r,r)
-end do
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)
 deallocate(ges_times,gesloc,ges,anl)
