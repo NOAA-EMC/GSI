@@ -2,20 +2,20 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014052400
+edate=2014060800
 #instrument name, as it would appear in the title of a diag file
 instr=iasi_metop-b
 #location of radstat file
-exp=prctlfull
+exp=prdctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasib
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow,
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
-type=2
+type=0
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -27,7 +27,7 @@ err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=150
+kreq=-200
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #Have the radstats already been processed? 1 for yes, 0 for no
