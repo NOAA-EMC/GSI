@@ -40,6 +40,7 @@ module satthin
 !                                 add read sili_anl from analysis grid/resolution sfc file (sfcf06_anl) 
 !                                 modify to use isli_anl
 !                                 determine sno2 with interpolate, accordingly 
+!                                 use the modified 2d interpolation (sfc_interpolate to intrp22)
 
 !
 ! Subroutines Included:
@@ -454,7 +455,7 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
-    use ncepnems_io, only: read_nemssfc,sfc_interpolate,read_nemssfc_anl
+    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl
     use sfcio_module, only: sfcio_realfill
 
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -762,7 +763,8 @@ contains
              allocate(dum(nlat_sfc,nlon_sfc))
              allocate(work(nlat,nlon))
              work = zs_full
-             call sfc_interpolate(work,nlon,nlat,dum,nlon_sfc,nlat_sfc)
+             call intrp22(work,rlons,rlats,nlon,nlat, &
+                          dum, rlons_sfc,rlats_sfc,nlon_sfc,nlat_sfc)
              zs_full_gfs = dum
              deallocate(dum)
              deallocate(work)
@@ -788,7 +790,8 @@ contains
 
        if ( use_readin_anl_sfcmask ) then
           do k = 1, nfldsfc
-             call sfc_interpolate(sno_anl(:,:,k),nlon,nlat,sno_full(:,:,k),nlon_sfc,nlat_sfc)
+             call intrp22(sno_full(:,:,k),rlons_sfc,rlats_sfc,nlon_sfc,nlat_sfc, &
+                          sno_anl (:,:,k),rlons,rlats,nlon,nlat)
           enddo
           do j=1,lon2
              jl=j+jstart(mm1)-2
