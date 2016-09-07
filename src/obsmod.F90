@@ -1309,7 +1309,7 @@ module obsmod
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
-     logical         :: use_corr_obs
+     logical         :: use_corr_obs  !logical to indicate if using correlated obs
      character(20) :: isis            ! sensor/instrument/satellite id,e.g.amsua_n15
 
   end type rad_ob_type

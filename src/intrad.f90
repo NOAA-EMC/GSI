@@ -618,9 +618,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      end do
 
 !          Begin adjoint
-     if (radptr%use_corr_obs) then
-        deallocate(rsqrtinv)
-     end if
+     if (radptr%use_corr_obs) deallocate(rsqrtinv)
      if (l_do_adjoint) then
         do k=1,nsigradjac
            tval(k)=zero

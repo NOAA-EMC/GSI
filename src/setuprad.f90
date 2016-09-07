@@ -165,9 +165,9 @@
 !   2015-03-23  ejones  - Added call to qc_saphir for saphir observations
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
-!   2016-07-19  kbathmann -for correlated observations, moved the eigendecompostion here
 !                         change quality control interface for AMSUA and ATMS.
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR).
+!   2016-07-19  kbathmann -for correlated observations, moved the eigendecompostion here
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs

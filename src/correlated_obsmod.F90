@@ -719,7 +719,7 @@ use constants, only: tiny_r_kind
      if (lprt) then
         cond=-999._r_kind
         lambda_max=maxval(Evals)
-        lambda_min=minval(Evals)
+        lambda_min=minval(abs(Evals))
         if(lambda_min>tiny_r_kind) cond=abs(lambda_max/lambda_min) ! formal definition (lambda>0 for SPD matrix)
         if (iamroot_) then
            write(6,'(2a,1x,a,1x,es10.3)') 'Rcov(Evals) for Instrument: ', trim(instrument), ' cond= ', cond
