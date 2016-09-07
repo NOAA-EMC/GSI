@@ -302,7 +302,7 @@ do tt=tim1,tim2
             stop
          end if
 
-         if ((tim==1).and.(gblock==2).and.(ntimes>1)) then 
+         if ((tim==1).and.(gblock==3).and.(ntimes>1)) then 
             gtim=2
             gblock=3
          else 
