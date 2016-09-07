@@ -407,10 +407,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end do
 
         end do
-     if (radptr%use_corr_obs) then
-        deallocate(rsqrtinv)
-     end if
-     end if
+        if (radptr%use_corr_obs) deallocate(rsqrtinv)
+     end if  !luse
 
      radptr => radptr%llpoint
   end do
