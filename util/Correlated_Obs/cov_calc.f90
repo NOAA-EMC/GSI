@@ -304,7 +304,7 @@ do tt=tim1,tim2
 
          if ((tim==1).and.(gblock==3).and.(ntimes>1)) then 
             gtim=2
-            gblock=3
+            gblock=1
          else 
             gwhile=1
          end if
