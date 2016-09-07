@@ -66,11 +66,11 @@ MODULE RadDiag_Hdr_Define
     INTEGER       :: ipchan  = 0    ! # of elements for each channel except for bias correction terms
     INTEGER       :: iextra  = 0    ! # of extra elements for each channel
     INTEGER       :: jextra  = 0    ! # of extra elements
-    integer:: idiag = 0
-    integer:: angord = 0
-    integer:: iversion_raddiag = 0
-    integer:: inewpc = 0
-    integer:: ioff0 = 0
+    INTEGER       :: idiag   = 0
+    INTEGER       :: angord  = 0
+    INTEGER       :: iversion_raddiag = 0
+    INTEGER       :: inewpc  = 0
+    INTEGER       :: ioff0  = 0
   END TYPE RadDiag_Hdr_Scalar_type
 
   ! Channel dependent part of header
