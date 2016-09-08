@@ -179,6 +179,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
 
+!  real(r_kind),dimension(9) :: fov_dist(1:9) = (/1.5556,1.1,1.5556,1.1,0.0,1.1,1.5556,1.1,1.5556/)  ! degrees
+  real(r_kind),dimension(9) :: fov_dist(1:9) = (/2.71510e-2,1.91986e-2,2.71510e-2,1.91986e-2,0.0,1.91986e-2,2.71510e-2,1.91986e-2,2.71510e-2/)  !radians
+!  real(r_kind),dimension(9) :: fov_ang(1:9) = (/270.0,225.0,180.0,315.0,0.0,135.0,0.0,45.0,90.0/)   ! degrees
+  real(r_kind),dimension(9) :: fov_ang(1:9) = (/4.71239,3.92699,3.14159,5.49779,0.0,2.35619,0.0,0.78540,1.57080/)  !radians
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -424,7 +428,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Only use central IFOV
            ifov = nint(linele(1))               ! field of view
-           if (ifov /= 5) cycle read_loop
 
            ifor = nint(linele(4))               ! field of regard
 
@@ -578,7 +581,15 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Compare CRIS satellite scan angle and zenith angle
  
-           look_angle_est = (start + float(ifor)*step)*deg2rad
+!JAJ           look_angle_est = (start + float(ifor)*step)*deg2rad
+           if( ifor <= 15 ) then
+              look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
+                      fov_dist(ifov) * sin(fov_ang(ifov) - float((ifor-1))*5.60999e-2_r_kind)
+           else
+              look_angle_est = (start + float((ifor-1))*step) * deg2rad  + &
+                      fov_dist(ifov) * sin(fov_ang(ifov) - float((ifor-2))*5.60999e-2_r_kind)
+           endif
+
            sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
 
            if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
@@ -586,7 +597,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop
            end if
 
-           if (ifov == 5 .and. abs(sat_look_angle - look_angle_est)*rad2deg > one) then
+!JAJ           if (ifov == 5 .and. abs(sat_look_angle - look_angle_est)*rad2deg > one) then
+           if ( abs(sat_look_angle - look_angle_est)*rad2deg > one) then
               write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
                   look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
               bad_line = iscn
@@ -744,7 +756,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(4,itx) = dlat                   ! grid relative latitude
            data_all(5,itx) = sat_zenang*deg2rad     ! satellite zenith angle (rad)
            data_all(6,itx) = allspot(11)            ! satellite azimuth angle (deg)
-           data_all(7,itx) = sat_look_angle         ! look angle (rad)
+!JAJ           data_all(7,itx) = sat_look_angle         ! look angle (rad)
+           data_all(7,itx) = look_angle_est         ! look angle (rad)
            data_all(8,itx) = ifor                   ! field of regard
            data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
            data_all(10,itx)= allspot(13)            ! solar azimuth angle (deg)
