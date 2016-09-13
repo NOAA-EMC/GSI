@@ -1057,7 +1057,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
 !
      if(nst_tzr > 0)then
         dtz = rmiss_single
-        if (luse .and. sea ) then
+        if ( sea ) then
            call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
         endif
 !
@@ -1072,7 +1072,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
               if ( abs(dtz) > tzchks ) then
                  varinv(i) = zero
                  if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-                 aivals(13) = aivals(13) + one
+                 if(luse)aivals(13) = aivals(13) + one
               endif
             endif
           enddo
@@ -1993,7 +1993,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !
   if(nst_tzr > 0)then
      dtz = rmiss_single
-     if (luse .and. sea ) then
+     if ( sea ) then
         call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
@@ -2008,7 +2008,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            if ( abs(dtz) > tzchks ) then
               varinv(i) = zero
               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              aivals(13,is) = aivals(13,is) + one
+              if(luse)aivals(13,is) = aivals(13,is) + one
            endif
          endif
        enddo
@@ -2284,7 +2284,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
   if(nst_tzr > 0)then
      dtz = rmiss_single
-     if (luse .and. sea ) then
+     if ( sea ) then
         call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
@@ -2299,7 +2299,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
            if ( abs(dtz) > tzchks ) then
               varinv(i) = zero
            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-                 aivals(13,is) = aivals(13,is) + one
+           if(luse)aivals(13,is) = aivals(13,is) + one
            endif
          endif
        enddo
@@ -3479,7 +3479,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
      if(nst_tzr > 0)then
         dtz = rmiss_single
-        if (luse .and. sea ) then
+        if (sea ) then
            call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
         endif
 !
@@ -3494,7 +3494,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
               if ( abs(dtz) > tzchks ) then
                  varinv(i) = zero
                  if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-                 aivals(13,is) = aivals(13,is) + one
+                 if(luse)aivals(13,is) = aivals(13,is) + one
               endif
             endif
           enddo
@@ -3716,7 +3716,7 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !
      if(nst_tzr > 0)then
         dtz = rmiss_single
-        if (luse .and. sea ) then
+        if ( sea ) then
            call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
         endif
 !
@@ -3731,7 +3731,7 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
               if ( abs(dtz) > tzchks ) then
                  varinv(i) = zero
                  if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-                 aivals(13,is) = aivals(13,is) + one
+                 if(luse)aivals(13,is) = aivals(13,is) + one
               endif
             endif
           enddo
