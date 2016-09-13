@@ -78,6 +78,8 @@ elif [[ $RADMON_SUFFIX = "nrx" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
 elif [[ $RADMON_SUFFIX = "namrr" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/namrr"
+elif [[ $RADMON_SUFFIX = "nam" ]]; then
+   HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nam"
 fi
 
 HTAR="/usrx/local/hpss/htar"
