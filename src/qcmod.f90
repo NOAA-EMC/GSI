@@ -52,6 +52,7 @@ module qcmod
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
+!   2016-09-16  tong    - Remove tdrgross_fact (not used)
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -79,7 +80,6 @@ module qcmod
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
 !   def erradar_inflate - radar error inflation factor
 !   def tdrerr_inflate  - logical variable to inflate obs error for tdr data
-!   def tdrgross_fact   - factor applies to tdr gross error
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
 !   def ptopq,pbotq     - arrays containing top pressure and bottom pressure of print levels for q
@@ -135,7 +135,7 @@ module qcmod
   public :: qc_saphir
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,ifail_scanedge_qc
@@ -155,7 +155,7 @@ module qcmod
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc,tdrgross_fact
+  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -312,7 +312,6 @@ contains
 
     erradar_inflate   = one
     tdrerr_inflate    = .false.
-    tdrgross_fact     = one
 
     nlnqc_iter= .false.
     noiqc = .false.
