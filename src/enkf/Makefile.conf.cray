@@ -136,7 +136,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   		  $(W3EMC_LIBd) $(SIGIO_LIB4) $(SFCIO_LIB4) $(CRTM_LIB) \
 		  $(BUFR_LIBd) $(WRFLIB) $(NETCDF_LDFLAGS_F)
 
-  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
+  LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -144,7 +144,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = -mkl -Wl,-Map,loadmap.txt
+  LDFLAGS_D     = -Wl,-Map,loadmap.txt
 
 #--- Empty out mpi library definition: embedded in compiler
 

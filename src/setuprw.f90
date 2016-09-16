@@ -83,7 +83,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: rw_ob_type
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate,tdrgross_fact
+  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,sfcmod_gfs,sfcmod_mm5,comp_fact10
   use gridmod, only: nsig,get_ijk
@@ -547,11 +547,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
-     if(data(iobs_type,i) > three) then
-        qcgross=cgross(ikx)*tdrgross_fact
-     else
-        qcgross=cgross(ikx)
-     end if
+     qcgross=cgross(ikx)
 
      if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
