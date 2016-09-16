@@ -23,6 +23,7 @@ module readconvobs
 !$$$
 use kinds, only: r_kind,i_kind,r_single
 use constants, only: one,zero
+use params, only: npefiles
 implicit none
 
 private
@@ -35,8 +36,9 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     character (len=10), intent(in) :: datestring
     character(len=500) obsfile
     character(len=10), intent(in) :: id
+    character(len=4) pe_name
     character(len=3) :: obtype
-    integer(i_kind) iunit, nchar, nreal, ii, mype,ios, idate, i
+    integer(i_kind) iunit, nchar, nreal, ii, mype,ios, idate, i, ipe
     integer(i_kind), intent(out) :: num_obs_tot
     integer(i_kind),dimension(2):: nn,nobst, nobsps, nobsq, nobsuv, nobsgps, &
          nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw, nobssrw
@@ -44,7 +46,7 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     real(r_single),allocatable,dimension(:,:)::rdiagbuf
     real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
     real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-    logical :: fexist
+    logical :: fexist, init_pass
     !print *,obspath
     iunit = 7
     ! If ob error > errorlimit or < errorlimit2, skip it.
@@ -64,136 +66,153 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     nobsgps = 0
     nobssrw = 0
     nobstcp = 0; nobstcx = 0; nobstcy = 0; nobstcz = 0
-    obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
-    inquire(file=obsfile,exist=fexist)
-    if (.not. fexist .or. datestring .eq. '0000000000') then
-    obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
-    endif
-    !print *,obsfile
-    open(iunit,form="unformatted",file=obsfile,iostat=ios)
-    read(iunit) idate
-    !print *,idate
-10  continue
-    read(iunit,err=20,end=30) obtype,nchar,nreal,ii,mype
-    errorlimit2=errorlimit2_obs
-    allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
-    read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-    !print *,obtype,nchar,nreal,ii,mype
-    if (obtype=='gps') then
-       if (rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
-    end if
+    init_pass = .true.
+    peloop: do ipe=0,npefiles
+       write(pe_name,'(i4.4)') ipe
+       if (npefiles .eq. 0) then
+           ! read diag file (concatenated pe* files)
+           obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
+           inquire(file=obsfile,exist=fexist)
+           if (.not. fexist .or. datestring .eq. '0000000000') &
+           obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
+       else ! read raw, unconcatenated pe* files.
+           obsfile =&
+           trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
+       endif
+       inquire(file=obsfile,exist=fexist)
+       if (.not. fexist) cycle peloop
+       !print *,'obsfile=',obsfile
+       open(iunit,form="unformatted",file=obsfile,iostat=ios)
+       if (init_pass) then
+          read(iunit) idate
+          init_pass = .false.
+       endif
+       !print *,idate
+10     continue
+       read(iunit,err=20,end=30) obtype,nchar,nreal,ii,mype
+       errorlimit2=errorlimit2_obs
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+       !print *,obtype,nchar,nreal,ii,mype
+       if (obtype=='gps') then
+          if (rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
+       end if
 
-    nn=0
-    do i=1,ii
-      if(obtype == 'tcx' .or. obtype == 'tcy' .or. obtype == 'tcz')then
-        error=rdiagbuf(6,i)
-        pres=rdiagbuf(4,i)
-        obmax=abs(rdiagbuf(7,i))
-      else
-        if(rdiagbuf(12,i) < zero)cycle
-        if (obtype == '  q') then
-          error=rdiagbuf(20,i)*rdiagbuf(16,i)
-          pres=rdiagbuf(6,i)
-          obmax=abs(rdiagbuf(17,i)/rdiagbuf(20,i))
-        else
-           if(obtype == ' ps' .or. obtype == 'tcp')then
-             pres=rdiagbuf(17,i)
-           else
+       nn=0
+       do i=1,ii
+         if(obtype == 'tcx' .or. obtype == 'tcy' .or. obtype == 'tcz')then
+           error=rdiagbuf(6,i)
+           pres=rdiagbuf(4,i)
+           obmax=abs(rdiagbuf(7,i))
+         else
+           if(rdiagbuf(12,i) < zero)cycle
+           if (obtype == '  q') then
+             error=rdiagbuf(20,i)*rdiagbuf(16,i)
              pres=rdiagbuf(6,i)
+             obmax=abs(rdiagbuf(17,i)/rdiagbuf(20,i))
+           else
+              if(obtype == ' ps' .or. obtype == 'tcp')then
+                pres=rdiagbuf(17,i)
+              else
+                pres=rdiagbuf(6,i)
+              end if
+              error=rdiagbuf(16,i)
+              obmax=abs(rdiagbuf(17,i))
+              if(obtype == ' uv')obmax = max(obmax,abs(rdiagbuf(20,i)))
            end if
-           error=rdiagbuf(16,i)
-           obmax=abs(rdiagbuf(17,i))
-           if(obtype == ' uv')obmax = max(obmax,abs(rdiagbuf(20,i)))
-        end if
-      end if
-      nn(1)=nn(1)+1  ! number of read obs
-      if(error > errorlimit .and. error < errorlimit2 .and. &
-         abs(obmax) <= 1.e9_r_kind .and. pres >= 0.001_r_kind .and. &
-         pres <= 1200._r_kind) nn(2)=nn(2)+1  ! number of keep obs
-    end do
-    if (obtype == '  t') then
-       nobst = nobst + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == ' uv') then
-       nobsuv = nobsuv + 2*nn
-       num_obs_tot = num_obs_tot + 2*nn(2)
-    else if (obtype == ' ps') then
-        nobsps = nobsps + nn
-        num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == '  q') then
-       nobsq = nobsq + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'spd') then
-       nobsspd = nobsspd + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'sst') then ! skip sst
-       nobssst = nobssst + nn
+         end if
+         nn(1)=nn(1)+1  ! number of read obs
+         if(error > errorlimit .and. error < errorlimit2 .and. &
+            abs(obmax) <= 1.e9_r_kind .and. pres >= 0.001_r_kind .and. &
+            pres <= 1200._r_kind) nn(2)=nn(2)+1  ! number of keep obs
+       end do
+       if (obtype == '  t') then
+          nobst = nobst + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == ' uv') then
+          nobsuv = nobsuv + 2*nn
+          num_obs_tot = num_obs_tot + 2*nn(2)
+       else if (obtype == ' ps') then
+           nobsps = nobsps + nn
+           num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == '  q') then
+          nobsq = nobsq + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'spd') then
+          nobsspd = nobsspd + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'sst') then ! skip sst
+          nobssst = nobssst + nn
 !  Not currently used so do not add to num_obs_tot
-    !  num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'srw') then
-       nobssrw = nobssrw + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == ' rw') then
-       nobsrw = nobsrw + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'gps') then
-       nobsgps = nobsgps + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == ' dw') then
-       nobsdw = nobsdw + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == ' pw') then
-       nobspw = nobspw + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'tcp') then
-       nobstcp = nobstcp + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'tcx') then
-       nobstcx = nobstcx + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'tcy') then
-       nobstcy = nobstcy + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else if (obtype == 'tcz') then
-       nobstcz = nobstcz + nn
-       num_obs_tot = num_obs_tot + nn(2)
-    else
-        print *,'unknown obtype ',trim(obtype)
-    end if
-    deallocate(cdiagbuf,rdiagbuf)
-    go to 10
-20  continue
-    print *,'error reading diag_conv file',obtype
-30  continue
-    print *,num_obs_tot,' obs in diag_conv_ges file'
-    write(6,*)'columns below obtype,nread, nkeep'
-    write(6,100) 't',nobst(1),nobst(2)
-    write(6,100) 'q',nobsq(1),nobsq(2)
-    write(6,100) 'ps',nobsps(1),nobsps(2)
-    write(6,100) 'uv',nobsuv(1),nobsuv(2)
-    write(6,100) 'sst',nobssst(1),nobssst(2)
-    write(6,100) 'gps',nobsgps(1),nobsgps(2)
-    write(6,100) 'pw',nobspw(1),nobspw(2)
-    write(6,100) 'dw',nobsdw(1),nobsdw(2)
-    write(6,100) 'srw',nobssrw(1),nobssrw(2)
-    write(6,100) 'rw',nobsrw(1),nobsrw(2)
-    write(6,100) 'tcp',nobstcp(1),nobstcp(2)
-    if (nobstcx(2) .gt. 0) then
-       write(6,100) 'tcx',nobstcx(1),nobstcx(2)
-       write(6,100) 'tcy',nobstcy(1),nobstcy(2)
-       write(6,100) 'tcz',nobstcz(1),nobstcz(2)
-    endif
-100 format(2x,a3,2x,i9,2x,i9)
-    close(iunit)
+!  num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'srw') then
+          nobssrw = nobssrw + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == ' rw') then
+          nobsrw = nobsrw + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'gps') then
+          nobsgps = nobsgps + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == ' dw') then
+          nobsdw = nobsdw + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == ' pw') then
+          nobspw = nobspw + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'tcp') then
+          nobstcp = nobstcp + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'tcx') then
+          nobstcx = nobstcx + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'tcy') then
+          nobstcy = nobstcy + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'tcz') then
+          nobstcz = nobstcz + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else
+           print *,'unknown obtype ',trim(obtype)
+       end if
+       deallocate(cdiagbuf,rdiagbuf)
+       go to 10
+20     continue
+       print *,'error reading diag_conv file',obtype
+30     continue
+       if (ipe .eq. npefiles) then
+          print *,num_obs_tot,' obs in diag_conv_ges file'
+          write(6,*)'columns below obtype,nread, nkeep'
+          write(6,100) 't',nobst(1),nobst(2)
+          write(6,100) 'q',nobsq(1),nobsq(2)
+          write(6,100) 'ps',nobsps(1),nobsps(2)
+          write(6,100) 'uv',nobsuv(1),nobsuv(2)
+          write(6,100) 'sst',nobssst(1),nobssst(2)
+          write(6,100) 'gps',nobsgps(1),nobsgps(2)
+          write(6,100) 'pw',nobspw(1),nobspw(2)
+          write(6,100) 'dw',nobsdw(1),nobsdw(2)
+          write(6,100) 'srw',nobsrw(1),nobssrw(2)
+          write(6,100) 'rw',nobssrw(1),nobsrw(2)
+          write(6,100) 'tcp',nobstcp(1),nobstcp(2)
+          if (nobstcx(2) .gt. 0) then
+             write(6,100) 'tcx',nobstcx(1),nobstcx(2)
+             write(6,100) 'tcy',nobstcy(1),nobstcy(2)
+             write(6,100) 'tcz',nobstcz(1),nobstcz(2)
+          endif
+100       format(2x,a3,2x,i9,2x,i9)
+       endif
+       close(iunit)
+    enddo peloop ! ipe loop
 end subroutine get_num_convobs
 
 subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, id, id2)
+     x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, id, id2)
 
   character*500, intent(in) :: obspath
   character*500 obsfile,obsfile2
   character*10, intent(in) :: datestring
   character(len=10), intent(in) :: id,id2
+  character(len=4) pe_name
 
   real(r_single), dimension(nobs_max) :: h_x_ensmean,h_xnobc,x_obs,x_err,x_lon,&
                                x_lat,x_press,x_time,x_errorig
@@ -201,13 +220,13 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   character(len=20), dimension(nobs_max) ::  x_type
 
   character(len=3) :: obtype,obtype2
-  integer(i_kind) iunit, iunit2,nobs_max, nob, n, nchar,nchar2, nreal, ii, mype, ios, idate
-  integer(i_kind) nreal2,ii2,mype2,i,iqc
+  integer(i_kind) iunit, iunit2,nobs_max, nob, n, nchar,nchar2, nreal, ii, ipe, ios, idate
+  integer(i_kind) nreal2,ii2,mype2,i,iqc,mype
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbuf2
   real(r_single),allocatable,dimension(:,:)::rdiagbuf,rdiagbuf2
   real(r_kind) :: errorlimit,errorlimit2,error
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical twofiles, fexist
+  logical twofiles, fexist, fexist2, init_pass, init_pass2
 
 ! Error limit is made consistent with screenobs routine
   errorlimit = 1._r_kind/sqrt(1.e9_r_kind)
@@ -219,24 +238,53 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
   iqc=1
 
   nob  = 0
-  obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
-  inquire(file=obsfile,exist=fexist)
-  if (.not. fexist .or. datestring .eq. '0000000000') then
-  obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
+  init_pass = .true.
+  init_pass2 = .true.
+
+  peloop: do ipe=0,npefiles
+
+  write(pe_name,'(i4.4)') ipe
+  if (npefiles .eq. 0) then
+      ! read diag file (concatenated pe* files)
+      obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
+      inquire(file=obsfile,exist=fexist)
+      if (.not. fexist .or. datestring .eq. '0000000000') &
+      obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
+  else ! read raw, unconcatenated pe* files.
+      obsfile =&
+      trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
   endif
+
+  inquire(file=obsfile,exist=fexist)
+  if (.not. fexist) cycle peloop
+
   !print *,obsfile
+
   open(iunit,form="unformatted",file=obsfile,iostat=ios)
-  read(iunit) idate
+  rewind(iunit)
+  if (init_pass) then
+      read(iunit) idate
+      init_pass = .false.
+  endif
   !print *,idate
   if(twofiles) then
-    obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id2))
-    inquire(file=obsfile2,exist=fexist)
-    if (.not. fexist .or. datestring .eq. '0000000000') then
-    obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id2))
-    endif
-    open(iunit2,form="unformatted",file=obsfile2,iostat=ios)
-    read(iunit2) idate
-   end if
+     if (npefiles .eq. 0) then
+         ! read diag file (concatenated pe* files)
+         obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id2))
+         inquire(file=obsfile2,exist=fexist2)
+         if (.not. fexist2 .or. datestring .eq. '0000000000') &
+         obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id2))
+     else ! read raw, unconcatenated pe* files.
+         obsfile2 =&
+         trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.conv_01'
+     endif
+     open(iunit2,form="unformatted",file=obsfile2,iostat=ios)
+     rewind(iunit2)
+     if (init_pass2) then
+        read(iunit2) idate
+        init_pass2 = .false.
+     endif
+  end if
 10 continue
   read(iunit,err=20,end=30) obtype,nchar,nreal,ii,mype
   errorlimit2=errorlimit2_obs
@@ -1240,12 +1288,13 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
 20  continue
     print *,'error reading diag_conv file'
 30  continue
-    if (nob .ne. nobs_max) then
-        print *,'number of obs not what expected in get_convobs_data',nob,nobs_max
-        call stop2(94)
-    end if
     close(iunit)
     if(twofiles) close(iunit2)
+  enddo peloop ! ipe loop
+  if (nob .ne. nobs_max) then
+      print *,'number of obs not what expected in get_convobs_data',nob,nobs_max
+      call stop2(94)
+  end if
 
  end subroutine get_convobs_data
 

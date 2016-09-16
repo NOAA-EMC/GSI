@@ -69,6 +69,7 @@ subroutine intw_(whead,rval,sval)
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -206,8 +207,8 @@ subroutine intw_(whead,rval,sval)
            if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
               valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
               valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
-              gradu = valu*sqrt(wptr%raterr2*wptr%err2)
-              gradv = valv*sqrt(wptr%raterr2*wptr%err2)
+              gradu = valu*wptr%raterr2*sqrt(wptr%err2)
+              gradv = valv*wptr%raterr2*sqrt(wptr%err2)
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2

@@ -489,11 +489,10 @@ contains
     allocate(zs_full(nlat,nlon))
     allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
 
-    if(use_sfc_any .or. (mype_io/=0))then
-       allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
-       allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
-       allocate(veg_type_full(nlat_sfc,nlon_sfc))
-    end if
+    allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
+    allocate(veg_type_full(nlat_sfc,nlon_sfc))
+
     do j=1,lon1*lat1
        zsm(j)=zero
     end do
@@ -526,38 +525,21 @@ contains
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
        if ( use_gfs_nemsio ) then
-          if(use_sfc)then
-             do it=1,nfldsfc
-                write(filename,200)ifilesfc(it)
-200             format('sfcf',i2.2)
-                call read_nemssfc(filename,mype,&
-                   fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
-                   veg_type_full,veg_frac_full(:,:,it), &
-                   soil_type_full,soil_temp_full(:,:,it),&
-                   soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),&
-                   zs_full_gfs)
-             end do
-          else
-             allocate(dum(nlat_sfc,nlon_sfc))
-             do it=1,nfldsfc
-                write(filename,200)ifilesfc(it)
-                call read_nemssfc(filename,mype,&
-                   fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
-                   dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),&
-                   zs_full_gfs)
-             end do
-             deallocate(dum)
-          end if
+          call read_nemssfc(mype_io,mype, &
+             sst_full,soil_moi_full,sno_full,soil_temp_full, &
+             veg_frac_full,fact10_full,sfc_rough_full, &
+             veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
        else
-          call read_gfssfc(mype_io,mype, &
-             fact10_full,sst_full,sno_full, &
-             veg_type_full,veg_frac_full,soil_type_full,soil_temp_full,&
-             soil_moi_full,isli_full,sfc_rough_full,zs_full_gfs,use_sfc_any)
-          if(.not. use_sfc .and. (use_sfc_any .or. (mype_io /= 0)))then
-             deallocate(soil_moi_full,soil_temp_full)
-             deallocate(veg_frac_full,soil_type_full)
-             deallocate(veg_type_full)
-          end if
+          call read_gfssfc (mype_io,mype, &
+             sst_full,soil_moi_full,sno_full,soil_temp_full, &
+             veg_frac_full,fact10_full,sfc_rough_full, &
+             veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
+       end if
+
+       if(.not. use_sfc)then
+          deallocate(soil_moi_full,soil_temp_full)
+          deallocate(veg_frac_full,soil_type_full)
+          deallocate(veg_type_full)
        end if
  
        if (biascor > zero) then
