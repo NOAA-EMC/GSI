@@ -42,6 +42,7 @@ subroutine read_gfs_ozone_for_regional
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
   use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional,use_gfs_nemsio
   use constants,only: zero,half,fv,rd_over_cp,one,h300,rad2deg
+  use constants, only: max_varname_length
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max,npe
   use mpeu_util, only: die
   use kinds, only: r_kind,i_kind
@@ -112,8 +113,8 @@ subroutine read_gfs_ozone_for_regional
   type(gsi_grid)   :: atm_grid
   integer(i_kind),parameter :: n2d=2
   integer(i_kind),parameter :: n3d=8
-  character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
-  character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+  character(len=max_varname_length), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+  character(len=max_varname_length), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
                                                   'vor ', 'div ', &
                                                   'tv  ', 'q   ', &
                                                   'cw  ', 'oz  '  /)

@@ -51,6 +51,7 @@ module qcmod
 !                         speed for AMSUA/ATMS cloudy radiance assimilation
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -65,7 +66,7 @@ module qcmod
 !   sub qc_avhrr        - qc avhrr data
 !   sub qc_goesimg      - qc goesimg data
 !   sub qc_msu          - qc msu data
-!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs,cris)
+!   sub qc_irsnd        - qc ir sounder data (hirs,goesndr,iasi,airs,cris, cris-fsr)
 !   sub qc_amsua        - qc amsua data
 !   sub qc_mhs          - qc msu, amsub and hsb data
 !   sub qc_atms         - qc atms data
@@ -467,7 +468,7 @@ contains
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
               obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
               obstype == 'goes_img' .or. obstype == 'ahi' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
-              obstype == 'cris' .or. obstype == 'seviri' ) then
+              obstype == 'cris' .or. obstype == 'cris-fsr' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
 
