@@ -1,9 +1,9 @@
 # This config file contains the compile options for compilation
 # of the GSI code on the NOAA HPCS.
 
-# ----------------------------------
+# ------------------------------------
 # Set library versions
-# ----------------------------------
+# ------------------------------------
 
 BACIO_VER = v2.0.1
 NEMSIO_VER = v2.2.1
@@ -23,13 +23,13 @@ SP_LIB4=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_4.a
 W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
 
 NETCDF_INC=$(NETCDF)/include
-NETCDF_LIB=-L$(NETCDF)/lib -lnetcdff -lnetcdf
+NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 
 # ---------------------------
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -37,21 +37,24 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdff -lnetcdf
 
   CF            = mpfort
   FC            = $(CF)
-
-#--- Normal mode options
-  PROF= 
+  
   OMP = -openmp
 
-  FFLAGS_F90    = 
-  FFLAGS_COM_N  = -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -I $(NETCDF_INC) \
-				  -O3 -fp-model source -convert big_endian -assume byterecl -implicitnone $(OMP)
-  FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_INC    = -I $(SIGIO_INC4) -I $(NEMSIO_INC) -I $(NETCDF_INC)
+
+  FFLAGS_F90    = -convert big_endian -assume byterecl \
+				  -implicitnone -traceback
+
+#--- Normal mode options
+  FFLAGS_COM_N  = -O3 -fp-model source
+
+  FFLAGS_N  = $(FFLAGS_INC) $(FFLAGS_COM_N) $(FFLAGS_F90) $(OMP)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O0 -fp-model source \
-  		-convert big_endian -assume byterecl -implicitnone -traceback \
-		-g -warn all -debug all -check all
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+  FFLAGS_COM_D  =  -O0 -fp-model strict -g -debug \
+				   -check all
+
+  FFLAGS_D  = $(FFLAGS_INC) $(FFLAGS_COM_D) $(FFLAGS_F90) $(OMP)
 
 
 # ----------------------
@@ -78,7 +81,7 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdff -lnetcdf
 #--- Normal mode options
   LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4) $(NETCDF_LIB)
 
-  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
+  LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 

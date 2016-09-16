@@ -9,6 +9,8 @@ program getsfcnstensupdp
 !
 ! program history log:
 !   2014-05-01  Initial version.
+!   2016-02-15  Add to read nemsio
+!   2016-08-18  Fix two bugs  (tsea, dtf_ens)
 !
 ! usage:
 !   input files:
@@ -278,7 +280,7 @@ program getsfcnstensupdp
                      'nlon_anl,nlat_anl-2 = ',nlon_anl,nlat_anl-2,' lonb,latb = ',lonb,latb
     do j=1,latb
       do i=1,lonb
-        dtf_ens(i,j)=dtf_anl(latb+1-j,i)
+        dtf_ens(i,j)=dtf_anl(latb+2-j,i)
       enddo
     enddo
   endif ! if ( (nlat_ens /= nlat_anl) .or. (nlon_ens /= nlon_anl) ) then
@@ -461,6 +463,13 @@ program getsfcnstensupdp
           if ( iret /= 0 ) write(6,*) 'writerec for gfile_sfcanl, nrec_sfc = ',n, '  Status = ', iret
        end do
 
+!
+!      read surface temperature from sfcgcy and save to tsea
+!
+       call nemsio_readrecv(gfile_sfcgcy, 'tmp', 'sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_sfcgcy),'tmp','read',istop,iret)
+       tsea=reshape(rwork1d,(/size(tsea,1),size(tsea,2)/))
+
 !      For nstanl, Only tref (foundation temperature) is updated by analysis
 !                  others are updated for snow melting case
 !      read 18 nsst variables from nstges
@@ -537,9 +546,9 @@ program getsfcnstensupdp
        if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_nstges),'qrain','read',istop,iret)
        qrain=reshape(rwork1d,(/size(qrain,1),size(qrain,2)/))
 !
-!      update tref (in nst file) & tsea (in the surface file) when Tr analysis
-!      is on
+!      update tref (in nst file) & tsea (in the surface file) when Tr analysis is on
 !      reset NSSTM variables for new open water grids
+
        where ( slmsk_ens(:,:) == zero .and. slmsk_ges(:,:) == two )
 
          dtf_ens(:,:) = zero

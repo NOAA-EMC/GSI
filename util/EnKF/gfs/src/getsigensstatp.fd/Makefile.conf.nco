@@ -2,16 +2,19 @@
 # of the GSI code on the NOAA HPCS.
 
 # ----------------------------------
-# Set library versions
+# Define derived variables
 # ----------------------------------
 
+NETCDFPATH = $(NETCDF)
+NETCDF_INCLUDE = $(NETCDFPATH)/include
+NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
 
 
 # ---------------------------
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -19,21 +22,23 @@
 
   CF            = $(COMP_MP)
   FC            = $(CF)
-
-#--- Normal mode options
-  PROF= 
+  
   OMP = -openmp
 
-  FFLAGS_F90    = 
-  FFLAGS_COM_N  = -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O3 -fp-model source \
-  		-convert big_endian -assume byterecl -implicitnone $(OMP)
-  FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_INC    = -I $(SIGIO_INC4) -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE)
+
+  FFLAGS_F90    = -convert big_endian -assume byterecl \
+				  -implicitnone -traceback
+
+#--- Normal mode options
+  FFLAGS_COM_N  = -O3 -fp-model source
+
+  FFLAGS_N  = $(FFLAGS_INC) $(FFLAGS_COM_N) $(FFLAGS_F90) $(OMP)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O0 -fp-model source \
-  		-convert big_endian -assume byterecl -implicitnone -traceback \
-		-g -warn all -debug all -check all
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+  FFLAGS_COM_D  = -O0 -fp-model strict -g -warn all -debug all -check all
+
+  FFLAGS_D  = $(FFLAGS_INC) $(FFLAGS_COM_D) $(FFLAGS_F90) $(OMP)
 
 
 # ----------------------
@@ -58,9 +63,10 @@
   LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4)
 
-  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4) $(NETCDF_LDFLAGS_F)
+
+  LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 
