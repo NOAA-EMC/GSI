@@ -34,7 +34,7 @@
   use mpimod, only: npe,mpi_comm_world,ierror,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
-                       ssmis_method,ssmis_precond
+                       ssmis_method,ssmis_precond,gmi_method,amsr2_method
   use radinfo, only: tzr_qc,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -83,7 +83,7 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio,use_sp_eqspace,final_grid_vars,&
+     use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
@@ -313,8 +313,12 @@
 !  05-13-2015 wu        remove check to turn off regional 4densvar
 !  02-29-2015 S.Liu     added option l_use_hydroretrieval_all
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
-!  12-08-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
+!  03-10-2016 ejones    add control for gmi noise reduction
+!  03-25-2016 ejones    add control for amsr2 noise reduction
+!  08-12-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
 !                       option
+!  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
+!                          between analysis grids and others
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -438,6 +442,7 @@
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
+!     use_readin_anl_sfcmask  - option to use readin surface mask
 !     use_prepb_satwnd - allow using satwnd's from prepbufr (historical) file
 !     use_gfs_stratosphere - for now, can only be set to true if nems_nmmb_regional=true.  Later extend
 !                             to other regional models.  When true, a guess gfs valid at the same time
@@ -469,6 +474,8 @@
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
+!     gmi_method - choose method for GMI noise reduction. 0=no smoothing, 4=default
+!     amsr2_method - choose method for AMSR2 noise reduction. 0=no smoothing, 5=default
 !     R_option   - Option to use variable correlation length for lcbas based on data
 !                    density - follows Hayden and Purser (1995) (twodvar_regional only)
 !     thin4d - if true, removes thinning of observations due to the location in
@@ -495,7 +502,7 @@
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
-       ssmis_method, ssmis_precond, &
+       ssmis_method, ssmis_precond, gmi_method, amsr2_method, &
        lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
@@ -503,9 +510,9 @@
        idmodel,iwrtinc,lwrite4danl,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr, &
+       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
-       use_sp_eqspace,lnested_loops,lsingleradob,thin4d
+       use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
