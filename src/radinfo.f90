@@ -40,6 +40,8 @@ module radinfo
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !   2015-03-01   li     - add zsea1 & zsea2 to handle the vertical mean temperature based on NSST T-Profile
+!   2016-03-10  ejones  - add control for GMI noise reduction
+!   2016-03-24  ejones  - add control for AMSR2 noise reduction
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !   2016-08-12  mahajan - moved nst related variables from radinfo to gsi_nstcouplermod
 !
@@ -87,7 +89,7 @@ module radinfo
   public :: emiss_bc
   public :: passive_bc
   public :: upd_pred
-  public :: ssmis_method
+  public :: ssmis_method,gmi_method,amsr2_method
   public :: radstart,radstep
   public :: newpc4pred
   public :: biaspredvar
@@ -112,6 +114,8 @@ module radinfo
 
   integer(i_kind) tzr_qc        ! indicator of Tz retrieval QC tzr
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
+  integer(i_kind) gmi_method    !  noise reduction method for GMI
+  integer(i_kind) amsr2_method  !  noise reduction method for AMSR2
 
   integer(i_kind) jpch_rad      ! number of channels*sat
   integer(i_kind) npred         ! number of radiance biases predictors
@@ -203,6 +207,10 @@ contains
 !   2010-04-25  zhu     - add logical newpc4pred (todling move here)
 !   2013-02-13  eliu    - add two additional bias correction predictors for SSMIS 
 !   2013-07-19  zhu     - add emiss_bc for emissivity sensitivity bias predictor
+!   2016-03-10  ejones  - add gmi_method for using ssmis spatial averaging code
+!                         for gmi
+!   2016-03-24  ejones  - add amsr2_method for using ssmis spatial averaging code
+!                         for amsr2
 !
 !   input argument list:
 !
@@ -234,6 +242,8 @@ contains
     upd_pred = one        ! 1.0=bias correction coefficients evolve
     ssmis_method = 1      ! default ssmis smoothing method
     ssmis_precond = r0_01 ! default preconditioner for ssmis bias terms
+    gmi_method = 0        ! 4= default gmi smoothing method
+    amsr2_method = 0      ! 5= default amsr2 smoothing method
   end subroutine init_rad
 
 

@@ -906,10 +906,10 @@ subroutine read_obs(ndata,mype)
                 parallel_read(i)= .true.
              else if(obstype == 'ssu' )then
                 parallel_read(i)= .true.
-             else if(obstype == 'amsr2')then
-                parallel_read(i)= .true.
+             else if(obstype == 'amsr2')then    
+!                parallel_read(i)= .true.     ! turn parallel read off for spatial averaging
              else if(obstype == 'gmi')then
-                parallel_read(i)= .true.
+!                parallel_read(i)= .true.     ! turn parallel read off for spatial averaging
 !   Parallel read for SAPHIR not currently working. Leave parallel read off.
 !             else if(obstype == 'saphir')then
 !                parallel_read(i)= .true.
@@ -1521,7 +1521,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process AMSR2 data
              else if(obstype == 'amsr2')then
-                call read_amsr2(mype,val_dat,ithin,isfcalc,rmesh,gstime,&
+                call read_amsr2(mype,val_dat,ithin,rmesh,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
                      nobs_sub1(1,i))
