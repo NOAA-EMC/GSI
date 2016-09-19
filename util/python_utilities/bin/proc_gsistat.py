@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec as gspec
 from argparse import ArgumentParser,ArgumentDefaultsHelpFormatter
 
-import lib_plotting as lplotting
+sys.path.append('../lib')
 import lib_GSI as lgsi
 
 def get_data(gsistat,varname,select=None,level=None):
@@ -167,10 +167,7 @@ def plot_cost(minim):
 
     fig,ax = plt.subplots(figsize=(10,8))
 
-    if len(expids) == 1:
-        lc = mc[0]
-    else:
-        lc = mc[:len(expids)]
+    lc = mc[0] if len(expids) == 1 else mc[:len(expids)]
 
     # Plot the spaghetti of all dates, followed by the mean
     for idate in df2.index.get_level_values('date').unique():
@@ -220,10 +217,7 @@ def plot_gradient(minim):
 
     fig,ax = plt.subplots(figsize=(10,8))
 
-    if len(expids) == 1:
-        lc = mc[0]
-    else:
-        lc = mc[:len(expids)]
+    lc = mc[0] if len(expids) == 1 else mc[:len(expids)]
 
     # Plot the spaghetti of all dates, followed by the mean
     for idate in df2.index.get_level_values('date').unique():
@@ -287,10 +281,7 @@ def plot_sat(dfin,otype=''):
     keep = pd.concat(keep, axis=1)
     assim= pd.concat(assim,axis=1)
 
-    if len(expids) == 1:
-        lc = mc[0]
-    else:
-        lc = mc[:len(expids)]
+    lc = mc[0] if len(expids) == 1 else mc[:len(expids)]
 
     fig1,ax1 = plt.subplots(figsize=(10,8))
     read.plot(ax=ax1,kind='barh',logx=True,color=lc,alpha=alpha,fontsize=12,edgecolor='k',linewidth=0.0)
@@ -321,10 +312,7 @@ def plot_channel(dfin,inst=''):
 
     assim = pd.concat(assim,axis=1)
 
-    if len(expids) == 1:
-        lc = mc[0]
-    else:
-        lc = mc[:len(expids)]
+    lc = mc[0] if len(expids) == 1 else mc[:len(expids)]
 
     fig,ax = plt.subplots(figsize=(10,8))
     assim.plot(ax=ax,kind='barh',logx=True,width=0.9,sort_columns=True,color=lc,alpha=alpha,fontsize=12,edgecolor='k',linewidth=0.0)
@@ -334,6 +322,48 @@ def plot_channel(dfin,inst=''):
     ax.set_yticklabels(yticklabels_new,fontsize=8)
 
     return fig
+
+def savefigure(
+        fh=None,
+        fname='test',
+        format=[
+            'png',
+            'eps',
+            'pdf'],
+    orientation='landscape',
+        dpi=100):
+    '''
+    Save a figure in png, eps and pdf formats
+    '''
+
+    if fh is None:
+        fh = _plt
+    if 'png' in format:
+        fh.savefig(
+            '%s.png' %
+            fname,
+            format='png',
+            dpi=1 *
+            dpi,
+            orientation=orientation)
+    if 'eps' in format:
+        fh.savefig(
+            '%s.eps' %
+            fname,
+            format='eps',
+            dpi=2 *
+            dpi,
+            orientation=orientation)
+    if 'pdf' in format:
+        fh.savefig(
+            '%s.pdf' %
+            fname,
+            format='pdf',
+            dpi=2 *
+            dpi,
+            orientation=orientation)
+
+    return
 
 if __name__ == '__main__':
 
@@ -411,8 +441,6 @@ if __name__ == '__main__':
     else:
         title_substr = '%s-%s' % (bdate.strftime('%Y%m%d%H'),edate.strftime('%Y%m%d%H'))
 
-    plt.close('all')
-
     figs = []; fignames = []
     fig = plot_ps(ps) ; figs.append(fig) ; fignames.append('ps')
     fig = plot_profile(uv,t,q,stat='rms') ; figs.append(fig) ; fignames.append('rms')
@@ -429,8 +457,7 @@ if __name__ == '__main__':
     if save_figure:
         for fig,figname in zip(figs,fignames):
             figname = './gsistat_%s' % figname
-            lplotting.savefigure(fig,figname,format='png')
-        plt.close('all')
+            savefigure(fig,figname,format='png')
     else:
         plt.show()
 
