@@ -1306,12 +1306,12 @@ contains
 !-----------------------------------------------------------------------------
 
     call nemsio_init(iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
+    if (iret /= 0) call error_msg(trim(my_name),null,null,'init',istop,iret)
 
 
     filename='sfcf06_anlgrid'
     call nemsio_open(gfile,trim(filename),'READ',iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
+    if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'open',istop,iret)
 
     call nemsio_getfilehead(gfile, idate=idate, iret=iret, nframe=nframe,   &
        nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
@@ -1346,7 +1346,7 @@ contains
 
 !   slmsk
     call nemsio_readrecv(gfile, 'land', 'sfc', 1, rwork2d, iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'land','read',istop,iret)
+    if (iret /= 0) call error_msg(trim(my_name),trim(filename),'land','read',istop,iret)
     work(:,:)=reshape(rwork2d(:),(/size(work,1),size(work,2)/))
     allocate(outtmp(latb+2,lonb))
     call tran_gfssfc(work,outtmp,lonb,latb)
@@ -1361,7 +1361,7 @@ contains
     deallocate(work,rwork2d)
 
     call nemsio_close(gfile,iret=iret)
-    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop,iret)
+    if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'close',istop,iret)
 !
 !   Print date/time stamp
     if ( mype == 0 ) write(6, &
