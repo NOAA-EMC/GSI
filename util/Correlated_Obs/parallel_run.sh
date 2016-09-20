@@ -2,15 +2,15 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014060800
+edate=2014042006
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-b
+#instr=airs_aqua
+instr=iasi_metop-a
 #location of radstat file
-exp=prdctl
+exp=prcorr
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/airs_150_trace
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/iasia_iter1
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
@@ -28,11 +28,11 @@ err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=150
+kreq=200
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=20
+num_proc=19
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss

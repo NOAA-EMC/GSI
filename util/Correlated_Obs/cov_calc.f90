@@ -147,10 +147,11 @@ do tt=tim1,tim2
       call get_filename(tim,anl_stub,anlfile)
       gwhile=0
       if ((tim==ntimes).and.(tim>1)) gwhile=1
-      gtim=tim+1 !gtim=1 for tim=1
-      gcmod=mod(gtim,3)
+      gtim=tim+1 
       if (tim==1) gtim=1
-      gblock=gcmod+1
+      gcmod=mod(gtim,3)
+      gblock=gcmod
+      if (gblock<1) gblock=3
       ncc=0
       !we read in one analysis diag file at each time step.
       !at time step tim, we need data from the ges diag files of time tim-1, tim and tim+1.
@@ -302,9 +303,9 @@ do tt=tim1,tim2
             stop
          end if
 
-         if ((tim==1).and.(gblock==3).and.(ntimes>1)) then 
+         if ((tim==1).and.(gblock==1).and.(ntimes>1)) then 
             gtim=2
-            gblock=1
+            gblock=2
          else 
             gwhile=1
          end if
@@ -391,14 +392,15 @@ do tt=tim1,tim2
          if ((tim==ntimes).and.(ntimes>2)) then
             gtim=tim+1
             gcmod=mod(gtim,3)
-            i1=gcmod+1
+            i2=gcmod+1
             gtim=tim
             gcmod=mod(gtim,3)
-            i2=gcmod+1
+            i1=gcmod
+            if (i1<1) i1=3
          end if
          do ii=1,ptimes
-            i=ii+1
-            i=mod(i,3)+1
+            i=mod(ii,3)
+            if (i<1) i=3
             if ((tim==ntimes).and.(ntimes>2)) then
                i=i2
                if (ii==1) i=i1
@@ -547,6 +549,7 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
+
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)
 deallocate(ges_times,gesloc,ges,anl)
