@@ -16,6 +16,9 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 ! program history log:
 !  2015-01-02  ejones  - adapted from read_atms.f90
 !  2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
+!  2016-03-09  ejones  - update mnemonics for operational SAPHIR bufr
+!  2016-04-01  ejones  - add binning of fovs for scan angle bias correction 
+!  2016-07-25  ejones  - remove binning of fovs
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -88,7 +91,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind),parameter:: n1bhdr=12
   integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxinfo=33
-  integer(i_kind),parameter:: maxobs = 800000
+  integer(i_kind),parameter:: maxobs = 5000000
   integer(i_kind),parameter:: max_chanl = 22
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -116,8 +119,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
   integer(i_kind)       :: ier
   integer(i_kind)       :: radedge_min, radedge_max
-  integer(i_kind), POINTER :: ifov
-  integer(i_kind), TARGET  :: ifov_save(maxobs)
+  integer(i_kind), POINTER :: ifov  
 
   real(r_kind)          :: sfcr 
   real(r_kind)          :: expansion
@@ -134,6 +136,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
 
+  integer(i_kind), ALLOCATABLE, TARGET  :: ifov_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
@@ -144,6 +147,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
+
 
   integer(i_kind),allocatable,dimension(:):: nrec
   real(r_double),allocatable,dimension(:) :: data1b8
@@ -256,6 +260,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(data1b8(nchanl))
   ALLOCATE(rsat_save(maxobs))
   ALLOCATE(t4dv_save(maxobs))
+  ALLOCATE(ifov_save(maxobs))
   ALLOCATE(dlon_earth_save(maxobs))
   ALLOCATE(dlat_earth_save(maxobs))
   ALLOCATE(crit1_save(maxobs))
@@ -271,10 +276,11 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   open(lnbufr,file=trim(infile),form='unformatted',status = 'old',err = 500)
 
   call openbf(lnbufr,'IN',lnbufr)
-!  hdr1b ='SAID FOVN YEAR MNTH DAY HOUR MINU SECO CLAT CLON CLATH CLONH'
-!  mnemonics in SAPHIR bufr (non-operational) are a little different:
-  hdr1b ='SAID FOVN YEAR MONTH DAY HOUR MINU SECO CLATH CLONH'
-  hdr2b ='AGIND SOZA BEARAZ SOLAZI'  ! AGIND instead of SAZA
+  hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
+  hdr2b ='IANG SOZA BEARAZ SOLAZI'
+!  mnemonics in non-operational SAPHIR bufr are a little different:
+!  hdr1b ='SAID FOVN YEAR MONTH DAY HOUR MINU SECO CLATH CLONH'
+!  hdr2b ='AGIND SOZA BEARAZ SOLAZI'  ! AGIND instead of SAZA
 
 ! Loop to read bufr file
   irec=0
@@ -360,7 +366,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
         solazi_save(iob)=bfr2bhdr(4) 
 
 !       Read data record.  Increment data counter
-        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
+        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
+
+!       non-operational SAPHIR bufr:
+!        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
 
         bt_save(1:nchanl,iob) = data1b8(1:nchanl)
 
@@ -568,6 +577,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)
   DEALLOCATE(t4dv_save)
+  DEALLOCATE(ifov_save)
   DEALLOCATE(dlon_earth_save)
   DEALLOCATE(dlat_earth_save)
   DEALLOCATE(crit1_save)

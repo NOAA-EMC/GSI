@@ -10,6 +10,8 @@ Module SSMIS_Spatial_Average_Mod
 ! Program history log:
 !    2011-11-18   collard   - Original version (for ATMS)
 !    2011-12-20   eliu      - Modify to apply for SSMIS 
+!    2016-03-03   ejones    - Add option for spatial averaging of GMI
+!    2016-03-24   ejones    - Add option for spatial averaging of AMSR2
 ! 
 
   use kinds, only: r_kind,r_double,i_kind
@@ -30,7 +32,7 @@ CONTAINS
     
     ! Declare passed variables
     integer(i_kind) ,intent(in   ) :: BufrSat  
-    integer(i_kind) ,intent(in   ) :: Method           ! 1=simple(1)  2=simple(2) 3=AAPP 
+    integer(i_kind) ,intent(in   ) :: Method        ! 1=simple(1), 2=simple(2), 3=AAPP, 4=GMI (simple 1), 5=AMSR2 (simple1)  
     integer(i_kind) ,intent(in   ) :: Num_Obs, NChanl
     integer(i_kind) ,intent(in   ) :: Fov(num_obs)
     integer(i_kind) ,intent(inout) :: Node_InOut(num_obs)
@@ -45,6 +47,8 @@ CONTAINS
     integer(i_kind), parameter :: lninfile=15
 !   integer(i_kind), parameter :: max_fov=96
     integer(i_kind), parameter :: max_fov=60
+    integer(i_kind), parameter :: max_fov_gmi=221
+    integer(i_kind), parameter :: max_fov_amsr2=243
 !   integer(i_kind), parameter :: max_obs=20000000
     integer(i_kind), parameter :: as_node= 1_i_kind
     integer(i_kind), parameter :: ds_node=-1_i_kind
@@ -603,7 +607,269 @@ CONTAINS
 !      call cpu_time(time2)
 !      write(*,*)'CPU time for noise reduction = ', time2-time1 
     endif ! method=3
-    
+
+!============================================================================================================
+
+!   Simple method for GMI (like method 1)
+    if (Method == 4) then  ! simple averaging 1
+       gaussian_wgt = .false.
+!       write(*,*) 'SSMIS_Spatial_Average for GMI: using method from Banghua'
+       write(*,*) 'SSMIS_Spatial_Average for GMI: bufrsat = ', BufrSat
+       write(*,*) 'SSMIS_Spatial_Average for GMI: Gaussian Weighted Averaging =',gaussian_wgt
+
+       ! Determine scanline from time
+       !==============================
+       allocate(scanline(num_obs))
+       t1          = time(1)  ! time for first scanline
+       nscan       = 1        ! first scanline
+       scanline(1) = nscan
+       do iobs = 2, num_obs
+          t2    = time(iobs)
+          tdiff = t2-t1
+          if (tdiff >= 0.00001_r_kind) then
+             nscan = nscan+1
+             t1    = t2
+          endif
+          scanline(iobs) = nscan
+       enddo
+       max_scan = maxval(scanline)
+       write(*,*) 'SSMIS_Spatial_Average for GMI:max_scan,max_fov,nchanl = ', &
+                 max_scan,max_fov,nchanl
+
+!      Allocate and initialize variables
+       allocate(bt_image_orig(max_fov_gmi,max_scan,nchanl))
+       allocate(latitude(max_fov_gmi,max_scan))
+       allocate(longitude(max_fov_gmi,max_scan))
+       allocate(nodeinfo(max_fov_gmi,max_scan))
+       allocate(scanline_back(max_fov_gmi,max_scan))
+       bt_image_orig(:,:,:)= 1000.0_r_kind
+       latitude(:,:)       = 1000.0_r_kind
+       longitude(:,:)      = 1000.0_r_kind
+       scanline_back(:,:)  = -1
+       nodeinfo(:,:)       = 1000_i_kind
+
+!      Put data into 2D (fov vs. scanline) array
+       do iobs = 1, num_obs
+          latitude(fov(iobs),scanline(iobs))       = lat(iobs)
+          longitude(fov(iobs),scanline(iobs))      = lon(iobs)
+          bt_image_orig(fov(iobs),scanline(iobs),:)= bt_inout(:,iobs)
+          scanline_back(fov(iobs),scanline(iobs))  = iobs
+       enddo
+
+!      Determine AS/DS node information for each scanline
+       gmi_loop1: do iscan = 1, max_scan-1
+          gmi_loop2: do ifov = 1, max_fov_gmi
+             if (scanline_back(ifov,iscan) > 0 .and. scanline_back(ifov,iscan+1)> 0) then
+                dlat = latitude(ifov,iscan+1)-latitude(ifov,iscan)
+                if (dlat < 0.0_r_kind) then
+                   nodeinfo(:,iscan) = ds_node
+                else
+                   nodeinfo(:,iscan) = as_node
+                endif
+                cycle gmi_loop1
+             endif
+          enddo gmi_loop2
+       enddo gmi_loop1
+       nodeinfo(:,max_scan) = nodeinfo(:,max_scan-1)
+
+!      Do spatial averaging in the box centered on each fov for each channel
+       gmi_scan_loop: do iscan = 1, max_scan
+          gmi_fov_loop: do ifov = 1, max_fov_gmi    
+             iobs = scanline_back(ifov,iscan)
+             if (iobs >0) then
+                node_inout(iobs) = nodeinfo(ifov,iscan)
+                gmi_channel_loop: do ic = 1, nchanl
+!            Define grid box by channel -
+!            Ch 1-2: 1 scan direction, 1 track direction
+!            Ch 3-13: 3 scan direction, 3 track direction
+                   if ((ic == 1) .or. (ic == 2)) then
+                      ns1 = iscan
+                      ns2 = iscan
+                      if (ns1 < 1) ns1=1
+                      if (ns2 > max_scan) ns2=max_scan
+                      np1 = ifov
+                      np2 = ifov
+                      if (np1 < 1) np1=1
+                      if (np2 > max_fov_gmi) np2=max_fov_gmi
+                   else if ((ic > 2) .and. (ic < 14)) then
+                      ns1 = iscan-1
+                      ns2 = iscan+1
+                      if (ns1 < 1) ns1=1
+                      if (ns2 > max_scan) ns2=max_scan
+                      np1 = ifov-1
+                      np2 = ifov+1
+                      if (np1 < 1) np1=1
+                      if (np2 > max_fov_gmi) np2=max_fov_gmi
+                   endif
+
+                   xnum   = 0.0_r_kind
+                   mta    = 0.0_r_kind
+                   if (any(bt_image_orig(np1:np2,ns1:ns2,ic) < btmin .or. &
+                           bt_image_orig(np1:np1,ns1:ns2,ic) > btmax)) then
+                       bt_inout(ic,iobs) = 1000.0_r_kind
+                   else
+                ! Calculate distance of each fov to the center fov
+                      gmi_box_y1: do is = ns1, ns2
+                      gmi_box_x1: do ip = np1, np2
+                         lat1 = latitude(ifov,iscan)    ! lat of the center fov
+                         lon1 = longitude(ifov,iscan)   ! lon of the center fov
+                         lat2 = latitude(ip,is)
+                         lon2 = longitude(ip,is)
+                         dist = distance(lat1,lon1,lat2,lon2)
+                         if (dist > 50.0_r_kind) cycle gmi_box_x1  ! outside the box
+                         if (gaussian_wgt) then
+                            wgt = exp(-0.5_r_kind*(dist/sigma)*(dist/sigma))
+                         else
+                            wgt = 1.0
+                         endif
+                         xnum   = xnum+wgt
+                         mta    = mta +wgt*bt_image_orig(ip,is,ic)
+                      enddo gmi_box_x1
+                      enddo gmi_box_y1
+                      bt_inout(ic,iobs) = mta/xnum
+                   endif
+                enddo gmi_channel_loop
+             endif
+          enddo gmi_fov_loop
+       enddo gmi_scan_loop
+
+!      Deallocate arrays
+       deallocate(nodeinfo,scanline,scanline_back)
+       deallocate(latitude,longitude)
+       deallocate(bt_image_orig)
+    endif ! Method=4
+
+!============================================================================================================
+
+!   Simple method for AMSR2 (like method 1)
+    if (Method == 5) then  ! simple averaging 1
+       gaussian_wgt = .false.
+!       write(*,*) 'SSMIS_Spatial_Average for AMSR2: using method from Banghua'
+       write(*,*) 'SSMIS_Spatial_Average for AMSR2: bufrsat = ', BufrSat
+       write(*,*) 'SSMIS_Spatial_Average for AMSR2: Gaussian Weighted Averaging=',gaussian_wgt
+
+       ! Determine scanline from time
+       !==============================
+       allocate(scanline(num_obs))
+       t1          = time(1)  ! time for first scanline
+       nscan       = 1        ! first scanline
+       scanline(1) = nscan
+       do iobs = 2, num_obs
+          t2    = time(iobs)
+          tdiff = t2-t1
+          if (tdiff >= 0.00001_r_kind) then
+             nscan = nscan+1
+             t1    = t2
+          endif
+          scanline(iobs) = nscan
+       enddo
+       max_scan = maxval(scanline)
+       write(*,*) 'SSMIS_Spatial_Average for AMSR2:max_scan,max_fov,nchanl = ', &
+                 max_scan,max_fov,nchanl
+
+!      Allocate and initialize variables
+       allocate(bt_image_orig(max_fov_amsr2,max_scan,nchanl))
+       allocate(latitude(max_fov_amsr2,max_scan))
+       allocate(longitude(max_fov_amsr2,max_scan))
+       allocate(nodeinfo(max_fov_amsr2,max_scan))
+       allocate(scanline_back(max_fov_amsr2,max_scan))
+       bt_image_orig(:,:,:)= 1000.0_r_kind
+       latitude(:,:)       = 1000.0_r_kind
+       longitude(:,:)      = 1000.0_r_kind
+       scanline_back(:,:)  = -1
+       nodeinfo(:,:)       = 1000_i_kind
+
+!      Put data into 2D (fov vs. scanline) array
+       do iobs = 1, num_obs
+          latitude(fov(iobs),scanline(iobs))       = lat(iobs)
+          longitude(fov(iobs),scanline(iobs))      = lon(iobs)
+          bt_image_orig(fov(iobs),scanline(iobs),:)= bt_inout(:,iobs)
+          scanline_back(fov(iobs),scanline(iobs))  = iobs
+       enddo
+
+!      Determine AS/DS node information for each scanline
+       amsr2_loop1: do iscan = 1, max_scan-1
+          amsr2_loop2: do ifov = 1, max_fov_amsr2
+             if (scanline_back(ifov,iscan) > 0 .and. scanline_back(ifov,iscan+1)> 0) then
+                dlat = latitude(ifov,iscan+1)-latitude(ifov,iscan)
+                if (dlat < 0.0_r_kind) then
+                   nodeinfo(:,iscan) = ds_node
+                else
+                   nodeinfo(:,iscan) = as_node
+                endif
+                cycle amsr2_loop1
+             endif
+          enddo amsr2_loop2
+       enddo amsr2_loop1
+       nodeinfo(:,max_scan) = nodeinfo(:,max_scan-1)
+
+!      Do spatial averaging in the box centered on each fov for each channel
+       amsr2_scan_loop: do iscan = 1, max_scan
+          amsr2_fov_loop: do ifov = 1, max_fov_amsr2
+             iobs = scanline_back(ifov,iscan)
+             if (iobs >0) then
+                node_inout(iobs) = nodeinfo(ifov,iscan)
+                amsr2_channel_loop: do ic = 1, nchanl
+!            Define grid box by channel -
+!            Ch 1-6: 1 scan direction, 1 track direction
+!            Ch 7-14: 3 scan direction, 3 track direction
+                   if ((ic >= 1) .and. (ic <= 6)) then
+                      ns1 = iscan
+                      ns2 = iscan
+                      if (ns1 < 1) ns1=1
+                      if (ns2 > max_scan) ns2=max_scan
+                      np1 = ifov
+                      np2 = ifov
+                      if (np1 < 1) np1=1
+                      if (np2 > max_fov_gmi) np2=max_fov_amsr2
+                   else if ((ic >= 7) .and. (ic <= 14)) then
+                      ns1 = iscan-1
+                      ns2 = iscan+1
+                      if (ns1 < 1) ns1=1
+                      if (ns2 > max_scan) ns2=max_scan
+                      np1 = ifov-1
+                      np2 = ifov+1
+                      if (np1 < 1) np1=1
+                      if (np2 > max_fov_amsr2) np2=max_fov_amsr2
+                   endif
+
+                   xnum   = 0.0_r_kind
+                   mta    = 0.0_r_kind
+                   if (any(bt_image_orig(np1:np2,ns1:ns2,ic) < btmin .or. &
+                           bt_image_orig(np1:np1,ns1:ns2,ic) > btmax)) then
+                       bt_inout(ic,iobs) = 1000.0_r_kind
+                   else
+                ! Calculate distance of each fov to the center fov
+                      amsr2_box_y1: do is = ns1, ns2
+                      amsr2_box_x1: do ip = np1, np2
+                         lat1 = latitude(ifov,iscan)    ! lat of the center fov
+                         lon1 = longitude(ifov,iscan)   ! lon of the center fov
+                         lat2 = latitude(ip,is)
+                         lon2 = longitude(ip,is)
+                         dist = distance(lat1,lon1,lat2,lon2)
+                         if (dist > 50.0_r_kind) cycle amsr2_box_x1  ! outside the box
+                         if (gaussian_wgt) then
+                            wgt = exp(-0.5_r_kind*(dist/sigma)*(dist/sigma))
+                         else
+                            wgt = 1.0
+                         endif
+                         xnum   = xnum+wgt
+                         mta    = mta +wgt*bt_image_orig(ip,is,ic)
+                      enddo amsr2_box_x1
+                      enddo amsr2_box_y1
+                      bt_inout(ic,iobs) = mta/xnum
+                   endif
+                enddo amsr2_channel_loop
+             endif
+          enddo amsr2_fov_loop
+       enddo amsr2_scan_loop
+
+!      Deallocate arrays
+       deallocate(nodeinfo,scanline,scanline_back)
+       deallocate(latitude,longitude)
+       deallocate(bt_image_orig)
+    endif ! Method=5
+
 END Subroutine SSMIS_Spatial_Average
 
 
