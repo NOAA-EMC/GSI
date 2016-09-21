@@ -396,7 +396,7 @@ subroutine skindepth_(obstype,sd_rad)
  real(kind=r_kind), intent(out) :: sd_rad
 
   sd_rad = 0.000015_r_kind
-  if ( obstype == 'amsre' ) then
+  if ( obstype == 'amsre' .or. obstype == 'amsr2' .or. obstype == 'gmi' ) then
       sd_rad = 0.03_r_kind
   elseif ( obstype == 'amsua' .or. obstype == 'amsub' .or.  obstype == 'ssmis' .or.  obstype == 'ssmi' .or. &
       obstype == 'mhs' .or.  obstype == 'msu' .or.  obstype == 'hsb' ) then
