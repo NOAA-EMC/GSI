@@ -1109,7 +1109,7 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
         errormax=max(abs(sum),errormax)
      end do
   end do
-  write(6,*)' error in aminv =',errormax
+  write(6,*)' delta in aminv =',errormax
   if(errormax>errlimit) iret=-1
 
 end subroutine iterative_improvement0

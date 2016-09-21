@@ -103,9 +103,8 @@ program getsigensstatp
     do k=1,nanals
         new_group_members(k)=k-1
     enddo
-    if ( mype1 <= nanals ) then
-        call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
-    endif
+
+    call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
     call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
     if ( iret /= 0 ) then
         write(6,'(a,i5)')'***ERROR*** after mpi_comm_create with iret = ',iret
@@ -208,7 +207,7 @@ program getsigensstatp
 
         elseif ( nemsio ) then
 
-            call nemsio_readrecv(gfile,'pres','mid layer',1,rwork_mem(:,1),iret)
+            call nemsio_readrecv(gfile,'pres','sfc',1,rwork_mem(:,1),iret)
             do k = 1,nlevs
                 krecu    = 1 + 0*nlevs + k
                 krecv    = 1 + 1*nlevs + k
