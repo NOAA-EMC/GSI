@@ -2,9 +2,10 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014040206
+edate=2014042118
 #instrument name, as it would appear in the title of a diag file
 instr=airs_aqua
+#instr=iasi_metop-b
 #location of radstat file
 exp=prdctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
@@ -25,11 +26,17 @@ wave_out=.false.
 #option to output the assigned observation errors
 err_out=.false.
 #option to output the correlation matrix
-corr_out=.false.
+corr_out=.true.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=1200
+kreq=-150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
+#method to compute covariances: 1 for Hollingsworth Lonnberg, 2 for Desroziers
+cov_method=1
+#bin size for obs pairs in km
+bin_size=20
+#channel set choice:  0 to only use active channels, 1 to use all channels
+chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
 radstats_processed=1
 
@@ -84,7 +91,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $bin_size
 EOF
 
 cp Rcov_$instr $savdir
