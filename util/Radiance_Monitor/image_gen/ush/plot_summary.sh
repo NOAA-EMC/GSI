@@ -15,7 +15,7 @@ echo "Start plot_summary.sh"
 
 #------------------------------------------------------------------
 # Set environment variables.
-tmpdir=${PLOT_WORK_DIR}/../plot_summary_${RADMON_SUFFIX}
+tmpdir=${PLOT_WORK_DIR}/plot_summary_${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
