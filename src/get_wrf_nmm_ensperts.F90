@@ -277,8 +277,6 @@ subroutine get_wrf_nmm_ensperts
           deallocate(outwork)
        end if
 
-       if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
-
        if( .not. p_e2a%identity)then
           allocate(work_sub(grd_ens_d01%inner_vars,grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%num_fields),stat=istatus)
           if(istatus /= 0)print *,'error allocate work_sub'
@@ -500,8 +498,6 @@ subroutine get_wrf_nmm_ensperts
                  grd_ens_d02%nlat,grd_ens_d02%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
           deallocate(region_lat_e,region_lon_e)
 
-          if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
-   
           test=.true.
           if(mype == 0 .and. test)then
              write(blendname,"('blend',i3.3)") n

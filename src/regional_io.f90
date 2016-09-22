@@ -118,7 +118,7 @@ contains
        call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
        call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
        call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
-       write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
+       if(mype == 0)write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
 
 !   Convert mass guess file to internal gsi format.  Consider
 !   two possible input formats:  netcdf or binary
