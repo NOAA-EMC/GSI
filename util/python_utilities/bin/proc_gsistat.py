@@ -449,7 +449,7 @@ if __name__ == '__main__':
     fig = plot_cost(minim) ; figs.append(fig) ; fignames.append('cost')
     fig = plot_gradient(minim) ; figs.append(fig) ; fignames.append('gradient')
     fig = plot_sat(oz,otype='ozone') ; figs += fig; fignames += ['oz_read','oz_assim']
-    fig = plot_sat(rad,otype='radiance') ; figs.append(fig) ; fignames.append(['rad_read','rad_assim'])
+    fig = plot_sat(rad,otype='radiance') ; figs += fig; fignames += ['rad_read','rad_assim']
     if instruments is not None:
         for inst in instruments:
             fig = plot_channel(insts[inst],inst=inst) ; figs.append(fig) ; fignames.append(inst)
