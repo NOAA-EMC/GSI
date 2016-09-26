@@ -336,11 +336,18 @@ class GSIstat(object):
         df.drop(['col1','col2','col3'],inplace=True,axis=1)
         df[['channel','nassim','nrej']] = df[['channel','nassim','nrej']].astype(_np.int)
         df[['oberr','OmF_bc','OmF_wobc']] = df[['oberr','OmF_bc','OmF_wobc']].astype(_np.float)
+
+        # Since iteration number is not readily available, make one
         lendf = len(df)
-        df['it'] = 1
-        its,ite = 0, lendf/3;        df['it'][its:ite] = 1
-        its,ite = lendf/3,2*lendf/3; df['it'][its:ite] = 2
-        its,ite = 2*lendf/3,-1;      df['it'][its:ite] = 3
+        nouter = lendf / len(df['it'].unique())
+        douter = lendf / nouter
+        it = _np.zeros(lendf,dtype=int)
+        for i in range(nouter):
+            its = douter * i
+            ite = douter * (i+1)
+            it[its:ite] = i+1
+        df['it'] = it
+
         df = df[['it','instrument','satellite','channel','nassim','nrej','oberr','OmF_bc','OmF_wobc']]
         df.set_index(['it','instrument','satellite','channel'],inplace=True)
 
