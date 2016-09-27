@@ -530,6 +530,8 @@ contains
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !   2014-04-13  todling - add initialization of correlated R-covariance
 !   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
+!   2016-07-19  W. Gu   - update the obs error in satinfo for instruments accounted for the correlated R-covariance
+!   2016-07-19  W. Gu   - add the hook to scale the bias correction term for inter-channel correlated obs errors.
 !
 !   input argument list:
 !
@@ -1969,9 +1971,9 @@ contains
 !
 ! program history log:
 !   2014-04-15  todling - initial code
-
-
-
+!   2016-07-19  todling - change obtype to isis for more flexibity
+!   2016-07-19  todling - add wgtjo to arg list
+!   2016-07-19  W. Gu - revisit bias handling
 !
 ! attributes:
 !   language: f90
