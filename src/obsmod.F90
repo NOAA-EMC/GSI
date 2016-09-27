@@ -103,7 +103,11 @@ module obsmod
 !   2015-07-10  pondeca  - add could ceiling height (cldch)
 !   2016-05-18  collard  - Added code to allow for historical naming conventions
 !                          for satellite instruments
-!   2016-07-19  kbathmann - add correlated obs variables to rad_ob_type
+!   2015-03-31  wgu      - add isis(sensor/instrument/satellite id) in rad_ob_type to handle
+!                          instruments id in intrad inter-channel correlation
+!                          implementation.
+!   2016-07-19  wgu      - add isfctype - mask for surface type - to radiance obtype
+!   2016-07-19  kbathmann - add rsqrtinv and use_corr_obs to rad_ob_type
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values

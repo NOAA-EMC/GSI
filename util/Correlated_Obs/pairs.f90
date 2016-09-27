@@ -1,3 +1,7 @@
+!This module bins observations, as required by either the
+!Desroziers method or Hollingsworth-Lonnberg method
+!Kristen Bathmann
+!5-2015
 module pairs
 
 use kinds, only: r_kind
@@ -11,6 +15,7 @@ subroutine make_pairs(ges_locs,anl_loc,ges_times,anl_time,Tg,dist_threshold,obs_
 !For a given analysis omg, this subroutine searches through an array of
 !background omg's and identifies all that are within a certain distance and time 
 !of the analysis omg
+!This subroutine is used with Desroziers method.
 !Kristen Bathmann
 !5-2015
 implicit none
@@ -44,6 +49,11 @@ end do
 
 end subroutine make_pairs
 subroutine make_pairs_hl(ges_locs,current_loc,ges_times,current_time,Tg,dist_threshold, num_bins, obs_pairs, n_pair)
+!For a given background omg, this subroutine searches through an array of
+!background omg's and bins the pairs based on distance between the two
+!This subroutine is used with the Hollingsworth-Lonnberg method.
+!Kristen Bathmann
+!9-2016
 implicit none
 real(r_kind), dimension(:,:), intent(in):: ges_locs
 real(r_kind), dimension(:), intent(in):: current_loc

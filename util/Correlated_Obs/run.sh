@@ -2,17 +2,17 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014042118
+edate=2014060118
 #instrument name, as it would appear in the title of a diag file
-#instr=airs_aqua
-instr=iasi_metop-b
+instr=airs_aqua
+#instr=iasi_metop-b
 #location of radstat file
-exp=prdctl
+exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method_iasib
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
 #location the covariance matrix is saved to
-savdir=$wrkdir
+savdir=$diagdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow,
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
@@ -26,21 +26,21 @@ wave_out=.false.
 #option to output the assigned observation errors
 err_out=.false.
 #option to output the correlation matrix
-corr_out=.true.
+corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
 kreq=-150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #method to compute covariances: 1 for Hollingsworth Lonnberg, 2 for Desroziers
-cov_method=1
+cov_method=2
 #bin size for obs pairs in km
-bin_size=20
+bin_size=30
 #channel set choice:  0 to only use active channels, 1 to use all channels
-chan_set=1
+chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
-radstats_processed=1
+radstats_processed=0
 
-ndate=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/Analysis_util/ndate
+ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 ####################
 
 cdate=$bdate

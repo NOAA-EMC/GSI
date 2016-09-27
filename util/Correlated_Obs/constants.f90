@@ -1,4 +1,8 @@
 module constants
+!This module contains the constants required for the cov_calc program
+!Kristen Bathmann
+!5-2015
+
 use kinds, only: r_kind, i_kind
 implicit none
 public:: zero, zero_int, small, smaller, one, one_int

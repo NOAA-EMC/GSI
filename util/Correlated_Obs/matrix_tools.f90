@@ -10,7 +10,7 @@ subroutine eigdecomp(Ain,n,D,Q)
 !this subroutine uses the Jacobi rotation method to
 !perform an eigendecomposition of a symmetric matrix
 !input:  
-!Ain, a symmetric matrix of size n
+!Ain, a symmetric matrix of size nxn
 !n, dim of Ain
 !
 !output: 

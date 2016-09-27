@@ -169,6 +169,9 @@
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR).
 !   2015-09-30  ejones  - Pull AMSR2 sun azimuth and sun zenith angles for passing to quality control,
 !                         modify qc_amsr2 function call
+!   2016-07-19  W. Gu   - add isis to obs type
+!   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
+!   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs

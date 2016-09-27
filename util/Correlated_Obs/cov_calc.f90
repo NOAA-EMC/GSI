@@ -105,7 +105,7 @@ real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of 
 integer:: num_bin,num_bins
 real(r_kind):: bin_size
 real(r_kind),dimension(:),allocatable:: bin_dist 
-real(r_kind),parameter::bin_center=75.0_r_kind           !bin center, km, used for Hollingworth Lonnberg method
+real(r_kind),parameter::bin_center=50.0_r_kind           !bin center, km, used for Hollingworth Lonnberg method
 
 !Covariance Definition
 integer, parameter:: hl_method=1
@@ -140,7 +140,7 @@ if (cov_method==desroziers) then
    bin_dist(1)=bin_size
 else
    num_bin=3
-   num_bins=num_bin-1
+   num_bins=num_bin
    allocate(bin_dist(num_bin))
    bin_dist(1)=small
    bin_dist(2)=bin_center-(bin_size/2)
@@ -551,6 +551,7 @@ else if (cov_method==hl_method) then
    end do      
 end if
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
+
 if (kreq>zero) then
    call eigdecomp(Rcov,nch_active,eigs,eigv)
    mx=0
