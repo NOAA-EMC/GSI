@@ -4,13 +4,13 @@ bdate=2014040200
 #date of last radstat file
 edate=2014042118
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-b
+#instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
 exp=prdctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method_iasib
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow,
@@ -36,7 +36,7 @@ cov_method=1
 #bin size for obs pairs in km
 bin_size=20
 #channel set choice:  0 to only use active channels, 1 to use all channels
-chan_set=0
+chan_set=1
 #Have the radstats already been processed? 1 for yes, 0 for no
 radstats_processed=1
 

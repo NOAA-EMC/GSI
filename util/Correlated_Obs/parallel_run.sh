@@ -2,21 +2,21 @@
 #date of first radstat file
 bdate=2014040200
 #date of last radstat file
-edate=2014042118
+edate=2014050118
 #instrument name, as it would appear in the title of a diag file
-#instr=airs_aqua
-instr=iasi_metop-b
+instr=airs_aqua
+#instr=iasi_metop-b
 #location of radstat file
 exp=prdctl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method_iasib
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/hl_method
 #location the covariance matrix is saved to
 savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
-type=1
+type=2
 #cloud 1 for clear FOVs, 2 for clear channels
 cloud=2
 #absolute value of the maximum allowable sensor zenith angle (degrees)
@@ -26,17 +26,17 @@ wave_out=.false.
 #option to output the assigned observation errors
 err_out=.false.
 #option to output the correlation matrix
-corr_out=.true.
+corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=-150
+kreq=150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #method to compute covariances: 1 for Hollingsworth Lonnberg, 2 for Desroziers
-cov_method=1
+cov_method=2
 #bin size for obs pairs in km
-bin_size=20
+bin_size=30
 #channel set choice:  0 to only use active channels, 1 to use all channels
-chan_set=0
+chan_set=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=20
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss

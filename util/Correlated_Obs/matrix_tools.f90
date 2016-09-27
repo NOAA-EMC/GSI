@@ -126,7 +126,7 @@ end do
 end subroutine eigdecomp
 
 
-subroutine recondition(Q,D,R,n,Xd,kreq,A,method)
+subroutine recondition(Q,D,n,kreq,A,method)
 !This subroutine reconditions the covariance matrix
 !based on a user's choice of method.
 !It is necessary to preform an eigendecompositon first
@@ -137,20 +137,16 @@ use constants, only: zero
 implicit none
 real(r_kind),dimension(:),intent(in):: D     !eigenvalues
 real(r_kind),dimension(:,:),intent(in):: Q   !eigenvectors
-real(r_kind),dimension(:,:),intent(in):: R   !original Rcov
-real(r_kind),intent(in):: Xd
 real(r_kind),intent(in):: kreq               !condition number
 integer(i_kind),intent(in):: n               !number of channels
 real(r_kind),dimension(:,:),allocatable:: Dn !new eigenvalues
 real(r_kind),dimension(:,:),intent(out):: A  !reconditioned covariance
-real(r_kind),dimension(:,:),allocatable:: R2
 integer,intent(in)::method
-real(r_kind):: mx, mn, m,r12,r22,dc,K
-real(r_kind):: laminc, a1, a2, nreal
-integer:: i,j,coun, dw
+real(r_kind):: mx, mn, K
+real(r_kind):: laminc
+integer:: i,coun, dw
 integer,parameter:: trace=1
 integer,parameter:: weston2=2
-integer,parameter:: shrinkage=3
 allocate(Dn(n,n))
 Dn=zero
 mn=D(1)
@@ -186,36 +182,7 @@ else if (method==trace) then
       end if
    end do
       
-   A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q))))
-else if (method==shrinkage) then
-   nreal=real(n,r_kind)
-   allocate(R2(n,n))
-   R2=R
-   m=0
-   dc=0
-   do i=1,n
-!      m=m+D(i)
-      m=m+R2(i,i)
-   end do
-   r22=Xd
-   m=m/nreal
-   do i=1,n
-      R2(i,i)=R2(i,i)-m
-   end do
-   R2=MATMUL(R2,TRANSPOSE(R2))
-   do i=1,n
-      dc=dc+R2(i,i)
-   end do
-   dc=dc/nreal
-   r12=dc-r22
-   a1=r22*m/dc
-   a2=r12/dc
-   do i=1,n
-      do j=1,n
-         A(i,j)=R(i,j)*a2
-      end do
-      A(i,i)=A(i,i)+a1
-   end do 
+   A=MATMUL(Q,(MATMUL(Dn,TRANSPOSE(Q)))) 
 end if
 
 end subroutine recondition
