@@ -136,7 +136,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind):: ier
+  integer(i_kind):: ier,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
@@ -344,22 +344,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_db
         infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
+         iostat = ierr)
+     if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
      hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
@@ -475,7 +474,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   num_obs = iob-1
 
-500 continue
   if (num_obs <= 0) then
      write(*,*) 'READ_ATMS: No ATMS Data were read in'
      return

@@ -158,7 +158,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   character(len=*),intent(in)     :: jsatid
   character(len=*),intent(in)     :: dtype
   integer(i_kind) ,intent(in)     :: minuse
-  integer(i_kind) ,intent(out)    :: nread
+  integer(i_kind) ,intent(inout)  :: nread
 
   integer(i_kind) :: lnbufr,idate,idate2,iret,kidsat
   integer(i_kind) :: ireadsb,ireadmg,kx,nc,said
@@ -179,20 +179,25 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
       call openbf(lnbufr,'IN',lnbufr)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
+      if(iret == 0)then
 
-!     Extract date and check for consistency with analysis date
-      if (idate<iadatebgn.or.idate>iadateend) then
-         if(offtime_data) then
-           write(6,*)'***read_obs_check analysis and data file date differ, but use anyway'
-         else
-            write(6,*)'***read_obs_check*** ',&
-              'incompatable analysis and observation date/time'
-         end if
-         write(6,*)'Analysis start  :',iadatebgn
-         write(6,*)'Analysis end    :',iadateend
-         write(6,*)'Observation time:',idate
-         if(.not.offtime_data) lexist=.false.
-      endif
+!        Extract date and check for consistency with analysis date
+         if (idate<iadatebgn.or.idate>iadateend) then
+            if(offtime_data) then
+              write(6,*)'***read_obs_check analysis and data file date differ, but use anyway'
+            else
+               write(6,*)'***read_obs_check*** ',&
+                 'incompatable analysis and observation date/time',trim(filename),trim(dtype)
+               lexist=.false.
+            end if
+            write(6,*)'Analysis start  :',iadatebgn
+            write(6,*)'Analysis end    :',iadateend
+            write(6,*)'Observation time:',idate
+        endif
+      else
+         write(6,*)'***read_obs_check*** iret/=0 for reading date for ',trim(filename),dtype,jsatid,iret
+         lexist=.false.
+      end if
       if(lexist)then
        if(jsatid == '')then
          kidsat=0
@@ -947,6 +952,10 @@ subroutine read_obs(ndata,mype)
              call gsi_inquire(lenbytes,lexist,trim(dfile(i)),mype)
              call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse,read_rec1(i))
              
+!   If no data set starting record to be 999999.  Note if this is not large
+!   enough code should still work - just does a bit more work.
+
+             if(.not. lexist)read_rec1(i) = 999999
              len4file=lenbytes/4
              if (ears_possible(i))then
 
@@ -954,6 +963,10 @@ subroutine read_obs(ndata,mype)
                 call read_obs_check (lexistears,trim(dfile(i))//'ears',dplat(i),dtype(i),minuse, &
                     read_ears_rec1(i))
 
+!   If no data set starting record to be 999999.  Note if this is not large
+!   enough code should still work - just does a bit more work.
+
+                if(.not. lexistears)read_ears_rec1(i) = 999999
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
              end if
@@ -963,6 +976,10 @@ subroutine read_obs(ndata,mype)
                 call read_obs_check (lexistdb,trim(dfile(i))//'_db',dplat(i),dtype(i),minuse, &
                     read_db_rec1(i))
 
+!   If no data set starting record to be 999999.  Note if this is not large
+!   enough code should still work - just does a bit more work.
+
+                if(.not. lexistdb)read_db_rec1(i) = 999999
                 lexist=lexist .or. lexistdb
                 len4file=len4file+lenbytes/4
              end if
