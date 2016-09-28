@@ -31,14 +31,16 @@ corr_out=.false.
 kreq=-150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
-#method to compute covariances: 1 for Hollingsworth Lonnberg, 2 for Desroziers
+#method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
 #bin size for obs pairs in km
-bin_size=30
+bsize=30
+#bin center, in km, needed for Hollingsworth-Lonnberg
+bcen=70
 #channel set choice:  0 to only use active channels, 1 to use all channels
 chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
-radstats_processed=0
+radstats_processed=1
 
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 ####################
@@ -91,7 +93,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $bin_size
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $bsize $bcen
 EOF
 
 cp Rcov_$instr $savdir

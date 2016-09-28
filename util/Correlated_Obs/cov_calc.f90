@@ -105,7 +105,7 @@ real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of 
 integer:: num_bin,num_bins
 real(r_kind):: bin_size
 real(r_kind),dimension(:),allocatable:: bin_dist 
-real(r_kind),parameter::bin_center=50.0_r_kind           !bin center, km, used for Hollingworth Lonnberg method
+real(r_kind)::bin_center                                 !bin center, km, used for Hollingworth Lonnberg method
 
 !Covariance Definition
 integer, parameter:: hl_method=1
@@ -134,7 +134,7 @@ integer:: rec_method
 real(r_kind), parameter:: errt=0.0001_r_kind
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err,  &
-   out_corr, kreq, rec_method, cov_method, chan_choice, bin_size
+   out_corr, kreq, rec_method, cov_method, chan_choice, bin_size, bin_center
 if (cov_method==desroziers) then
    allocate(bin_dist(1))
    bin_dist(1)=bin_size

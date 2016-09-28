@@ -4,15 +4,15 @@ bdate=2014040200
 #date of last radstat file
 edate=2014060118
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-b
+#instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
 exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
 #working directory
 wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
 #location the covariance matrix is saved to
-savdir=$wrkdir
+savdir=$diagdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
@@ -31,10 +31,12 @@ corr_out=.false.
 kreq=-150
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
-#method to compute covariances: 1 for Hollingsworth Lonnberg, 2 for Desroziers
+#method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
 #bin size for obs pairs in km
-bin_size=30
+bsize=30
+#bin center, in km, needed for Hollingsworth-Lonnberg
+bcen=70
 #channel set choice:  0 to only use active channels, 1 to use all channels
 chan_set=0
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
@@ -242,7 +244,8 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
-bin_size=$bin_size
+bsize=$bsize
+bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
 EOF
@@ -277,7 +280,8 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
-bin_size=$bin_size
+bsize=$bsize
+bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
 EOF
