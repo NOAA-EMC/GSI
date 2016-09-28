@@ -975,6 +975,7 @@
   implicit none
   character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
   integer:: ier,ios
+  real(r_kind):: varqc_max,c_varqc_new
 
   call gsi_4dcoupler_parallel_init
 
@@ -1034,9 +1035,11 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  call obsmod_init_instr_table(nhr_assimilation,ndat)
   read(5,setup) 
   read(5,gridopts)
+
+! call to obsmod_init_instr_table must be after setup and gridopts are read in
+  call obsmod_init_instr_table(nhr_assimilation,ndat)
   read(5,bkgerr)
   read(5,anbkgerr)
   read(5,jcopts)
@@ -1051,36 +1054,53 @@
   read(5,nst)
 #else
 ! Initialize table of instruments and data types
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
-        if(ios/=0) call die(myname_,'read(setup)',ios)  
+  if(ios/=0) call die(myname_,'read(setup)',ios)  
+  close(11)
+
+  open(11,file='gsiparm.anl')
   read(11,gridopts,iostat=ios)
-        if(ios/=0) call die(myname_,'read(gridopts)',ios)
+  if(ios/=0) call die(myname_,'read(gridopts)',ios)
+
+! call to obsmod_init_instr_table must be after setup and gridopts are read in
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
+
   read(11,bkgerr,iostat=ios)
-        if(ios/=0) call die(myname_,'read(bkgerr)',ios)
+  if(ios/=0) call die(myname_,'read(bkgerr)',ios)
+
   read(11,anbkgerr,iostat=ios)
-        if(ios/=0) call die(myname_,'read(anbkgerr)',ios)
+  if(ios/=0) call die(myname_,'read(anbkgerr)',ios)
+
   read(11,jcopts,iostat=ios)
-        if(ios/=0) call die(myname_,'read(jcopts)',ios)
+  if(ios/=0) call die(myname_,'read(jcopts)',ios)
+
   read(11,strongopts,iostat=ios)
-        if(ios/=0) call die(myname_,'read(strongopts)',ios)
+  if(ios/=0) call die(myname_,'read(strongopts)',ios)
+
   read(11,obsqc,iostat=ios)
-        if(ios/=0) call die(myname_,'read(obsqc)',ios)
+  if(ios/=0) call die(myname_,'read(obsqc)',ios)
+
   read(11,obs_input,iostat=ios)
-        if(ios/=0) call die(myname_,'read(obs_input)',ios)
+  if(ios/=0) call die(myname_,'read(obs_input)',ios)
+
   read(11,superob_radar,iostat=ios)
-        if(ios/=0) call die(myname_,'read(superob_radar)',ios)
+  if(ios/=0) call die(myname_,'read(superob_radar)',ios)
+
   read(11,lag_data,iostat=ios)
-        if(ios/=0) call die(myname_,'read(lag_data)',ios)
+  if(ios/=0) call die(myname_,'read(lag_data)',ios)
+
   read(11,hybrid_ensemble,iostat=ios)
-        if(ios/=0) call die(myname_,'read(hybrid_ensemble)',ios)
+  if(ios/=0) call die(myname_,'read(hybrid_ensemble)',ios)
+
   read(11,rapidrefresh_cldsurf,iostat=ios)
-        if(ios/=0) call die(myname_,'read(rapidrefresh_cldsurf)',ios)
+  if(ios/=0) call die(myname_,'read(rapidrefresh_cldsurf)',ios)
+
   read(11,chem,iostat=ios)
-        if(ios/=0) call die(myname_,'read(chem)',ios)
+  if(ios/=0) call die(myname_,'read(chem)',ios)
+
   read(11,nst,iostat=ios)
-        if(ios/=0) call die(myname_,'read(nst)',ios)
+  if(ios/=0) call die(myname_,'read(nst)',ios)
   close(11)
 #endif
 
@@ -1090,6 +1110,24 @@
       write(6,*) ' jcap_cut increased to jcap+1 = ', jcap+1
       write(6,*) ' jcap_cut < jcap+1 not allowed '
     end if
+  end if
+  if(vqc .and. niter_no_qc(1) < niter(1))then
+     varqc_max=c_varqc*(niter(1)-niter_no_qc(1))
+     if(varqc_max < one .and. varqc_max > zero)then
+        c_varqc_new=one/(niter(1)-niter_no_qc(1))
+        if(mype == 0) write(6,*) 'Warning - value for c_varqc does not allow ',&
+            'variational qc to turn on completely in first outer iteration', &
+            'c_varqc adjusted c_varqc - old =',c_varqc,  &
+            'c_varqc - new  =',c_varqc_new
+        c_varqc=c_varqc_new
+     end if
+  end if
+  if(ltlint) then
+     if(vqc .or. njqc)then
+       vqc = .false.
+       njqc = .false.
+       if(mype == 0) write(6,*) ' ltlint = true, so vqc and njqc must be false'
+     end if
   end if
   if (anisotropic) then
       call init_fgrid2agrid(pf2aP1)
@@ -1267,7 +1305,11 @@
 
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
-  if (l_tlnmc.or.l_foto) tendsflag=.true.
+  if (l_tlnmc) tendsflag=.true.
+  if (l_foto) then
+     tendsflag=.true.
+     if(mype == 0)write(6,*) 'Warning foto option will be removed in the near future'
+  end if
   if (tendsflag) switch_on_derivatives=.true.
 
 

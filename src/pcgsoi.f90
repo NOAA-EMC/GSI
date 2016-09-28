@@ -120,7 +120,7 @@ subroutine pcgsoi()
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter,c_varqc,vqc
   use obsmod, only: destroyobs,oberror_tune,luse_obsdiag,yobs
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
@@ -242,20 +242,22 @@ subroutine pcgsoi()
   lanlerr=.false.
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
-  if ( ltlint ) nlnqc_iter=.false.
+  nlnqc_iter=.false.
   call stpjo_setup(yobs,nobs_bins)
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
 
 ! Gradually turn on variational qc to avoid possible convergence problems
-     nlnqc_iter = iter >= niter_no_qc(jiter)
-     if(jiter == jiterstart) then
-        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-        if(varqc_iter >=one) varqc_iter= one
-     else
-        varqc_iter=one
-     endif
+     if(vqc) then
+        nlnqc_iter = iter >= niter_no_qc(jiter)
+        if(jiter == jiterstart) then
+           varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
+           if(varqc_iter >=one) varqc_iter= one
+        else
+           varqc_iter=one
+        endif
+     end if
 
      do ii=1,nobs_bins
         rval(ii)=zero
