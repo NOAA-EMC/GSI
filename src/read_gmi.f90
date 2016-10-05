@@ -1,6 +1,6 @@
 subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_gmi           read  GMI  bufr data
@@ -39,6 +39,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         tanks
 !   2016-07-25  ejones  - increase maxobs, remove fov binning, make most arrays
 !                         static
+!   2016-10-05  acollard -Fix interaction with NSST.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -104,6 +105,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),intent(inout)  :: nread
   integer(i_kind),intent(inout)  :: ndata,nodata
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
+  logical         ,intent(in   ) :: dval_use
 
 ! Declare local parameters
   logical                   :: use_swath_edge
@@ -139,7 +141,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_double),dimension(ngs)          :: pixelsaza
 
 ! Declare local variables
-  logical        :: assim,outside,iuse,gmi
+  logical        :: assim,outside,iuse
   logical        :: do_noise_reduction
 
   integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,next,j
@@ -245,19 +247,15 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   end do
 
 ! Set various variables depending on type of data to be read
-
-  gmi      = obstype  == 'gmi'
-
-                                           !     (for grouping the obs at a position)
+                                        !     (for grouping the obs at a position)
   if(jsatid == 'gpm')bufsat=288         ! Satellite ID (WMO as of 03Jun2014)
   tbmax = 320.0_r_kind                  ! one value for all tmi channels (see data document).
 
-  if (gmi) then
-    maxinfo=39
-    nchanl = 13                         ! 13 channls
-    nchanla = 9                         ! first 9 channels
-    tbmin = (/50,50,50,50,50,50,50,50,50,70,70,70,70/)             !
-  endif
+  maxinfo=31
+  if(dval_use) maxinfo = maxinfo+2
+  nchanl = 13                         ! 13 channls
+  nchanla = 9                         ! first 9 channels
+  tbmin = (/50,50,50,50,50,50,50,50,50,70,70,70,70/)             !
 
   rlndsea(0) = zero
   rlndsea(1) = 30._r_kind
@@ -367,17 +365,11 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! ----- Read header record to extract obs location information  
-        if (gmi) then
-          call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
-          call ufbrep(lnbufr,gmichq,1,nchanl,iret,'TPQC2')
-          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'VIIRSQ')
-!          non-operational bufr:
-!          call ufbrep(lnbufr,gmichq,1,nchanl,iret,'GMICHQ')
-!          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
-          call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
-          call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
-        endif
-
+        call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
+        call ufbrep(lnbufr,gmichq,1,nchanl,iret,'TPQC2')
+        call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'VIIRSQ')
+        call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
+        call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
         call ufbint(lnbufr,pixelloc,2, 1,iret,strloc)
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
@@ -684,15 +676,11 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
     data_all(29,itx)= ff10                 ! ten meter wind factor
     data_all(30,itx)= dlon_earth*rad2deg   ! earth relative longitude (degrees)
     data_all(31,itx)= dlat_earth*rad2deg   ! earth relative latitude (degrees)
-    data_all(iedge_log,itx) = 0            ! =0, not to be obsoleted as at scan edges
-    data_all(33,itx) = sat_zen_ang2      ! local (satellite) zenith angle (radians)
-    data_all(34,itx) = sat_azimuth_ang2  ! local (satellite) azimuth_ang angle (degrees)
-    data_all(35,itx) = sat_scan_ang2     ! scan(look) angle (rad)
-    data_all(36,itx) = sun_zenith        ! solar zenith angle (deg)
-    data_all(37,itx) = sun_azimuth_ang   ! solar azimuth_ang angle (deg)
 
-    data_all(maxinfo-1,itx)= val_gmi
-    data_all(maxinfo,itx)= itt
+    if(dval_use) then
+       data_all(32,itx)= val_gmi
+       data_all(33,itx)= itt
+    end if
 
     if(nst_gsi>0) then
        data_all(maxinfo+1,itx) = tref       ! foundation temperature
@@ -793,9 +781,15 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            if(data_all(i+nreal,n) > tbmin(i) .and. &
               data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_gmi
      end do
+
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(maxinfo,n))
+           super_val(itt)=super_val(itt)+val_gmi 
+        end do
+     endif
+
 !    Write final set of "best" observations to output file
      call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon

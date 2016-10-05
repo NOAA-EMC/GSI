@@ -1469,7 +1469,7 @@ subroutine read_obs(ndata,mype)
                 call read_saphir(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i))
+                     nobs_sub1(1,i),dval_use)
                 string='READ_SAPHIR'
 
 
@@ -1557,7 +1557,7 @@ subroutine read_obs(ndata,mype)
                 call read_gmi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i))
+                     nobs_sub1(1,i),dval_use)
                 string='READ_GMI'
 
 !            Process Meteosat SEVIRI RADIANCE  data
