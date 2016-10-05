@@ -4,8 +4,8 @@ bdate=2014040200
 #date of last radstat file
 edate=2014060118
 #instrument name, as it would appear in the title of a diag file
-#instr=airs_aqua
-instr=iasi_metop-b
+instr=airs_aqua
+#instr=iasi_metop-a
 #location of radstat file
 exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
