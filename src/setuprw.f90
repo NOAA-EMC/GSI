@@ -403,13 +403,6 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         pobl   = prsltmp(k1)
      end if
         
-
-     if(data(iobs_type,i) > three .and. k1 == k2)then
-       dz     = zges(k1)-zsges 
-       dlnp   = prsltmp(k1)-log(psges) 
-       pobl   = log(psges) + (dlnp/dz)*(zob-zsges)
-     endif
-
      presw  = ten*exp(pobl)
 
 !    Determine location in terms of grid units for midpoint of
@@ -419,11 +412,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Check to see if observation is below midpoint of first
 !    above surface layer.  If so, set rlow to that difference
-     if(data(iobs_type,i) > three)then
-       rlow=max(1-dpres,zero)
-     else
-       rlow=max(sfcchk-dpres,zero)
-     endif
+     rlow=max(sfcchk-dpres,zero)
 
 !    Check to see if observation is above midpoint of layer
 !    at the top of the model.  If so, set rhgh to that difference.
