@@ -878,7 +878,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
      Error)
      
 !-----------------------------------------
-! Name: $Id: modify_beamwidth.F 222 2010-08-11 14:39:09Z frna $
+! Name: $Id$
 !
 ! Purpose:
 !   Manipulate the effective beam width of an image. For example, convert ATMS
