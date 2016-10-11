@@ -1,7 +1,18 @@
 module netcdf_io
-private
-public :: readnetcdfdata, writenetcdfdata, variableattribute_char, &
-          netcdfdimension, globalattribute_real
+
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_nowrite,nf90_global
+    use netcdf, only: nf90_inquire_dimension,nf90_inquire_variable
+    use netcdf, only: nf90_inq_dimid,nf90_inq_varid
+    use netcdf, only: nf90_get_var,nf90_put_var
+    use netcdf, only: nf90_get_att,nf90_put_att
+    use netcdf_mod, only: nc_check
+
+    implicit none
+
+    private
+    public :: readnetcdfdata, writenetcdfdata, variableattribute_char, &
+              netcdfdimension, globalattribute_real
 contains
 
       ! Subroutine will ingest a netcdf file and character strings, definining 
@@ -11,8 +22,6 @@ contains
       subroutine netcdfdimension(netcdf_input,ndims,dimstring,dims)
 
       implicit none
-
-      include 'netcdf.inc'      
 
       !=======================================================================
 
@@ -29,7 +38,7 @@ contains
       ! Define variables for decoding netCDF data
 
       character*20         dimname
-      integer              ncid, dimid, status
+      integer              ncid, dimid
 
       ! Define counting variables
 
@@ -42,22 +51,26 @@ contains
       do i = 1, ndims
 
          ! Open analysis netCDF file passed to routine
-       
-         status = nf_open(netcdf_input,ncnowrit,ncid)
+
+         call nc_check( nf90_open(netcdf_input,nf90_nowrite,ncid),&
+             '','open '//trim(netcdf_input) )
     
          ! Get record id of variable field
     
          !dimid = ncdid(ncid,dimstring(i),rcode)
-         status = nf_inq_dimid(ncid,dimstring(i),dimid)
+         call nc_check( nf90_inq_dimid(ncid,dimstring(i),dimid),&
+             '','inq_dimid '//trim(dimstring(i))//' '//trim(netcdf_input) )
    
          ! Get dimension name and size
     
          !call ncdinq(ncid,dimid,dimname,dims(i),rcode)
-         status = nf_inq_dim(ncid,dimid,dimname,dims(i))
+         call nc_check( nf90_inquire_dimension(ncid,dimid,dimname,dims(i)),&
+             '','inquire_dimension '//trim(dimstring(i))//' '//trim(netcdf_input) )
 
          ! Close analysis netCDF file passed to routine
        
-         status = nf_close(ncid)
+         call nc_check( nf90_close(ncid),&
+             '','close '//trim(netcdf_input) )
 
       end do
 
@@ -75,8 +88,6 @@ contains
            xdim,ydim,zdim)
 
       implicit none
-
-      include 'netcdf.inc'
 
       !=======================================================================
 
@@ -101,7 +112,6 @@ contains
     
       integer              ncid, varid, nvatts
       integer              nctype, nvdim, ndsize
-      integer              status
       character*1024       strbuf
 
       ! Define counting variables
@@ -114,28 +124,19 @@ contains
 
       ! Open netcdf file passed to subroutine
 
-      status = nf_open(netcdf_input,ncnowrit,ncid)
-      if (status .ne. 0) then
-         print *,'error opening ',trim(netcdf_input)
-         call stop2(1001)
-      endif
+      call nc_check( nf90_open(netcdf_input,nf90_nowrite,ncid),&
+          '','open '//trim(netcdf_input) )
 
       ! Determine position withing netcdf file of variable
 
-      status = nf_inq_varid(ncid,varnamestring,varid)
-      if (status .ne. 0) then
-         print *,'error reading ',trim(varnamestring)
-         call stop2(1002)
-      endif
+      call nc_check( nf90_inq_varid(ncid,varnamestring,varid),&
+          '','inq_varid '//trim(varnamestring)//' '//trim(netcdf_input) )
 
       ! Retrieve information for requested variable from netcdf file
 
       !call ncvinq(ncid,varid,strbuf,nctype,nvdim,vdims,nvatts,rcode)
-      status = nf_inq_var(ncid, varid, strbuf, nctype, nvdim, vdims, nvatts)
-      if (status .ne. 0) then
-         print *,'error reading ',trim(varnamestring)
-         call stop2(1003)
-      endif
+      call nc_check( nf90_inquire_variable(ncid,varid,strbuf,nctype,nvdim,vdims,nvatts),&
+          '','inquire_variable '//trim(strbuf)//' '//trim(netcdf_input) )
 
       !=======================================================================
 
@@ -146,11 +147,8 @@ contains
          ! Obtain variable dimensions
 
          !call ncdinq(ncid,vdims(i),strbuf,ndsize,rcode)
-         status = nf_inq_dim(ncid,vdims(i),strbuf, ndsize)
-         if (status .ne. 0) then
-            print *,'error getting dimensions of netcdf file'
-            call stop2(1004)
-         endif
+         call nc_check( nf90_inquire_dimension(ncid,vdims(i),strbuf,ndsize),&
+             '','inquire_dimension '//trim(strbuf)//' '//trim(netcdf_input) )
 
          ! Assign hyperslab starting index
 
@@ -169,20 +167,14 @@ contains
       ! Get data for requested variable
       
       !call ncvgt(ncid,varid,start,count,varname,rcode)
-      status = nf_get_vara_real(ncid,varid,start(1:3),count(1:3),varname)
-      if (status .ne. 0) then
-         print *,'error retrieving data from netcdf file'
-         call stop2(1005)
-      endif
+      call nc_check( nf90_get_var(ncid,varid,varname,start(1:3),count(1:3)),&
+          '','get_var '//trim(varnamestring)//' '//trim(netcdf_input) )
 
       ! Close netcdf data file passed to routine
 
       !call ncclos(ncid,rcode)
-      status = nf_close(ncid)
-      if (status .ne. 0) then
-         print *,'error closing netcdf file'
-         call stop2(1006)
-      endif
+      call nc_check( nf90_close(ncid),&
+          '','close '//trim(netcdf_input) )
 
       ! Return calculated values
 
@@ -198,8 +190,6 @@ contains
            xdim,ydim,zdim)
 
       implicit none
-
-      include 'netcdf.inc'
 
       !=======================================================================
 
@@ -221,7 +211,6 @@ contains
     
       integer              ncid, varid, nvatts
       integer              nctype, nvdim, ndsize
-      integer              status
       character*1024       strbuf
 
       ! Define counting variables
@@ -232,28 +221,19 @@ contains
 
       ! Open netcdf file passed to subroutine
 
-      status = nf_open(netcdf_output,ncwrite,ncid)
-      if (status .ne. 0) then
-         print *,'error opening ',trim(netcdf_output)
-         call stop2(1011)
-      endif
+      call nc_check( nf90_open(netcdf_output,nf90_write,ncid),&
+          '','open '//trim(netcdf_output) )
 
       ! Determine position withing netcdf file of variable
 
-      status = nf_inq_varid(ncid,varnamestring,varid)
-      if (status .ne. 0) then
-         print *,'error reading ',trim(varnamestring)
-         call stop2(1012)
-      endif
+      call nc_check( nf90_inq_varid(ncid,varnamestring,varid),&
+          '','inq_varid '//trim(varnamestring)//' '//trim(netcdf_output) )
 
       ! Retrieve information for requested variable from netcdf file
 
       !call ncvinq(ncid,varid,strbuf,nctype,nvdim,vdims,nvatts,rcode)
-      status = nf_inq_var(ncid, varid, strbuf, nctype, nvdim, vdims, nvatts)
-      if (status .ne. 0) then
-         print *,'error reading ',trim(varnamestring)
-         call stop2(1013)
-      endif
+      call nc_check( nf90_inquire_variable(ncid,varid,strbuf,nctype,nvdim,vdims,nvatts),&
+          '','inquire_variable '//trim(strbuf)//' '//trim(netcdf_output) )
 
       !=======================================================================
 
@@ -264,11 +244,8 @@ contains
          ! Obtain variable dimensions
 
          !call ncdinq(ncid,vdims(i),strbuf,ndsize,rcode)
-         status = nf_inq_dim(ncid,vdims(i),strbuf, ndsize)
-         if (status .ne. 0) then
-            print *,'error getting dimensions of netcdf file'
-            call stop2(1014)
-         endif
+         call nc_check( nf90_inquire_dimension(ncid,vdims(i),strbuf,ndsize),&
+             '','inquire_dimension '//trim(strbuf)//' '//trim(netcdf_output) )
 
          ! Assign hyperslab starting index
 
@@ -287,20 +264,14 @@ contains
       ! Get data for requested variable
       
       !call ncvpt(ncid,varid,start,count,varname,rcode)
-      status = nf_put_vara_real(ncid,varid,start(1:3),count(1:3),varname)
-      if (status .ne. 0) then
-         print *,'error writing data to netcdf file'
-         call stop2(1015)
-      endif
+      call nc_check( nf90_put_var(ncid,varid,varname,start(1:3),count(1:3)),&
+          '','put_var '//trim(varnamestring)//' '//trim(netcdf_output) )
 
       ! Close netcdf data file passed to routine
 
       !call ncclos(ncid,rcode)
-      status = nf_close(ncid)
-      if (status .ne. 0) then
-         print *,'error closing netcdf file'
-         call stop2(1016)
-      endif
+      call nc_check( nf90_close(ncid),&
+          '','close '//trim(netcdf_output) )
 
       ! Return calculated values
 
@@ -315,7 +286,7 @@ contains
 
       implicit none
 
-      include 'netcdf.inc'
+!      include 'netcdf.inc'
 
       !=======================================================================
 
@@ -331,28 +302,32 @@ contains
 
       ! Define variables for decoding netCDF data
 
-      integer               ncid, varid, status
+      integer               ncid, varid
 
       !=======================================================================
 
       ! Open netcdf file passed to subroutine
     
-      status = nf_open(netcdf_input,ncnowrit,ncid)
+      call nc_check( nf90_open(netcdf_input,nf90_nowrite,ncid),&
+          '','open '//trim(netcdf_input) )
 
       ! Define variable position within netcdf file
 
       !varid = ncvid(ncid,varname,status)
-      status = nf_inq_varid(ncid,varname,varid)
+      call nc_check( nf90_inq_varid(ncid,varname,varid),&
+          '','inq_varid '//trim(varname)//' '//trim(netcdf_input) )
 
       ! Obtain global attribute value
 
-      status = nf_get_att_text(ncid,varid,attribute,value)
+      call nc_check( nf90_get_att(ncid,varid,attribute,value),&
+          '','get_att '//trim(attribute)//' '//trim(netcdf_input) )
 
       !=======================================================================
 
       ! Close netcdf data file passed to routine
 
-      status = nf_close(ncid)
+      call nc_check( nf90_close(ncid),&
+          '','close '//trim(netcdf_input) )
 
       ! Return calculated values
 
@@ -368,7 +343,7 @@ contains
 
       implicit none
 
-      include 'netcdf.inc'
+!      include 'netcdf.inc'
 
       !=======================================================================
 
@@ -383,26 +358,29 @@ contains
 
       ! Define variables for decoding netCDF data
     
-      integer              ncid, status
+      integer              ncid
 
       !=======================================================================
 
       ! Open netcdf file passed to subroutine
     
       !ncid = ncopn(netcdf_input,ncnowrit,rcode)
-      status = nf_open(netcdf_input, ncnowrit, ncid)
+      call nc_check( nf90_open(netcdf_input,nf90_nowrite,ncid),&
+          '','open '//trim(netcdf_input) )
 
       ! Obtain global attribute value
 
       !call ncagt(ncid,ncglobal,attribute,value,status)
-      status = nf_get_att_real(ncid,ncglobal,attribute,value)
+      call nc_check( nf90_get_att(ncid,nf90_global,attribute,value),&
+          '','get_att '//trim(attribute)//' '//trim(netcdf_input) )
 
       !=======================================================================
 
       ! Close netcdf data file passed to routine
 
       !call ncclos(ncid,rcode)
-      status = nf_close(ncid)
+      call nc_check( nf90_close(ncid),&
+          '','close '//trim(netcdf_input) )
 
       ! Return calculated values
 
