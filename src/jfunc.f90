@@ -201,16 +201,16 @@ contains
     step_start=1.e-4_r_kind
     R_option=.false.
 
-    factqmin=one
-    factqmax=one
+    factqmin=zero
+    factqmax=zero
     clip_supersaturation=.false.
-    factg=one
-    factv=one
-    factp=one
-    factl=one
-    factw10m=one
-    facthowv=one
-    factcldch=one
+    factg=zero
+    factv=zero
+    factp=zero
+    factl=zero
+    factw10m=zero
+    facthowv=zero
+    factcldch=zero
     iout_iter=220
     miter=1
     qoption=1

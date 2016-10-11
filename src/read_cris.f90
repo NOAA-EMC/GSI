@@ -71,7 +71,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nuchan,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
-               radedge1,radedge2,radstart,radstep,nstinfo, nst_gsi
+               radedge1,radedge2,radstart,radstep
   use crtm_module, only: success, &
       crtm_kind => fp,  max_sensor_zenith_angle
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
@@ -82,6 +82,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
 
@@ -174,7 +175,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
-  integer(i_kind):: error_status, irecx
+  integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
@@ -354,22 +355,20 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_db
         infile2=trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Open BUFR file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted')
+     open(lnbufr,file=trim(infile2),form='unformatted',iostat=ierr)
+     if(ierr /= 0) cycle ears_db_loop
 
 !    Open BUFR table
      call openbf(lnbufr,'IN',lnbufr)
