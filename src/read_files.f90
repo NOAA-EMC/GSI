@@ -81,7 +81,7 @@ subroutine read_files(mype)
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
-  use radinfo, only: nst_gsi
+  use gsi_nstcouplermod, only: nst_gsi
   use sfcio_module, only: sfcio_head,sfcio_sropen,&
        sfcio_sclose,sfcio_srhead
   use nstio_module, only: nstio_head,nstio_sropen,&

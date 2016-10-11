@@ -957,7 +957,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use mpimod, only: mype
   use radinfo, only: ifactq
   use radinfo, only: radjacindxs,nsigradjac
-  use radinfo, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
@@ -1728,11 +1728,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                            aeroges_itsigp(ix ,iyp,k)*w01+ &
                            aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
              end do
-       enddo
-       do k = 1, nsig
-!         Convert mixing-ratio to concentration
-          ugkg_kgm2(k)=1.0e-9_r_kind*(prsi(k)-prsi(k+1))*r1000/grav
-          aero(k,:)=aero(k,:)*ugkg_kgm2(k)
        enddo
     endif
     if(.not.lcf4crtm) then ! otherwise already calculated
