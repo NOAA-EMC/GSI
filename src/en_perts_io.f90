@@ -21,7 +21,7 @@ subroutine en_perts_get_from_save
 !$$$ end documentation block
 
   use gridmod, only: nlon,nlat,lat2,lon2,nsig
-  use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundle
@@ -119,7 +119,7 @@ subroutine en_perts_save
 !$$$ end documentation block
 
   use gridmod, only: nlon,nlat,lat2,lon2,nsig
-  use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundle
