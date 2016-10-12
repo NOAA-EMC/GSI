@@ -197,11 +197,11 @@
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
-  use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
+  use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,tzr_qc,&
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,ssmis_precond,emiss_bc,upd_pred, &
-      passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
-      nstinfo,nst_tzr
+      passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac
+  use gsi_nstcouplermod, only: nstinfo
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
@@ -596,7 +596,7 @@
   if (retrieval.and.init_pass) call setup_sst_retrieval(obstype,dplat(is),mype)
 
 ! Special setup for Tz retrieval
-  if (nst_tzr>0) call setup_tzr_qc(obstype)
+  if (tzr_qc>0) call setup_tzr_qc(obstype)
 
 ! Get version of rad-diag file
   call get_radiag ('version',iversion_radiag,istatus)
@@ -1291,8 +1291,6 @@
 !       GMI Q C
 
         else if (gmi) then
-! remove some data near the scan edge
-           if(data_s(32,n) > 0_i_kind) id_qc(1:nchanl) = ifail_scanedge_qc
 
            call qc_gmi(nchanl,zsges,luse(n),sea,cenlat, &
               kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
