@@ -728,9 +728,15 @@ contains
                 end do
              endif
 
-             if(.not. cfound .and. mype == 0) &
-                  write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-                  'found in satbias_pc file but not found in satinfo'
+             if ( .not. cfound ) then
+                if ((diag_rad .and. mype ==0) .or. &
+                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                   write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_pc file but not found in satinfo'
+             endif
+
+!JAJ             if(.not. cfound .and. mype == 0) &
+!JAJ                  write(6,*) '***WARNING instrument/channel ',isis,ichan, &
+!JAJ                  'found in satbias_pc file but not found in satinfo'
           end do read3
           close(lunin)
           if (istat>0) then
@@ -950,9 +956,15 @@ contains
              end do
           endif
 
-          if(mype == 0 .and. .not. cfound) &
-             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-             'found in satbias_in file but not found in satinfo'
+          if ( .not. cfound ) then
+             if ((diag_rad .and. mype ==0) .or. &
+                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_in file but not found in satinfo'
+          endif
+
+!JAJ          if(mype == 0 .and. .not. cfound) &
+!JAJ             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
+!JAJ             'found in satbias_in file but not found in satinfo'
        end do read4
 1333   continue
        close(lunin)
