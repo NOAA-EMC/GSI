@@ -794,7 +794,6 @@ real(r_kind),   allocatable,dimension(:)   :: col,col0
 real(r_kind),   allocatable,dimension(:,:) :: row,row0
 real(r_kind) coeff,qcadjusted
 logical subset
-logical, save:: first = .true.
 scale_jac_=.false.
 nch_active=ErrorCov%nch_active
 if(nch_active<0) return
@@ -1043,12 +1042,11 @@ real(r_kind),intent(inout) :: rsqrtinv(nchasm,nchasm)! inv of square-root of ob 
 !BOC
 
 character(len=*),parameter :: myname_=myname//'*inv_rsqrt'
-integer(i_kind) :: nch_active,ii,jj,iii,jjj,mm,nn,ncp,ifound,kk
+integer(i_kind) :: nch_active,ii,jj,mm,nn,ncp,ifound,kk
 integer(i_kind),allocatable,dimension(:)   :: ircv
 real(r_kind),   allocatable,dimension(:,:) :: row
 real(r_kind) coeff,qcadjusted
 logical subset
-logical, save:: first = .true.
 nch_active=ErrorCov%nch_active
 !wgu if(nch_active<0) return
 call timer_ini('inv_rsqrt')
