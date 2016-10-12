@@ -2040,8 +2040,12 @@ contains
 
   subroutine writegriddata(nanal,vargrid)
 
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write
+    use netcdf, only: nf90_put_att
+    use netcdf, only: nf90_global
     use constants
-    include 'netcdf.inc'      
+    use netcdf_mod, only: nc_check
 
     !----------------------------------------------------------------------
 
@@ -2084,7 +2088,8 @@ contains
     character(len=50)                                                                          :: attstr
     character(len=12)                                                                          :: varstagger,varstrname
     character(len=12)                                                                          :: varmemoryorder
-    character(len=19)  :: DateStr
+    character(len=19)                                                                          :: DateStr
+    character(len=24),parameter                                                                :: myname_ = 'gridio'
 
     !----------------------------------------------------------------------
 
@@ -2424,20 +2429,21 @@ contains
     !  global attributes.
     !
     write(DateStr,'(i4,"-",i2.2,"-",i2.2,"-",i2.2,"_",i2.2,":",i2.2)') iyear,imonth,iday,ihour,0,0
-    ierr = NF_OPEN(trim(filename), NF_WRITE, dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len(trim(DateStr)),DateStr)
-    IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len(trim(DateStr)),DateStr)
-    IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(ihour))
-    IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iyear)
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
-    ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
-    ierr = NF_CLOSE(dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
+
+    call nc_check( nf90_open(trim(filename),nf90_write,dh1),&
+        myname_,'open '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr)),&
+        myname_,'put_att:  START_DATE '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr)),&
+        myname_,'put_att:  SIMULATION_START_DATE '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+        myname_,'put_att: GMT '//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+        myname_,'put_att: JULYR'//trim(filename) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+        myname_,'put_att: JULDAY'//trim(filename) )
+    call nc_check( nf90_close(dh1),&
+        myname_,'close: '//trim(filename) )
 
     !----------------------------------------------------------------------
 

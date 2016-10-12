@@ -31,7 +31,6 @@ use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, lsqrtb, lcongrad, lbfgsmin, ltlint, &
                      ladtest, lgrtest, lanczosave, jsiga, nwrvecs, ltcost
 use jfunc, only: jiter,miter,niter,xhatsave,jiterstart
-use qcmod, only: nlnqc_iter
 use constants, only: zero
 use mpimod, only: mype
 use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
@@ -72,7 +71,6 @@ call timer_ini('sqrtmin')
 
 ! Initialize
 lsavinc=.false.
-if (ltlint) nlnqc_iter=.false.
 
 ! Allocate control vectors
 call allocate_cv(xhat)
