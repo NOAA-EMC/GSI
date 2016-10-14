@@ -87,7 +87,7 @@
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
-  use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
+  use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid,final_fgrid2agrid,set_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
@@ -972,10 +972,12 @@
   use mpeu_util,only: die
   use gsi_4dcouplermod, only: gsi_4dcoupler_parallel_init
   use gsi_4dcouplermod, only: gsi_4dcoupler_setservices
+  use regional_io_mod, only: regional_io_class
   implicit none
   character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
   integer:: ier,ios
   real(r_kind):: varqc_max,c_varqc_new
+  type(regional_io_class) :: regional_io
 
   call gsi_4dcoupler_parallel_init
 
@@ -986,7 +988,7 @@
 ! Initialize defaults of vars in modules
   call init_4dvar
 
-  call init_regional_io
+  call regional_io%init_regional_io
 ! Read in user specification of state and control variables
   call gsi_metguess_init
   call gsi_chemguess_init
@@ -1023,6 +1025,7 @@
   call init_aircraft
   call init_gfs_stratosphere
   call set_fgrid2agrid
+ if(mype==0) write(6,*)' HEY regional is ',regional
   call gsi_nstcoupler_init_nml
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional
@@ -1440,7 +1443,7 @@
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
-  if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
   if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 

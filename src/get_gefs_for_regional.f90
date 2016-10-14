@@ -71,9 +71,11 @@ subroutine get_gefs_for_regional
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
+  use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
+  type(get_wrf_mass_ensperts_class) :: wrf_mass_ensperts
   type(spec_vars) sp_gfs
   real(r_kind),allocatable,dimension(:,:,:) :: pri,prsl,prsl1000
   real(r_kind),pointer,dimension(:,:,:) :: vor =>null()
@@ -1155,7 +1157,7 @@ subroutine get_gefs_for_regional
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)
-     call ens_spread_dualres_regional(mype)
+     call wrf_mass_ensperts%ens_spread_dualres_regional(mype,en_perts,nelen)
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 

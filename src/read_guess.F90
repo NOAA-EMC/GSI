@@ -67,7 +67,6 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         temperature after clipping supersaturation
 !   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
 !                         proximity over full domain instead of subdomain
-!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -100,6 +99,8 @@ subroutine read_guess(iyear,month,idd,mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsd_update_mod, only: gsd_gen_coast_prox 
+  use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
+  use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
 
   implicit none
 
@@ -114,6 +115,8 @@ subroutine read_guess(iyear,month,idd,mype)
   logical :: ice
   integer(i_kind) i,j,k,it,iret_bias,ier,istatus
   integer(i_kind) iderivative
+  type(read_wrf_nmm_guess_class) :: nmm_binary_guess
+  type(read_wrf_mass_guess_class) :: nmm_mass_guess
 
   real(r_kind) :: satval
   real(r_kind),dimension(lat2,lon2,nsig) :: satq
@@ -132,20 +135,20 @@ subroutine read_guess(iyear,month,idd,mype)
      if (regional)then
         if (wrf_nmm_regional) then
            if(netcdf) then
-              call read_wrf_nmm_netcdf_guess(mype)
+              call nmm_binary_guess%read_wrf_nmm_netcdf_guess(mype)
            else
-              call read_wrf_nmm_binary_guess(mype)
+              call nmm_binary_guess%read_wrf_nmm_binary_guess(mype)
            end if
         else if (wrf_mass_regional) then
            if(netcdf) then
-              call read_wrf_mass_netcdf_guess(mype)
+              call nmm_mass_guess%read_wrf_mass_netcdf_guess(mype)
            else
-              call read_wrf_mass_binary_guess(mype)
+              call nmm_mass_guess%read_wrf_mass_binary_guess(mype)
            end if
         else if(twodvar_regional) then
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
-           call read_nems_nmmb_guess(mype)
+           call nmm_binary_guess%read_nems_nmmb_guess(mype)
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if

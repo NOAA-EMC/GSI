@@ -10,21 +10,6 @@ module letkf
 ! abstract: Updates the model state using the LETKF (Hunt et al 2007,
 !  Physica D, 112-126).
 !
-!  After the observation variables are updated, the bias coefficients update is done
-!  using update_biascorr from module radbias.  This update is done via a
-!  matrix inversion using all the observations at once, and a static (diagonal)
-!  background error covariance matrix.  If the namelist parameter numiter is >
-!  1, this process is repeated numiter times, with each observation variable update using
-!  the latest estimate of the bias correction coefficients and each bias
-!  coefficient update using the latest estimate of the observation increment
-!  (observation minus ensemble mean observation variable).  The model state
-!  variables are only updated after the last iteration.  After the update is
-!  complete, the variables anal_chunk and ensmean_chunk (from module statevec)
-!  contain the updated model state ensemble perturbations and ensemble mean,
-!  and predx (from module radinfo) contains the updated bias coefficients.
-!  obfit_post and obsprd_post contain the observation increments and observation
-!  variable variance.
-!
 !  Covariance localization is used in the state update to limit the impact 
 !  of observations to a specified distance from the observation in the
 !  horizontal and vertical.  These distances can be set separately in the
@@ -48,11 +33,14 @@ module letkf
 !
 !  Adaptive observation thinning implemented in the serial EnSRF is not 
 !  implemented here in the current version.
+
+!  Updating the state in observation space is not supported in the EnKF - 
+!  use lupd_obspace_serial=.true. to perform the observation space update
+!  using the serial EnSRF.
 !
 ! Public Subroutines:
 !  letkf_update: performs the LETKF update (calls update_biascorr to perform
-!   the bias coefficient update).  The EnKF/bias coefficient update is 
-!   iterated numiter times (parameter numiter from module params).
+!   the bias coefficient update).  
 !
 ! Public Variables: None
 !
@@ -62,8 +50,7 @@ module letkf
 ! program history log:
 !   2011-06-01  ota: Created from Whitaker's serial EnSRF core module.
 !   2015-07-25  whitaker: Optimization for case when no vertical localization
-!               is used.  Allow for numiter=0 (skip ob space update). Fixed
-!               missing openmp private declarations in obsloop and grdloop.
+!               is used. Fixed missing openmp private declarations in obsloop and grdloop.
 !               Use openmp reductions for profiling openmp loops. Use kdtree
 !               for range search instead of original box routine. Modify
 !               ob space update to use weights computed at nearest grid point.
@@ -71,6 +58,10 @@ module letkf
 !               footprint by only allocated observation prior ensemble
 !               array on one MPI task per node. Also ensure posterior
 !               perturbation mean is zero.
+!   2016-05-02  shlyaeva: Modification for reading state vector from table.
+!   2016-07-05  whitaker: remove buggy code for observation space update.
+!               Rely on serial EnSRF to perform observation space update
+!               using logical lupd_obspace_serial.
 !
 ! attributes:
 !   language: f95
@@ -86,7 +77,7 @@ use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
 use loadbal, only: numptsperproc, npts_max, &
                    indxproc, lnp_chunk, &
                    grdloc_chunk, kdtree_obs2
-use statevec, only: ensmean_chunk, anal_chunk
+use statevec, only: ensmean_chunk, anal_chunk, ndim, index_pres
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post,&
@@ -94,14 +85,14 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   biasprednorm, probgrosserr, prpgerr, obtype, obpress,&
                   lnsigl, anal_ob, obloclat, obloclon, stattype
 use constants, only: pi, one, zero, rad2deg, deg2rad
-use params, only: sprd_tol, ndim, datapath, nanals, iseed_perturbed_obs,&
-                  iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
+use params, only: sprd_tol, datapath, nanals, iseed_perturbed_obs,&
+                  iassim_order,sortinc,deterministic,nlevs,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,letkf_novlocal,&
                   lupd_obspace_serial,corrlengthnh,corrlengthtr,corrlengthsh,&
                   nbackgrounds,nobsl_max
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
-use gridinfo, only: nlevs_pres,index_pres,lonsgrd,latsgrd,logp,npts,gridloc
+use gridinfo, only: nlevs_pres,lonsgrd,latsgrd,logp,npts,gridloc
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_n_nearest, kdtree2_r_nearest
 
@@ -117,24 +108,21 @@ implicit none
 ! LETKF update.
 
 ! local variables.
-integer(i_kind) nob,nf,n1,n2,ideln,nanal,&
-                niter,i,j,n,nrej,npt,nn,nnmax,ierr
+integer(i_kind) nob,nf,nanal,&
+                i,nrej,npt,nn,nnmax,ierr
 integer(i_kind) nobsl, ngrd1, nobsl2, nthreads, nb, &
                 nobslocal_min,nobslocal_max, &
                 nobslocal_minall,nobslocal_maxall
-integer(i_kind),allocatable,dimension(:) :: oindex,numobsperpt,oblev
-integer(i_kind),allocatable,dimension(:,:) :: indxob_pt
+integer(i_kind),allocatable,dimension(:) :: oindex
 real(r_single) :: deglat, dist, corrsq
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1,r_scalefact
 real(r_kind) normdepart, pnge, width
 real(r_kind),dimension(nobstot):: oberrvaruse
-real(r_kind) oblnp_indx(1)
-real(r_kind) logp_tmp(nlevs)
 real(r_kind) vdist
 real(r_kind) corrlength
 real(r_kind) sqrtoberr
-logical lastiter, vlocal, update_obspace
+logical vlocal
 ! For LETKF core processes
 real(r_kind),allocatable,dimension(:,:) :: hxens
 real(r_single),allocatable,dimension(:,:) :: obperts,obens
@@ -144,7 +132,6 @@ real(r_kind),dimension(nanals,nanals) :: trans
 real(r_kind),dimension(nanals) :: work,work2
 ! kdtree stuff
 type(kdtree2_result),dimension(:),allocatable :: sresults
-type(kdtree2), pointer :: kdtree_grid
 #ifdef MPI3
 ! pointers used for MPI-3 shared memory manipulations.
 real(r_single), pointer, dimension(:,:) :: anal_ob_fp ! Fortran pointer
@@ -291,114 +278,18 @@ else
    ! need to be computed for every vertical level.
    nnmax = nlevs_pres
 endif
-! is observation space update requested (yes if numiter !=0 and not lupd_obspace_serial)
-! if so, each ob needs to be assigned to a horizontal grid point index
-! and a vertical level index. Analysis weights computed at that grid
-! point and level will be used to update for the model state and the
-! observation priors.
-if (numiter == 0 .or. lupd_obspace_serial) then
-  update_obspace = .false.
-  if (nproc == 0) print *,'no observation space update will be done'
-  numiter = 1
-else
-  update_obspace = .true.
-  ! for each ob, find horiz grid point and level it is closest to
-  !t1 = mpi_wtime()
-  allocate(sresults(1))
-  allocate(oindex(nobstot))
-  allocate(oblev(nobstot))
-  oindex = 0; oblev = 0
-  allocate(numobsperpt(numptsperproc(nproc+1)))
-  kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
-  if (nobstot > numproc) then
-    ideln = int(real(nobstot)/real(numproc))
-    n1 = 1 + nproc*ideln
-    n2 = (nproc+1)*ideln
-    if (nproc == numproc-1) n2 = nobstot
-  else
-    if(nproc < nobstot)then
-      n1 = nproc+1
-      n2 = n1
-    else
-      n1=1
-      n2=0
-    end if
-  end if
-  do nob=n1,n2
-     call kdtree2_n_nearest(tp=kdtree_grid,qv=obloc(:,nob),nn=1,results=sresults)
-     oindex(nob) = sresults(1)%idx
-     if (vlocal) then
-        ! identify ps and surface obs, assign to level nlevs+1 (for ps) or 1.
-        if (obtype(nob)(1:3) == ' ps') then
-           oblev(nob) = nlevs+1
-           cycle
-        else if ((stattype(nob) >= 180 .and. stattype(nob) < 190) .or. &
-                 (stattype(nob) >= 280 .and. stattype(nob) < 290)) then
-           oblev(nob) = 1
-           cycle
-        endif
-        ! find vertical level closest to ob pressure at that grid point.
-        oblnp_indx(1) = oblnp(nob)
-        if (oblnp_indx(1) <= logp(oindex(nob),1)) then
-           oblnp_indx(1) = 1
-        else if (oblnp_indx(1) >= logp(oindex(nob),nlevs_pres-1)) then
-           oblnp_indx(1) = nlevs_pres-1
-        else
-           logp_tmp = logp(oindex(nob),1:nlevs_pres-1)
-           call grdcrd(oblnp_indx,1,logp_tmp,nlevs_pres-1,1)
-        end if
-        oblev(nob) = nint(oblnp_indx(1))
-        !if (nproc .eq. 0) print *,trim(obtype(nob)),obpress(nob),oblnp_indx(1),oblev(nob),oblnp(nob),logp_tmp(oblev(nob))
-     else
-        oblev(nob) = 1
-     endif
-  enddo
-  deallocate(sresults)
-  call mpi_allreduce(mpi_in_place,oindex,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
-  call mpi_allreduce(mpi_in_place,oblev,nobstot,mpi_integer,mpi_sum,mpi_comm_world,ierr)
-  do n=1,numptsperproc(nproc+1)
-     i = 0
-     do j=1,nobstot
-        if (oindex(j) .eq. indxproc(nproc+1,n)) i=i+1
-     enddo
-     numobsperpt(n) = i
-  enddo
-  allocate(indxob_pt(numptsperproc(nproc+1),maxval(numobsperpt)))
-  do n=1,numptsperproc(nproc+1)
-     i = 0
-     do j=1,nobstot
-        if (oindex(j) .eq. indxproc(nproc+1,n)) then
-           i = i + 1
-           indxob_pt(n,i) = j
-        endif
-     enddo
-  enddo
-  deallocate(oindex)
-  call kdtree2_destroy(kdtree_grid)
-  !t2 = mpi_wtime()
-  !if (nproc == 0) print *,'time to set indxob_pt',t2-t1
-endif
 
-! initialize obfit_post, obsprd_post
-if (update_obspace) then
-   obfit_post(1:nobstot) = obfit_prior(1:nobstot)
-   obsprd_post(1:nobstot) = obsprd_prior(1:nobstot)
-endif
+! apply bias correction with latest estimate of bias coeffs
+! (if bias correction update in ob space turned on).
+if (nobs_sat > 0 .and. lupd_satbiasc .and. lupd_obspace_serial) call apply_biascorr()
 
-do niter=1,numiter
-
-  ! update done only in ob space except if niter == lastiter
-  lastiter = niter == numiter
-  ! apply bias correction with latest estimate of bias coeffs.
-  ! (already done for first iteration)
-  if (nobs_sat > 0 .and. niter > 1) call apply_biascorr()
-
-  ! reset first guess perturbations at start of each iteration.
-  nrej=0
+nrej=0
 ! reset ob error to account for gross errors 
-  if (niter > 1 .and. varqc) then
+if (varqc .and. lupd_obspace_serial) then
     if (huber) then ! "huber norm" QC
       do nob=1,nobstot
+        ! observation space update performed in serial filter 
+        ! using lupd_obspace_serial
         normdepart = obfit_post(nob)/sqrt(oberrvar(nob))
         ! depends of 2 parameters: zhuberright, zhuberleft.
         if (normdepart < -zhuberleft) then
@@ -438,280 +329,219 @@ do niter=1,numiter
         endif
       end do
     endif
-  else
+else
      oberrvaruse(1:nobstot) = oberrvar(1:nobstot)
-  end if
+end if
 
-  ! initialize obfit_post (zeros except for obs closest
-  ! to grid points on this task).
-  if (update_obspace) then
-     obfit_post = 0.0
-     obsprd_post = 0.0
-     do npt=1,numptsperproc(nproc+1)
-        do n=1,numobsperpt(npt)
-           nob = indxob_pt(npt,n)
-           obfit_post(nob) = obfit_prior(nob)
-           obsprd_post(nob) = obsprd_prior(nob)
-        enddo
-     enddo
-  endif
+tbegin = mpi_wtime()
 
-  tbegin = mpi_wtime()
+t2 = zero
+t3 = zero
+t4 = zero
+t5 = zero
+tbegin = mpi_wtime()
+nobslocal_max = -999
+nobslocal_min = nobstot
 
-  t2 = zero
-  t3 = zero
-  t4 = zero
-  t5 = zero
-  tbegin = mpi_wtime()
-  nobslocal_max = -999
-  nobslocal_min = nobstot
-  
-  ! Update ensemble on model grid.
-  ! Loop for each horizontal grid points on this task.
-  !$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
-  !$omp                  nobsl2,ngrd1,corrlength, &
-  !$omp                  nf,vdist,kfgain,obens, &
-  !$omp                  nn,hxens,rdiag,dep,rloc,i,work,work2,trans, &
-  !$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
-  !$omp  reduction(+:t1,t2,t3,t4,t5) &
-  !$omp  reduction(max:nobslocal_max) &
-  !$omp  reduction(min:nobslocal_min) 
-  grdloop: do npt=1,numptsperproc(nproc+1)
-  
-     t1 = mpi_wtime()
-  
-     ! find obs close to this grid point (using kdtree)
-     ngrd1=indxproc(nproc+1,npt)
-     deglat = latsgrd(ngrd1)*rad2deg
-     corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
-     corrsq = corrlength**2
-     ! kd-tree fixed range search
-     if (nobsl_max > 0) then ! only use nobsl_max nearest obs (sorted by distance).
-         allocate(sresults(nobsl_max))
-         call kdtree2_n_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),nn=nobsl_max,&
-              results=sresults)
-         nobsl = nobsl_max
-     else ! find all obs within localization radius (sorted by distance).
-         allocate(sresults(nobstot))
-         call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
-              nfound=nobsl,nalloc=nobstot,results=sresults)
-     endif
-  
-     t2 = t2 + mpi_wtime() - t1
-     t1 = mpi_wtime()
-  
-     ! Skip when no observations in local area
-     if(nobsl == 0) cycle grdloop
-  
-     ! Loop through vertical levels (nnmax=1 if no vertical localization)
-     verloop: do nn=1,nnmax
-  
-        ! Pick up variables passed to LETKF core process
-        allocate(rloc(nobsl))
-        allocate(oindex(nobsl))
-        nobsl2=1
-        do nob=1,nobsl
-           nf = sresults(nob)%idx
-           ! skip 'screened' obs.
-           if (oberrvaruse(nf) > 1.e10_r_single) cycle
-           if (vlocal) then
-              vdist=(lnp_chunk(npt,nn)-oblnp(nf))/lnsigl(nf)
-              if(abs(vdist) >= one) cycle
-           else
-              vdist = zero
-           endif
-           dist = sqrt(sresults(nob)%dis/corrlengthsq(sresults(nob)%idx)+vdist*vdist)
-           if (dist >= one) cycle
-           rloc(nobsl2)=taper(dist)
-           oindex(nobsl2)=nf
-           if(rloc(nobsl2) > tiny(rloc(nobsl2))) nobsl2=nobsl2+1
-        end do
-        nobsl2=nobsl2-1
-        if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
-        if (nobsl2 < nobslocal_min) nobslocal_min=nobsl2
-        if(nobsl2 == 0) then
-           deallocate(rloc,oindex)
-           cycle verloop
-        end if
-        allocate(hxens(nanals,nobsl2))
-        allocate(rdiag(nobsl2))
-        allocate(dep(nobsl2))
-        do nob=1,nobsl2
-           nf=oindex(nob)
+! Update ensemble on model grid.
+! Loop for each horizontal grid points on this task.
+!$omp parallel do schedule(dynamic) private(npt,nob,nobsl, &
+!$omp                  nobsl2,ngrd1,corrlength, &
+!$omp                  nf,vdist,kfgain,obens, &
+!$omp                  nn,hxens,rdiag,dep,rloc,i,work,work2,trans, &
+!$omp                  oindex,deglat,dist,corrsq,nb,sresults) &
+!$omp  reduction(+:t1,t2,t3,t4,t5) &
+!$omp  reduction(max:nobslocal_max) &
+!$omp  reduction(min:nobslocal_min) 
+grdloop: do npt=1,numptsperproc(nproc+1)
+
+   t1 = mpi_wtime()
+
+   ! find obs close to this grid point (using kdtree)
+   ngrd1=indxproc(nproc+1,npt)
+   deglat = latsgrd(ngrd1)*rad2deg
+   corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
+   corrsq = corrlength**2
+   ! kd-tree fixed range search
+   if (nobsl_max > 0) then ! only use nobsl_max nearest obs (sorted by distance).
+       allocate(sresults(nobsl_max))
+       call kdtree2_n_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),nn=nobsl_max,&
+            results=sresults)
+       nobsl = nobsl_max
+   else ! find all obs within localization radius (sorted by distance).
+       allocate(sresults(nobstot))
+       call kdtree2_r_nearest(tp=kdtree_obs2,qv=grdloc_chunk(:,npt),r2=corrsq,&
+            nfound=nobsl,nalloc=nobstot,results=sresults)
+   endif
+
+   t2 = t2 + mpi_wtime() - t1
+   t1 = mpi_wtime()
+
+   ! Skip when no observations in local area
+   if(nobsl == 0) cycle grdloop
+
+   ! Loop through vertical levels (nnmax=1 if no vertical localization)
+   verloop: do nn=1,nnmax
+
+      ! Pick up variables passed to LETKF core process
+      allocate(rloc(nobsl))
+      allocate(oindex(nobsl))
+      nobsl2=1
+      do nob=1,nobsl
+         nf = sresults(nob)%idx
+         ! skip 'screened' obs.
+         if (oberrvaruse(nf) > 1.e10_r_single) cycle
+         if (vlocal) then
+            vdist=(lnp_chunk(npt,nn)-oblnp(nf))/lnsigl(nf)
+            if(abs(vdist) >= one) cycle
+         else
+            vdist = zero
+         endif
+         dist = sqrt(sresults(nob)%dis/corrlengthsq(sresults(nob)%idx)+vdist*vdist)
+         if (dist >= one) cycle
+         rloc(nobsl2)=taper(dist)
+         oindex(nobsl2)=nf
+         if(rloc(nobsl2) > tiny(rloc(nobsl2))) nobsl2=nobsl2+1
+      end do
+      nobsl2=nobsl2-1
+      if (nobsl2 > nobslocal_max) nobslocal_max=nobsl2
+      if (nobsl2 < nobslocal_min) nobslocal_min=nobsl2
+      if(nobsl2 == 0) then
+         deallocate(rloc,oindex)
+         cycle verloop
+      end if
+      allocate(hxens(nanals,nobsl2))
+      allocate(rdiag(nobsl2))
+      allocate(dep(nobsl2))
+      do nob=1,nobsl2
+         nf=oindex(nob)
 #ifdef MPI3
-           hxens(1:nanals,nob)=anal_ob_fp(1:nanals,nf) 
+         hxens(1:nanals,nob)=anal_ob_fp(1:nanals,nf) 
 #else
-           hxens(1:nanals,nob)=anal_ob(1:nanals,nf) 
+         hxens(1:nanals,nob)=anal_ob(1:nanals,nf) 
 #endif
-           rdiag(nob)=one/oberrvaruse(nf)
-           dep(nob)=ob(nf)-ensmean_ob(nf)
-        end do
-  
-        t3 = t3 + mpi_wtime() - t1
-        t1 = mpi_wtime()
+         rdiag(nob)=one/oberrvaruse(nf)
+         dep(nob)=ob(nf)-ensmean_ob(nf)
+      end do
 
-        if (.not. deterministic) then
-           allocate(kfgain(nobsl2),obens(nobsl2,nanals))
-           ! add ob perts to observation priors
-           do nob=1,nobsl2
-              nf = oindex(nob)
-              obens(nob,1:nanals) = &
+      t3 = t3 + mpi_wtime() - t1
+      t1 = mpi_wtime()
+
+      if (.not. deterministic) then
+         allocate(kfgain(nobsl2),obens(nobsl2,nanals))
+         ! add ob perts to observation priors
+         do nob=1,nobsl2
+            nf = oindex(nob)
+            obens(nob,1:nanals) = &
 #ifdef MPI3
-              obperts_fp(1:nanals,nf) + anal_ob_fp(1:nanals,nf) 
+            obperts_fp(1:nanals,nf) + anal_ob_fp(1:nanals,nf) 
 #else
-              obperts(1:nanals,nf) + anal_ob(1:nanals,nf) 
+            obperts(1:nanals,nf) + anal_ob(1:nanals,nf) 
 #endif
-           enddo
-        endif
-        deallocate(oindex)
+         enddo
+      endif
+      deallocate(oindex)
   
-        ! Compute transformation matrix of LETKF
-        call letkf_core(nobsl2,hxens,rdiag,dep,rloc(1:nobsl2),trans)
-        deallocate(rloc,rdiag)
-        ! if perturbed obs not used, these arrays no longer needed.
-        if (deterministic) then
-           deallocate(hxens,dep)
-        endif
-        
-  
-        t4 = t4 + mpi_wtime() - t1
-        t1 = mpi_wtime()
-  
-        ! Update analysis ensembles (all time levels)
-        if (lastiter) then
-           do nb=1,nbackgrounds
-           do i=1,ndim
-              ! if not vlocal, update all state variables in column.
-              if(vlocal .and. index_pres(i) /= nn) cycle
-              if (deterministic) then
-                 work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
-                 work2(1:nanals) = ensmean_chunk(npt,i,nb)
-                 if(r_kind == kind(1.d0)) then
-                    call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                         & work2,1)
-                 else
-                    call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                         & work2,1)
-                 end if
-                 ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
-                 anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
-              else ! perturbed obs using LETKF gain.
-                 do nob=1,nobsl2
-                    kfgain(nob) = sum(hxens(:,nob)*anal_chunk(:,npt,i,nb))
-                 enddo
-                 ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + sum(kfgain*dep)
-                 do nanal=1,nanals
-                    anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
-                    sum(kfgain*obens(:,nanal))
-                 enddo
-              endif
-           enddo
-           enddo
-        endif
-        ! deallocate arrays needed for perturbed obs LETKF
-        if (.not. deterministic) then
-           deallocate(hxens,kfgain,dep,obens)
-        endif
-        ! Update ob space innov stats (mean and spread)
-        ! (see eqn 18 in Hunt et al (2007)).
-        ! numobsperpt(npt=1,npts): number of nearest-neighbor obs for this model
-        ! grid point (and level).
-        ! indxob_pt(n=1,numobsperpt(npt)): ob indices associated with this model
-        ! grid point (and level). 
-        ! obfit_post is what update_biascorr needs (ob - ensmean_ob).
-        ! also used to modify ob error in nonlinear quality control
-        if (update_obspace) then
-           ! Note: perturbed obs LETKF not implemented in ob space
-           do n=1,numobsperpt(npt)
-              nob = indxob_pt(npt,n)
-              ! if not vlocal,nn=oblev==1
-              if (oblev(nob) == nn .and. oberrvaruse(nob) <= 1.e10_r_single) then
-#ifdef MPI3
-                 work(1:nanals) = anal_ob_fp(1:nanals,nob)
-#else
-                 work(1:nanals) = anal_ob(1:nanals,nob)
-#endif
-                 work2(1:nanals) = ob(nob) - obfit_post(nob) ! ensmean_ob(nob)
-                 if(r_kind == kind(1.d0)) then
-                    call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
-                 else
-                    call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
-                 end if
-                 obfit_post(nob) = ob(nob) - sum(work2(1:nanals)) * r_nanals
-                 ! updated observation prior ensemble, need to remove ens
-                 ! mean
-                 obsprd_post(nob) = sum( (work2(1:nanals) + obfit_post(nob) - ob(nob))**2 )*r_nanalsm1
-              endif
-           enddo
-        endif
-  
-        t5 = t5 + mpi_wtime() - t1
-        t1 = mpi_wtime()
-  
-     end do verloop
-     if (allocated(sresults)) deallocate(sresults)
-  end do grdloop
-  !$omp end parallel do
+      ! Compute transformation matrix of LETKF
+      call letkf_core(nobsl2,hxens,rdiag,dep,rloc(1:nobsl2),trans)
+      deallocate(rloc,rdiag)
+      ! if perturbed obs not used, these arrays no longer needed.
+      if (deterministic) then
+         deallocate(hxens,dep)
+      endif
+      
 
-  ! make sure posterior perturbations still have zero mean.
-  ! (roundoff errors can accumulate)
-  !$omp parallel do schedule(dynamic) private(npt,nb,i)
-  do npt=1,npts_max
-     do nb=1,nbackgrounds
-        do i=1,ndim
-           anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
-           sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
-        end do
-     end do
-  enddo
-  !$omp end parallel do
-  
-  tend = mpi_wtime()
-  call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-  tmean = tmean/numproc
-  call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-  call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,'min/max/mean time to do letkf update ',tmin,tmax,tmean
-  t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
-  if (nproc == 0) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
-  call mpi_reduce(t2,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-  tmean = tmean/numproc
-  call mpi_reduce(t2,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-  call mpi_reduce(t2,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,',min/max/mean t2 = ',tmin,tmax,tmean
-  call mpi_reduce(t3,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-  tmean = tmean/numproc
-  call mpi_reduce(t3,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-  call mpi_reduce(t3,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,',min/max/mean t3 = ',tmin,tmax,tmean
-  call mpi_reduce(t4,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-  tmean = tmean/numproc
-  call mpi_reduce(t4,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-  call mpi_reduce(t4,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,',min/max/mean t4 = ',tmin,tmax,tmean
-  call mpi_reduce(t5,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-  tmean = tmean/numproc
-  call mpi_reduce(t5,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
-  call mpi_reduce(t5,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc .eq. 0) print *,',min/max/mean t5 = ',tmin,tmax,tmean
-  call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-  call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-  if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
-  if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
-  
-  ! distribute the O-A stats to all processors.
-  if (update_obspace) then
-     call mpi_allreduce(mpi_in_place,obfit_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-     call mpi_allreduce(mpi_in_place,obsprd_post,nobstot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-  endif
-  
-  ! satellite bias correction update.
-  if (update_obspace .and. nobs_sat > 0 .and. lupd_satbiasc) call update_biascorr(niter)
+      t4 = t4 + mpi_wtime() - t1
+      t1 = mpi_wtime()
 
-end do ! niter loop
+      ! Update analysis ensembles (all time levels)
+      do nb=1,nbackgrounds
+      do i=1,ndim
+         ! if not vlocal, update all state variables in column.
+         if(vlocal .and. index_pres(i) /= nn) cycle
+         if (deterministic) then
+            work(1:nanals) = anal_chunk(1:nanals,npt,i,nb)
+            work2(1:nanals) = ensmean_chunk(npt,i,nb)
+            if(r_kind == kind(1.d0)) then
+               call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
+                    & work2,1)
+            else
+               call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
+                    & work2,1)
+            end if
+            ensmean_chunk(npt,i,nb) = sum(work2(1:nanals)) * r_nanals
+            anal_chunk(1:nanals,npt,i,nb) = work2(1:nanals)-ensmean_chunk(npt,i,nb)
+         else ! perturbed obs using LETKF gain.
+            do nob=1,nobsl2
+               kfgain(nob) = sum(hxens(:,nob)*anal_chunk(:,npt,i,nb))
+            enddo
+            ensmean_chunk(npt,i,nb) = ensmean_chunk(npt,i,nb) + sum(kfgain*dep)
+            do nanal=1,nanals
+               anal_chunk(nanal,npt,i,nb) = anal_chunk(nanal,npt,i,nb) - &
+               sum(kfgain*obens(:,nanal))
+            enddo
+         endif
+      enddo
+      enddo
+      ! deallocate arrays needed for perturbed obs LETKF
+      if (.not. deterministic) then
+         deallocate(hxens,kfgain,dep,obens)
+      endif
 
-if (update_obspace) deallocate(oblev,indxob_pt,numobsperpt)
+      t5 = t5 + mpi_wtime() - t1
+      t1 = mpi_wtime()
 
+   end do verloop
+   if (allocated(sresults)) deallocate(sresults)
+end do grdloop
+!$omp end parallel do
+
+! make sure posterior perturbations still have zero mean.
+! (roundoff errors can accumulate)
+!$omp parallel do schedule(dynamic) private(npt,nb,i)
+do npt=1,npts_max
+   do nb=1,nbackgrounds
+      do i=1,ndim
+         anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
+         sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
+      end do
+   end do
+enddo
+!$omp end parallel do
+
+tend = mpi_wtime()
+call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,'min/max/mean time to do letkf update ',tmin,tmax,tmean
+t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
+if (nproc == 0) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
+call mpi_reduce(t2,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(t2,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(t2,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,',min/max/mean t2 = ',tmin,tmax,tmean
+call mpi_reduce(t3,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(t3,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(t3,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,',min/max/mean t3 = ',tmin,tmax,tmean
+call mpi_reduce(t4,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(t4,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(t4,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,',min/max/mean t4 = ',tmin,tmax,tmean
+call mpi_reduce(t5,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
+tmean = tmean/numproc
+call mpi_reduce(t5,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(t5,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
+if (nproc .eq. 0) print *,',min/max/mean t5 = ',tmin,tmax,tmean
+call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
+if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
+  
 ! free shared memory segement, fortran pointer to that memory.
 #ifdef MPI3
 nullify(anal_ob_fp)
@@ -742,8 +572,7 @@ subroutine letkf_core(nobsl,hxens,rdiaginv,dep,rloc,trans)
 ! program history log:
 !   2011-06-03  ota: created from miyoshi's LETKF core subroutine
 !   2014-06-20  whitaker: optimization for case when no vertical localization
-!               is used.  Allow for numiter=0 (skip ob space update). Fixed
-!               missing openmp private declarations in obsloop and grdloop.
+!               is used. Fixed missing openmp private declarations in obsloop and grdloop.
 !               Use openmp reductions for profiling openmp loops. Use LAPACK
 !               routine dsyev for eigenanalysis.
 !   2016-02-01  whitaker: Use LAPACK dsyevr for eigenanalysis (faster
