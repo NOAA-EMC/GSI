@@ -189,6 +189,7 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
           write(6,100) 'uv',nobsuv(1),nobsuv(2)
           write(6,100) 'sst',nobssst(1),nobssst(2)
           write(6,100) 'gps',nobsgps(1),nobsgps(2)
+          write(6,100) 'spd',nobsspd(1),nobsspd(2)
           write(6,100) 'pw',nobspw(1),nobspw(2)
           write(6,100) 'dw',nobsdw(1),nobsdw(2)
           write(6,100) 'srw',nobsrw(1),nobsrw(2)
@@ -895,41 +896,41 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
          allocate(cdiagbuf2(ii))
          read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
        end if
-       !do n=1,ii
-       !   if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
-       !      rdiagbuf(16,n) > errorlimit2)cycle
-       !   if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
-       !        rdiagbuf(6,n) < 0.001_r_kind .or. &
-       !        rdiagbuf(6,n) > 1200._r_kind) cycle
-       !   nob = nob + 1
-       !   if(twofiles)then
-       !    if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
-       !       abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
-       !        write (6,*) ' srw conv ob data inconsistency '
-       !        write (6,*) (rdiagbuf(i,n),i=1,8)
-       !        write (6,*) (rdiagbuf2(i,n),i=1,8)
-       !        call stop2(-98)
-       !      end if
-       !   else
-       !     rdiagbuf2(18,n) = rdiagbuf(18,n)
-       !     rdiagbuf2(19,n) = rdiagbuf(19,n)
-       !   end if
-       !   x_code(nob) = rdiagbuf(1,n)
-       !   x_lat(nob) = rdiagbuf(3,n)
-       !   x_lon(nob) = rdiagbuf(4,n)
-       !   x_press(nob) = rdiagbuf(6,n)
-       !   x_time(nob) = rdiagbuf(8,n)
-       !   if (rdiagbuf(14,n) > 1.e-5_r_kind) then
-       !     x_errorig(nob) = (one/rdiagbuf(14,n))**2
-       !   else
-       !     x_errorig(nob) = 1.e10_r_kind
-       !   endif
-       !   x_err(nob) = (one/rdiagbuf(16,n))**2
-       !   x_obs(nob) = rdiagbuf(17,n)
-       !   h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
-       !   h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
-       !   x_type(nob) = obtype
-       !enddo
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2)cycle
+          if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
+               rdiagbuf(6,n) < 0.001_r_kind .or. &
+               rdiagbuf(6,n) > 1200._r_kind) cycle
+          nob = nob + 1
+          if(twofiles)then
+           if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+              abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' srw conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(17,n)
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
+          x_type(nob) = obtype
+       enddo
        deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
        if(twofiles)deallocate(cdiagbuf2)
 ! radar wind superobs
@@ -965,61 +966,61 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
          allocate(cdiagbuf2(ii))
          read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
        end if
-       !do n=1,ii
-       !   if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
-       !      rdiagbuf(16,n) > errorlimit2)cycle
-       !   if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
-       !        rdiagbuf(6,n) < 0.001_r_kind .or. &
-       !        rdiagbuf(6,n) > 1200._r_kind) cycle
-       !   nob = nob + 1
-       !   if(twofiles)then
-       !    if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
-       !       abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
-       !        write (6,*) ' rw conv ob data inconsistency '
-       !        write (6,*) (rdiagbuf(i,n),i=1,8)
-       !        write (6,*) (rdiagbuf2(i,n),i=1,8)
-       !        call stop2(-98)
-       !      end if
-       !   else
-       !     rdiagbuf2(18,n) = rdiagbuf(18,n)
-       !     rdiagbuf2(19,n) = rdiagbuf(19,n)
-       !     rdiagbuf2(21,n) = rdiagbuf(21,n)
-       !     rdiagbuf2(22,n) = rdiagbuf(22,n)
-       !   end if
-       !   x_code(nob) = rdiagbuf(1,n)
-       !   x_lat(nob) = rdiagbuf(3,n)
-       !   x_lon(nob) = rdiagbuf(4,n)
-       !   x_press(nob) = rdiagbuf(6,n)
-       !   x_time(nob) = rdiagbuf(8,n)
-       !   if (rdiagbuf(14,n) > 1.e-5_r_kind) then
-       !     x_errorig(nob) = (one/rdiagbuf(14,n))**2
-       !   else
-       !     x_errorig(nob) = 1.e10_r_kind
-       !   endif
-       !   x_err(nob) = (one/rdiagbuf(16,n))**2
-       !   x_obs(nob) = rdiagbuf(17,n)
-       !   h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
-       !   h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
-       !   x_type(nob) = '  u'
-       !enddo
-       !do n=1,ii
-       !   nob = nob + 1
-       !   x_code(nob) = rdiagbuf(1,n)
-       !   x_lat(nob) = rdiagbuf(3,n)
-       !   x_lon(nob) = rdiagbuf(4,n)
-       !   x_press(nob) = rdiagbuf(6,n)
-       !   x_time(nob) = rdiagbuf(8,n)
-       !   if (rdiagbuf(14,n) > 1.e-5_r_kind) then
-       !     x_errorig(nob) = (one/rdiagbuf(14,n))**2
-       !   else
-       !     x_errorig(nob) = 1.e10_r_kind
-       !   endif
-       !   x_err(nob) = (one/rdiagbuf(16,n))**2
-       !   x_obs(nob) = rdiagbuf(20,n)
-       !   h_x_ensmean(nob) = rdiagbuf(20,n)-rdiagbuf2(21,n)
-       !   h_xnobc(nob) = rdiagbuf(20,n)-rdiagbuf2(22,n)
-       !   x_type(nob) = '  v'
-       !enddo
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2)cycle
+          if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
+               rdiagbuf(6,n) < 0.001_r_kind .or. &
+               rdiagbuf(6,n) > 1200._r_kind) cycle
+          nob = nob + 1
+          if(twofiles)then
+           if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+              abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' rw conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+            rdiagbuf2(21,n) = rdiagbuf(21,n)
+            rdiagbuf2(22,n) = rdiagbuf(22,n)
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(17,n)
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
+          x_type(nob) = '  u'
+       enddo
+       do n=1,ii
+          nob = nob + 1
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(20,n)
+          h_x_ensmean(nob) = rdiagbuf(20,n)-rdiagbuf(21,n)
+          h_xnobc(nob) = rdiagbuf(20,n)-rdiagbuf2(22,n)
+          x_type(nob) = '  v'
+       enddo
        deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
        if(twofiles)deallocate(cdiagbuf2)
 ! radar radial winds

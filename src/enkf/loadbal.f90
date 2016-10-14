@@ -76,6 +76,8 @@ module loadbal
 !   2009-02-23  Initial version.
 !   2011-06-21  Added the option of observation box selection for LETKF.
 !   2015-07-25  Remove observation box selection (use kdtree instead).
+!   2016-05-02  Modification for reading state vector from table
+!               (Anna Shlyaeva)
 !
 ! attributes:
 !   language: f95
@@ -83,7 +85,7 @@ module loadbal
 !$$$
 
 use mpisetup
-use params, only: ndim, datapath, nanals, simple_partition, letkf_flag,&
+use params, only: datapath, nanals, simple_partition, letkf_flag,&
                   corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
 use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
@@ -275,9 +277,6 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
       totsize = nobstot
       totsize = totsize*nanals
       print *,'nobstot*nanals',totsize
-      totsize = npts
-      totsize = totsize*ndim
-      print *,'npts*ndim',totsize
       t1 = mpi_wtime()
       ! send one big message to each task.
       do np=1,numproc-1

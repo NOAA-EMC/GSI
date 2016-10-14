@@ -22,6 +22,8 @@ module params
 !
 ! program history log:
 !   2009-02-23  Initial version.
+!   2016-05-02  Modification for reading state vector from table
+!                (Anna Shlyaeva)
 !
 ! attributes:
 !   language: f95
@@ -71,8 +73,8 @@ character(len=500),public :: datapath
 ! is used.
 logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
-integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
-                           nlons,nlats,ndim,nbackgrounds
+integer(i_kind),public ::  iassim_order,nlevs,nanals,numiter,&
+                           nlons,nlats,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
 ! random seed for perturbed obs (deterministic=.false.)
 ! if zero, system clock is used.  Also used when
@@ -120,7 +122,9 @@ logical,public :: arw = .false.
 logical,public :: nmm = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
-logical,public :: massbal_adjust = .false.
+! next two are no longer used, instead they are inferred from anavinfo
+logical,public :: massbal_adjust = .false. 
+logical,public :: nvars = -1 
 ! if true, use ensemble mean qsat in definition of
 ! normalized humidity analysis variable (instead of
 ! qsat for each member, which is the default behavior
@@ -128,7 +132,7 @@ logical,public :: massbal_adjust = .false.
 ! is ignored.
 logical,public :: use_qsatensmean = .false.
 
-namelist /nam_enkf/datestring,datapath,iassim_order,&
+namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
                    varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
@@ -140,7 +144,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    fgfileprefixes,anlfileprefixes,lupd_obspace_serial,letkf_novlocal,&
-                   nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
+                   nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
@@ -227,9 +231,6 @@ nlats = 0
 nlevs = 0
 ! number of ensemble members
 nanals = 0
-! nvars is number of 3d variables to update.
-! for hydrostatic models, typically 5 (u,v,T,q,ozone).
-nvars = 5
 ! background error variance for rad bias coeffs  (used in radbias.f90)
 ! default is (old) GSI value.
 ! if negative, bias coeff error variace is set to -biasvar/N, where
@@ -310,7 +311,7 @@ latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
-if (.not. letkf_flag .and. numiter < 1) numiter = 1
+if ((.not. letkf_flag .or. lupd_obspace_serial) .and. numiter < 1) numiter = 1
 
 if (nproc == 0) then
 
@@ -351,6 +352,12 @@ if (nproc == 0) then
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
    print *, nanals,' members'
+
+! check for deprecated namelist variables
+   if (nvars > 0 .or. massbal_adjust) then
+      print *,'WARNING: nvars and massbal_adjust are no longer used!'
+      print *,'They are inferred from the anavinfo file instead.'
+   endif
    
 end if
 
@@ -396,30 +403,10 @@ if (nproc .eq. 0) then
   charfhr_anal(1:nbackgrounds)
 endif
 
-! total number of 2d grids to update.
-if (massbal_adjust) then
-   if (regional .or. nmmb) then
-      if (nproc .eq. 0) print *,'mass balance adjustment only implemented for GFS'
-      massbal_adjust = .false.
-      ndim = nlevs*nvars+1 
-   else
-      if (nproc .eq. 0) print *,'add ps tend as analysis var, so mass balance adjustment can be done'
-      ndim = nlevs*nvars+2 ! including surface pressure and ps tendency.
-   endif
-else
-   ndim = nlevs*nvars+1 ! including surface pressure and ps tendency.
-endif
-
 call init_constants(.false.) ! initialize constants.
 call init_constants_derived()
 
 if (nproc == 0) then
-    print *,nvars,'3d vars to update'
-    if (massbal_adjust) then
-     print *,'total of',ndim,' 2d grids will be updated (including ps and ps tend)'
-    else
-     print *,'total of',ndim,' 2d grids will be updated (including ps)'
-    endif
     if (analpertwtnh > 0) then
        print *,'using multiplicative inflation based on Pa/Pb'
     else if (analpertwtnh < 0) then
@@ -444,6 +431,16 @@ if (.not. letkf_flag .and. lupd_obspace_serial) then
    print *,'setting lupd_obspace_serial to .false., since letkf_flag is .false.'
   endif
 endif
+
+! set lupd_obspace_serial to .true. if letkf_flag is true
+! and numiter > 0.
+if (letkf_flag .and. .not. lupd_obspace_serial .and. numiter > 0) then
+  lupd_obspace_serial = .true.
+  if (nproc == 0) then
+   print *,'setting lupd_obspace_serial to .true., since letkf_flag is .true. and numiter > 0'
+  endif
+endif
+
 end subroutine read_namelist
 
 end module params

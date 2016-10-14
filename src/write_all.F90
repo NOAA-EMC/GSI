@@ -30,7 +30,8 @@ subroutine write_all(increment)
 
   use gsi_io, only: write_bias
 
-  use regional_io, only: write_regional_analysis
+! use regional_io, only: write_regional_analysis
+  use regional_io_mod, only: regional_io_class
 
   use ncepgfs_io, only: write_gfs
 
@@ -106,12 +107,12 @@ subroutine write_all(increment)
   character(24):: filename
   integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias,ier
   real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
-  
+  type(regional_io_class) :: io 
 !********************************************************************
 
 
 ! Regional output
-  if (regional) call write_regional_analysis
+  if (regional) call io%write_regional_analysis(mype)
 
 
 ! Global output
