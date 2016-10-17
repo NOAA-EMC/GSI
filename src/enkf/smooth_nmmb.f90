@@ -1,8 +1,7 @@
 module smooth_mod
 
 use mpisetup
-use params, only:  nlons,nlats,smoothparm
-use statevec, only: ndim
+use params, only:  ndim,nlons,nlats,smoothparm
 use kinds, only: r_kind
 use gridinfo, only: npts
 

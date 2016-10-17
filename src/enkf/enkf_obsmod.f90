@@ -139,7 +139,7 @@ subroutine readobs()
 ! all tasks.  Ob prior perturbations for each ensemble member
 ! are written to a temp file, since the entire array can be 
 ! very large.
-use radinfo, only: npred,jpch_rad,radinfo_read,predx,pg_rad
+use radinfo, only: npred,nusis,nuchan,jpch_rad,iuse_rad,radinfo_read,predx,pg_rad
 use convinfo, only: convinfo_read, init_convinfo, cvar_pg, nconvtype, ictype,&
                     ioctype
 use ozinfo, only: init_oz, ozinfo_read, pg_oz, jpch_oz, nusis_oz, nulev
@@ -283,6 +283,7 @@ subroutine screenobs()
 ! screen out obs with large observation errors or 
 ! that fail background check.  For screened obs oberrvar is set to 1.e31_r_single
 !use radbias, only: apply_biascorr
+use radinfo, only: iuse_rad,nuchan,nusis,jpch_rad
 real(r_single) fail,failm
 integer nn,nob
 fail=1.e31_r_single
@@ -341,7 +342,7 @@ end if ! nproc=0
 end subroutine screenobs
 
 subroutine channelstats
-use radinfo, only: jpch_rad
+use radinfo, only: npred,nusis,nuchan,jpch_rad
 implicit none
 integer(i_kind) nob,nob2,i
 ! count number of obs per channel/sensor.

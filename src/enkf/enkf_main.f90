@@ -33,8 +33,6 @@ program enkf_main
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
 !   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
-!   2016-05-02  Modification for reading state vector from table
-!               (Anna Shlyaeva)
 !
 ! usage:
 !   input files:
@@ -50,7 +48,6 @@ program enkf_main
 !     hybens_locinfo - if parameter readin_localization is true, contains 
 !                      vertical profile of horizontal and vertical localization
 !                      length scales.
-!     anavinfo      - state/control variables table
 !
 !   output files: 
 !     sanl_YYYYMMDDHH_mem* - analysis ensemble members. A separate program
@@ -74,18 +71,17 @@ program enkf_main
                     numiter, nanals, lupd_obspace_serial
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
-                       mpi_wtime
+                      numproc, mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
-                    nobs_sat, obfit_post, obsprd_post, &
+                    deltapredx, nobs_sat, obfit_post, obsprd_post, &
                     obsmod_cleanup, biasprednorminv
  ! innovation statistics.
  use innovstats, only: print_innovstats
  ! grid information
- use gridinfo, only: getgridinfo, gridinfo_cleanup
+ use gridinfo, only: getgridinfo, gridinfo_cleanup, npts,lonsgrd,latsgrd
  ! model state vector 
- use statevec, only: read_ensemble, write_ensemble, statevec_cleanup, &
-                     init_statevec
+ use statevec, only: read_ensemble, write_ensemble, statevec_cleanup
  ! load balancing
  use loadbal, only: load_balance, loadbal_cleanup
  ! enkf update
@@ -126,9 +122,6 @@ program enkf_main
  ! read horizontal grid information and pressure fields from
  ! 6-h forecast ensemble mean file.
  call getgridinfo()
-
- ! read state/control vector info from anavinfo
- call init_statevec()
 
  ! read obs, initial screening.
  t1 = mpi_wtime()

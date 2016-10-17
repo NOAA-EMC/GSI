@@ -23,6 +23,9 @@ module gridinfo
 !   nlevs: number of analysis vertical levels (from module params).
 !   ntrac: number of 'tracer' model state variables (3 for GFS,
 !    specific humidity, ozone and cloud condensate).
+!   nvars: number of 'non-tracer' model state variables (usually 4 
+!    for hydrostatic models).  See grdinfo in gridio for a description
+!    of how these variables must be laid out in input/output files.
 !   ptop: (real scalar) pressure (hPa) at top model layer interface.
 !   lonsgrd(npts): real array of analysis grid longitudes (radians).
 !   latsgrd(npts): real array of analysis grid latitudes (radians).
@@ -34,8 +37,7 @@ module gridinfo
 !
 ! program history log:
 !   2009-02-23  Initial version.
-!   2016-05-02:  Modification for reading state vector from table
-!                (Anna Shlyaeva)
+!   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !
 ! attributes:
 !   language: f95
@@ -43,11 +45,11 @@ module gridinfo
 !$$$
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
-use params, only: datapath,nlevs,datestring,charfhr_anal,&
-                  nlons,nlats,nbackgrounds,reducedgrid,use_gfs_nemsio,&
+use params, only: datapath,nlevs,nvars,ndim,datestring,charfhr_anal,&
+                  nlons,nlats,nbackgrounds,reducedgrid,massbal_adjust,use_gfs_nemsio,&
                   fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
-use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
+use constants, only: one,zero,pi,cp,rd,grav,rearth
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
     ndimspec => nc
 use reducedgrid_mod, only: reducedgrid_init, regtoreduced, reducedtoreg,&
@@ -55,7 +57,8 @@ use reducedgrid_mod, only: reducedgrid_init, regtoreduced, reducedtoreg,&
 implicit none
 private
 public :: getgridinfo, gridinfo_cleanup
-integer(i_kind),public :: nlevs_pres
+integer(i_kind),public :: nlevs_pres,idvc
+integer(i_kind),public, allocatable,dimension(:):: index_pres
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
@@ -63,9 +66,8 @@ real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 integer,public :: ntrunc
-! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(6) :: svars3d_supported = (/ 'u', 'v', 'tv', 'q', 'oz', 'cw'/)
-character(len=max_varname_length),public, dimension(2) :: svars2d_supported = (/ 'ps', 'pst' /)
+integer,public :: nvarhumid ! spec hum is the nvarhumid'th var
+integer,public :: nvarozone ! ozone is the nvarozone'th var
 contains
 
 subroutine getgridinfo()
@@ -78,11 +80,12 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_readrecv,nemsio_init, nemsio_realkind
 implicit none
 
-integer(i_kind) nlevsin, ierr, iunit, k, nn
+integer(i_kind) nlevsin, ierr, iunit, nvar, k, nn, idvc
 character(len=500) filename
 integer(i_kind) iret,i,j,nlonsin,nlatsin
 real(r_kind), allocatable, dimension(:) :: ak,bk,spressmn,tmpspec
 real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
+real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 real(r_kind) kap,kapr,kap1
 real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk
 type(sigio_data) sigdata
@@ -94,6 +97,8 @@ kap = rd/cp
 kapr = cp/rd
 kap1 = kap + one
 nlevs_pres=nlevs+1
+nvarhumid = 4
+nvarozone = 5
 if (nproc .eq. 0) then
 if (use_gfs_nemsio) then
      filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
@@ -108,7 +113,7 @@ if (use_gfs_nemsio) then
         call stop2(23)
      endif
      call nemsio_getfilehead(gfile,iret=iret, dimx=nlonsin, dimy=nlatsin,&
-                             dimz=nlevsin,jcap=ntrunc)
+                             dimz=nlevsin,jcap=ntrunc,idvc=idvc)
      if (iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_getfilehead, iret=',iret
         call stop2(23)
@@ -153,22 +158,49 @@ if (nproc .eq. 0) then
           write(6,*)'grdinfo: gfs model: problem with nemsio_readrecv(ps), iret=',iret
           call stop2(23)
       endif
+
+!       Extract vertical coordinate descriptions nems_vcoord.
+!       nems_vcoord(gfshead%levs+1,3,2) dimension is hardwired here.
+!       Present NEMSIO modules do not allow flexibility of 2nd and 3rd
+!       array dimension for nems_vcoord, for now, it is hardwired as
+!       (levs,3,2) If NEMS changes the setting of vcoord dimension,
+!       GSI needs to update its setting of nems_vcoord accordingly.
+
+        if (allocated(nems_vcoord))     deallocate(nems_vcoord)
+        allocate(nems_vcoord(nlevs_pres,3,2))
+        call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)
+        if ( iret /= 0 ) then
+           write(6,*)' gridinfo:  ***ERROR*** problem reading header ', &
+              'vcoord, Status = ',iret
+           call stop2(99)
+        endif
+
       spressmn = 0.01_r_kind*nems_wrk ! convert ps to millibars.
       !print *,'min/max spressmn = ',minval(spressmn),maxval(spressmn)
+
+      allocate(ak(nlevs+1),bk(nlevs+1))
+
+      if ( idvc == 0 ) then                         ! sigma coordinate, old file format.
+         ak = zero
+         bk = nems_vcoord(1:nlevs+1,1,1)
+      elseif ( idvc == 1 ) then                     ! sigma coordinate
+         ak = zero
+         bk = nems_vcoord(1:nlevs+1,2,1)
+      elseif ( idvc == 2 .or. idvc == 3 ) then      ! hybrid coordinate
+         ak = 0.01_r_kind*nems_vcoord(1:nlevs+1,1,1) ! convert to mb
+         bk = nems_vcoord(1:nlevs+1,2,1)
+      else
+         write(6,*)'gridinfo:  ***ERROR*** INVALID value for idvc=',idvc
+         call stop2(85)
+      endif
+
       ! pressure at interfaces
-      pressimn(:,1) = spressmn
-      do k=1,nlevs
-         call nemsio_readrecv(gfile,'dpres','mid layer',k,nems_wrk,iret=iret)
-         if (iret/=0) then
-             write(6,*)'grdinfo: gfs model: problem with nemsio_readrecv(dpres), iret=',iret
-             call stop2(23)
-         endif
-         pressimn(:,k+1) = pressimn(:,k) - 0.01_r_kind*nems_wrk
-         !print *,'min/max pressimn',k,minval(pressimn(:,k+1)),maxval(pressimn(:,k+1))
+      do k=1,nlevs+1
+         pressimn(:,k) = ak(k)+bk(k)*spressmn(:)
       enddo
       call nemsio_close(gfile, iret=iret)
-      ptop = 0. ! assume GFS top model interface is at 0 hPa.
-      pressimn(:,nlevs+1) = 0.
+      ptop = ak(nlevs+1)
+      deallocate(ak,bk)
    else
 ! get pressure from ensemble mean,
 ! distribute to all processors.
@@ -184,15 +216,15 @@ if (nproc .eq. 0) then
         call stop2(24)
       end if
       allocate(ak(nlevs+1),bk(nlevs+1))
-      if (sighead%idvc == 0) then ! sigma coordinate, old file format.
+      if (sighead%idvc == 0) then                              ! sigma coordinate, old file format.
          ak = zero
          bk = sighead%si(1:nlevs+1)
-      else if (sighead%idvc == 1) then ! sigma coordinate
+      else if (sighead%idvc == 1) then                         ! sigma coordinate
          ak = zero
          bk = sighead%vcoord(1:nlevs+1,2)
-      else if (sighead%idvc == 2 .or. sighead%idvc == 3) then ! hybrid coordinate
+      else if (sighead%idvc == 2 .or. sighead%idvc == 3) then  ! hybrid coordinate
+         ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)          ! convert to mb
          bk = sighead%vcoord(1:nlevs+1,2) 
-         ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)  ! convert to mb
       else
          print *,'unknown vertical coordinate type',sighead%idvc
          call stop2(24)
@@ -283,6 +315,19 @@ enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
+
+allocate(index_pres(ndim))
+
+nn=0
+do nvar=1,nvars
+  do k=1,nlevs
+    nn = nn + 1
+    index_pres(nn)=k
+  end do
+end do
+
+if (massbal_adjust) index_pres(ndim-1)=nlevs+1 ! ps tend
+index_pres(ndim)=nlevs+1 ! ps
   
 !==> precompute cartesian coords of analysis grid points.
 do nn=1,npts
@@ -298,6 +343,7 @@ if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
+if (allocated(index_pres)) deallocate(index_pres)
 end subroutine gridinfo_cleanup
 
 end module gridinfo
