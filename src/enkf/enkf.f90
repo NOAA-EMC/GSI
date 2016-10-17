@@ -85,8 +85,6 @@ module enkf
 ! program history log:
 !   2009-02-23:  Initial version.
 !   2016-02-01:  Ensure posterior perturbation mean remains zero.
-!   2016-05-02:  Modification for reading state vector from table
-!                (Anna Shlyaeva).
 !
 ! attributes:
 !   language: f95
@@ -102,8 +100,7 @@ use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
                    obtime_chunk, grdloc_chunk, obloc_chunk, &
                    npts_max, anal_obchunk_prior
-use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior, svars3d, &
-                    ndim, index_pres
+use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
@@ -111,17 +108,15 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   biasprednorm, oberrvar_orig, probgrosserr, prpgerr,&
                   corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype
 use constants, only: pi, one, zero
-use params, only: sprd_tol, paoverpb_thresh, datapath, nanals,&
-                  iassim_order,sortinc,deterministic,numiter,nlevs,&
+use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
+                  iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
                   iseed_perturbed_obs,lupd_obspace_serial
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
-use gridinfo, only: nlevs_pres
+use gridinfo, only: nlevs_pres,index_pres,nvarozone
 use sorting, only: quicksort, isort
-use mpeu_util, only: getindex
-use mpeu_util, only: getindex
 !use innovstats, only: print_innovstats
 
 implicit none
@@ -160,7 +155,7 @@ real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1, paover
 integer(i_kind) ierr
 ! kd-tree search results
 type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2 
-integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2,oz_ind
+integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2
 real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
 
@@ -542,16 +537,15 @@ do niter=1,numiter
       t1 = mpi_wtime()
 
       ! only need to update state variables on last iteration.
-      oz_ind = getindex(svars3d, 'oz')
-      if (univaroz .and. obtype(nob)(1:3) .eq. ' oz' .and. oz_ind > 0) then ! ozone obs only affect ozone
-          nn1 = (oz_ind-1)*nlevs+1
-          nn2 = oz_ind*nlevs
+      if (univaroz .and. obtype(nob)(1:3) .eq. ' oz' .and. nvars .ge. nvarozone) then ! ozone obs only affect ozone
+          nn1 = (nvarozone-1)*nlevs+1
+          nn2 = nvarozone*nlevs
       else
           nn1 = 1
           nn2 = ndim
       end if
       if (nf2 > 0) then
-!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taper3,taperv)
+!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taperv)
           do ii=1,nf2 ! loop over nearby horiz grid points
              do nb=1,nbackgrounds ! loop over background time levels
              obt = abs(obtime(nob)-(nhr_anal(nb)-fhr_assim))

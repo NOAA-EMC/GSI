@@ -96,7 +96,7 @@ call MPI_COMM_CREATE(MPI_COMM_WORLD,new_group,mpi_comm_shmemroot,ierr)
 end subroutine mpi_initialize
 
 subroutine mpi_initialize_io(nanals)
-use mpimod, only : mpi_comm_world
+use mpimod, only : mpi_comm_world,npe,mype
 integer ierr,np,nuse,new_group,old_group
 integer, intent(in) :: nanals
 integer, dimension(:), allocatable :: useprocs, itasks

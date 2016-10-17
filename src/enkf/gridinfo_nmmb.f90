@@ -1,24 +1,24 @@
 module gridinfo
 
 use mpisetup
-use params, only: datapath,nlevs,datestring,&
+use params, only: datapath,nlevs,nvars,ndim,datestring,&
                   nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
-use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
+use constants, only: one,zero,pi,cp,rd,grav,rearth
 
 implicit none
 private
 public :: getgridinfo, gridinfo_cleanup, wind2mass, mass2wind
 integer(i_kind),public :: nlevs_pres
+integer(i_kind),public, allocatable,dimension(:):: index_pres
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
-! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(6) :: svars3d_supported = (/ 'u', 'v', 'tv', 'q', 'oz', 'cw'/)
-character(len=max_varname_length),public, dimension(1) :: svars2d_supported = (/ 'ps' /)
+integer,public :: nvarhumid ! spec hum is the nvarhumid'th var
+integer,public :: nvarozone ! ozone is the nvarozone'th var
 contains
 
 subroutine getgridinfo()
@@ -30,7 +30,7 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
 implicit none
 character(len=500) filename
 integer(i_kind) iret,nlatsin,nlonsin,nlevsin,nlon_test,&
- ierr,nlon_test_with_halo,nlat_test_with_halo,nlat_test,k,nn
+ ierr,nlon_test_with_halo,nlat_test_with_halo,nlat_test,nvar,k,nn
 real(nemsio_realkind) pt,pdtop
 real(r_kind), allocatable, dimension(:) :: spressmn
 real(r_kind), allocatable, dimension(:,:) :: presslmn
@@ -40,6 +40,8 @@ real(nemsio_realkind) aeta1(nlevs),aeta2(nlevs),lats(nlats*nlons),lons(nlons*nla
 type(nemsio_gfile) :: gfile
 
 nlevs_pres=nlevs+1
+nvarhumid = 4
+nvarozone = 5 ! nmmb does not have ozone?
 
 if (nproc .eq. 0) then
 
@@ -50,7 +52,7 @@ if (nproc .eq. 0) then
 
    ! Build the ensemble mean filename expected by routine
   
-   filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"ensmean"
+   filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nbackgrounds/2+1)))//"_ensmean"
   
    call nemsio_init(iret=iret)
    if(iret/=0) then
@@ -165,6 +167,18 @@ call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
+allocate(index_pres(ndim))
+
+nn=0
+do nvar=1,nvars
+  do k=1,nlevs
+    nn = nn + 1
+    index_pres(nn)=k
+  end do
+end do
+
+index_pres(ndim)=nlevs+1 ! ps
+  
 !==> precompute cartesian coords of analysis grid points.
 do nn=1,npts
    gridloc(1,nn) = cos(latsgrd(nn))*cos(lonsgrd(nn))
@@ -179,6 +193,7 @@ if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
+if (allocated(index_pres)) deallocate(index_pres)
 end subroutine gridinfo_cleanup
 
 subroutine wind2mass(dat,nlons,nlats)

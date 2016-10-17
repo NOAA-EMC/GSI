@@ -40,7 +40,7 @@ public :: get_satobs_data, get_num_satobs
 contains
 
 subroutine get_num_satobs(obspath,datestring,num_obs_tot,id)
-    use radinfo, only: iuse_rad,nusis,jpch_rad,npred
+    use radinfo, only: iuse_rad,nusis,jpch_rad,nuchan,npred
     character (len=500), intent(in) :: obspath
     character(len=500) obsfile
     character(len=10), intent(in) :: id, datestring
@@ -146,7 +146,7 @@ end subroutine get_num_satobs
 
 subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_err, &
            x_lon, x_lat, x_press, x_time, x_channum, x_errorig, x_type, x_biaspred, x_indx,id,id2)
-  use radinfo, only: iuse_rad,nusis,jpch_rad,npred,adp_anglebc,emiss_bc
+  use radinfo, only: iuse_rad,nusis,jpch_rad,nuchan,npred,adp_anglebc,emiss_bc
   character*500, intent(in) :: obspath
   character*500 obsfile,obsfile2
   character(len=10), intent(in) :: id,id2

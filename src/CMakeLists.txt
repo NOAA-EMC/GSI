@@ -118,7 +118,6 @@ cmake_minimum_required(VERSION 2.8)
   endif()
 
   list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
-  message("HEYEEEE wrf libs are ${WRF_LIBRARIES}")
   if(USE_WRF) 
     target_link_libraries(gsi_wrf.x gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
