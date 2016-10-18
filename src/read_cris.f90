@@ -427,7 +427,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Only use central IFOV
            ifov = nint(linele(1))               ! field of view
-
            ifor = nint(linele(4))               ! field of regard
 
 !          Remove data on edges
@@ -576,10 +575,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                  ' STRANGE OBS INFO(SAZA):', allspot(10)
               cycle read_loop
            endif
-           if ( ifor <= 15 ) sat_zenang = -sat_zenang
 
 !          Compare CRIS satellite scan angle and zenith angle
            if( ifor <= 15 ) then
+              sat_zenang = -sat_zenang
               look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
                       fov_dist(ifov) * sin(fov_ang(ifov) - float((ifor-1))*5.60999e-2_r_kind)
            else
@@ -602,9 +601,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop
            endif
 
-           pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
-           crit1 = crit1 + pred
-           call checkob(dist1,crit1,itx,iuse)
+           call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
 !          "Score" observation.  We use this information to identify "best" obs
@@ -636,7 +633,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Set common predictor parameters
 
            crit1 = crit1 + rlndsea(isflg)
-           call checkob(dist1,crit1,itx,iuse)
+           call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
 !          CrIS data read radiance values and channel numbers
@@ -672,48 +669,50 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Cloud / clear tests.
            clear = .false.
+           pred = zero
 
 !          Cloud information  may be missing depending on how the VIIRS granules align
 !          with the CrIS granules.  
-!          Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
+!          Cloud Amount, TOCC is total cloud cover [%], HOCT is cloud height [m] 
            call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
-!JAJ     if ( cloud_frac(1) > 100._r_kind .or. cloud_frac(1) < zero .or. cloud_frac(2) < zero ) &
-!JAJ          write(*,*) 'JAJ cloud error ', dlat_earth_deg, dlon_earth_deg, cloud_frac(1), cloud_frac(2)
            if ( cloud_frac(1) <= r100 .and. cloud_frac(1) >= zero .and. &
                 cloud_frac(2) < 1.0e6_r_kind ) then
 !             Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-              if ( cloud_frac(1) < one ) then
-                 pred = 0.1_r_kind
+              if ( cloud_frac(1) < one ) then     !Assume clear
                  clear = .true.
-              else
+              else                                ! Assume a lapse rate to convert hgt to delta TB.
                  pred = cloud_frac(2) *7.0_r_kind / r1000
               endif
-              crit1 = crit1 + pred
-
            else
-!          If cloud_frac is missing from BUFR, use proxy of warmest fov over 
-!          non ice surfaces.  Fixed channels (assuming the 399 set) for now.
-!          This is moved to below where the radiances are read in.
+
+!          If cloud_frac is missing from BUFR, use proxy of warmest fov. 
+!          the surface channel is fixed and set earlier in the code (501).
 
              radiance = allchan(1,sfc_channel_index) * r1000    ! Conversion from W to mW
              call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
              if (temperature(sfc_channel_index) > tbmin .and. temperature(sfc_channel_index) < tbmax ) then
-                if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then
+                if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
                    clear = .true.
-                   pred = 0.1_r_kind
                 else
                    pred = (tsavg * 0.98_r_kind - temperature(sfc_channel_index)) 
                 endif
              else
                 cycle read_loop
              endif ! good surface temperature 
-             crit1 = crit1 + pred
-
            endif  ! clearest FOV check
 
-           call checkob(dist1,crit1,itx,iuse)
+           pred = max(zero,pred)
+           crit1 = crit1 + pred
+
+!          Map obs to grids
+           if ( clear ) then  
+              call checkob(dist1,crit1,itx,iuse)
+           else
+              call checkob(one,crit1,itx,iuse)
+           endif
            if(.not. iuse) cycle read_loop
 
+!          Convert radiance to BT loop
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
               sc_chan = sc_index(i)
@@ -736,7 +735,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               if ( bufr_index(i) == 0 ) cycle skip_loop
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
-!JAJ                 temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
                  temperature(bufr_chan) = tbmin
                  if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
               endif
@@ -747,8 +745,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
            crit1=crit1 + ten*float(iskip)
 
-!          Map obs to grids
-           call finalcheck(dist1,crit1,itx,iuse)
+!          Final map obs to grids
+           if ( clear ) then 
+              call finalcheck(dist1,crit1,itx,iuse)
+           else
+              call finalcheck(one,crit1,itx,iuse)
+           endif
            if(.not. iuse)cycle read_loop
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -769,7 +771,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(4,itx) = dlat                   ! grid relative latitude
            data_all(5,itx) = sat_zenang*deg2rad     ! satellite zenith angle (rad)
            data_all(6,itx) = allspot(11)            ! satellite azimuth angle (deg)
-!JAJ           data_all(7,itx) = sat_look_angle         ! look angle (rad)
            data_all(7,itx) = look_angle_est         ! look angle (rad)
            data_all(8,itx) = ifor                   ! field of regard
            data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
