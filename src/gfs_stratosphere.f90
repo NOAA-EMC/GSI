@@ -1060,14 +1060,14 @@ subroutine add_gfs_stratosphere
       if ( istatus /= 0 ) call die(myname,': trouble create atm_bundle ... ',istatus)
 
       if ( use_gfs_nemsio ) then
-         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,mype,.true.,.false.,.true., &
+         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,.true.,.false.,.true., &
                                        atm_bundle,.true.,iret)
       else
          if ( hires ) then
-            call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,mype,.true.,.false.,.true., &
+            call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,.true.,.false.,.true., &
                                      atm_bundle,.true.,iret)
          else
-            call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,mype,.true.,.false.,.true., &
+            call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,.true.,.false.,.true., &
                                      atm_bundle,.true.,iret)
          endif
       endif

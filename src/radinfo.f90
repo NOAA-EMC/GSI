@@ -29,7 +29,7 @@ module radinfo
 !   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
-!   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
+!   2011-04-02  li      - add index tzr_qc,tzr_bufrsave for NSST and QC_tzr
 !   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !   2012-11-02  collard - add icld_det for greater flexibility in QC step and
 !                         add number of scan positions to satang file
@@ -40,7 +40,10 @@ module radinfo
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !   2015-03-01   li     - add zsea1 & zsea2 to handle the vertical mean temperature based on NSST T-Profile
+!   2016-03-10  ejones  - add control for GMI noise reduction
+!   2016-03-24  ejones  - add control for AMSR2 noise reduction
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
+!   2016-08-12  mahajan - moved nst related variables from radinfo to gsi_nstcouplermod
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -86,12 +89,12 @@ module radinfo
   public :: emiss_bc
   public :: passive_bc
   public :: upd_pred
-  public :: ssmis_method
+  public :: ssmis_method,gmi_method,amsr2_method
   public :: radstart,radstep
   public :: newpc4pred
   public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
-  public :: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,tzr_bufrsave,nst_tzr
+  public :: tzr_bufrsave,tzr_qc
 
   public :: radedge1, radedge2
   public :: ssmis_precond
@@ -109,15 +112,10 @@ module radinfo
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
-  integer(i_kind) nst_gsi   ! indicator of Tr Analysis
-  integer(i_kind) nstinfo   ! number of nst variables
-  integer(i_kind) zsea1     ! upper depth (in mm) to do the mean
-  integer(i_kind) zsea2     ! lower depth (in mm) to do the mean
-  integer(i_kind) fac_dtl   ! indicator of DTL
-  integer(i_kind) fac_tsl   ! indicator of TSL
-  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
-
+  integer(i_kind) tzr_qc        ! indicator of Tz retrieval QC tzr
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
+  integer(i_kind) gmi_method    !  noise reduction method for GMI
+  integer(i_kind) amsr2_method  !  noise reduction method for AMSR2
 
   integer(i_kind) jpch_rad      ! number of channels*sat
   integer(i_kind) npred         ! number of radiance biases predictors
@@ -209,6 +207,10 @@ contains
 !   2010-04-25  zhu     - add logical newpc4pred (todling move here)
 !   2013-02-13  eliu    - add two additional bias correction predictors for SSMIS 
 !   2013-07-19  zhu     - add emiss_bc for emissivity sensitivity bias predictor
+!   2016-03-10  ejones  - add gmi_method for using ssmis spatial averaging code
+!                         for gmi
+!   2016-03-24  ejones  - add amsr2_method for using ssmis spatial averaging code
+!                         for amsr2
 !
 !   input argument list:
 !
@@ -229,17 +231,8 @@ contains
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
     npred=7                 ! number of bias correction predictors
-    nst_gsi   = 0          ! 0 = no nst info at all in gsi
-                           ! 1 = read nst info but not applied
-                           ! 2 = read nst info, applied to Tb simulation but no Tr analysis
-                           ! 3 = read nst info, applied to Tb simulation and do Tr Analysis
-    nstinfo   = 0          ! number of nst fields used in Tr analysis
-    zsea1     = 0          ! upper depth to do the mean
-    zsea2     = 0          ! lower depth to do the mean
-    fac_dtl   = 0          ! indicator to apply DTL model
-    fac_tsl   = 0          ! indicator to apply TSL model
-    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
-    tzr_bufrsave = .false. ! .true.=generate bufr file for Tz retrieval
+    tzr_qc = 0              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
+    tzr_bufrsave = .false.  ! .true.=generate bufr file for Tz retrieval
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
@@ -249,6 +242,8 @@ contains
     upd_pred = one        ! 1.0=bias correction coefficients evolve
     ssmis_method = 1      ! default ssmis smoothing method
     ssmis_precond = r0_01 ! default preconditioner for ssmis bias terms
+    gmi_method = 0        ! 4= default gmi smoothing method
+    amsr2_method = 0      ! 5= default amsr2 smoothing method
   end subroutine init_rad
 
 

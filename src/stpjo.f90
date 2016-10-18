@@ -495,7 +495,7 @@ subroutine stpjo_setup(yobs,nobs_bins)
 
        else if (ll == 10)then
 !         penalty, b, and c for ozone
-          if(associated(yobs(ib)%oz)) then
+          if(associated(yobs(ib)%oz) .or. associated(yobs(ib)%o3l)) then
              stpcnt = stpcnt +1
              ll_jo(stpcnt) = ll
              ib_jo(stpcnt) = ib
