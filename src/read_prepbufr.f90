@@ -169,7 +169,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
-  use radinfo,only: nst_gsi,nstinfo
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -194,6 +193,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
@@ -518,7 +518,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           cycle
        else
           if (aircraft_t_bc) then
-             aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140) .or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
              if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
              if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
           end if
@@ -532,7 +533,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             cycle
         else
            if (aircraft_t_bc) then
-              aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140).or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
               if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
               if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
            end if
@@ -553,7 +555,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   call getcount_bufr(infile,nmsgmax,mxtb)
   allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
-
 
   lmsg = .false.
   maxobs=0
@@ -1317,7 +1318,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else if(tob) then
 !             aircraft temperature data
 !             aircraftobst = kx>129.and.kx<140
-              aircraftobst = (kx==131) .or. (kx==133) .or. (kx==130)
+              aircraftobst = (kx==131) .or. (kx>=133 .and. kx<=135) .or. (kx==130) ! for currently known types
 
               aircraftwk = bmiss
               if (aircraftobst) then

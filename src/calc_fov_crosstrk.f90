@@ -1316,6 +1316,7 @@
 !                          16 = ATMS 1.1 DEG
 !                          17 = AIRS
 !                          18 - IASI
+!                          19 = SAPHIR
 !   ifov                  - fov number
 !   satellite_azimuth     - satellite azimuth angle (degrees)
 !   lat                   - latitude of fov center

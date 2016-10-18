@@ -70,7 +70,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
-  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100
@@ -80,6 +79,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
 
@@ -136,7 +136,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind):: ier
+  integer(i_kind):: ier,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
@@ -344,22 +344,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_db
         infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
+         iostat = ierr)
+     if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
      hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
@@ -475,7 +474,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   num_obs = iob-1
 
-500 continue
   if (num_obs <= 0) then
      write(*,*) 'READ_ATMS: No ATMS Data were read in'
      return
