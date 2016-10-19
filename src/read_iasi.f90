@@ -106,7 +106,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nuchan,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo, &
+  use radinfo, only:iuse_rad,nuchan,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
       radedge1,radedge2,radstart,radstep
   use crtm_module, only: success, &
       crtm_kind => fp
@@ -118,6 +118,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
+  use gsi_nstcouplermod, only:nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
 
@@ -207,7 +208,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: iexponent,maxinfo, bufr_nchan
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
-  integer(i_kind):: error_status, irecx
+  integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
@@ -390,23 +391,21 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_db
         infile2=trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Open BUFR file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted')
+     open(lnbufr,file=trim(infile2),form='unformatted',iostat=ierr)
 
+     if(ierr /= 0) cycle ears_db_loop
 !    Open BUFR table
      call openbf(lnbufr,'IN',lnbufr)
      call datelen(10)

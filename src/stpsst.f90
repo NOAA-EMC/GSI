@@ -77,7 +77,7 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
-  use radinfo, only: nst_gsi
+  use gsi_nstcouplermod, only: nst_gsi
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

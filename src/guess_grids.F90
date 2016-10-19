@@ -285,7 +285,7 @@ contains
    use constants, only: zero
 
 
-   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: nst_gsi
    use gsi_nstcouplermod, only: gsi_nstcoupler_init
    implicit none
 
@@ -822,7 +822,7 @@ contains
 
 ! !USES:
 
-   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: nst_gsi
    use gsi_nstcouplermod, only: gsi_nstcoupler_final
    implicit none
    
