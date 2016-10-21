@@ -242,7 +242,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  auligne/todling - add hydrometeors
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
-!   2016-07-19  kbathmann - adjustment to bias correction when using correlated obs
+!   2015-04-01  W. Gu   - scale the bias correction term to handle the
+!                       - inter-channel correlated obs errors.
+!   2016-07-19  kbathmann - move decomposition of correlated R to outer loop.
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
