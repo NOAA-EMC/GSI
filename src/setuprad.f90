@@ -885,9 +885,21 @@
                   clw_obs = clw
                 endif
            end if
-           if (ierrret /= 0) then 
-             varinv(1:nchanl)=zero
-             id_qc(1:nchanl) = ifail_cloud_qc
+           if (ierrret /= 0) then
+             if (amsua) then 
+                varinv(1:6)=zero
+                id_qc(1:6) = ifail_cloud_qc
+                varinv(15)=zero
+                id_qc(15) = ifail_cloud_qc
+             else if (atms) then 
+                varinv(1:7)=zero
+                id_qc(1:7) = ifail_cloud_qc
+                varinv(16:22)=zero
+                id_qc(16) = ifail_cloud_qc
+             else       
+                varinv(1:nchanl)=zero
+                id_qc(1:nchanl) = ifail_cloud_qc
+             endif
            endif
         endif
 
