@@ -5,6 +5,7 @@ find_file( CONTROL_EXE
     NAMES global_gsi gsi.x gsi_wrf.x
     HINTS
         ${CMAKE_SOURCE_DIR}/../trunk/src
+        ${CMAKE_SOURCE_DIR}/../../trunk/src
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
         $ENV{CONTROLPATH}
         $ENV{CONTROLPATH}/src
