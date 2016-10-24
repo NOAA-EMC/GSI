@@ -2548,6 +2548,14 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
           varinv(ich890)=zero
           if(id_qc(890) == igood_qc) id_qc(890) = ifail_interchan_qc 
 
+          if (latms) then 
+             errf(16:22)=zero
+             varinv(16:22)=zero
+             do i=16,22
+                if(id_qc(i) == igood_qc)id_qc(i) = ifail_interchan_qc
+             end do
+          end if  
+
   else
 
 ! QC for all-sky condition
