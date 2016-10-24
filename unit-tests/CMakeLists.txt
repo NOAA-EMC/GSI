@@ -10,18 +10,13 @@ enable_testing()
 
 set(PFUNIT_DIR ${PROJECT_SOURCE_DIR}/unit-tests/PFUNIT ) 
 
-
 include_directories( 
       ${PROJECT_SOURCE_DIR}
       ${PFUNIT_DIR}/mod
 )
 
-#set(_test_sources)
-foreach(_test
-    test_read_wrf_nmm
-    test_read_wrf_mass
-    test_adjoint
-    )
+foreach(_test 
+         test_read_wrf_nmm test_read_wrf_mass test_adjoint)
     file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${_test}/generated)
     file(WRITE ${PROJECT_BINARY_DIR}/generated/${_test}/testSuites.inc "")
     message("working on test ${_test}")
@@ -32,12 +27,8 @@ foreach(_test
         DEPENDS ${test_dependency}
         )
      message("COMMAND python ${PFUNIT_DIR}/bin/pFUnitParser.py ${PROJECT_SOURCE_DIR}/unit-tests/${_test}.pf ${PROJECT_BINARY_DIR}/generated/${_test}/${_test}.F90")
-#    set(_test_sources ${_test_sources} ${PROJECT_BINARY_DIR}/generated/${_test}.F90)
     file(APPEND ${PROJECT_BINARY_DIR}/generated/${_test}/testSuites.inc "ADD_TEST_SUITE(${_test}_mod_suite)\n")
     set_source_files_properties(${PFUNIT_DIR}/include/driver.F90 PROPERTIES GENERATED 1)
-
-
-#  message("test_sources is ${_test_sources}")
 
   add_executable(
     ${_test}.x
@@ -55,7 +46,6 @@ foreach(_test
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} 
          ${IOINT_LIB} ${WRFNETCDF_LIB} )
-    message("HEY! wrf libs are ${WRF_LIBRARIES}")
   target_include_directories( ${_test}.x PUBLIC
       ${PROJECT_BINARY_DIR}/generated/${_test}
   )

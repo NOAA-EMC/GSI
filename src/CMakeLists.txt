@@ -23,6 +23,11 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2model.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2state.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2state_ad.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/lanczos.F90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/getsiga.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/test_obsens.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/sqrtmin.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/evaljgrad.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/pcgsoi.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/en_perts_io.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/hybrid_ensemble_isotropic.F90" 
@@ -62,67 +67,82 @@ cmake_minimum_required(VERSION 2.8)
   if(USE_WRF) 
     add_library(gsilib_wrf${debug_suffix} STATIC ${REGIONAL_SRC} )
   endif()
+  if(BUILD_GLOBAL)
+    add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
+    target_link_libraries( gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} ${CORE_LIBRARIES})
+    target_link_libraries( gsilib_global${debug_suffix} ${CORE_LIBRARIES})
+    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
+    add_dependencies(gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} )
+  endif()
 
-  add_library(gsilib${debug_suffix} STATIC ${GLOBAL_SRC} )
   add_library(gsilib_shrd${debug_suffix} STATIC ${GSI_SRC} )
 
-  target_link_libraries( gsilib_shrd${debug_suffix} gsilib${debug_suffix} ${CORE_LIBRARIES})
-  target_link_libraries( gsilib${debug_suffix} ${CORE_LIBRARIES})
 
   if(USE_WRF) 
-    set_target_properties(gsilib_wrf PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
+    set_target_properties(gsilib_wrf${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
   endif()
-  set_target_properties(gsilib PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  set_target_properties(gsilib_shrd PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+  set_target_properties(gsilib_shrd${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   if(USE_WRF) 
-    target_include_directories(gsilib_wrf PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
+    target_include_directories(gsilib_wrf${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
   endif()
-  target_include_directories(gsilib PUBLIC "${PROJECT_BINARY_DIR}/include")
-  target_include_directories(gsilib_shrd PUBLIC "${PROJECT_BINARY_DIR}/include")
+  target_include_directories(gsilib_shrd${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include")
 # add_library(clib${debug_suffix} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c )
 
-  add_dependencies(gsilib${debug_suffix} gsilib_shrd${debug_suffix} )
 
   if(BUILD_CORELIBS )
     if(USE_WRF) 
       add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
     endif()
-    add_dependencies(gsilib${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
+    if(BUILD_GLOBAL)
+      add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
+      add_dependencies(gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
+    endif()
     add_dependencies(gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
   endif()
 
   if(USE_WRF) 
     add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} )
-    add_executable(gsi_wrf.x ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+    add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
   endif()
 
-  add_executable(gsi.x ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+  if(BUILD_GLOBAL)
+    add_executable(gsi_global.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+  endif()
 
   if(USE_WRF) 
-    set_target_properties(gsi_wrf.x PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(gsi_wrf.x PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
+    set_target_properties(gsi.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    set_target_properties(gsi.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
   endif()
 
-  set_target_properties(gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+  if(BUILD_GLOBAL)
+    set_target_properties(gsi_global.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+  endif()
 
   if(BUILD_CORELIBS )
-    add_dependencies(gsi.x gsilib_shrd${debug_suffix} gsilib${debug_suffix} ${w3nco} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} )
+    if(BUILD_GLOBAL)
+      add_dependencies(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} ${w3nco} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} )
+    endif()
     if(USE_WRF) 
-      add_dependencies(gsi_wrf.x gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
+      add_dependencies(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
     endif()
   else()
-    add_dependencies(gsi.x gsilib_shrd${debug_suffix} gsilib${debug_suffix} )
+    if(BUILD_GLOBAL)
+      add_dependencies(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} )
+    endif()
     if(USE_WRF) 
-      add_dependencies(gsi_wrf.x gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} )
+      add_dependencies(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} )
     endif()
   endif()
 
   list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
   if(USE_WRF) 
-    target_link_libraries(gsi_wrf.x gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
+    target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} )
   endif()
-  target_link_libraries(gsi.x gsilib_shrd${debug_suffix} gsilib${debug_suffix} gsilib_shrd${debug_suffix}  
+  if(BUILD_GLOBAL) 
+    target_link_libraries(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix}  
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} )
+  endif()
