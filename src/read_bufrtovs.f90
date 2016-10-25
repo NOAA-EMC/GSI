@@ -740,7 +740,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            if (critical_channels_missing) then
 
-             pred=1000.0_r_kind
+             pred=1.0e8_r_kind
 
            else
 
