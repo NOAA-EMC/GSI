@@ -16,8 +16,8 @@ MODULE RadDiag_Data_Define
   ! Environment setup
   ! -----------------
   ! Module usage
-  USE Type_Kinds,      ONLY: sp=>Single
   USE Message_Handler, ONLY: FAILURE, SUCCESS, INFORMATION, Display_Message
+  USE kinds, only: sp=>r_kind
   ! Disable implicit typing
   IMPLICIT NONE
 
@@ -52,7 +52,7 @@ MODULE RadDiag_Data_Define
   REAL, PARAMETER :: ZERO = 0.0_sp
   ! Version Id for the module
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
-  '$Id$'
+  '$Id: RadDiag_Data_Define.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
 
 
   ! -------------------------
@@ -332,12 +332,12 @@ CONTAINS
     WRITE(*, '(5x,"qcmark :",1x,es13.6)') rddc%qcmark
     WRITE(*, '(5x,"emiss  :",1x,es13.6)') rddc%emiss  
     WRITE(*, '(5x,"tlap   :",1x,es13.6)') rddc%tlap   
-    WRITE(*, '(5x,"bifix  :",1x,es13.6)') rddc%bifix  
-    WRITE(*, '(5x,"bilap  :",1x,es13.6)') rddc%bilap  
-    WRITE(*, '(5x,"bilap2 :",1x,es13.6)') rddc%bilap2
-    WRITE(*, '(5x,"bicons :",1x,es13.6)') rddc%bicons 
-    WRITE(*, '(5x,"biang  :",1x,es13.6)') rddc%biang  
-    WRITE(*, '(5x,"biclw  :",1x,es13.6)') rddc%biclw  
+!    WRITE(*, '(5x,"bifix  :",1x,es13.6)') rddc%bifix  
+!    WRITE(*, '(5x,"bilap  :",1x,es13.6)') rddc%bilap  
+!    WRITE(*, '(5x,"bilap2 :",1x,es13.6)') rddc%bilap2
+!    WRITE(*, '(5x,"bicons :",1x,es13.6)') rddc%bicons 
+!    WRITE(*, '(5x,"biang  :",1x,es13.6)') rddc%biang  
+!    WRITE(*, '(5x,"biclw  :",1x,es13.6)') rddc%biclw  
   END SUBROUTINE RadDiag_Data_Channel_Inspect
   
 

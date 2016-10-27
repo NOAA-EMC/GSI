@@ -103,6 +103,11 @@ module obsmod
 !   2015-07-10  pondeca  - add could ceiling height (cldch)
 !   2016-05-18  collard  - Added code to allow for historical naming conventions
 !                          for satellite instruments
+!   2015-03-31  wgu      - add isis(sensor/instrument/satellite id) in rad_ob_type to handle
+!                          instruments id in intrad inter-channel correlation
+!                          implementation.
+!   2016-07-19  wgu      - add isfctype - mask for surface type - to radiance obtype
+!   2016-07-19  kbathmann - add rsqrtinv and use_corr_obs to rad_ob_type
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -1297,13 +1302,19 @@ module obsmod
      real(r_kind),dimension(:,:),pointer :: pred => NULL()
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
+     real(r_kind),dimension(:),pointer :: rsqrtinv => NULL()
+                                      !square root of inverse of R, only used
+                                      !if using correlated obs
                                       !  error variances squared (nsigradjac,nchan)
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
+     integer(i_kind) :: isfctype      ! surf mask: ocean=0, land=1, ice=2, snow=3, mixed=4
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
+     logical         :: use_corr_obs  !logical to indicate if using correlated obs
+     character(20) :: isis            ! sensor/instrument/satellite id,e.g.amsua_n15
 
   end type rad_ob_type
 
@@ -2450,6 +2461,8 @@ contains
        radtail(ii)%head => radhead(ii)%head
        do while (associated(radtail(ii)%head))
           radhead(ii)%head => radtail(ii)%head%llpoint
+          if (radtail(ii)%head%use_corr_obs) deallocate(radtail(ii)%head%rsqrtinv, stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad rsqrtinv, istatus=',istatus
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
                      radtail(ii)%head%dtb_dvar,&
