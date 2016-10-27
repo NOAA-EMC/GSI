@@ -2546,7 +2546,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
           end do
           errf(ich890)=zero
           varinv(ich890)=zero
-          if(id_qc(890) == igood_qc) id_qc(890) = ifail_interchan_qc 
+          if(id_qc(ich890) == igood_qc) id_qc(ich890) = ifail_interchan_qc 
 
           if (latms) then 
              errf(16:22)=zero
