@@ -3104,13 +3104,13 @@ contains
     if ( mype == 0 ) then
        select case (trim(action))
        case('init')
-          write(6,'(a,'':  problem with nemsio_init, Status = '', i3)') &
+          write(6,'(a,'':  PROBLEM with nemsio_init, Status = '', i3)') &
              trim(sub_name), error_code
        case('open')
-          write(6,'(a,'':  problem opening file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem opening file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case('close')
-          write(6,'(a,'':  problem closing file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem closing file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case default
           write(6,'(a,'':  ***ERROR*** '',a,tr1,a,'',variable = '',a,'',Status = '',i3)') &
