@@ -225,6 +225,19 @@ clean:
 	chemmod.f90 \
 	clw_mod.f90 \
 	cloud_efr_mod.f90 \
+        class_get_pseudo_ensperts.f90 \
+        class_get_wrf_mass_ensperts.f90 \
+        class_get_wrf_nmm_ensperts.f90 \
+        class_gfs_ensmod.f90 \
+        class_read_wrf_mass_files.f90 \
+        class_read_wrf_mass_guess.f90 \
+        class_read_wrf_nmm_files.f90 \
+        class_read_wrf_nmm_guess.f90 \
+        class_regional_io.f90 \
+        class_wrf_binary_interface.f90 \
+        class_wrf_netcdf_interface.f90 \
+        class_wrwrfmassa.f90 \
+        class_wrwrfnmma.f90 \
 	cmaq_routines.f90 \
 	co_mop_ak.f90 \
 	coinfo.f90 \
@@ -251,6 +264,19 @@ clean:
 	convthin.f90 \
 	convthin_time.f90 \
         correlated_obsmod.F90 \
+        cplr_get_pseudo_ensperts.f90 \
+        cplr_get_wrf_mass_ensperts.f90 \
+        cplr_get_wrf_nmm_ensperts.f90 \
+        cplr_gfs_ensmod.f90 \
+        cplr_read_wrf_mass_files.f90 \
+        cplr_read_wrf_mass_guess.f90 \
+        cplr_read_wrf_nmm_files.f90 \
+        cplr_read_wrf_nmm_guess.f90 \
+        cplr_regional_io.f90 \
+        cplr_wrf_binary_interface.f90 \
+        cplr_wrf_netcdf_interface.f90 \
+        cplr_wrwrfmassa.f90 \
+        cplr_wrwrfnmma.f90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
 	cwhydromod.f90 \
@@ -287,9 +313,6 @@ clean:
 	get_derivatives2.f90 \
 	get_gefs_for_regional.f90 \
         get_nmmb_ensperts.f90 \
-        get_pseudo_ensperts.F90 \
-	get_wrf_mass_ensperts_netcdf.F90 \
-        get_wrf_nmm_ensperts.F90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \
@@ -451,11 +474,6 @@ clean:
 	read_guess.F90 \
         read_mitm_mxtm.f90 \
 	read_obsdiags.F90 \
-	read_wrf_mass_files.F90 \
-	read_wrf_mass_guess.F90 \
-	read_wrf_nmm_files.F90 \
-	read_wrf_nmm_guess.F90 \
-	regional_io.f90 \
 	reorg_metar_cloud.f90 \
 	rfdpar.f90 \
 	rsearch.F90 \
@@ -525,8 +543,8 @@ clean:
 	strong_fast_global_mod.f90 \
 	sub2fslab_mod.f90 \
 	support_2dvar.f90 \
-	cplr_gfs_ensmod.f90 \
 	cplr_gfs_nstmod.f90 \
+	stub_ensmod.F90 \
 	stub_pertmod.F90 \
 	stub_set_crtm_aerosol.f90 \
 	stub_timermod.f90 \
@@ -550,14 +568,11 @@ clean:
 	update_guess.f90 \
 	update_geswtend.f90 \
 	wind_fft.f90 \
-	wrf_mass_guess_mod.f90 \
-	wrf_binary_interface.F90 \
-	wrf_netcdf_interface.F90 \
+        wrf_mass_guess_mod.f90 \
+        wrf_params_mod.f90 \
 	write_all.F90 \
 	write_bkgvars_grid.f90 \
 	write_obsdiags.F90 \
-	wrwrfmassa.F90 \
-	wrwrfnmma.F90 \
 	xhat_vordivmod.f90 \
 	zrnmi_mod.f90
 
