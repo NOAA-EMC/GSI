@@ -46,11 +46,11 @@ BASEDIR         = /usr/local/baselibs/latest
 
 _I		= -I$(COREINC)/mpeu -I$(COREINC)/crtm -I$(COREINC)/sfcio  -I$(COREINC)/sigio
 
-#FOPT_normal	= -O0 -assume byterecl -g -traceback -CA -CB -CU $(_I) -DWRF
-#FOPT_normal	= -O3 -xW -assume byterecl $(_I) -DWRF -DNOMPI2
-#FOPT_nobig 	= -O3 -xW -assume byterecl $(_I) -DWRF -DNOMPI2
-FOPT_normal	= -O3 -xW -assume byterecl $(_I) -DWRF
-FOPT_nobig 	= -O3 -xW -assume byterecl $(_I) -DWRF
+#FOPT_normal	= -O0 -assume byterecl -g -traceback -CA -CB -CU $(_I) 
+#FOPT_normal	= -O3 -xW -assume byterecl $(_I)  -DNOMPI2
+#FOPT_nobig 	= -O3 -xW -assume byterecl $(_I)  -DNOMPI2
+FOPT_normal	= -O3 -xW -assume byterecl $(_I) 
+FOPT_nobig 	= -O3 -xW -assume byterecl $(_I) 
 FOPT_syntax	= -syntax_only $(_I)
 
 CPPFLAGS	= 
