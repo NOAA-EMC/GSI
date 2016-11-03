@@ -1274,7 +1274,6 @@ end subroutine normal_new_factorization_rf_y
     else
 
 !            read in ensembles
-       write(6,*) 'hey, in hybrid_iso regional is ',regional
        if (.not.regional) then
 
           call get_gefs_ensperts_dualres
@@ -1299,7 +1298,6 @@ end subroutine normal_new_factorization_rf_y
              call stop2(999)
           end if
 
-       write(6,*) 'hey, in hybrid_iso regional selecting case ',regional_ensemble_option
           select case(regional_ensemble_option)
 
              case(1)
@@ -1329,7 +1327,6 @@ end subroutine normal_new_factorization_rf_y
 !     regional_ensemble_option = 3: ensembles are ARW netcdf format.
 
                 call wrf_mass_enspert%get_wrf_mass_ensperts(en_perts,nelen,ps_bar)
-!               call wrf_mass_enspert%get_wrf_mass_ensperts_netcdf
 
              case(4)
 

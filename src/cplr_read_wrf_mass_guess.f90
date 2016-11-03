@@ -12,319 +12,6 @@ use abstract_read_wrf_mass_guess_mod
     procedure, pass(this) :: reorder2_s
   end type read_wrf_mass_guess_class 
 contains
-  subroutine reorder2_s(this,work,k_in)
-  !$$$  subprogram documentation block
-  !                .      .    .
-  ! subprogram:    reorder2_s
-  !
-  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
-  !
-  ! abstract:  adapt reorder2 to single precision
-  !
-  ! program history log:
-  !   2004-01-25  kleist
-  !   2004-05-14  kleist, documentation
-  !   2004-07-15  todling, protex-complaint prologue
-  !   2004-11-29  parrish, adapt reorder2 to single precision
-  !   2008-04-16  safford -- add subprogram doc block
-  !
-  !   input argument list:
-  !     k_in    ! number of levs in work array
-  !     work
-  !
-  !   output argument list:
-  !     work
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
-  !
-  !$$$
-  
-  ! !USES:
-  
-    use constants, only: zero_single
-    use mpimod, only: npe
-    use gridmod, only: ijn_s,itotsub
-    use kinds, only: r_single,i_kind
-    implicit none
-    
-  
-  ! !INPUT PARAMETERS:
-  
-    class(read_wrf_mass_guess_class),intent(inout) :: this
-    integer(i_kind)                       ,intent(in   ) :: k_in    ! number of levs in work array
-  
-  ! !INPUT/OUTPUT PARAMETERS:
-  
-    real(r_single),dimension(itotsub,k_in),intent(inout) :: work
-  
-  
-    integer(i_kind) iloc,iskip,i,k,n
-    real(r_single),dimension(itotsub*k_in):: temp
-  
-  ! Zero out temp array
-    do k=1,itotsub*k_in
-       temp(k)=zero_single
-    end do
-    
-  ! Load temp array in order of subdomains
-    iloc=0
-    iskip=0
-    do n=1,npe
-       if (n/=1) then
-          iskip=iskip+ijn_s(n-1)
-       end if
-       
-       do k=1,k_in
-          do i=1,ijn_s(n)
-             iloc=iloc+1
-             temp(iloc)=work(iskip+i,k)
-          end do
-       end do
-    end do
-  
-  ! Now load the tmp array back into work
-    iloc=0
-    do k=1,k_in
-       do i=1,itotsub
-          iloc=iloc+1
-          work(i,k)=temp(iloc)
-       end do
-    end do
-    
-    return
-  end subroutine reorder2_s
-  subroutine move_ibuf_hg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    move_ibuf_hg  copy from one array to another
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: copy from one array to another
-  !
-  ! program history log:
-  !   2004-11-29  parrish
-  !
-  !   input argument list:
-  !     ibuf     - input grid values
-  !     im_buf   - first index of input array buf
-  !     jm_buf   - second index of input array buf
-  !     im_out   - first index of output array temp1
-  !     jm_out   - second index of output array temp1
-  !
-  !   output argument list:
-  !     temp1    - output grid values
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-  !        cp buf to temp1
-  
-    use kinds, only: r_single,i_kind,i_long
-    use constants, only: zero_single
-    implicit none
-    
-    class(read_wrf_mass_guess_class),intent(inout) :: this
-    integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
-    integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
-    real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
-  
-    integer(i_kind) i,j
-  
-    do j=1,jm_out
-       do i=1,im_out
-          temp1(i,j)=transfer(ibuf(i,j),zero_single)
-       end do
-    end do
-    
-  end subroutine move_ibuf_hg
-  
-  subroutine move_ibuf_ihg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    move_ibuf_hg  copy from one array to another
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: copy from one array to another, converting from int to real
-  !
-  ! program history log:
-  !   2004-11-29  parrish
-  !
-  !   input argument list:
-  !     ibuf     - input grid values
-  !     im_buf   - first index of input array buf
-  !     jm_buf   - second index of input array buf
-  !     im_out   - first index of output array temp1
-  !     jm_out   - second index of output array temp1
-  !
-  !   output argument list:
-  !     temp1    - output grid values
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$ end documentation block
-  
-  !        cp buf to temp1
-  
-    use kinds, only: i_long,r_single,i_kind
-    implicit none
-    
-    class(read_wrf_mass_guess_class),intent(inout) :: this
-    integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
-    integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
-    real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
-    
-    integer(i_kind) i,j
-    
-    do j=1,jm_out
-       do i=1,im_out
-          temp1(i,j)=ibuf(i,j)
-       end do
-    end do
-    
-  end subroutine move_ibuf_ihg
-  subroutine expand_ibuf(this,ibuf,im,jm,imp,jmp)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    expand_ibuf    expand array in place
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: expand array in place from im,jm to imp,jmp
-  !
-  ! program history log:
-  !   2004-11-29  parrish
-  !   2007-04-12  parrish - replace im+1, jm+1 with inputs imp, jmp to allow
-  !                           for use with u and v fields, where im=imp or jm=jmp
-  !
-  !   input argument list:
-  !     ibuf     - input grid values in im,jm
-  !     im       - first grid index
-  !     jm       - second grid index
-  !
-  !   output argument list:
-  !     ibuf     - output grid values in im+1,jm+1
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-  !   field of dim im*jm read into array of dim imp*jmp--need to readjust
-  
-    use kinds, only: i_long,i_kind
-    implicit none
-    
-    class(read_wrf_mass_guess_class),intent(inout) :: this
-    integer(i_kind),intent(in   ) :: im,jm,imp,jmp
-    integer(i_long),intent(inout) :: ibuf(imp*jmp)
-    
-    integer(i_long) itemp(imp,jmp)
-    integer(i_kind) i,ii,j
-    
-  
-    do j=1,jmp
-       do i=1,imp
-          itemp(i,j)=0_i_long
-       end do
-    end do
-    ii=0
-    do j=1,jm
-       do i=1,im
-          ii=ii+1
-          itemp(i,j)=ibuf(ii)
-       end do
-    end do
-    
-    ii=0
-    do j=1,jmp
-       do i=1,imp
-          ii=ii+1
-          ibuf(ii)=itemp(i,j)
-       end do
-    end do
-  end subroutine expand_ibuf
-    
-  subroutine generic_grid2sub(this,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
-  !              along the k index.
-  !
-  ! program history log:
-  !   2004-02-03  kleist, new mpi strategy
-  !   2004-05-06  derber
-  !   2004-07-15  treadon - handle periodic subdomains
-  !   2004-07-28  treadon - add only on use declarations; add intent in/out
-  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
-  !               sub2grid routine if necessary
-  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
-  !   2013-01-26  parrish - WCOSS debug compile error -- change tempa from intent(in) to intent(inout)
-  !
-  !   input argument list:
-  !     tempa    - input grid values in horizontal slab mode.
-  !     kbegin_loc - starting k index for tempa on local processor
-  !     kend_loc   - ending k index for tempa on local processor
-  !     kbegin     - starting k indices for tempa for all processors
-  !     kend       - ending k indices for tempa for all processors
-  !     mype       - local processor number
-  !     num_fields - total range of k index (1 <= k <= num_fields)
-  !
-  !   output argument list:
-  !     all_loc  - output grid values in vertical subdomain mode
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
-    use gridmod, only: ijn_s,itotsub,lat2,lon2
-    use kinds, only: r_single,i_kind
-    implicit none
-    
-    class(read_wrf_mass_guess_class),intent(inout) :: this
-    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
-    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-    real(r_single) ,intent(inout) :: tempa(itotsub,kbegin_loc:kend_loc)
-    real(r_single) ,intent(  out) :: all_loc(lat2*lon2*num_fields)
-    
-    integer(i_kind) k
-    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
-  
-  ! first get alltoallv indices
-    
-    sdispls(0)=0
-    do k=0,npe-1
-       sendcounts(k)=ijn_s(k+1)*(kend_loc-kbegin_loc+1) 
-       sdispls(k+1)=sdispls(k)+sendcounts(k)
-    end do
-    rdispls(0)=0
-    do k=0,npe-1
-       recvcounts(k)=ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
-       rdispls(k+1)=rdispls(k)+recvcounts(k)
-    end do
-    
-  ! then call reorder2
-  
-    call this%reorder2_s(tempa,kend_loc-kbegin_loc+1)
-  
-  ! then alltoallv and i think we are done??
-  
-    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
-         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
-  
-  end subroutine generic_grid2sub
   subroutine read_wrf_mass_binary_guess_wrf(this,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -420,10 +107,6 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use native_endianness, only: byte_swap
     use mpeu_util, only: die
-!   use general_buffer_mod, only: transfer_jbuf2ibuf
-!   use general_buffer_mod, only: move_ibuf_hg,move_ibuf_ihg
-!   use general_buffer_mod, only: expand_ibuf
-  
     implicit none
   
   ! Declare passed variables
@@ -2413,6 +2096,227 @@ contains
   
        return
   end subroutine read_wrf_mass_netcdf_guess_wrf
+
+  subroutine generic_grid2sub(this,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
+  !              along the k index.
+  !
+  ! program history log:
+  !   2004-02-03  kleist, new mpi strategy
+  !   2004-05-06  derber
+  !   2004-07-15  treadon - handle periodic subdomains
+  !   2004-07-28  treadon - add only on use declarations; add intent in/out
+  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
+  !               sub2grid routine if necessary
+  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
+  !   2013-01-26  parrish - WCOSS debug compile error -- change tempa from intent(in) to intent(inout)
+  !
+  !   input argument list:
+  !     tempa    - input grid values in horizontal slab mode.
+  !     kbegin_loc - starting k index for tempa on local processor
+  !     kend_loc   - ending k index for tempa on local processor
+  !     kbegin     - starting k indices for tempa for all processors
+  !     kend       - ending k indices for tempa for all processors
+  !     mype       - local processor number
+  !     num_fields - total range of k index (1 <= k <= num_fields)
+  !
+  !   output argument list:
+  !     all_loc  - output grid values in vertical subdomain mode
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
+    use gridmod, only: ijn_s,itotsub,lat2,lon2
+    use kinds, only: r_single,i_kind
+    implicit none
+    
+    class(read_wrf_mass_guess_class),intent(inout) :: this
+    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
+    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
+    real(r_single) ,intent(inout) :: tempa(itotsub,kbegin_loc:kend_loc)
+    real(r_single) ,intent(  out) :: all_loc(lat2*lon2*num_fields)
+    
+    integer(i_kind) k
+    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
+  
+  ! first get alltoallv indices
+    
+    sdispls(0)=0
+    do k=0,npe-1
+       sendcounts(k)=ijn_s(k+1)*(kend_loc-kbegin_loc+1) 
+       sdispls(k+1)=sdispls(k)+sendcounts(k)
+    end do
+    rdispls(0)=0
+    do k=0,npe-1
+       recvcounts(k)=ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
+       rdispls(k+1)=rdispls(k)+recvcounts(k)
+    end do
+    
+  ! then call reorder2
+  
+    call this%reorder2_s(tempa,kend_loc-kbegin_loc+1)
+  
+  ! then alltoallv and i think we are done??
+  
+    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
+         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
+  
+  end subroutine generic_grid2sub
+  subroutine reorder2_s(this,work,k_in)
+  !$$$  subprogram documentation block
+  !                .      .    .
+  ! subprogram:    reorder2_s
+  !
+  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
+  !
+  ! abstract:  adapt reorder2 to single precision
+  !
+  ! program history log:
+  !   2004-01-25  kleist
+  !   2004-05-14  kleist, documentation
+  !   2004-07-15  todling, protex-complaint prologue
+  !   2004-11-29  parrish, adapt reorder2 to single precision
+  !   2008-04-16  safford -- add subprogram doc block
+  !
+  !   input argument list:
+  !     k_in    ! number of levs in work array
+  !     work
+  !
+  !   output argument list:
+  !     work
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+  !
+  !$$$
+  
+  ! !USES:
+  
+    use constants, only: zero_single
+    use mpimod, only: npe
+    use gridmod, only: ijn_s,itotsub
+    use kinds, only: r_single,i_kind
+    implicit none
+    
+  
+  ! !INPUT PARAMETERS:
+  
+    class(read_wrf_mass_guess_class),intent(inout) :: this
+    integer(i_kind)                       ,intent(in   ) :: k_in    ! number of levs in work array
+  
+  ! !INPUT/OUTPUT PARAMETERS:
+  
+    real(r_single),dimension(itotsub,k_in),intent(inout) :: work
+  
+  
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_single),dimension(itotsub*k_in):: temp
+  
+  ! Zero out temp array
+    do k=1,itotsub*k_in
+       temp(k)=zero_single
+    end do
+    
+  ! Load temp array in order of subdomains
+    iloc=0
+    iskip=0
+    do n=1,npe
+       if (n/=1) then
+          iskip=iskip+ijn_s(n-1)
+       end if
+       
+       do k=1,k_in
+          do i=1,ijn_s(n)
+             iloc=iloc+1
+             temp(iloc)=work(iskip+i,k)
+          end do
+       end do
+    end do
+  
+  ! Now load the tmp array back into work
+    iloc=0
+    do k=1,k_in
+       do i=1,itotsub
+          iloc=iloc+1
+          work(i,k)=temp(iloc)
+       end do
+    end do
+    
+    return
+  end subroutine reorder2_s
+
+  subroutine expand_ibuf(this,ibuf,im,jm,imp,jmp)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    expand_ibuf    expand array in place
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: expand array in place from im,jm to imp,jmp
+  !
+  ! program history log:
+  !   2004-11-29  parrish
+  !   2007-04-12  parrish - replace im+1, jm+1 with inputs imp, jmp to allow
+  !                           for use with u and v fields, where im=imp or jm=jmp
+  !
+  !   input argument list:
+  !     ibuf     - input grid values in im,jm
+  !     im       - first grid index
+  !     jm       - second grid index
+  !
+  !   output argument list:
+  !     ibuf     - output grid values in im+1,jm+1
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+  !   field of dim im*jm read into array of dim imp*jmp--need to readjust
+  
+    use kinds, only: i_long,i_kind
+    implicit none
+    
+    class(read_wrf_mass_guess_class),intent(inout) :: this
+    integer(i_kind),intent(in   ) :: im,jm,imp,jmp
+    integer(i_long),intent(inout) :: ibuf(imp*jmp)
+    
+    integer(i_long) itemp(imp,jmp)
+    integer(i_kind) i,ii,j
+    
+  
+    do j=1,jmp
+       do i=1,imp
+          itemp(i,j)=0_i_long
+       end do
+    end do
+    ii=0
+    do j=1,jm
+       do i=1,im
+          ii=ii+1
+          itemp(i,j)=ibuf(ii)
+       end do
+    end do
+    
+    ii=0
+    do j=1,jmp
+       do i=1,imp
+          ii=ii+1
+          ibuf(ii)=itemp(i,j)
+       end do
+    end do
+  end subroutine expand_ibuf
+
   subroutine transfer_jbuf2ibuf(this,jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc, &
        jbegin,jend,kbegin,kend,mype,npe,im_jbuf,jm_jbuf,lm_jbuf, &
        im_ibuf,jm_ibuf,k_start,k_end)
@@ -2518,4 +2422,99 @@ contains
     end do
     
   end subroutine transfer_jbuf2ibuf
+  subroutine move_ibuf_hg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    move_ibuf_hg  copy from one array to another
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: copy from one array to another
+  !
+  ! program history log:
+  !   2004-11-29  parrish
+  !
+  !   input argument list:
+  !     ibuf     - input grid values
+  !     im_buf   - first index of input array buf
+  !     jm_buf   - second index of input array buf
+  !     im_out   - first index of output array temp1
+  !     jm_out   - second index of output array temp1
+  !
+  !   output argument list:
+  !     temp1    - output grid values
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+  !        cp buf to temp1
+  
+    use kinds, only: r_single,i_kind,i_long
+    use constants, only: zero_single
+    implicit none
+    
+    class(read_wrf_mass_guess_class),intent(inout) :: this
+    integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
+    integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
+    real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
+  
+    integer(i_kind) i,j
+  
+    do j=1,jm_out
+       do i=1,im_out
+          temp1(i,j)=transfer(ibuf(i,j),zero_single)
+       end do
+    end do
+    
+  end subroutine move_ibuf_hg
+  
+  subroutine move_ibuf_ihg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    move_ibuf_hg  copy from one array to another
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: copy from one array to another, converting from int to real
+  !
+  ! program history log:
+  !   2004-11-29  parrish
+  !
+  !   input argument list:
+  !     ibuf     - input grid values
+  !     im_buf   - first index of input array buf
+  !     jm_buf   - second index of input array buf
+  !     im_out   - first index of output array temp1
+  !     jm_out   - second index of output array temp1
+  !
+  !   output argument list:
+  !     temp1    - output grid values
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+  
+  !        cp buf to temp1
+  
+    use kinds, only: i_long,r_single,i_kind
+    implicit none
+    
+    class(read_wrf_mass_guess_class),intent(inout) :: this
+    integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
+    integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
+    real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
+    
+    integer(i_kind) i,j
+    
+    do j=1,jm_out
+       do i=1,im_out
+          temp1(i,j)=ibuf(i,j)
+       end do
+    end do
+    
+  end subroutine move_ibuf_ihg
+    
 end module read_wrf_mass_guess_mod
