@@ -70,6 +70,9 @@ contains
   !   2013-10-30  todling - ltosj/i now live in commvars
   !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
   !   2015_05_12  wu      - bug fixes for FGAT
+  !   2015_09_20  s.liu   - convert nmmb F_ICE, F_RAIN to water content before interpolation
+  !   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
+  !   2016_04_28  eliu    - remove cwgues0 
   !
   !   input argument list:
   !     mype     - pe number
@@ -115,9 +118,6 @@ contains
     use native_endianness, only: byte_swap
     use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,add_gfs_stratosphere
     use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
-!   use general_buffer_mod, only: transfer_jbuf2ibuf
-!   use general_buffer_mod, only: move_ibuf_hg,move_ibuf_ihg
-!   use generic_sub2grid_mod, only: generic_grid2sub
   
     implicit none
   

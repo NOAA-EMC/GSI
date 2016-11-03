@@ -6,7 +6,7 @@ use abstract_read_wrf_nmm_files_mod
     procedure, pass(this) :: read_nems_nmmb_files => read_nems_nmmb_files_dummy
   end type read_wrf_nmm_files_class 
 contains
-  subroutine read_wrf_nmm_files_dummy(this,mype,test)
+  subroutine read_wrf_nmm_files_dummy(this,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    read_wrf_nmm_files   same as read_files, but for wrfnmm
@@ -47,7 +47,6 @@ contains
   ! Declare passed variables
     integer(i_kind),intent(in   ) :: mype
     class(read_wrf_nmm_files_class),intent(inout) :: this
-    logical, optional, intent(in  ) :: test
   
     write(6,*)'READ_WRF_NMM_FILES:     ***WARNING*** dummy call ... does nothing!'
   

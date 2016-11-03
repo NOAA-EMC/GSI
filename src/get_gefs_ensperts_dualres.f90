@@ -61,7 +61,6 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
-! use gsi_enscouplermod, only: gsi_enscoupler_get_user_ens
   use get_gfs_ensmod_mod, only: get_gfs_ensmod_class
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
   implicit none
@@ -163,8 +162,6 @@ subroutine get_gefs_ensperts_dualres
 
        en_perts(n,m)%valuesr4=zero
        
-       write(6,*) 'calling enscoupler for n = ',n,n_ens,m,ntlevs_ens 
-!      call gsi_enscoupler_get_user_ens(grd_tmp,n,m,en_read,iret)
        call enscoupler%get_user_ens_(grd_tmp,n,m,en_read,iret)
 
        ! Check read return code.  Revert to static B if read error detected

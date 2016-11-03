@@ -19,84 +19,6 @@ use abstract_get_wrf_binary_interface_mod
     procedure, pass(this) :: next_buf 
   end type get_wrf_binary_interface_class
 contains
-  subroutine next_buf(this,in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    next_buf    bring in next direct access block
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: bring in next direct access block when needed, as the file is scanned
-  !             from beginning to end during counting and inventory of records.
-  !             (subroutines count_recs_wrf_binary_file and inventory_wrf_binary_file)
-  !
-  ! program history log:
-  !   2004-11-29  parrish
-  !   2006-04-06  middlecoff - replace direct access read with getbytes
-  !
-  !   input argument list:
-  !     in_unit          - fortran unit number where input file is opened through.
-  !     nextbyte         - byte number from beginning of file that is desired 
-  !     locbyte          - byte number from beginning of last block read for desired byte
-  !     lrecl            - direct access block length
-  !     nreads           - number of blocks read before now (for diagnostic information only)
-  !     lastbuf          - logical, if true, then no more blocks, so return 
-  !
-  !   output argument list:
-  !     buf              - output array containing contents of next block
-  !     locbyte          - byte number from beginning of new block read for desired byte
-  !     thisblock        - number of new block being read by this routine
-  !     nreads           - number of blocks read now (for diagnostic information only)
-  !     lastbuf          - logical, if true, then at end of file.
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-    use kinds, only: i_byte,i_llong,i_kind
-    implicit none
-  
-    class(get_wrf_binary_interface_class), intent(inout) :: this
-    integer(i_llong),intent(in   ) :: lrecl
-    integer(i_kind) ,intent(in   ) :: in_unit
-    integer(i_llong),intent(in   ) :: nextbyte
-    integer(i_byte) ,intent(  out) :: buf(lrecl)
-    integer(i_llong),intent(  out) :: thisblock
-    integer(i_kind) ,intent(inout) :: nreads
-    integer(i_llong),intent(inout) :: locbyte
-    logical         ,intent(inout) :: lastbuf
-  
-    integer(i_kind) ierr
-  
-    if(lastbuf) return
-  
-    ierr=0
-    nreads=nreads+1
-  
-  !  compute thisblock:
-  
-    thisblock = 1_i_llong + (nextbyte-1_i_llong)/lrecl
-  
-    locbyte = 1_i_llong+mod(locbyte-1_i_llong,lrecl)
-  
-  ! The Fortran standard does not 
-  !  - specify what iostat should be for a DA read past the EOF
-  !  - provide a way to detect end-of-file for a DA file
-  !  - apply the concept end-of-file to direct-access files
-  ! Consequently,the standard does not specify what the contents
-  ! of the buffer will be for locations past the EOF.
-  
-  ! Hence the replacement of the DA read below with the call
-  ! to getbytes
-  
-  ! read(in_unit,rec=thisblock,iostat=ierr)buf
-  ! lastbuf = ierr /= 0
-  
-    call getbytes(in_unit, buf, thisblock, lrecl, ierr)
-    lastbuf = ierr == 1
-  
-  end subroutine next_buf
   subroutine convert_binary_mass_wrf(this)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -758,7 +680,6 @@ contains
     enddo n_loop
     
   end subroutine convert_binary_mass_wrf
-  
   subroutine convert_binary_nmm_wrf(this,update_pint,ctph0,stph0,tlm0)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -1430,7 +1351,6 @@ contains
     enddo n_loop
   
   end subroutine convert_binary_nmm_wrf
-  
   subroutine convert_nems_nmmb_wrf(this,update_pint,ctph0,stph0,tlm0)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -1895,7 +1815,6 @@ contains
     enddo n_loop
   
   end subroutine convert_nems_nmmb_wrf
-  
   subroutine latlon2radians(this,glat,glon,dx,dy,nx,ny)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -1973,7 +1892,6 @@ contains
     end if
   
   end subroutine latlon2radians
-  
   subroutine count_recs_wrf_binary_file(this,in_unit,wrfges,nrecs)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -2020,7 +1938,6 @@ contains
   
     use kinds, only: i_byte,i_long,i_llong,i_kind
     use native_endianness, only: byte_swap
-  
     implicit none
   
     class(get_wrf_binary_interface_class), intent(inout) :: this
@@ -2157,6 +2074,84 @@ contains
   
   end subroutine count_recs_wrf_binary_file
   
+  subroutine initialize_byte_swap_wrf_binary_file(this,in_unit,wrfges)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    initialize_byte_swap_wrf_binary_file  set byte_swap
+  !   prgmmr: parrish          org: np22                date: 2012-10-11
+  !
+  ! abstract:  compare endian format of binary file wrfges and set variable byte_swap (a public variable in
+  !              module native_endianness) true if file endian format is different from machine endian format,
+  !              otherwise set byte_swap=false.
+  !
+  ! program history log:
+  !   2012-10-11  parrish
+  !
+  !   input argument list:
+  !     in_unit          - fortran unit number where input file is opened through.
+  !     wrfges           - binary input file name.
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+    use kinds, only: i_byte,i_long,i_llong,i_kind
+    use native_endianness, only: byte_swap
+    implicit none
+  
+    class(get_wrf_binary_interface_class), intent(inout) :: this
+    integer(i_kind) ,intent(in   ) :: in_unit
+    character(9)    ,intent(in   ) :: wrfges
+  
+    character(10) cwrfges
+    integer(i_llong) nextbyte,locbyte,thisblock
+    integer(i_byte) lenrec4(4)
+    integer(i_byte) lenrec4_swap(4)
+    integer(i_long) lenrec(1)
+    integer(i_long) lenrec_swap
+    equivalence (lenrec4(1),lenrec(1))
+    equivalence (lenrec4_swap(1),lenrec_swap)
+    integer(i_llong),parameter:: lrecl=2**20_i_llong
+    integer(i_llong),parameter:: lword=2**18_i_llong
+    integer(i_long) buf4(lword)
+    integer(i_byte) buf(lrecl)
+    equivalence(buf4(1),buf(1))
+    integer(i_kind) i,nreads
+    logical lastbuf
+    integer(i_kind) ierr
+  
+  
+    cwrfges = wrfges
+    cwrfges(10:10) = char(0)
+    call openfileread (in_unit, ierr, cwrfges)
+  ! open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
+    nextbyte=0_i_llong
+    locbyte=lrecl
+    nreads=0
+    lastbuf=.false.
+  
+  ! get length of 1st record, then use to set byte_swap.
+  
+    do i=1,4
+       nextbyte=nextbyte+1_i_llong
+       locbyte=locbyte+1_i_llong
+       if(locbyte > lrecl) call this%next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+       lenrec4(i)=buf(locbyte)
+       lenrec4_swap(5-i)=buf(locbyte)
+    end do
+    byte_swap = lenrec(1) <= 0 .or. lenrec(1) > 4096
+       
+    write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
+    write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
+  
+    call closefile(in_unit,ierr)
+  
+  end subroutine initialize_byte_swap_wrf_binary_file
+
   subroutine inventory_wrf_binary_file(this,in_unit,wrfges,nrecs, &
                                        datestr_all,varname_all,memoryorder_all,domainend_all, &
                                        start_block,end_block,start_byte,end_byte,file_offset)
@@ -2209,7 +2204,6 @@ contains
     use kinds, only: i_byte,i_long,i_llong,i_kind
   ! use module_internal_header_util, only: int_get_ti_header_char,int_get_write_field_header
     use native_endianness, only: byte_swap
-  
     implicit none
   
     class(get_wrf_binary_interface_class), intent(inout) :: this
@@ -2437,25 +2431,34 @@ contains
     call closefile(in_unit,ierr)
   
   end subroutine inventory_wrf_binary_file
-  
-  subroutine initialize_byte_swap_wrf_binary_file(this,in_unit,wrfges)
+  subroutine next_buf(this,in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
-  ! subprogram:    initialize_byte_swap_wrf_binary_file  set byte_swap
-  !   prgmmr: parrish          org: np22                date: 2012-10-11
+  ! subprogram:    next_buf    bring in next direct access block
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
   !
-  ! abstract:  compare endian format of binary file wrfges and set variable byte_swap (a public variable in
-  !              module native_endianness) true if file endian format is different from machine endian format,
-  !              otherwise set byte_swap=false.
+  ! abstract: bring in next direct access block when needed, as the file is scanned
+  !             from beginning to end during counting and inventory of records.
+  !             (subroutines count_recs_wrf_binary_file and inventory_wrf_binary_file)
   !
   ! program history log:
-  !   2012-10-11  parrish
+  !   2004-11-29  parrish
+  !   2006-04-06  middlecoff - replace direct access read with getbytes
   !
   !   input argument list:
   !     in_unit          - fortran unit number where input file is opened through.
-  !     wrfges           - binary input file name.
+  !     nextbyte         - byte number from beginning of file that is desired 
+  !     locbyte          - byte number from beginning of last block read for desired byte
+  !     lrecl            - direct access block length
+  !     nreads           - number of blocks read before now (for diagnostic information only)
+  !     lastbuf          - logical, if true, then no more blocks, so return 
   !
   !   output argument list:
+  !     buf              - output array containing contents of next block
+  !     locbyte          - byte number from beginning of new block read for desired byte
+  !     thisblock        - number of new block being read by this routine
+  !     nreads           - number of blocks read now (for diagnostic information only)
+  !     lastbuf          - logical, if true, then at end of file.
   !
   ! attributes:
   !   language: f90
@@ -2463,270 +2466,49 @@ contains
   !
   !$$$
   
-    use kinds, only: i_byte,i_long,i_llong,i_kind
-    use native_endianness, only: byte_swap
-  
+    use kinds, only: i_byte,i_llong,i_kind
     implicit none
   
     class(get_wrf_binary_interface_class), intent(inout) :: this
+    integer(i_llong),intent(in   ) :: lrecl
     integer(i_kind) ,intent(in   ) :: in_unit
-    character(9)    ,intent(in   ) :: wrfges
+    integer(i_llong),intent(in   ) :: nextbyte
+    integer(i_byte) ,intent(  out) :: buf(lrecl)
+    integer(i_llong),intent(  out) :: thisblock
+    integer(i_kind) ,intent(inout) :: nreads
+    integer(i_llong),intent(inout) :: locbyte
+    logical         ,intent(inout) :: lastbuf
   
-    character(10) cwrfges
-    integer(i_llong) nextbyte,locbyte,thisblock
-    integer(i_byte) lenrec4(4)
-    integer(i_byte) lenrec4_swap(4)
-    integer(i_long) lenrec(1)
-    integer(i_long) lenrec_swap
-    equivalence (lenrec4(1),lenrec(1))
-    equivalence (lenrec4_swap(1),lenrec_swap)
-    integer(i_llong),parameter:: lrecl=2**20_i_llong
-    integer(i_llong),parameter:: lword=2**18_i_llong
-    integer(i_long) buf4(lword)
-    integer(i_byte) buf(lrecl)
-    equivalence(buf4(1),buf(1))
-    integer(i_kind) i,nreads
-    logical lastbuf
     integer(i_kind) ierr
   
+    if(lastbuf) return
   
-    cwrfges = wrfges
-    cwrfges(10:10) = char(0)
-    call openfileread (in_unit, ierr, cwrfges)
-  ! open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
-    nextbyte=0_i_llong
-    locbyte=lrecl
-    nreads=0
-    lastbuf=.false.
+    ierr=0
+    nreads=nreads+1
   
-  ! get length of 1st record, then use to set byte_swap.
+  !  compute thisblock:
   
-    do i=1,4
-       nextbyte=nextbyte+1_i_llong
-       locbyte=locbyte+1_i_llong
-       if(locbyte > lrecl) call this%next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-       lenrec4(i)=buf(locbyte)
-       lenrec4_swap(5-i)=buf(locbyte)
-    end do
-    byte_swap = lenrec(1) <= 0 .or. lenrec(1) > 4096
-       
-    write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
-    write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
+    thisblock = 1_i_llong + (nextbyte-1_i_llong)/lrecl
   
-    call closefile(in_unit,ierr)
+    locbyte = 1_i_llong+mod(locbyte-1_i_llong,lrecl)
   
-  end subroutine initialize_byte_swap_wrf_binary_file
+  ! The Fortran standard does not 
+  !  - specify what iostat should be for a DA read past the EOF
+  !  - provide a way to detect end-of-file for a DA file
+  !  - apply the concept end-of-file to direct-access files
+  ! Consequently,the standard does not specify what the contents
+  ! of the buffer will be for locations past the EOF.
   
-  subroutine int_get_ti_header_char(this, hdrbuf, hdrbufsize, itypesize, &
-                                DataHandle, Element, VarName, Data, code )
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    int_get_ti_header_char
-  !   prgmmr: 
-  !
-  ! abstract: Same as int_gen_ti_header_char except that Data is read from the file.
-  !
-  ! program history log:
-  !     2008-03-31  safford - add subroutine doc block
-  !     2009-01-03  todling - wrapped unavailable routine int_get_ti_header_c within ifdef
-  !     2009-09-28  guo     - flagged uninitialized variable to signal possible conflict.
-  !
-  !   input argument list:
-  !     hdrbuf     - 
-  !     itypesize  - 
-  !     Element    - 
-  !     Data       - 
-  !     VarName    - 
-  !
-  !   output argument list:
-  !     hdrbuf     - 
-  !     hdrbufsize - 
-  !     Element    - 
-  !     Data       - 
-  !     VarName    - 
-  !     DataHandle - 
-  !     code       - 
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-    use kinds, only: i_kind
-    IMPLICIT NONE
+  ! Hence the replacement of the DA read below with the call
+  ! to getbytes
   
-  ! INCLUDE 'intio_tags.h'
-    class(get_wrf_binary_interface_class), intent(inout) :: this
-    INTEGER(i_kind), INTENT(INOUT) ::  hdrbuf(*)
-    INTEGER(i_kind), INTENT(  OUT) ::  hdrbufsize
-    INTEGER(i_kind), INTENT(IN   ) ::  itypesize
-    CHARACTER*(*)  , INTENT(INOUT) ::  Element, Data, VarName
-    INTEGER(i_kind), INTENT(  OUT) ::  DataHandle, code
-  !Local
-    INTEGER(i_kind) i, n, DummyCount, typesize
-    CHARACTER * 132  dummyData
-  !  logical, external :: debug_foo
-  !
-    call int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
-                             DataHandle, dummyData, DummyCount, code )
-    i = n/itypesize+1 ;
-    call int_unpack_string (this, Element, hdrbuf( i ), n ) ; i = i + n
-    call int_unpack_string (this, Data   , hdrbuf( i ), n ) ; i = i + n
-    call int_unpack_string (this, VarName  , hdrbuf( i ), n ) ; i = i + n
-    hdrbufsize = hdrbuf(1)
-                         write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
-                                                                hdrbufsize,itypesize,typesize
+  ! read(in_unit,rec=thisblock,iostat=ierr)buf
+  ! lastbuf = ierr /= 0
   
-    RETURN
-  END SUBROUTINE int_get_ti_header_char
+    call getbytes(in_unit, buf, thisblock, lrecl, ierr)
+    lastbuf = ierr == 1
   
-  SUBROUTINE int_get_write_field_header ( this, hdrbuf, hdrbufsize, ftypesize, &
-                                          DataHandle , DateStr , VarName , FieldType ,                 &
-                                          DomainDesc , MemoryOrder , Stagger , DimNames ,              &
-                                          DomainStart , DomainEnd ,                                    &
-                                          PatchStart , PatchEnd )
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    int_get_write_field_header
-  !   prgmmr: 
-  !
-  ! abstract:  See documentation block in int_gen_write_field_header() for 
-  !            a description of a "write field" header.  
-  !
-  ! program history log:
-  !     2008-03-31  safford - add subroutine doc block
-  !
-  !   input argument list:
-  !     hdrbuf     - 
-  !     ftypesize  - 
-  !     DateStr    -
-  !     VarName    - 
-  !     MemoryOrder
-  !     Stagger
-  !     DimNames
-  !
-  !   output argument list:
-  !     hdrbuf     - 
-  !     hdrbufsize - 
-  !     ftypesize  - 
-  !     DataHandle - 
-  !     DateStr    -
-  !     VarName    - 
-  !     FieldType
-  !     DomainDesc
-  !     MemoryOrder
-  !     Stagger
-  !     DimNames
-  !     DomainStart,DomainEnd
-  !     PatchStart,PatchEnd
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-    use kinds, only: i_kind
-    IMPLICIT NONE
-  
-  ! INCLUDE 'intio_tags.h'
-    class(get_wrf_binary_interface_class), intent(inout) :: this
-    INTEGER(i_kind)              , INTENT(INOUT) ::  hdrbuf(*)
-    INTEGER(i_kind)              , INTENT(  OUT) ::  hdrbufsize
-    INTEGER(i_kind)              , INTENT(INOUT) ::  ftypesize
-    INTEGER(i_kind)              , INTENT(  OUT) :: DataHandle
-    CHARACTER*(*)                , INTENT(INOUT) :: DateStr
-    CHARACTER*(*)                , INTENT(INOUT) :: VarName
-    INTEGER(i_kind)              , INTENT(  OUT) :: FieldType
-    INTEGER(i_kind)              , INTENT(  OUT) :: DomainDesc
-    CHARACTER*(*)                , INTENT(INOUT) :: MemoryOrder
-    CHARACTER*(*)                , INTENT(INOUT) :: Stagger
-    CHARACTER*(*)   ,dimension(*), INTENT(INOUT) :: DimNames
-    INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: DomainStart, DomainEnd
-    INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: PatchStart,  PatchEnd
-  !Local
-    integer(i_kind),parameter:: int_field       =       530
-    CHARACTER*132 mess
-    INTEGER(i_kind) i, n
-  
-    hdrbufsize = hdrbuf(1)
-    IF ( hdrbuf(2) /= int_field ) THEN
-       write(mess,*)'int_get_write_field_header: hdrbuf(2) ne int_field ',hdrbuf(2),int_field
-       CALL wrf_error_fatal3 ( "module_internal_header_util.b" , 220 ,  mess )
-    ENDIF
-    ftypesize = hdrbuf(3)
-  
-    i = 4
-    DataHandle = hdrbuf(i)     ; i = i+1
-    call int_unpack_string(this, DateStr, hdrbuf(i), n )     ; i = i+n
-    call int_unpack_string(this, VarName, hdrbuf(i), n )     ; i = i+n
-    FieldType = hdrbuf(i)      ; i = i+1
-    call int_unpack_string(this, MemoryOrder, hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, Stagger, hdrbuf(i), n )     ; i = i+n
-    call int_unpack_string(this, DimNames(1), hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, DimNames(2), hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, DimNames(3), hdrbuf(i), n ) ; i = i+n
-    DomainStart(1) = hdrbuf(i)    ; i = i+1
-    DomainStart(2) = hdrbuf(i)    ; i = i+1
-    DomainStart(3) = hdrbuf(i)    ; i = i+1
-    DomainEnd(1) = hdrbuf(i)       ; i = i+1
-    DomainEnd(2) = hdrbuf(i)       ; i = i+1
-    DomainEnd(3) = hdrbuf(i)       ; i = i+1
-    PatchStart(1) = hdrbuf(i)     ; i = i+1
-    PatchStart(2) = hdrbuf(i)     ; i = i+1
-    PatchStart(3) = hdrbuf(i)     ; i = i+1
-    PatchEnd(1) = hdrbuf(i)       ; i = i+1
-    PatchEnd(2) = hdrbuf(i)       ; i = i+1
-    PatchEnd(3) = hdrbuf(i)       ; i = i+1
-    DomainDesc = hdrbuf(i)       ; i = i+1
-  
-    RETURN
-  END SUBROUTINE int_get_write_field_header
-  
-  SUBROUTINE int_unpack_string ( this, str, buf, n )
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    int_unpack_string
-  !   prgmmr: 
-  !
-  ! abstract:  This routine is used to extract a string from a sequence of integers.  
-  !            The first integer is the string length.  
-  !
-  ! program history log:
-  !     2008-03-31  safford - add subroutine doc block
-  !
-  !   input argument list:
-  !     str        -
-  !     buf        -
-  !
-  !   output argument list:
-  !     str        -
-  !     n          -
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-    use kinds, only: i_kind
-    IMPLICIT NONE
-  
-    class(get_wrf_binary_interface_class), intent(inout) :: this
-    CHARACTER*(*)                , INTENT(  OUT) :: str
-    INTEGER(i_kind)              , INTENT(  OUT) :: n       ! on return, N is the number of ints copied from buf
-    INTEGER(i_kind), DIMENSION(*), INTENT(IN   ) :: buf
-  !Local
-    INTEGER(i_kind) i
-    INTEGER(i_kind) strlen
-  
-    strlen = buf(1)
-    str = ""
-    DO i = 1, strlen
-       str(i:i) = char(buf(i+1))
-    ENDDO
-    n = strlen + 1
-  END SUBROUTINE int_unpack_string
-  
+  end subroutine next_buf
   subroutine retrieve_index(this,index,string,varname_all,nrecs)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -3130,8 +2912,219 @@ contains
     write(6,*)' in retrieve_field_rn1n2, num expected=',n1*n2, ' num retrieved=',nretrieved
     
   end subroutine retrieve_field_rn1n2
-end module get_wrf_binary_interface_mod
 
+  subroutine int_get_ti_header_char(this, hdrbuf, hdrbufsize, itypesize, &
+                                DataHandle, Element, VarName, Data, code )
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    int_get_ti_header_char
+  !   prgmmr: 
+  !
+  ! abstract: Same as int_gen_ti_header_char except that Data is read from the file.
+  !
+  ! program history log:
+  !     2008-03-31  safford - add subroutine doc block
+  !     2009-01-03  todling - wrapped unavailable routine int_get_ti_header_c within ifdef
+  !     2009-09-28  guo     - flagged uninitialized variable to signal possible conflict.
+  !
+  !   input argument list:
+  !     hdrbuf     - 
+  !     itypesize  - 
+  !     Element    - 
+  !     Data       - 
+  !     VarName    - 
+  !
+  !   output argument list:
+  !     hdrbuf     - 
+  !     hdrbufsize - 
+  !     Element    - 
+  !     Data       - 
+  !     VarName    - 
+  !     DataHandle - 
+  !     code       - 
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+    use kinds, only: i_kind
+    IMPLICIT NONE
+  
+  ! INCLUDE 'intio_tags.h'
+    class(get_wrf_binary_interface_class), intent(inout) :: this
+    INTEGER(i_kind), INTENT(INOUT) ::  hdrbuf(*)
+    INTEGER(i_kind), INTENT(  OUT) ::  hdrbufsize
+    INTEGER(i_kind), INTENT(IN   ) ::  itypesize
+    CHARACTER*(*)  , INTENT(INOUT) ::  Element, Data, VarName
+    INTEGER(i_kind), INTENT(  OUT) ::  DataHandle, code
+  !Local
+    INTEGER(i_kind) i, n, DummyCount, typesize
+    CHARACTER * 132  dummyData
+  !  logical, external :: debug_foo
+  !
+    call int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
+                             DataHandle, dummyData, DummyCount, code )
+    i = n/itypesize+1 ;
+    call int_unpack_string (this, Element, hdrbuf( i ), n ) ; i = i + n
+    call int_unpack_string (this, Data   , hdrbuf( i ), n ) ; i = i + n
+    call int_unpack_string (this, VarName  , hdrbuf( i ), n ) ; i = i + n
+    hdrbufsize = hdrbuf(1)
+                         write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
+                                                                hdrbufsize,itypesize,typesize
+  
+    RETURN
+  END SUBROUTINE int_get_ti_header_char
+
+  SUBROUTINE int_get_write_field_header ( this, hdrbuf, hdrbufsize, ftypesize, &
+                                          DataHandle , DateStr , VarName , FieldType ,                 &
+                                          DomainDesc , MemoryOrder , Stagger , DimNames ,              &
+                                          DomainStart , DomainEnd ,                                    &
+                                          PatchStart , PatchEnd )
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    int_get_write_field_header
+  !   prgmmr: 
+  !
+  ! abstract:  See documentation block in int_gen_write_field_header() for 
+  !            a description of a "write field" header.  
+  !
+  ! program history log:
+  !     2008-03-31  safford - add subroutine doc block
+  !
+  !   input argument list:
+  !     hdrbuf     - 
+  !     ftypesize  - 
+  !     DateStr    -
+  !     VarName    - 
+  !     MemoryOrder
+  !     Stagger
+  !     DimNames
+  !
+  !   output argument list:
+  !     hdrbuf     - 
+  !     hdrbufsize - 
+  !     ftypesize  - 
+  !     DataHandle - 
+  !     DateStr    -
+  !     VarName    - 
+  !     FieldType
+  !     DomainDesc
+  !     MemoryOrder
+  !     Stagger
+  !     DimNames
+  !     DomainStart,DomainEnd
+  !     PatchStart,PatchEnd
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+    use kinds, only: i_kind
+    IMPLICIT NONE
+  
+  ! INCLUDE 'intio_tags.h'
+    class(get_wrf_binary_interface_class), intent(inout) :: this
+    INTEGER(i_kind)              , INTENT(INOUT) ::  hdrbuf(*)
+    INTEGER(i_kind)              , INTENT(  OUT) ::  hdrbufsize
+    INTEGER(i_kind)              , INTENT(INOUT) ::  ftypesize
+    INTEGER(i_kind)              , INTENT(  OUT) :: DataHandle
+    CHARACTER*(*)                , INTENT(INOUT) :: DateStr
+    CHARACTER*(*)                , INTENT(INOUT) :: VarName
+    INTEGER(i_kind)              , INTENT(  OUT) :: FieldType
+    INTEGER(i_kind)              , INTENT(  OUT) :: DomainDesc
+    CHARACTER*(*)                , INTENT(INOUT) :: MemoryOrder
+    CHARACTER*(*)                , INTENT(INOUT) :: Stagger
+    CHARACTER*(*)   ,dimension(*), INTENT(INOUT) :: DimNames
+    INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: DomainStart, DomainEnd
+    INTEGER(i_kind) ,dimension(*), INTENT(  OUT) :: PatchStart,  PatchEnd
+  !Local
+    integer(i_kind),parameter:: int_field       =       530
+    CHARACTER*132 mess
+    INTEGER(i_kind) i, n
+  
+    hdrbufsize = hdrbuf(1)
+    IF ( hdrbuf(2) /= int_field ) THEN
+       write(mess,*)'int_get_write_field_header: hdrbuf(2) ne int_field ',hdrbuf(2),int_field
+       CALL wrf_error_fatal3 ( "module_internal_header_util.b" , 220 ,  mess )
+    ENDIF
+    ftypesize = hdrbuf(3)
+  
+    i = 4
+    DataHandle = hdrbuf(i)     ; i = i+1
+    call int_unpack_string(this, DateStr, hdrbuf(i), n )     ; i = i+n
+    call int_unpack_string(this, VarName, hdrbuf(i), n )     ; i = i+n
+    FieldType = hdrbuf(i)      ; i = i+1
+    call int_unpack_string(this, MemoryOrder, hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string(this, Stagger, hdrbuf(i), n )     ; i = i+n
+    call int_unpack_string(this, DimNames(1), hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string(this, DimNames(2), hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string(this, DimNames(3), hdrbuf(i), n ) ; i = i+n
+    DomainStart(1) = hdrbuf(i)    ; i = i+1
+    DomainStart(2) = hdrbuf(i)    ; i = i+1
+    DomainStart(3) = hdrbuf(i)    ; i = i+1
+    DomainEnd(1) = hdrbuf(i)       ; i = i+1
+    DomainEnd(2) = hdrbuf(i)       ; i = i+1
+    DomainEnd(3) = hdrbuf(i)       ; i = i+1
+    PatchStart(1) = hdrbuf(i)     ; i = i+1
+    PatchStart(2) = hdrbuf(i)     ; i = i+1
+    PatchStart(3) = hdrbuf(i)     ; i = i+1
+    PatchEnd(1) = hdrbuf(i)       ; i = i+1
+    PatchEnd(2) = hdrbuf(i)       ; i = i+1
+    PatchEnd(3) = hdrbuf(i)       ; i = i+1
+    DomainDesc = hdrbuf(i)       ; i = i+1
+  
+    RETURN
+  END SUBROUTINE int_get_write_field_header
+
+  SUBROUTINE int_unpack_string ( this, str, buf, n )
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    int_unpack_string
+  !   prgmmr: 
+  !
+  ! abstract:  This routine is used to extract a string from a sequence of integers.  
+  !            The first integer is the string length.  
+  !
+  ! program history log:
+  !     2008-03-31  safford - add subroutine doc block
+  !
+  !   input argument list:
+  !     str        -
+  !     buf        -
+  !
+  !   output argument list:
+  !     str        -
+  !     n          -
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+    use kinds, only: i_kind
+    IMPLICIT NONE
+  
+    class(get_wrf_binary_interface_class), intent(inout) :: this
+    CHARACTER*(*)                , INTENT(  OUT) :: str
+    INTEGER(i_kind)              , INTENT(  OUT) :: n       ! on return, N is the number of ints copied from buf
+    INTEGER(i_kind), DIMENSION(*), INTENT(IN   ) :: buf
+  !Local
+    INTEGER(i_kind) i
+    INTEGER(i_kind) strlen
+  
+    strlen = buf(1)
+    str = ""
+    DO i = 1, strlen
+       str(i:i) = char(buf(i+1))
+    ENDDO
+    n = strlen + 1
+  END SUBROUTINE int_unpack_string
+end module get_wrf_binary_interface_mod
+  !WRF:DRIVER_LAYER:UTIL
+  !
   MODULE module_wrf_error
   !$$$   module documentation block
   !

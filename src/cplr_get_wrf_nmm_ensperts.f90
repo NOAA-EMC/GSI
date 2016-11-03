@@ -184,471 +184,6 @@ contains
     return
   
   end subroutine ens_member_mean_dualres_regional
-  subroutine general_reorder2_s(this,grd,work,k_in)
-  !$$$  subprogram documentation block
-  !                .      .    .
-  ! subprogram:    general_reorder2_s
-  !
-  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
-  !
-  ! abstract:  adapt reorder2 to single precision
-  !
-  ! program history log:
-  !   2004-01-25  kleist
-  !   2004-05-14  kleist, documentation
-  !   2004-07-15  todling, protex-complaint prologue
-  !   2004-11-29  parrish, adapt reorder2 to single precision
-  !   2008-04-16  safford -- add subprogram doc block
-  !   2011-09-16  mtong, add structure variable grd
-  !
-  !   input argument list:
-  !     grd
-  !     k_in    ! number of levs in work array
-  !     work
-  !
-  !   output argument list:
-  !     work
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
-  !
-  !$$$
-  
-  ! !USES:
-  
-    use constants, only: zero_single
-    use mpimod, only: npe
-    use kinds, only: r_single,i_kind
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-  
-  ! !INPUT PARAMETERS:
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info),intent(in   ) :: grd
-    integer(i_kind)    ,intent(in   ) :: k_in    ! number of levs in work array
-  
-  ! !INPUT/OUTPUT PARAMETERS:
-  
-    real(r_single),dimension(grd%itotsub,k_in),intent(inout) :: work
-  
-    integer(i_kind) iloc,iskip,i,k,n
-    real(r_single),dimension(grd%itotsub*k_in):: temp
-  
-  ! Zero out temp array
-    do k=1,grd%itotsub*k_in
-       temp(k)=zero_single
-    end do
-  
-  ! Load temp array in order of subdomains
-    iloc=0
-    iskip=0
-    do n=1,npe
-       if (n/=1) then
-          iskip=iskip+grd%ijn_s(n-1)
-       end if
-  
-       do k=1,k_in
-          do i=1,grd%ijn_s(n)
-             iloc=iloc+1
-             temp(iloc)=work(iskip+i,k)
-          end do
-       end do
-    end do
-  
-  ! Now load the tmp array back into work
-    iloc=0
-    do k=1,k_in
-       do i=1,grd%itotsub
-          iloc=iloc+1
-          work(i,k)=temp(iloc)
-       end do
-    end do
-  
-    return
-  end subroutine general_reorder2_s
-  subroutine generic_grid2sub_ens(this,grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
-  !              along the k index.
-  !
-  ! program history log:
-  !   2004-02-03  kleist, new mpi strategy
-  !   2004-05-06  derber
-  !   2004-07-15  treadon - handle periodic subdomains
-  !   2004-07-28  treadon - add only on use declarations; add intent in/out
-  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
-  !               sub2grid routine if necessary
-  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
-  !   2011-09-16  mtong, add structure variable grd
-  !
-  !   input argument list:
-  !     tempa    - input grid values in horizontal slab mode.
-  !     kbegin_loc - starting k index for tempa on local processor
-  !     kend_loc   - ending k index for tempa on local processor
-  !     kbegin     - starting k indices for tempa for all processors
-  !     kend       - ending k indices for tempa for all processors
-  !     mype       - local processor number
-  !     num_fields - total range of k index (1 <= k <= num_fields)
-  !
-  !   output argument list:
-  !     all_loc  - output grid values in vertical subdomain mode
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
-    use kinds, only: r_single,i_kind
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-   
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info),intent(in   ) :: grd
-    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
-    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-    real(r_single) ,intent(inout) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
-    real(r_single) ,intent(  out) :: all_loc(grd%lat2*grd%lon2*num_fields)
-   
-    integer(i_kind) k
-    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
-  
-  ! first get alltoallv indices
-   
-    sdispls(0)=0
-    do k=0,npe-1
-       sendcounts(k)=grd%ijn_s(k+1)*(kend_loc-kbegin_loc+1)
-       sdispls(k+1)=sdispls(k)+sendcounts(k)
-    end do
-    rdispls(0)=0
-    do k=0,npe-1
-       recvcounts(k)=grd%ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
-       rdispls(k+1)=rdispls(k)+recvcounts(k)
-    end do
-   
-  ! then call reorder2
-  
-    call this%general_reorder2_s(grd,tempa,kend_loc-kbegin_loc+1)
-  
-  ! then alltoallv and i think we are done??
-  
-    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
-         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
-  
-  end subroutine generic_grid2sub_ens
-
-  subroutine grads3a(this,grd,u,v,tsen,q,pd,nvert,mype,fname)
-  
-    use kinds, only: r_kind,i_kind,r_single
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind) nvert
-    integer(i_kind), intent(in)::mype
-    character(*) fname
-    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: u,v,tsen,q
-    real(r_kind),dimension(grd%lat2,grd%lon2):: pd
-  
-    real(r_kind),dimension(grd%nlat,grd%nlon)::work
-    real(r_single) outfield(grd%nlon,grd%nlat)
-  
-    character(50) dsname,title,filename
-  ! data dsname/'test.dat'/
-    data title/'inmi'/
-    character(112) datdes(50000)
-    character(1) blank
-    data blank/' '/
-    data undef/-9.99e33_r_single/
-  
-    integer(i_kind) i,k,next,ioutdes,ioutdat
-    integer(i_kind) last,j,koutmax
-    real(r_single) undef
-    real(r_single) startp,pinc
-  
-    if(mype==0) then
-      startp=1._r_single
-      pinc=1._r_single
-      ioutdes=98750
-      ioutdat=98751
-      write(filename,'(a,".des")')trim(fname)
-      write(dsname,'(a,".dat")')trim(fname)
-      open(unit=ioutdes,file=trim(filename),form='formatted')
-      open(unit=ioutdat,file=trim(dsname),form='unformatted')
-      rewind ioutdes
-      rewind ioutdat
-      do i=1,50000
-        write(datdes(i),'(112a1)')(blank,k=1,112)
-      end do
-      write(datdes(1),'("DSET ^",a50)')dsname
-      write(datdes(2),'("options big_endian sequential")')
-      write(datdes(3),'("TITLE ",a50)')title
-      write(datdes(4),'("UNDEF ",e11.2)')undef
-      next=5
-      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
-      next=next+1
-      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
-      next=next+1
-      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
-      next=next+1
-      koutmax=1
-      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
-      next=next+1
-      write(datdes(next),'("VARS 5")')
-      next=next+1
-      write(datdes(next),'("u   ",i5," 99 u   ")')nvert
-      next=next+1
-      write(datdes(next),'("v   ",i5," 99 v   ")')nvert
-      next=next+1
-      write(datdes(next),'("t   ",i5," 99 t   ")')nvert
-      next=next+1
-      write(datdes(next),'("q   ",i5," 99 q   ")')nvert
-      next=next+1
-      write(datdes(next),'("pd  ",i5," 99 pd  ")')0
-      next=next+1
-      write(datdes(next),'("ENDVARS")')
-      last=next
-      write(ioutdes,'(a112)')(datdes(i),i=1,last)
-    endif
-    do k=1,nvert
-      call this%sub2grid_3a(grd,u(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,v(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,q(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    call this%sub2grid_3a(grd,pd(1,1),work,0,mype)
-    if(mype==0) then
-      do j=1,grd%nlon ; do i=1,grd%nlat
-          outfield(j,i)=work(i,j)
-      end do ; end do
-      write(ioutdat)outfield
-    end if
-  
-    if(mype==0) then
-      close(ioutdes)
-      close(ioutdat)
-    end if
-  end subroutine grads3a
-  
-  subroutine grads3d(this,grd,field,nvert,mype,fname)
-  
-    use kinds, only: r_kind,i_kind,r_single
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                   ,intent(in   ) :: grd
-    integer(i_kind) nvert
-    integer(i_kind), intent(in)::mype
-    character(*) fname
-    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
-  
-    real(r_kind),dimension(grd%nlat,grd%nlon)::work
-    real(r_single) outfield(grd%nlon,grd%nlat)
-  
-    character(50) dsname,title,filename
-  ! data dsname/'test.dat'/
-    data title/'inmi'/
-    character(112) datdes(50000)
-    character(1) blank
-    data blank/' '/
-    data undef/-9.99e33_r_single/
-  
-    integer(i_kind) i,k,next,ioutdes,ioutdat
-    integer(i_kind) last,j,koutmax
-    real(r_single) undef
-    real(r_single) startp,pinc
-  
-    if(mype==0) then
-      startp=1._r_single
-      pinc=1._r_single
-      ioutdes=98752
-      ioutdat=98753
-      write(filename,'(a,"x3d.ctl")')trim(fname)
-      write(dsname,'(a,"x3d.dat")')trim(fname)
-      open(unit=ioutdes,file=trim(filename),form='formatted')
-      open(unit=ioutdat,file=trim(dsname),form='unformatted')
-      rewind ioutdes
-      rewind ioutdat
-      do i=1,50000
-        write(datdes(i),'(112a1)')(blank,k=1,112)
-      end do
-      write(datdes(1),'("DSET ^",a50)')dsname
-      write(datdes(2),'("options big_endian sequential")')
-      write(datdes(3),'("TITLE ",a50)')title
-      write(datdes(4),'("UNDEF ",e11.2)')undef
-      next=5
-      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
-      next=next+1
-      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
-      next=next+1
-      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
-      next=next+1
-      koutmax=1
-      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
-      next=next+1
-      write(datdes(next),'("VARS 1")')
-      next=next+1
-      write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
-      next=next+1
-      write(datdes(next),'("ENDVARS")')
-      last=next
-      write(ioutdes,'(a112)')(datdes(i),i=1,last)
-      write(6,'(a112)')(datdes(i),i=1,last)
-    endif
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,field(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    if(mype==0) then
-      close(ioutdes)
-      close(ioutdat)
-    end if
-  
-  end subroutine grads3d
-  
-  subroutine sub2grid_3a(this,grd,sub,grid,gridpe,mype)
-  
-  !     straightforward, but inefficient code to convert a single variable on subdomains to complete
-  !      slab on one processor.
-  !  2013-10-24 todling - revisit strip interface
-  
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind), intent(in)::gridpe,mype
-    real(r_kind),dimension(grd%lat2,grd%lon2),intent(in):: sub
-    real(r_kind),dimension(grd%nlat,grd%nlon),intent(out)::grid
-  
-    real(r_kind),dimension(grd%lat1*grd%lon1):: zsm
-    real(r_kind),dimension(grd%itotsub):: work1
-    integer(i_kind) mm1,i,j,k
-  
-    mm1=mype+1
-  
-    do j=1,grd%lon1*grd%lat1
-      zsm(j)=zero
-    end do
-    call this%strip_grd(grd,sub,zsm)
-    call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
-                   work1,grd%ijn,grd%displs_g,mpi_rtype, &
-                   gridpe,mpi_comm_world,ierror)
-    if(mype==gridpe) then
-      do k=1,grd%iglobal
-        i=grd%ltosi(k) ; j=grd%ltosj(k)
-        grid(i,j)=work1(k)
-      end do
-    end if
-  
-  end subroutine sub2grid_3a
-  
-  subroutine strip_grd(this,grd,field_in,field_out)
-  
-  ! !USES:
-  
-      use kinds, only: i_kind,r_kind
-      use general_sub2grid_mod, only: sub2grid_info
-      implicit none
-  
-  ! !INPUT PARAMETERS:
-  
-      class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-      type(sub2grid_info)                  ,intent(in   ) :: grd
-      real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
-                                                                         !    array containing
-                                                                         !    buffer points
-  ! !OUTPUT PARAMETERS:
-  
-      real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
-                                                                        !   with buffer points
-                                                                        !   stripped off
-  
-  ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
-  !               purposes
-  !
-  ! !REVISION HISTORY:
-  !
-  !   2004-01-25  kleist
-  !   2004-05-14  kleist, documentation
-  !   2004-07-15  todling, protex-compliant prologue
-  !
-  ! !REMARKS:
-  !
-  !   language: f90
-  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
-  !
-  ! !AUTHOR:
-  !    kleist           org: np20                date: 2004-01-25
-  !
-  !EOP
-  !-------------------------------------------------------------------------
-  
-      integer(i_kind) i,j,jp1
-  
-      do j=1,grd%lon1
-         jp1 = j+1
-         do i=1,grd%lat1
-            field_out(i,j)=field_in(i+1,jp1)
-         end do
-      end do
-  
-      return
-  end subroutine strip_grd
   subroutine get_wrf_nmm_ensperts_wrf(this,en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -1920,8 +1455,6 @@ contains
       use general_sub2grid_mod, only: sub2grid_info
       use gsi_io, only: lendian_in
       use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
-!     use general_buffer_mod, only: transfer_jbuf2ibuf
-!     use general_buffer_mod, only: move_ibuf_hg,move_ibuf_ihg
   
       implicit none
   !
@@ -2308,7 +1841,7 @@ contains
   
   return       
   end subroutine general_read_wrf_nmm_binary
-  
+
   subroutine general_read_wrf_nmm_netcdf(this,grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
                                          region_lat,region_lon)
   
@@ -2578,6 +2111,473 @@ contains
   
   return
   end subroutine general_read_wrf_nmm_netcdf
+
+  subroutine general_reorder2_s(this,grd,work,k_in)
+  !$$$  subprogram documentation block
+  !                .      .    .
+  ! subprogram:    general_reorder2_s
+  !
+  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
+  !
+  ! abstract:  adapt reorder2 to single precision
+  !
+  ! program history log:
+  !   2004-01-25  kleist
+  !   2004-05-14  kleist, documentation
+  !   2004-07-15  todling, protex-complaint prologue
+  !   2004-11-29  parrish, adapt reorder2 to single precision
+  !   2008-04-16  safford -- add subprogram doc block
+  !   2011-09-16  mtong, add structure variable grd
+  !
+  !   input argument list:
+  !     grd
+  !     k_in    ! number of levs in work array
+  !     work
+  !
+  !   output argument list:
+  !     work
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+  !
+  !$$$
+  
+  ! !USES:
+  
+    use constants, only: zero_single
+    use mpimod, only: npe
+    use kinds, only: r_single,i_kind
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+  
+  ! !INPUT PARAMETERS:
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info),intent(in   ) :: grd
+    integer(i_kind)    ,intent(in   ) :: k_in    ! number of levs in work array
+  
+  ! !INPUT/OUTPUT PARAMETERS:
+  
+    real(r_single),dimension(grd%itotsub,k_in),intent(inout) :: work
+  
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_single),dimension(grd%itotsub*k_in):: temp
+  
+  ! Zero out temp array
+    do k=1,grd%itotsub*k_in
+       temp(k)=zero_single
+    end do
+  
+  ! Load temp array in order of subdomains
+    iloc=0
+    iskip=0
+    do n=1,npe
+       if (n/=1) then
+          iskip=iskip+grd%ijn_s(n-1)
+       end if
+  
+       do k=1,k_in
+          do i=1,grd%ijn_s(n)
+             iloc=iloc+1
+             temp(iloc)=work(iskip+i,k)
+          end do
+       end do
+    end do
+  
+  ! Now load the tmp array back into work
+    iloc=0
+    do k=1,k_in
+       do i=1,grd%itotsub
+          iloc=iloc+1
+          work(i,k)=temp(iloc)
+       end do
+    end do
+  
+    return
+  end subroutine general_reorder2_s
+  subroutine generic_grid2sub_ens(this,grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
+  !              along the k index.
+  !
+  ! program history log:
+  !   2004-02-03  kleist, new mpi strategy
+  !   2004-05-06  derber
+  !   2004-07-15  treadon - handle periodic subdomains
+  !   2004-07-28  treadon - add only on use declarations; add intent in/out
+  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
+  !               sub2grid routine if necessary
+  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
+  !   2011-09-16  mtong, add structure variable grd
+  !
+  !   input argument list:
+  !     tempa    - input grid values in horizontal slab mode.
+  !     kbegin_loc - starting k index for tempa on local processor
+  !     kend_loc   - ending k index for tempa on local processor
+  !     kbegin     - starting k indices for tempa for all processors
+  !     kend       - ending k indices for tempa for all processors
+  !     mype       - local processor number
+  !     num_fields - total range of k index (1 <= k <= num_fields)
+  !
+  !   output argument list:
+  !     all_loc  - output grid values in vertical subdomain mode
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
+    use kinds, only: r_single,i_kind
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+   
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info),intent(in   ) :: grd
+    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
+    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
+    real(r_single) ,intent(inout) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
+    real(r_single) ,intent(  out) :: all_loc(grd%lat2*grd%lon2*num_fields)
+   
+    integer(i_kind) k
+    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
+  
+  ! first get alltoallv indices
+   
+    sdispls(0)=0
+    do k=0,npe-1
+       sendcounts(k)=grd%ijn_s(k+1)*(kend_loc-kbegin_loc+1)
+       sdispls(k+1)=sdispls(k)+sendcounts(k)
+    end do
+    rdispls(0)=0
+    do k=0,npe-1
+       recvcounts(k)=grd%ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
+       rdispls(k+1)=rdispls(k)+recvcounts(k)
+    end do
+   
+  ! then call reorder2
+  
+    call this%general_reorder2_s(grd,tempa,kend_loc-kbegin_loc+1)
+  
+  ! then alltoallv and i think we are done??
+  
+    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
+         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
+  
+  end subroutine generic_grid2sub_ens
+
+  subroutine grads3a(this,grd,u,v,tsen,q,pd,nvert,mype,fname)
+  
+    use kinds, only: r_kind,i_kind,r_single
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                  ,intent(in   ) :: grd
+    integer(i_kind) nvert
+    integer(i_kind), intent(in)::mype
+    character(*) fname
+    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: u,v,tsen,q
+    real(r_kind),dimension(grd%lat2,grd%lon2):: pd
+  
+    real(r_kind),dimension(grd%nlat,grd%nlon)::work
+    real(r_single) outfield(grd%nlon,grd%nlat)
+  
+    character(50) dsname,title,filename
+  ! data dsname/'test.dat'/
+    data title/'inmi'/
+    character(112) datdes(50000)
+    character(1) blank
+    data blank/' '/
+    data undef/-9.99e33_r_single/
+  
+    integer(i_kind) i,k,next,ioutdes,ioutdat
+    integer(i_kind) last,j,koutmax
+    real(r_single) undef
+    real(r_single) startp,pinc
+  
+    if(mype==0) then
+      startp=1._r_single
+      pinc=1._r_single
+      ioutdes=98750
+      ioutdat=98751
+      write(filename,'(a,".des")')trim(fname)
+      write(dsname,'(a,".dat")')trim(fname)
+      open(unit=ioutdes,file=trim(filename),form='formatted')
+      open(unit=ioutdat,file=trim(dsname),form='unformatted')
+      rewind ioutdes
+      rewind ioutdat
+      do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+      end do
+      write(datdes(1),'("DSET ^",a50)')dsname
+      write(datdes(2),'("options big_endian sequential")')
+      write(datdes(3),'("TITLE ",a50)')title
+      write(datdes(4),'("UNDEF ",e11.2)')undef
+      next=5
+      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
+      next=next+1
+      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
+      next=next+1
+      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
+      next=next+1
+      koutmax=1
+      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
+      next=next+1
+      write(datdes(next),'("VARS 5")')
+      next=next+1
+      write(datdes(next),'("u   ",i5," 99 u   ")')nvert
+      next=next+1
+      write(datdes(next),'("v   ",i5," 99 v   ")')nvert
+      next=next+1
+      write(datdes(next),'("t   ",i5," 99 t   ")')nvert
+      next=next+1
+      write(datdes(next),'("q   ",i5," 99 q   ")')nvert
+      next=next+1
+      write(datdes(next),'("pd  ",i5," 99 pd  ")')0
+      next=next+1
+      write(datdes(next),'("ENDVARS")')
+      last=next
+      write(ioutdes,'(a112)')(datdes(i),i=1,last)
+    endif
+    do k=1,nvert
+      call this%sub2grid_3a(grd,u(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,v(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,q(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    call this%sub2grid_3a(grd,pd(1,1),work,0,mype)
+    if(mype==0) then
+      do j=1,grd%nlon ; do i=1,grd%nlat
+          outfield(j,i)=work(i,j)
+      end do ; end do
+      write(ioutdat)outfield
+    end if
+  
+    if(mype==0) then
+      close(ioutdes)
+      close(ioutdat)
+    end if
+  end subroutine grads3a
+  
+  subroutine grads3d(this,grd,field,nvert,mype,fname)
+  
+    use kinds, only: r_kind,i_kind,r_single
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                   ,intent(in   ) :: grd
+    integer(i_kind) nvert
+    integer(i_kind), intent(in)::mype
+    character(*) fname
+    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
+  
+    real(r_kind),dimension(grd%nlat,grd%nlon)::work
+    real(r_single) outfield(grd%nlon,grd%nlat)
+  
+    character(50) dsname,title,filename
+  ! data dsname/'test.dat'/
+    data title/'inmi'/
+    character(112) datdes(50000)
+    character(1) blank
+    data blank/' '/
+    data undef/-9.99e33_r_single/
+  
+    integer(i_kind) i,k,next,ioutdes,ioutdat
+    integer(i_kind) last,j,koutmax
+    real(r_single) undef
+    real(r_single) startp,pinc
+  
+    if(mype==0) then
+      startp=1._r_single
+      pinc=1._r_single
+      ioutdes=98752
+      ioutdat=98753
+      write(filename,'(a,"x3d.ctl")')trim(fname)
+      write(dsname,'(a,"x3d.dat")')trim(fname)
+      open(unit=ioutdes,file=trim(filename),form='formatted')
+      open(unit=ioutdat,file=trim(dsname),form='unformatted')
+      rewind ioutdes
+      rewind ioutdat
+      do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+      end do
+      write(datdes(1),'("DSET ^",a50)')dsname
+      write(datdes(2),'("options big_endian sequential")')
+      write(datdes(3),'("TITLE ",a50)')title
+      write(datdes(4),'("UNDEF ",e11.2)')undef
+      next=5
+      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
+      next=next+1
+      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
+      next=next+1
+      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
+      next=next+1
+      koutmax=1
+      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
+      next=next+1
+      write(datdes(next),'("VARS 1")')
+      next=next+1
+      write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
+      next=next+1
+      write(datdes(next),'("ENDVARS")')
+      last=next
+      write(ioutdes,'(a112)')(datdes(i),i=1,last)
+      write(6,'(a112)')(datdes(i),i=1,last)
+    endif
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,field(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    if(mype==0) then
+      close(ioutdes)
+      close(ioutdat)
+    end if
+  
+  end subroutine grads3d
+  
+  subroutine sub2grid_3a(this,grd,sub,grid,gridpe,mype)
+  
+  !     straightforward, but inefficient code to convert a single variable on subdomains to complete
+  !      slab on one processor.
+  !  2013-10-24 todling - revisit strip interface
+  
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                  ,intent(in   ) :: grd
+    integer(i_kind), intent(in)::gridpe,mype
+    real(r_kind),dimension(grd%lat2,grd%lon2),intent(in):: sub
+    real(r_kind),dimension(grd%nlat,grd%nlon),intent(out)::grid
+  
+    real(r_kind),dimension(grd%lat1*grd%lon1):: zsm
+    real(r_kind),dimension(grd%itotsub):: work1
+    integer(i_kind) mm1,i,j,k
+  
+    mm1=mype+1
+  
+    do j=1,grd%lon1*grd%lat1
+      zsm(j)=zero
+    end do
+    call this%strip_grd(grd,sub,zsm)
+    call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
+                   work1,grd%ijn,grd%displs_g,mpi_rtype, &
+                   gridpe,mpi_comm_world,ierror)
+    if(mype==gridpe) then
+      do k=1,grd%iglobal
+        i=grd%ltosi(k) ; j=grd%ltosj(k)
+        grid(i,j)=work1(k)
+      end do
+    end if
+  
+  end subroutine sub2grid_3a
+  
+  subroutine strip_grd(this,grd,field_in,field_out)
+  
+  ! !USES:
+  
+      use kinds, only: i_kind,r_kind
+      use general_sub2grid_mod, only: sub2grid_info
+      implicit none
+  
+  ! !INPUT PARAMETERS:
+  
+      class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+      type(sub2grid_info)                  ,intent(in   ) :: grd
+      real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
+                                                                         !    array containing
+                                                                         !    buffer points
+  ! !OUTPUT PARAMETERS:
+  
+      real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+  
+  ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+  !               purposes
+  !
+  ! !REVISION HISTORY:
+  !
+  !   2004-01-25  kleist
+  !   2004-05-14  kleist, documentation
+  !   2004-07-15  todling, protex-compliant prologue
+  !
+  ! !REMARKS:
+  !
+  !   language: f90
+  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+  !
+  ! !AUTHOR:
+  !    kleist           org: np20                date: 2004-01-25
+  !
+  !EOP
+  !-------------------------------------------------------------------------
+  
+      integer(i_kind) i,j,jp1
+  
+      do j=1,grd%lon1
+         jp1 = j+1
+         do i=1,grd%lat1
+            field_out(i,j)=field_in(i+1,jp1)
+         end do
+      end do
+  
+      return
+  end subroutine strip_grd
+  
   
   subroutine create_e2a_blend(this,nmix,nord_blend,wgt,region_lat_ens,region_lon_ens)
   !$$$  subprogram documentation block

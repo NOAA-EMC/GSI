@@ -1025,7 +1025,6 @@
   call init_aircraft
   call init_gfs_stratosphere
   call set_fgrid2agrid
- if(mype==0) write(6,*)' HEY regional is ',regional
   call gsi_nstcoupler_init_nml
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional

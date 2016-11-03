@@ -207,6 +207,7 @@ subroutine glbsoi(mype)
 
 ! Create/setup background error and background error balance
   if (regional)then
+     write(6,*) 'MAP calling regional sections!!!'
      call create_balance_vars_reg(mype)
      if(anisotropic) then
         call create_anberror_vars_reg(mype)
@@ -291,6 +292,7 @@ subroutine glbsoi(mype)
 !      another twodvar_regional variables.  All other variables are handled
 !      as they would have been otherwise.
      if (R_option .and. twodvar_regional .and. jiter==jiterstart) then
+        write(6,*) 'MAP anisotropic = ',anisotropic
         if(anisotropic) then
            call anprewgt_reg(mype)
         else

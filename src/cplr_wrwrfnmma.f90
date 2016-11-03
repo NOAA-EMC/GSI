@@ -71,9 +71,6 @@ contains
     use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
     use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
     use mpeu_util, only: die
-!   use generic_sub2grid_mod, only: generic_sub2grid
-!   use general_buffer_mod, only: transfer_ibuf2jbuf,transfer_jbuf2ibuf
-!   use general_buffer_mod, only: move_ibuf_hg,move_hg_ibuf
     use wrwrfmassa_mod, only: wrwrfmassa_class
     use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   

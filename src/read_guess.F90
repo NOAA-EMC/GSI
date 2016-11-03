@@ -67,6 +67,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         temperature after clipping supersaturation
 !   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
 !                         proximity over full domain instead of subdomain
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
 !
 !   input argument list:
 !     mype     - mpi task id

@@ -6,7 +6,7 @@ use abstract_read_wrf_nmm_files_mod
     procedure, pass(this) :: read_nems_nmmb_files => read_nems_nmmb_files_wrf
   end type read_wrf_nmm_files_class 
 contains
-  subroutine read_wrf_nmm_files_wrf(this,mype,test)
+  subroutine read_wrf_nmm_files_wrf(this,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    read_wrf_nmm_files   same as read_files, but for wrfnmm
@@ -53,14 +53,12 @@ contains
   ! Declare passed variables
     class(read_wrf_nmm_files_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: mype
-    logical, optional, intent(in   ) :: test 
   
   ! Declare local parameters
     real(r_kind),parameter:: r0_001=0.001_r_kind
   
   ! Declare local variables
     logical(4) fexist
-    logical do_tests
     character(6) filename
     integer(i_kind) in_unit
     integer(i_kind) i,j,iwan,npem1
@@ -73,19 +71,6 @@ contains
     real(r_kind),dimension(202,2):: time_ges
   
  
-  !-- Check if this is a unit test
-  if( present( test ) ) then
-    do_tests = .true.
-    nhr_assimilation = 3
-    iadate(1) = 2010
-    iadate(2) = 2
-    iadate(3) = 16
-    iadate(4) = 0
-    nminanl = 16896960 
-    iwinbgn = 16896780.0
-  else 
-    do_tests = .false.
-  endif 
   !-----------------------------------------------------------------------------
   ! Start read_wrf_nmm_files here.
     nhr_half=nhr_assimilation/2
