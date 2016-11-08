@@ -732,9 +732,16 @@ contains
                 end do
              endif
 
-             if(.not. cfound .and. mype == 0) &
-                  write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-                  'found in satbias_pc file but not found in satinfo'
+!            If an entry exists in the satbias_pc file but not in the satinfo file, print an error message.
+!            When the diag file is not wanted (diag_rad=.false.),the subset feature in the CRTM is used. 
+!            A lot of airs, iasi and/or cris satbias_pc - satinfo entry mismatchs occur which the warning messages are not wanted.
+!            The second part of the if statement keeps from printing them.
+             if ( .not. cfound ) then
+                if ((diag_rad .and. mype ==0) .or. &
+                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                   write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_pc file but not found in satinfo'
+             endif
+
           end do read3
           close(lunin)
           if (istat>0) then
@@ -954,9 +961,16 @@ contains
              end do
           endif
 
-          if(mype == 0 .and. .not. cfound) &
-             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-             'found in satbias_in file but not found in satinfo'
+!         If an entry exists in the satbias_in file but not in the satinfo file, print an error message.
+!         When the diag file is not wanted (diag_rad=.false.),the subset feature in the CRTM is used. 
+!         A lot of airs, iasi and/or cris satbias_in - satinfo entry mismatchs occur which the warning messages are not wanted.
+!         The second part of the if statement keeps from printing them.
+          if ( .not. cfound ) then
+             if ((diag_rad .and. mype ==0) .or. &
+                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_in file but not found in satinfo'
+          endif
+
        end do read4
 1333   continue
        close(lunin)
