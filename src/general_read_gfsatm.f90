@@ -650,7 +650,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    real(r_kind),allocatable,dimension(:,:,:) :: g_u,g_v
 
    ! Declare local variables
-   character(len=120) :: my_name = 'general_read_gfsatm_nems'
+   character(len=120) :: my_name = 'GENERAL_READ_GFSATM_NEMS'
    character(len=1)   :: null = ' '
    integer(i_kind):: iret,nlatm2,nlevs,icm,nord_int
    integer(i_kind):: i,j,k,icount,kk
@@ -1273,9 +1273,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    ! Print date/time stamp
    if ( mype == 0 ) then
       write(6,700) lonb,latb,nlevs,grd%nlon,nlatm2,&
-            fhour,odate
-700   format('GENERAL_READ_GFSATM_NEMS:  ges read/scatter, lonb,latb,levs=',&
-            3i6,', nlon,nlat=',2i6,', hour=',f10.1,', idate=',4i5)
+            fhour,odate,trim(filename)
+700   format('GENERAL_READ_GFSATM_NEMS: read lonb,latb,levs=',&
+            3i6,', scatter nlon,nlat=',2i6,', hour=',f6.1,', idate=',4i5,1x,a)
    endif
 
    return
