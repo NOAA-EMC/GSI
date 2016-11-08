@@ -224,9 +224,10 @@ if [[ $PLOT -eq 1 ]]; then
       TANKDIR_INFO=${TANKDIR}/info
       export STATIC_SATYPE_FILE=${STATIC_SATYPE_FILE:-${TANKDIR_INFO}/SATYPE.txt}
 
-      if [[ ! -s $STATIC_SATYPE_FILE ]]; then
-         export STATIC_SATYPE_FILE=${STATIC_SATYPE_FILE:-${HOMEnam}/fix/nam_radmon_satype.txt}
+      if [[ ! -e $STATIC_SATYPE_FILE ]]; then
+         export STATIC_SATYPE_FILE=${HOMEnam}/fix/nam_radmon_satype.txt
       fi
+      echo "STATIC_SATYPE_FILE = $STATIC_SATYPE_FILE"
 
       #-------------------------------------------------------------
       #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
@@ -273,10 +274,10 @@ if [[ $PLOT -eq 1 ]]; then
 
      jobname=mk_plot_horiz_${RADMON_SUFFIX}
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core]  -cwd ${PWD} \
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core]  -cwd ${PLOT_WORK_DIR} \
              -o ${logfile} -W 0:45 -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
      elif [[ $MY_MACHINE = "cray" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W 0:45 -cwd ${PWD} \
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W 0:45 -cwd ${PLOT_WORK_DIR} \
              -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
      else
         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} \

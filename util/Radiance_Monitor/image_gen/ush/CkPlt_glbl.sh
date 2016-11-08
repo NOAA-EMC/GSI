@@ -208,7 +208,7 @@ cd $PLOT_WORK_DIR
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
 #  available data files in $TANKDIR/angle
 #  If USE_STATIC_SATYPE == 1 then load SATYPE from the SATYPE.txt 
-#  file.
+#  file, or from fix/gdas_radmon_satype.txt.
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
@@ -242,8 +242,8 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 else 
    TANKDIR_INFO=${TANKDIR}/info
    export STATIC_SATYPE_FILE=${STATIC_SATYPE_FILE:-${TANKDIR_INFO}/SATYPE.txt}
-   if [[ ! -s $STATIC_SATYPE_FILE ]]; then
-      export STATIC_SATYPE_FILE=${STATIC_SATYPE_FILE:-${HOMEgdas}/fix/gdas_radmon_satype.txt}
+   if [[ ! -e $STATIC_SATYPE_FILE ]]; then
+      export STATIC_SATYPE_FILE=${HOMEgdas}/fix/gdas_radmon_satype.txt
    fi
    
    #-------------------------------------------------------------
