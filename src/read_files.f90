@@ -78,6 +78,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
+  use hybrid_ensemble_parameters, only: ntlevs_ens
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
@@ -119,7 +120,7 @@ subroutine read_files(mype)
   integer(i_kind),dimension(num_lpl):: lpl_dum
   integer(i_kind),dimension(7):: idate
   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-  integer(i_kind),dimension(:),allocatable:: irec
+  integer(i_kind),dimension(:,:),allocatable:: irec
   integer(i_llong) :: lenbytes
   real(r_single) hourg4
   real(r_kind) hourg,t4dv
@@ -147,16 +148,16 @@ subroutine read_files(mype)
 
 ! Check for non-zero length atm, sfc, and nst files on single task
   if(mype==npem1)then
-     allocate( irec(max_file) )
+     allocate( irec(max_file,3) )
+     irec=i_missing
 
 ! Check for atm files with non-zero length
-     irec=i_missing
      do i=0,max_file-1
         write(filename,'(''sigf'',i2.2)')i
         call gsi_inquire(lenbytes,fexist,filename,mype)
         if(fexist .and. lenbytes>0) then
            nfldsig=nfldsig+1
-           irec(nfldsig) = i
+           irec(nfldsig,1) = i
         end if
      enddo
      if(nfldsig==0) then
@@ -165,13 +166,12 @@ subroutine read_files(mype)
      end if
 
 ! Check for sfc files with non-zero length
-     irec=i_missing
      do i=0,max_file-1
         write(filename,'(''sfcf'',i2.2)')i
         call gsi_inquire(lenbytes,fexist,filename,mype)
         if(fexist .and. lenbytes>0) then
            nfldsfc=nfldsfc+1
-           irec(nfldsfc) = i
+           irec(nfldsfc,2) = i
         end if
      enddo
      if(nfldsfc==0) then
@@ -183,13 +183,12 @@ subroutine read_files(mype)
 
      if(nst_gsi > 0) then  ! nst application is an option
 !    Check for nsf files with non-zero length
-        irec=i_missing
         do i=0,max_file-1
            write(filename,'(''nstf'',i2.2)')i
            call gsi_inquire(lenbytes,fexist,filename,mype)
            if(fexist .and. lenbytes>0) then
               nfldnst=nfldnst+1
-              irec(nfldnst) = i
+              irec(nfldnst,3) = i
            end if
         enddo
         if(nfldnst==0) then
@@ -209,7 +208,8 @@ subroutine read_files(mype)
 !    Check for consistency of times from atmospheric guess files.
      iwan=0
      do i=1,nfldsig
-        write(filename,'(''sigf'',i2.2)')irec(i)
+        write(filename,'(''sigf'',i2.2)')irec(i,1)
+        write(6,*)'READ_FILES:  process ',trim(filename)
         if ( .not. use_gfs_nemsio ) then
            call sigio_sropen(lunatm,filename,iret)
            call sigio_srhead(lunatm,sigatm_head,iret)
@@ -257,13 +257,14 @@ subroutine read_files(mype)
         iwan=iwan+1
         if(nminanl==nming2) iamana(1)=iwan
         time_atm(iwan,1) = t4dv
-        time_atm(iwan,2) = irec(i)+r0_001
+        time_atm(iwan,2) = irec(i,1)+r0_001
      end do
 
 !    Check for consistency of times from surface guess files.
      iwan=0
      do i=1,nfldsfc
-        write(filename,'(''sfcf'',i2.2)')irec(i)
+        write(filename,'(''sfcf'',i2.2)')irec(i,2)
+        write(6,*)'READ_FILES:  process ',trim(filename)        
         if ( .not. use_gfs_nemsio ) then
            call sfcio_sropen(lunsfc,filename,iret)
            call sfcio_srhead(lunsfc,sfc_head,iret)
@@ -343,7 +344,7 @@ subroutine read_files(mype)
         iwan=iwan+1
         if(nminanl==nming2) iamana(2)=iwan
         time_sfc(iwan,1) = t4dv
-        time_sfc(iwan,2) = irec(i)+r0_001
+        time_sfc(iwan,2) = irec(i,2)+r0_001
      end do
 
 !    Check for consistency of times from nst guess files.
@@ -351,7 +352,8 @@ subroutine read_files(mype)
         allocate(nst_ges(2))
         iwan=0
         do i=1,nfldnst
-           write(filename,'(''nstf'',i2.2)')irec(i)
+           write(filename,'(''nstf'',i2.2)')irec(i,3)
+           write(6,*)'READ_FILES:  process ',trim(filename)
            if ( .not. use_gfs_nemsio ) then
               call nstio_sropen(lunnst,filename,iret)
               call nstio_srhead(lunnst,nst_head,iret)
@@ -362,9 +364,21 @@ subroutine read_files(mype)
            else
               call nemsio_init(iret=iret)
               call nemsio_open(gfile_nst,filename,'READ',iret=iret)
+              idate         = i_missing
+              nfhour        = i_missing; nfminute      = i_missing
+              nfsecondn     = i_missing; nfsecondd     = i_missing
               call nemsio_getfilehead(gfile_nst, nfhour=nfhour, nfminute=nfminute,  &
                  nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, &
                  dimx=nst_head%lonb, dimy=nst_head%latb, iret=iret)
+              call nemsio_close(gfile_nst,iret=iret)
+              if ( nfhour == i_missing .or. nfminute == i_missing .or. &
+                   nfsecondn == i_missing .or. nfsecondd == i_missing ) then
+                 write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+                      'are not defined in ', trim(filename)
+                 write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
+                      nfhour, nfminute, nfsecondn, nfsecondd
+                 call stop2(80)
+              endif
               hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
               idateg(1) = idate(4)  !hour
               idateg(2) = idate(2)  !month
@@ -372,7 +386,6 @@ subroutine read_files(mype)
               idateg(4) = idate(1)  !year
               nst_ges(1)=nst_head%lonb
               nst_ges(2)=nst_head%latb+2
-              call nemsio_close(gfile_nst,iret=iret)
            endif
            if ( i_ges(1) /= nst_ges(1) .or. i_ges(2) /= nst_ges(2) ) then
               write(6,'(''READ_FILES: sfc file lat,lon '',2i5,'' do not match with nst file lat,lon '',2i5)') &
@@ -395,7 +408,7 @@ subroutine read_files(mype)
            iwan=iwan+1
            if(nminanl==nming2) iamana(3)=iwan
            time_nst(iwan,1) = t4dv
-           time_nst(iwan,2) = irec(i)+r0_001
+           time_nst(iwan,2) = irec(i,3)+r0_001
         end do
         deallocate(nst_ges)
      endif                          ! if ( nst_gsi > 0 ) then
@@ -438,6 +451,14 @@ subroutine read_files(mype)
   end do
   if(mype == 0) write(6,*)'READ_FILES:  atm fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
+  if (ntguessig==0) then
+     write(6,*)'READ_FILES: ***ERROR*** center atm fcst NOT AVAILABLE: PROGRAM STOPS'
+     call stop2(99)
+  endif
+  if (l4densvar .and. nfldsig/=ntlevs_ens) then
+     write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+     call stop2(99)
+  endif
 
 ! Load time information for surface guess field info into output arrays
   ntguessfc = iamana(2)
@@ -448,6 +469,14 @@ subroutine read_files(mype)
   end do
   if(mype == 0) write(6,*)'READ_FILES:  sfc fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
+  if (ntguessfc==0) then
+     write(6,*)'READ_FILES: ***ERROR*** center sfc fcst NOT AVAILABLE: PROGRAM STOPS'
+     call stop2(99)
+  endif
+  if (l4densvar .and. nfldsfc/=ntlevs_ens) then
+     write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+     call stop2(99)
+  endif
   
   deallocate(time_atm,time_sfc)
   
@@ -461,6 +490,14 @@ subroutine read_files(mype)
     end do
     if(mype == 0) write(6,*)'READ_FILES:  nst fcst files used in analysis:  ',&
          (ifilenst(i),i=1,nfldnst),(hrdifnst(i),i=1,nfldnst),ntguesnst
+    if (ntguesnst==0) then
+       write(6,*)'READ_FILES: ***ERROR*** center nst fcst NOT AVAILABLE: PROGRAM STOPS'
+       call stop2(99)
+    endif
+    if (l4densvar .and. nfldnst/=ntlevs_ens) then
+       write(6,*)'READ_FILES: ***ERROR*** insufficient nst fcst for 4densvar:  PROGRAM STOPS'
+       call stop2(99)
+    endif
     deallocate(time_nst)
   endif
 
