@@ -82,7 +82,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
       eccentricity,somigliana,grav_ratio,grav, &
       semi_major_axis,flattening,two
   use qcmod, only: erradar_inflate,vadfile,newvad
-  use obsmod, only: iadate,l_foreaft_thin
+  use obsmod, only: iadate,ianldate,l_foreaft_thin
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
@@ -262,6 +262,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   dlonmax=-huge(dlonmax)
   dlatmin=huge(dlatmin)
   dlonmin=huge(dlonmin)
+
+  if(ianldate > 2016092000)then
+     hdrstr(2)='PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON FLVLST ANAZ ANEL'
+  end if
 
   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
 
@@ -1334,7 +1338,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   do i=1,nconvtype
      if(trim(ioctype(i)) == trim(obstype) .and. ictype(i) < 999 .and. icuse(i) > 0)then
         ithin=ithin_conv(i)
-        print *,'mtong i, ithin_conv(i)=', i, ithin_conv(i)
         if(ithin > 0)then
            rmesh=rmesh_conv(i)
            pmesh=pmesh_conv(i)
