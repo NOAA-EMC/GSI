@@ -2989,8 +2989,8 @@ contains
 !
 ! slmsk
        rwork1d = reshape( slmsk_anl,(/size(rwork1d)/) )
-       call nemsio_writerecv(gfile_nstanl,'slmsk','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'slmsk','write',istop,iret)
+       call nemsio_writerecv(gfile_nstanl,'land','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'land','write',istop,iret)
 ! xt
        rwork1d = reshape( xt,(/size(rwork1d)/) )
        call nemsio_writerecv(gfile_nstanl,'xt','sfc',1,rwork1d,iret=iret)

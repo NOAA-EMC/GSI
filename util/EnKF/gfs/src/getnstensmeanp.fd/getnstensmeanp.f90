@@ -267,8 +267,8 @@ program getnstensmeanp
 
         if (mype==0) then
            rwork1d=zero
-           call nemsio_readrecv(gfile,'slmsk','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'slmsk','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret)
+           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret)
 
            rwork1d=zero
            call nemsio_readrecv(gfile,'ifd','sfc',1,rwork1d,iret)
