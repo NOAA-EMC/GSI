@@ -9,6 +9,7 @@ program getnstensmeanp
 !
 ! program history log:
 !   2014-02-28  Initial version.
+!   2016-11-18  change nst mask name from slmsk to land
 !
 ! usage:
 

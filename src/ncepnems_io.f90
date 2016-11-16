@@ -35,6 +35,7 @@ module ncepnems_io
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
 !                               change/modify sfc_interpolate to be intrp22 to handle more general interpolation (2d to 2d)
+!   2016-11-18 li     - tic615: change nst mask name from slmsk to land 
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
