@@ -77,6 +77,11 @@ for type in ${SATYPE_LIST}; do
    scan_stepsz=`cat ./$scaninfo | grep $type | gawk '{print $3}'`
    scan_nstep=`cat ./$scaninfo | grep $type | gawk '{print $4}'`
 
+   nregion=5
+   if [[ $RAD_AREA = 'rgn' ]]; then
+      nregion=1
+   fi
+
    rm -f ${input}
 
 
@@ -87,7 +92,8 @@ for type in ${SATYPE_LIST}; do
      ncycle=${ncycle},
      scan_start=${scan_start},
      scan_stepsz=${scan_stepsz},
-     scan_nstep=${scan_nstep}
+     scan_nstep=${scan_nstep},
+     nregion=${nregion},
     /
 EOF
 
