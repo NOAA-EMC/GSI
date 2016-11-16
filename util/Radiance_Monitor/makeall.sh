@@ -40,12 +40,12 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; th
    module load RadMonBuild
 
    executables="angle bcoef bcor time"
-   echo "Making executables in nwprod/radmon_shared.${radmon_shared_ver}/sorc:"
+   echo "Making executables in nwprod/radmon_shared.v${radmon_shared_ver}/sorc:"
    for var in ${executables}; do
       if [[ $var = "angle" ]]; then
-         cd ${top_level}/nwprod/radmon_shared.${radmon_shared_ver}/sorc/verf_radang.fd
+         cd ${top_level}/nwprod/radmon_shared.v${radmon_shared_ver}/sorc/verf_radang.fd
       else
-         cd ${top_level}/nwprod/radmon_shared.${radmon_shared_ver}/sorc/verf_rad${var}.fd
+         cd ${top_level}/nwprod/radmon_shared.v${radmon_shared_ver}/sorc/verf_rad${var}.fd
       fi
 
       make ${mode}

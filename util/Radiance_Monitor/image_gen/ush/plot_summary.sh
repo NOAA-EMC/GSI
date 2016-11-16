@@ -57,34 +57,12 @@ for type in ${SATYPE2}; do
    #  Locate and copy data files.
    #
    while [[ $cdate -le $edate ]]; do
-
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8`
-      else
-         day=`echo $cdate | cut -c1-8`
-      fi
-
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-      fi   
-
-#      echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
+      day=`echo $cdate | cut -c1-8`
 
       if [[ -d ${TANKDIR}/radmon.${day} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
-         else
-            test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
-         fi
-
+         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file2=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
-            fi
+            test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
          else
             test_file2=
          fi
@@ -102,7 +80,7 @@ for type in ${SATYPE2}; do
          fi
       fi
 
-      adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
+      adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
@@ -148,7 +126,6 @@ EOF
 #       6) clean up
 
    echo "BEGIN javascript file generation:"
-   rm -f times.txt
    
    if [[ ! -s summary.x ]]; then
       $NCP ${IG_EXEC}/summary.x .
@@ -162,10 +139,7 @@ EOF
 
    nchanl=`cat ./${type}.ctl | grep title |gawk '{print $4}'`
    ncycle=`cat times.txt | wc -l`
-
    st_time=`head -1 times.txt`
-   cyc_per_day=$((24/$CYCLE_INTERVAL))           # number cycles per day
-
    input=${type}.input.txt
 
    nregion=5
@@ -180,7 +154,6 @@ EOF
       ncycle=${ncycle},
       nregion=${nregion},
       st_time=${st_time},
-      cyc_per_day=${cyc_per_day},
      /
 EOF
 
@@ -189,7 +162,7 @@ EOF
    ./summary.x < input > out.${type}
    echo "END javascript file generation:"
    rm -f times.txt
-#   rm -f use.txt
+   rm -f use.txt
 
    rm -f ${input}
 

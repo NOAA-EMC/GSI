@@ -1,5 +1,0 @@
- &iosetup
-  infilename='./diag_conv_anl',
-  outfilename='./results_conv_anl',
- /     
-

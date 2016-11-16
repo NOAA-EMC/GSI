@@ -44,7 +44,6 @@ this_dir=`dirname $0`
 #--------------------------------------------------------------------
 export RADMON_SUFFIX=$1
 export RUN_ENVIR=""
-increment=1          
 
 if [[ $nargs -ge 2 ]]; then
    if [[ $2 = "dev" || $2 = "para" ]]; then
@@ -159,8 +158,8 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-export REGIONAL_RR=${REGIONAL_RR:-0} 		#  regional rapid refresh flag
-echo "REGIONAL_RR = ${REGIONAL_RR}"
+REGIONAL_RR=${REGIONAL_RR:-0} 		#  regional rapid refresh flag
+
 
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
@@ -186,7 +185,6 @@ if [[ $RUN_ENVIR = dev ]]; then
 
    if [[ $PDATE = "" ]]; then
       pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
-
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Re-run this script with a specified starting cycle"
@@ -196,47 +194,11 @@ if [[ $RUN_ENVIR = dev ]]; then
       # --------------------------------------------------------------------
       #  CYCLE_INTERVAL comes from the ../../parm/RadMon_user_settings file
       # --------------------------------------------------------------------
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         # if there is no $pdate we may or may not increment the $pdate
-         # depending on the rgnHH and rgnTM settings
-         # get PDY, rgnHH, rgnTM      
-
-         new_day=0
-         hr=`echo $pdate|cut -c9-10`
-         if [[ $hr = "00" || $hr = "06" || $hr = "12" || $hr = "18" ]]; then
-            rgnHH=`${DE_SCRIPTS}/rr_get_tHHz.pl $pdate ${TANKverf}` 
-            
-            if [[ $hr = "00" && $rgnHH = "t00z" ]]; then
-               increment=0
-               rgnHH="t06z"
-               rgnTM="tm06"
-            elif [[ $hr = "06" && $rgnHH = "t06z" ]]; then
-               increment=0
-               rgnHH="t12z"
-               rgnTM="tm06"
-            elif [[ $hr = "12" && $rgnHH = "t12z" ]]; then
-               increment=0
-               rgnHH="t18z"
-               rgnTM="tm06"
-            elif [[ $hr = "18" && $rgnHH = "t18z" ]]; then
-               increment=0
-               rgnHH="t00z"
-               rgnTM="tm06"
-            fi
-         fi
-
-         if [[ $increment -eq 1 ]]; then          
-            qdate=`${NDATE} +${CYCLE_INTERVAL} $pdate`	# namrr is peculiar in that that
-#         elif [[ $new_day -eq 1 ]]; then		# day rolls over with the
-#            qdate=`${NDATE} +24 $pdate`			# t00z.radstat.tm06 file
-#            echo "ADVANCE from $pdate to $qdate"	# t18z.radstat.tm00 was yesterday
-         else 
-            qdate=$pdate
-         fi 
-
-      else
-         qdate=`${NDATE} +${CYCLE_INTERVAL} $pdate`
-      fi
+#      if [[ $REGIONAL_RR -eq 1 ]]; then
+      qdate=`${NDATE} +${CYCLE_INTERVAL} $pdate`
+#      else
+#         qdate=`${NDATE} +06 $pdate`
+#      fi
 
       if [[ $REGIONAL_RR -eq 0 ]]; then
          fdate=`${DE_SCRIPTS}/find_ndas_radstat.pl 0 $com`
@@ -247,11 +209,11 @@ if [[ $RUN_ENVIR = dev ]]; then
          else 
             export PDATE=$fdate
          fi
-      else		# REGIONAL_RR 
+      else			# namrr for the moment
+         fdate=`${DE_SCRIPTS}/find_namrr_radstat.pl 0 $com`
          export PDATE=$qdate
       fi
    fi 
-
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
 
@@ -259,77 +221,23 @@ if [[ $RUN_ENVIR = dev ]]; then
    # Locate required files.
    #---------------------------------------------------------------
    echo $PDATE
+#   DATEM12=`${NDATE} +12 $PDATE`
+#   echo $DATEM12 
+
+#   PDY00=`echo $PDATE | cut -c 1-8` 
+#   HH00=`echo $PDATE | cut -c 9-10`
+#   PDY12=`echo $DATEM12 | cut -c 1-8`
+#   HH12=`echo $DATEM12 | cut -c 9-10`
 
    if [[ $REGIONAL_RR -eq 1 ]]; then
-      echo increment = $increment
-
-      if [[ $increment -eq 1 ]]; then   
-         PDY00=`echo $PDATE | cut -c 1-8` 
-         HH00=`echo $PDATE | cut -c 9-10`
-         case $HH00 in  
-            00) export rgnHH=t00z
-                export rgnTM=tm00;;
-            01) export rgnHH=t06z
-                export rgnTM=tm05;;
-            02) export rgnHH=t06z
-                export rgnTM=tm04;;
-            03) export rgnHH=t06z
-                export rgnTM=tm03;;
-            04) export rgnHH=t06z
-                export rgnTM=tm02;;
-            05) export rgnHH=t06z
-                export rgnTM=tm01;;
-            06) export rgnHH=t06z
-                export rgnTM=tm00;;
-            07) export rgnHH=t12z
-                export rgnTM=tm05;;
-            08) export rgnHH=t12z
-                export rgnTM=tm04;;
-            09) export rgnHH=t12z
-                export rgnTM=tm03;;
-            10) export rgnHH=t12z
-                export rgnTM=tm02;;
-            11) export rgnHH=t12z
-                export rgnTM=tm01;;
-            12) export rgnHH=t12z
-                export rgnTM=tm00;;
-            13) export rgnHH=t18z
-                export rgnTM=tm05;;
-            14) export rgnHH=t18z
-                export rgnTM=tm04;;
-            15) export rgnHH=t18z
-                export rgnTM=tm03;;
-            16) export rgnHH=t18z
-                export rgnTM=tm02;;
-            17) export rgnHH=t18z
-                export rgnTM=tm01;;
-            18) export rgnHH=t18z	# day changes here?!
-                export rgnTM=tm00;;
-            19) export rgnHH=t00z
-                export rgnTM=tm05;;
-            20) export rgnHH=t00z
-                export rgnTM=tm04;;
-            21) export rgnHH=t00z
-                export rgnTM=tm03;;
-            22) export rgnHH=t00z
-                export rgnTM=tm02;;
-            23) export rgnHH=t00z
-                export rgnTM=tm01;;
-         esac
-      fi
-
-      echo "PDATE = $PDATE"
-      echo "DATDIR = $DATDIR"
-      echo "com    = $com"
-      echo "rgnHH  = $rgnHH"
-      echo "rgnTM  = $rgnTM"
-      /bin/sh ${DE_SCRIPTS}/getbestnamrr_radstat.sh ${PDATE} ${DATDIR} ${com} ${rgnHH} ${rgnTM}
-
+#      radstat=$com/namrr.$PDY12/namrr.t${HH12}z.radstat.tm06
+#      biascr=$com/namrr.$PDY12/namrr.t${HH12}z.satbiasc.tm06
+      /bin/sh ${DE_SCRIPTS}/getbestnamrr_radstat.sh ${PDATE} ${DATDIR} ${com}
    else
-
+#      radstat=$com/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
+#      biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbiasc.tm12
       /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
    fi
-
    echo RADSTAT = $radstat
    echo BIASCR  = $biascr
 
@@ -357,9 +265,12 @@ else
    exit 1
 fi
 
-
 export biascr=$DATDIR/satbias.${PDATE}
 export radstat=$DATDIR/radstat.${PDATE}
+
+echo "via getbestndas_radstat.sh:"
+echo RADSTAT = $radstat
+echo BIASCR  = $biascr
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -382,9 +293,6 @@ if [ -s $radstat -a -s $biascr ]; then
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
    export DATA=${DATA:-${STMP_USER}/radmon_de_${RADMON_SUFFIX}}
-   cd ${STMP_USER}
-   rm -rf ${DATA}
-   mkdir ${DATA}
    export jlogfile=${WORKverf_rad}/jlogfile_${RADMON_SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
@@ -396,35 +304,15 @@ if [ -s $radstat -a -s $biascr ]; then
    #----------------------------------------------------------------------------
    export satype_file=${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt
 
-   #  logic here needs work.
-   #  point TANKverf_rad to radmon.${next_day} for all of the t00z cycles
-   #  maybe always try to make the directory just to be sure its there.
-
-   if [[ $REGIONAL_RR -eq 1 ]]; then
-      if [[ $cyc -ge 18 ]]; then
-         echo "Making new day directory for 18 cycle"
-         next_day=`${NDATE} +06 $PDATE | cut -c1-8`
-
-         export TANKverf_rad=${TANKverf}/radmon.${next_day}
-#         if [[ ! -d ${TANKverf_rad} ]]; then
-#            mkdir -p ${TANKverf_rad}
-#         fi
-
-#         prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-         if [[ -s ${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
-            cp ${TANKverf}/radmon.${PDY}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${next_day}/.
-         fi
-       fi
-    else
-      if [[ $cyc = "00" ]]; then
-         echo "Making new day directory for 00 cycle"
-         mkdir -p ${TANKverf}/radmon.${PDY}
-         prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-         if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
-            cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
-         fi
-       fi
+   if [[ $CYC = "00" ]]; then
+      echo "Making new day directory for 00 cycle"
+      mkdir -p ${TANKverf}/radmon.${PDY}
+      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
+      if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
+         cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+      fi
     fi
+
     echo "TESTING for $satype_file"
     if [[ -s ${satype_file} ]]; then
       echo "${satype_file} is good to go"
@@ -451,11 +339,11 @@ if [ -s $radstat -a -s $biascr ]; then
    logfile=$LOGdir/data_extract.${RADMON_SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "cray" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 -J ${jobname} $HOMEnam/jobs/JNAM_VERFRAD
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 -J ${jobname} $HOMEgdas/jobs/JGDAS_VERFRAD
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia"  ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgdas}/jobs/JGDAS_VERFRAD
    fi
 
 fi

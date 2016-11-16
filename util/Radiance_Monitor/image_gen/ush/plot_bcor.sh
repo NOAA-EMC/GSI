@@ -71,41 +71,21 @@ for type in ${SATYPE2}; do
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-      else
-         day=`echo $cdate | cut -c1-8 `
-      fi
+     day=`echo $cdate | cut -c1-8 `
 
-      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
-         else 
-            test_file=${TANKDIR}/radmon.${day}/bcor.${type}.${cdate}.ieee_d
-         fi
-
-         if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${TANKDIR}/radmon.${day}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${TANKDIR}/radmon.${day}/bcor.${type}_anl.${cdate}.ieee_d
-            fi
-         else
-            test_file2=
-         fi
-
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
-      fi
-
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
-      cdate=$adate
+     if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+        test_file=${TANKDIR}/radmon.${day}/bcor.${type}.${cdate}.ieee_d
+        if [[ -s $test_file ]]; then
+           $NCP ${test_file} ./${type}.${cdate}.ieee_d
+        elif [[ -s ${test_file}.${Z} ]]; then
+           $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+        fi
+     fi
+     if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
+        $NCP $TANKDIR/bcor/${type}.${cdate}.ieee_d* ./
+     fi
+     adate=`$NDATE +6 $cdate`
+     cdate=$adate
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 

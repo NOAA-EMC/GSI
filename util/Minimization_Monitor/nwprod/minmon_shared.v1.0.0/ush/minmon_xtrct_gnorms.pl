@@ -194,9 +194,8 @@ my $scr = "minmon_xtrct_gnorms.pl";
 my $msg = $scr . " HAS STARTED";
 
 my @msgcmd = ("postmsg", $jlogfile, $msg);
-#system( @msgcmd ) == 0
-#   or die "system @msgcmd failed: $?";
-
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
 #--------------------------------------------------
 
 
@@ -438,8 +437,8 @@ if( $rc == 0 ) {
 #--------------------------------------------------
 $msg = $scr . " HAS ENDED";
 @msgcmd = ("postmsg", $jlogfile, $msg);
-#system( @msgcmd ) == 0
-#   or die "system @msgcmd failed: $?";
+system( @msgcmd ) == 0
+   or die "system @msgcmd failed: $?";
 #--------------------------------------------------
 
 print "$rc \n"
