@@ -11,6 +11,7 @@ program getsfcnstensupdp
 !   2014-05-01  Initial version.
 !   2016-02-15  Add to read nemsio
 !   2016-08-18  Fix two bugs  (tsea, dtf_ens)
+!   2016-11-18  change nst mask name from slmsk to land
 !
 ! usage:
 !   input files:
@@ -607,7 +608,7 @@ program getsfcnstensupdp
 ! slmsk
        rwork1d = reshape( slmsk_ens,(/size(rwork1d)/) )
        call nemsio_writerecv(gfile_nstanl,'land','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstanl),'slmsk','write',istop,iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstanl),'land','write',istop,iret)
 ! xt
        rwork1d = reshape( xt,(/size(rwork1d)/) )
        call nemsio_writerecv(gfile_nstanl,'xt','sfc',1,rwork1d,iret=iret)
