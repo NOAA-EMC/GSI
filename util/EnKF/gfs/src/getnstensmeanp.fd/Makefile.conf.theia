@@ -64,7 +64,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4)
+  LIBS_N        = $(W3NCO_LIB4) $(SFCIO_LIB4)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 

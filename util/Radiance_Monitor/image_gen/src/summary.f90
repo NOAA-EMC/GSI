@@ -49,8 +49,7 @@ program summary
    integer               :: nregion              = 5
    character(40)         :: satname              = 'ssmis_f18'  
    character(10)         :: st_time              = '2014070800'
-   integer               :: cyc_per_day          = 4
-   namelist /input/ satname, nchanl, ncycle, nregion, st_time, cyc_per_day
+   namelist /input/ satname, nchanl, ncycle, nregion, st_time
 
 
    data luname,lpname,ldname,loname / 5, 50, 51, 52 /
@@ -61,6 +60,7 @@ program summary
 !************************************************************************
   read(luname,input)
   write(6,input)
+
 
 !************************************************************************
 ! Read times.txt input file, which is the dates to process in order
@@ -161,9 +161,8 @@ program summary
 ! *****************************************************************************
 !  Total Bias Correction 
 !  
-!  Determine bias correction (tot_cor/count) for the latest cycle, the past 
-!  day (using cyc_per_day) and past 30 days (using ncycle, and assuming we've
-!  been sent the correct number of files).
+!  Determine bias correction (tot_cor/count) for the latest cycle, the past 4
+!  cycles (1 day) and past 120 cycles (30 days).  
 !  
 !  By channel, sum all tot_cor for the 3 periods and divide by the total count
 !   for the same period.
@@ -183,7 +182,7 @@ program summary
                else
                   avg_tot_cor( ftyp,j,1 ) = 0.0
                end if
-            else if( cyc == cyc_per_day ) then
+            else if( cyc == 4 ) then
                if( chan_cnt > 0.0 ) then
                   avg_tot_cor( ftyp,j,2 ) = chan_tot / chan_cnt
                else
@@ -257,7 +256,7 @@ program summary
                 else
                    avg_pen( ftyp,j,1 ) = 0.00
                 end if
-            else if( cyc == cyc_per_day ) then
+            else if( cyc == 4 ) then
                 if( chan_cnt > 0.0 ) then
                    avg_pen( ftyp,j,2 ) = chan_tot / chan_cnt
                 else

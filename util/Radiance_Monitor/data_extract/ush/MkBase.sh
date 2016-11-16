@@ -25,7 +25,7 @@ function usage {
 }
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 && $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -45,7 +45,7 @@ this_dir=`dirname $0`
 #--------------------------------------------------------------------
 RAD_AREA=${RAD_AREA:-glb}
 area=$RAD_AREA
-echo $area, $REGIONAL_RR
+echo $area
 
 #------------------------------------------------------------------
 # Set environment variables.
@@ -78,11 +78,6 @@ fi
 . ${DE_PARM}/data_extract_config
 
 
-
-REGIONAL_RR=${REGIONAL_RR:-0}
-echo "REGIONAL_RR   = $REGIONAL_RR"
-echo "CYCLE_ITERVAL = $CYCLE_INTERVAL"
-
 #-------------------------------------------------------------------
 #  Set dates
 #    BDATE is beginning date for the 30/60 day range
@@ -93,7 +88,7 @@ echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
 EDATE=${sdate}00
-BDATE=`$NDATE -1080 $EDATE`
+BDATE=`$NDATE -720 $EDATE`
 
 echo EDATE = $EDATE
 echo BDATE = $BDATE
@@ -153,51 +148,37 @@ for type in ${SATYPE}; do
    #  Create the cycle_hrs.txt file
    #-------------------------------------------------------------------
    cdate=$BDATE
-   nfiles=0
    while [[ $cdate -le $EDATE ]]; do
       echo $cdate >> cycle_hrs.txt
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +6 $cdate`
       cdate=$adate
-      nfiles=`expr $nfiles + 1`
    done
-
 
    #-------------------------------------------------------------------
    #  Copy the data files and ctl file to workdir
    #-------------------------------------------------------------------
    cdate=$BDATE
    while [[ $cdate -le $EDATE ]]; do
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-      else
-         day=`echo $cdate | cut -c1-8 `
-      fi
-
       day=`echo $cdate | cut -c1-8 `
 
       if [[ -d ${TANKverf}/radmon.${day} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKverf}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
-         else
-            test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
-         fi
-
+         test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
          elif [[ -s ${test_file}.${Z} ]]; then
             $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
+         $NCP $TANKverf/time/${type}.${cdate}.ieee_d* ./
+      fi
 
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
 
 
-
+   day=`echo $EDATE | cut -c1-8 `
    test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
  
    if [[ -s ${test_file} ]]; then
@@ -227,6 +208,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
+#   $NCP ${HOMEradmon}/exec/make_base ./
    $NCP ${DE_EXEC}/make_base ./
 
 cat << EOF > input
@@ -234,7 +216,7 @@ cat << EOF > input
   satname='${type}',
   n_chan=${nchan},
   nregion=1,
-  nfile=${nfiles},
+  nfile=121,
   date='${EDATE}',
   out_file='${out_file}',
  /
@@ -251,6 +233,7 @@ EOF
    #  Clean up
    #-------------------------------------------------------------------
    cd $tmpdir
+   rm -rf $workdir
 
 done
 
@@ -300,13 +283,15 @@ if [[ -e ${TANKverf}/info/${basefile} || -e ${TANKverf}/info/${basefile}.${Z} ]]
    rm -f ${TANKverf}/info/${basefile}*
 fi
 
-
+#${COMPRESS} ${basefile}
+#$NCP ${basefile}.${Z} ${TANKverf}/info/.
 $NCP ${basefile} ${TANKverf}/info/.
 
 #-------------------------------------------------------------------
 #  Clean up $tmpdir
 #-------------------------------------------------------------------
-cd ..
-rm -rf $tmpdir
+# keep for testing
+#cd ..
+#rm -rf $tmpdir
 
 exit

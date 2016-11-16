@@ -80,28 +80,12 @@ for type in ${SATYPE2}; do
 
    cdate=$bdate
    while [[ $cdate -le $edate ]] ; do
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-      else
-         day=`echo $cdate | cut -c1-8 `
-      fi
+      day=`echo $cdate | cut -c1-8 `
 
       if [[ -d ${TANKDIR}/radmon.${day} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.angle.${type}.${cdate}.ieee_d.${rgnTM}
-         else
-            test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
-         fi
-
+         test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
          if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${TANKDIR}/radmon.${day}/${rgnHH}.angle.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${TANKDIR}/radmon.${day}/angle.${type}_anl.${cdate}.ieee_d
-            fi
+            test_file2=${TANKDIR}/radmon.${day}/angle.${type}_anl.${cdate}.ieee_d
          else
             test_file2=
          fi
@@ -118,28 +102,32 @@ for type in ${SATYPE2}; do
             $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
          fi
       fi
-#      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
-#      fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
+         $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
+      fi
      
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +6 $cdate`
       cdate=$adate
 
    done
    ${UNCOMPRESS} $tmpdir/*.ieee_d.${Z}
-
-   #---------------------------------------------------------------------
-   #  nu_plot_angle.sh produces the text files used by the js/html files
-   #  to generate the interactive charts
-   #
-   $NCP ${IG_SCRIPTS}/nu_plot_angle.sh .
-   ./nu_plot_angle.sh ${type}
 
    for var in ${PTYPE}; do
       echo $var
 
       if [ "$var" =  'count' ]; then
 
+         #------------------------------------------------------------------------ 
+         #  make the js *angle.txt files
+         #  I've stashed this inside of count processing as a temporary
+         #  measure to ensure that it's only executed once for each $type (source)
+         #  (the big sat jobs split the jobs into one per $var type)
+         #
+         if [ ${RAD_AREA} = "glb" ]; then
+            $NCP ${IG_SCRIPTS}/nu_plot_angle.sh .
+            ./nu_plot_angle.sh ${type}
+         fi
+     
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${PLOT_SUB_AVGS} x1100 y850'
@@ -167,7 +155,7 @@ EOF
       #  when $PLOT_STATIC_IMGS is 1.  At the moment regional sources only
       #  use some of the js plotting (summary and time).
       #
-      if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then 
+      if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then 
          $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
       fi
 
