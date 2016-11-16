@@ -100,12 +100,12 @@ EOF
    rm $nu_tmp
 
    echo $first_time > $times
-   cdate=`$NDATE -6 $first_time` 
+   cdate=`$NDATE -${CYCLE_INTERVAL} $first_time` 
    ctr=1
-   while [[ $cdate -ge $last_time && $ctr -le 400 ]]; do
+   while [[ $cdate -ge $last_time && $ctr -le 1000 ]]; do
       echo $cdate >> $times
       tdate=$cdate
-      cdate=`$NDATE -6 $tdate`
+      cdate=`$NDATE -${CYCLE_INTERVAL} $tdate`
       ctr=$(($ctr+1))
    done
 
@@ -125,7 +125,7 @@ EOF
 
    #------------------------------
    #  mv output files to IMGNDIR
-   #
+   
    cp -f ${type}.*.time.txt  ${IMGNDIR}/time/.
    cp -f ${type}.chan.txt     ${IMGNDIR}/time/.
 

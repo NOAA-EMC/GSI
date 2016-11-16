@@ -1,2 +1,3 @@
-export gdas_radmon_ver=2.0.2
-export radmon_shared_ver=2.0.2
+export gdas_radmon_ver=v2.0.2
+export nam_radmon_ver=v2.0.0
+export radmon_shared_ver=v2.0.4
