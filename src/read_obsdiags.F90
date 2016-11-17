@@ -45,7 +45,7 @@ use obsmod, only: i_ps_ob_type,  i_t_ob_type,   i_w_ob_type,   i_q_ob_type, &
                   i_sst_ob_type, i_pw_ob_type,  i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_lag_ob_type,& 
                   i_colvk_ob_type, i_tcp_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type
+                  i_pm2_5_ob_type,i_pm10_ob_type
 
 
 use obs_sensitivity, only: lobsensfc, lsensrecompute
@@ -213,6 +213,7 @@ _TRACE_(myname,'looping through obshead pointers')
          if(jj==i_aero_ob_type)   call read_aerohead_ ()
          if(jj==i_aerol_ob_type)  call read_aerolhead_ ()
          if(jj==i_pm2_5_ob_type)  call read_pm2_5head_ ()
+         if(jj==i_pm10_ob_type)  call read_pm10head_ ()
       endif
       call timer_fnl(myname//'.obhead_')
       call obdiag_cleanSearcher()
@@ -2882,11 +2883,11 @@ _EXIT_(myname_)
 
        if(.not. lobserver) then
          my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
-	 	if(.not. associated(my_node%diags)) then
+         if(.not. associated(my_node%diags)) then
 		  call die(myname_,'obdiag_locate(), '//&
 		    '(type,ibin,mobs,iobs,idv,iob,ich) =', &
 		    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
-       endif
+         endif
        endif
     enddo
 
@@ -2894,10 +2895,123 @@ _EXIT_(myname_)
       passed = ob_verify(pm2_5head(ii),count=mobs,perr=.true.)
       	if(.not. passed) then
 	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
-       call stop2(217)
-    end if
+          call stop2(217)
+       end if
     endif
 _EXIT_(myname_)
 end subroutine read_pm2_5head_
+
+
+subroutine read_pm10head_ ()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_pm10head_
+!   prgmmr:      todling
+!
+! abstract: Read obs-specific data structure from file.
+!
+! program history log:
+!   2011-05-18  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use obsmod, only: pm10head,pm10tail
+    use obsmod, only: pm10_ob_type
+    use m_obdiag, only: obdiag_locate
+    use m_obdiag, only: ob_verify
+    implicit none
+
+    real(r_kind)    :: zres           !  residual
+    real(r_kind)    :: zerr2          !  error squared
+    real(r_kind)    :: zraterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+    real(r_kind)    :: ztime          !  observation time
+    real(r_kind)    :: zb             !  variational quality control parameter
+    real(r_kind)    :: zpg            !  variational quality control parameter
+    real(r_kind)    :: zwij(8)        !  horizontal interpolation weights
+    integer(i_kind) :: zij(8)         !  horizontal locations
+    logical         :: zluse          !  flag indicating if ob is used in pen.
+
+    integer(i_kind) :: mobs,jread,iostat
+    logical         :: passed
+    type(pm10_ob_type),pointer:: my_node => NULL()
+    character(len=*),parameter:: myname_=myname//".read_pm10head_"
+_ENTRY_(myname_)
+   
+    read(iunit,iostat=iostat) mobs,jread
+    if(iostat/=0) call die(myname_,'read(mobs,jread), iostat =',iostat)
+    if(jj/=jread) then
+       call perr(myname_,'unmatched ob type, (jj,jread,mobs) =',(/jj,jread,mobs/))
+       call stop2(215)
+    end if
+    if(kobs<=0.or.mobs<=0) then
+_EXIT_(myname_)
+      return
+    endif
+
+    do kk=1,mobs
+
+       if(.not. associated(pm10head(ii)%head))then
+          allocate(pm10head(ii)%head,stat=ierr)
+          if(ierr /= 0)write(6,*)' fail to alloc pm10head '
+          pm10tail(ii)%head => pm10head(ii)%head
+       else
+          allocate(pm10tail(ii)%head%llpoint,stat=ierr)
+          if(ierr /= 0)write(6,*)' fail to alloc pm10tail%llpoint '
+          pm10tail(ii)%head => pm10tail(ii)%head%llpoint
+       end if
+
+       my_node => pm10tail(ii)%head
+       read(iunit,iostat=iostat) my_node%idv,my_node%iob
+		if(iostat/=0) then
+		  call die(myname_,'read(idv,iob), '// &
+			'(iostat,type,ibin,mobs,iobs) =', &
+			(/iostat,jj  ,ii  ,mobs,kk  /))
+		endif
+       read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
+                                 ztime, zb,       zpg, &
+                                 zluse, zwij, zij
+       if (iostat/=0) then
+          write(6,*)'read_pm10head_: error reading record',iostat
+          call stop2(216)
+       end if
+       pm10tail(ii)%head%res      = zres
+       pm10tail(ii)%head%err2     = zerr2
+       pm10tail(ii)%head%raterr2  = zraterr2
+       pm10tail(ii)%head%time     = ztime
+       pm10tail(ii)%head%b        = zb
+       pm10tail(ii)%head%pg       = zpg
+       pm10tail(ii)%head%wij      = zwij
+       pm10tail(ii)%head%ij       = zij
+       pm10tail(ii)%head%luse     = zluse
+
+       if(.not. lobserver) then
+         my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
+	    if(.not. associated(my_node%diags)) then
+		  call die(myname_,'obdiag_locate(), '//&
+		    '(type,ibin,mobs,iobs,idv,iob,ich) =', &
+		    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+          endif
+       endif
+    enddo
+
+    if(.not. lobserver) then
+      passed = ob_verify(pm10head(ii),count=mobs,perr=.true.)
+      	if(.not. passed) then
+	  call perr(myname_,'ob_verify(), (type,ibin,mobs) =',(/jj,ii,mobs/))
+          call stop2(217)
+       end if
+    endif
+_EXIT_(myname_)
+end subroutine read_pm10head_
+
 
 end subroutine read_obsdiags

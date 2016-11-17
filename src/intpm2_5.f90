@@ -8,12 +8,7 @@ module intpm2_5mod
 ! abstract: module for intq and its tangent linear intq_tl
 !
 ! program history log:
-!   2005-05-13  Yanqiu zhu - wrap intq and its tangent linear intq_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-11-26  Todling - remove intq_tl; add interface back
-!   2009-08-13  lueken - update documentation
 !   2010-10-15  pagowski - use for in-situ pm2_5
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intpm2_5_
@@ -47,29 +42,8 @@ contains
 !             nonlinear qc operator
 !
 ! program history log:
-!   1991-02-26  derber
-!   1993-08-15  wu
-!   1997-12-12  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2004-10-05  parrish - add non-linear qc option
-!   2005-03-01  parrish - nonlinear qc change to account for inflated obs error
-!   2005-04-11  treadon - merge intq and intq_qc into single routine
-!   2005-08-02  derber  - modify for variational qc parameters for each ob
-!   2005-09-28  derber  - consolidate location and weight arrays
-!   2005-10-21  su      - modify for variational qc
-!   2006-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic - add foto
-!   2007-03-19  tremolet - binning of observations
-!   2007-06-05  tremolet - use observation diagnostics structure
-!   2007-07-09  tremolet - observation sensitivity
-!   2008-05-31  safford - rm unused vars
-!   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
-!   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
-!   2010-05-13  todling  - update to use gsi_bundle; update interface 
 !   2010-10-15  pagowski  - convert for in-situ pm2_5
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
-!   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-03  pagowski  - modify to use bundle
 !
 !   input argument list:
 !     pm2_5head    - obs type pointer to obs structure
@@ -85,13 +59,17 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use constants, only: half,one,tiny_r_kind,cg_term
+    use constants, only: half,one,tiny_r_kind,cg_term,max_varname_length
     use obsmod, only: pm2_5_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
     use qcmod, only: nlnqc_iter,varqc_iter
     use jfunc, only: jiter
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_4dvar, only: ladtest_obs
+    use gridmod, only: cmaq_regional,wrf_mass_regional
+    use chemmod, only: s_2_5,d_2_5,nh4_mfac,oc_mfac,laeroana_gocart
+
+
     implicit none
     
 ! declare passed variables
@@ -107,87 +85,502 @@ contains
     real(r_kind),pointer,dimension(:) :: spm2_5
     real(r_kind),pointer,dimension(:) :: rpm2_5
     type(pm2_5_ob_type), pointer :: pm2_5ptr
+
+    character(len=max_varname_length) :: aeroname
     
 !   If no pm2_5 obs return
     if(.not. associated(pm2_5head))return
 ! retrieve pointers
 ! simply return if any pointer not found
     ier=0
-    call gsi_bundlegetpointer(sval,'pm2_5',spm2_5,istatus);ier=istatus+ier
-    call gsi_bundlegetpointer(rval,'pm2_5',rpm2_5,istatus);ier=istatus+ier
 
-    if(ier/=0) return
-    
-    pm2_5ptr => pm2_5head
-    do while (associated(pm2_5ptr))
-       j1=pm2_5ptr%ij(1)
-       j2=pm2_5ptr%ij(2)
-       j3=pm2_5ptr%ij(3)
-       j4=pm2_5ptr%ij(4)
-       j5=pm2_5ptr%ij(5)
-       j6=pm2_5ptr%ij(6)
-       j7=pm2_5ptr%ij(7)
-       j8=pm2_5ptr%ij(8)
-       w1=pm2_5ptr%wij(1)
-       w2=pm2_5ptr%wij(2)
-       w3=pm2_5ptr%wij(3)
-       w4=pm2_5ptr%wij(4)
-       w5=pm2_5ptr%wij(5)
-       w6=pm2_5ptr%wij(6)
-       w7=pm2_5ptr%wij(7)
-       w8=pm2_5ptr%wij(8)
+    if (cmaq_regional .or. (wrf_mass_regional .and. .not. laeroana_gocart)) then
+
+       call gsi_bundlegetpointer(sval,'pm2_5',spm2_5,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,'pm2_5',rpm2_5,istatus);ier=istatus+ier
+
+       if(ier/=0) return
+
+       pm2_5ptr => pm2_5head
+       do while (associated(pm2_5ptr))
+          j1=pm2_5ptr%ij(1)
+          j2=pm2_5ptr%ij(2)
+          j3=pm2_5ptr%ij(3)
+          j4=pm2_5ptr%ij(4)
+          j5=pm2_5ptr%ij(5)
+          j6=pm2_5ptr%ij(6)
+          j7=pm2_5ptr%ij(7)
+          j8=pm2_5ptr%ij(8)
+          w1=pm2_5ptr%wij(1)
+          w2=pm2_5ptr%wij(2)
+          w3=pm2_5ptr%wij(3)
+          w4=pm2_5ptr%wij(4)
+          w5=pm2_5ptr%wij(5)
+          w6=pm2_5ptr%wij(6)
+          w7=pm2_5ptr%wij(7)
+          w8=pm2_5ptr%wij(8)
 
 !    forward model
-       val=w1* spm2_5(j1)+w2* spm2_5(j2)+w3* spm2_5(j3)+w4* spm2_5(j4)+ &
-            w5* spm2_5(j5)+w6* spm2_5(j6)+w7* spm2_5(j7)+w8* spm2_5(j8)
-       
-       if(luse_obsdiag)then
-          if (lsaveobsens) then
-             grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
-             pm2_5ptr%diags%obssen(jiter) = grad
-          else
-             if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+          val=w1* spm2_5(j1)+w2* spm2_5(j2)+w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+w7* spm2_5(j7)+w8* spm2_5(j8)
+
+          if(luse_obsdiag)then
+             if (lsaveobsens) then
+                pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+             else
+                if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+             endif
           endif
-       endif
-       
-       if (l_do_adjoint) then
-          if (.not. lsaveobsens) then
-             if( .not. ladtest_obs ) val=val-pm2_5ptr%res
-             
+
+          if (l_do_adjoint) then
+             if (lsaveobsens) then
+                grad = pm2_5ptr%diags%obssen(jiter)
+
+             else
+                if( .not. ladtest_obs ) val=val-pm2_5ptr%res
+
 !          gradient of nonlinear operator
-             
-             if (nlnqc_iter .and. pm2_5ptr%pg > tiny_r_kind .and.  &
-                  pm2_5ptr%b  > tiny_r_kind) then
-                pm2_5_pg=pm2_5ptr%pg*varqc_iter
-                cg_pm2_5=cg_term/pm2_5ptr%b
-                wnotgross= one-pm2_5_pg
-                wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross is gama in the reference by enderson
-                p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
-                val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+
+                if (nlnqc_iter .and. pm2_5ptr%pg > tiny_r_kind .and.  &
+                     pm2_5ptr%b  > tiny_r_kind) then
+                   pm2_5_pg=pm2_5ptr%pg*varqc_iter
+                   cg_pm2_5=cg_term/pm2_5ptr%b
+                   wnotgross= one-pm2_5_pg
+                   wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross is gama in the reference by enderson
+                   p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
+                   val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+                endif
+
+                if( ladtest_obs ) then
+                   grad = val
+                else
+                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                end if
+             endif
+
+!       adjoint
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+
+          endif
+
+          pm2_5ptr => pm2_5ptr%llpoint
+
+       end do
+
+    endif
+
+    if (wrf_mass_regional .and. laeroana_gocart) then
+
+       pm2_5ptr => pm2_5head
+       do while (associated(pm2_5ptr))
+          j1=pm2_5ptr%ij(1)
+          j2=pm2_5ptr%ij(2)
+          j3=pm2_5ptr%ij(3)
+          j4=pm2_5ptr%ij(4)
+          j5=pm2_5ptr%ij(5)
+          j6=pm2_5ptr%ij(6)
+          j7=pm2_5ptr%ij(7)
+          j8=pm2_5ptr%ij(8)
+          w1=pm2_5ptr%wij(1)
+          w2=pm2_5ptr%wij(2)
+          w3=pm2_5ptr%wij(3)
+          w4=pm2_5ptr%wij(4)
+          w5=pm2_5ptr%wij(5)
+          w6=pm2_5ptr%wij(6)
+          w7=pm2_5ptr%wij(7)
+          w8=pm2_5ptr%wij(8)
+
+          aeroname='bc1'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)
+
+          nullify(spm2_5)
+          
+          aeroname='bc2'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)+ &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='sulf'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)) * nh4_mfac + &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='p25'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+          
+          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)+ &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='oc1'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)) *oc_mfac+ &
+               val
+
+          nullify(spm2_5)
+
+          aeroname='oc2'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)) *oc_mfac+ &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='seas1'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+          
+          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)+ &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='seas2'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+          
+          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)) * s_2_5 + &
+               val
+
+          nullify(spm2_5)
+
+          aeroname='dust1'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)+ &
+               val
+          
+          nullify(spm2_5)
+
+          aeroname='dust2'
+          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+          if(istatus /= 0) then
+             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                  aeroname
+             call stop2(454)
+          endif
+
+          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
+               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
+               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
+               w7* spm2_5(j7)+w8* spm2_5(j8)) * d_2_5 + &
+               val
+          
+          nullify(spm2_5)
+
+          if(luse_obsdiag)then
+             if (lsaveobsens) then
+                pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+             else
+                if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+             endif
+          endif
+
+          if (l_do_adjoint) then
+             if (lsaveobsens) then
+                grad = pm2_5ptr%diags%obssen(jiter)
+
+             else
+                if( .not. ladtest_obs ) val=val-pm2_5ptr%res
+
+!          gradient of nonlinear operator
+
+                if (nlnqc_iter .and. pm2_5ptr%pg > tiny_r_kind .and.  &
+                     pm2_5ptr%b  > tiny_r_kind) then
+                   pm2_5_pg=pm2_5ptr%pg*varqc_iter
+                   cg_pm2_5=cg_term/pm2_5ptr%b
+                   wnotgross= one-pm2_5_pg
+                   wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross is gama in the reference by enderson
+                   p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
+                   val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+                endif
+
+                if( ladtest_obs ) then
+                   grad = val
+                else
+                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                end if
+             endif
+
+!       adjoint
+
+             aeroname='bc1'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
              endif
              
-             if( ladtest_obs ) then
-                grad = val
-             else
-                grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
-             end if
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='bc2'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='sulf'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='p25'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='oc1'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='oc2'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+
+             aeroname='seas1'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='seas2'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='dust1'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
+             aeroname='dust2'
+             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+             if(istatus /= 0) then
+                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
+                     aeroname
+                call stop2(455)
+             endif
+             
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             nullify(rpm2_5)
+
           endif
-          
-!       adjoint
-          rpm2_5(j1)=rpm2_5(j1)+w1*grad
-          rpm2_5(j2)=rpm2_5(j2)+w2*grad
-          rpm2_5(j3)=rpm2_5(j3)+w3*grad
-          rpm2_5(j4)=rpm2_5(j4)+w4*grad
-          rpm2_5(j5)=rpm2_5(j5)+w5*grad
-          rpm2_5(j6)=rpm2_5(j6)+w6*grad
-          rpm2_5(j7)=rpm2_5(j7)+w7*grad
-          rpm2_5(j8)=rpm2_5(j8)+w8*grad
-          
-       endif
-       
-       pm2_5ptr => pm2_5ptr%llpoint
-       
-    end do
+
+          pm2_5ptr => pm2_5ptr%llpoint
+
+       end do
+
+    endif
+
     return
   end subroutine intpm2_5_
   

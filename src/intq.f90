@@ -70,6 +70,7 @@ subroutine intq_(qhead,rval,sval)
 !   2010-05-13  todling  - update to use gsi_bundle; update interface 
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     qhead    - obs type pointer to obs structure
@@ -87,7 +88,7 @@ subroutine intq_(qhead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -170,7 +171,7 @@ subroutine intq_(qhead,rval,sval)
  
 !          gradient of nonlinear operator
  
-           if (nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and.  &
                                 qptr%b  > tiny_r_kind) then
               q_pg=qptr%pg*varqc_iter
               cg_q=cg_term/qptr%b
@@ -182,7 +183,7 @@ subroutine intq_(qhead,rval,sval)
 
            if (njqc .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
               val=sqrt(two*qptr%jb)*tanh(sqrt(qptr%err2)*val/sqrt(two*qptr%jb))
-              grad = val*sqrt(qptr%raterr2*qptr%err2)
+              grad = val*qptr%raterr2*sqrt(qptr%err2)
            else
               grad = val*qptr%raterr2*qptr%err2
            endif

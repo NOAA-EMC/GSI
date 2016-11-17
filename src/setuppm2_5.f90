@@ -6,8 +6,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
 !   prgrmmr:     parrish          org: np22                date: 1990-10-06
 !
-! abstract:      For sbuv ozone observations (layer amounts and total 
-!                column, this routine 
+! abstract:      For pm2_5 observations this routine
 !                  a) reads obs assigned to given mpi task (geographic region),
 !                  b) simulates obs from guess,
 !                  c) apply some quality control to obs,
@@ -49,6 +48,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : cg_term,wgtlim
   use constants, only: huge_single,r10
+  use constants, only: r1000,rd,max_varname_length
 
   use obsmod, only : pm2_5head,pm2_5tail,&
        pm2_5_ob_type,i_pm2_5_ob_type,time_offset
@@ -76,13 +76,18 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,&
         elev_tolerance,elev_missing,pm2_5_teom_max,ilate,ilone
   use chemmod, only : oneobtest_chem,maginnov_chem,conconeobs
+  use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac,ppmv_conv
+  use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
+      upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
 
+
+  use gridmod, only : cmaq_regional,wrf_mass_regional
 
   implicit none
   
 ! !input parameters:
 
-  character(len=3) :: cvar='pm2_5'
+  character(len=3) :: cvar='pm2'
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
   integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
@@ -105,13 +110,14 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind) :: pm2_5ges
   real(r_kind) :: ratio_errors,error
   real(r_kind) :: innov,innov_error2,rwgt,valqc,tfact,innov_error,elevges,&
-        elevdiff,conc,elevobs,ps_ges,site_id
+        elevdiff,conc,elevobs,ps_ges,site_id,tv_ges
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
 
   real(r_kind) ,dimension(nreal,nobs):: data
+  real(r_kind),pointer,dimension(:,:,:):: rank3
   
-  integer(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia
+  integer(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia,ifld
   integer(i_kind) mm1
   integer(i_kind) :: nchar,nrealdiag
 
@@ -135,6 +141,12 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_pm2_5
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+
+  character(len=max_varname_length) :: aeroname
+
+  integer(i_kind) :: ipm2_5,n_gocart_var
+
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -153,7 +165,209 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
 !*********************************************************************************
 ! get pointer to pm2_5 guess state, if not present return 
-  
+
+    if (cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+
+     call gsi_chemguess_get ('var::pm2_5', ipm2_5, ier )
+     if (ipm2_5 <= 0) then
+        write(6,*)'pm2_5 not in chem_guess - returning from setuppm2_5'
+        return
+     endif
+
+     if (size(gsi_chemguess_bundle)==nfldsig) then
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'pm2_5',rank3,ier)
+        if (ier==0) then
+           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
+                nfldsig))
+           ges_pm2_5(:,:,:,1)=rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'pm2_5',rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: pm2_5 not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+     else
+        write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+          nfldsig,size(gsi_chemguess_bundle)
+        call stop2(420)
+     endif
+     
+  endif
+
+
+  if (wrf_mass_regional .and. laeroana_gocart) then
+
+!check if aerosol species in control
+
+     call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
+
+     if (n_gocart_var /= naero_gocart_wrf) then
+        write(6,*) 'setuppm2_5: not all gocart aerosols in anavinfo'
+        call stop2(451)
+     endif
+
+     do i=1,naero_gocart_wrf
+        aeroname=upper2lower(aeronames_gocart_wrf(i))
+        call gsi_chemguess_get ('var::'//trim(aeroname), ipm2_5, ier )
+        if (ier > 0 .or. ipm2_5 <= 0) then
+           write(6,*) 'convinfo: ',trim(aeroname),' missing in anavinfo'
+           call stop2(452)
+        endif
+     enddo
+
+     if (size(gsi_chemguess_bundle)==nfldsig) then
+        aeroname='bc1'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
+                nfldsig))
+           ges_pm2_5(:,:,:,1)=rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='bc2'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='sulf'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*nh4_mfac
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*nh4_mfac
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='p25'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='oc1'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*oc_mfac
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*oc_mfac
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='oc2'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*oc_mfac
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*oc_mfac
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='seas1'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='seas2'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*s_2_5
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*s_2_5
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='dust1'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='dust2'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3*d_2_5
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3*d_2_5
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle, ier= ',ier
+           call stop2(453)
+        endif
+
+     else
+        write(6,*) 'setuppm2_5: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+             nfldsig,size(gsi_chemguess_bundle)
+        call stop2(420)
+     endif
+
+  endif
+
 
 ! initialize arrays
 
@@ -279,6 +493,24 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call tintrp2a11(ges_z,elevges,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
         
+!obs are conc
+!wrf state vars are as mix ratio
+!cmaq pm2_5 is as conc
+!might convert for cmaq at some point as well
+
+
+        if (wrf_mass_regional) then
+           call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+
+           call tintrp2a11(ges_tv(:,:,1,nfldsig),tv_ges,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+
+           conc=conc/(ps_ges*r1000/(rd*tv_ges))
+        endif
+
+
+
 !if elevobs is known than calculate difference otherwise
 !assume that difference is acceptable
         
@@ -425,8 +657,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            rdiagbuf(7,ii)  = data(ielev,i)    ! observation height (meters)
            rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
            
-           rdiagbuf(9,ii)  = zero !data(iqc,i) !@mp1        ! input prepbufr qc or event mark
-           rdiagbuf(10,ii) = zero !data(iqt,i) !@mp2       ! setup qc or event mark (currently qtflg only)
+           rdiagbuf(9,ii)  = zero !data(iqc,i) input prepbufr qc or event mark
+           rdiagbuf(10,ii) = zero !data(iqt,i) setup qc or event mark (currently qtflg only)
            rdiagbuf(11,ii) = one       ! read_prepbufr data usage flag
            if(muse(i)) then
               rdiagbuf(12,ii) = one            ! analysis usage flag (1=use, -1=not used)
@@ -515,6 +747,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   contains
 
   subroutine check_vars_ (proceed)
+  use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf
   logical,intent(inout) :: proceed
   integer(i_kind) ivar, istatus
 ! Check to see if required guess fields are available
@@ -523,7 +756,17 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   call gsi_metguess_get ('var::z' , ivar, istatus )
   proceed=proceed.and.ivar>0
 !
-  call gsi_chemguess_get ('var::pm2_5', ivar, istatus )
+  if ( cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+     call gsi_chemguess_get ('var::pm2_5', ivar, istatus )
+  else if (wrf_mass_regional .and. laeroana_gocart) then
+
+     do i=1,naero_gocart_wrf
+        aeroname=upper2lower(aeronames_gocart_wrf(i))
+        call gsi_chemguess_get ('var::'//trim(aeroname), ivar, istatus )
+        if (ivar == 0) exit
+     enddo
+
+  endif
   proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 
@@ -572,34 +815,33 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)                       
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '   
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)            
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus         
+         call stop2(999)
+     endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
      call stop2(999)
   endif
-  if (size(gsi_chemguess_bundle)==nfldsig) then
-     varname='pm2_5'
-     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(varname),rank3,ier)
-     if (ier==0) then
-         allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
-               nfldsig))
-         ges_pm2_5(:,:,:,1)=rank3
-         do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'pm2_5',rank3,ier)
-            ges_pm2_5(:,:,:,ifld)=rank3
-        enddo
-     else
-         write(6,*) trim(myname), ': ', trim(varname), ' not found in chem bundle, ier= ',ier
-         call stop2(999)
-     endif
-  else
-     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
-          nfldsig,size(gsi_chemguess_bundle)
-     call stop2(420)
-  endif
   end subroutine init_vars_
 
   subroutine final_vars_
+    if(allocated(ges_tv)) deallocate(ges_tv)
     if(allocated(ges_pm2_5)) deallocate(ges_pm2_5)
     if(allocated(ges_z )) deallocate(ges_z )
     if(allocated(ges_ps)) deallocate(ges_ps)

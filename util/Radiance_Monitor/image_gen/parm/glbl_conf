@@ -11,17 +11,17 @@
 #
 # web server resources
 #
-export WEBDIR=${WEBDIR}/${SUFFIX}
+export WEBDIR=${WEBDIR}/${RADMON_SUFFIX}
 
 
 #
 # internal package reference
 #
-export TOP_IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
-export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}/pngs
-export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
+export TOP_IMGNDIR=${MY_TANKDIR}/imgn/${RADMON_SUFFIX}
+export IMGNDIR=${MY_TANKDIR}/imgn/${RADMON_SUFFIX}/pngs
+export TANKDIR=${MY_TANKDIR}/stats/${RADMON_SUFFIX}
 export TOP_ARCHIVE_DIR=${ARCHIVE_DIR}
-export ARCHIVE_DIR=${ARCHIVE_DIR}/${SUFFIX}
+export ARCHIVE_DIR=${ARCHIVE_DIR}/${RADMON_SUFFIX}
 
 #
 #  GrADS script definitions

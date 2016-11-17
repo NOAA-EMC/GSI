@@ -10,23 +10,17 @@
 #  over to the data_extract/exec directory.
 #
 # *****************************************************************
-SHELL=/bin/sh
-SRCS = kinds.F90 bad_obs.f90 bad_penalty.f90 bad_chan.f90 \
-        valid.f90 validate_time.f90
 
-OBJS = kinds.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
-	validate_time.o
+BINDIR = ../../exec
+
+LIBS   = $(W3NCO_LIB4)
+
+OBJS   = kinds.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
+	 validate_time.o
 
 #
 # *****************************************************************
 #
-
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
-
 
 CMD = validate_time.x
 
@@ -37,9 +31,17 @@ clean:
 	rm -f *.mod
 	rm -f validate_time.x 
 
+check_prereqs:
+	/nwprod/spa_util/check_libs.bash $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
+
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../../exec/.
 
 bad_obs.o : bad_obs.f90
 	$(CF) $(FFLAGS) -c $(*).f90

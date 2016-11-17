@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "zeus" && $machine ne "theia" && $machine ne "wcoss" ) {
+   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -24,7 +24,7 @@
    }
 
    #
-   #  zeus, theia, and wcoss are all little endian machines, and all run linux
+   #  surge, theia, and wcoss are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
    my $my_os = "linux";
@@ -53,11 +53,11 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $machine eq "zeus" ) {
-      $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
-   } 
-   elsif( $machine eq "theia" ){
+   if( $machine eq "theia" ){
       $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   }
+   elsif( $machine eq "cray" ){
+      $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
    }
    else {
       $tankdir = "/global/save/$user_name/nbns";
@@ -196,9 +196,9 @@
       sleep( 1 );
 
    }
-   elsif( $machine eq "zeus" ) {
-      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
-      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
+   elsif( $machine eq "cray" ) {
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps/stmp}";
    }
    elsif( $machine eq "theia" ){
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch4/NCEPDEV/stmp4}";
@@ -261,14 +261,16 @@
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
-   if( $machine ne "wcoss" ) {
+   if( $machine ne "wcoss" && $machine ne "cray" ) {
       $project="export PROJECT=";
    } 
 
-   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
-   if( $machine ne "wcoss" ) {
-      $job_queue="export JOB_QUEUE=";
-   } 
+   my $job_queue="export JOB_QUEUE=";
+   if( $machine eq "cray" ) {
+      $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
+   } elsif( $machine eq "wcoss" ){
+      $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
+   }
 
 
     my $uname = $ENV{ 'USER' };

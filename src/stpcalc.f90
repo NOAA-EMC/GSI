@@ -170,6 +170,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !                         the correct observation type associated with each pbc(*,j) term
 !   2014-05-07  pondeca - add howv call
 !   2014-06-17  carley/zhu - add tcamt and lcbas
+!   2015-07-10  pondeca - add cldch
+!   2016-02-03  derber - add code to search through all of the possible stepsizes tried, to find the 
+!               one that minimizes the most and use that one.
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -212,7 +215,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
-       stplimhowv,stpjcdfi,stpjcpdry,stpliml
+       stplimhowv,stplimcldch,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
   use control_vectors, only: control_vector,qdot_prod_sub,cvars2d
   use state_vectors, only: allocate_state,deallocate_state
@@ -240,7 +243,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: n0 = 11
+  integer(i_kind),parameter:: n0 = 12
   integer(i_kind),parameter:: ipen = n0+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
@@ -266,7 +269,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
-  logical :: cxterm,change_dels
+  logical :: cxterm,change_dels,ifound
 
 
 !************************************************************************************  
@@ -307,38 +310,40 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,9) contribution from negative wspd10m constraint term (Jo)
 !    pbc(*,10) contribution from negative howv constraint term (Jo)
 !    pbc(*,11) contribution from negative lcbas constraint term (Jo)
-!    pbc(*,12) contribution from ps observation  term (Jo)
-!    pbc(*,13) contribution from t observation  term (Jo)
-!    pbc(*,14) contribution from w observation  term (Jo)
-!    pbc(*,15) contribution from q observation  term (Jo)
-!    pbc(*,16) contribution from spd observation  term (Jo)
-!    pbc(*,17) contribution from srw observation  term (Jo)
-!    pbc(*,18) contribution from rw observation  term (Jo)
-!    pbc(*,19) contribution from dw observation  term (Jo)
-!    pbc(*,20) contribution from sst observation  term (Jo)
-!    pbc(*,21) contribution from pw observation  term (Jo)
-!    pbc(*,22) contribution from pcp observation  term (Jo)
-!    pbc(*,23) contribution from oz observation  term (Jo)
-!    pbc(*,24) contribution from o3l observation  term (Jo)(not used)
-!    pbc(*,25) contribution from gps observation  term (Jo)
-!    pbc(*,26) contribution from rad observation  term (Jo)
-!    pbc(*,27) contribution from tcp observation  term (Jo)
-!    pbc(*,28) contribution from lag observation  term (Jo)
-!    pbc(*,39) contribution from colvk observation  term (Jo)
-!    pbc(*,30) contribution from aero observation  term (Jo)
-!    pbc(*,31) contribution from aerol observation  term (Jo)
-!    pbc(*,32) contribution from pm2_5 observation  term (Jo)
-!    pbc(*,33) contribution from gust observation  term (Jo)
-!    pbc(*,34) contribution from vis observation  term (Jo)
-!    pbc(*,35) contribution from pblh observation  term (Jo)
-!    pbc(*,36) contribution from wspd10m observation  term (Jo)
-!    pbc(*,37) contribution from td2m observation  term (Jo)
-!    pbc(*,38) contribution from mxtm observation  term (Jo)
-!    pbc(*,39) contribution from mitm observation  term (Jo)
-!    pbc(*,40) contribution from pmsl observation  term (Jo)
-!    pbc(*,41) contribution from howv observation  term (Jo)
-!    pbc(*,42) contribution from tcamt observation  term (Jo)
-!    pbc(*,43) contribution from lcbas observation  term (Jo)
+!    pbc(*,12) contribution from negative cldch constraint term (Jo)
+!    pbc(*,13) contribution from ps observation  term (Jo)
+!    pbc(*,14) contribution from t observation  term (Jo)
+!    pbc(*,15) contribution from w observation  term (Jo)
+!    pbc(*,16) contribution from q observation  term (Jo)
+!    pbc(*,17) contribution from spd observation  term (Jo)
+!    pbc(*,18) contribution from srw observation  term (Jo)
+!    pbc(*,19) contribution from rw observation  term (Jo)
+!    pbc(*,20) contribution from dw observation  term (Jo)
+!    pbc(*,21) contribution from sst observation  term (Jo)
+!    pbc(*,22) contribution from pw observation  term (Jo)
+!    pbc(*,23) contribution from pcp observation  term (Jo)
+!    pbc(*,24) contribution from oz observation  term (Jo)
+!    pbc(*,25) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,26) contribution from gps observation  term (Jo)
+!    pbc(*,27) contribution from rad observation  term (Jo)
+!    pbc(*,28) contribution from tcp observation  term (Jo)
+!    pbc(*,29) contribution from lag observation  term (Jo)
+!    pbc(*,30) contribution from colvk observation  term (Jo)
+!    pbc(*,31) contribution from aero observation  term (Jo)
+!    pbc(*,32) contribution from aerol observation  term (Jo)
+!    pbc(*,33) contribution from pm2_5 observation  term (Jo)
+!    pbc(*,34) contribution from gust observation  term (Jo)
+!    pbc(*,35) contribution from vis observation  term (Jo)
+!    pbc(*,36) contribution from pblh observation  term (Jo)
+!    pbc(*,37) contribution from wspd10m observation  term (Jo)
+!    pbc(*,38) contribution from td2m observation  term (Jo)
+!    pbc(*,39) contribution from mxtm observation  term (Jo)
+!    pbc(*,40) contribution from mitm observation  term (Jo)
+!    pbc(*,41) contribution from pmsl observation  term (Jo)
+!    pbc(*,42) contribution from howv observation  term (Jo)
+!    pbc(*,43) contribution from tcamt observation  term (Jo)
+!    pbc(*,44) contribution from lcbas observation  term (Jo)
+!    pbc(*,45) contribution from cldch observation  term (Jo)
 !
 
 
@@ -479,6 +484,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(getindex(cvars2d,'lcbas')>0) &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
         if(ii == 1)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
+
+!       penalties for cldch constraint
+        if(getindex(cvars2d,'cldch')>0) &
+        call stplimcldch(dval(1),sval(1),sges,pbc(1,12),nstep)
+        if(ii == 1)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
      end if
 
 !       penalties for gust constraint
@@ -654,6 +664,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
             ' iteration terminated - probable error',i2,3e25.18)
 140  format('***WARNING***  expected penalty reduction small ',/,  &
             ' inner iteration terminated - probable convergence',i2,4e25.18)
+141  format('***WARNING***  reduced penalty not found in search direction',/,  &
+            ' - probable error',(5e25.18))
 
 !    Check for convergence in stepsize estimation
      istp_use=ii
@@ -664,7 +676,26 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
      if(stprat(ii) < 1.e-4_r_kind) exit stepsize
      if(change_dels)dels = one_tenth_quad*dels
-
+     if( ii == istp_iter)then
+        stp(ii)=outstp(ipenloc)
+        outpensave=outpen(ipenloc)
+        ifound=.false.
+        do i=1,nsteptot
+           if(outpen(i) < outpensave)then
+              stp(ii)=outstp(i)
+              outpensave=outpen(i)
+              ifound=.true.
+           end if
+        end do
+        if(ifound)exit stepsize
+        if(mype == 0)then
+           write(iout_iter,141)(outpen(i),i=1,nsteptot)
+        end if
+        end_iter = .true.
+        stp(ii)=zero_quad
+        istp_use=ii
+        exit stepsize
+     end if
   end do stepsize
   kprt=3
   if(kprt >= 2 .and. iter == 0)then
@@ -802,8 +833,9 @@ subroutine prnt_j(pj,ipen,kprt)
   ctype(9)='negative 10m wind ssp'
   ctype(10)='negative howv       '
   ctype(11)='negative lcbas      '
+  ctype(12)='negative cldch      '
   do ii=1,nobs_type
-    ctype(11+ii)=cobstype(ii)
+    ctype(12+ii)=cobstype(ii)
   end do
 
   zjt=zero_quad

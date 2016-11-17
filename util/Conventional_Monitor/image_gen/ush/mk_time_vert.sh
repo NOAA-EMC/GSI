@@ -31,7 +31,7 @@ echo "--> mk_time_vert.sh"
    rm -f $errfile
 
    if [[ $MY_MACHINE == "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
+      $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname -cwd ${PWD} $pltfile
 
    elif [[ $MY_MACHINE == "theia" ]]; then
       ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${pltfile}
@@ -50,7 +50,7 @@ echo "--> mk_time_vert.sh"
       rm -f $errfile
 
       if [[ $MY_MACHINE == "wcoss" ]]; then
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname -cwd ${PWD} $pltfile
 
       elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
@@ -78,7 +78,7 @@ echo "--> mk_time_vert.sh"
       rm -f $errfile
 
       if [[ $MY_MACHINE == "wcoss" ]]; then
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname $pltfile
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname -cwd ${PWD} $pltfile
 
       elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then

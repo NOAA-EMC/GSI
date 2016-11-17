@@ -60,6 +60,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-05-13  todling  - update to use gsi_bundlemod
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     pshead
@@ -78,7 +79,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: ps_ob_type
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
@@ -150,7 +151,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 
 !  Modify penalty term if nonlinear QC
 
-        if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
+        if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                              psptr%b  > tiny_r_kind) then
            ps_pg=psptr%pg*varqc_iter
            cg_ps=cg_term/psptr%b
@@ -162,13 +163,13 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
         endif
 
 !   for Dr. Jim purser' non liear quality control
-        if(njqc .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
+        if(njqc  .and. psptr%jb > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
            do kk=1,max(1,nstep)
               pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)/(two*psptr%jb))))
            enddo
-           out(1) = out(1)+pen(1)*sqrt(psptr%raterr2)
+           out(1) = out(1)+pen(1)*psptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(psptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*psptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*psptr%raterr2

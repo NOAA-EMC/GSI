@@ -112,9 +112,9 @@ next_cyc=`echo $next|cut -c9-10`
 echo prev_day, prev_cyc = $prev_day, $prev_cyc
 echo next_day, next_cyc = $next_day, $next_cyc
 
-
-DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
-
+DATA=${DATA:-/com2/verf/prod}
+DATDIR=${DATDIR:-${DATA}/radmon.${day}}
+LOGDIR=${LOGDIR:-/com2/output/prod}
 test_dir=${TANKverf}/radmon.${day}
 
 if [[ ! -d ${test_dir} ]]; then
@@ -122,11 +122,15 @@ if [[ ! -d ${test_dir} ]]; then
 fi
 cd ${test_dir}
 
-if [[ ! -s gdas_radmon_satype.txt  ]]; then
-   if [[ -s ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
-      $NCP ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt .
+#if [[ ! -s gdas_radmon_satype.txt  ]]; then
+if [[ ! -s ${SUFFIX}_radmon_satype.txt  ]]; then
+#   if [[ -s ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
+   if [[ -s ${TANKverf}/radmon.${prev_day}/${SUFFIX}.txt ]]; then
+#      $NCP ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt .
+      $NCP ${TANKverf}/radmon.${prev_day}/${SUFFIX}.txt .
    else
-      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKverf}/radmon.${prev_day}
+#      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKverf}/radmon.${prev_day}
+      echo WARNING:  unable to locate ${SUFFIX}_radmon_satype.txt in ${TANKverf}/radmon.${prev_day}
    fi 
 fi
 
@@ -206,7 +210,7 @@ if [[ $exit_value == 0 ]]; then
 
  
    #--------------------------------------------------------------------
-   #  Copy over the /com/output/prod/YYYYMMDD/gdas_verfrad_HH.o* log 
+   #  Copy over the ${LOGDIR}/YYYYMMDD/gdas_verfrad_HH.o* log 
    #   Note that the 18z cycle log file is found in the next day's 
    #   directory.
    #    1.  Confirm that any entries in the Diagnostic file report 
@@ -221,9 +225,9 @@ if [[ $exit_value == 0 ]]; then
    tmp_log=tmp_${PDATE}.log
    new_log=new_opr_${PDATE}.log
    if [[ $cycle = 18 ]]; then 
-      $NCP /com/output/prod/${next_day}/gdas_verfrad_${cycle}.o* ${opr_log}
+      $NCP ${LOGDIR}/${next_day}/gdas_verfrad_${cycle}.o* ${opr_log}
    else
-     $NCP /com/output/prod/${day}/gdas_verfrad_${cycle}.o* ${opr_log}
+     $NCP ${LOGDIR}/${day}/gdas_verfrad_${cycle}.o* ${opr_log}
    fi
 
    #--------------------------------------------------------------------
@@ -250,7 +254,8 @@ if [[ $exit_value == 0 ]]; then
          if [[ $len -gt 0 ]]; then
             sat=`echo $new_sat | gawk '{print $1}'`
          
-            test_satype=`grep $sat gdas_radmon_satype.txt`
+#            test_satype=`grep $sat gdas_radmon_satype.txt`
+            test_satype=`grep $sat ${SUFFIX}_radmon_satype.txt`
             len_test=`expr length "$test_satype"`
             if [[ $len_test -gt 0 ]]; then
                echo $line >> $new_diag

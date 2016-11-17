@@ -26,6 +26,7 @@ program getsigensstatp
 !
 !$$$
 
+    use netcdf
     use mpi
     use sigio_module,  only: sigio_head,sigio_data,sigio_srohdc, &
                              sigio_axdata,sigio_sclose
@@ -84,8 +85,8 @@ program getsigensstatp
         write(6,'(2a)')' datapath      = ',trim(datapath)
         write(6,'(2a)')' fileprefix    = ',trim(filepref)
         write(6,'(2a)')' nanals        = ',trim(charnanal)
-        write(6,'(3a)')' emean fileout = ',trim(adjustl(filepref))//'_ensmean'
-        write(6,'(3a)')' esprd fileout = ',trim(adjustl(filepref))//'_ensspread'
+        write(6,'(3a)')' emean fileout = ',trim(adjustl(filepref))//'_ensmean.nc4'
+        write(6,'(3a)')' esprd fileout = ',trim(adjustl(filepref))//'_ensspread.nc4'
         write(6,'(1a)')' '
     endif
 
@@ -102,9 +103,8 @@ program getsigensstatp
     do k=1,nanals
         new_group_members(k)=k-1
     enddo
-    if ( mype1 <= nanals ) then
-        call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
-    endif
+
+    call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
     call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
     if ( iret /= 0 ) then
         write(6,'(a,i5)')'***ERROR*** after mpi_comm_create with iret = ',iret
@@ -207,7 +207,7 @@ program getsigensstatp
 
         elseif ( nemsio ) then
 
-            call nemsio_readrecv(gfile,'pres','mid layer',1,rwork_mem(:,1),iret)
+            call nemsio_readrecv(gfile,'pres','sfc',1,rwork_mem(:,1),iret)
             do k = 1,nlevs
                 krecu    = 1 + 0*nlevs + k
                 krecv    = 1 + 1*nlevs + k
@@ -270,51 +270,130 @@ subroutine write_to_disk(statstr)
    character(len=*), intent(in) :: statstr
 
    character(len=500) :: filenameout
-   integer :: kbeg,kend
+   character(len=24),parameter :: myname='write_to_disk'
+   integer :: ncid,varid,vardim(3)
+   real(r_single) :: var2d(lonb,latb),var3d(lonb,latb,nlevs),glons(lonb)
+   integer :: glevs(nlevs)
+   integer :: i,kbeg,kend
 
-   filenameout = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_ens' // trim(adjustl(statstr))
+   glons(1) = 0._r_single
+   do i=2,lonb
+      glons(i) = glons(i-1) + 360._r_single / lonb
+   enddo
+   do i = 1,nlevs
+      glevs(i) = i
+   enddo
 
-   call baopenwt(lunit,trim(adjustl(filenameout)) // '.bin4',iret)
-   write(6,'(3a,i5)')'Write ',trim(adjustl(filenameout))//'.bin4',' iret=',iret
+   filenameout = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_ens' // trim(adjustl(statstr)) // '.nc4'
+
+   call nc_check( nf90_create(trim(filenameout),ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid),myname,'create '//trim(filenameout) )
+   call nc_check( nf90_def_dim(ncid,'lon',lonb,vardim(1)),myname,'def_dim lon '//trim(filenameout) )
+   call nc_check( nf90_def_dim(ncid,'lat',latb,vardim(2)),myname,'def_dim lat '//trim(filenameout) )
+   call nc_check( nf90_def_dim(ncid,'lev',nlevs,vardim(3)),myname,'def_dim lev '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'lon',nf90_float,vardim(1),varid),myname,'def_var lon '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','longitude'),myname, 'put_att, long_name lon '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','degrees_east'),myname, 'put_att, units lon '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'axis','X'),myname, 'put_att, axis lon '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'lat',nf90_float,vardim(2),varid),myname,'def_var lat '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','latitude'),myname, 'put_att, long_name lat'//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','degrees_north'),myname, 'put_att, units lat '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'axis','Y'),myname, 'put_att, axis lat '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'lev',nf90_int,vardim(3),varid),myname,'def_var lev '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','level'),myname, 'put_att, long_name lev'//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','up'),myname, 'put_att, units lev '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'axis','Z'),myname, 'put_att, axis lev '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'ps',nf90_float,vardim(1:2),varid),myname,'def_var ps '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','surface pressure'),myname, 'put_att, long_name ps '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','hPa'),myname, 'put_att, units ps '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'u',nf90_float,vardim,varid),myname,'def_var u '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','zonal wind'),myname, 'put_att, long_name u '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','m/s'),myname, 'put_att, units u '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'v',nf90_float,vardim,varid),myname,'def_var v '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','meridional wind'),myname, 'put_att, long_name v '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','m/s'),myname, 'put_att, units v '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'t',nf90_float,vardim,varid),myname,'def_var t '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','temperature'),myname, 'put_att, long_name t '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','K'),myname, 'put_att, units t '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'q',nf90_float,vardim,varid),myname,'def_var q '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','specific humidity'),myname, 'put_att, long_name q '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units q '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'oz',nf90_float,vardim,varid),myname,'def_var oz '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','ozone mixing ratio'),myname, 'put_att, long_name oz '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units oz '//trim(filenameout) )
+   call nc_check( nf90_def_var(ncid,'cw',nf90_float,vardim,varid),myname,'def_var cw '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'long_name','cloud-water mixing ratio'),myname, 'put_att, long_name cw '//trim(filenameout) )
+   call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units cw '//trim(filenameout) )
+   call nc_check( nf90_enddef(ncid),myname,'enddef, '//trim(filenameout) )
+   call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
+
+   call nc_check( nf90_open(trim(filenameout),NF90_WRITE,ncid),myname,'open '//trim(filenameout) )
+   call nc_check( nf90_inq_varid(ncid,'lon',varid),myname,'inq_varid, lon '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,glons,(/1/),(/lonb/)),myname, 'put_var, lon '//trim(filenameout) )
+   call nc_check( nf90_inq_varid(ncid,'lat',varid),myname,'inq_varid, lat '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,glats,(/1/),(/latb/)),myname, 'put_var, lat '//trim(filenameout) )
+   call nc_check( nf90_inq_varid(ncid,'lev',varid),myname,'inq_varid, lev '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,glevs,(/1/),(/nlevs/)),myname, 'put_var, lev '//trim(filenameout) )
    kbeg = 1 ; kend = 1
-   call wryte(lunit,r_single*lonb*latb,      rwork_avg(:,kbeg:kend))
+   var2d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb/))
+   var2d = var2d(:,latb:1:-1)
+   call nc_check( nf90_inq_varid(ncid,'ps',varid),myname,'inq_varid, ps '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var2d,(/1,1/),(/lonb,latb/)),myname, 'put_var, ps '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'u',varid),myname,'inq_varid, u '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, u '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'v',varid),myname,'inq_varid, v '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, v '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'t',varid),myname,'inq_varid, t '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, t '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'q',varid),myname,'inq_varid, q '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, q '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'oz',varid),myname,'inq_varid, oz '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, oz '//trim(filenameout) )
    kbeg = kend + 1 ; kend = kend + nlevs
-   call wryte(lunit,r_single*lonb*latb*nlevs,rwork_avg(:,kbeg:kend))
-   call baclose(lunit,iret)
+   var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+   var3d = var3d(:,latb:1:-1,:)
+   call nc_check( nf90_inq_varid(ncid,'cw',varid),myname,'inq_varid, cw '// trim(filenameout) )
+   call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, cw '//trim(filenameout) )
+   call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
 
-   open(lunit,file=trim(adjustl(filenameout)) // '.ctl',form='formatted',status='replace',iostat=iret)
-   write(lunit,'("DSET ^",a)') trim(adjustl(filepref))//'_ens'//trim(adjustl(statstr))//'.bin4'
-   write(lunit,'("OPTIONS yrev")')
-   write(lunit,'("UNDEF -9.99E+33")')
-   write(lunit,'("TITLE ensemble",1x,a)') trim(adjustl(statstr))
-   write(lunit,'("XDEF",i6," LINEAR",2f12.6)') lonb,0.0,360.0/lonb
-   write(lunit,'("YDEF",i6," LEVELS")') latb
-   write(lunit,'(5f12.6)') glats
-   write(lunit,'("ZDEF",i6," LINEAR 1 1")') nlevs
-   write(lunit,'("TDEF",i6,1x,"LINEAR",1x,"00Z01Jan2000",1x,i3,"hr")') 1,12
-   write(lunit,'("VARS",i6)') 7
-   write(lunit,'("PS  ",i3," 99 surface pressure (Pa)")') 0
-   write(lunit,'("U   ",i3," 99 zonal wind (m/s)")') nlevs
-   write(lunit,'("V   ",i3," 99 meridional wind (m/s)")') nlevs
-   write(lunit,'("T   ",i3," 99 temperature (K)")') nlevs
-   write(lunit,'("Q   ",i3," 99 specific humidity (kg/kg)")') nlevs
-   write(lunit,'("OZ  ",i3," 99 ozone concentration (kg/kg)")') nlevs
-   write(lunit,'("CW  ",i3," 99 cloud water mixing ratio (kg/kg)")') nlevs
-   write(lunit,'(a)') 'ENDVARS'
-   close(lunit)
+   write(6,'(3a,i5)')'Wrote netcdf4 ',trim(filenameout)
 
    return
 
 end subroutine write_to_disk
+
+SUBROUTINE nc_check(ierr,subr_name,context)
+
+  ! check for netcdf errors
+
+  implicit none
+
+  integer,          intent(in) :: ierr
+  character(len=*), intent(in) :: subr_name, context
+
+  character(len=129) :: error_msg
+
+  if (ierr /= nf90_noerr) then
+    error_msg = trim(subr_name) // ': ' // trim(context) // ': ' // trim(nf90_strerror(ierr))
+    print*,trim(adjustl(error_msg))
+    stop
+  end if
+
+  return
+END SUBROUTINE nc_check
 
 end program getsigensstatp

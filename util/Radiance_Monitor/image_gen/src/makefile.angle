@@ -7,21 +7,15 @@
 #
 # *****************************************************************
 
-SHELL=/bin/sh
-SRCS = angle.f90 avgsdv.f90
+BINDIR = ../exec
+
+LIBS   = $(W3NCO_LIB4)
 
 OBJS = angle.o avgsdv.o
 
 #
 # *****************************************************************
 #
-
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
-
 
 CMD = angle.x
 
@@ -32,9 +26,17 @@ clean:
 	rm -f *.mod
 	rm -f angle.x
 
+check_prereqs:
+	/nwprod/spa_util/check_libs.bash $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
+
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../exec/.
 
 angle.o : angle.f90
 	$(CF) $(FFLAGS) -c $(*).f90

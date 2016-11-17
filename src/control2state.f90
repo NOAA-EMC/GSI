@@ -40,6 +40,7 @@ subroutine control2state(xhat,sval,bval)
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-12-03  derber   - introduce parallel regions for optimization
+!   2015-07-10  pondeca  - add cldch
 !
 !   input argument list:
 !     xhat - Control variable
@@ -96,6 +97,7 @@ integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m
 integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
 integer(i_kind) :: icsfwter,icvpwter,ictcamt,iclcbas
+integer(i_kind) :: iccldch
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'ql ', 'qi ' /)
@@ -109,6 +111,7 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
@@ -118,7 +121,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_wspd10m,sv_tcamt,sv_lcbas
-real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv
+real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_cldch
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
@@ -192,6 +195,7 @@ call gsi_bundlegetpointer (xhat%step(1),'sfwter',icsfwter,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vpwter',icvpwter,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'tcamt',ictcamt,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'lcbas',iclcbas,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'cldch',iccldch,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -352,6 +356,12 @@ do jj=1,nsubwin
       call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
       ! Convert log(lcbas) to lcbas
       call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
+   end if
+   if (iccldch >0) then
+      call gsi_bundlegetpointer (wbundle,'cldch',cv_cldch,istatus)
+      call gsi_bundlegetpointer (sval(jj),'cldch'  ,sv_cldch , istatus)
+      !  Convert log(cldch) to cldch
+      call logcldch_to_cldch(cv_cldch,sv_cldch)
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together 

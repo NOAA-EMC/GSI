@@ -102,6 +102,7 @@ subroutine pcgsoi()
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
+!   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
 !                       
 !
 ! input argument list:
@@ -119,7 +120,7 @@ subroutine pcgsoi()
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
+  use qcmod, only: nlnqc_iter,varqc_iter,c_varqc,vqc
   use obsmod, only: destroyobs,oberror_tune,luse_obsdiag,yobs
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
@@ -127,7 +128,7 @@ subroutine pcgsoi()
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        ltlint, iorthomax
-  use gridmod, only: twodvar_regional, use_reflectivity
+  use gridmod, only: twodvar_regional
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -241,20 +242,22 @@ subroutine pcgsoi()
   lanlerr=.false.
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
-  if ( ltlint ) nlnqc_iter=.false.
+  nlnqc_iter=.false.
   call stpjo_setup(yobs,nobs_bins)
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
 
 ! Gradually turn on variational qc to avoid possible convergence problems
-     nlnqc_iter = iter >= niter_no_qc(jiter)
-     if(jiter == jiterstart) then
-        varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
-        if(varqc_iter >=one) varqc_iter= one
-     else
-        varqc_iter=one
-     endif
+     if(vqc) then
+        nlnqc_iter = iter >= niter_no_qc(jiter)
+        if(jiter == jiterstart) then
+           varqc_iter=c_varqc*(iter-niter_no_qc(1)+one)
+           if(varqc_iter >=one) varqc_iter= one
+        else
+           varqc_iter=one
+        endif
+     end if
 
      do ii=1,nobs_bins
         rval(ii)=zero
@@ -430,7 +433,7 @@ subroutine pcgsoi()
      dprod(1) = qdot_prod_sub(gradx,grady)
      dprod(2) = qdot_prod_sub(xdiff,grady)
      dprod(3) = qdot_prod_sub(ydiff,gradx)
-     call mpl_allreduce(3,dprod)
+     call mpl_allreduce(3,qpvals=dprod)
 
      gnorm(1)=dprod(1)
 !    Two dot products in gnorm(2) should be same, but are slightly different due to round off
@@ -779,10 +782,11 @@ subroutine pcgsoi()
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
-  if(jiter == miter .and. i_gsdcldanal_type==1) then
-    if(use_reflectivity) then
+! if(jiter == miter .and. i_gsdcldanal_type==1) then
+  if(jiter == miter) then
+    if(i_gsdcldanal_type==2) then
      call gsdcloudanalysis4nmmb(mype)
-    else
+    else if(i_gsdcldanal_type==1) then
      call gsdcloudanalysis(mype)
     endif
   endif
@@ -791,18 +795,18 @@ subroutine pcgsoi()
   if(.not.l4dvar) call prt_guess('analysis')
   call prt_state_norms(sval(1),'increment')
   if (twodvar_regional) then
-      call write_all(-1,mype)
+      call write_all(-1)
     else
       if(jiter == miter) then
          call clean_
-         call write_all(-1,mype)
+         call write_all(-1)
       endif
   endif
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
      call inc2guess(sval)
-     call write_all(iwrtinc,mype)
+     call write_all(iwrtinc)
      call prt_guess('increment')
      ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent way
      ! as when in 3dvar - that is, the state is not updated, but the biases are.

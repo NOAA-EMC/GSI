@@ -258,7 +258,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
   return
 end subroutine cloud_calc
 
-subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,cwgues0) 
+subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv) 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cloud_calc_gfs     calculate cloud mixing ratio
@@ -271,6 +271,7 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,cwgues0)
 !                     (rearranged from Min-Jeong's code)  
 !   2014-11-28 zhu  - assign cwgues0 in this subroutine;
 !                   - set lower bound to cloud after assigning cwgues0,change atrribute of g_cwmr
+!   2016-04-28 eliu - remove cwgues0 to read_gfs subroutine in ncegfs_io.f90
 
 
   use gridmod, only: lat2,lon2,nsig
@@ -283,17 +284,15 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,cwgues0)
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: g_cwmr ! mixing ratio of total condensates [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_q    ! specific humidity [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_tv   ! virtual temperature [K]
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: cwgues0
 
 ! Declare local variables
   integer(i_kind):: i,j,k
   real(r_kind)   :: work
 
-! Assign cwgues0 and set lower bound to cloud
+! Set lower bound to cloud
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           cwgues0(i,j,k)=g_cwmr(i,j,k)
            g_cwmr(i,j,k) =max(qcmin,g_cwmr(i,j,k))
         end do
      end do

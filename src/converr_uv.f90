@@ -38,7 +38,6 @@ implicit none
 ! set passed variables as public
   public :: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
 
-!RY: itypex and itypey should not be save variable
   integer(i_kind),save:: ietabl_uv,itypex,itypey,lcount,iflag,k,m,n,maxsub_uv
   real(r_single),save,allocatable,dimension(:,:,:) :: etabl_uv
   real(r_kind),save,allocatable,dimension(:)  :: ptabl_uv
@@ -61,10 +60,10 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- add ld, the size of error table.
-!                          ld=300 is sufficient for current conventional
-!                          observing systems.  No need to do the subtraction to get error
-!                          table array index.
+!   2015-03-06  yang    -- add ld=300, the size of the error table.
+!                          Remove the original calculation to get error table array 
+!                          index. ld=300 is sufficient for current conventional
+!                          observing systems. 
 !
 !   input argument list:
 !
@@ -110,12 +109,10 @@ contains
 105     format(8x,7i12)
         do k=1,33
            read(ietabl_uv,110)(etabl_uv(itypex,k,m),m=1,8)
-!           write(6,110) (etabl_uv(itypex,k,m),m=1,8)
 110        format(1x,8e12.5)
         end do
      end do   loopd
 120  continue
-
      if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVERR_UV:  ***WARNING*** obs error table not available to 3dvar.'
         oberrflg=.false.
@@ -172,6 +169,3 @@ subroutine converr_uv_destroy
   end subroutine converr_uv_destroy
 
 end module converr_uv
-
-
-

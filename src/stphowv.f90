@@ -9,6 +9,7 @@ module stphowvmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2015-07-10  pondeca  - force return if no howv data available
 !
 ! subroutines included:
 !   sub stphowv
@@ -80,6 +81,9 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
   type(howv_ob_type), pointer :: howvptr
 
   out=zero_quad
+
+! If no howv data return
+  if(.not. associated(howvhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
