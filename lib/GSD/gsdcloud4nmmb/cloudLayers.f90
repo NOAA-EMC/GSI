@@ -113,7 +113,7 @@ SUBROUTINE cloudLayers(nlat,nlon,nsig,h_bk,zh,cld_cover_3d,cld_type_3d, &
             k_base = k + 1
 
             k = k + 1
-            DO WHILE (cv_1d(k) > thresh_cvr .and. k < nsig)
+            DO WHILE (cv_1d(k) >= thresh_cvr .and. k < nsig)
                 k_top = k
 !
 !-----------------------------------------------------------------------

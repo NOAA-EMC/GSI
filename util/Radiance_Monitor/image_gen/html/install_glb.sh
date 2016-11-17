@@ -284,6 +284,33 @@ for html_file in $mod_html_files; do
 done
 
 #--------------------------------------------------------------
+#  Optionally enable comparison plots to the operational
+#    GDAS data
+#
+set +ax
+comp_html_files="plot_summary.html plot_time.html"
+
+echo "Do you wish to enable data plots to include comparison to operational GDAS data?"
+echo -n "  Enter YES to enable, any other input to disable.  > "
+read text
+short=`echo $text | cut -c1`
+
+if [[ $short = "Y" || $short = "y" ]]; then
+
+   for html_file in $comp_html_files; do
+      echo "processing ${html_file}"
+
+      tmp_html=./tmp_${html_file}
+      rm -f ${tmp_html}
+
+      sed '/OPTIONAL_COMPARE/d' ./${html_file} > ${tmp_html}
+      mv -f ${tmp_html} ${html_file}
+   done
+fi
+
+set -ax
+
+#--------------------------------------------------------------
 # Generate the intro.html file.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
@@ -326,7 +353,7 @@ if [[ ! -s ${new_index} ]]; then
    fi
 fi
 
-js_files="jsuri-1.1.1.js stats.js"
+support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
 
 
 #--------------------------------------------------------------
@@ -359,7 +386,7 @@ done
 #-----------------------
 #  js files
 #
-for file in $js_files; do
+for file in $support_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
 done
 

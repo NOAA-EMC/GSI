@@ -22,8 +22,8 @@
 #export EXEDIR=${RADMON_IMAGE_GEN}/exec
 
 #export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
-#export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
-#export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
+#export LOGDIR=${LOGSverf_rad}/rad${RADMON_SUFFIX}
+#export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${RADMON_SUFFIX}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    export GRADS=/usrx/local/GrADS/2.0.1/bin/grads

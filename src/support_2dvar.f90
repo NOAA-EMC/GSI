@@ -26,6 +26,7 @@ subroutine convert_binary_2d
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and ceiling
+!   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !
 !   input argument list:
 !
@@ -272,6 +273,11 @@ subroutine convert_binary_2d
      read(in_unit)field2             !  PBLH
      write(6,*)' convert_binary_2d: max,min PBLH=',maxval(field2),minval(field2)
      write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  CLDCH
+     write(6,*)' convert_binary_2d: max,min CLDCH=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid CLDCH=',field2(nlon_regional/2,nlat_regional/2)
      write(lendian_out)field2
 
      read(in_unit)field2             !  WSPD10M
@@ -525,6 +531,7 @@ subroutine read_2d_guess(mype)
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and ceiling
+!   2015-07-10  pondeca - add cloud ceiling height
 !
 !   input argument list:
 !     mype     - pe number
@@ -575,12 +582,13 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
-  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas
+  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
   integer(i_kind) icwmr,ier,istatus
   logical ihave_gust,ihave_pblh,ihave_vis,ihave_tcamt,ihave_lcbas
   logical ihave_wspd10m,ihave_td2m,ihave_mxtm,ihave_mitm,ihave_pmsl,ihave_howv
+  logical ihave_cldch
 
   real(r_kind),pointer,dimension(:,:  )::ges_gust   =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_vis    =>NULL()
@@ -591,8 +599,9 @@ subroutine read_2d_guess(mype)
   real(r_kind),pointer,dimension(:,:  )::ges_mitm   =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_pmsl   =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_howv   =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_tcamt    =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_lcbas    =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_tcamt  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_lcbas  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_cldch  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_ps_it  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_z_it   =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_u_it   =>NULL()
@@ -623,7 +632,7 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=27! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
+  num_2d_fields=28! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
 ! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
@@ -652,7 +661,7 @@ subroutine read_2d_guess(mype)
   i=0
   i=i+1 ; i_psfc=i                                            ! psfc
   write(identity(i),'("record ",i3,"--psfc")')i
-  jsig_skip(i)=3     ! number of files to skip before getting to psfc
+  jsig_skip(i)=3     ! number of records to skip before getting to psfc
   igtype(i)=1
 
   i=i+1 ; i_fis=i                                             ! sfc geopotential
@@ -741,6 +750,10 @@ subroutine read_2d_guess(mype)
   write(identity(i),'("record ",i3,"--pblh")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
+  i=i+1 ; i_cldch=i                                           ! cldch
+  write(identity(i),'("record ",i3,"--cldch")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_wspd10m=i                                         ! wspd10m
   write(identity(i),'("record ",i3,"--wspd10m")')i
   jsig_skip(i)=0 ; igtype(i)=1
@@ -772,6 +785,14 @@ subroutine read_2d_guess(mype)
   i=i+1 ; i_lcbas=i                                           ! lcbas
   write(identity(i),'("record ",i3,"--lcbas")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
+  if (mype==0) then
+     print*
+     do i=1,num_2d_fields
+        print'(a)',trim(identity(i))
+     enddo
+     print*
+  endif
 
 ! End of stuff from 2D restart file
 
@@ -922,6 +943,9 @@ subroutine read_2d_guess(mype)
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ges_pblh,ier)
         ihave_pblh=ier==0
 
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cldch',ges_cldch,ier)
+        ihave_cldch=ier==0
+
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'wspd10m',ges_wspd10m,ier)
         ihave_wspd10m=ier==0
 
@@ -945,7 +969,6 @@ subroutine read_2d_guess(mype)
 
         call gsi_bundlegetpointer(gsi_metguess_bundle(it),'lcbas',ges_lcbas,ier)
         ihave_lcbas =ier==0
-
 
 
         i_0=(it-1)*num_2d_fields
@@ -979,6 +1002,9 @@ subroutine read_2d_guess(mype)
 
               if(ihave_pblh) &
                  ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
+
+              if(ihave_cldch) &
+                 ges_cldch(j,i)=max(min(all_loc(j,i,i_0+i_cldch),20000.0_r_kind),one_tenth)
 
               if (ihave_wspd10m) & 
                  ges_wspd10m(j,i)=all_loc(j,i,i_0+i_wspd10m)
@@ -1043,6 +1069,7 @@ subroutine wr2d_binary(mype)
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2014-06-27  carley - slight change to specification of num_2d_fields
+!   2015-07-10  pondeca - add cloud ceiling height
 !
 !   input argument list:
 !     mype     - pe number
@@ -1087,7 +1114,7 @@ subroutine wr2d_binary(mype)
   character(6) filename
   character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas
+  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas,i_cldch
   integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
@@ -1119,7 +1146,8 @@ subroutine wr2d_binary(mype)
   i_gust=i_skt+1
   i_vis=i_gust+1
   i_pblh=i_vis+1
-  i_wspd10m=i_pblh+1
+  i_cldch=i_pblh+1
+  i_wspd10m=i_cldch+1
   i_td2m=i_wspd10m+1
   i_mxtm= i_td2m+1
   i_mitm= i_mxtm+1
@@ -1127,7 +1155,7 @@ subroutine wr2d_binary(mype)
   i_howv= i_pmsl+1
   i_tcamt=i_howv+1
   i_lcbas=i_tcamt+1
-  
+
   num_2d_fields=i_lcbas        ! - should always equal the last integer from the
                                ! -   preceding list
   num_all_fields=num_2d_fields
@@ -1338,19 +1366,20 @@ subroutine wr2d_binary(mype)
      end do
   end if
 
-  caux(1)='gust'    ; iaux(1)=i_gust 
+  caux(1)='gust'    ; iaux(1)=i_gust
   caux(2)='vis'     ; iaux(2)=i_vis
   caux(3)='pblh'    ; iaux(3)=i_pblh
-  caux(4)='wspd10m' ; iaux(4)=i_wspd10m
-  caux(5)='td2m'    ; iaux(5)=i_td2m
-  caux(6)='mxtm'    ; iaux(6)=i_mxtm
-  caux(7)='mitm'    ; iaux(7)=i_mitm
-  caux(8)='pmsl'    ; iaux(8)=i_pmsl
-  caux(9)='howv'    ; iaux(9)=i_howv
-  caux(10)='tcamt'  ; iaux(10)=i_tcamt 
-  caux(11)='lcbas'  ; iaux(11)=i_lcbas
+  caux(4)='cldch'   ; iaux(4)=i_cldch
+  caux(5)='wspd10m' ; iaux(5)=i_wspd10m
+  caux(6)='td2m'    ; iaux(6)=i_td2m
+  caux(7)='mxtm'    ; iaux(7)=i_mxtm
+  caux(8)='mitm'    ; iaux(8)=i_mitm
+  caux(9)='pmsl'    ; iaux(9)=i_pmsl
+  caux(10)='howv'   ; iaux(10)=i_howv
+  caux(11)='tcamt'  ; iaux(11)=i_tcamt
+  caux(12)='lcbas'  ; iaux(12)=i_lcbas
 
-  kaux=11  !Adjust as you add variables
+  kaux=12  !Adjust as you add variables
 
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
@@ -2287,6 +2316,7 @@ module hilbertcurve
   integer(i_kind) ngrps_howvob
   integer(i_kind) ngrps_tcamtob
   integer(i_kind) ngrps_lcbasob
+  integer(i_kind) ngrps_cldchob
 
   logical random_cvgrp
   real(r_kind) usagecv
@@ -2328,9 +2358,9 @@ subroutine init_hilbertcurve(maxobs)
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
                     ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
-                    ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, & 
-                    ngrps_pmslob, ngrps_howvob, & 
-                    ngrps_tcamtob,ngrps_lcbasob
+                    ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, &
+                    ngrps_pmslob, ngrps_howvob, &
+                    ngrps_tcamtob,ngrps_lcbasob,ngrps_cldchob
 
   random_cvgrp=.false.
   usagecv=3._r_kind
@@ -2350,6 +2380,7 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_howvob=8
   ngrps_tcamtob=8
   ngrps_lcbasob=8
+  ngrps_cldchob=8
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
@@ -2382,6 +2413,7 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_howvob=',ngrps_howvob
     print*,'in init_hilbertcurve: ngrps_tcamtob=',ngrps_tcamtob
     print*,'in init_hilbertcurve: ngrps_lcbasob=',ngrps_lcbasob
+    print*,'in init_hilbertcurve: ngrps_cldchob=',ngrps_cldchob
   end if
 
 
@@ -2612,8 +2644,9 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
             if(obstype == 'mitm'   ) ncnumgrp0=ngrps_mitmob
             if(obstype == 'pmsl'   ) ncnumgrp0=ngrps_pmslob
             if(obstype == 'howv'   ) ncnumgrp0=ngrps_howvob
-            if(obstype == 'tcamt'  )ncnumgrp0=ngrps_tcamtob
-            if(obstype == 'lcbas'  )ncnumgrp0=ngrps_lcbasob
+            if(obstype == 'tcamt'  ) ncnumgrp0=ngrps_tcamtob
+            if(obstype == 'lcbas'  ) ncnumgrp0=ngrps_lcbasob
+            if(obstype == 'cldch'  ) ncnumgrp0=ngrps_cldchob
           else
             ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
                                                ! chosen to be the last "number of groups" 
@@ -2686,6 +2719,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
         if(obstype=='howv')    outfile='howvobs_allcv_groups'
         if(obstype=='tcamt')   outfile='tcamtobs_allcv_groups'
         if(obstype=='lcbas')   outfile='lcbasobs_allcv_groups'
+        if(obstype=='cldch')   outfile='cldchobs_allcv_groups'
         open (92,file=trim(outfile),form='unformatted')
 
         write(92) ncross,ncnumgrp0,ncgroup0
@@ -3131,10 +3165,18 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
   real(r_kind) flon,flat
   logical glerlarea
 
+! Declare local parameters
+!    Great Lakes
   real(r_kind),parameter::flon1=-93._r_kind
   real(r_kind),parameter::flon2=-75._r_kind
   real(r_kind),parameter::flat1=40.5_r_kind
   real(r_kind),parameter::flat2=49.5_r_kind
+
+!    Great Salt Lake
+  real(r_kind),parameter::slon1=-113._r_kind
+  real(r_kind),parameter::slon2=-112._r_kind
+  real(r_kind),parameter::slat1=40.6_r_kind
+  real(r_kind),parameter::slat2=41.7_r_kind
 
   mm1=mype+1
 
@@ -3146,6 +3188,7 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
               flat=region_lat(iglob,jglob)*rad2deg
               flon=region_lon(iglob,jglob)*rad2deg
               glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+              glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
 
               if(isli2(i,j) == 1 .or. .not.glerlarea) then
                  do k=1,nsig                           !note: this subroutine is always called with nsig=1
@@ -3170,6 +3213,7 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
               flat=region_lat(iglob,jglob)*rad2deg
               flon=region_lon(iglob,jglob)*rad2deg
               glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
+              glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
 
               if(isli2(i,j) == 1 .or. .not.glerlarea) then
                  do k=1,nsig

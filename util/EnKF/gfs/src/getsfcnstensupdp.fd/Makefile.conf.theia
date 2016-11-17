@@ -4,16 +4,22 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-SFCIO_VER = 1.0.0
-W3NCO_VER = 2.0.6
+BACIO_VER = v2.0.1
+NEMSIO_VER = v2.2.1
+SFCIO_VER = v1.0.0
+SP_VER = v2.0.2
+W3NCO_VER = v2.0.6
 
 CORELIB  = /scratch3/NCEPDEV/nwprod/lib
 
-INCsfcio = $(CORELIB)/sfcio/v$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)_4
+NEMSIO_INC=$(CORELIB)/nemsio/$(NEMSIO_VER)/incmod/nemsio_$(NEMSIO_VER)
+SFCIO_INC4=$(CORELIB)/sfcio/$(SFCIO_VER)/incmod/sfcio_$(SFCIO_VER)_4
 
-SFCIO_LIB4=$(CORELIB)/sfcio/v$(SFCIO_VER)/libsfcio_v$(SFCIO_VER)_4.a
-W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
-SP_LIBd=$(CORELIB)/libsp_d.a
+BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
+NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
+SFCIO_LIB4=$(CORELIB)/sfcio/$(SFCIO_VER)/libsfcio_$(SFCIO_VER)_4.a
+SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
+W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
 
 # ---------------------------
 # General targets/definitions
@@ -33,11 +39,11 @@ SP_LIBd=$(CORELIB)/libsp_d.a
   OMP = #-qsmp=noauto
 
   FFLAGS_F90    = -D_REAL8_ -convert big_endian -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsfcio)
+  FFLAGS_COM_N  = -I $(SFCIO_INC4) -I $(NEMSIO_INC) 
   FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
+  FFLAGS_COM_D  =  -I ./ -I  $(SFCIO_INC4) -I $(NEMSIO_INC) -O0 -xHOST -traceback -assume byterecl -debug full -g
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
 
 
@@ -63,7 +69,7 @@ SP_LIBd=$(CORELIB)/libsp_d.a
   LD            = $(CF) -lmpi
 
 #--- Normal mode options
-  LIBS_N        = $(SP_LIBd) $(W3NCO_LIB4) $(SFCIO_LIB4)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SFCIO_LIB4) $(W3NCO_LIB4) $(SP_LIBd)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt
 

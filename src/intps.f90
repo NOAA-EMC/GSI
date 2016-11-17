@@ -70,6 +70,8 @@ subroutine intps_(pshead,rval,sval)
 !   2010-05-13  todling  - update to use gsi_bundlemod; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
+
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -87,7 +89,7 @@ subroutine intps_(pshead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -159,7 +161,7 @@ subroutine intps_(pshead,rval,sval)
         if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
-           if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
               ps_pg=psptr%pg*varqc_iter
               cg_ps=cg_term/psptr%b                           ! b is d in Enderson
@@ -170,7 +172,7 @@ subroutine intps_(pshead,rval,sval)
            endif
            if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
               val=sqrt(two*psptr%jb)*tanh(sqrt(psptr%err2)*val/sqrt(two*psptr%jb))
-              grad = val*sqrt(psptr%raterr2*psptr%err2)
+              grad = val*psptr%raterr2*sqrt(psptr%err2)
            else
               grad = val*psptr%raterr2*psptr%err2
            endif

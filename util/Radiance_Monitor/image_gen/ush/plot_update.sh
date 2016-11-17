@@ -14,7 +14,7 @@ export list=$listvar
 #------------------------------------------------------------------
 # Set environment variables.
 #------------------------------------------------------------------
-tmpdir=${STMP_USER}/done_${SUFFIX}.$PDATE
+tmpdir=${STMP_USER}/done_${RADMON_SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -30,7 +30,7 @@ cd $tmpdir
 CYCLE=`echo $PDATE|cut -c9-10`
 
 if [[ ${DO_ARCHIVE} = "1" && ${CYCLE} = "06" ]]; then
-   HPSSDIR=${HPSS_DIR}/${SUFFIX}
+   HPSSDIR=${HPSS_DIR}/${RADMON_SUFFIX}
 
    YSTRD=`$NDATE -24 $PDATE`
    TARDATE=`echo $YSTRD|cut -c1-8`

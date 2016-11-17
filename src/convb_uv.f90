@@ -61,13 +61,11 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the b case of "obs b table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- minor modification: add ld to denote the size of nlqc_b table, then
-!                          eliminate the hard wired values and subtraction in
-!                          order to get error table array index.
+!   2015-03-06  yang    -- add ld = 3000 for the size of nlqc_b table. Remove
+!                          the hardwired value in the calculation of table array
+!                          index.
 !                          ld=300 is sufficient for current conventional
 !                          observing systems.
-
-
 !
 !   input argument list:
 !
@@ -116,7 +114,7 @@ contains
      end do   loopd
 120  continue
 
-! use the pressure of last obs. type, itypex
+! use the pressure value of the last obs. type, itypex
      if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVB_UV:  ***WARNING*** obs b table not available to 3dvar.'
         bflag=.false.
@@ -134,11 +132,7 @@ contains
          endif
         if (mype == 0) then
           write(6,*) 'CONVB_UV: nlqc b from user provided table' 
-!          write(6,105) (isuble_buv(288,n),n=1,7)
         endif
-!        do k=1,33
-!          write(6,110) (btabl_uv(288,k,m),m=1,8)
-!        enddo
      endif
      close(ibtabl_uv)
      return
@@ -172,6 +166,3 @@ subroutine convb_uv_destroy
   end subroutine convb_uv_destroy
 
 end module convb_uv
-
-
-

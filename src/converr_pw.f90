@@ -61,9 +61,11 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- add ld, the total number of the conventional obs.
-!                          types (corresponding to convinfo table). Currently, 
-!                          ld=300 is sufficient. 
+!   2015-03-06  yang    -- add ld=300, the size of the error table.
+!                          Remove the original calculation to get error table
+!                          array
+!                          index. ld=300 is sufficient for current conventional
+!                          observing systems.
 !
 !   input argument list:
 !
@@ -129,7 +131,7 @@ contains
            enddo
         endif
         allocate(ptabl_pw(34))
-! use itypex pressure values.  itypex is the last valid observation type
+! use itypex to get pressure values.  itypex is the last valid observation type
         if (itypex > 0) then
            ptabl_pw=zero
            ptabl_pw(1)=etabl_pw(itypex,1,1)
@@ -172,6 +174,3 @@ subroutine converr_pw_destroy
   end subroutine converr_pw_destroy
 
 end module converr_pw
-
-
-

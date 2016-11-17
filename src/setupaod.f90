@@ -12,6 +12,7 @@
 !   2010-10-20  hclin - modified from setuprad for aod
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2016-02-20  pagowski - added NASA nnr AOD
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -103,6 +104,7 @@
   real(r_kind),dimension(nsig):: qvp,tvp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind) dtsavg
+  real(r_single) :: psfc
 
   integer(i_kind),dimension(nchanl):: ich,id_qc
 
@@ -131,7 +133,6 @@
   real(r_kind),dimension(nsigaerojac,nchanl):: jacobian_aero
   real(r_kind),dimension(nsig,nchanl):: layer_od
   real(r_kind) :: clw_guess, tzbgr, sfc_speed
-  real(r_kind) :: sum_jacobian_aero
 
   if ( .not. laeroana_gocart ) then
      return
@@ -292,6 +293,12 @@
                  if ( nint(dbcf) >= 0 .and. nint(dbcf) <= 3 ) then
                     tnoise = 0.05_r_kind+0.15_r_kind*aod_obs+0.01_r_kind*(three-dbcf)
                  end if
+              case ( 5 )  ! nnr ocean
+                 tnoise = 0.2_r_kind*(aod_obs+0.01_r_kind)
+              case ( 6 )  ! nnr land
+                 tnoise = 0.2_r_kind*(aod_obs+0.01_r_kind)
+
+                 
            end select
         end if
  
@@ -300,7 +307,8 @@
              tvp,qvp,clw_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
-             temp,wmix,jacobian,error_status,layer_od,jacobian_aero)
+             temp,wmix,jacobian,error_status,layer_od=layer_od,jacobian_aero=jacobian_aero)
+
 
 ! If the CRTM returns an error flag, do not assimilate any channels for this ob
 ! and set the QC flag to ifail_crtm_qc.
@@ -405,24 +413,12 @@
                     aerotail(ibin)%head%err2(iii)=var(iii)
                     aerotail(ibin)%head%raterr2(iii)=ratio_aoderr(iii)
                     aerotail(ibin)%head%icx(iii)=m
-                    sum_jacobian_aero=0.0
                     do k = 1, nsigaerojac
-                       sum_jacobian_aero=sum_jacobian_aero+jacobian_aero(k,ii)
-                    enddo
-                    do k = 1, nsigaerojac
-                       aerotail(ibin)%head%daod_dvar(k,iii)=jacobian_aero(k,ii)/&
-                                       sum_jacobian_aero
+                       aerotail(ibin)%head%daod_dvar(k,iii)=jacobian_aero(k,ii)
                     end do
                     my_head%ich(iii)=ii
                  end if
               end do
-!if(mype==0) then
-!   DO ii=1,iii
-!   DO k=1,nsigaerojac
-!      write(*,*) ii,k,aerotail(ibin)%head%daod_dvar(k,ii)
-!   ENDDO
-!   ENDDO
-!endif
            end if ! icc
         endif ! (in_curbin)
 
@@ -529,7 +525,8 @@
  
            do i=1,nchanl
               diagbufchan(1,i)=aod_obs(i)      ! observed brightness temperature (K)
-              diagbufchan(2,i)=total_aod(i)    ! observed - simulated Tb with no bias corrrection (K)
+!              diagbufchan(2,i)=total_aod(i)   ! observed - simulated Tb with no bias corrrection (K) - this should be innovation
+              diagbufchan(2,i)=aod(i)          ! innovation
               errinv = sqrt(varinv(i))
               diagbufchan(3,i)=errinv          ! inverse observation error
               useflag=one
@@ -579,7 +576,8 @@
               endif
            endif
 
-           write(4) diagbuf,diagbufchan
+           psfc=prsitmp(1)*r10 ! convert to hPa
+           write(4) psfc,diagbuf,diagbufchan
 
         end if
      endif ! (in_curbin)

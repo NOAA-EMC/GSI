@@ -59,6 +59,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                        dynamic allocated array 
 !   2015-02-26  Genkova - read GOES-R like winds from ASCII files & apply Sharon Nebuda's changes for GOES-R
 !   2015-05-12  Genkova - reading from ASCII files removed, read GOES-R from new BUFR, keep Nebuda's GOES-R related changes 
+!   2015-03-14  Nebuda  - add QC for clear air WV AMV (WVCS) from GOES type 247, removed PCT1 check not applicable to 247
+!   2016-03-15  Su      - modified the code so that the program won't stop when
+!                         no subtype is found in non linear qc error table and b table !                         table
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -97,7 +100,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, index_sub,&
+       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
 
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
@@ -152,13 +155,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   integer(i_kind) mxtb,nmsgmax
   integer(i_kind) ireadmg,ireadsb,iuse
-  integer(i_kind) i,maxobs,idomsfc,nsattype
+  integer(i_kind) i,maxobs,idomsfc,nsattype,ncount
   integer(i_kind) nc,nx,isflg,itx,j,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
   integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
-  integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr,ierr2
+  integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
@@ -542,6 +545,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      call datelen(10)
      ntb = 0
      nmsg = 0
+     ncount=0
      loop_msg:  do while(IREADMG(lunin,subset,idate) == 0)
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
@@ -741,9 +745,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif  
                     endif
                  enddo
-                 if(qifn <85.0_r_kind )  then
+!QI not applied to CAWV for now - may in the future
+                 if(qifn <85.0_r_kind .and. itype /= 247)  then
                     qm=15
                  endif
+! Minimum speed requirement for CAWV of 10m/s
+                 if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
+                   qm=15
+                endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -908,7 +917,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  end if
                  if (experr_norm > 0.9_r_double) qm=15 ! reject data with EE/SPD>0.9
                  pct1=cvwd_dat(1)             ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==247 .or. itype==251) then 
+                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
                 ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
            	    if (pct1 < 0.04_r_double) qm=15  
 		    if (pct1 > 0.50_r_double) qm=15
@@ -998,19 +1007,26 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            ppb=max(zero,min(ppb,r2000))
            if (njqc) then
               itypey=itype
-              ierr=index_sub(nc)
-              ierr2=ierr-1
-              if (ierr >maxsub_uv) ierr=2
-!                 write(6,*) '**********************READ_SATWND:'
-!                 write(6,*) 'READ_SATWND:itypey,nc,ierr=index_sub(nc), ierr2=,iobsub,isuble_uv(itypey,ierr2)'
-!                 write(6,*) itypey,nc,index_sub(nc), iobsub,isuble_uv(itypey,ierr2)
-!                 write(6,*) '**********************READ_SATWND:'
-              if( iobsub /= isuble_uv(itypey,ierr2)) then
-                 write(6,*) ' READ_SATWND: the subtypes do not match subtype &
-                            in errortable,iobsub NE isuble_uv(itypey,ierr2)',iobsub,isuble_uv(itypey,ierr2), &
-                            isuble_uv(itypey,ierr2),itype,itypey,nc,ierr
-                 call stop2(49)
-              endif
+              ierr=0
+              do i =1,maxsub_uv
+                 if( icsubtype(nc) == isuble_uv(itypey,i) ) then
+                    ierr=i+1
+                    exit
+                 else if( i == maxsub_uv .and. icsubtype(nc) /= isuble_uv(itypey,i)) then
+                    ncount=ncount+1
+                    do j=1,maxsub_uv
+                       if(isuble_uv(itypey,j) ==0 ) then
+                          ierr=j+1
+                          exit
+                       endif
+                    enddo
+                    if (ncount ==1) then
+                       write(6,*) 'READ_SATWND,WARNING cannot find subtyep in the error table,&
+                                   itype,iobsub=',itypey,icsubtype(nc)
+                       write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr
+                    endif
+                 endif
+              enddo
               if(ppb>=etabl_uv(itypey,1,1)) k1=1
               do kl=1,32
                  if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) then
@@ -1035,7 +1051,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !  get non linear qc parameter from b table
               var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
               var_jb=max(var_jb,wjbmin)
-              if (var_jb >10.0_r_kind) var_jb=zero
+              if (var_jb >=10.0_r_kind) var_jb=zero
 !              if (itype ==245 ) then
 !                write(6,*)
 !                'READ_SATWND:obserr,var_jb,ppb,del,one,etabl_uv,btabl_uv=',&
@@ -1281,7 +1297,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,tab,nrep)
  
 
   ! Write header record and data to output file for further processing

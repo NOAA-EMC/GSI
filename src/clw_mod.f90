@@ -698,6 +698,9 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 !   2014-11-15  ejones
 !   2015-02-13  ejones - set clw high over swath1 edges so these points can be
 !                        reliably filtered out in QC
+!   2015-07-15  ejones - add systematic "bias correction" to GMI TBs prior to
+!                        retrievals
+!   2016-06-06  ejones - remove unused pred_var_gwp value
 !
 !   input argument list:
 !     tb      - Observed brightness temperature [K]
@@ -736,9 +739,10 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   integer(i_kind)::tb_index(9)
   integer(i_kind)::nchan_reg,nvar_clw,nvar_gwp
   real(r_kind)::regr_coeff_clw(11),pred_var_clw(2)
-  real(r_kind)::regr_coeff_gwp(10),pred_var_gwp(2)
+  real(r_kind)::regr_coeff_gwp(10),pred_var_gwp
+  real(r_kind)::sys_bias(13),tb_use(13)
   real(r_kind)::a0_clw,a0_gwp
-  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb37v,tb37h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
+!  real(r_kind)::tb10v,tb10h,tb18v,tb18h,tb23v,tb37v,tb37h,tb89v,tb89h,tb166v,tb166h,tb183v,tb183h
 
   integer(i_kind)::i,idx,diff_var
 ! ---------- Initialize some variables ---------------------
@@ -746,9 +750,25 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   kraintype = 0
   ierr = 0
 
-  tb10v=tb(1); tb10h=tb(2); tb18v=tb(3); tb18h=tb(4)
-  tb23v=tb(5); tb37v=tb(6); tb37h=tb(7); tb89v=tb(8); tb89h=tb(9)
-  tb166v=tb(10); tb166h=tb(11); tb183v=tb(12); tb183h=tb(13)
+  ! Brightness temperatures used for training CLW and GWP retrievals were
+  ! simulated from ECMWF fields collocated with GMI observations. The retrievals
+  ! here use actual GMI brightness temperatures, so for best results, a
+  ! "systematic bias" (i.e. an average difference between GMI brightness
+  ! temperatures and those simulated from ECMWF fields) is removed from GMI
+  ! brightness temperatures prior to performing retrievals
+
+  ! systematic bias
+  sys_bias= (/ 1.7942_r_kind, 1.7793_r_kind, 3.7619_r_kind, 2.9459_r_kind,&
+               1.8344_r_kind, 0.5227_r_kind, 0.1192_r_kind, 1.2375_r_kind,&
+               1.3450_r_kind, -3.7479_r_kind, -3.5269_r_kind, -1.0282_r_kind,&
+               -2.0826_r_kind /)
+
+  ! brightness temperatures to use
+  tb_use(1)=(tb(1)-sys_bias(1)); tb_use(2)=(tb(2)-sys_bias(2)); tb_use(3)=(tb(3)-sys_bias(3)) 
+  tb_use(4)=(tb(4)-sys_bias(4)); tb_use(5)=(tb(5)-sys_bias(5)); tb_use(6)=(tb(6)-sys_bias(6)) 
+  tb_use(7)=(tb(7)-sys_bias(7)); tb_use(8)=(tb(8)-sys_bias(8)); tb_use(9)=(tb(9)-sys_bias(9))
+  tb_use(10)=(tb(10)-sys_bias(10)); tb_use(11)=(tb(11)-sys_bias(11)); tb_use(12)=(tb(12)-sys_bias(12)) 
+  tb_use(13)=(tb(13)-sys_bias(13))
 
   ! intercepts
   a0_clw = -0.61127_r_kind
@@ -772,11 +792,10 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 
 ! ---------- Calculate predictors ---------------------------
 
-  pred_var_clw(1) = log(tb18v - tb18h)
-  pred_var_clw(2) = log(tb37v - tb37h)
+  pred_var_clw(1) = log(tb_use(3)-tb_use(4))  !(tb18v - tb18h)
+  pred_var_clw(2) = log(tb_use(6)-tb_use(7))   !(tb37v - tb37h)
 
-  pred_var_gwp(1) = 300.0_r_kind-log(tb166v)
-  pred_var_gwp(2) = 300.0_r_kind-log(tb183v)
+  pred_var_gwp = 300.0_r_kind-log(tb_use(12))   !(tb183v)
 
 ! ---------- Gross check ------------------------------------
 ! Gross error check on all channels.  If there are any
@@ -799,7 +818,7 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
-      clw = clw + ( tb(idx) * regr_coeff_clw(i) )
+      clw = clw + ( tb_use(idx) * regr_coeff_clw(i) )
     enddo
   endif
   ! weight by non-spectral independent variables
@@ -831,13 +850,13 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
   if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
-      gwp = gwp + ( tb(idx) * regr_coeff_gwp(i) )
+      gwp = gwp + ( tb_use(idx) * regr_coeff_gwp(i) )
     enddo
   endif
   ! weight by non-spectral independent variables
   if ( nvar_gwp > nchan_reg ) then
     do i=1,diff_var
-      gwp = gwp + ( pred_var_gwp(i) * regr_coeff_gwp(i+nchan_reg) )
+      gwp = gwp + ( pred_var_gwp * regr_coeff_gwp(i+nchan_reg) )
     enddo
   endif
 
@@ -866,6 +885,8 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
 !
 ! program history log:
 !   2014-11-15  ejones
+!   2015-10-02  ejones     - update for better retrieval of AMSR2 cloud
+!   2015-10-07  ejones     - add bias correction to TBs prior to CLW retrieval
 !
 !   input argument list:
 !     tb      - Observed brightness temperature [K]
@@ -900,9 +921,9 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   real(r_kind)                  ,intent(  out) :: clw  !gwp
 
 ! Declare local variables
-  integer(i_kind)::tb_index(14)
+  integer(i_kind)::tb_index(1)
   integer(i_kind)::nchan_reg,nvar_clw   !nvar_gwp
-  real(r_kind)::regr_coeff_clw(16),pred_var_clw(2)
+  real(r_kind)::regr_coeff_clw(3),pred_var_clw(2),sys_bias(14),tb_use(14)
   real(r_kind)::a0_clw
   real(r_kind)::tb6v,tb6h,tb7v,tb7h,tb10v,tb10h,tb18v,tb18h,tb23v,tb23h,tb36v,tb36h,tb89v,tb89h
 
@@ -916,24 +937,43 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   tb18v=tb(7); tb18h=tb(8); tb23v=tb(9); tb23h=tb(10); tb36v=tb(11)
   tb36h=tb(12); tb89v=tb(13); tb89h=tb(14)
 
-  tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /)
+  ! Brightness temperatures used for training CLW retrievals were
+  ! simulated from ECMWF fields collocated with AMSR2 observations. The retrievals
+  ! here use actual AMSR2 brightness temperatures, so for best results, a
+  ! "systematic bias" (i.e. an average difference between AMSR2 brightness
+  ! temperatures and those simulated from ECMWF fields) is removed from AMSR2
+  ! brightness temperatures prior to performing retrievals
+
+  ! systematic bias
+  sys_bias= (/ 0.4800_r_kind, 3.0737_r_kind, 0.7433_r_kind, 3.6430_r_kind,&
+               3.5304_r_kind, 4.4270_r_kind, 5.1448_r_kind, 5.0785_r_kind,&
+               4.9763_r_kind, 9.3215_r_kind, 2.5789_r_kind, 5.5274_r_kind,&
+               0.6641_r_kind, 1.3674_r_kind /)
+
+  ! brightness temperatures to use
+  tb_use(1)=(tb(1)-sys_bias(1)); tb_use(2)=(tb(2)-sys_bias(2)); tb_use(3)=(tb(3)-sys_bias(3))
+  tb_use(4)=(tb(4)-sys_bias(4)); tb_use(5)=(tb(5)-sys_bias(5)); tb_use(6)=(tb(6)-sys_bias(6))
+  tb_use(7)=(tb(7)-sys_bias(7)); tb_use(8)=(tb(8)-sys_bias(8)); tb_use(9)=(tb(9)-sys_bias(9))
+  tb_use(10)=(tb(10)-sys_bias(10)); tb_use(11)=(tb(11)-sys_bias(11)); tb_use(12)=(tb(12)-sys_bias(12))
+  tb_use(13)=(tb(13)-sys_bias(13)); tb_use(14)=(tb(14)-sys_bias(14))
+
+!   tb_index = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /)
+  tb_index = (/12/)                  ! use only Ch 12 in CLW retrieval
 
   ! intercepts
-  a0_clw = 6.74205_r_kind
+  a0_clw = -0.65929_r_kind
 
-  nchan_reg = 14       ! number of channels used in regression
-  nvar_clw = 16        ! number of independent variables in clw regression
+  nchan_reg = 1
+  nvar_clw = 3
 
   ! regression coefficients
-  regr_coeff_clw = (/ -1.39909_r_kind, -0.07375_r_kind, 1.49488_r_kind, 0.07072_r_kind, &
-                      0.00611_r_kind, -0.06722_r_kind, -0.18259_r_kind, 0.07976_r_kind, &
-                      0.03946_r_kind, -0.01740_r_kind, 0.05922_r_kind, -0.02742_r_kind, &
-                      -0.00091_r_kind, 0.00009_r_kind, 0.00864_r_kind, -1.64131_r_kind /)
+  regr_coeff_clw = (/-0.00013_r_kind, 1.64692_r_kind, -1.51916_r_kind /)
+
 
 ! ---------- Calculate predictors ---------------------------
 
-  pred_var_clw(1) = log(tb18v - tb18h)
-  pred_var_clw(2) = log(tb36v - tb36h)
+  pred_var_clw(1) = log(tb_use(7) - tb_use(8))      !(tb18v - tb18h)
+  pred_var_clw(2) = log(tb_use(11) - tb_use(12))    !(tb36v - tb36h)
 
 ! ---------- Gross check ------------------------------------
 ! Gross error check on all channels.  If there are any
@@ -956,7 +996,7 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
   if ( nchan_reg > 0 )then
     do i=1,nchan_reg
       idx = tb_index(i)
-      clw = clw + ( tb(idx) * regr_coeff_clw(i) )
+      clw = clw + ( tb_use(idx) * regr_coeff_clw(i) )
     enddo
   endif
   ! weight by non-spectral independent variables

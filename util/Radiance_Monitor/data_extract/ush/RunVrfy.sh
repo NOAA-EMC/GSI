@@ -54,14 +54,14 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 START_DATE=$2
 END_DATE=$3
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 RAD_AREA=${RAD_AREA:-glb}
 
-echo SUFFIX     = $SUFFIX
+echo RADMON_SUFFIX     = $RADMON_SUFFIX
 echo START_DATE = $START_DATE
 echo END_DATE   = $END_DATE
 
@@ -109,8 +109,8 @@ if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
 fi
 
 
-log_file=${LOGdir}/VrfyRad_${SUFFIX}.log
-err_file=${LOGdir}/VrfyRad_${SUFFIX}.err
+log_file=${LOGdir}/VrfyRad_${RADMON_SUFFIX}.log
+err_file=${LOGdir}/VrfyRad_${RADMON_SUFFIX}.err
 
 if [[ $RAD_AREA = glb ]]; then
    vrfy_script=VrfyRad_glbl.sh
@@ -162,7 +162,7 @@ while [[ $done -eq 0 ]]; do
    # Check for running jobs   
    #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      running=`bjobs -l | grep de_${SUFFIX} | wc -l`
+      running=`bjobs -l | grep de_${RADMON_SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       running=1 
       line=`qstat -u ${LOGNAME} | grep ${jobname}`
@@ -192,7 +192,7 @@ while [[ $done -eq 0 ]]; do
       # Run the verification/extraction script
       #-----------------------------------------------------------------
       echo Processing ${cdate}
-      ${DE_SCRIPTS}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} ${cdate} 1>${log_file} 2>${err_file}
+      ${DE_SCRIPTS}/${vrfy_script} ${RADMON_SUFFIX} ${RUN_ENVIR} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
       # done is true (1) if the vrfy_script produced an error code, or

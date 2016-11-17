@@ -13,6 +13,7 @@ module guess_grids
 ! !USES:
  
   use kinds, only: r_single,r_kind,i_kind
+  use constants, only: max_varname_length
   use gridmod, only: regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional
   use gridmod, only: eta1_ll
@@ -284,7 +285,7 @@ contains
    use constants, only: zero
 
 
-   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: nst_gsi
    use gsi_nstcouplermod, only: gsi_nstcoupler_init
    implicit none
 
@@ -575,7 +576,7 @@ contains
 !-------------------------------------------------------------------------
    character(len=*),parameter::myname_=myname//'*create_metguess_grids'
    integer(i_kind) :: nmguess                   ! number of meteorol. fields (namelist)
-   character(len=256),allocatable:: mguess(:)   ! names of meterol. fields
+   character(len=max_varname_length),allocatable:: mguess(:)   ! names of meterol. fields
 
    istatus=0
   
@@ -686,7 +687,7 @@ contains
 !-------------------------------------------------------------------------
   character(len=*),parameter::myname_=myname//'*create_chemges_grids'
    integer(i_kind) :: ntgases                   ! number of tracer gases (namelist)
-   character(len=256),allocatable:: tgases(:)   ! names of tracer gases
+   character(len=max_varname_length),allocatable:: tgases(:)   ! names of tracer gases
 
   istatus=0
   
@@ -821,7 +822,7 @@ contains
 
 ! !USES:
 
-   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: nst_gsi
    use gsi_nstcouplermod, only: gsi_nstcoupler_final
    implicit none
    
@@ -1056,14 +1057,13 @@ contains
           do j=1,lon2
              do i=1,lat2
                 if(regional) then
-                   if (wrf_nmm_regional.or.nems_nmmb_regional.or.&
-                        cmaq_regional ) &
+                   if (wrf_nmm_regional.or.nems_nmmb_regional) &
                       ges_prsi(i,j,k,jj)=one_tenth* &
                              (eta1_ll(k)*pdtop_ll + &
                               eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                               pt_ll)
 
-                   if (wrf_mass_regional .or. twodvar_regional) &
+                   if (wrf_mass_regional .or. twodvar_regional .or. cmaq_regional ) &      
                       ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + pt_ll)
                 else
                    if (idvc5==1 .or. idvc5==2) then
@@ -1088,7 +1088,7 @@ contains
     end do
 
     if(regional) then
-       if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+       if (wrf_nmm_regional.or.nems_nmmb_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
              call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
@@ -1106,7 +1106,7 @@ contains
              end do
           end do
        end if   ! end if wrf_nmm regional block
-       if (wrf_mass_regional .or. twodvar_regional) then
+       if (wrf_mass_regional .or. twodvar_regional .or. cmaq_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
              call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
@@ -1165,7 +1165,7 @@ contains
 ! surface pressure and pressure profile at the layer midpoints
     if (regional) then
        ges_psfcavg = r1013
-       if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+       if (wrf_nmm_regional.or.nems_nmmb_regional) then
           do k=1,nsig
              ges_prslavg(k)=aeta1_ll(k)*pdtop_ll+aeta2_ll(k)*(r1013-pdtop_ll-pt_ll)+pt_ll
           end do

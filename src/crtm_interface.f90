@@ -29,6 +29,7 @@ module crtm_interface
 !   2014-01-01  li     - change the protection of data_s(itz_tr)
 !   2014-02-26  zhu - add non zero jacobian
 !   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
+!   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
 ! subroutines included:
 !   sub init_crtm
@@ -148,8 +149,8 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 
   real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
 
-  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_ir
-  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_mwave 
+  integer(i_kind),save, allocatable,dimension(:) :: map_to_crtm_ir
+  integer(i_kind),save, allocatable,dimension(:) :: map_to_crtm_mwave 
   integer(i_kind),save, allocatable,dimension(:) :: icw
   integer(i_kind),save, allocatable,dimension(:) :: iaero_jac
   integer(i_kind),save :: isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang
@@ -197,10 +198,11 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
      BROADLEAF_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, PINE_FOREST, &
      PINE_FOREST, BROADLEAF_BRUSH, SCRUB, SCRUB, SCRUB_SOIL, TUNDRA, &
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
-! Mapping nmm to CRTM
+! Mapping surface classification to CRTM
   integer(i_kind), parameter :: USGS_N_TYPES = 24
   integer(i_kind), parameter :: IGBP_N_TYPES = 20
-  integer(i_kind), parameter :: NAM_SOIL_N_TYPES = 16
+  integer(i_kind), parameter :: GFS_N_TYPES = 13
+  integer(i_kind), parameter :: SOIL_N_TYPES = 16
   integer(i_kind), parameter :: GFS_SOIL_N_TYPES = 9
   integer(i_kind), parameter :: GFS_VEGETATION_N_TYPES = 13
   integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_npoess=(/URBAN_CONCRETE, &
@@ -226,11 +228,11 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_gfs=(/7, &
     12, 12, 12, 12, 12, 7, 9, 8, 6, 2, 5, 1, 4, 3, 0, 8, 8, 11, 10, 10, &
     10, 11, 13/)
- ! Mapping nmm soil to CRTM soil
+ ! Mapping soil types to CRTM
  ! The CRTM soil types for microwave calculations are based on the 
  ! GFS use of the 9 category Zobler dataset. The regional soil types
  ! are based on a 16 category representation of FAO/STATSGO. 
-  integer(i_kind), parameter, dimension(1:NAM_SOIL_N_TYPES) :: nmm_soil_to_crtm=(/1, &
+  integer(i_kind), parameter, dimension(1:SOIL_N_TYPES) :: map_soil_to_crtm=(/1, &
     1, 4, 2, 2, 8, 7, 2, 6, 5, 2, 3, 8, 1, 6, 9/)
   
 contains
@@ -255,6 +257,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !                         qi are separate control variables for all-sky MW radiance DA   
 !   2014-04-27  eliu    - add capability to call CRTM forward model to calculate
 !                         clear-sky Tb under all-sky condition 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR) and
+!                         CRTM subset code for CrIS.
+
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -278,10 +283,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_metguess_mod,  only: gsi_metguess_bundle    ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
-      toa_pressure,max_n_layers, &
+      crtm_channelinfo_subset, crtm_channelinfo_n_channels, toa_pressure,max_n_layers, &
       volume_mixing_ratio_units,h2o_id,ch4_id,n2o_id,co_id
   use radinfo, only: crtm_coeffs_path
-  use radinfo, only: radjacindxs,radjacnames
+  use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs,aerojacnames
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use control_vectors, only: cvars3d
@@ -302,6 +307,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! local variables
   integer(i_kind) :: ier,ii,error_status,iderivative
+  integer(i_kind) :: k, subset_start, subset_end
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm,icount
@@ -364,7 +370,14 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
      indx_p25   = getindex(aero_names,'p25')
      indx_dust1 = getindex(aero_names,'dust1')
      indx_dust2 = getindex(aero_names,'dust2')
-     call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
+     if (indx_p25 > 0) then
+        do ii=1,n_aerosols
+           indx=getindex(aerojacnames,trim(aero_names(ii)))
+           if(indx>0) n_aerosols_jac=n_aerosols_jac+1
+        end do
+     else
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_jac, ier )
+     endif
      if (n_aerosols_jac >0) then
         allocate(iaero_jac(n_aerosols_jac))
         iaero_jac=-1
@@ -551,17 +564,85 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  sensorindex = 0
  if (channelinfo(1)%sensor_id == isis) then
     sensorindex = 1
-! Added a fudge in here to prevent multiple script changes following change of AIRS naming
-! convention in CRTM:
- else if (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. isis == 'airs281SUBSET_aqua') then
-    sensorindex = 1
-! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
-! and BUFR files is checked in read_cris:
- else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') THEN
-    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
-    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
-    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
- endif 
+
+    if (isis(1:4) == 'iasi' .or. &
+        trim(isis) == 'amsua_aqua' .or. &
+        isis(1:4) == 'airs' .or. &
+        isis(1:4) == 'cris' ) then
+       subset_start = 0
+       subset_end = 0
+       do k=1, jpch_rad
+         if (isis == nusis(k)) then
+           if (subset_start == 0) subset_start = k
+           subset_end = k
+         endif
+       end do
+
+       error_status = crtm_channelinfo_subset(channelinfo(1), &
+           channel_subset = nuchan(subset_start:subset_end))
+
+    endif
+
+!  This is to try to keep the CrIS naming conventions more flexible.  
+!  The consistency of CRTM  and BUFR files is checked in read_cris:
+else if (channelinfo(1)%sensor_id(1:8) == 'cris-fsr' .AND. isis(1:8) == 'cris-fsr') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'iasi' .AND. isis(1:4) == 'iasi') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+else if (channelinfo(1)%sensor_id(1:4) == 'airs' .AND. isis(1:4) == 'airs') then
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
+endif 
+
  if (sensorindex == 0 ) then
     write(6,*)myname_,':  ***WARNING*** problem with sensorindex=',isis,&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION found ',&
@@ -573,9 +654,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 ! and those defined by CRTM channelinfo structure.   Return to calling
 ! routine if there is a mismatch.
 
- if (nchanl /= channelinfo(sensorindex)%n_channels) then
+ if (nchanl /= crtm_channelinfo_n_channels(channelinfo(sensorindex))) then
     write(6,*)myname_,':  ***WARNING*** mismatch between nchanl=',&
-       nchanl,' and n_channels=',channelinfo(sensorindex)%n_channels,&
+       nchanl,' and n_channels=',crtm_channelinfo_n_channels(channelinfo(sensorindex)),&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION'
     call stop2(71)
  endif
@@ -640,11 +721,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
  options(1)%use_antenna_correction = .false. 
 
-! Check for consistency with information in crtm for number of channels
-
- if(nchanl /= channelinfo(sensorindex)%n_channels) write(6,*)myname_,'***ERROR** nchanl,n_channels ', &
-    nchanl,channelinfo(sensorindex)%n_channels
-
 ! Load surface sensor data structure
 
  surface(1)%sensordata%n_channels = channelinfo(sensorindex)%n_channels
@@ -688,24 +764,24 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  end do
 
 ! Mapping land surface type of NMM to CRTM
- if (regional) then
-    allocate(nmm_to_crtm_ir(nvege_type))
-    allocate(nmm_to_crtm_mwave(nvege_type))
+ if (regional .or. nvege_type==IGBP_N_TYPES) then
+    allocate(map_to_crtm_ir(nvege_type))
+    allocate(map_to_crtm_mwave(nvege_type))
     if(nvege_type==USGS_N_TYPES)then
        ! Assign mapping for CRTM microwave calculations
-       nmm_to_crtm_mwave=usgs_to_gfs
-       ! nmm usgs to CRTM
+       map_to_crtm_mwave=usgs_to_gfs
+       ! map usgs to CRTM
        select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
-         case('NPOESS'); nmm_to_crtm_ir=usgs_to_npoess
-         case('USGS')  ; nmm_to_crtm_ir=usgs_to_usgs
+         case('NPOESS'); map_to_crtm_ir=usgs_to_npoess
+         case('USGS')  ; map_to_crtm_ir=usgs_to_usgs
        end select
     else if(nvege_type==IGBP_N_TYPES)then
        ! Assign mapping for CRTM microwave calculations
-       nmm_to_crtm_mwave=igbp_to_gfs
+       map_to_crtm_mwave=igbp_to_gfs
        ! nmm igbp to CRTM 
        select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
-         case('NPOESS'); nmm_to_crtm_ir=igbp_to_npoess
-         case('IGBP')  ; nmm_to_crtm_ir=igbp_to_igbp
+         case('NPOESS'); map_to_crtm_ir=igbp_to_npoess
+         case('IGBP')  ; map_to_crtm_ir=igbp_to_igbp
        end select
     else
        write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
@@ -714,8 +790,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
           '  ***STOP IN SETUPRAD***'
        call stop2(71)
     endif ! nvege_type
- endif ! regional
-
+ endif ! regional or IGBP
+    
 ! Calculate RH when aerosols are present and/or cloud-fraction used
  if (n_aerosols>0 .or. lcf4crtm) then
     allocate(gesqsat(lat2,lon2,nsig,nfldsig))
@@ -799,8 +875,8 @@ subroutine destroy_crtm
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
   if(allocated(icw)) deallocate(icw)
-  if(regional)deallocate(nmm_to_crtm_ir)
-  if(regional)deallocate(nmm_to_crtm_mwave)
+  if(regional .or. nvege_type==IGBP_N_TYPES)deallocate(map_to_crtm_ir)
+  if(regional .or. nvege_type==IGBP_N_TYPES)deallocate(map_to_crtm_mwave)
 
   return
 end subroutine destroy_crtm
@@ -881,7 +957,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use mpimod, only: mype
   use radinfo, only: ifactq
   use radinfo, only: radjacindxs,nsigradjac
-  use radinfo, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
@@ -929,6 +1005,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: minsnow=one_tenth
   real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
+  real(r_kind),parameter:: jac_pert  = 1.0_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
   real(r_kind),parameter:: windscale = 999999.0_r_kind
   real(r_kind),parameter:: windlimit = 0.0001_r_kind
@@ -1223,24 +1300,30 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! **NOTE:  The model surface type --> CRTM surface type
 !          mapping below is specific to the versions NCEP
-!          GFS and NNM as of September 2005
+!          GFS and NNM as of Summer 2016
 
            itype  = nint(data_s(ivty))
            istype = nint(data_s(isty))
-           if (regional) then
+           if (regional .or. nvege_type==IGBP_N_TYPES) then
               itype  = min(max(1,itype),nvege_type)
-              istype = min(max(1,istype),NAM_SOIL_N_TYPES)
-              surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
-              surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
-              surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
-              lai_type = nmm_to_crtm_mwave(itype)
-           else
+              istype = min(max(1,istype),SOIL_N_TYPES)
+              surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
+              surface(1)%Soil_Type = map_soil_to_crtm(istype)
+              lai_type = map_to_crtm_mwave(itype)
+           elseif (nvege_type==GFS_N_TYPES) then
               itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
               istype = min(max(1,istype),GFS_SOIL_N_TYPES)
               surface(1)%land_type = gfs_to_crtm(itype)
               surface(1)%Vegetation_Type = max(1,itype)
               surface(1)%Soil_Type = istype
               lai_type = itype
+           else
+              write(6,*)myname_,':  ***ERROR*** invalid vegetation types' &
+                 //' the information does not match any currenctly.', &
+                 ' supported surface type maps to the CRTM,', &
+                 '  ***STOP IN SETUPRAD***'
+                 call stop2(71)
            end if
                                     
            if (lwind) then
@@ -1646,11 +1729,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                            aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
              end do
        enddo
-       do k = 1, nsig
-!         Convert mixing-ratio to concentration
-          ugkg_kgm2(k)=1.0e-9_r_kind*(prsi(k)-prsi(k+1))*r1000/grav
-          aero(k,:)=aero(k,:)*ugkg_kgm2(k)
-       enddo
     endif
     if(.not.lcf4crtm) then ! otherwise already calculated
        do k=1,nsig
@@ -1788,6 +1866,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Call CRTM K Matrix model
 
+
+  do i=1,nchanl
+     rtsolution_k(i,1)%layer_optical_depth(:) = jac_pert
+  enddo
 
   error_status = 0
   if ( trim(obstype) /= 'modis_aod' ) then

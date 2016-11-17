@@ -66,11 +66,18 @@ character(len=120),dimension(7),public :: anlfileprefixes
 character(len=10), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
 character(len=500),public :: datapath
+! if deterministic=.true., the deterministic square-root filter
+! update is used.  If .false, a perturbed obs (stochastic) update
+! is used.
 logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz
+! random seed for perturbed obs (deterministic=.false.)
+! if zero, system clock is used.  Also used when
+! iassim_order=1 (random shuffling of obs for serial assimilation).
+integer(i_kind),public :: iseed_perturbed_obs = 0
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
 real(r_single),public ::  obtimelnh,obtimeltr,obtimelsh
@@ -82,10 +89,26 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
+! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
+! if npefiles>0, npefiles+1 pe* files read directly
+! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
+! (<obspath>/gsitmp_ensmean for ensemble mean).
+integer,public :: npefiles = 0
+! for LETKF, max number of obs in local volume.
+! default is -1, which means take all obs within
+! specified localization radius.  if nobsl_max > 0,
+! only the first nobsl_max closest obs within the 
+! localization radius will be used. Ignored
+! if letkf_flag = .false.
+integer,public :: nobsl_max = -1
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .false.
+! do ob space update with serial filter (only used if letkf_flag=.true.)
+logical,public :: lupd_obspace_serial = .false. 
+! disable vertical localization for letkf
+logical,public :: letkf_novlocal = .false.
 ! simple_partition=.false. does more sophisticated
 ! load balancing for ob space update.
 logical,public :: simple_partition = .true.
@@ -98,23 +121,30 @@ logical,public :: nmm = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
 logical,public :: massbal_adjust = .false.
+! if true, use ensemble mean qsat in definition of
+! normalized humidity analysis variable (instead of
+! qsat for each member, which is the default behavior
+! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
+! is ignored.
+logical,public :: use_qsatensmean = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
-                   varqc,huber,nlons,nlats,smoothparm,&
+                   varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   covl_minfact,covl_efold,&
+                   fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
+                   fgfileprefixes,anlfileprefixes,lupd_obspace_serial,letkf_novlocal,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
-                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc
+                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles
 namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -183,11 +213,11 @@ paoverpb_thresh = 1.0_r_single! don't skip any obs
 iassim_order = 0 
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
-! if deterministic is true, use EnSRF w/o perturbed obs.
-! if false, use perturbed obs EnKF.
+! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
+! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
 ! if deterministic is false, re-order obs to minimize regression erros
-! as described in Anderson (2003).
+! as described in Anderson (2003) (only used for serial filter).
 sortinc = .true.
 ! these are all mandatory.
 ! nlons and nlats are # of lons and lats
@@ -281,9 +311,6 @@ delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
 if (.not. letkf_flag .and. numiter < 1) numiter = 1
-! simple_partition should be true for LETKF
-! (partitioning in ob space only used for serial filter)
-if (letkf_flag .and. .not. simple_partition) simple_partition=.true.
 
 if (nproc == 0) then
 
@@ -299,9 +326,9 @@ if (nproc == 0) then
       print *,nlons,nlats,nlevs,nanals
       call stop2(19)
    end if
-   if (numproc .lt. nanals+1) then
-      print *,'total number of mpi tasks must be >= nanals+1'
-      print *,'tasks, nanals+1 = ',numproc,nanals+1
+   if (numproc .lt. nanals) then
+      print *,'total number of mpi tasks must be >= nanals'
+      print *,'tasks, nanals = ',numproc,nanals
       call stop2(19)
    endif
    if (datapath == ' ') then
@@ -350,9 +377,9 @@ do nb=1,nbackgrounds
      ! default analysis file prefix
      if (regional) then
       if (nbackgrounds > 1) then
-        fgfileprefixes(nbackgrounds+1)="analysis_fhr"//charfhr_anal(nbackgrounds+1)//"."
+        anlfileprefixes(nb)="analysis_fhr"//charfhr_anal(nb)//"."
       else
-        fgfileprefixes(nbackgrounds+1)="analysis."
+        anlfileprefixes(nb)="analysis."
       endif
      else ! global
       if (nbackgrounds > 1) then
@@ -410,6 +437,13 @@ corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
 ! this var is .false. until this routine is called.
 params_initialized = .true.
 
+! reset lupd_obspace_serial to false if letkf not requested.
+if (.not. letkf_flag .and. lupd_obspace_serial) then
+  lupd_obspace_serial = .false.
+  if (nproc == 0) then
+   print *,'setting lupd_obspace_serial to .false., since letkf_flag is .false.'
+  endif
+endif
 end subroutine read_namelist
 
 end module params

@@ -1,9 +1,10 @@
 # This config file contains the compile options for compilation
 # of the GSI code on the NOAA HPCS.
 
-# ----------------------------------
-# Redefine variables for NOAA HPCS
-# ----------------------------------
+# ------------------------------------
+# Set library versions
+# ------------------------------------
+
 BACIO_VER = 2.0.1
 NEMSIO_VER = 2.2.1
 SIGIO_VER = 2.0.1
@@ -12,8 +13,8 @@ W3NCO_VER = 2.0.6
 
 CORELIB  = /scratch3/NCEPDEV/nwprod/lib
 
-INCsigio = $(CORELIB)/sigio/v$(SIGIO_VER)/incmod/sigio_v$(SIGIO_VER)_4
-INCnemsio= $(CORELIB)/nemsio/v$(NEMSIO_VER)/incmod/nemsio_v$(NEMSIO_VER)
+SIGIO_INC4 = $(CORELIB)/sigio/v$(SIGIO_VER)/incmod/sigio_v$(SIGIO_VER)_4
+NEMSIO_INC= $(CORELIB)/nemsio/v$(NEMSIO_VER)/incmod/nemsio_v$(NEMSIO_VER)
 
 BACIO_LIB4=$(CORELIB)/bacio/v$(BACIO_VER)/libbacio_v$(BACIO_VER)_4.a
 NEMSIO_LIB=$(CORELIB)/nemsio/v$(NEMSIO_VER)/libnemsio_v$(NEMSIO_VER).a
@@ -21,11 +22,14 @@ SIGIO_LIB4=$(CORELIB)/sigio/v$(SIGIO_VER)/libsigio_v$(SIGIO_VER)_4.a
 SP_LIB4=$(CORELIB)/sp/v$(SP_VER)/libsp_v$(SP_VER)_4.a
 W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
+NETCDF_INC=$(NETCDF)/include
+NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
+
 # ---------------------------
 # General targets/definitions
 # ---------------------------
 
-  AR     = ar -v
+  AR     = ar -rv
 
 # ----------------------------
 # Fortran compiler and options
@@ -33,18 +37,24 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
   CF            = mpif90 -f90=ifort
   FC            = $(CF)
+  
+  OMP = -openmp
+
+  FFLAGS_INC    = -I $(SIGIO_INC4) -I $(NEMSIO_INC) -I $(NETCDF_INC)
+
+  FFLAGS_F90    = -convert big_endian -assume byterecl \
+				  -implicitnone -traceback
 
 #--- Normal mode options
-  PROF= #-pg
-  OMP = #-qsmp=noauto
+  FFLAGS_COM_N  = -O3 -fp-model source
 
-  FFLAGS_F90    = -assume byterecl -warn all -implicitnone -g -traceback -fp-model strict
-  FFLAGS_COM_N  = -I $(INCsigio) -I $(INCnemsio)
-  FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_N  = $(FFLAGS_INC) $(FFLAGS_COM_N) $(FFLAGS_F90) $(OMP)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
-  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D) $(FFLAGS_COM_N)
+  FFLAGS_COM_D  =  -O0 -fp-model strict -g -debug \
+				   -ftrapuv -check all -fp-stack-check -fstack-protector -warn all
+
+  FFLAGS_D  = $(FFLAGS_INC) $(FFLAGS_COM_D) $(FFLAGS_F90) $(OMP)
 
 
 # ----------------------
@@ -55,7 +65,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
 
 #--- Debug mode options
 
@@ -66,12 +76,13 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4)
 
-  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB4) $(W3NCO_LIB4) $(SP_LIB4) $(NETCDF_LIB)
+
+  LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -79,7 +90,7 @@ W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     =
+  LDFLAGS_D     = $(LDFLAGS_N)
 
 #--- Empty out mpi library definition: embedded in compiler
 

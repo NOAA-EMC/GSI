@@ -1,22 +1,19 @@
-SHELL=/bin/sh
+# *****************************************************************
+#   makefile.horiz
+#
+#   Make the radmon horiz.x executable
+# *****************************************************************
 
-SRCS = kinds.F90 read_diag.f90 horiz.f90 create_ctl_horiz.f90 \
-	update_ctl_horiz.f90
+BINDIR = ../exec
 
-OBJS = kinds.o read_diag.o horiz.o create_ctl_horiz.o \
-	update_ctl_horiz.o
+LIBS   = $(W3NCO_LIB4)
+
+OBJS   = kinds.o read_diag.o horiz.o create_ctl_horiz.o \
+	 update_ctl_horiz.o
 
 #
 # *****************************************************************
 #
-
-
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
-
 
 CMD = horiz.x
 
@@ -26,6 +23,15 @@ clean:
 	rm -f *.o
 	rm -f *.mod
 	rm -f *.x
+
+check_prereqs:
+	/nwprod/spa_util/check_libs.bash $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+debug:  FFLAGS = $(D_FFLAGS)
+debug:  $(CMD)
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)

@@ -44,10 +44,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype
   use obsmod, only: oberrflg
-  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use mpimod, only: npe
   implicit none
@@ -84,7 +84,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   integer(i_kind) lunin,i,maxobs
   integer(i_kind) idate,iret,k
   integer(i_kind) kx,nreal,nchanl,ilat,ilon
-  integer(i_kind) sstq,nmind
+  integer(i_kind) nmind
   integer(i_kind):: idomsfc,isflg
 
   integer(i_kind) :: ireadmg,ireadsb,klev,msub,nmsub

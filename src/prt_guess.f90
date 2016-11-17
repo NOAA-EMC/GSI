@@ -221,7 +221,7 @@ subroutine prt_guess(sgrep)
   return
 end subroutine prt_guess
 
-subroutine prt_guessfc2(sgrep)
+subroutine prt_guessfc2(sgrep,use_sfc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prt_guessfc2
@@ -247,11 +247,13 @@ subroutine prt_guessfc2(sgrep)
   use satthin, only: isli_full,fact10_full,soil_moi_full,soil_temp_full,veg_frac_full,&
        soil_type_full,veg_type_full,sfc_rough_full,sst_full,sno_full
   use guess_grids, only: ntguessfc
+  use constants, only: zero
 
   implicit none
 
 ! Declare passed variables
   character(len=*), intent(in   ) :: sgrep
+  logical,          intent(in   ) :: use_sfc
 
 ! Declare local variables
   integer(i_kind), parameter :: nvars=10
@@ -263,7 +265,6 @@ subroutine prt_guessfc2(sgrep)
 
 !*******************************************************************************
 
-  if (mype==0) then
      ntsfc = ntguessfc
 
      cvar( 1)='FC10'
@@ -277,63 +278,67 @@ subroutine prt_guessfc2(sgrep)
      cvar( 9)='ISLI'
      cvar(10)='STYP'
 
+!  Default to -99999.9 if not used.
+     zall             = -99999.9_r_kind          ! missing flag
+     zavg             = -99999.9_r_kind          ! missing flag
      zall(1)          = sum   (fact10_full   )
      zall(2)          = sum   (sno_full      )
-     zall(3)          = sum   (veg_frac_full )
      zall(4)          = sum   (sfc_rough_full)
-     zall(5)          = sum   (soil_temp_full)
-     zall(6)          = sum   (soil_moi_full )
      zall(7)          = sum   (sst_full      )
-     zall(8)          = sum   (veg_type_full )
      zall(9)          = sum   (isli_full     )
-     zall(10)         = sum   (soil_type_full)
      zall(nvars+1)    = minval(fact10_full   )
      zall(nvars+2)    = minval(sno_full      )
-     zall(nvars+3)    = minval(veg_frac_full )
      zall(nvars+4)    = minval(sfc_rough_full)
-     zall(nvars+5)    = minval(soil_temp_full)
-     zall(nvars+6)    = minval(soil_moi_full )
      zall(nvars+7)    = minval(sst_full      )
-     zall(nvars+8)    = minval(veg_type_full )
      zall(nvars+9)    = minval(isli_full     )
-     zall(nvars+10)   = minval(soil_type_full)
      zall(2*nvars+1)  = maxval(fact10_full   )
      zall(2*nvars+2)  = maxval(sno_full      )
-     zall(2*nvars+3)  = maxval(veg_frac_full )
      zall(2*nvars+4)  = maxval(sfc_rough_full)
-     zall(2*nvars+5)  = maxval(soil_temp_full)
-     zall(2*nvars+6)  = maxval(soil_moi_full )
      zall(2*nvars+7)  = maxval(sst_full      )
-     zall(2*nvars+8)  = maxval(veg_type_full )
      zall(2*nvars+9)  = maxval(isli_full     )
-     zall(2*nvars+10) = maxval(soil_type_full)
      zall(3*nvars+1)  = real(SIZE(fact10_full),r_kind)
      zall(3*nvars+2)  = real(SIZE(isli_full),r_kind)
 
+     if(use_sfc)then
+        zall(3)          = sum   (veg_frac_full )
+        zall(5)          = sum   (soil_temp_full)
+        zall(6)          = sum   (soil_moi_full )
+        zall(8)          = sum   (veg_type_full )
+        zall(10)         = sum   (soil_type_full)
+        zall(nvars+3)    = minval(veg_frac_full )
+        zall(nvars+5)    = minval(soil_temp_full)
+        zall(nvars+6)    = minval(soil_moi_full )
+        zall(nvars+8)    = minval(veg_type_full )
+        zall(nvars+10)   = minval(soil_type_full)
+        zall(2*nvars+3)  = maxval(veg_frac_full )
+        zall(2*nvars+5)  = maxval(soil_temp_full)
+        zall(2*nvars+6)  = maxval(soil_moi_full )
+        zall(2*nvars+8)  = maxval(veg_type_full )
+        zall(2*nvars+10) = maxval(soil_type_full)
+     end if
+
+
      zz=zall(3*nvars+1)
      do ii=1,nvars-3
-        zavg(ii)=zall(ii)/zz
+        if( zall(ii) > -99999.0_r_kind) zavg(ii)=zall(ii)/zz
      enddo
      zz=zall(3*nvars+2)
      do ii=nvars-2,nvars
-        zavg(ii)=zall(ii)/zz
+        if( zall(ii) > -99999.0_r_kind) zavg(ii)=zall(ii)/zz
      enddo
      do ii=1,nvars
         zmin(ii)=zall(  nvars+ii)
         zmax(ii)=zall(2*nvars+ii)
      enddo
 
-     if (mype==0) then
-        write(6,'(80a)') ('=',ii=1,80)
-        write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
-        do ii=1,nvars
-           write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
-        enddo
-        write(6,'(80a)') ('=',ii=1,80)
-     endif
-999 format(A,1X,A,3(1X,ES20.12))
+     write(6,'(80a)') ('=',ii=1,80)
+     write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
+     do ii=1,nvars
+        write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
+     enddo
+     write(6,'(80a)') ('=',ii=1,80)
+999  format(A,1X,A,3(1X,ES20.12))
 
-  endif
 
   return
 end subroutine prt_guessfc2

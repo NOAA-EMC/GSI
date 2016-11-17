@@ -406,7 +406,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2010-04-01  treadon - move strip to grimod
 !   2010-04-29  todling - update to use control vectory based on gsi_bundle
 !   2010-08-19  lueken  - add only to module use
-!   2011-06-06  pondeca - add output for gust,vis,pblh,dist
+!   2011-06-06  pondeca - add output for gust,vis,pblh,cldch
 !   2011-07-03  todling - avoid explicit reference to internal bundle arrays
 !   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-19  pondeca - add output for wspd10m
@@ -455,7 +455,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 ! Declare local variables
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
-  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m,&
+  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_cldch,nrf2_wspd10m,&
                           nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas,&
                           nrf3_sfwter,nrf3_vpwter
 
@@ -474,12 +474,12 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 ! out to file
   integer(i_kind),  parameter :: my3d = 8
   character(len=8), parameter :: myvars3d(my3d) = (/  &
-                                  'sf ',    &
-                                  'vp ',    &
-                                  't  ',    &
-                                  'q  ',    &
-                                  'oz ',    &
-                                  'cw ',    &
+                                  'sf    ', &
+                                  'vp    ', &
+                                  't     ', &
+                                  'q     ', &
+                                  'oz    ', &
+                                  'cw    ', &
                                   'sfwter', &
                                   'vpwter' /)  
   character(2) clun1
@@ -500,7 +500,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      nrf2_gust = getindex(cvars2d,'gust')
      nrf2_vis  = getindex(cvars2d,'vis')
      nrf2_pblh = getindex(cvars2d,'pblh')
-     nrf2_dist = getindex(cvars2d,'dist')
+     nrf2_cldch = getindex(cvars2d,'cldch')
      nrf2_wspd10m = getindex(cvars2d,'wspd10m')
      nrf2_td2m = getindex(cvars2d,'td2m')
      nrf2_mxtm = getindex(cvars2d,'mxtm')
@@ -534,7 +534,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
      write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
                  nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw,nrf3_sfwter,nrf3_vpwter, & 
-                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m, &
+                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_cldch,nrf2_wspd10m, &
                  nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
 
      ii=1
@@ -639,8 +639,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
         endif
      endif !ip>0
 
-!                               gradient wrt dist
-     call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
+!                               gradient wrt cldch
+     call gsi_bundlegetpointer(dz%step(ii),'cldch',ptr2d,istatus)
      if (istatus==0) then
         call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &

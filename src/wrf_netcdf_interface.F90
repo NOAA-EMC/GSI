@@ -46,7 +46,7 @@ subroutine convert_netcdf_mass
   use gsi_4dvar, only: nhr_assimilation
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
-  use chemmod, only: laeroana_gocart, ppmv_conv
+  use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
   use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
@@ -974,6 +974,33 @@ subroutine convert_netcdf_mass
         end do ! n_gocart_var loop
      endif ! laeroana_gocart
    
+     if (wrf_pm2_5) then
+
+        rmse_var='PM2_5_DRY'
+        CALL ext_ncd_get_var_info (dh1,TRIM(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index, WrfType, ierr    )
+        write(6,*)' rmse_var=',TRIM(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index,               & !dom
+             start_index,end_index,               & !mem
+             start_index,end_index,               & !pat
+             ierr                                 )
+
+        do k=1,nsig_regional
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+        end do
+
+     endif
+
+
      deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
      close(iunit)
      call ext_ncd_ioclose(dh1, Status)
@@ -1985,19 +2012,19 @@ subroutine update_netcdf_mass
 !
 !$$$ end documentation block
 
+  use netcdf, only: nf90_open,nf90_close,nf90_put_att
+  use netcdf, only: nf90_write,nf90_global
   use kinds, only: r_single,i_kind,r_kind
   use constants, only: h300,tiny_single
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use guess_grids, only: ntguessig
-  use obsmod, only: iadate
-  use chemmod, only: laeroana_gocart, ppmv_conv
+  use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
   use gsi_chemguess_mod, only: gsi_chemguess_get
+  use netcdf_mod, only: nc_check
 
   implicit none
-
-  include 'netcdf.inc'
 
 ! Declare local parameters
 
@@ -2016,6 +2043,8 @@ subroutine update_netcdf_mass
   character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
+
+  character(len=24),parameter :: myname_ = 'update_netcdf_mass'
 
 
   integer(i_kind) :: it, n_actual_clouds, ierr, istatus, Status, Status_next_time
@@ -2688,27 +2717,55 @@ subroutine update_netcdf_mass
      end do ! n_gocart_var loop
   endif ! laeroana_gocart
 
+  if (wrf_pm2_5) then
+
+     rmse_var='PM2_5_DRY'
+
+     do k=1,nsig_regional
+        READ(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+        write(6,*)' k,max,min,mid var=',rmse_var,k,            &
+             maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  endif
+
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)
   close(iunit)
   !
   !  reopen, update global attributes.
   !
-  ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
-  IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
-  IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
-  IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
-  ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
-  ierr = NF_CLOSE(dh1)
-  IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
-  
+  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),&
+      myname_,'open: '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(flnm1) )
+  call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(flnm1) )
+
 end subroutine update_netcdf_mass
 
 subroutine update_netcdf_nmm
@@ -2738,6 +2795,8 @@ subroutine update_netcdf_nmm
 !
 !$$$ end documentation block
 
+  use netcdf, only: nf90_open,nf90_close,nf90_put_att
+  use netcdf, only: nf90_write,nf90_global
   use kinds, only: r_single,i_kind,r_kind
   use constants, only: tiny_single
   use regional_io, only: update_pint
@@ -2746,11 +2805,10 @@ subroutine update_netcdf_nmm
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use guess_grids, only: ntguessig
-  use obsmod, only: iadate
+  use netcdf_mod, only: nc_check
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
-  include 'netcdf.inc'
 
   character(len=120) :: flnm1,flnm2
   character(len=19)  :: DateStr1
@@ -2766,6 +2824,8 @@ subroutine update_netcdf_nmm
   character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
+
+  character(len=24),parameter :: myname_ = 'update_netcdf_nmm'
   
   integer(i_kind) :: it, n_actual_clouds, ier, iret, ierr, Status, Status_next_time
   integer(i_kind) icw4crtm,iqtotal
@@ -3133,7 +3193,7 @@ subroutine update_netcdf_nmm
   write(6,*)' staggering=',staggering
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
-  ifield1(1) = iadate(4)
+  ifield1(1) = ihour
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
           ifield1,WrfType,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -3149,21 +3209,21 @@ subroutine update_netcdf_nmm
   !
   !  reopen, update global attributes.
   !
-  ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
-  IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
-  IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
-  IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
-  ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
-  ierr = NF_CLOSE(dh1)
-  IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
-  
+  call nc_check( nf90_open(trim(flnm1),nf90_write,dh1),&
+      myname_,'open: '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(flnm1) )
+  call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(flnm1) )
+  call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(flnm1) )
+
 end subroutine update_netcdf_nmm
 
 #else /* Start no WRF-library block */

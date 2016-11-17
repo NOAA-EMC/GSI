@@ -3,12 +3,12 @@ subroutine map_ctp_lar(ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,w
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:  map_ctp   map GOES cloud product to analysis grid              
+! subprogram:  map_ctp_lar   map Langley cloud product to analysis grid              
 !
-!   PRGMMR: Ming Hu          ORG: GSD/AMB        DATE: 2006-03_10
+!   PRGMMR: Shun Liu          ORG: GSD/AMB        DATE: 2006-03_10
 !
 ! ABSTRACT: 
-!  This subroutine map GOES cloud product to analysis grid
+!  This subroutine map Langley cloud product to analysis grid, copy from map_ctp
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-20  Hu  Add NCO document block

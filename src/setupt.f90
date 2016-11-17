@@ -140,6 +140,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-10-14  Hu      - add code for adjusting surface temperature observation error
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs T
+!   2011-10-14  Hu      - add code for using 2-m temperature as background to
+!                            calculate surface temperauture observation
+!                            innovation
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-17  zhu     - add contribution from aircraft temperature bias correction
@@ -152,9 +155,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !   2014-10-06  carley  - add call to buddy check for twodvar_regional option
 !   2014-12-30  derber  - Modify for possibility of not using obsdiag
-!   2011-10-14  Hu      - add code for using 2-m temperature as background to
-!                            calculate surface temperauture observation
-!                            innovation
+!   2015-12-21  yang    - Parrish's correction to the previous code in new
+!   
 !
 ! !REMARKS:
 !   language: f90
@@ -446,7 +448,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    aircraftobst = itype>129.and.itype<140
-     aircraftobst = (itype==131) .or. (itype==133) .or. (itype==130)
+     aircraftobst = (itype==131) .or. (itype>=133 .and. itype<=135) .or. (itype==130) !for currently known types
      ix = 0
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext)) then 
         ix = data(idx,i)
@@ -746,10 +748,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
-        else if (vqc == .true. .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
+        else if (vqc .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
            arg  = exp(exp_arg)
            wnotgross= one-cvar_pg(ikx)
            cg_t=cvar_b(ikx)
@@ -760,7 +762,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            valqc = -two*rat_err2*term
         else
            term = exp_arg
-           wgt  = wgtlim
+           wgt  = one 
            rwgt = wgt/wgtlim
            valqc = -two*rat_err2*term
         endif
@@ -1063,7 +1065,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
            error=one/data(ier2,i)
-
            ttail(ibin)%head%res     = ddiff
            ttail(ibin)%head%err2    = error**2
            ttail(ibin)%head%raterr2 = ratio_errors**2
@@ -1357,5 +1358,3 @@ integer function ifind (sid,xsid,nsid)
   end if
   return
 end function ifind
-
-      
