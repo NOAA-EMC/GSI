@@ -146,10 +146,9 @@ echo PDYm6h = $PDYm6h
 #################
 # testing only:
 #################
-export C_DATDIR=${C_DATDIR:-/com2/gfs/prod/gdas.$PDY}
-export C_GDATDIR=${C_GDATDIR:-/com2/gfs/prod/gdas.$PDYm6h}
-#export C_DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
-#export C_GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
+export C_BASE_DATDIR=${C_BASE_DATDIR:-/com2/gfs/prod}
+export C_DATDIR=${C_DATDIR:-${C_BASE_DATDIR}/gdas.$PDY}
+export C_GDATDIR=${C_GDATDIR:-${C_BASE_DATDIR}/gdas.$PDYm6h}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
