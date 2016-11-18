@@ -123,7 +123,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Variables for BUFR IO    
   real(r_double) :: rchar_mtyp
-  real(r_double),dimension(5)  :: linele
+  real(r_double),dimension(4)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(2):: cloud_frac
@@ -399,11 +399,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Get the size of the channels and radiance (allchan) array and
 !          Read FOV information
            if (char_mtyp == 'FSR') then
-              call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHNM)')
+              call ufbint(lnbufr,linele,4,1,iret,'FOVN SLNM FORN  (CRCHNM)')
            else
-              call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHN)')
+              call ufbint(lnbufr,linele,4,1,iret,'FOVN SLNM FORN  (CRCHN)')
            endif
-           bufr_nchan = int(linele(5))
+           bufr_nchan = int(linele(4))
 
            bufr_size = size(temperature,1)
            if ( bufr_size /= bufr_nchan ) then    ! allocation if
@@ -426,17 +426,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Only use central IFOV
            ifov = nint(linele(1))               ! field of view
-           ifor = nint(linele(4))               ! field of regard
+           ifor = nint(linele(3))               ! field of regard
 
 !          Remove data on edges
            if (.not. use_edges .and. &
               (ifor < radedge_min .OR. ifor > radedge_max )) cycle read_loop
-
-!          Top level QC check:
-           if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QMRKH)
-                                                 ! May want to eventually set to 
-                                                 ! QMRHK <= 1, as data is, and I
-                                                 ! quote, 'slightly suspect'
 
 !          Zenith angle/scan spot mismatch, reject entire line
            if ( bad_line == nint(linele(2))) then
@@ -448,9 +442,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Check that the number of channels in the BUFR file is what we are expecting
 !          Number of channels in the BUFR file must be less than or equal to the number of channels
 !          in the spectral coefficient file.
-           if (nint(linele(5)) > sc(1) % n_channels) then 
+           if (nint(linele(4)) > sc(1) % n_channels) then 
               if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
-                 nint(linele(5)),' channels, but CRTM expects ',sc(1) % n_channels
+                 nint(linele(4)),' channels, but CRTM expects ',sc(1) % n_channels
               exit read_subset
            endif 
        
