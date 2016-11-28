@@ -255,7 +255,7 @@ EOF
         #  cat it there now:
         cat stdout.${type} >> ${pgmout}
 
-        if [[ $? -ne 0 ]]; then
+        if [[ $err -ne 0 ]]; then
             fail=`expr $fail + 1`
         fi
 
