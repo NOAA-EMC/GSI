@@ -33,9 +33,6 @@ export COMROOT=/ptmpp1/$LOGNAME/com
 #############################################################
 export gdas_ver=v13.0.0
 export global_shared_ver=v13.0.0
-export grib_util_ver=v1.0.1
-export prod_util_ver=v1.0.2
-export util_shared_ver=v1.0.2
 export gdas_radmon_ver=v2.0.0
 export radmon_shared_ver=v2.0.2
 
@@ -45,12 +42,12 @@ export radmon_shared_ver=v2.0.2
 #############################################################
 . /usrx/local/Modules/3.2.9/init/ksh
 module use /nwprod2/modulefiles
-module load grib_util/$grib_util_ver
-module load prod_util/$prod_util_ver
-module load util_shared/$util_shared_ver
+module load grib_util
+module load prod_util
+module load util_shared
 
-module unload ics/12.1
-module load ics/15.0.3
+#module unload ics/12.1
+#module load ics/15.0.3
 
 module list
 
