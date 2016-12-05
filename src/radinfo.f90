@@ -29,7 +29,7 @@ module radinfo
 !   2010-10-05  treadon - remove npred1 (not used)
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
-!   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
+!   2011-04-02  li      - add index tzr_qc,tzr_bufrsave for NSST and QC_tzr
 !   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !   2012-11-02  collard - add icld_det for greater flexibility in QC step and
 !                         add number of scan positions to satang file
@@ -43,6 +43,7 @@ module radinfo
 !   2016-03-10  ejones  - add control for GMI noise reduction
 !   2016-03-24  ejones  - add control for AMSR2 noise reduction
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
+!   2016-08-12  mahajan - moved nst related variables from radinfo to gsi_nstcouplermod
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -93,11 +94,12 @@ module radinfo
   public :: newpc4pred
   public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
-  public :: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl,tzr_bufrsave,nst_tzr
+  public :: tzr_bufrsave,tzr_qc
 
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
+  public :: radinfo_get_rsqrtinv
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -111,14 +113,7 @@ module radinfo
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
-  integer(i_kind) nst_gsi   ! indicator of Tr Analysis
-  integer(i_kind) nstinfo   ! number of nst variables
-  integer(i_kind) zsea1     ! upper depth (in mm) to do the mean
-  integer(i_kind) zsea2     ! lower depth (in mm) to do the mean
-  integer(i_kind) fac_dtl   ! indicator of DTL
-  integer(i_kind) fac_tsl   ! indicator of TSL
-  integer(i_kind) nst_tzr   ! indicator of Tz retrieval QC tzr
-
+  integer(i_kind) tzr_qc        ! indicator of Tz retrieval QC tzr
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
   integer(i_kind) gmi_method    !  noise reduction method for GMI
   integer(i_kind) amsr2_method  !  noise reduction method for AMSR2
@@ -170,7 +165,6 @@ module radinfo
   integer(i_kind),allocatable,dimension(:):: icld_det  ! Use this channel in cloud detection (only used for
 !                                                        certain instruments. Set to greater than zero to use
 
-
   logical,allocatable,dimension(:):: inew_rad  ! indicator if it needs initialized for satellite radiance data
   logical,allocatable,dimension(:):: update_tlapmean ! indicator if tlapmean update is needed
 
@@ -187,6 +181,7 @@ module radinfo
   logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
 
   interface radinfo_adjust_jacobian; module procedure adjust_jac_; end interface
+  interface radinfo_get_rsqrtinv; module procedure get_rsqrtinv_; end interface
 
   character(len=*),parameter :: myname='radinfo'
 contains
@@ -237,17 +232,8 @@ contains
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
     npred=7                 ! number of bias correction predictors
-    nst_gsi   = 0          ! 0 = no nst info at all in gsi
-                           ! 1 = read nst info but not applied
-                           ! 2 = read nst info, applied to Tb simulation but no Tr analysis
-                           ! 3 = read nst info, applied to Tb simulation and do Tr Analysis
-    nstinfo   = 0          ! number of nst fields used in Tr analysis
-    zsea1     = 0          ! upper depth to do the mean
-    zsea2     = 0          ! lower depth to do the mean
-    fac_dtl   = 0          ! indicator to apply DTL model
-    fac_tsl   = 0          ! indicator to apply TSL model
-    nst_tzr   = 0          ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
-    tzr_bufrsave = .false. ! .true.=generate bufr file for Tz retrieval
+    tzr_qc = 0              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
+    tzr_bufrsave = .false.  ! .true.=generate bufr file for Tz retrieval
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
@@ -529,6 +515,8 @@ contains
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !   2014-04-13  todling - add initialization of correlated R-covariance
 !   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
+!   2016-07-19  W. Gu   - update the obs error in satinfo for instruments accounted for the correlated R-covariance
+!   2016-07-19  W. Gu   - add the hook to scale the bias correction term for inter-channel correlated obs errors.
 !
 !   input argument list:
 !
@@ -541,8 +529,7 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-
-    use correlated_obsmod, only: corr_ob_initialize
+    use correlated_obsmod, only: corr_ob_initialize, corr_oberr_qc
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
@@ -636,7 +623,8 @@ contains
          ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad),&
-         icld_det(jpch_rad))
+         icld_det(jpch_rad)) 
+
     allocate(nfound(jpch_rad))
 
     iuse_rad(0)=-999
@@ -659,7 +647,7 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j) 
              
        ! The following is to sort out some historical naming conventions
        select case (nusis(j)(1:4))
@@ -685,14 +673,15 @@ contains
 
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
-            b_rad(j),pg_rad(j),icld_det(j)
+            b_rad(j),pg_rad(j),icld_det(j) 
+
        j=j+1
     end do
     close(lunin)
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
-          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2)
+          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2) 
 
 !   Allocate arrays for additional preconditioning info
 !   Read in information for data number and preconditioning
@@ -743,9 +732,16 @@ contains
                 end do
              endif
 
-             if(.not. cfound .and. mype == 0) &
-                  write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-                  'found in satbias_pc file but not found in satinfo'
+!            If an entry exists in the satbias_pc file but not in the satinfo file, print an error message.
+!            When the diag file is not wanted (diag_rad=.false.),the subset feature in the CRTM is used. 
+!            A lot of airs, iasi and/or cris satbias_pc - satinfo entry mismatchs occur which the warning messages are not wanted.
+!            The second part of the if statement keeps from printing them.
+             if ( .not. cfound ) then
+                if ((diag_rad .and. mype ==0) .or. &
+                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                   write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_pc file but not found in satinfo'
+             endif
+
           end do read3
           close(lunin)
           if (istat>0) then
@@ -965,9 +961,16 @@ contains
              end do
           endif
 
-          if(mype == 0 .and. .not. cfound) &
-             write(6,*) '***WARNING instrument/channel ',isis,ichan, &
-             'found in satbias_in file but not found in satinfo'
+!         If an entry exists in the satbias_in file but not in the satinfo file, print an error message.
+!         When the diag file is not wanted (diag_rad=.false.),the subset feature in the CRTM is used. 
+!         A lot of airs, iasi and/or cris satbias_in - satinfo entry mismatchs occur which the warning messages are not wanted.
+!         The second part of the if statement keeps from printing them.
+          if ( .not. cfound ) then
+             if ((diag_rad .and. mype ==0) .or. &
+                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_in file but not found in satinfo'
+          endif
+
        end do read4
 1333   continue
        close(lunin)
@@ -1068,7 +1071,7 @@ contains
 !   Initialize observation error covariance for 
 !   instruments we account for inter-channel correlations
     call corr_ob_initialize
-
+    call corr_oberr_qc(jpch_rad,iuse_rad,nusis,varch)
 !   Close unit for runtime output.  Return to calling routine
     if(mype==mype_rad)close(iout_rad)
     return
@@ -1146,8 +1149,10 @@ contains
 
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
+
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
          ifactq,varch,varch_cld,inew_rad,icld_det)
+
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)
@@ -1953,9 +1958,8 @@ contains
 !  End of program
    return
    end subroutine init_predx
-
-   logical function adjust_jac_ (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
-                                 depart,obvarinv,adaptinf,jacobian)
+ logical function adjust_jac_ (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+                               depart,obvarinv,adaptinf,wgtjo,jacobian)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    adjust_jac_
@@ -1966,6 +1970,9 @@ contains
 !
 ! program history log:
 !   2014-04-15  todling - initial code
+!   2016-07-19  todling - change obtype to isis for more flexibity
+!   2016-07-19  todling - add wgtjo to arg list
+!   2016-07-19  W. Gu - revisit bias handling
 !
 ! attributes:
 !   language: f90
@@ -1981,9 +1988,9 @@ contains
    use mpeu_util, only: die
    use mpimod, only: mype
    implicit none
-   character(len=*),intent(in) :: obstype
-   logical,         intent(in) :: sea
-   logical,         intent(in) :: land
+
+   character(len=*),intent(in) :: isis
+   integer(i_kind), intent(in) :: isfctype
    integer(i_kind), intent(in) :: nchanl
    integer(i_kind), intent(in) :: nsigradjac
    integer(i_kind), intent(in) :: ich(nchanl)
@@ -1991,11 +1998,11 @@ contains
    real(r_kind), intent(inout) :: depart(nchanl)
    real(r_kind), intent(inout) :: obvarinv(nchanl)
    real(r_kind), intent(inout) :: adaptinf(nchanl)
+   real(r_kind), intent(inout) :: wgtjo(nchanl)
    real(r_kind), intent(inout) :: jacobian(nsigradjac,nchanl)
-
+   integer(i_kind), intent(out) :: iinstr
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
-   integer(i_kind) iinstr
 
    adjust_jac_=.false.
 
@@ -2003,21 +2010,71 @@ contains
      return
    endif
 
-               covtype = trim(obstype)//':global'
-   if (sea)    covtype = trim(obstype)//':sea'
-   if (land)   covtype = trim(obstype)//':land'
-   iinstr=getindex(idnames,trim(covtype))
-   if(iinstr<0) then
-      return ! nothing to do
+   iinstr=-1
+   if(isfctype==0)then
+      covtype = trim(isis)//':sea'
+      iinstr=getindex(idnames,trim(covtype))
+   else if(isfctype==1)then
+      covtype = trim(isis)//':land'
+      iinstr=getindex(idnames,trim(covtype))
+   else if(isfctype==2)then
+      covtype = trim(isis)//':ice'
+      iinstr=getindex(idnames,trim(covtype))
+   else if(isfctype==3)then
+      covtype = trim(isis)//':snow'
+      iinstr=getindex(idnames,trim(covtype))
+   else if(isfctype==4)then
+      covtype = trim(isis)//':mixed'
+      iinstr=getindex(idnames,trim(covtype))
    endif
+   if(iinstr<0) return  ! do not use the correlated errors
 
    if(.not.corr_ob_amiset(GSI_BundleErrorCov(iinstr))) then
       call die(myname_,' improperly set GSI_BundleErrorCov')
    endif
 
-   adjust_jac_ = corr_ob_scale_jac (depart,obvarinv,adaptinf,jacobian,nchanl,jpch_rad,varinv, &
-                                    iuse_rad,ich,GSI_BundleErrorCov(iinstr))
+   if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
 
+   adjust_jac_ = corr_ob_scale_jac(depart,obvarinv,adaptinf,jacobian,nchanl,jpch_rad,varinv,wgtjo, &
+                                    iuse_rad,ich,GSI_BundleErrorCov(iinstr))
 end function adjust_jac_
- 
+
+subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    get_rsqrtinv_
+!
+!   prgrmmr:     Wei  org: gmao                date: 2015-03-11
+!
+! abstract:  provide hook to obtain the inverse of the square-root of R
+!
+! program history log:
+!   2015-03-11  W. Gu - initial code
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+!$$$ end documentation block
+   use constants, only: tiny_r_kind,zero,one
+   use correlated_obsmod, only: corr_ob_rsqrtinv
+   use correlated_obsmod, only: GSI_BundleErrorCov
+   use mpeu_util, only: getindex
+   use mpeu_util, only: die
+   use mpimod, only: mype
+   implicit none
+   integer(i_kind), intent(in) :: iinstr
+   integer(i_kind), intent(in) :: nchasm
+   integer(i_kind), intent(in) :: ich(nchasm)
+   integer(i_kind), intent(in) :: ichasm(nchasm)
+   real(r_kind), intent(in) :: varinv(nchasm)    ! inverse of specified ob-error-variance
+   real(r_kind), intent(inout) :: rsqrtinv(nchasm,nchasm)
+
+   character(len=*),parameter::myname_ = myname//'*get_rsqrtinv_'
+
+   call corr_ob_rsqrtinv (jpch_rad,iuse_rad,nchasm,ich,ichasm,varinv,&
+                          rsqrtinv,GSI_BundleErrorCov(iinstr))
+
+end subroutine get_rsqrtinv_
+
 end module radinfo

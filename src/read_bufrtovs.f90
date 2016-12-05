@@ -86,6 +86,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2014-04-27  eliu/zhu - add thinning options for AMSU-A under allsky condition 
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
+!   2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
+!                         channels are missing.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -127,7 +129,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
-  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300,r100
@@ -142,6 +143,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   implicit none
@@ -191,7 +193,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind) error_status,ier,irecx
+  integer(i_kind) error_status,ier,irecx,ierr
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist
@@ -220,6 +222,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind) disterr,disterrmax,cdist,dlon00,dlat00
+
+  logical :: critical_channels_missing
+
 !**************************************************************************
 ! Initialize variables
 
@@ -469,16 +474,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start
         infile2=trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_ears
         infile2=trim(infile)//'ears' ! Set bufr subset names based on type of data to read
         if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx=nrec_start_db
         infile2=trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
         if(amsua .and. kidsat >= 200 .and. kidsat <= 207) cycle ears_db_loop
@@ -486,7 +488,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old')
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',iostat=ierr)
+     if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
 
@@ -680,18 +683,19 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Transfer observed brightness temperature to work array.  If any
 !          temperature exceeds limits, reset observation to "bad" value
-           iskip=0
+           iskip=0 
+           critical_channels_missing = .false.
            do j=1,nchanl
               if (data1b8(j) < tbmin .or. data1b8(j) > tbmax) then
                  iskip = iskip + 1
 
-!                Remove profiles where key channels are bad  
+!                Flag profiles where key channels are bad  
                  if(( msu  .and.  j == ich1) .or.                                 &
                     (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
                                   j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
                     (hirs  .and. (j == ich8 )) .or.                               &
                     (amsub .and.  j == ich1) .or.                                 &
-                    (mhs   .and. (j == ich1 .or. j == ich2)) ) iskip = iskip+nchanl
+                    (mhs   .and. (j == ich1 .or. j == ich2)) ) critical_channels_missing = .true.
               endif
            end do
            if (iskip >= nchanl) cycle read_loop
@@ -734,122 +738,130 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if(.not. iuse)cycle read_loop
 
 
-!          Set data quality predictor
-           if (msu) then
-              if (newpc4pred) then
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                       predx(1,ichan1)*air_rad(ichan1)
-              else
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                       r01*predx(1,ichan1)*air_rad(ichan1)
-              end if
-              ch1flg = tsavg-ch1
-              if(isflg == 0)then
-                 pred = 100._r_kind-min(ch1flg,100.0_r_kind)
-              else
-                 pred = abs(ch1flg)
-              end if
-           else if (hirs) then
-              if (newpc4pred) then
-                 ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                       predx(1,ichan8)*air_rad(ichan8)
-              else
-                 ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                       r01*predx(1,ichan8)*air_rad(ichan8)
-              end if
-              ch8flg = tsavg-ch8
-              pred   = 10.0_r_kind*max(zero,ch8flg)
-           else if (amsua) then
-!   Remove angle dependent pattern (not mean)
-              if (adp_anglebc .and. newpc4pred) then
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1) 
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2) 
-                 ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
-              else
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
-                       air_rad(ichan1)*cbias(15,ichan1)
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
-                       air_rad(ichan2)*cbias(15,ichan2)   
-                 ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
-              end if
-              if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
-                 cosza = cos(lza)
-                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
-                 qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                 if (icw4crtm>10) then
-                  ! no preference in selecting clouds/precipitation
-                  ! qval=zero 
-                  ! favor non-precipitating clouds                                                   
-                    qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &         
-                                        0.454_r_kind*ch2-ch15   
-                    if (qval>=9.0_r_kind) then
-                       qval=1000.0_r_kind*qval
-                    else
-                       qval=zero
-                    end if
-                  ! favor thinner clouds
-                  ! cosza = cos(lza)
-                  ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                  ! qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                  ! if (qval>0.2_r_kind) then
-                  !    qval=1000.0_r_kind*qval
-                  ! else
-                  !    qval=zero
-                  ! end if
+           if (critical_channels_missing) then
+
+             pred=1.0e8_r_kind
+
+           else
+
+!             Set data quality predictor
+              if (msu) then
+                 if (newpc4pred) then
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                         predx(1,ichan1)*air_rad(ichan1)
+                 else
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                         r01*predx(1,ichan1)*air_rad(ichan1)
                  end if
-                 pred  = max(zero,qval)*100.0_r_kind
-              else
+                 ch1flg = tsavg-ch1
+                 if(isflg == 0)then
+                    pred = 100._r_kind-min(ch1flg,100.0_r_kind)
+                 else
+                    pred = abs(ch1flg)
+                 end if
+              else if (hirs) then
+                 if (newpc4pred) then
+                    ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+                         predx(1,ichan8)*air_rad(ichan8)
+                 else
+                    ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+                         r01*predx(1,ichan8)*air_rad(ichan8)
+                 end if
+                 ch8flg = tsavg-ch8
+                 pred   = 10.0_r_kind*max(zero,ch8flg)
+              else if (amsua) then
+!                Remove angle dependent pattern (not mean)
                  if (adp_anglebc .and. newpc4pred) then
-                    ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3) 
-                    ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15) 
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1) 
+                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2) 
+                    ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
                  else
-                    ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
-                           air_rad(ichan3)*cbias(15,ichan3)   
-                    ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
-                           air_rad(ichan15)*cbias(15,ichan15)
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
+                         air_rad(ichan1)*cbias(15,ichan1)
+                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
+                         air_rad(ichan2)*cbias(15,ichan2)   
+                    ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
                  end if
-                 pred = abs(ch1-ch15)
-                 if(ch1-ch15 >= three) then
-                    df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
-                    tt   = 168._r_kind-0.49_r_kind*ch15
-                    if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
-                      (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
-                       pred = 100._r_kind
+                 if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+                    cosza = cos(lza)
+                    d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
+                    qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                    if (icw4crtm>10) then
+                       ! no preference in selecting clouds/precipitation
+                       ! qval=zero 
+                       ! favor non-precipitating clouds                                                   
+                       qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &         
+                            0.454_r_kind*ch2-ch15   
+                       if (qval>=9.0_r_kind) then
+                          qval=1000.0_r_kind*qval
+                       else
+                          qval=zero
+                       end if
+                       ! favor thinner clouds
+                       ! cosza = cos(lza)
+                       ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+                       ! qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                       ! if (qval>0.2_r_kind) then
+                       !    qval=1000.0_r_kind*qval
+                       ! else
+                       !    qval=zero
+                       ! end if
+                    end if
+                    pred  = max(zero,qval)*100.0_r_kind
+                 else
+                    if (adp_anglebc .and. newpc4pred) then
+                       ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3) 
+                       ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15) 
+                    else
+                       ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
+                            air_rad(ichan3)*cbias(15,ichan3)   
+                       ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
+                            air_rad(ichan15)*cbias(15,ichan15)
+                    end if
+                    pred = abs(ch1-ch15)
+                    if(ch1-ch15 >= three) then
+                       df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
+                       tt   = 168._r_kind-0.49_r_kind*ch15
+                       if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
+                            (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                          pred = 100._r_kind
+                       end if
+                    end if
+                 endif
+                 
+!                 sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
+!                 0.454_r_kind*ch2-ch15
+                 
+              else if (amsub .or. mhs) then
+                 if (newpc4pred) then
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                         predx(1,ichan1)*air_rad(ichan1)
+                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                         predx(1,ichan2)*air_rad(ichan2)
+                 else
+                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                         r01*predx(1,ichan1)*air_rad(ichan1)
+                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                         r01*predx(1,ichan2)*air_rad(ichan2)
+                 end if
+                 pred_water = zero
+                 if(sfcpct(0) > zero)then
+                    cosza = cos(lza)
+                    if(ch2 < h300)then 
+                       pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
+                            341.17_r_kind))*five
+                    else
+                       pred_water = 100._r_kind
                     end if
                  end if
+                 pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
+                 pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
+                 pred = max(zero,pred)
+                 
               endif
-           
-!          sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
-!               0.454_r_kind*ch2-ch15
+              
+           end if
 
-           else if (amsub .or. mhs) then
-              if (newpc4pred) then
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                       predx(1,ichan1)*air_rad(ichan1)
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
-                       predx(1,ichan2)*air_rad(ichan2)
-              else
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                       r01*predx(1,ichan1)*air_rad(ichan1)
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
-                       r01*predx(1,ichan2)*air_rad(ichan2)
-              end if
-              pred_water = zero
-              if(sfcpct(0) > zero)then
-                 cosza = cos(lza)
-                 if(ch2 < h300)then 
-                    pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
-                       341.17_r_kind))*five
-                 else
-                    pred_water = 100._r_kind
-                 end if
-              end if
-              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
-              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
-              pred = max(zero,pred)
-
-           endif
-           
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
            crit1 = crit1+pred 
            call finalcheck(dist1,crit1,itx,iuse)

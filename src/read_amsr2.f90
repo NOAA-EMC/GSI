@@ -53,13 +53,14 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo,amsr2_method 
+  use radinfo, only: iuse_rad,nusis,jpch_rad,amsr2_method 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,rad2deg,zero,one,three,r60inv,two
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, l4densvar, thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use ssmis_spatial_average_mod, only : ssmis_spatial_average
   use m_sortind

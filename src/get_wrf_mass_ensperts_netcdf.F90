@@ -28,7 +28,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-    use hybrid_ensemble_isotropic, only: en_perts,nelen,ps_bar
+    use hybrid_ensemble_parameters, only: en_perts,nelen,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens,q_hyb_ens
@@ -62,7 +62,7 @@ subroutine get_wrf_mass_ensperts_netcdf
     type(gsi_grid):: grid_ens
     real(r_kind):: bar_norm,sig_norm,kapr,kap1
 
-    integer(i_kind):: iret,i,j,k,n,mm1,istatus
+    integer(i_kind):: i,j,k,n,mm1,istatus
     integer(i_kind):: ic2,ic3
 
     character(24) filename
@@ -94,7 +94,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 ! 
 ! READ ENEMBLE MEMBERS DATA
        if (mype == 0) write(6,*) 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',filename
-       call general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype,iret) 
+       call general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
 
 ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
        do ic3=1,nc3d
@@ -268,7 +268,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 return
 end subroutine get_wrf_mass_ensperts_netcdf
 
-subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype,iret)
+subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_wrf_mass  read arw model ensemble members
@@ -302,11 +302,16 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 !$$$ end documentation block
 
+    use netcdf, only: nf90_nowrite
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
+    use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
     use kinds, only: r_kind,r_single,i_kind
     use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,q_hyb_ens
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
+    use netcdf_mod, only: nc_check
 
     implicit none
 !
@@ -332,17 +337,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     real(r_kind),allocatable,dimension(:):: wrk_fill_2d
     integer(i_kind),allocatable,dimension(:):: dim,dim_id
 
-    integer(i_kind):: nx,ny,nz,i,j,k,d_max,iret,file_id,var_id,ndim,mype
+    integer(i_kind):: nx,ny,nz,i,j,k,d_max,file_id,var_id,ndim,mype
     integer(i_kind):: Time_id,s_n_id,w_e_id,b_t_id,s_n_stag_id,w_e_stag_id,b_t_stag_id
     integer(i_kind):: Time_len,s_n_len,w_e_len,b_t_len,s_n_stag_len,w_e_stag_len,b_t_stag_len
-    integer(i_kind) nf_inq_varndims,nf_inq_varid,nf_get_var_real,nf_inq_vardimid,nf_nowrite
-    integer(i_kind) nf_open,nf_inq_dimlen,nf_inq_dimid,iderivative
+    integer(i_kind) iderivative
 
     real(r_kind):: deltasigma
     real(r_kind) psfc_this_dry,psfc_this
     real(r_kind) work_prslk,work_prsl
 
     logical ice
+
+    character(len=24),parameter :: myname_ = 'general_read_wrf_mass'
+
 #ifdef WRF
 !
 ! OPEN ENSEMBLE MEMBER DATA FILE
@@ -352,31 +359,44 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
     allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
     allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
-    iret=nf_open(trim(filename),NF_NOWRITE,file_id)
-    if(iret /= 0) then
-       print *, 'ERROR OPENING WRF FORECAST FILE: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_open(trim(filename),nf90_nowrite,file_id),&
+        myname_,'open '//trim(filename) )
 !
 ! WRF FILE DIMENSIONS
-    iret=nf_inq_dimid(file_id,'Time',Time_id)
-    iret=nf_inq_dimid(file_id,'south_north',s_n_id)
-    iret=nf_inq_dimid(file_id,'west_east',w_e_id)
-    iret=nf_inq_dimid(file_id,'bottom_top',b_t_id)
-    iret=nf_inq_dimid(file_id,'south_north_stag',s_n_stag_id)
-    iret=nf_inq_dimid(file_id,'west_east_stag',w_e_stag_id)
-    iret=nf_inq_dimid(file_id,'bottom_top_stag',b_t_stag_id)
+    call nc_check( nf90_inq_dimid(file_id,'Time',Time_id),&
+        myname_,'inq_dimid Time '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'south_north',s_n_id),&
+        myname_,'inq_dimid south_north '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'west_east',w_e_id),&
+        myname_,'inq_dimid west_east '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'bottom_top',b_t_id),&
+        myname_,'inq_dimid bottom_top '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'south_north_stag',s_n_stag_id),&
+        myname_,'inq_dimid south_north_stag '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'west_east_stag',w_e_stag_id),&
+        myname_,'inq_dimid west_east_stag '//trim(filename) )
+    call nc_check( nf90_inq_dimid(file_id,'bottom_top_stag',b_t_stag_id),&
+        myname_,'inq_dimid bottom_top_stag '//trim(filename) )
+
     d_max=max(Time_id, s_n_id, w_e_id, b_t_id, s_n_stag_id, w_e_stag_id, b_t_stag_id)
     allocate(dim(d_max))
     dim(:)=-999
 
-    iret=nf_inq_dimlen(file_id,Time_id,Time_len)
-    iret=nf_inq_dimlen(file_id,s_n_id,s_n_len)
-    iret=nf_inq_dimlen(file_id,w_e_id,w_e_len)
-    iret=nf_inq_dimlen(file_id,b_t_id,b_t_len)
-    iret=nf_inq_dimlen(file_id,s_n_stag_id,s_n_stag_len)
-    iret=nf_inq_dimlen(file_id,w_e_stag_id,w_e_stag_len)
-    iret=nf_inq_dimlen(file_id,b_t_stag_id,b_t_stag_len)    
+    call nc_check( nf90_inquire_dimension(file_id,Time_id,len=Time_len),&
+        myname_,'inquire_dimension Time '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,s_n_id,len=s_n_len),&
+        myname_,'inquire_dimension south_north '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,w_e_id,len=w_e_len),&
+        myname_,'inquire_dimension west_east '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,b_t_id,len=b_t_len),&
+        myname_,'inquire_dimension bottom_top '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,s_n_stag_id,len=s_n_stag_len),&
+        myname_,'inquire_dimension south_north_stag '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,w_e_stag_id,len=w_e_stag_len),&
+        myname_,'inquire_dimension west_east_stag '//trim(filename) )
+    call nc_check( nf90_inquire_dimension(file_id,b_t_stag_id,len=b_t_stag_len),&
+        myname_,'inquire_dimension bottom_top_stag '//trim(filename) )
+
     nx=w_e_len
     ny=s_n_len
     nz=b_t_len
@@ -396,77 +416,73 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ PERTURBATION POTENTIAL TEMPERATURE (K)
 !    print *, 'read T ',filename
-    iret=nf_inq_varid(file_id,'T',var_id)
+    call nc_check( nf90_inq_varid(file_id,'T',var_id),&
+        myname_,'inq_varid T '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable T '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable T '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_3d)
-    if(iret /= 0) then
-       print *, 'ERROR READING T ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var T '//trim(filename) )
     allocate(tsn(dim(dim_id(2)),dim(dim_id(1)),dim(dim_id(3))))
-    do j=1,dim(dim_id(2))
-       do i=1,dim(dim_id(1))
-          tsn(j,i,:)=temp_3d(i,j,:)
-       enddo
-    enddo
+    tsn = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
     deallocate(temp_3d)
     deallocate(dim_id)
 
 !  READ MU, MUB, P_TOP  (construct psfc as done in gsi--gives different result compared to PSFC)
 
-    iret=nf_inq_varid(file_id,'P_TOP',var_id)
+    call nc_check( nf90_inq_varid(file_id,'P_TOP',var_id),&
+        myname_,'inq_varid P_TOP '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable P_TOP '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable P_TOP '//trim(filename) )
     allocate(temp_1d(dim(dim_id(1))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_1d)
-    if(iret /= 0) then
-       print *, 'ERROR READING P_TOP ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_1d),&
+        myname_,'get_var P_TOP '//trim(filename) )
     allocate(p_top(dim(dim_id(1))))
     do i=1,dim(dim_id(1))
        p_top(i)=temp_1d(i)
     enddo
     deallocate(dim_id)
 
-    iret=nf_inq_varid(file_id,'MUB',var_id)
+    call nc_check( nf90_inq_varid(file_id,'MUB',var_id),&
+        myname_,'inq_varid MUB '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable MUB '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable MUB '//trim(filename) )
     allocate(temp_2d(dim(dim_id(1)),dim(dim_id(2))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_2d)
-    if(iret /= 0) then
-       print *, 'ERROR READING MUB ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_2d),&
+        myname_,'get_var MUB '//trim(filename) )
     deallocate(dim_id)
 
-    iret=nf_inq_varid(file_id,'MU',var_id)
+    call nc_check( nf90_inq_varid(file_id,'MU',var_id),&
+        myname_,'inq_varid MU '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable MU '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable MU '//trim(filename) )
     allocate(temp_2d2(dim(dim_id(1)),dim(dim_id(2))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_2d2)
-    if(iret /= 0) then
-       print *, 'ERROR READING MU ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_2d2),&
+        myname_,'get_var MU '//trim(filename) )
 
     do j=1,dim(dim_id(2))
        do i=1,dim(dim_id(1))
@@ -480,19 +496,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ U (m/s)
     !print *, 'read U ',filename
-    iret=nf_inq_varid(file_id,'U',var_id)
+    call nc_check( nf90_inq_varid(file_id,'U',var_id),&
+        myname_,'inq_varid U '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable U '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable U '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_3d)
-    if(iret /= 0) then
-       print *, 'ERROR READING U ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var U '//trim(filename) )
 !
 ! INTERPOLATE TO MASS GRID
     do k=1,dim(dim_id(3))
@@ -507,19 +523,19 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ V (m/s)
     !print *, 'read V ',filename
-    iret=nf_inq_varid(file_id,'V',var_id)
+    call nc_check( nf90_inq_varid(file_id,'V',var_id),&
+        myname_,'inq_varid V '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable V '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable V '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_3d)
-    if(iret /= 0) then
-       print *, 'ERROR READING V ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var V '//trim(filename) )
 !
 ! INTERPOLATE TO MASS GRID
     do k=1,dim(dim_id(3))
@@ -536,26 +552,25 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !
 ! READ QVAPOR (kg/kg)
     !print *, 'read QVAPOR ',filename
-    iret=nf_inq_varid(file_id,'QVAPOR',var_id)
+    call nc_check( nf90_inq_varid(file_id,'QVAPOR',var_id),&
+        myname_,'inq_varid QVAPOR '//trim(filename) )
 
-    iret=nf_inq_varndims(file_id,var_id,ndim)
+    call nc_check( nf90_inquire_variable(file_id,var_id,ndims=ndim),&
+        myname_,'inquire_variable QVAPOR '//trim(filename) )
     allocate(dim_id(ndim))
 
-    iret=nf_inq_vardimid(file_id,var_id,dim_id)
+    call nc_check( nf90_inquire_variable(file_id,var_id,dimids=dim_id),&
+        myname_,'inquire_variable QVAPOR '//trim(filename) )
     allocate(temp_3d(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
 
-    iret=nf_get_var_real(file_id,var_id,temp_3d)
-    if(iret /= 0) then
-       print *, 'ERROR READING QVAPOR ENSEMBLE DATA: ',filename
-       call stop2(999)
-    endif
-    do j=1,dim(dim_id(2))
-       do i=1,dim(dim_id(1))
-          gg_rh(j,i,:)=temp_3d(i,j,:)
-       enddo
-    enddo
+    call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
+        myname_,'get_var QVAPOR '//trim(filename) )
+    gg_rh = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
     deallocate(temp_3d)
     deallocate(dim_id,dim)
+
+    call nc_check( nf90_close(file_id),&
+        myname_,'close '//trim(filename) )
 !
 ! CALCULATE TOTAL POTENTIAL TEMPERATURE (K)
     !print *, 'calculate total temperature ',filename
@@ -739,7 +754,7 @@ subroutine ens_spread_dualres_regional(mype,en_bar)
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
                                         regional_ensemble_option
-  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use hybrid_ensemble_parameters, only: en_perts,nelen
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,two,half,one
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d

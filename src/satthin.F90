@@ -540,7 +540,7 @@ contains
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
        if ( use_gfs_nemsio ) then
-          call read_nemssfc(mype_io,mype, &
+          call read_nemssfc(mype_io, &
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
@@ -550,7 +550,7 @@ contains
           endif
 
        else
-          call read_gfssfc (mype_io,mype, &
+          call read_gfssfc (mype_io, &
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)

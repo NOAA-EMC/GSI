@@ -30,6 +30,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
 !  2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !  2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
+!  2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
+!                         channels are missing.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -70,7 +72,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
-  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100
@@ -80,6 +81,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
 
@@ -136,7 +138,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind):: ier
+  integer(i_kind):: ier,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
@@ -178,6 +180,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
+
+  logical :: critical_channels_missing
+
 !**************************************************************************
 ! Initialize variables
 
@@ -344,22 +349,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        if ( nrec_start <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        if ( nrec_start_ears <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        if ( nrec_start_db <= 0 ) cycle ears_db_loop
         nrec_startx = nrec_start_db
         infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
+         iostat = ierr)
+     if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
      hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
@@ -475,7 +479,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   num_obs = iob-1
 
-500 continue
   if (num_obs <= 0) then
      write(*,*) 'READ_ATMS: No ATMS Data were read in'
      return
@@ -582,13 +585,14 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Transfer observed brightness temperature to work array.  If any
 !    temperature exceeds limits, reset observation to "bad" value
      iskip=0
+     critical_channels_missing = .false.
      do j=1,nchanl
         if (bt_in(j) < tbmin .or. bt_in(j) > tbmax) then
            iskip = iskip + 1
            
-!          Remove profiles where key channels are bad  
+!          Flag profiles where key channels are bad  
            if((j == ich1 .or. j == ich2 .or. &
-                j == ich16 .or. j == ich17)) iskip = iskip+nchanl
+                j == ich16 .or. j == ich17)) critical_channels_missing = .true.
         endif
      end do
      if (iskip >= nchanl) cycle ObsLoop
@@ -625,49 +629,55 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
 
+           if (critical_channels_missing) then
+
+              pred=1.0e8_r_kind
+
+           else
+
 !    Set data quality predictor
 !    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
 !    Remove angle dependent pattern (not mean).
-     if (adp_anglebc .and. newpc4pred) then
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
-     else
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
-             air_rad(ichan1)*cbias(nadir,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
-             air_rad(ichan2)*cbias(nadir,ichan2)   
-     end if
-     if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
-        cosza = cos(lza)
-        d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-        if (icw4crtm>10) then
-           qval  = zero 
-        else 
-           qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-        endif
-        pred  = max(zero,qval)*100.0_r_kind
-     else
-!       This is taken straight from AMSU-A even though Ch 3 has a different polarisation
-!       and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
-        if (adp_anglebc .and. newpc4pred) then
-           ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
-        else
-           ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
-                air_rad(ichan3)*cbias(nadir,ichan3)   
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
-                air_rad(ichan16)*cbias(nadir,ichan16)
-        end if
-        pred = abs(ch1-ch16)
-        if(ch1-ch16 >= three) then
-           tt   = 168._r_kind-0.49_r_kind*ch16
-           if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
-                (ch16 <= 273._r_kind))then
-              pred = 100._r_kind
+              if (adp_anglebc .and. newpc4pred) then
+                 ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
+                 ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
+              else
+                 ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
+                      air_rad(ichan1)*cbias(nadir,ichan1)
+                 ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
+                      air_rad(ichan2)*cbias(nadir,ichan2)   
+              end if
+              if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+                 cosza = cos(lza)
+                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+                 if (icw4crtm>10) then
+                    qval  = zero 
+                 else 
+                    qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 endif
+                 pred  = max(zero,qval)*100.0_r_kind
+              else
+!          This is taken straight from AMSU-A even though Ch 3 has a different polarisation
+!          and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
+                 if (adp_anglebc .and. newpc4pred) then
+                    ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
+                    ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
+                 else
+                    ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
+                         air_rad(ichan3)*cbias(nadir,ichan3)   
+                    ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
+                         air_rad(ichan16)*cbias(nadir,ichan16)
+                 end if
+                 pred = abs(ch1-ch16)
+                 if(ch1-ch16 >= three) then
+                    tt   = 168._r_kind-0.49_r_kind*ch16
+                    if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
+                         (ch16 <= 273._r_kind))then
+                       pred = 100._r_kind
+                    end if
+                 end if
+              endif
            end if
-        end if
-     endif
-        
 
 !    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
      crit1 = crit1+pred 
