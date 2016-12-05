@@ -88,7 +88,7 @@ def get_convdiag_list(fname,endian='big'):
     '''
 
     diag = _read_diag_conv(fname,endian=endian)
-    _print_diag_info(fname,diag)
+    _print_diag_info(diag)
 
     return
 
@@ -127,7 +127,7 @@ def get_convdiag_data(fname,indx,qty,endian='big'):
     '''
 
     diag = _read_diag_conv(fname,endian=endian)
-    val = _get_diag_data(fname,indx,qty)
+    val = _get_diag_data(diag,indx,qty)
 
     return val
 
