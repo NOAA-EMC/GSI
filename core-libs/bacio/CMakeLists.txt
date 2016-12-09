@@ -3,7 +3,7 @@ if(BUILD_CORELIBS)
   file(GLOB BACIO_SRC ${BACIO_DIR}/*.f)
   set_source_files_properties( ${BACIO_SRC} PROPERTIES COMPILE_FLAGS ${BACIO_Fortran_FLAGS} )
   file(GLOB BACIO_C_SRC ${BACIO_DIR}/*.c)
-  set(CMAKE_C_FLAGS "-DLINUX -Dfunder -DFortranByte=char -DFortranInt=int -DFortranLlong='long long'")
+  set(CMAKE_C_FLAGS "${BACIO_C_INCLUDES} -DLINUX -Dfunder -DFortranByte=char -DFortranInt=int -DFortranLlong='long long'")
   add_library( ${bacio} STATIC ${BACIO_SRC} ${BACIO_C_SRC} )
   set_target_properties( ${bacio} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_INCLUDE_OUTPUT_DIRECTORY} )
  

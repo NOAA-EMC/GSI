@@ -7,7 +7,7 @@ if(BUILD_CORELIBS)
 
   ADD_CUSTOM_COMMAND( OUTPUT "${CMAKE_INCLUDE_OUTPUT_DIRECTORY}/bufrlib.prm" 
      PRE_BUILD
-     COMMAND /usr/bin/cpp -C -P -C -P -D_REAL8_ -DWRF -DLINUX -DPGI -traditional-cpp ${BUFR_DIR}/bufrlib.PRM -o ${CMAKE_INCLUDE_OUTPUT_DIRECTORY}/bufrlib.prm
+     COMMAND cpp -C -P -C -P -D_REAL8_ -DWRF -DLINUX -DPGI -traditional-cpp ${BUFR_DIR}/bufrlib.PRM -o ${CMAKE_INCLUDE_OUTPUT_DIRECTORY}/bufrlib.prm
      DEPENDS ${BUFR_DIR}/bufrlib.PRM
      )
   add_custom_target(bufrlib_prm DEPENDS ${CMAKE_INCLUDE_OUTPUT_DIRECTORY}/bufrlib.prm )
