@@ -130,7 +130,7 @@ subroutine gesinfo(mype)
   write(filename,'("sigf",i2.2)')nhr_assimilation
   inquire(file=filename,exist=fexist)
   if(.not.fexist) then
-     write(6,*)' GESINFO:  GUESS FILE NOT AVAILABLE: PROGRAM STOPS'
+     write(6,*)' GESINFO:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
      call stop2(99)
      stop
   end if

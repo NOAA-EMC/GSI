@@ -35,6 +35,7 @@ module ncepnems_io
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
 !                               change/modify sfc_interpolate to be intrp22 to handle more general interpolation (2d to 2d)
+!   2016-11-18 li     - tic615: change nst mask name from slmsk to land 
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -2989,8 +2990,8 @@ contains
 !
 ! slmsk
        rwork1d = reshape( slmsk_anl,(/size(rwork1d)/) )
-       call nemsio_writerecv(gfile_nstanl,'slmsk','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'slmsk','write',istop,iret)
+       call nemsio_writerecv(gfile_nstanl,'land','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'land','write',istop,iret)
 ! xt
        rwork1d = reshape( xt,(/size(rwork1d)/) )
        call nemsio_writerecv(gfile_nstanl,'xt','sfc',1,rwork1d,iret=iret)
@@ -3104,13 +3105,13 @@ contains
     if ( mype == 0 ) then
        select case (trim(action))
        case('init')
-          write(6,'(a,'':  problem with nemsio_init, Status = '', i3)') &
+          write(6,'(a,'':  PROBLEM with nemsio_init, Status = '', i3)') &
              trim(sub_name), error_code
        case('open')
-          write(6,'(a,'':  problem opening file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem opening file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case('close')
-          write(6,'(a,'':  problem closing file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem closing file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case default
           write(6,'(a,'':  ***ERROR*** '',a,tr1,a,'',variable = '',a,'',Status = '',i3)') &
