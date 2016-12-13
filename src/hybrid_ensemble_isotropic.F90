@@ -2557,8 +2557,6 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   ! Initialize timer
   call timer_ini('sqrt_beta_s_mult_cvec')
 
-  if(mype==0) write(6,*)' calling sqrt_beta_s_mult_cvec'
-
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
   if ( istatus /= 0 ) then
@@ -2649,8 +2647,6 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   ! Initialize timer
   call timer_ini('sqrt_beta_s_mult_bundle')
 
-  if(mype==0) write(6,*)' calling sqrt_beta_s_mult_bundle'
-
   ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady, cvars3d, ipc3d, istatus )
   if ( istatus /= 0 ) then
@@ -2737,8 +2733,6 @@ subroutine sqrt_beta_e_mult_cvec(grady)
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
 
-  if(mype==0) write(6,*)' calling sqrt_beta_e_mult'
-
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii)
   ! multiply by sqrt_beta_e
   do j=1,grd_ens%lon2
@@ -2803,8 +2797,6 @@ subroutine sqrt_beta_e_mult_bundle(aens)
 
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
-
-  if(mype==0) write(6,*)' calling sqrt_beta_e_mult'
 
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i)
   ! multiply by sqrt_beta_e
