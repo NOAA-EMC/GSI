@@ -147,10 +147,10 @@ export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
 export HOMEDIR=${HOMEDIR:-$NWROOT}
 export NWPROD=${NWPROD:-$HOMEDIR}
 export FIXSUBDA=${FIXSUBDA:-fix/fix_am}
-export FIXgsm=${FIXgsm:-$NWPROD/gsm.${gsm_ver}/fix/fix_am} 
-export EXECgsm=${EXECgsm:-$NWPROD/gsm.${gsm_ver}/exec} 
-export USHgsm=${USHgsm:-$NWPROD/gsm.${gsm_ver}/ush} 
-export SCRgsm=${SCRgsm:-$NWPROD/gsm.${gsm_ver}/scripts} 
+export FIXgsm=${FIXgsm:-$NWPROD/global_shared.${global_shared_ver}/fix/fix_am} 
+export EXECgsm=${EXECgsm:-$NWPROD/global_shared.${global_shared_ver}/exec} 
+export USHgsm=${USHgsm:-$NWPROD/global_shared.${global_shared_ver}/ush} 
+export SCRgsm=${SCRgsm:-$NWPROD/global_shared.${global_shared_ver}/scripts} 
 
 export DATA=${DATA:-$(pwd)}
 export COMIN=${COMIN:-$(pwd)}
@@ -361,6 +361,7 @@ while [[ $imem -le $ENSEND ]]; do
        [[ $FH -lt 10 ]]&&FH=0$FH
        ln -fs $COMOUTSAVE/sfg_${CDATE}_fhr$FHIAU$SUFOUT ${SIGOSUF}f$FH$SUFOUT
        ln -fs $COMOUTSAVE/bfg_${CDATE}_fhr$FHIAU$SUFOUT ${SFCOSUF}f$FH$SUFOUT
+       ln -fs $COMOUTSAVE/flg_${CDATE}_fhr$FHIAU$SUFOUT ${FLXOSUF}f$FH$SUFOUT
        if [ $NST_GSI -gt 0 ]; then
           ln -fs $COMOUTSAVE/nfg_${CDATE}_fhr$FHIAU$SUFOUT ${NSTOSUF}f$FH$SUFOUT
        fi
@@ -400,6 +401,7 @@ while [[ $imem -le $ENSEND ]]; do
        [[ $FH -lt 10 ]]&&FH=0$FH
        $NCP ${SIGOSUF}f$FH$SUFOUT $COMOUT/sfg_${CDATE}_fhr$FHIAU$SUFOUT
        $NCP ${SFCOSUF}f$FH$SUFOUT $COMOUT/bfg_${CDATE}_fhr$FHIAU$SUFOUT
+       $NCP ${FLXOSUF}f$FH$SUFOUT $COMOUT/flg_${CDATE}_fhr$FHIAU$SUFOUT
         if [ $NST_GSI -gt 0 ]; then
            $NCP ${NSTOSUF}f$FH$SUFOUT $COMOUT/nfg_${CDATE}_fhr$FHIAU$SUFOUT
         fi

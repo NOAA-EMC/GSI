@@ -238,10 +238,12 @@ module hybrid_ensemble_parameters
 !
 !$$$ end documentation block
 
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind,r_kind,r_single
   use general_sub2grid_mod, only: sub2grid_info
   use general_specmod, only: spec_vars
   use egrid2agrid_mod, only: egrid2agrid_parm
+  use gsi_bundlemod, only: gsi_bundle
+
   implicit none
 
 ! set default to private
@@ -280,6 +282,10 @@ module hybrid_ensemble_parameters
   public :: i_en_perts_io
   public :: l_ens_in_diff_time
   public :: ensemble_path
+  public :: nelen
+  public :: en_perts,ps_bar
+  public :: region_lat_ens,region_lon_ens
+  public :: region_dx_ens,region_dy_ens
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
   logical enspreproc
@@ -317,6 +323,20 @@ module hybrid_ensemble_parameters
   integer(i_kind) ntlevs_ens
   integer(i_kind) regional_ensemble_option
   character(len=512),save :: ensemble_path
+
+! following is for storage of ensemble perturbations:
+
+!   def en_perts            - array of ensemble perturbations
+!   def nelen               - length of one ensemble perturbation vector
+
+  integer(i_kind) nelen
+  type(gsi_bundle),save,allocatable :: en_perts(:,:)
+  real(r_single),dimension(:,:,:),allocatable:: ps_bar
+
+!    following is for interpolation of global ensemble to regional ensemble grid
+
+  real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
+  real(r_kind),allocatable:: region_dx_ens(:,:),region_dy_ens(:,:)
 
 contains
 

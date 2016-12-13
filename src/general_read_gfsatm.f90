@@ -1,4 +1,4 @@
-subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zflag, &
+subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,uvflag,vordivflag,zflag, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -26,7 +26,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !                     fields
 !                    (initialized by general_init_spec_vars, located in general_specmod.f90)
 !     filename - input sigma file name
-!     mype     - mpi task id
 !     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
@@ -44,6 +43,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
 !
 !$$$
    use kinds, only: r_kind,r_single,i_kind
+   use mpimod, only: mype
    use gridmod, only: ncepgfs_head,idpsfc5,idthrm5,&
                       ntracer,idvc5,cp5,idvm5
    use general_sub2grid_mod, only: sub2grid_info
@@ -65,7 +65,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
    character(*)                          ,intent(in   ) :: filename
-   integer(i_kind)                       ,intent(in   ) :: mype
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -568,7 +567,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,vordivflag,zfl
     return
 end subroutine general_read_gfsatm
 
-subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zflag, &
+subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -596,7 +595,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !                     fields
 !                    (initialized by general_init_spec_vars, located in general_specmod.f90)
 !     filename - input sigma file name
-!     mype     - mpi task id
 !     uvflag   - logical to use u,v (.true.) or st,vp (.false.) perturbations
 !     vordivflag - logical to determine if routine should output vorticity and
 !                  divergence
@@ -614,6 +612,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 !
 !$$$
    use kinds, only: r_kind,r_single,i_kind
+   use mpimod, only: mype
    use gridmod, only: ntracer,ncloud,itotsub,jcap_b
    use general_sub2grid_mod, only: sub2grid_info
    use general_specmod, only: spec_vars
@@ -637,7 +636,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
    character(*)                          ,intent(in   ) :: filename
-   integer(i_kind)                       ,intent(in   ) :: mype
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -652,7 +650,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    real(r_kind),allocatable,dimension(:,:,:) :: g_u,g_v
 
    ! Declare local variables
-   character(len=120) :: my_name = 'general_read_gfsatm_nems'
+   character(len=120) :: my_name = 'GENERAL_READ_GFSATM_NEMS'
    character(len=1)   :: null = ' '
    integer(i_kind):: iret,nlatm2,nlevs,icm,nord_int
    integer(i_kind):: i,j,k,icount,kk
@@ -707,10 +705,10 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    if ( procuse ) then
 
       if ( init_head)call nemsio_init(iret=iret)
-      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'init',istop,iret)
+      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'init',istop,iret)
 
       call nemsio_open(gfile,filename,'READ',iret=iret)
-      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop+1,iret)
+      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'open',istop+1,iret)
 
       call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
            nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
@@ -857,7 +855,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       if (mype==mype_use(icount)) then
          ! read hs
          call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'hgt','read',istop+2,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'hgt','read',istop+2,iret)
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
@@ -887,7 +885,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    if (mype==mype_use(icount)) then
       ! read ps
       call nemsio_readrecv(gfile,'pres','sfc',1,rwork1d0,iret=iret)
-      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'pres','read',istop+3,iret)
+      if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pres','read',istop+3,iret)
       rwork1d1 = r0_001*rwork1d0 ! convert Pa to cb
       if ( diff_res ) then
          vector(1)=.false.
@@ -924,9 +922,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       if (mype==mype_use(icount)) then
          ! read T/Tv/etc.
          call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'tmp','read',istop+7,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'tmp','read',istop+7,iret)
          call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d1,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'spfh','read',istop+7,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','read',istop+7,iret)
          rwork1d0=rwork1d0*(one+fv*rwork1d1)
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
@@ -958,9 +956,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
             ! Vorticity
             ! Convert grid u,v to div and vor
             call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
             call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
                grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
                grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
@@ -1013,9 +1011,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
             ! Divergence
             ! Convert grid u,v to div and vor
             call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
             call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
                grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
                grid_b2=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
@@ -1072,9 +1070,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
 
             ! U
             call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
             call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
                grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
                grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
@@ -1104,9 +1102,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
          if (mype==mype_use(icount)) then
             ! V
             call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
             call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
+            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
                grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
                grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
@@ -1139,7 +1137,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       if (mype==mype_use(icount)) then
          ! Specific humidity
          call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'spfh','read',istop+6,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','read',istop+6,iret)
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
@@ -1167,7 +1165,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       if (mype==mype_use(icount)) then
          ! Ozone mixing ratio
          call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'o3mr','read',istop+8,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'o3mr','read',istop+8,iret)
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
@@ -1196,7 +1194,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
          ! Cloud condensate mixing ratio.
          work=zero
          call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
@@ -1229,7 +1227,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
       deallocate(rwork1d0)
       deallocate(grid,grid_v)
       call nemsio_close(gfile,iret=iret)
-      if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop+9,iret)
+      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'close',istop+9,iret)
    endif
    deallocate(work)
 
@@ -1275,9 +1273,9 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,mype,uvflag,vordivflag,zfl
    ! Print date/time stamp
    if ( mype == 0 ) then
       write(6,700) lonb,latb,nlevs,grd%nlon,nlatm2,&
-            fhour,odate
-700   format('GENERAL_READ_GFSATM_NEMS:  ges read/scatter, lonb,latb,levs=',&
-            3i6,', nlon,nlat=',2i6,', hour=',f10.1,', idate=',4i5)
+            fhour,odate,trim(filename)
+700   format('GENERAL_READ_GFSATM_NEMS: read lonb,latb,levs=',&
+            3i6,', scatter nlon,nlat=',2i6,', hour=',f6.1,', idate=',4i5,1x,a)
    endif
 
    return
@@ -1855,3 +1853,104 @@ subroutine general_fillv_ns(grd,sp,gridu_in,gridv_in,gridv_out)
 
    return
 end subroutine general_fillv_ns
+
+subroutine preproc_read_gfsatm(grd,filename,iret)
+
+   use kinds, only: r_kind,i_kind
+   use constants, only: zero
+   use mpimod, only: mpi_comm_world,ierror,mype
+   use mpimod, only: mpi_mode_rdonly,mpi_info_null,mpi_rtype,mpi_offset_kind
+   use mpi, only: mpi_status_ignore
+   use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
+   use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
+
+   implicit none
+
+   type(sub2grid_info), intent(in   ) :: grd
+   character(len=*),    intent(in   ) :: filename
+   integer(i_kind),     intent(  out) :: iret
+
+   real(r_kind),dimension(grd%lat2,grd%lon2) :: g_z,g_ps
+   real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: &
+                g_u,g_v,g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
+
+   real(r_kind),dimension(:,:,:,:),allocatable:: work_grd,work_sub
+   integer(i_kind) :: count,lunges
+   integer(i_kind) :: i,j,k,im,jm,km
+   integer(mpi_offset_kind) :: offset
+ 
+   ! Assume all goes well
+   iret = 0
+
+   im=grd%lat2
+   jm=grd%lon2
+   km=grd%nsig
+
+   allocate(work_grd(grd%inner_vars,grd%nlat,grd%nlon,grd%kbegin_loc:grd%kend_alloc))
+
+   call mpi_file_open(mpi_comm_world,trim(adjustl(filename)), &
+                      mpi_mode_rdonly,mpi_info_null,lunges,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_OPEN failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   count  = grd%nlat * grd%nlon *  grd%nlevs_alloc
+   offset = grd%nlat * grd%nlon * (grd%kbegin_loc-1) * r_kind
+   call mpi_file_read_at(lunges,offset,work_grd,count,mpi_rtype,mpi_status_ignore,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   call mpi_file_close(lunges,ierror)
+   if ( ierror /= 0 ) then
+      write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_CLOSE failed on task = ', mype, ' ierror = ', ierror
+      iret = ierror
+      goto 1000
+   endif
+
+   allocate(work_sub(grd%inner_vars,im,jm,grd%num_fields))
+
+   call general_grid2sub(grd,work_grd,work_sub)
+
+   deallocate(work_grd)
+
+   !$omp parallel do schedule(dynamic,1) private(k,j,i)
+   do k = 1,km
+      do j = 1,jm
+         do i = 1,im
+         g_u(   i,j,k) = work_sub(1,i,j,k+0*km)
+         g_v(   i,j,k) = work_sub(1,i,j,k+1*km)
+         g_tv(  i,j,k) = work_sub(1,i,j,k+2*km)
+         g_q(   i,j,k) = work_sub(1,i,j,k+3*km)
+         g_oz(  i,j,k) = work_sub(1,i,j,k+4*km)
+         g_cwmr(i,j,k) = work_sub(1,i,j,k+5*km)
+         enddo
+      enddo
+   enddo
+
+   g_vor = zero
+   g_div = zero
+
+   !$omp parallel do schedule(dynamic,1) private(j,i)
+   do j = 1,jm
+      do i = 1,im
+         g_ps(i,j) = work_sub(1,i,j,grd%num_fields-1)
+         g_z( i,j) = work_sub(1,i,j,grd%num_fields  )
+      enddo
+   enddo
+
+   deallocate(work_sub)
+
+   return
+
+1000 continue
+
+   write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
+              trim(filename),' IRET=',iret
+   return
+
+end subroutine preproc_read_gfsatm
