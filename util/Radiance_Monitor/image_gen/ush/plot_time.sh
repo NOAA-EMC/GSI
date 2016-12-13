@@ -63,6 +63,7 @@ echo ctldir = $ctldir
 # of radmon.YYYYMMDD directories under $TANKDIR.
 
 for type in ${SATYPE2}; do
+   
    $NCP $ctldir/${type}.ctl* ./
    if [[ -s ./${type}.ctl.${Z} ]]; then
       ${UNCOMPRESS} ./${type}.ctl.${Z}
@@ -75,12 +76,29 @@ for type in ${SATYPE2}; do
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
-      day=`echo $cdate | cut -c1-8 `
+
+      if [[ $REGIONAL_RR -eq 1 ]]; then
+         tdate=`$NDATE +6 $cdate`
+         day=`echo $tdate | cut -c1-8 `
+         hh=`echo $cdate | cut -c9-10`
+         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
+      else 
+         day=`echo $cdate | cut -c1-8 `
+      fi
 
       if [[ -d ${TANKDIR}/radmon.${day} ]]; then
-         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+         if [[ $REGIONAL_RR -eq 1 ]]; then
+            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
+         else
+            test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+         fi
+
          if [[ $USE_ANL = 1 ]]; then
-            test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
+            if [[ $REGIONAL_RR -eq 1 ]]; then
+               test_file2=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
+            else
+               test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
+            fi
          else
             test_file2=
          fi
@@ -98,54 +116,54 @@ for type in ${SATYPE2}; do
          fi
       fi
 
-      adate=`$NDATE +6 $cdate`
+      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
       cdate=$adate
    done
+
    ${UNCOMPRESS} ./*.ieee_d.${Z}
 
-   if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
-     for var in ${PTYPE}; do
-     echo $var
-        if [ "$var" =  'count' ]; then 
+   if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
+      for var in ${PTYPE}; do
+         echo $var
+         if [ "$var" =  'count' ]; then 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-        elif [ "$var" =  'penalty' ]; then
+         elif [ "$var" =  'penalty' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-        else
+         else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${IG_GSCRIPTS}/${plot_time_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
-        fi
+         fi
 
-        echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
-        $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+         echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
+         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 
-     done 
+      done 
    fi
 
-   #  This restriction is in place because the regional html doesn't yet
-   #  use the interactive plotting by default.  That is next on the todo list.
-   #  All global sources and nrx (operatioal ndas)  are supported though.
-   if [[ ${RAD_AREA} = "glb" || ${RADMON_SUFFIX} = "nrx" ]]; then
-      $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
-      ./nu_plot_time.sh ${type}
-#     rm -f nu_plot_time.sh
-   fi
+   #------------------------------------------
+   #  nu_plot_time.sh creates the data files used by the html/js files
+   #    for interactive chart generation.
+   #
+   $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
+   ./nu_plot_time.sh ${type}
+   rm -f nu_plot_time.sh
 
 done
 
-rm -f ${type}.ieee_d
-rm -f ${type}.${PDATE}.ieee_d
-#   rm -f ${type}.ctl
+#rm -f ${type}.ieee_d
+#rm -f ${type}.${PDATE}.ieee_d
+##   rm -f ${type}.ctl
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
@@ -154,7 +172,7 @@ rm -f ${type}.${PDATE}.ieee_d
 if [[ ! -d ${IMGNDIR}/time ]]; then
    mkdir -p ${IMGNDIR}/time
 fi
-if [[ ${RAD_AREA} = "rgn" || $PLOT_STATIC_IMGS -eq 1 ]]; then
+if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
    cp -f *.png  ${IMGNDIR}/time
 fi
 

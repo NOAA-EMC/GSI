@@ -30,9 +30,10 @@ subroutine get_gefs_ensperts_dualres
 !   2014-11-30  todling - partially generalized to handle any control vector
 !                         (GFS hook needs further attention)
 !                       - avoid alloc GFS workscape when not GFS
-!   2014-12-03  derber - Simplify code and optimize routine - turn off reading
-!                        of vort/div and surface height since not needed
-!   2014-12-05  zhu    - set lower bound for cwmr
+!   2014-12-03  derber  - Simplify code and optimize routine - turn off reading
+!                         of vort/div and surface height since not needed
+!   2014-12-05  zhu     - set lower bound for cwmr
+!   2016-07-01  mahajan - use GSI ensemble coupler
 !
 !   input argument list:
 !
@@ -45,16 +46,15 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5,use_gfs_nemsio,regional
-  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
   use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
-  use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta_s0,q_hyb_ens
-  use hybrid_ensemble_parameters, only: beta_s,beta_e,ensemble_path
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,q_hyb_ens
+  use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
-  use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_bundle
@@ -66,12 +66,8 @@ subroutine get_gefs_ensperts_dualres
   implicit none
 
   real(r_kind),pointer,dimension(:,:)   :: ps
-  real(r_kind),pointer,dimension(:,:,:) :: u
-  real(r_kind),pointer,dimension(:,:,:) :: v
   real(r_kind),pointer,dimension(:,:,:) :: tv
   real(r_kind),pointer,dimension(:,:,:) :: q
-  real(r_kind),pointer,dimension(:,:,:) :: oz
-  real(r_kind),pointer,dimension(:,:,:) :: cwmr
 ! real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_kind),pointer,dimension(:,:,:):: p3
   real(r_kind),pointer,dimension(:,:):: p2
@@ -85,8 +81,6 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:):: z,sst2
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri,qs
-  real(r_single),allocatable,dimension(:,:):: scr2
-  real(r_single),allocatable,dimension(:,:,:):: scr3
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m,ipic
@@ -94,10 +88,8 @@ subroutine get_gefs_ensperts_dualres
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl
-  character(70) filename
-  logical ice,zflag,inithead
-  integer(i_kind) :: lunges=11
-  type(sub2grid_info) :: grd_t
+  logical ice
+  type(sub2grid_info) :: grd_tmp
 
 ! Create perturbations grid and get variable names from perturbations
   if(en_perts(1,1)%grid%im/=grd_ens%lat2.or. &
@@ -130,17 +122,17 @@ subroutine get_gefs_ensperts_dualres
   jm=en_perts(1,1)%grid%jm
   km=en_perts(1,1)%grid%km
 
+  ! Create temporary communication information for read ensemble routines
   if (use_gfs_ens) then
      inner_vars=1
      num_fields=min(6*km+1,npe)
-!    Create temporary communication information fore read routines
-     call general_sub2grid_create_info(grd_t,inner_vars,grd_ens%nlat,grd_ens%nlon, &
-               km,num_fields,regional)
-     zflag=.false.
+     call general_sub2grid_create_info(grd_tmp,inner_vars,grd_ens%nlat,grd_ens%nlon, &
+          km,num_fields,regional)
+  else
+     grd_tmp = grd_ens
   endif
 
-
-! Allocate bundle to hold mean of ensemble members
+  ! Allocate bundle to hold mean of ensemble members
   allocate(en_bar(ntlevs_ens))
   do m=1,ntlevs_ens
      call gsi_bundlecreate(en_bar(m),en_perts(1,1)%grid,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d)
@@ -159,95 +151,25 @@ subroutine get_gefs_ensperts_dualres
 
   allocate(z(im,jm))
   allocate(sst2(im,jm))
-  if (enspreproc) then
-     allocate(scr2(im,jm))
-     allocate(scr3(im,jm,km))
-  end if
 
   sst2=zero        !    for now, sst not used in ensemble perturbations, so if sst array is called for
                    !      then sst part of en_perts will be zero when sst2=zero
 
-  inithead = .true.
   do m=1,ntlevs_ens
      en_bar(m)%values=zero
      do n=1,n_ens
 
        en_perts(n,m)%valuesr4=zero
-       iret=0
-       if (enspreproc) then
-          ! read pre-processed ensemble data (one file for each bin that has all
-          ! the ensemble members for a subdomain).
-          call gsi_bundlegetpointer(en_read,'ps',ps,ier);istatus=ier
-          call gsi_bundlegetpointer(en_read,'sf',u ,ier);istatus=istatus+ier
-          call gsi_bundlegetpointer(en_read,'vp',v ,ier);istatus=istatus+ier
-          call gsi_bundlegetpointer(en_read,'t' ,tv,ier);istatus=istatus+ier
-          call gsi_bundlegetpointer(en_read,'q' ,q ,ier);istatus=istatus+ier
-          call gsi_bundlegetpointer(en_read,'oz',oz,ier);istatus=istatus+ier
-          call gsi_bundlegetpointer(en_read,'cw',cwmr,ier);istatus=istatus+ier
-          if (istatus/=0) then
-              if (mype==0) then
-                 write(6,*) 'get_gefs_ensperts_dualres: ERROR'
-                 write(6,*) 'For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
-                 write(6,*) 'but some have not been found. Aborting ... '
-              endif
-              call stop2(999)
-          endif
-          if(l4densvar) then
-             write(filename,103) trim(ensemble_path), n, ens4d_fhrlevs(m), mype
- 103         format(a,'ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
-          else
-             write(filename,103) trim(ensemble_path), n, 6, mype
-          end if
-          if (mype==npe)write(6,*) 'READ PRE-PROCESSED ENS FILE: ',trim(filename)
-          open(lunges,file=filename,form='unformatted',iostat=iret)
-          if (iret /= 0) go to 104
-          read(lunges,err=104) scr2; ps = scr2
-          read(lunges,err=104) scr2; z = scr2
-          read(lunges,err=104) scr3; u = scr3
-          read(lunges,err=104) scr3; v = scr3
-          read(lunges,err=104) scr3; tv = scr3
-          read(lunges,err=104) scr3; q = scr3
-          read(lunges,err=104) scr3; oz = scr3
-          read(lunges,err=104) scr3; cwmr = scr3
-          close(lunges)
-          go to 105
- 104      continue
-          iret = -1
-          beta_s0=one
-          if (mype==npe) &
-             write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta_s0=',beta_s0
-          cycle
- 105      continue
-       else
-          ! read from spectral file on root task, broadcast to other tasks.
-          if (l4densvar) then
-             write(filename,106) trim(ensemble_path), ens4d_fhrlevs(m), n
- 106         format(a,'sigf',i2.2,'_ens_mem',i3.3)
-          else
-             write(filename,106) trim(ensemble_path), 6, n
-          endif
-          if (use_gfs_ens) then
-             if (mype==npe)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
-             if(use_gfs_nemsio) then
-                call general_read_gfsatm_nems(grd_t,sp_ens,filename,mype,uv_hyb_ens,.false., &
-                    zflag,en_read,.true.,iret)
-             else
-                call general_read_gfsatm(grd_t,sp_ens,sp_ens,filename,mype,uv_hyb_ens,.false., &
-                    zflag,en_read,inithead,iret)
-             end if
-             inithead=.false.
-          else
-             call gsi_enscoupler_get_user_ens(grd_ens,n,m,en_read,iret)
-          endif
-       endif
+       
+       call gsi_enscoupler_get_user_ens(grd_tmp,n,m,en_read,iret)
 
-! Check read return code.  Revert to static B if read error detected
-       if (iret/=0) then
+       ! Check read return code.  Revert to static B if read error detected
+       if ( iret /= 0 ) then
           beta_s0=one
           beta_s=one
           beta_e=zero
-          if (mype==npe) &
-               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta_s0=',beta_s0
+          if ( mype == npe ) &
+             write(6,'(A,I4,A,F2.1)')'***WARNING*** ERROR READING ENS FILE, iret = ',iret,' RESET beta_s0 = ',beta_s0
           cycle
        endif
 
@@ -398,27 +320,22 @@ subroutine get_gefs_ensperts_dualres
        end do
     end do ! end do over ensemble
   end do !end do over bins
-  if (enspreproc) then
-     deallocate(scr3)
-     deallocate(scr2)
-  endif
 
-  if (use_gfs_ens) then
-     call general_sub2grid_destroy_info(grd_t)
-  end if
+  call general_sub2grid_destroy_info(grd_tmp)
+
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p 
 ! Convert to mean
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
-!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic)
+!$omp parallel do schedule(dynamic,1) private(i,j,k,n,m,ic2,ic3,ipic,x2)
   do m=1,ntlevs_ens
      do i=1,nelen
         en_bar(m)%values(i)=en_bar(m)%values(i)*bar_norm
      end do
 
 ! Before converting to perturbations, get ensemble spread
-     if (m == 1 .and. write_ens_sprd .and. .not.l4densvar)  call ens_spread_dualres(en_bar(1),1,mype)
+     if (m == 1 .and. write_ens_sprd )  call ens_spread_dualres(en_bar(1),1)
 
 
      if(s_ens_v <= zero)then
@@ -470,7 +387,7 @@ subroutine get_gefs_ensperts_dualres
 !
 !! This will get full 2d nlat x nlon sst field
 !    if(mype==0)write(6,*) 'CALL READ_GFSSFC FOR ENS FILE : ',filename
-!    call read_gfssfc(filename,mype,&
+!    call read_gfssfc(filename,&
 !         dum,sst_full,dum, &
 !         dum,dum,dum,dum,dum,idum,dum,dum)
 !
@@ -518,7 +435,7 @@ subroutine get_gefs_ensperts_dualres
   return
 end subroutine get_gefs_ensperts_dualres
 
-subroutine ens_spread_dualres(en_bar,ibin,mype)
+subroutine ens_spread_dualres(en_bar,ibin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ens_spread_dualres  output ensemble spread for diagnostics
@@ -536,7 +453,6 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
 !
 !   input argument list:
 !     en_bar - ensemble mean
-!      mype  - current processor number
 !
 !   output argument list:
 !
@@ -545,9 +461,10 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use mpimod, only: mype
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use hybrid_ensemble_parameters, only: en_perts,nelen
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,two,half,one
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -560,7 +477,7 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
   implicit none
 
   type(gsi_bundle),intent(in):: en_bar
-  integer(i_kind),intent(in):: mype,ibin
+  integer(i_kind),intent(in):: ibin
 
   type(gsi_bundle):: sube,suba
   type(gsi_grid):: grid_ens,grid_anl
@@ -672,13 +589,13 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
      ps => dum2
   end if
 
-  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps)
 
   return
 end subroutine ens_spread_dualres
 
 
-subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
+subroutine write_spread_dualres(a,b,c,d,e,f,g2in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_spread_dualres   write ensemble spread for diagnostics
@@ -700,7 +617,6 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 !     e    -  spread variable 5
 !     f    -  spread variable 6
 !     g    -  spread variable 7
-!     mype -  current processor number
 !
 !   output argument list:
 !
@@ -709,12 +625,12 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use mpimod, only: mype
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_anl
   use constants, only: zero
   implicit none
 
-  integer(i_kind),intent(in):: mype
   character(255):: grdfile
 
   real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),intent(in):: a,b,c,d,e,f
