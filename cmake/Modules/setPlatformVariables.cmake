@@ -108,9 +108,6 @@ function (setS4)
   else()
     set(WRFPATH $ENV{WRFPATH} PARENT_SCOPE )
   endif()
-
-  set(GSI_Fortran_FLAGS "-fp-model strict -xHOST -assume byterecl -free  -traceback  -DWRF -D_REAL8_ -openmp" PARENT_SCOPE)
-
   if( NOT DEFINED ENV{NETCDF_VER} )
     set(NETCDF_VER "4.3.3" PARENT_SCOPE)
   endif()
