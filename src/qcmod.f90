@@ -1658,14 +1658,11 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
 !    rain qc
      if( kraintype /= 0 ) then
         efact=zero; vfact=zero
-        if(luse) then
-           aivals(8) = aivals(8) + one
-
-           do i=1,nchanl
-              varinv(i)=zero
-              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_saphir_qc
-           end do
-        end if
+        if(luse) aivals(8) = aivals(8) + one
+        do i=1,nchanl
+           varinv(i)=zero
+           if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_saphir_qc
+        end do
      end if
 
 !    Use data not over over sea

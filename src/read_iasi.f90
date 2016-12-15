@@ -367,13 +367,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Make thinning grids
   call makegrids(rmesh,ithin)
 
-! Open BUFR file
-  open(lnbufr,file=trim(infile),form='unformatted')
-
-! Open BUFR table
-  call openbf(lnbufr,'IN',lnbufr)
-  call datelen(10)
-
 ! Allocate arrays to hold data
 ! The number of channels in obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
@@ -403,7 +396,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Open BUFR file
      call closbf(lnbufr)
-     open(lnbufr,file=trim(infile2),form='unformatted',iostat=ierr)
+     open(lnbufr,file=trim(infile2),form='unformatted',status='old',iostat=ierr)
 
      if(ierr /= 0) cycle ears_db_loop
 !    Open BUFR table
