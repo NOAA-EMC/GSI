@@ -21,6 +21,7 @@ subroutine get_gefs_for_regional
 !   2015-09-20  s.liu   - use general sub2grid in grads1a
 !   2016-05-19  Carley/s.liu   - prevent the GSI from printing out erroneous error  
 !                               when using ensembles from different time
+!   2016-12-12  tong    - add code to get nemsio meta data, if use_gfs_nemsio=True
 !
 !   input argument list:
 !
@@ -46,7 +47,7 @@ subroutine get_gefs_for_regional
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
-  use constants,only: zero,half,fv,rd_over_cp,one,h300
+  use constants,only: zero,half,fv,rd_over_cp,one,h300,r60,r3600
   use constants, only: rd,grav
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
   use kinds, only: r_kind,i_kind,r_single
@@ -71,6 +72,10 @@ subroutine get_gefs_for_regional
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
+  use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
+  use ncepnems_io, only: error_msg
+  use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
+
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -121,6 +126,17 @@ subroutine get_gefs_for_regional
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
   integer(i_kind) istatus
+  character(len=120) :: my_name = 'GET_GEFS_FOR_REGIONAL'
+  integer(i_kind) :: latb, lonb, levs, nframe
+  integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+  integer(i_kind) :: njcap, idvc, idsl
+  integer(i_kind) :: istop = 101
+  integer(i_kind),dimension(7):: idate
+  real(r_kind) :: fhour
+  type(nemsio_gfile) :: gfile
+  integer(i_kind) :: nvcoord
+  real(r_single),allocatable:: nems_vcoord(:,:,:)
+  real(r_single),allocatable:: vcoord(:,:)
   real(r_kind) rdog,h,dz
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
   logical add_bias_perturbation,inithead
@@ -202,27 +218,100 @@ subroutine get_gefs_for_regional
 
   rewind (10) 
   read(10,'(a)',err=20,end=20)filename 
-  open(lunges,file=trim(filename),form='unformatted')
-  call sigio_srhead(lunges,sighead,iret)
-  close(lunges)
-  if(mype == 0) then
-     write(6,*) ' sighead%fhour,sighead%idate=',sighead%fhour,sighead%idate
-     write(6,*) ' iadate(y,m,d,hr,min)=',iadate
-     write(6,*) ' sighead%jcap,sighead%levs=',sighead%jcap,sighead%levs
-     write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
-     write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
-     write(6,*) ' sighead%idsl=',sighead%idsl
-     do k=1,sighead%levs+1
-        write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
-     end do
-  end if
+  if(.not. use_gfs_nemsio)then
+     open(lunges,file=trim(filename),form='unformatted')
+     call sigio_srhead(lunges,sighead,iret)
+     close(lunges)
+     if(mype == 0) then
+        write(6,*) ' sighead%fhour,sighead%idate=',sighead%fhour,sighead%idate
+        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+        write(6,*) ' sighead%jcap,sighead%levs=',sighead%jcap,sighead%levs
+        write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
+        write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
+        write(6,*) ' sighead%idsl=',sighead%idsl
+        do k=1,sighead%levs+1
+           write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
+        end do
+     end if
 
+     nlat_gfs=sighead%latf+2
+     nlon_gfs=sighead%lonf
+     nsig_gfs=sighead%levs
+     jcap_gfs=sighead%jcap
+     idvc=sighead%idvc
+     idsl=sighead%idsl
 ! Extract header information
-  hourg    = sighead%fhour
-  idate4(1)= sighead%idate(1)
-  idate4(2)= sighead%idate(2)
-  idate4(3)= sighead%idate(3)
-  idate4(4)= sighead%idate(4)
+     hourg    = sighead%fhour
+     idate4(1)= sighead%idate(1)
+     idate4(2)= sighead%idate(2)
+     idate4(3)= sighead%idate(3)
+     idate4(4)= sighead%idate(4)
+  else
+     call nemsio_init(iret=iret)
+     if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','init',istop,iret)
+
+     call nemsio_open(gfile,filename,'READ',iret=iret)
+     if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','open',istop,iret)
+
+     call nemsio_getfilehead(gfile,iret=iret,nframe=nframe, &
+          nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
+          idate=idate,dimx=lonb,dimy=latb,dimz=levs,jcap=njcap,idvc=idvc,idsl=idsl)
+
+     if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
+                                     'getfilehead',istop,nframe)
+
+     fhour = float(nfhour) + float(nfminute)/r60 + &
+             float(nfsecondn)/float(nfsecondd)/r3600
+
+     nlat_gfs=latb+2
+     nlon_gfs=lonb
+     nsig_gfs=levs
+     jcap_gfs=njcap
+
+     allocate(nems_vcoord(levs+1,3,2))
+     call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)
+     if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),' ', &
+                                     'getfilehead',istop,iret)
+
+!    Determine the type of vertical coordinate used by model because that
+!    gfshead%nvcoord is no longer part of NEMSIO header output.
+     nvcoord=3
+     if(maxval(nems_vcoord(:,3,1))==zero .and. &
+        minval(nems_vcoord(:,3,1))==zero ) then
+        nvcoord=2
+        if(maxval(nems_vcoord(:,2,1))==zero .and. &
+           minval(nems_vcoord(:,2,1))==zero ) then
+           nvcoord=1
+        end if
+     end if
+
+     allocate(vcoord(levs+1,nvcoord))
+     vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
+     deallocate(nems_vcoord)
+
+     call nemsio_close(gfile,iret=iret)
+     if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),' ', &
+                                     'close',istop,iret)
+
+     hourg = fhour
+     idate4(1) = idate(4)  !hour
+     idate4(2) = idate(2)  !month
+     idate4(3) = idate(3)  !day
+     idate4(4) = idate(1)  !year
+
+     if(mype == 0) then
+        write(6,*) ' nemsio: fhour,idate=',fhour,idate
+        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+        write(6,*) ' nemsio: jcap,levs=',njcap,levs
+        write(6,*) ' nemsio: latb,lonb=',latb,lonb
+        write(6,*) ' nemsio: idvc,nvcoord=',idvc,nvcoord
+        write(6,*) ' nemsio: idsl=',idsl
+        do k=1,levs+1
+           write(6,*)' k,vcoord=',k,vcoord(k,:)
+        end do
+     end if
+
+  end if
 
 ! Compute valid time from ensemble date and forecast length and compare to iadate, the analysis time
   iyr=idate4(4)
@@ -265,44 +354,70 @@ subroutine get_gefs_for_regional
 
 !         set up ak5,bk5,ck5 for use in computing 3d pressure field (needed for vertical interp to regional)
 !                            following is code segment from gesinfo.F90
-  allocate(ak5(sighead%levs+1))
-  allocate(bk5(sighead%levs+1))
-  allocate(ck5(sighead%levs+1))
-  allocate(tref5(sighead%levs))
-  do k=1,sighead%levs+1
+  allocate(ak5(nsig_gfs+1))
+  allocate(bk5(nsig_gfs+1))
+  allocate(ck5(nsig_gfs+1))
+  allocate(tref5(nsig_gfs))
+  do k=1,nsig_gfs+1
      ak5(k)=zero
      bk5(k)=zero
      ck5(k)=zero
   end do
-  if (sighead%nvcoord == 1) then
-     do k=1,sighead%levs+1
-        bk5(k) = sighead%vcoord(k,1)
-     end do
-  elseif (sighead%nvcoord == 2) then
-     do k = 1,sighead%levs+1
-        ak5(k) = sighead%vcoord(k,1)*zero_001
-        bk5(k) = sighead%vcoord(k,2)
-     end do
-  elseif (sighead%nvcoord == 3) then
-     do k = 1,sighead%levs+1
-        ak5(k) = sighead%vcoord(k,1)*zero_001
-        bk5(k) = sighead%vcoord(k,2)
-        ck5(k) = sighead%vcoord(k,3)*zero_001
-     end do
+  if (.not. use_gfs_nemsio) then
+     if (sighead%nvcoord == 1) then
+        do k=1,sighead%levs+1
+           bk5(k) = sighead%vcoord(k,1)
+        end do
+     elseif (sighead%nvcoord == 2) then
+        do k = 1,sighead%levs+1
+           ak5(k) = sighead%vcoord(k,1)*zero_001
+           bk5(k) = sighead%vcoord(k,2)
+        end do
+     elseif (sighead%nvcoord == 3) then
+        do k = 1,sighead%levs+1
+           ak5(k) = sighead%vcoord(k,1)*zero_001
+           bk5(k) = sighead%vcoord(k,2)
+           ck5(k) = sighead%vcoord(k,3)*zero_001
+        end do
+     else
+        write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
+        call stop2(85)
+     endif
   else
-     write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
-     call stop2(85)
-  endif
+     if (nvcoord == 1) then
+        do k=1,nsig_gfs+1
+           bk5(k) = vcoord(k,1)
+        end do
+     elseif (nvcoord == 2) then
+        do k = 1,nsig_gfs+1
+           ak5(k) = vcoord(k,1)*zero_001
+           bk5(k) = vcoord(k,2)
+        end do
+     elseif (nvcoord == 3) then
+        do k = 1,nsig_gfs+1
+           ak5(k) = vcoord(k,1)*zero_001
+           bk5(k) = vcoord(k,2)
+           ck5(k) = vcoord(k,3)*zero_001
+        end do
+     else
+        write(6,*)'GET_GEFS_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',nvcoord
+        call stop2(85)
+     endif
+  end if
+
+  if(mype == 0)then
+     do k=1,nsig_gfs+1
+        write(6,*)' ak5,bk5,ck5=',ak5(k),bk5(k),ck5(k)
+     end do
+  end if
+
 ! Load reference temperature array (used by general coordinate)
-  do k=1,sighead%levs
+  do k=1,nsig_gfs
      tref5(k)=h300
   end do
 
 
   inner_vars=1
-  nlat_gfs=sighead%latf+2
-  nlon_gfs=sighead%lonf
-  nsig_gfs=sighead%levs
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
@@ -314,7 +429,6 @@ subroutine get_gefs_for_regional
                                   .not.regional)
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
-  jcap_gfs=sighead%jcap
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
 
@@ -437,7 +551,7 @@ subroutine get_gefs_for_regional
            pri(i,j,k2)=zero
         end do
      end do
-     if (sighead%idvc /= 3) then
+     if (idvc /= 3) then
         do k=2,grd_mix%nsig
            do j=1,grd_mix%lon2
               do i=1,grd_mix%lat2
@@ -762,7 +876,7 @@ subroutine get_gefs_for_regional
         pri(i,j,k2)=zero
      end do
   end do
-  if (sighead%idvc /= 3) then
+  if (idvc /= 3) then
      do k=2,grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
@@ -783,7 +897,7 @@ subroutine get_gefs_for_regional
 
 ! Get 3d pressure field now at layer midpoints
   allocate(prsl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-  if (sighead%idsl/=2) then
+  if (idsl/=2) then
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
            do k=1,grd_mix%nsig
