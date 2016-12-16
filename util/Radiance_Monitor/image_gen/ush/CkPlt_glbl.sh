@@ -314,7 +314,8 @@ if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
    logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
   
    if [[ -s $logfile ]]; then
-      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+      ${IG_SCRIPTS}/ck_missing_diags.sh ${PDATE} ${TANKDIR}
+      ${IG_SCRIPTS}/extract_err_rpts.sh ${sdate} ${CYA} ${logfile}
    fi
 fi
 
