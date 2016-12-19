@@ -5,7 +5,6 @@ proc ModulesHelp { } {
 
 module-whatis "Set environment variables for THEIA radmon build"
 
-set ver 2.0.2
 set FCOMP ifort
 
 setenv CF $FCOMP
