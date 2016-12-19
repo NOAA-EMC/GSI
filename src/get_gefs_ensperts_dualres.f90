@@ -169,7 +169,7 @@ subroutine get_gefs_ensperts_dualres
           beta_s=one
           beta_e=zero
           if ( mype == npe ) &
-             write(6,'(A,I4,A,F2.1)')'***WARNING*** ERROR READING ENS FILE, iret = ',iret,' RESET beta_s0 = ',beta_s0
+             write(6,'(A,I4,A,F6.3)')'***WARNING*** ERROR READING ENS FILE, iret = ',iret,' RESET beta_s0 = ',beta_s0
           cycle
        endif
 
