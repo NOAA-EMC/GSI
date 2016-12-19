@@ -2551,7 +2551,7 @@ subroutine sqrt_beta_s_mult_cvec(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_s_mult_cvec'
-  integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
+  integer(i_kind) :: i,j,k,ii,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
 
   ! Initialize timer
@@ -2641,7 +2641,7 @@ subroutine sqrt_beta_s_mult_bundle(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_s_mult_bundle'
-  integer(i_kind) :: i,j,k,nn,ic2,ic3,istatus
+  integer(i_kind) :: i,j,k,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
 
   ! Initialize timer
@@ -2727,8 +2727,7 @@ subroutine sqrt_beta_e_mult_cvec(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_e_mult'
-  integer(i_kind) :: i,j,k,ii,nn,ic2,ic3,istatus
-  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  integer(i_kind) :: i,j,k,ii,nn
 
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
@@ -2792,8 +2791,7 @@ subroutine sqrt_beta_e_mult_bundle(aens)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_e_mult'
-  integer(i_kind) :: i,j,k,nn,ic2,ic3,istatus
-  integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  integer(i_kind) :: i,j,k,nn
 
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
@@ -5039,12 +5037,9 @@ subroutine setup_pwgt
    implicit none
 
    character(len=*),parameter :: myname='setup_pwgt::'
-   integer(i_kind) :: i,j,k,istatus
-   integer(i_kind) :: msig,mlat
-   integer(i_kind) :: lunit
+   integer(i_kind) :: i,j,k
    real(r_kind) :: tmp_sum
    real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
-   character(len=128) :: pscon_stats
 
 !!!!!!!!!!! setup pwgt !!!!!!!!!!!!!!!!!!!!!
 ! weigh with balanced projection for pressure
@@ -5083,7 +5078,7 @@ subroutine setup_pwgt
       else ! if ( regional )
 
          if ( mype == 0 ) then
-            write(6,*) 'SETUP_PWGT: routine not built to load pwgts for global application'
+            write(6,*) 'SETUP_PWGT: routine not built to load pwgt for global application'
             write(6,*) 'SETUP_PWGT: using defaults instead'
          endif
 
