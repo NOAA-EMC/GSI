@@ -164,9 +164,11 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
      fi
 
      if [[ ${MY_MACHINE} = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
+             -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
      else	# cray
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} -J ${jobname} $cmdfile
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
+             -J ${jobname} -cwd ${PWD} $cmdfile
      fi
   else				# Zeus/theia platform
      for sat in ${SATLIST}; do
@@ -186,7 +188,8 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
            wall_tm="2:30:00"
         fi
 
-        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} ${cmdfile}
+        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+             -V -j oe -o ${logfile} ${cmdfile}
      done
   fi
 
@@ -238,9 +241,11 @@ for sat in ${bigSATLIST}; do
 #         fi
 
          if [[ $MY_MACHINE = "wcoss" ]]; then
-            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
+                 -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
          else
-            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} -J ${jobname} $cmdfile
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
+                 -J ${jobname} -cwd ${PWD} $cmdfile
          fi
 
          (( batch=batch+1 ))
@@ -273,7 +278,8 @@ for sat in ${bigSATLIST}; do
             wall_tm="2:30:00"
          fi
 
-         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} ${cmdfile}
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+              -V -j oe -o ${logfile} ${cmdfile}
 
          (( ii=ii+1 ))
       done

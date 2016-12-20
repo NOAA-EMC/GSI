@@ -3,21 +3,21 @@ set -ax
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
-#  install_glb.sh
+#  install_rgn.sh
 #
 #  Given a suffix and a global/regional flag as inputs, build the
 #  html necessary for a radiance monitor web site and tranfer it to
-#  the server (glb only, regional is handled by Install_html.sh).
+#  the server (rgn only, regional is handled by Install_html.sh).
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  install_glb.sh suffix"
+  echo "Usage:  install_rgn.sh suffix"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
 }
 
-echo "BEGIN install_glb.sh"
+echo "BEGIN install_rgn.sh"
 echo ""
 
 nargs=$#
@@ -28,7 +28,7 @@ fi
 
 SUFFIX=$1
 echo SUFFIX = $SUFFIX
-RAD_AREA="glb"
+RAD_AREA="rgn"
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -61,7 +61,7 @@ fi
 #
 
 new_webdir=${WEBDIR}/${SUFFIX}
-. ${RADMON_IMAGE_GEN}/parm/glbl_conf
+. ${RADMON_IMAGE_GEN}/parm/rgnl_conf
 
 echo RAD_AREA = $RAD_AREA
 echo TANKverf = $TANKverf
@@ -94,27 +94,36 @@ echo limit, PDATE = $limit, $PDATE
 #-----------------------------------------------------------
 #  Build test_list which will contain all data files for
 #  one cycle in $PDATE. 
+#
+#  Note:  with the new nam (rapid refresh) the data file name has changed
+#         from this:
+#              angle.[sat_name].[cycle].ieee_d.gz  
+#         to this:
+#              t[cc]z.angle.[sat_name].[cycle].ieee_d.tm[HH].gz
+#
+#         so to cope we'll have to build a list and step through file names 
+#         until we find "angle" then take the next field to get the sat names.
 
 data_found=0
 while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
    PDY=`echo $PDATE|cut -c1-8`
 
    if [[ -d $TANKverf/radmon.${PDY} ]]; then
-      test00=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
-      test06=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
-      test12=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
-      test18=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
+      test00=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}00*.ieee_d* | wc -l`
+      test06=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}06*.ieee_d* | wc -l`
+      test12=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}12*.ieee_d* | wc -l`
+      test18=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}18*.ieee_d* | wc -l`
       if [[ $test00 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
+         test_list=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}00*.ieee_d*`
          data_found=1
       elif [[ $test06 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
+         test_list=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}06*.ieee_d*`
          data_found=1
       elif [[ $test12 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
+         test_list=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}12*.ieee_d*`
          data_found=1
       elif [[ $test18 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
+         test_list=`ls $TANKverf/radmon.${PDY}/*angle.*${PDY}18*.ieee_d*`
          data_found=1
       fi
    fi
@@ -139,9 +148,12 @@ fi
 
 for test in ${test_list}; do
    this_file=`basename $test`
-   tmp=`echo "$this_file" | cut -d. -f1`
-   if [[ $tmp == "angle" ]]; then
+   tmp1=`echo "$this_file" | cut -d. -f1`
+   tmp2=`echo "$this_file" | cut -d. -f2`
+   if [[ $tmp1 == "angle" ]]; then
       tmp=`echo "$this_file" | cut -d. -f2`
+   elif [[ $tmp2 == "angle" ]]; then
+      tmp=`echo "$this_file" | cut -d. -f3`
    fi 
    
    #----------------------------------------------------------   
@@ -155,14 +167,19 @@ for test in ${test_list}; do
    fi
 done
 
-export SATYPE=$SATYPE_LIST
+
+#----------------------------------------------------------   
+#  use sort to remove duplicate entries in SATYPE_LIST
+#----------------------------------------------------------   
+unique_satype=`echo $(printf '%s\n' $SATYPE_LIST | sort -u)`
+export SATYPE=$unique_satype
 
 if [[ ${#SATYPE} -le 0 ]]; then  
   echo "SATYPE list is zero length, unable to complete html installation"
   exit 
 fi
 
-echo $SATYPE
+echo "SATYPE = $SATYPE"
 
 #--------------------------------------------------------------
 #  Use the SATYPE list to construct the platform table.
@@ -224,6 +241,10 @@ done
 #
 `sort -d $UNSORTED_LIST > $SORTED_LIST`
 
+echo
+echo
+cat $SORTED_LIST
+
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
 #
@@ -257,7 +278,7 @@ imgndir=`dirname ${IMGNDIR}`
 #--------------------------------------------------------------
 #  Edit the html files to add the platform table to each.
 #
-mod_html_files="plot_summary.html plot_time.html plot_angle.html plot_bcoef.html"
+mod_html_files="plot_summary.html.rgn plot_time.html.rgn plot_angle.html.rgn plot_bcoef.html.rgn"
 
 for html_file in $mod_html_files; do
    echo "processing ${html_file}"
@@ -277,9 +298,13 @@ for html_file in $mod_html_files; do
 
    rm $html_file
 
+   #  rm the .rgn extension on the html file names
+   new_html_file=`echo $html_file | cut -d'.' -f-2`
+   echo "new_html_file = $new_html_file"
+
    #  switch all 'INSERT_SUFFIX' tags to the actual suffix
-   #  and route output to $html_file and we're done.
-   sed s/INSERT_SUFFIX/${SUFFIX}/g ${tmp_html} > ${html_file}
+   #  and route output to $new_html_file and we're done.
+   sed s/INSERT_SUFFIX/${SUFFIX}/g ${tmp_html} > ${new_html_file}
 
 done
 
@@ -287,66 +312,31 @@ done
 #  Optionally enable comparison plots to the operational
 #    GDAS data
 #
-set +ax
-comp_html_files="plot_summary.html plot_time.html"
+#  THIS remains a global only option at present but I'll leave this in
+#  place so developing a comparison to the operational NDAS is easier
 
-echo "Do you wish to enable data plots to include comparison to"
-echo " operational GDAS data, or another data source?"
-echo ""
-echo -n "  Enter YES to enable comparison plots, any other input to disable.  > "
-read text
-short=`echo $text | cut -c1`
-
-if [[ $short = "Y" || $short = "y" ]]; then
-
-   cmp_src="GDAS"
-
-   echo "Please specify the suffix of your comparison data source,"
-   echo "  or just hit the return key to use the operational GDAS as "
-   echo "  the comparison source"
-   echo ""
-   echo -n " > "
-   read text
-
-   if [[ ${#text} -gt 0 ]]; then
-     cmp_src=${text}
-   fi
-
-   echo "Enabling ${cmp_src} as the comparison source."
-
-   #-------------------------------------------------------------------------
-   #  If cmp_src == GDAS we only have to uncomment the comparison check box
-   #  in the html files.  If it's another source then we'll have to change
-   #  the values of compSrc, compName, and compHome in the html files.
-   #
-
-   for html_file in $comp_html_files; do
-      echo "processing ${html_file}"
-
-      tmp_html=./tmp_${html_file}
-      rm -f ${tmp_html}
-
-      #----------------------------------------------------------------------------
-      # remove the OPTIONAL_COMPARE lines which uncomments the comparison check box
-      sed '/OPTIONAL_COMPARE/d' ./${html_file} > ${tmp_html}
-      mv -f ${tmp_html} ${html_file}
-
-      #---------------------------------------------------------------
-      # if we're using a source other than GDAS make that change here
-      if [[ $cmp_src != "GDAS" ]]; then
-         cmp_sc_line="            var compSrc  = \"${cmp_src}\";"
-         cmp_nm_line="            var compName = \"${cmp_src}\";"
-         cmp_hm_line="            var compHome = \"../${cmp_src}/\";"
-
-         sed -i "/var compSrc /c ${cmp_sc_line}" ${html_file}
-         sed -i "/var compName /c ${cmp_nm_line}" ${html_file}
-         sed -i "/var compHome /c ${cmp_hm_line}" ${html_file}
-      fi
-
-   done
-fi
-
-set -ax
+#set +ax
+#comp_html_files="plot_summary.html plot_time.html"
+#
+#echo "Do you wish to enable data plots to include comparison to operational GDAS data?"
+#echo -n "  Enter YES to enable, any other input to disable.  > "
+#read text
+#short=`echo $text | cut -c1`
+#
+#if [[ $short = "Y" || $short = "y" ]]; then
+#
+#   for html_file in $comp_html_files; do
+#      echo "processing ${html_file}"
+#
+#      tmp_html=./tmp_${html_file}
+#      rm -f ${tmp_html}
+#
+#      sed '/OPTIONAL_COMPARE/d' ./${html_file} > ${tmp_html}
+#      mv -f ${tmp_html} ${html_file}
+#   done
+#fi
+#
+#set -ax
 
 #--------------------------------------------------------------
 # Generate the intro.html file.
@@ -358,48 +348,37 @@ $NCP ${RADMON_IMAGE_GEN}/html/intro.html  intro.html.stock
 
 
 #--------------------------------------------------------------
-#  Copy the menu.html file and change "Experimental" to
-#  "Operational" if the suffix is wopr or nrx (operational GDAS
-#  or NDAS.
-#
-$NCP ${RADMON_IMAGE_GEN}/html/menu.html.$RAD_AREA .
-
-if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
-   tmp_menu=./tmp_menu.html.${RAD_AREA}
-   sed s/Experimental/Operational/1 menu.html.${RAD_AREA} > ${tmp_menu}
-   mv -f ${tmp_menu} menu.html.${RAD_AREA}
-fi
-
-
-#--------------------------------------------------------------
 #  Copy the index.html file and change INSERT_SUFFIX to actual suffix.
 index_file="index.html.$RAD_AREA"
 tmp_index="tmp.index.html"
 new_index="index.html"
 
-$NCP ${RADMON_IMAGE_GEN}/html/${index_file} .
-sed s/INSERT_SUFFIX/${SUFFIX}/g $index_file > ${tmp_index}
+$NCP ${RADMON_IMAGE_GEN}/html/${index_file} ${new_index}
+ 
+sed s/INSERT_SUFFIX/${SUFFIX}/g ${new_index} > ${tmp_index}
 if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
    sed s/Experimental/Operational/1 ${tmp_index} > ${new_index}
 fi
 
-if [[ ! -s ${new_index} ]]; then
-   if [[ -s ${tmp_index} ]]; then
-      $NCP ${tmp_index} ${new_index}
-   else
-      $NCP ${index_file} ${new_index}
-   fi
+#if [[ ! -s ${new_index} ]]; then
+#   if [[ -s ${tmp_index} ]]; then
+#      $NCP ${tmp_index} ${new_index}
+#   else
+#      $NCP ${index_file} ${new_index}
+#   fi
+#fi
+
+if [[ -s ${tmp_index} ]]; then
+   rm ${tmp_index}
 fi
-
-support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
-
+if [[ -s ${index_file} ]]; then
+   rm ${index_file}
+fi
 
 #--------------------------------------------------------------
 #  Make starting directory in $imgndir and copy over html, 
 #  misc, and thumb images.
 #
-subdirs="angle bcoef bcor comp horiz summary time"
-subdirs="summary"
 
 if [[ ! -d ${IMGNDIR} ]]; then
    mkdir -p ${IMGNDIR}
@@ -409,7 +388,7 @@ imgndir=`dirname ${IMGNDIR}`
 #-----------------------
 #  move html files to imgndir
 #
-all_html_files="${mod_html_files} index.html menu.html intro.html"
+all_html_files=`ls *.html`
 for file in $all_html_files; do
    $NCP ${file} ${imgndir}/${file}
 done
@@ -417,13 +396,15 @@ done
 #-----------------------
 #  mk image dirs 
 #
+subdirs="angle bcoef summary time"
 for dir in $subdirs; do
    mkdir -p ${imgndir}/pngs/${dir}
 done
 
 #-----------------------
-#  js files
+#  supporting files
 #
+support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
 for file in $support_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
 done
@@ -481,6 +462,6 @@ fi
 #rm -rf $workdir
 
 echo ""
-echo "END install_glb.sh"
+echo "END install_rgn.sh"
 
 exit
