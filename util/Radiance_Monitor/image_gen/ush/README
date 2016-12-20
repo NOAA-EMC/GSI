@@ -31,20 +31,12 @@ Here the plot will use the period cycle 2013050118 to 2013052212.
 
 Assuming data is available and the top level plot scripts run the lower level 
 scripts to set up the environement, move data and control files into work 
-directories, and call the GrADS scripts (located in ../gscripts) to create image 
-files.  The image files are then moved to the $TANKDIR/imgn/$SUFFIX/pngs 
+directories.  The plot scripts now produce small .txt files which are used by
+the javascript within the several .html files to generate interactive images.  
+The plotting scripts may optionally use GrADS to produce static images.  To make this 
+happen set PLOT_STATIC_IMGS=1 in the  RadMon/parm/RadMon_user_settings file.
+The output image files (.txt, .png) are then moved to the $TANKDIR/imgn/$SUFFIX/pngs 
 directory. 
-
-There is also a CkPlt_comp.sh script which can do comparison plots between 2 or 3
-data sources.  The sources must be of the same type (global or regional).  The
-calling sequence is:
-
->  ./CkPlt_comp.sh date suffix1 suffix2 [suffix3]
-
-Date here must be in the format yyyymmddhh. If data is not available for any of 
-the sources (suffix1, suffix2, suffix3), it will be missing on the plotted images.
-
-
 
 FILE TRANSFERS:  
 ==== =========
@@ -56,8 +48,8 @@ slowdowns rsync is now used instead of scp.
 
 Instead of pushing files the plot_* scripts now copy the image files to the $IMGNDIR 
 directory.  The default location for this is ~/nbns/imgn/$SUFFIX (SUFFIX is the data
-source identifier, such as mysfx), and it has subdirectories for angle, bcoef, bcor, 
-horiz, summary, and time.  This is the same structure of the pngs directory on the 
+source identifier, such as mysfx), and it has subdirectories for angle, bcoef, 
+summary, and time.  This is the same structure of the pngs directory on the 
 web server.  The rsync utility can then be used to mirror the files in the $IMGNDIR 
 to the web server's pngs directory.  
 
@@ -71,7 +63,7 @@ an hour at 20 minutes after the hour (HH:20:00):
 20 * * * * /bin/sh /global/save/wx20es/RadMon_256/util/Radiance_Monitor/image_gen/ush/Transfer.sh opr 1>/ptmpp1/wx20es/logs/radopr/Transfer_opr.log 2>/ptmpp1/wx20es/logs/radopr/Transfer_opr.err
 
 
-Please note that scripted file transfers generally cannot be done from zeus to the
-web server.  If you need to move files from zeus you will have to resort to tarring them
-up and moving them manually.  You may be able to convince the zeus admins to allow an
+Please note that scripted file transfers generally cannot be done from theia to the
+web server.  If you need to move files from theia you will have to resort to tarring them
+up and moving them manually.  You may be able to convince the theia admins to allow an
 automated transfer but you will have to take that up with them.
