@@ -175,9 +175,11 @@ ${COMPRESS} ${imgndir}/*.ctl
      fi
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
+             -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
      else
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
+             -J ${jobname} -cwd ${PWD} ./$cmdfile
      fi
   else					#Zeus/linux
      for sat in ${SATLIST}; do
@@ -197,7 +199,8 @@ ${COMPRESS} ${imgndir}/*.ctl
            wall_tm="0:25:00"
         fi
 
-        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
+        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+             -V -j oe -o ${logfile} $cmdfile
      done
   fi
 
@@ -234,9 +237,11 @@ ${COMPRESS} ${imgndir}/*.ctl
         fi
 
         if [[ $MY_MACHINE = "wcoss" ]]; then
-           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
+                -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
         else      
-           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
+                -J ${jobname} -cwd ${PWD} ./$cmdfile
         fi
      else					# zeus/linux
         for var in $plot_list; do
@@ -255,7 +260,8 @@ ${COMPRESS} ${imgndir}/*.ctl
               wall_tm="2:00:00"
            fi
 
-           $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
+           $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+                -V -j oe -o ${logfile} $cmdfile
 
         done
      fi

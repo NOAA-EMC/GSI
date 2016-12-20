@@ -133,11 +133,14 @@ fi
    rm ${logfile}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} \
+           -W 1:00 -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "cray" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -o ${logfile} -W 1:00 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -o ${logfile} -W 1:00 \
+           -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} \
+           -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -190,9 +193,11 @@ fi
       fi
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
+              -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
       else
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
+              -J ${jobname} -cwd ${PWD} ${cmdfile}
       fi
       
    else							# zeus||theia
@@ -212,7 +217,8 @@ fi
             wall_tm="0:40:00"
          fi
 
-         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+              -V -j oe -o ${logfile} $cmdfile
       done
    fi
 
@@ -248,9 +254,11 @@ fi
             wall_tm="1:00"
          fi
          if [[ $MY_MACHINE = "wcoss" ]]; then
-            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} \
+                 -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
          else
-            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+            $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
+                 -J ${jobname} -cwd ${PWD} ${cmdfile}
          fi
       else						# zeus||theia
          for var in $list; do
@@ -268,7 +276,8 @@ fi
 
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
 
-            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
+            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
+                 -V -j oe -o ${logfile} $cmdfile
          done
       fi
    done
