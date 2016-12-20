@@ -15,10 +15,10 @@ if [[ $nargs -ne 5 ]]; then
    usage
    exit 1
 fi
-
+   
 
    set -ax
-
+   SUFFIX=nam
    DATE=$1
    tmpdir=$2
    COM=$3
@@ -88,11 +88,11 @@ fi
 #   esac
 
    if [[ $rgnHH = "t00z" && $rgnTM != "tm00" ]]; then
-      rstat=$COM/namrr.$PDY06/namrr.${rgnHH}.radstat.${rgnTM}
-      bias1=$COM/namrr.$PDY06/namrr.${rgnHH}.satbias.${rgnTM}
+      rstat=$COM/${SUFFIX}.$PDY06/${SUFFIX}.${rgnHH}.radstat.${rgnTM}
+      bias1=$COM/${SUFFIX}.$PDY06/${SUFFIX}.${rgnHH}.satbias.${rgnTM}
    else
-      rstat=$COM/namrr.$PDY/namrr.${rgnHH}.radstat.${rgnTM}
-      bias1=$COM/namrr.$PDY/namrr.${rgnHH}.satbias.${rgnTM}
+      rstat=$COM/${SUFFIX}.$PDY/${SUFFIX}.${rgnHH}.radstat.${rgnTM}
+      bias1=$COM/${SUFFIX}.$PDY/${SUFFIX}.${rgnHH}.satbias.${rgnTM}
    fi
 
    if [ -s $rstat ]; then
