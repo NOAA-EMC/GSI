@@ -146,9 +146,10 @@ echo PDYm6h = $PDYm6h
 #################
 # testing only:
 #################
-export C_BASE_DATDIR=${C_BASE_DATDIR:-/com2/gfs/prod}
-export C_DATDIR=${C_DATDIR:-${C_BASE_DATDIR}/gdas.$PDY}
-export C_GDATDIR=${C_GDATDIR:-${C_BASE_DATDIR}/gdas.$PDYm6h}
+export C_DATDIR=${C_DATDIR:-/com2/gfs/prod/gdas.$PDY}
+export C_GDATDIR=${C_GDATDIR:-/com2/gfs/prod/gdas.$PDYm6h}
+#export C_DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
+#export C_GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
@@ -207,10 +208,7 @@ if [ -s $cnvstat  -a -s $pgrbf00 ]; then
    if [ -s $pgrbf06 ]; then
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT \
-             -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log \
-             -M 100 -R affinity[core] -W 0:15 -J ${jobname} -cwd ${PWD} \
-             ${HOMEgdascmon}/jobs/JGDAS_VERFCON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:15 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VERFCON
 
       elif [[ $MY_MACHINE = "theia" ]]; then
          $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.log -e $C_LOGDIR/DE_CMON_${CMON_SUFFIX}.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
