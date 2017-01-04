@@ -108,7 +108,7 @@ subroutine init_gfs_stratosphere
 
    use_gfs_stratosphere=.false.
    good_o3mr=.false.
-   nsig_max=80
+   nsig_max=120
    k0m=0
    k1m=0
    k0r=0
