@@ -8,7 +8,7 @@ export nam_radmon_ver=v2.0.0
 ##################################
 # specify radmon_shared location
 ##################################
-export HOMEradmon=${HOMEradmon:-${NWROOT}/radmon_shared.v${radmon_shared_ver}}
+export HOMEradmon=${HOMEradmon:-${NWROOT}/radmon_shared.${radmon_shared_ver}}
 export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
 export USHradmon=${USHradmon:-$HOMEradmon/ush}
 

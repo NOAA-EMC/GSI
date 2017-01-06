@@ -117,11 +117,14 @@ logfile="$LOGdir/plot_bcoef.log"
 rm ${logfile}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $IG_SCRIPTS/plot_bcoef.sh
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
+        -R affinity[core] -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "cray" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -J ${jobname} $IG_SCRIPTS/plot_bcoef.sh
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
+        -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
+   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} \
+        -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
 fi
 
 echo "end mk_bcoef_plots.sh"

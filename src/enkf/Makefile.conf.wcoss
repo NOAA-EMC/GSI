@@ -33,7 +33,9 @@ W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/libw3emc_$(W3EMC_VER)_d.a
 W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_d.a
 
 NETCDF_INCLUDE = ${NETCDF}/include
-NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf
+#NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf
+NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf -lnetcdff
+
 
 # WRF locations
 WRFPATH = /nwprod/sorc/wrf_shared.fd

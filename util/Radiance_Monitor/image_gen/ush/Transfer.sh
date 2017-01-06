@@ -2,7 +2,6 @@
 
 function usage {
   echo "Usage:  Transfer.sh suffix"
-  echo "            File name for Transfer.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
 }
