@@ -136,6 +136,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !    data_all(:,:) = zero
      call mpi_reduce(data_all_in,data_all,nele*ndata,mpi_rtype,mpi_sum,&
           mype_root,mpi_comm_sub,ierror)
+     deallocate(data_all_in)
   else
 
      if(nread <= 0)return

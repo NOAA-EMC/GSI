@@ -10,7 +10,6 @@ BACIO_VER = v2.0.1
 BUFR_VER = v10.2.5
 CRTM_VER = v2.2.3
 NEMSIO_VER = v2.2.1
-NETCDF_VER = 3.6.3
 SFCIO_VER = v1.0.0
 SIGIO_VER = v2.0.1
 SP_VER = v2.0.2
@@ -37,9 +36,8 @@ SP_LIBd=$(CORELIB)/sp/$(SP_VER)/libsp_$(SP_VER)_d.a
 W3EMC_LIBd=$(CORELIB)/w3emc/$(W3EMC_VER)/libw3emc_$(W3EMC_VER)_d.a
 W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_d.a
 
-NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VER)
-NETCDF_INCLUDE = $(NETCDFPATH)/include
-NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
+NETCDF_INCLUDE = ${NETCDF}/include
+NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf
 
 
 # WRF locations
@@ -76,7 +74,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -D_REAL8_ -DWRF
+  FFLAGS_F90    = -D_REAL8_ -DWRF #-DNMMB_CLOUDANALYSIS
 
   FFLAGS_COM_N  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
@@ -98,12 +96,12 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS_COM_D  =  -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
   		-O0 -fp-model source -convert big_endian -assume byterecl \
-		-implicitnone -g -traceback -debug \
+		-implicitnone -mcmodel medium -shared-intel -g -traceback -debug \
                 -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
   FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		       -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
   		       -O0 -fp-model source -convert big_endian -assume byterecl \
-		       -implicitnone -g -traceback -debug \
+		       -implicitnone -mcmodel medium -shared-intel -g -traceback -debug \
                        -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)

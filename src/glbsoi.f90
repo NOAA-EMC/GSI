@@ -384,11 +384,6 @@ subroutine glbsoi(mype)
   endif
 
 ! Deallocate arrays
-!RY:  in trunk 
-!RY: Q: Is this destroy at the end of the entire analysisi?
-!  if(perturb_obs) call converr_destroy
-!RY:  need to understand the following things
-
   if(perturb_obs) then
      if(njqc) then
         call converr_ps_destroy

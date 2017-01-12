@@ -187,9 +187,249 @@ SUBROUTINE pcp_mxr (nx,ny,nz,t_3d,p_3d ,ref_3d                          &
 END SUBROUTINE pcp_mxr
 
 !
+SUBROUTINE pcp_mxr_ferrier_new (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
+           ,cldpcp_type_3d,q_3d                                              &
+           ,qr_3d,qs_3d,qg_3d,istatus )
+!
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  pcp_mxr calculate hydrometeor type based on ferrier radar reflectivity equations
+!              from Carley's setup_dbz.f90 and old Hu's pcp_mxr_ferrier
+!
+!   PRGMMR:   Shun Liu               ORG:  EMC/NCEP              DATE:              
+!
+! ABSTRACT: 
+!  This subroutine calculate precipitation based on ferrier radar reflectivity equations
+!
+! PROGRAM HISTORY LOG:
+!    2014-12-01  Shun Liu create for new NMMB ferrier 
+!
+!
+!   input argument list:
+!     nx          - no. of lons on subdomain (buffer points on ends)
+!     ny          - no. of lats on subdomain (buffer points on ends)
+!     nz          - no. of levels
+!     t_3d        - 3D background temperature (K)
+!     p_3d        - 3D background pressure  (hPa)
+!     ref_3d      - 3D reflectivity in analysis grid (dBZ)
+!     cldpcp_type_3d - 3D precipitation type
+!
+!   output argument list:
+!     qr_3d       - rain mixing ratio (g/kg)
+!     qs_3d       - snow mixing ratio (g/kg)
+!     istatus     -
+!
+! USAGE:
+!   INPUT FILES: 
+!
+!   OUTPUT FILES:
+!
+! REMARKS:
+!   Old document from CAPS
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!  PURPOSE:
+!
+!  Perform 3D precipitation mixing ratio (in g/kg) analysis using
+!  radar reflectivity data. For rain water, using Ferrier et al (1995)
+!  formulation:
+!
+!
+!     For rain water:
+!
+!          18
+!        10   * 720                              1.75
+!  Zer = --------------------------- * (rho * qr)
+!          1.75      0.75       1.75
+!        pi     * N0r     * rhor
+!
+!
+!     For dry snow (t <= 0 C):
+!
+!
+!                  18     
+!        0.224 * 10   * 720       
+!                                                          2
+!  Zes = ------------------------------------- * (rho * qs)   
+!          2        2       
+!        pi   * rhol   * N0s     
+!                  
+!    n(0)r -> intercept parameter for rain 8x10^-6 (m^-4)
+!    rho_l -> density of liquid water 1000 (kg/m^3)
+!    rho -> air density (kg/m^3)
+!    qr -> rain mixing ratio (kg/kg)
+!    qli -> precipitation ice mixing ratio (kg/kg)
+!    N_li -> precipitation ice number concentration 5x10^3 (m^-3)
+!   
+!
+!    Plugging in the constants yields the following form:
+!
+!    Zer  = Cr * (rho*qr)^1.75
+!    Zeli  = Cli * (rho*qli)^2
+!   
+!    where:
+!           Cr  = 3.6308 * 10^9
+!           Cli = 3.268 * 10^9
+!
+!    Which yields the forward model:
+!
+!    Z = 10*log10(Zer+Zes)
+!
+!
+!  Here Zx (mm**6/m**3, x=r,s,h), and dBZ = 10log10 (Zx).
+!  rho represents the air density, rhor,rhos,rhoh are the density of
+!  rain, snow and hail respectively. Other variables are all constants
+!  for this scheme, see below.
+!
+!    Zer  = Cr * (rho*qr)^1.75
+!    Zeli = Cli * (rho*qli)^2
+!   
+!    where:
+!           Cr  = 3.6308 * 10^9
+!           Cli = 3.268 * 10^9
+
+!    (Zer)^(1/1.75)=(rho*qr)
+!    (Zer/Cr)^(1/1.75)=rho*qr
+!    [(Zer/Cr)^(1/1.75)]/rho=qr
+
+!    [(Zeli/Cli)^(1/2)]/rho=qs
+
+!
+!-----------------------------------------------------------------------
+!
+!  AUTHOR: (Shun Liu)
+!  01/20/2015
+!
+!  MODIFICATION HISTORY:
+!
+!-----------------------------------------------------------------------
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90 
+!   MACHINE:  Linux cluster (WJET)
+!
+!$$$
+!
+!_____________________________________________________________________
+! 
+
+
+!-----------------------------------------------------------------------
+!
+!  Variable Declarations.
+!
+!-----------------------------------------------------------------------
+!
+  use kinds, only: r_single,i_kind, r_kind
+  IMPLICIT NONE
+!
+!-----------------------------------------------------------------------
+!
+!  INPUT:
+  INTEGER(i_kind),intent(in) :: nx,ny,nz        ! Model grid size
+!
+  REAL(r_kind),   intent(in) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
+  REAL(r_single), intent(in) :: t_3d(nx,ny,nz)  ! Temperature (deg. Kelvin)
+  REAL(r_single), intent(in) :: p_3d(nx,ny,nz)  ! Pressure (Pascal)
+  REAL(r_single), intent(in) :: q_3d(nx,ny,nz) ! mixing ratio in (g/g)
+
+  INTEGER(i_kind),intent(in) :: cldpcp_type_3d(nx,ny,nz) ! cloud/precip type field
+!
+!  OUTPUT:
+  INTEGER(i_kind),intent(out):: istatus
+!
+  REAL(r_single),intent(out) :: qr_3d(nx,ny,nz) ! rain mixing ratio in (g/kg)
+  REAL(r_single),intent(out) :: qs_3d(nx,ny,nz) ! snow/sleet/frz-rain mixing ratio
+                                                ! in (g/kg)
+  REAL(r_single),intent(out) :: qg_3d(nx,ny,nz) ! graupel/hail mixing ratio 
+                                                ! in (g/kg)
+!
+
+
+
+  REAL(r_kind), PARAMETER :: rd=287.0_r_kind   ! Gas constant for dry air  (m**2/(s**2*K))
+  REAL(r_kind), PARAMETER :: thresh_ref = 0.0_r_kind
+
+  REAL(r_kind), PARAMETER :: ze_qr_const=3.6308*1.0e9
+  REAL(r_kind), PARAMETER :: ze_qs_const=3.268*1.0e9
+  REAL(r_kind) :: ze_d_qrcon,ze_d_qscon
+
+!
+!-----------------------------------------------------------------------
+!
+!  Misc local variables
+!
+!-----------------------------------------------------------------------
+!
+  INTEGER(i_kind) :: i,j,k, iarg
+  INTEGER(i_kind) :: pcptype
+  REAL(r_kind) :: zkconst,zerf,zesnegf,zesposf,zehf,rfract
+  REAL(r_kind) :: ze,zer,zeh,zes,rho,tc
+
+!
+!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+!  Beginning of executable code...
+!
+!@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+!
+!
+!-----------------------------------------------------------------------
+!
+!  Intiailize constant factors in the Ze terms for rain, snow and graupel/hail,
+!  respectively, in Ferrier.
+!
+!  These are the inverse of those presented in the reflec_ferrier function.
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!
+!  Compute the precip mixing ratio in g/kg from radar reflectivity
+!  factor following Ferrier et al (1995).
+!
+!-----------------------------------------------------------------------
+!
+
+! qr_3d = -999._r_kind
+! qs_3d = -999._r_kind
+  qg_3d = -999._r_kind
+
+  DO k = 2,nz-1
+    DO j = 2,ny-1
+      DO i = 2,nx-1
+        IF (ref_3d(i,j,k) >= thresh_ref) THEN    ! valid radar refl.
+          rho = p_3d(i,j,k)/(rd*t_3d(i,j,k))*(1.0+0.608*(q_3d(i,j,k)/1.0+q_3d(i,j,k)))
+          ze = 10.0_r_kind**(0.1_r_kind*ref_3d(i,j,k))
+          tc = t_3d(i,j,k) - 273.15_r_kind
+          IF (tc >= 0.0_r_kind) THEN
+            ze_d_qrcon=ze/ze_qr_const
+            qr_3d(i,j,k) = (ze_d_qrcon)**(1/1.75) !/ rho 
+          else
+            ze_d_qscon=ze/ze_qs_const
+            qs_3d(i,j,k) = (ze_d_qscon)**(0.5)  !/ rho
+          ENDIF
+        END IF
+      END DO ! k
+    END DO ! i
+  END DO ! j
+
+! qr_3d=qr_3d*1000.0  !kg/kg to g/kg
+! qs_3d=qs_3d*1000.0  !kg/kg to g/kg
+
+!  PRINT*,'Finish Ferrier ...'
+!
+!-----------------------------------------------------------------------
+!
+  istatus = 1
+!
+  RETURN
+END SUBROUTINE pcp_mxr_ferrier_new
+
+!
 SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
            ,cldpcp_type_3d                                              &
-           ,qr_3d,qs_3d,qg_3d,istatus )
+           ,qr_3d,qs_3d,qg_3d,istatus,mype )
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -322,11 +562,12 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
 !  INPUT:
   INTEGER(i_kind),intent(in) :: nx,ny,nz        ! Model grid size
 !
-  REAL(r_kind),   intent(in) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
+  REAL(r_kind),   intent(inout) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
   REAL(r_single), intent(in) :: t_3d(nx,ny,nz)  ! Temperature (deg. Kelvin)
   REAL(r_single), intent(in) :: p_3d(nx,ny,nz)  ! Pressure (Pascal)
 
   INTEGER(i_kind),intent(in) :: cldpcp_type_3d(nx,ny,nz) ! cloud/precip type field
+  INTEGER(i_kind),intent(in) :: mype
 !
 !  OUTPUT:
   INTEGER(i_kind),intent(out):: istatus
@@ -419,6 +660,14 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
 !
 !-----------------------------------------------------------------------
 !
+!mhu if(mype==51 ) then
+!mhu write(*,*) 'c=',mype,zesnegf,zepowf,rd
+!mhu ref_3d(10,10,:)=10.0
+!mhu ref_3d(11,11,:)=20.0
+!mhu ref_3d(12,12,:)=30.0
+!mhu ref_3d(13,13,:)=40.0
+!mhu ref_3d(14,14,:)=50.0
+!mhu endif
 
   DO k = 2,nz-1
     DO j = 2,ny-1
@@ -433,6 +682,14 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
           IF (tc <= 0.0_r_kind) THEN
             qs_3d(i,j,k) = zesnegf * (ze**zepowf) / rho
             qr_3d(i,j,k) = 0.0_r_kind
+          ELSE IF (tc < 5.0_r_kind) THEN             !wet snow
+             rfract=0.20_r_kind*tc
+             zer=rfract*ze
+             zes=(1.-rfract)*ze
+!             qs_3d(i,j,k) = zesposf * (zes**zepowf) / rho
+!             qr_3d(i,j,k) = zerf * (zer**zepowf) / rho
+             qs_3d(i,j,k) = zesnegf * (zes**zepowf) / rho
+             qr_3d(i,j,k) = zerf * (zer**zepowf) / rho
           else
             qr_3d(i,j,k) = zerf * (ze**zepowf) / rho
             qs_3d(i,j,k) = 0.0_r_kind

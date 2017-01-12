@@ -59,6 +59,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-05-13  todling - udpate to use gsi_bundle
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     qhead
@@ -179,9 +180,9 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
            enddo
-           out(1) = out(1)+pen(1)*sqrt(qptr%raterr2)
+           out(1) = out(1)+pen(1)*qptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(qptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*qptr%raterr2

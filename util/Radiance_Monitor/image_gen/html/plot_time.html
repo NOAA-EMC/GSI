@@ -45,6 +45,24 @@
         var globalSrc = true;
         var useComp = true;
 
+        /*
+         *  Important note -- javascript handles all paths as relative to the displayed page.  This
+         *  makes sense because it doesn't (and shouldn't) have any idea of the server's file
+         *  structure (that would be a huge security breach).  I learned this the hard way when I
+         *  first tried absolute paths to the comparison files and got a big 404 (file not found)
+         *  error in response.  So using compHome with a default value pointing to url of the
+         *  operational GDAS plots you can attach pngs/summary/the_file_you_want and retrieve it
+         *  that way.
+         *
+         *  If you want to use a different comparison source, like a control run of a parallel, then
+         *  you'll need to extract and plot that data and load it onto the server then change the value
+         *  of compHome to point to the top of its directory.  Email me (Ed Safford) if you need help
+         *  making that happen.
+         */
+        var compSrc  = "wopr";
+        var compName = "GDAS";
+        var compHome = "http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/" + compSrc;
+
 
         /* -----------------------------------
          *  drawCharts, main drawing function
@@ -63,7 +81,6 @@
              *  Pull the data source from the url sent to this page
              */
             var url = window.location.href;
-
 
             /*
              * loadChanData requests data from [satname].chan.txt file
@@ -230,11 +247,13 @@
                 // comp data file location
                 var loadCmpEl = document.getElementById("ckboxCmp");
                 if( loadCmpEl ) {
-                    var CkBxCmp = document.getElementById("ckboxCmp").value;
+                    //var CkBxCmp = document.getElementById("ckboxCmp").value;
+                    var CkBxCmp = compSrc;
                     log('value of CkBxCmp = ' + CkBxCmp);
 
                     if (CkBxCmp) {
-                        cmpFile = '../' + CkBxCmp + file.substring(1);
+                        //cmpFile = '../' + CkBxCmp + file.substring(1);
+                        cmpFile = compHome + file.substring(1);
                         log('2nd file to load is ' + cmpFile);
                     }
                 } else {
@@ -500,6 +519,30 @@
             if( initialLoad ) {
                 log('initial Load is true ');
 
+                //-----------------------------------------------------------------
+                // NOTE: the ckboxCmp will be commented out if comparison plotting
+                // is not enabled, which will make the value of loadCmpEl null.
+                //
+                // If we're using a comparison source other than operational GDAS
+                // (the default) then override ckboxCmp.value and label using
+                // compSrc (suffix).
+                //-----------------------------------------------------------------
+                var loadCmpEl = document.getElementById("ckboxCmp");
+
+                if( loadCmpEl ) {
+                    useComp = true;
+                    if( compHome != "GDAS" ) {
+                        loadCmpEl.value = compSrc;
+                        log('value of loadCmpEl.value = ' + loadCmpEl.value);
+
+                        var lbl = document.getElementById("ckboxCompLbl");
+                        log('value of lbl = ' + lbl.innerHTML);
+                        lbl.innerHTML = compName;
+                    }
+                } else {
+                    useComp = false;
+                }
+
                 // Determine if the src, stat and/or chan were set via the input html stream.
                 // These should all be human readable inputs (src, stat, chan);
                 //      - Sanitize any data in them
@@ -651,20 +694,6 @@
             }
 
 
-//  plot to file code not working.  Issue is that it's expecting to use a div element and I'm drawing my charts in an iframe.
-//  can I modify to draw in the div and bag the iframe?  That is the question.
-          /*  var my_div = document.getElementById('plot1');
-            var my_chart = new google.visualization.LineChart( my_div );
-
-            google.visualization.events.addListener(my_chart, 'ready', function () {
-                my_div.innerHTML = '<img src="' + chart.getImageURI() + '">';
-                log( my_div.innerHTML );
-            }); */
-
-            //log ( "<-- drawCharts");
-
-
-
                 //----------------//
                 // end drawCharts //
         }       //----------------//
@@ -694,16 +723,16 @@
             data1.addColumn('number', 'anl, mixed');
 
             if( useComp ) {
-                data1.addColumn('number', 'cmp_ges, global');
-                data1.addColumn('number', 'cmp_ges, land');
-                data1.addColumn('number', 'cmp_ges, water');
-                data1.addColumn('number', 'cmp_ges, ice');
-                data1.addColumn('number', 'cmp_ges, mixed');
-                data1.addColumn('number', 'cmp_anl, global');
-                data1.addColumn('number', 'cmp_anl, land');
-                data1.addColumn('number', 'cmp_anl, water');
-                data1.addColumn('number', 'cmp_anl, ice');
-                data1.addColumn('number', 'cmp_anl, mixed');
+                data1.addColumn('number', compName + '_ges, global');
+                data1.addColumn('number', compName + '_ges, land');
+                data1.addColumn('number', compName + '_ges, water');
+                data1.addColumn('number', compName + '_ges, ice');
+                data1.addColumn('number', compName + '_ges, mixed');
+                data1.addColumn('number', compName + '_anl, global');
+                data1.addColumn('number', compName + '_anl, land');
+                data1.addColumn('number', compName + '_anl, water');
+                data1.addColumn('number', compName + '_anl, ice');
+                data1.addColumn('number', compName + '_anl, mixed');
             }
 
             // set up data2 if plot is other than count or penalty (2 charts drawn)
@@ -718,24 +747,21 @@
                 data2.addColumn('number', 'anl, water');        data2.addColumn('number', 'anl, ice');
                 data2.addColumn('number', 'anl, mixed');
                 if( useComp ) {
-                    data2.addColumn('number', 'cmp_ges, global');
-                    data2.addColumn('number', 'cmp_ges, land');
-                    data2.addColumn('number', 'cmp_ges, water');
-                    data2.addColumn('number', 'cmp_ges, ice');
-                    data2.addColumn('number', 'cmp_ges, mixed');
-                    data2.addColumn('number', 'cmp_anl, global');
-                    data2.addColumn('number', 'cmp_anl, land');
-                    data2.addColumn('number', 'cmp_anl, water');
-                    data2.addColumn('number', 'cmp_anl, ice');
-                    data2.addColumn('number', 'cmp_anl, mixed');
+                    data2.addColumn('number', compName + '_ges, global');
+                    data2.addColumn('number', compName + '_ges, land');
+                    data2.addColumn('number', compName + '_ges, water');
+                    data2.addColumn('number', compName + '_ges, ice');
+                    data2.addColumn('number', compName + '_ges, mixed');
+                    data2.addColumn('number', compName + '_anl, global');
+                    data2.addColumn('number', compName + '_anl, land');
+                    data2.addColumn('number', compName + '_anl, water');
+                    data2.addColumn('number', compName + '_anl, ice');
+                    data2.addColumn('number', compName + '_anl, mixed');
                 }
             }
 
             var idx = curChan;
-            //log( 'curChan:'); log( curChan );
-            //log( 'curStat:'); log( curStat );
             var ncyc = chanData[0].ncyc;
-            //log( 'ncyc: ' + ncyc );
 
 
             var chartTitle1;
@@ -743,12 +769,14 @@
             var logScale = "true";
             var vAxisFormat = '0.##E+0';
 
+            var line2 = curSrcName + ", " + chartData[idx][0].time[0];
+            log( "line2 = " + line2 );
             // --------------------------------------------------------------
             //   load data1 and (as needed) data2 objects to make the chart(s)
             // --------------------------------------------------------------
 
             if( curStatName === "cnt" ) {
-                chartTitle1 = "Number of Observations";
+                chartTitle1 = "Number of Observations\n" + line2;
                 chartTitle2 = "";
                 log( 'curStat is 0, chartData[idx][0] = ' + idx, +' ' + chartData[idx[0]]);
                 log( 'chartData[idx][0].time[0] = ' + chartData[idx][0].time[0]);
@@ -786,7 +814,7 @@
                     }
                 }
             } else if( curStatName === 'pen' ){
-                chartTitle1 = "Contribution to Penalty";
+                chartTitle1 = "Contribution to Penalty\n" + line2;
                 chartTitle2 = "";
                 vAxisFormat = "0.##";
                 for (var ii = 0; ii < ncyc; ii++) {
@@ -881,53 +909,53 @@
 
                 // set chart titles
                 if (curStatName === 'omgnbc') {     // omgnbc avg & sdv
-                    chartTitle1 = "Avg   Ges|Anl (w/o Bias Correction) - Obs(K)";
-                    chartTitle2 = "Sdv   Ges|Anl (w/o Bias Correction) - Obs(K)";
+                    chartTitle1 = "Avg   Ges|Anl (w/o Bias Correction) - Obs(K)\n" + line2;
+                    chartTitle2 = "Sdv   Ges|Anl (w/o Bias Correction) - Obs(K)\n" + line2;
                 } else if (curStatName === 'totcor') {     // bias correction
-                    chartTitle1 = "Avg   Bias Correction";
-                    chartTitle2 = "Sdv   Bias Correction";
+                    chartTitle1 = "Avg   Bias Correction\n" + line2;
+                    chartTitle2 = "Sdv   Bias Correction\n" + line2;
                 } else if (curStatName === 'omgbc') {     // omgbc avg & sdv
-                    chartTitle1 = "Avg   Ges|Anl (w/ Bias Correction) - Obs(K)";
-                    chartTitle2 = "Sdv   Ges|Anl (w/ Bias Correction) - Obs(K)";
+                    chartTitle1 = "Avg   Ges|Anl (w/ Bias Correction) - Obs(K)\n" + line2;
+                    chartTitle2 = "Sdv   Ges|Anl (w/ Bias Correction) - Obs(K)\n" + line2;
                 } else if( curStatName === 'fixang') {
-                    chartTitle1 = "Avg   Fixed Angle Correction (K)";
-                    chartTitle2 = "Sdv   Fixed Angle Correction (K)";
+                    chartTitle1 = "Avg   Fixed Angle Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   Fixed Angle Correction (K)\n" + line2;
                 } else if( curStatName === 'lapse' ){
-                    chartTitle1 = "Avg   Lapse Rate Correction (K)";
-                    chartTitle2 = "Sdv   Lapse Rate Correction (K)";
+                    chartTitle1 = "Avg   Lapse Rate Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   Lapse Rate Correction (K)\n" + line2;
                 } else if( curStatName === 'lapse2' ){
-                    chartTitle1 = "Avg ( Lapse Rate )**2 Rate Correction (K)";
-                    chartTitle2 = "Sdv   ( Lapse Rate )**2 Correction (K)";
+                    chartTitle1 = "Avg ( Lapse Rate )**2 Rate Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   ( Lapse Rate )**2 Correction (K)\n" + line2;
                 } else if( curStatName == "mean" ){
-                    chartTitle1 = "Avg   Mean Correction (K)";
-                    chartTitle2 = "Sdv   Mean Correction (K)";
+                    chartTitle1 = "Avg   Mean Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   Mean Correction (K)\n" + line2;
                 } else if( curStatName == "scangl" ){
-                    chartTitle1 = "Avg   Scan Angle Correction (K)";
-                    chartTitle2 = "Sdv   Scan Angle Correction (K)";
+                    chartTitle1 = "Avg   Scan Angle Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   Scan Angle Correction (K)\n" + line2;
                 } else if( curStatName == "clw" ){
-                    chartTitle1 = "Avg   Cloud Liquid Water Correction (K)";
-                    chartTitle2 = "Sdv   Cloud Liquid Water Correction (K)";
+                    chartTitle1 = "Avg   Cloud Liquid Water Correction (K)\n" + line2;
+                    chartTitle2 = "Sdv   Cloud Liquid Water Correction (K)\n" + line2;
                 } else if( curStatName == "cos" ){
-                    chartTitle1 = "Avg   Cosine for SSMIS";
-                    chartTitle2 = "Sdv   Cosine for SSMIS";
+                    chartTitle1 = "Avg   Cosine for SSMIS\n" + line2;
+                    chartTitle2 = "Sdv   Cosine for SSMIS\n" + line2;
                 } else if( curStatName == "sin" ){
-                    chartTitle1 = "Avg   Sine for SSMIS";
-                    chartTitle2 = "Sdv   Sine for SSMIS";
+                    chartTitle1 = "Avg   Sine for SSMIS\n" + line2;
+                    chartTitle2 = "Sdv   Sine for SSMIS\n" + line2;
                 } else if( curStatName == "emiss" ) {
-                    chartTitle1 = "Avg   Emissivity Sensitivity Term";
-                    chartTitle2 = "Sdv   Emissivity Sensitivity Term";
+                    chartTitle1 = "Avg   Emissivity Sensitivity Term\n" + line2;
+                    chartTitle2 = "Sdv   Emissivity Sensitivity Term\n" + line2;
                 } else if( curStatName == "ordang1" ){
-                    chartTitle1 = "Avg   1st Order Angle Term";
-                    chartTitle2 = "Sdv   1st Order Angle Term";
+                    chartTitle1 = "Avg   1st Order Angle Term\n" + line2;
+                    chartTitle2 = "Sdv   1st Order Angle Term\n" + line2;
                 } else if( curStatName == "ordang2" ){
-                    chartTitle1 = "Avg   2nd Order Angle Term";
-                    chartTitle2 = "Sdv   2nd Order Angle Term";
+                    chartTitle1 = "Avg   2nd Order Angle Term\n" + line2;
+                    chartTitle2 = "Sdv   2nd Order Angle Term\n" + line2;
                 } else if( curStatName == "ordang3" ){
-                    chartTitle1 = "Avg   3rd Order Angle Term";
-                    chartTitle2 = "Sdv   3rd Order Angle Term";
+                    chartTitle1 = "Avg   3rd Order Angle Term\n" + line2;
+                    chartTitle2 = "Sdv   3rd Order Angle Term\n" + line2;
                 } else if( curStatName == "ordang4" ){
-                    chartTitle1 = "Avg   4th Order Angle Term";
-                    chartTitle2 = "Sdv   4th Order Angle Term";
+                    chartTitle1 = "Avg   4th Order Angle Term\n" + line2;
+                    chartTitle2 = "Sdv   4th Order Angle Term\n" + line2;
                 }
             }
 
@@ -937,7 +965,7 @@
 
             var options1 = {
                 title: chartTitle1,
-                titleTextStyle:{ fontSize: 20 },
+                titleTextStyle:{ fontSize: 18 },
                 vAxis:{ format          : vAxisFormat,
                     logScale        : logScale},
                 hAxis:{ title           : 'Cycle Time',
@@ -946,7 +974,11 @@
                     line: {
                         connectNulls: false
                     }
-                }
+                },
+                explorer: {
+                    actions: ['dragToZoom', 'rightClickToReset'],
+                    axis: 'horizontal',
+                    keepInBounds: true}
             };
 
             // if there are 2 plots then format date in data2 and add options2
@@ -954,7 +986,7 @@
                 formatter1.format(data2,0);
                 var options2 = {
                     title: chartTitle2,
-                    titleTextStyle:{ fontSize: 20 },
+                    titleTextStyle:{ fontSize: 18 },
                     vAxis:{ format          : vAxisFormat,
                         logScale        : logScale},
                     hAxis:{ title           : 'Cycle Time',
@@ -963,11 +995,21 @@
                         line: {
                             connectNulls: false
                         }
-                    }
+                    },
+                    explorer: {
+                        actions: ['dragToZoom', 'rightClickToReset'],
+                        axis: 'horizontal',
+                        keepInBounds: true}
                 };
             }
 
             chart1 = new google.visualization.LineChart(document.getElementById('plot1'));
+            google.visualization.events.addListener(chart1, 'ready', function () {
+                var printDiv = document.getElementById( "png1" );
+                chart1.innerHTML = '<img src="' + chart1.getImageURI() + '">';
+                //log( "innerHTML = " + chart1.innerHTML );
+                printDiv.outerHTML = '<a id="png1" class="link1" href="' + chart1.getImageURI() + '">Printable version </a>';
+            });
 
             var chart2;
             var myView2;
@@ -980,6 +1022,13 @@
             if( curStat > 1 ){
                 chart2 = new google.visualization.LineChart( document.getElementById('plot2'));
                 myView2 = new google.visualization.DataView( data2 );
+
+                google.visualization.events.addListener(chart2, 'ready', function () {
+                    var printDiv = document.getElementById( "png2" );
+                    chart2.innerHTML = '<img src="' + chart2.getImageURI() + '">';
+                    //log( "innerHTML = " + chart1.innerHTML );
+                    printDiv.outerHTML = '<a id="png2" class="link2" href="' + chart2.getImageURI() + '">Printable version </a>';
+                });
             }
 
             // turn on/off viewed data according to current checkbox configuration
@@ -1050,12 +1099,16 @@
             // display the chart(s)
             // ---------------------
             chart1.draw(myView1, options1);
+
+
             hndlChart2 = document.getElementById( 'plot2' );
             if( curStat > 1 ){
-                chart2.draw(myView2, options2);
-                document.getElementById('plot2').style.visibility='visible';
+                chart2.draw( myView2, options2 );
+                document.getElementById( 'plot2' ).style.visibility='visible';
+                document.getElementById( 'png2' ).style.visibility='visible';
             } else {
-                document.getElementById('plot2').style.visibility='hidden';
+                document.getElementById( 'plot2' ).style.visibility='hidden';
+                document.getElementById( 'png2' ).style.visibility='hidden';
             }
 
             //---------------------------------------
@@ -1188,37 +1241,6 @@
             log( '<-- fillCharts');
         }
 
-        function printCharts( ) {
-            var my_div = document.getElementById('plot1');
-            log( '==> printCharts');
-
-            var imgUri = chart1.getImageURI();
-            log( 'imgUri = ' + imgUri );
-
-            //var my_div = document.getElementById('plot1');
-            //log( 'my_div = ' + my_div );
-            //var my_chart = new google.visualization.LineChart( my_div );
-            //log( 'my_chart = ' + my_chart );
-
-            // Wait for the chart to finish drawing before calling the getImageURI() method.
-            //google.visualization.events.addListener(my_chart, 'ready', function () {
-            //    var imgUri = my_chart.getImageURI();
-            //    log( 'imgUri = ' + imgUri );
-            //});
-
-
-            //var imgUri = my_chart.getImageURI();
-            //log( 'imgUri = ' + imgUri );
-
-            // do something with the image URI, like:
-            //document.getElementById('chartImg').src = imgUri;
-            //log( 'opening window w/ imgUri');
-            //window.open(imgUri);
-
-            //log( my_div.innerHTML );
-            log( '<== printCharts' );
-
-        }
 
 
         //  boxCheck :  callback for any change in checkboxes
@@ -1312,6 +1334,16 @@
         table.hidden {
             display: none;
         }
+        .link1{
+            position: relative;
+            left: 310px;
+            top:  365px;
+        }
+        .link2{
+            position: relative;
+            left: 195px;
+            top: 760px;
+        }
     </style>
 
 </HEAD>
@@ -1323,7 +1355,9 @@
 <h3 id=valid align="center">Valid</h3>
 
 <div id="plot1" style="width: 1000px; height: 400px; float:right;"></div>
+<div id="png1" class="link1"></div>
 <div id="plot2" style="width: 1000px; height: 400px; float:right;"></div>
+<div id="png2" class="link2"></div>
 
 <label id="source" style="position: absolute; left: 2px; top:12px"><b> Source:</b></label>
 <label id="suffix" value="INSERT_SUFFIX" style="position: absolute; left: 72px; top:12px; color: blue"><b>INSERT_SUFFIX</b></label>
@@ -1336,38 +1370,38 @@
              a source might be missing for some reason, and we should know about that
              if it was to happen, so it's better that a data load would fail here.  -->
 <!-- INSERT_TABLE -->
-        <OPTION VALUE="airs_aqua"> AQUA AIRS </OPTION>
-        <OPTION VALUE="amsua_aqua"> AQUA AMSU-A </OPTION>
-        <OPTION VALUE="ssmis_f16"> F16 SSMIS </OPTION>
-        <OPTION VALUE="ssmis_f17"> F17 SSMIS </OPTION>
-        <OPTION VALUE="ssmis_f18"> F18 SSMIS </OPTION>
-        <OPTION VALUE="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
-        <OPTION VALUE="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
-        <OPTION VALUE="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
-        <OPTION VALUE="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
-        <OPTION VALUE="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
-        <OPTION VALUE="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
-        <OPTION VALUE="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
-        <OPTION VALUE="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
-        <OPTION VALUE="seviri_m10"> M10 SEVIRI </OPTION>
-        <OPTION VALUE="amsua_metop-a"> METOP-A AMSU-A </OPTION>
-        <option value="avhrr_metop-a"> METOP-A AVHRR </option>
-        <OPTION VALUE="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
-        <OPTION VALUE="iasi_metop-a"> METOP-A IASI </OPTION>
-        <OPTION VALUE="mhs_metop-a"> METOP-A MHS </OPTION>
-        <OPTION VALUE="amsua_metop-b"> METOP-B AMSU-A </OPTION>
-        <OPTION VALUE="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
-        <OPTION VALUE="iasi_metop-b"> METOP-B IASI </OPTION>
-        <OPTION VALUE="mhs_metop-b"> METOP-B MHS </OPTION>
-        <OPTION VALUE="amsua_n15"> NOAA-15 AMSU-A </OPTION>
-        <OPTION VALUE="amsua_n18"> NOAA-18 AMSU-A </OPTION>
-        <option value="avhrr_n18"> NOAA-18 AVHRR </option>
-        <OPTION VALUE="mhs_n18"> NOAA-18 MHS </OPTION>
-        <OPTION VALUE="amsua_n19"> NOAA-19 AMSU-A </OPTION>
-        <OPTION VALUE="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
-        <OPTION VALUE="mhs_n19"> NOAA-19 MHS </OPTION>
-        <OPTION VALUE="atms_npp"> NPP ATMS </OPTION>
-        <OPTION VALUE="cris_npp"> NPP CRIS </OPTION>
+<OPTION value="airs_aqua" id="airs_aqua"> AQUA AIRS </OPTION>
+<OPTION value="amsua_aqua" id="amsua_aqua"> AQUA AMSU-A </OPTION>
+<OPTION value="ssmis_f16" id="ssmis_f16"> F16 SMIS </OPTION>
+<OPTION value="ssmis_f17" id="ssmis_f17"> F17 SMIS </OPTION>
+<OPTION value="ssmis_f18" id="ssmis_f18"> F18 SMIS </OPTION>
+<OPTION value="sndrd1_g13" id="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
+<OPTION value="sndrd2_g13" id="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
+<OPTION value="sndrd3_g13" id="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
+<OPTION value="sndrd4_g13" id="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
+<OPTION value="sndrd1_g15" id="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
+<OPTION value="sndrd2_g15" id="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
+<OPTION value="sndrd3_g15" id="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
+<OPTION value="sndrd4_g15" id="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
+<OPTION value="seviri_m10" id="seviri_m10"> M10 SEVIRI </OPTION>
+<OPTION value="amsua_metop-a" id="amsua_metop-a"> METOP-A AMSU-A </OPTION>
+<OPTION value="avhrr_metop-a" id="avhrr_metop-a"> METOP-A AVHR </OPTION>
+<OPTION value="hirs4_metop-a" id="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
+<OPTION value="iasi_metop-a" id="iasi_metop-a"> METOP-A IASI </OPTION>
+<OPTION value="mhs_metop-a" id="mhs_metop-a"> METOP-A MHS </OPTION>
+<OPTION value="amsua_metop-b" id="amsua_metop-b"> METOP-B AMSU-A </OPTION>
+<OPTION value="hirs4_metop-b" id="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
+<OPTION value="iasi_metop-b" id="iasi_metop-b"> METOP-B IASI </OPTION>
+<OPTION value="mhs_metop-b" id="mhs_metop-b"> METOP-B MHS </OPTION>
+<OPTION value="amsua_n15" id="amsua_n15"> NOAA-15 AMSU-A </OPTION>
+<OPTION value="amsua_n18" id="amsua_n18"> NOAA-18 AMSU-A </OPTION>
+<OPTION value="avhrr_n18" id="avhrr_n18"> NOAA-18 AVHR </OPTION>
+<OPTION value="mhs_n18" id="mhs_n18"> NOAA-18 MHS </OPTION>
+<OPTION value="amsua_n19" id="amsua_n19"> NOAA-19 AMSU-A </OPTION>
+<OPTION value="hirs4_n19" id="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
+<OPTION value="mhs_n19" id="mhs_n19"> NOAA-19 MHS </OPTION>
+<OPTION value="atms_npp" id="atms_npp"> NPP ATMS </OPTION>
+<OPTION value="cris_npp" id="cris_npp"> NPP CRIS </OPTION>
 <!-- END_TABLE_INSERT -->
     </select>
 </form>
@@ -1407,12 +1441,16 @@
    Compare With uses value set to the comparison source.  This way the javascript can get the value of
    the ckboxCmp object and use that for locating the comparison data files.
 -->
-<table style="position:absolute;left:2px;top:150px;width:150px" id="compareTable" class="hidden">
+
+<!-- RM line to install OPTIONAL_COMPARE 
+<table style="position:absolute;left:2px;top:150px;width:150px" id="compareTable">
     <caption style="test-indent:2em"> <b>Compare With:</b> </caption>
     <tr><td>
-        <input type="checkbox" id="ckboxCmp" name="ckboxCmp" value="wopr" onclick="boxCheck(this.value)"><label for="ckboxCmp">opr GDAS</label></input>
+        <input type="checkbox" id="ckboxCmp" name="ckboxCmp" value="wopr" onclick="boxCheck(this.value)"><label id="ckboxCompLbl" for="ckboxCmp">operational GDAS</label></input>
     </td></tr>
 </table>
+     RM line to install OPTIONAL_COMPARE -->
+
 
 <table style="position:absolute;left:2px;top:210px;width:150px">
     <caption style="text-indent:2em"><b>Data Sets:</b> </caption>

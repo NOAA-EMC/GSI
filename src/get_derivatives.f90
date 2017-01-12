@@ -52,7 +52,7 @@ subroutine get_derivatives (guess,xderivative,yderivative)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: zero,max_varname_length
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -83,8 +83,8 @@ subroutine get_derivatives (guess,xderivative,yderivative)
   real(r_kind),dimension(:,:  ),pointer :: ptr2dges=>NULL()
   real(r_kind),dimension(:,:,:),pointer :: ptr3ddrv=>NULL()
   real(r_kind),dimension(:,:  ),pointer :: ptr2ddrv=>NULL()
-  character(len=20),dimension(:),allocatable:: dvars2d
-  character(len=20),dimension(:),allocatable:: dvars3d
+  character(len=max_varname_length),dimension(:),allocatable:: dvars2d
+  character(len=max_varname_length),dimension(:),allocatable:: dvars3d
   type(gsi_bundle):: work_bundle
   type(gsi_grid) :: grid
 
@@ -207,7 +207,7 @@ subroutine tget_derivatives(guess,xderivative,yderivative)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero
+  use constants, only: zero,max_varname_length
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -238,8 +238,8 @@ subroutine tget_derivatives(guess,xderivative,yderivative)
   real(r_kind),pointer    ,dimension(:,:,:)  :: ptr3ddrv=>NULL()
   real(r_kind),pointer    ,dimension(:,:)    :: ptr2dges=>NULL()
   real(r_kind),pointer    ,dimension(:,:)    :: ptr2ddrv=>NULL()
-  character(len=20),dimension(:),allocatable:: dvars2d
-  character(len=20),dimension(:),allocatable:: dvars3d
+  character(len=max_varname_length),dimension(:),allocatable:: dvars2d
+  character(len=max_varname_length),dimension(:),allocatable:: dvars3d
   type(gsi_bundle):: derivative
   type(gsi_grid):: grid
 

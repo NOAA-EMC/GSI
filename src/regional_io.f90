@@ -168,7 +168,7 @@ contains
   end subroutine convert_regional_guess
 
 
-  subroutine write_regional_analysis(mype)
+  subroutine write_regional_analysis
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_regional_analysis
@@ -181,7 +181,6 @@ contains
 !   2005-05-24  pondeca - add 2dvar only surface analysis option
 !
 !   input argument list:
-!      mype - mpi task id
 !
 !   output argument list:
 !
@@ -192,10 +191,10 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind
+    use mpimod, only: mype
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(in):: mype
 
 !   Write nmm analysis file.  Consider two possible
 !   output formats:  netcdf or binary

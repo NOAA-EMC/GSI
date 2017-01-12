@@ -7,7 +7,7 @@
      elements to assist with the layout. -->
 
 <head>
-    <title> INSERT_SUFFIX -- Experimental GDAS Radiance Monitoring plots</title>
+    <title> INSERT_SUFFIX -- Experimental Radiance Monitoring plots</title>
 
 
     <script type="text/javascript">
@@ -311,8 +311,7 @@
             <div class="bt" onclick="select('time')">   <label>Time Dependent Plots             </label></div>
             <div class="bt" onclick="select('bcoef')">  <label>Bias Correction Coeff Plots      </label></div>
             <div class="bt" onclick="select('summary')"><label>Summary Plots                    </label></div>
-            <!--<div class="bt" onclick="select('comp')"><label>Comparison Plots                    </label></div>-->
-            <!--<div class="bt" onclick="select('print')">  <label>Save Plot to file                </label></div> -->
+
         </div>
     </div>
 </div>

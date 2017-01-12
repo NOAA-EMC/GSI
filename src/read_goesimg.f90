@@ -76,9 +76,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv,r60
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
+  use radinfo, only: iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
@@ -404,24 +405,27 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
+  if (mype_sub==mype_root.and.ndata>0) then
 
-  do n=1,ndata
-     do k=1,nchanl
-        if(data_all(k+nreal,n) > tbmin .and. &
-           data_all(k+nreal,n) < tbmax)nodata=nodata+1
-    end do
-  end do
-  if(dval_use .and. assim)then
      do n=1,ndata
-       itt=nint(data_all(37,n))
-       super_val(itt)=super_val(itt)+val_img
+        do k=1,nchanl
+           if(data_all(k+nreal,n) > tbmin .and. &
+              data_all(k+nreal,n) < tbmax)nodata=nodata+1
+       end do
      end do
-  end if
+     if(dval_use .and. assim)then
+        do n=1,ndata
+          itt=nint(data_all(37,n))
+          super_val(itt)=super_val(itt)+val_img
+        end do
+     end if
 
 ! Write final set of "best" observations to output file
-  call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+
+  endif
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)

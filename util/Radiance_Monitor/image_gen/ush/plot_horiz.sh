@@ -22,9 +22,9 @@ echo $SAT
 
 pid_test=`echo $PID | tail -c -3`
 if [[ ${pid_test} = "_1" || ${pid_test} = "_2" ]]; then
-   tmpdir=${DATADIR}/horiz_${SUFFIX}.${PID}.${PDATE}
+   tmpdir=${DATADIR}/horiz_${RADMON_SUFFIX}.${PID}.${PDATE}
 else
-   tmpdir=${DATADIR}/horiz_${SUFFIX}.${SAT}.${PDATE}
+   tmpdir=${DATADIR}/horiz_${RADMON_SUFFIX}.${SAT}.${PDATE}
 fi
 rm -rf $tmpdir
 
@@ -98,10 +98,10 @@ find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/horiz/ \;
 #cd ..
 #rm -rf $tmpdir
 
-#cat ${LOADLQ}/plot_${SUFFIX}_horiz* 
+#cat ${LOADLQ}/plot_${RADMON_SUFFIX}_horiz* 
 
-#count=`ls ${LOADLQ}/plot_${SUFFIX}* | wc -l`
-#complete=`grep "COMPLETED" ${LOADLQ}/plot_${SUFFIX}* | wc -l`
+#count=`ls ${LOADLQ}/plot_${RADMON_SUFFIX}* | wc -l`
+#complete=`grep "COMPLETED" ${LOADLQ}/plot_${RADMON_SUFFIX}* | wc -l`
 
 #running=`expr $count - $complete`
 

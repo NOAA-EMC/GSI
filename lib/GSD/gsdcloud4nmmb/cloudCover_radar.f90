@@ -12,6 +12,7 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,zh,grid_ref, &
 !
 ! PROGRAM HISTORY LOG:
 !    2009-01-20  Hu  Add NCO document block
+!    2015-02-24  S.Liu adjust cloud cover based on reflectivity observations
 !
 !
 !   input argument list:
@@ -91,8 +92,10 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,zh,grid_ref, &
 !====================================================================
 !  Begin
 !
-   ref_base = 10.0
-   write(6,*)'sliu enter cloudCover_radar'
+!  ref_base = 15.0
+!  set ref_base is 35.0 dbz, assuming cloud water will coexist with rain/snow 
+!  based on discussion with Eric Aligo
+   ref_base = 35.0
 !
 !-----------------------------------------------------------------------
 !
@@ -120,12 +123,9 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,zh,grid_ref, &
       END DO ! k
 
 
-      DO k = 2, nsig-1
+      DO k = 6, nsig-1
         if(grid_ref(i,j,k) > ref_base ) then
-           if( zs_1d(k) > cloud_base .and. cld_cover_3d(i,j,k) < thresh_cvr ) then
              cld_cover_3d(i,j,k)=radar_cover
-!            write(6,*)'sliu in radar cld_cover::',zs_1d(k),cloud_base,grid_ref(i,j,k),ref_base,cld_cover_3d(i,j,k),thresh_cvr
-           endif
         endif
       ENDDO  ! k
 

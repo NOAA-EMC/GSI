@@ -1269,6 +1269,8 @@
        height=817._r_kind
     case('meghat')
        height=866._r_kind
+    case('npp')
+       height=840._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)
        valid=.false.
@@ -1314,6 +1316,7 @@
 !                          16 = ATMS 1.1 DEG
 !                          17 = AIRS
 !                          18 - IASI
+!                          19 = SAPHIR
 !   ifov                  - fov number
 !   satellite_azimuth     - satellite azimuth angle (degrees)
 !   lat                   - latitude of fov center

@@ -139,6 +139,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-06-17  carley/zhu - add lcbas and tcamt
+!   2015-07-10  pondeca - add cldch
 !
 !   input argument list:
 !     yobs
@@ -178,7 +179,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
                   & i_pm10_ob_type, &
                   & i_wspd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    i_aero_ob_type,nobs_type,stpcnt,ll_jo,ib_jo
+                    i_aero_ob_type,i_cldch_ob_type,nobs_type,stpcnt,ll_jo,ib_jo
   use stptmod, only: stpt
   use stpwmod, only: stpw
   use stppsmod, only: stpps
@@ -209,6 +210,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stphowvmod, only: stphowv
   use stptcamtmod, only: stptcamt
   use stplcbasmod, only: stplcbas
+  use stpcldchmod, only: stpcldch
   use bias_predictors, only: predictors
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -371,6 +373,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
        else if(ll == 30) then
           call stppm10(yobs(ib)%pm10,dval(ib),xval(ib),pbcjo(1,i_pm10_ob_type,ib),sges,nstep)
 
+!   penalty, b, and c for conventional cldch
+       else if(ll == 31) then
+          if (getindex(cvars2d,'cldch')>0) &
+          call stpcldch(yobs(ib)%cldch,dval(ib),xval(ib),pbcjo(1,i_cldch_ob_type,ib),sges,nstep)
        end if
     end do
 
@@ -489,7 +495,7 @@ subroutine stpjo_setup(yobs,nobs_bins)
 
        else if (ll == 10)then
 !         penalty, b, and c for ozone
-          if(associated(yobs(ib)%oz)) then
+          if(associated(yobs(ib)%oz) .or. associated(yobs(ib)%o3l)) then
              stpcnt = stpcnt +1
              ll_jo(stpcnt) = ll
              ib_jo(stpcnt) = ib
@@ -642,8 +648,13 @@ subroutine stpjo_setup(yobs,nobs_bins)
              ll_jo(stpcnt) = ll
              ib_jo(stpcnt) = ib
           end if
-
-
+       else if (ll == 31)then
+!         penalty, b, and c for conventional cldch
+          if(associated(yobs(ib)%cldch)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = ll
+             ib_jo(stpcnt) = ib
+          end if
        end if
      end do
     end do

@@ -80,7 +80,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use radinfo, only: nst_gsi,nstinfo
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
 
@@ -308,7 +308,6 @@ if(.not.in_curbin) cycle
      if ( isli == 0 ) then
        nobs_qc = nobs_qc + 1
        call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
-
      else
        dsfct_obx = zero
      endif

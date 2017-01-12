@@ -22,6 +22,7 @@ SRC_FILES = ARPS_cldLib.f90 \
             mthermo.f90 \
             pcp_mxr_ARPSlib.f90 \
             read_Lightning_cld.f90 \
+            read_Lightningbufr_cld.f90 \
             read_NESDIS.f90 \
             read_radar_ref.f90 \
             read_Surface.f90 \
@@ -29,6 +30,7 @@ SRC_FILES = ARPS_cldLib.f90 \
             smooth.f90 \
             constants.f90 \
             kinds.f90 \
-            pbl_height.f90 
+            pbl_height.f90 \
+            hydro_mxr_thompson.f90
 
 OBJ_FILES =${SRC_FILES:.f90=.o}

@@ -22,6 +22,8 @@ module buddycheck_mod
 !
 !$$$ end documentation block
 
+  use kinds, only: r_kind,i_kind,r_double
+
   implicit none
 
 ! set default to private
@@ -46,7 +48,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! !USES:
 
-  use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,twodvar_regional,regional
   use jfunc, only: jiter
@@ -138,7 +139,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
   real(r_kind),dimension(nsig):: prsltmp2
 
-  integer(i_kind) ii
   integer(i_kind) mm1
   integer(i_kind) itype,msges,iqt,i
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
@@ -314,7 +314,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
      vals(i,2)=data(ilate,i)
      vals(i,3)=data(ilone,i)
      vals(i,4)=data(iobshgt,i)
-     vals(i,5)=data(iuse,ii)
+     vals(i,5)=data(iuse,i)
      vals(i,6)=data(id,i)
      vals(i,7)=dtime-time_offset 
 ! End of loop over observations
@@ -474,7 +474,6 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 ! !USES:
   use jfunc, only: jiter,last,jiterstart
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_comm_world
-  use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nsig,twodvar_regional,regional
   use constants, only: zero, one,one_tenth,r100,tiny_r_kind
   use obsmod, only: obs_sub_comm,bmiss,dtype
@@ -830,7 +829,6 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   !$$$ end documentation block
 
   use constants, only: rearth,deg2rad,one,two
-  use kinds, only: r_kind
   implicit none
   real(r_kind),intent (in) :: inlat1,inlon1,inlat2,inlon2
   real(r_kind) :: lat1,lon1,lat2,lon2

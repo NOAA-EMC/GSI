@@ -60,13 +60,11 @@ contains
 !   2013-05-14  guo     -- add status and iostat in open, to correctly
 !                          handle the error case of "obs error table not
 !                          available to 3dvar".
-!   2015-03-06  yang    -- minor modification: add ld to denote the size of nlqc_b table, then
-!                          eliminate the hard wired values and subtraction in
-!                          order to get error table array index.
+!   2015-03-06  yang    -- add ld = 3000 for the size of nlqc_b table. Remove
+!                          the hardwired value in the calculation of table array
+!                          index.
 !                          ld=300 is sufficient for current conventional
 !                          observing systems.
-
-
 !
 !   input argument list:
 !
@@ -173,6 +171,3 @@ subroutine convb_q_destroy
   end subroutine convb_q_destroy
 
 end module convb_q
-
-
-

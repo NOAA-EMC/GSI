@@ -46,6 +46,7 @@ module jfunc
 !   2014-03-19  pondeca - add factw10m
 !   2014-05-07  pondeca - add facthowv
 !   2014-06-18  carley/zhu - add lcbas and tcamt
+!   2015-07-10  pondeca - add factcldch
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -132,7 +133,7 @@ module jfunc
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: factg,factv,factp,factl,R_option,factw10m,facthowv,diag_precon,step_start
+  public :: factg,factv,factp,factl,R_option,factw10m,facthowv,factcldch,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
 
@@ -148,7 +149,7 @@ module jfunc
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,factl, & 
-               factw10m,facthowv,step_start
+               factw10m,facthowv,factcldch,step_start
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:):: varq
   real(r_kind),allocatable,dimension(:,:):: varcw
@@ -200,15 +201,16 @@ contains
     step_start=1.e-4_r_kind
     R_option=.false.
 
-    factqmin=one
-    factqmax=one
+    factqmin=zero
+    factqmax=zero
     clip_supersaturation=.false.
-    factg=one
-    factv=one
-    factp=one
-    factl=one
-    factw10m=one
-    facthowv=one
+    factg=zero
+    factv=zero
+    factp=zero
+    factl=zero
+    factw10m=zero
+    facthowv=zero
+    factcldch=zero
     iout_iter=220
     miter=1
     qoption=1

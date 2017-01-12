@@ -13,6 +13,7 @@ module rapidrefresh_cldsurf_mod
 !   2015-01-15 Hu        added options i_use_2mq4b,i_use_2mt4b, i_gsdcldanal_type
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
+!   2016-02-29 S.Liu        added options l_use_hydroretrieval_all
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -137,6 +138,7 @@ module rapidrefresh_cldsurf_mod
   public :: i_gsdcldanal_type
   public :: i_gsdsfc_uselist
   public :: i_lightpcp
+  public :: l_use_hydroretrieval_all
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -149,6 +151,7 @@ module rapidrefresh_cldsurf_mod
   logical l_pbl_pseudo_surfobsq
   logical l_pbl_pseudo_surfobsuv
   logical l_gsd_limit_ocean_q
+  logical l_use_hydroretrieval_all
   real(r_kind)  pblh_ration
   real(r_kind)  pps_press_incr
   logical l_pw_hgt_adjust
@@ -257,6 +260,7 @@ contains
     i_gsdcldanal_type  = 0                            !  turn cloud analysis off
     i_gsdsfc_uselist   = 0                            !  turn gsd surface uselist off           
     i_lightpcp         = 0                            !  don't add light pcp over warm section           
+    l_use_hydroretrieval_all=.false.
 
     return
   end subroutine init_rapidrefresh_cldsurf

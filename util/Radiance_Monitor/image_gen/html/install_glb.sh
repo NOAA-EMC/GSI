@@ -284,6 +284,71 @@ for html_file in $mod_html_files; do
 done
 
 #--------------------------------------------------------------
+#  Optionally enable comparison plots to the operational
+#    GDAS data
+#
+set +ax
+comp_html_files="plot_summary.html plot_time.html"
+
+echo "Do you wish to enable data plots to include comparison to"
+echo " operational GDAS data, or another data source?"
+echo ""
+echo -n "  Enter YES to enable comparison plots, any other input to disable.  > "
+read text
+short=`echo $text | cut -c1`
+
+if [[ $short = "Y" || $short = "y" ]]; then
+
+   cmp_src="GDAS"
+
+   echo "Please specify the suffix of your comparison data source,"
+   echo "  or just hit the return key to use the operational GDAS as "
+   echo "  the comparison source"
+   echo ""
+   echo -n " > "
+   read text
+
+   if [[ ${#text} -gt 0 ]]; then
+     cmp_src=${text}
+   fi
+
+   echo "Enabling ${cmp_src} as the comparison source."
+
+   #-------------------------------------------------------------------------
+   #  If cmp_src == GDAS we only have to uncomment the comparison check box
+   #  in the html files.  If it's another source then we'll have to change
+   #  the values of compSrc, compName, and compHome in the html files.
+   #
+
+   for html_file in $comp_html_files; do
+      echo "processing ${html_file}"
+
+      tmp_html=./tmp_${html_file}
+      rm -f ${tmp_html}
+
+      #----------------------------------------------------------------------------
+      # remove the OPTIONAL_COMPARE lines which uncomments the comparison check box
+      sed '/OPTIONAL_COMPARE/d' ./${html_file} > ${tmp_html}
+      mv -f ${tmp_html} ${html_file}
+
+      #---------------------------------------------------------------
+      # if we're using a source other than GDAS make that change here
+      if [[ $cmp_src != "GDAS" ]]; then
+         cmp_sc_line="            var compSrc  = \"${cmp_src}\";"
+         cmp_nm_line="            var compName = \"${cmp_src}\";"
+         cmp_hm_line="            var compHome = \"../${cmp_src}/\";"
+
+         sed -i "/var compSrc /c ${cmp_sc_line}" ${html_file}
+         sed -i "/var compName /c ${cmp_nm_line}" ${html_file}
+         sed -i "/var compHome /c ${cmp_hm_line}" ${html_file}
+      fi
+
+   done
+fi
+
+set -ax
+
+#--------------------------------------------------------------
 # Generate the intro.html file.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
@@ -326,7 +391,7 @@ if [[ ! -s ${new_index} ]]; then
    fi
 fi
 
-js_files="jsuri-1.1.1.js stats.js"
+support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
 
 
 #--------------------------------------------------------------
@@ -359,7 +424,7 @@ done
 #-----------------------
 #  js files
 #
-for file in $js_files; do
+for file in $support_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
 done
 

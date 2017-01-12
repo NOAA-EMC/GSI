@@ -31,12 +31,6 @@ subroutine penal(xhat)
   use constants, only: zero,one
   use gsi_4dvar, only: nobs_bins
   use obsmod, only: qhead,qptr,thead,tptr,whead,wptr,pshead,psptr
-  use qcmod, only: njqc
-  use converr_ps, only: etabl_ps
-  use converr_q, only: etabl_q
-  use converr_t, only: etabl_t
-  use converr_uv, only: etabl_uv
-  use converr, only: etabl
   use jfunc, only: jiterstart,jiter
   use convinfo, only: ictype,nconvtype,ioctype
   use gsi_bundlemod, only: gsi_bundle
@@ -328,5 +322,3 @@ subroutine penal(xhat)
   endif ! jiter
   return
 end subroutine penal
-
-

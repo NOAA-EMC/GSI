@@ -36,6 +36,11 @@
 !   tions of selected meteorlolgical parameters for cloud physics prob-
 !   lems," ecom-5475, atmospheric sciences laboratory, u.s. army
 !   electronics command, white sands missile range, new mexico 88002.
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind),intent(in) :: t
+  real(r_single) :: tk,p1,p2,c1
+  real(r_kind) :: esat
 
   tk = t+273.15
   p1 = 11.344-0.0303998*tk
@@ -78,6 +83,10 @@
 !   at pressure p (millibars). the dry adiabat is given by
 !   potential temperature o (celsius). the computation is based on
 !   poisson's equation.
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind), intent(in) :: o,p
+  real(r_kind) :: tda
 
   tda= (o+273.15)*((p*.001)**.286)-273.15
   RETURN
@@ -90,11 +99,20 @@
 !   table 1 on page 7 of stipanuk (1973).
 !
 !   initialize constants
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind), intent(in) :: w,p
+  real(r_kind) :: tmr
+
+  real(r_kind) :: c1,c2,c3,c4,c5,c6
+  real(r_kind) :: x,tmrk
+  real(r_single) :: y
 
   DATA c1/.0498646455/,c2/2.4082965/,c3/7.07475/
   DATA c4/38.9114/,c5/.0915/,c6/1.2035/
 
-  x= ALOG10(w*p/(622.+w))
+  y=w*p/(622.+w)
+  x= alog10(y)
   tmrk= 10.**(c1*x+c2)-c3+c4*((10.**(c5*x)-c6)**2.)
   tmr= tmrk-273.15
   RETURN
@@ -109,6 +127,13 @@
 !   b is an empirical constant approximately equal to 0.001 of the latent
 !   heat of vaporization for water divided by the specific heat at constant
 !   pressure for dry air.
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind), intent(in) :: os,p
+  real(r_kind) :: tsa
+
+  real(r_kind) :: a,b,d,tq,x,tqk,w
+  integer :: i
 
   DATA b/2.6518986/
   a= os+273.15
@@ -143,6 +168,13 @@
 !
 !
 !   determine the mixing ratio line thru td and p.
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind), intent(in) :: t,td,p
+  real(r_kind) :: tw
+
+  real(r_kind) :: aw,ao,pi,tmr,tda,ti,aos,tsa,w,x
+  integer :: i
 
   aw = w(td,p)
 !
@@ -185,6 +217,12 @@
 !  (millibars). if the temperture  is input instead of the
 !  dew point, then saturation mixing ratio (same units) is returned.
 !  the formula is found in most meteorological texts.
+  use kinds, only: r_single,i_kind,r_kind
+  implicit none
+  real(r_kind), intent(in) :: t,p
+  real(r_kind) :: w
+
+  real(r_kind) :: esat
 
   w= 622.*esat(t)/(p-esat(t))
   RETURN

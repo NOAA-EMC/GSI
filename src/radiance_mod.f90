@@ -523,7 +523,7 @@ contains
     implicit none
     character(10) :: obstype
     type(rad_obs_type) :: radmod
-    integer i,j
+    integer i
 
     if (total_rad_type<=0) return
     
@@ -739,7 +739,7 @@ contains
     integer(i_kind) , intent(in) :: nchal
     real(r_kind)    , dimension(nchal), intent(inout) :: cclr,ccld
 
-    integer(i_kind) i,ii,ntot,nrows,ich0
+    integer(i_kind) ii,ntot,nrows,ich0
     real(r_kind) cclr0,ccld0
     character(len=256),allocatable,dimension(:):: utable
 
