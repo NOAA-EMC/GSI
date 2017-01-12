@@ -39,9 +39,9 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
+RADMON_SUFFIX=$1
 
-echo SUFFIX    = ${SUFFIX}
+echo RADMON_SUFFIX    = ${RADMON_SUFFIX}
 
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
@@ -114,13 +114,13 @@ export PLOT=1
 #--------------------------------------------------------------------
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
+   running=`bjobs -l | grep plot_${RADMON_SUFFIX} | wc -l` 
 else
-   running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+   running=`showq -n -u ${LOGNAME} | grep plot_${RADMON_SUFFIX} | wc -l`
 fi
 
 if [[ $running -ne 0 ]]; then
-   echo "Plot jobs still running for $SUFFIX, must exit"
+   echo "Plot jobs still running for $RADMON_SUFFIX, must exit"
    exit
 fi
 
@@ -129,7 +129,7 @@ fi
 #  Create tmpdir and LOGdir
 #--------------------------------------------------------------------
 
-tmpdir=${STMP_USER}/plot_rad${SUFFIX}
+tmpdir=${STMP_USER}/plot_rad${RADMON_SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -175,7 +175,7 @@ export PDY=`echo $PDATE|cut -c1-8`
 #--------------------------------------------------------------------
 proceed="NO"
 if [[ "$PRODATE" == "auto" ]]; then
-   proceed=`${IG_SCRIPTS}/confirm_data.sh ${SUFFIX} ${PDATE}`
+   proceed=`${IG_SCRIPTS}/confirm_data.sh ${RADMON_SUFFIX} ${PDATE}`
 elif [[ $PDATE -le $PRODATE ]]; then
    nfile_src=`ls -l ${TANKDIR}/radmon.${PDY}/*${PDATE}*ieee_d* | egrep -c '^-'` 
    if [[ $nfile_src -gt 0 ]]; then
@@ -208,7 +208,7 @@ cd $PLOT_WORK_DIR
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
 #  available data files in $TANKDIR/angle
 #  If USE_STATIC_SATYPE == 1 then load SATYPE from the SATYPE.txt 
-#  file.
+#  file, or from fix/gdas_radmon_satype.txt.
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
@@ -241,8 +241,11 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
 else 
    TANKDIR_INFO=${TANKDIR}/info
-   STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
-
+   export STATIC_SATYPE_FILE=${STATIC_SATYPE_FILE:-${TANKDIR_INFO}/SATYPE.txt}
+   if [[ ! -e $STATIC_SATYPE_FILE ]]; then
+      export STATIC_SATYPE_FILE=${HOMEgdas}/fix/gdas_radmon_satype.txt
+   fi
+   
    #-------------------------------------------------------------
    #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit 
    #  if unable to locate it.
@@ -276,15 +279,18 @@ fi
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=${RADSTAT_LOCATION}
 
-   jobname="plot_horiz_${SUFFIX}"
+   jobname="plot_horiz_${RADMON_SUFFIX}"
    logfile="${LOGdir}/horiz.log"
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -cwd ${PWD} \
+           -R affinity[core] -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
    elif [[ $MY_MACHINE = "cray" ]]; then
-      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45  -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -cwd ${PWD} \
+           -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
    else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} \
+           -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
    fi
 fi
 
@@ -308,7 +314,8 @@ if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
    logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
   
    if [[ -s $logfile ]]; then
-      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+      ${IG_SCRIPTS}/ck_missing_diags.sh ${PDATE} ${TANKDIR}
+      ${IG_SCRIPTS}/extract_err_rpts.sh ${sdate} ${CYA} ${logfile}
    fi
 fi
 

@@ -144,6 +144,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-05-01  Liu Ling - Added ISS Rapidscat wind (u,v) qc 
 !   2015-03-14  Nebuda  - add departure check and near surface check for clear air WV AMV (WVCS) from GOES type 247
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 ! REMARKS:
 !   language: f90
@@ -974,7 +975,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               wgt=sqrt(dudiff*dudiff+dvdiff*dvdiff)*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*ratio_errors*log(cosh((sqrt(val))/sqrt(two*var_jb)))
+           term=-two*var_jb*rat_err2*log(cosh((sqrt(val))/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
         else if (vqc .and. cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
@@ -1043,7 +1044,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obsdiags(i_w_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
      end if
 
-!    If obs is "acceptabl_uve", load array with obs info for use
+!    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
  
      if (.not. last .and. muse(i)) then

@@ -17,10 +17,10 @@
 #  export PARMverf_rad=${RADMON_DATA_EXTRACT}/parm
 #  export USHverf_rad=${RADMON_DATA_EXTRACT}/ush
 #  export SCRIPTS=${USHverf_rad} 
-#  export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+#  export LOGDIR=${LOGSverf_rad}/rad${RADMON_SUFFIX}
 
 
-  export DATA_EXTRACT_JOBNAME=${DATA_EXTRACT_JOBNAME:-RadMon_de_${SUFFIX}}
+  export DATA_EXTRACT_JOBNAME=${DATA_EXTRACT_JOBNAME:-RadMon_de_${RADMON_SUFFIX}}
  
  
   echo "end data_extract_config"

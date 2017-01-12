@@ -63,6 +63,9 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !   2015_05_12  wu      - bug fixes for FGAT
 !   2015-09-10  zhu     - use centralized radiance_mod for all-sky & aerosol usages in radiances
+!   2015_09_20  s.liu   - convert nmmb F_ICE, F_RAIN to water content before interpolation
+!   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
+!   2016_04_28  eliu    - remove cwgues0 
 !
 !   input argument list:
 !     mype     - pe number
@@ -105,7 +108,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use native_endianness, only: byte_swap
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,add_gfs_stratosphere
   use radiance_mod, only: n_actual_clouds,icloud_fwd
 
   implicit none
@@ -1048,7 +1051,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr,add_gfs_stratosphere
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
@@ -1620,6 +1623,9 @@ subroutine read_nems_nmmb_guess(mype)
 !   2013-10-19  todling - efr fields now live in cloud_efr_mod
 !   2013-02-26  zhu - add cold_start option when the restart file is from the GFS
 !   2015-09-10  zhu - use centralized radiance_mod for all-sky & aerosol usages in radiances
+!   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
+!   2016_06_21  s.liu   - delete unused variable qhtmp
+!   2016_06_30  s.liu   - delete unused variable gridtype in read fraction
 !
 !   input argument list:
 !     mype     - pe number
@@ -1650,16 +1656,16 @@ subroutine read_nems_nmmb_guess(mype)
   use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
-       aeta1_ll,aeta2_ll,use_reflectivity
+       aeta1_ll,aeta2_ll
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type  
   use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint, cold_start
-  use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr
+  use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_read_fraction
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr,add_gfs_stratosphere  
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
-  use derivsmod, only: cwgues0
   use radiance_mod, only: n_actual_clouds,icloud_fwd
   implicit none
 
@@ -1682,7 +1688,7 @@ subroutine read_nems_nmmb_guess(mype)
 ! variables for cloud info
   logical good_fice, good_frain, good_frimef
   integer(i_kind) ier,iret,istatus,ierr
-  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
+  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
   real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
   real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
@@ -1795,7 +1801,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
-     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+     if (n_actual_clouds>0 .and. (i_gsdcldanal_type/=2)) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
@@ -1829,7 +1835,7 @@ subroutine read_nems_nmmb_guess(mype)
                       efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
               end if
            end do
-           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv,cwgues0)
+           if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv)
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr 
@@ -1838,7 +1844,7 @@ subroutine read_nems_nmmb_guess(mype)
 
 
 !    if (n_actual_clouds>0 .and. use_reflectivity) then
-     if (use_reflectivity) then
+     if (i_gsdcldanal_type==2) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=iret
@@ -1850,23 +1856,8 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'tten',dfi_tten,istatus);ier=ier+istatus
            do kr=1,nsig
               k=nsig+1-kr
-              call gsi_nemsio_read('clwmr', 'mid layer','H',kr,clwmr(:,:,k), mype,mype_input) !read total condensate
-              call gsi_nemsio_read('f_ice', 'mid layer','H',kr,fice(:,:,k),  mype,mype_input) !read ice fraction
-              call gsi_nemsio_read('f_rain','mid layer','H',kr,frain(:,:,k), mype,mype_input) !read rain fraction
-              call gsi_nemsio_read('f_rimef','mid layer','H',kr,frimef(:,:,k), mype,mype_input) !read rime factor
-
-              do i=1,lon2
-                 do j=1,lat2
-                    ges_prsl(j,i,k,it)=one_tenth* &
-                                (aeta1_ll(k)*pdtop_ll + &
-                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
-                                 pt_ll)
-                 end do
-              end do
-              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
-                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
-                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),qhtmp(:,:,k), &
-                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+              call gsi_nemsio_read_fraction('f_rain','f_ice','clwmr','tmp','mid layer',kr, &
+                       ges_qi(:,:,k),ges_qs(:,:,k),ges_qr(:,:,k),ges_ql(:,:,k), mype,mype_input) !read total condensate
            end do
 
      end if 
@@ -2001,7 +1992,7 @@ subroutine read_nems_nmmb_guess(mype)
 
 !    read in radar reflectivity
 !    mype_input=0
-     if(use_reflectivity) then
+     if(i_gsdcldanal_type==2) then
      if(mype==mype_input) then
         wrfges = 'obsref.nemsio'
 !       write(6,*)'start to read obsref.nemsio'

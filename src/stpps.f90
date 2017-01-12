@@ -60,6 +60,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-05-13  todling  - update to use gsi_bundlemod
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     pshead
@@ -166,9 +167,9 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
            do kk=1,max(1,nstep)
               pen(kk) = two*two*psptr%jb*log(cosh(sqrt(pen(kk)/(two*psptr%jb))))
            enddo
-           out(1) = out(1)+pen(1)*sqrt(psptr%raterr2)
+           out(1) = out(1)+pen(1)*psptr%raterr2
            do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*sqrt(psptr%raterr2)
+              out(kk) = out(kk)+(pen(kk)-pen(1))*psptr%raterr2
            end do
         else
            out(1) = out(1)+pen(1)*psptr%raterr2

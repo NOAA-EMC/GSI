@@ -1,0 +1,27 @@
+Instructions for building executables.
+	
+   1) Load the build module appropriate for your Machine:
+     i.)
+        WCOSS:
+           "module use -a ../modulefiles/wcoss"     
+        CRAY:
+           "module use -a ../modulefiles/cray"     
+        THEIA:
+           "module use -a ../modulefiles/theia"
+     ii.) type:
+        "module load RadMonBuild"
+
+   2)  cd into each executable directory (*.fd)
+
+   3)  Optional:  verify all prerequisites are met by typing:
+	"make check_prereqs"
+
+   4) Build the executable by typing:
+        "make"
+   
+   5) Move the executable to the ../../exec directory by typing:
+   	"make install"
+  
+   6) When all executable have been built unload the build module:
+        "module unload RadMonBuild"
+

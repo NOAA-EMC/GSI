@@ -53,6 +53,7 @@
      end if
   end do
   if (mype==0) write(6,*) 'prad_bias: number of passive channels=', jpassive 
+  if (jpassive<1) return
 
 ! Allocate arrays and initialize
   allocate(A(npred,npred,jpassive),b(npred,jpassive))

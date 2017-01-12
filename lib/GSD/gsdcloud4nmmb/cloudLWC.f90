@@ -66,7 +66,7 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
 !
 !  Variables for cloud analysis
 !
-  real (r_single),intent(in) :: cld_cover_3d(nlon,nlat,nsig)
+  real (r_single),intent(inout) :: cld_cover_3d(nlon,nlat,nsig)
   integer(i_kind),intent(in) :: cld_type_3d(nlon,nlat,nsig)
   integer(i_kind),intent(in) :: wthr_type(nlon,nlat)
 !
@@ -92,12 +92,13 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
   real(r_single) :: cld_base_m, cld_top_m
   real(r_single) :: cld_base_qc_m, cld_top_qc_m
   real(r_single) :: cloudqvis(nlon,nlat,nsig)
+  real(r_single) :: rh(nlon,nlat,nsig)
 
 ! --- Key parameters
 !     Rh_clear_p        = 0.80          RH to use when clearing cloud
 !     Cloud_q_qvis_rat_p= 0.10          Ratio of cloud water to water/ice
 
-  real(r_single)    Cloud_q_qvis_rat_p
+  real(r_single)    Cloud_q_qvis_rat_p, cloud_q_qvis_ratio
   real(r_single)    auto_conver
   real(r_single)    cloud_def_p
   real(r_single)    rh_cld3_p
@@ -112,6 +113,9 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
   parameter (es0_p=6.1121_r_kind)     ! saturation vapor pressure (mb)
   real(r_kind) SVP1,SVP2,SVP3
   data SVP1,SVP2,SVP3/es0_p,17.67_r_kind,29.65_r_kind/
+
+  real(r_kind) :: temp_qvis1, temp_qvis2
+  data temp_qvis1, temp_qvis2 /268.15_r_kind, 263.15_r_kind/
 
   REAL(r_kind) stab, stab_threshold
   LOGICAL :: l_prt
@@ -133,6 +137,7 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
 !
 !-----------------------------------------------------------------------
 !
+  rh=0.0
   DO j = 2,nlat-1
     DO i = 2,nlon-1
 !
@@ -151,16 +156,18 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
         qvi1 = 0.62198_r_kind*eis*100._r_kind/(p_pa_1d(k)-100._r_kind*eis)   ! qvi1 is mixing ratio kg/kg, so no need next line
 !      qvi1 = qvi1/(1.0-qvi1)
 !      watwgt = max(0.,min(1.,(Temp-233.15)/(263.15-233.15)))
-        watwgt = max(0._r_kind,min(1._r_kind,(Temp-251.15_r_kind)/&
-                                     (263.15_r_kind-251.15_r_kind)))
+! ph - 2/7/2012 - use ice mixing ratio only for temp < 263.15
+        watwgt = max(0._r_kind,min(1._r_kind,(Temp-temp_qvis2)/&
+                                     (temp_qvis1-temp_qvis2)))
         cloudtmp_3d(i,j,k)= Temp
         cloudqvis(i,j,k)= (watwgt*qvs1 + (1._r_kind-watwgt)*qvi1)
 !      qvis(i,j,k)= (watwgt*qvs1 + (1.-watwgt)*qvi1)
+        rh(i,j,k) = q_bk(i,j,k)/cloudqvis(i,j,k)
       enddo
     enddo   ! i
   enddo     ! j
 
-  stab_threshold = 1._r_kind/10000._r_kind
+  stab_threshold = 3._r_kind/10000._r_kind
   DO j = 2,nlat-1
     DO i = 2,nlon-1
       DO k = 1,nsig
@@ -175,21 +182,30 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
           DO k = kb,kt
 
 ! -- change these to +/- 3 vertical levels
-            kp3 = min(nsig,k+3)
-            km3 = max(1     ,k-3)
+            kp3 = min(nsig,k+5)
+            km3 = max(1     ,k)
             stab = (thv(kp3)-thv(km3))/(p_pa_1d(km3)-p_pa_1d(kp3))
 
 ! -- stability check.  Use 2K/100 mb above 600 mb and
 !       3K/100mb below (nearer sfc)
             if ((stab<stab_threshold .and. p_pa_1d(k)/100._r_kind>600._r_kind)   &
                      .or. stab<0.66_r_kind*stab_threshold )  then
+!               write(*,'(a,3i4,f8.3)') 'skip building cloud in stable layer',i,j,k,stab*10000.0
+               cld_cover_3d(i,j,k)=-99999.0
+            elseif(rh(i,j,k) < 0.40 .and. ((cloudqvis(i,j,k)-q_bk(i,j,k)) > 0.003_r_kind)) then
+!               write(*,'(a,3i4,2f6.2)') 'skip building cloud in too-dry layer',i,j,k,& 
+!                            rh(i,j,k),(cloudqvis(i,j,k)-q_bk(i,j,k))*1000.0
+               cld_cover_3d(i,j,k)=-99999.0_r_single
             else
 !dk * we need to avoid adding cloud if sat_ctp is lower than 650mb
-               qavail = min(0.5_r_single*auto_conver,cloud_q_qvis_rat_p*cloudqvis(i,j,k))
+! ph - 2/7/2012 - use a temperature-dependent cloud_q_qvis_ratio 
+!                 and with 0.1 smaller condensate mixing ratio building also for temp < 263.15
                Temp = cloudtmp_3d(i,j,k)
-!               watwgt = max(0.,min(1.,(Temp-233.15)/(263.15-233.15)))
-               watwgt = max(0._r_kind,min(1._r_kind,(Temp-251.15_r_kind)/ &
-                           (263.15_r_kind-251.15_r_kind)))
+               watwgt = max(0._r_kind,min(1._r_kind,(Temp-temp_qvis2)/&
+                                     (temp_qvis1-temp_qvis2)))
+               cloud_q_qvis_ratio = watwgt*cloud_q_qvis_rat_p  &
+                                    + (1.0-watwgt)*0.1*cloud_q_qvis_rat_p
+               qavail = min(0.5_r_single*auto_conver,cloud_q_qvis_ratio*cloudqvis(i,j,k))
 
 !    -------------------------------------------------------------------
 !   - set cloud water mixing ratio  - no more than 0.1 g/kg,

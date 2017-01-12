@@ -86,6 +86,10 @@ MODULE RadDiag_Data_Define
     REAL(sp) :: sfc_wndspd = ZERO  ! surface wind speed
     REAL(sp) :: qcdiag1    = ZERO  ! ir=cloud fraction, mw=cloud liquid water
     REAL(sp) :: qcdiag2    = ZERO  ! ir=cloud top pressure, mw=total column water
+    REAL(sp) :: tref       = ZERO  ! reference temperature
+    REAL(sp) :: dtw        = ZERO  ! diurnal warming: d(Tw) at depth zob
+    REAL(sp) :: dtc        = ZERO  ! sub-layer cooling: d(Tc) at depth zob
+    REAL(sp) :: tz_tr      = ZERO  ! d(Tz)/d(Tr)
   END TYPE RadDiag_Data_Scalar_type
 
   ! Channel dependent part of data
@@ -97,12 +101,21 @@ MODULE RadDiag_Data_Define
     REAL(sp) :: qcmark = ZERO  ! quality control mark
     REAL(sp) :: emiss  = ZERO  ! surface emissivity
     REAL(sp) :: tlap   = ZERO  ! temperature lapse rate
-    REAL(sp) :: bifix  = ZERO  ! fixed angle dependent bias
-    REAL(sp) :: bilap  = ZERO  ! lapse rate bias correction term
-    REAL(sp) :: bilap2 = ZERO  ! square lapse rate bias correction term
-    REAL(sp) :: bicons = ZERO  ! constant bias correction term
-    REAL(sp) :: biang  = ZERO  ! scan angle bias correction term
-    REAL(sp) :: biclw  = ZERO  ! CLW bias correction term
+    REAL(sp) :: tb_tz  = ZERO  ! sst temperature gradient
+    REAL(sp) :: bicons = ZERO  ! bias constant term
+    REAL(sp) :: bicoss = ZERO  ! bias cosine of scan angle term
+    REAL(sp) :: biclw  = ZERO  ! bias clw term
+    REAL(sp) :: bilap2 = ZERO  ! bias lapse rate squared term
+    REAL(sp) :: bilap  = ZERO  ! bias lapse rate term
+    REAL(sp) :: bicos  = ZERO  ! bias cosine of solar zenith term
+    REAL(sp) :: bisin  = ZERO  ! bias sin of solar zenith term
+    REAL(sp) :: biem   = ZERO  ! bias emissivity term
+    REAL(sp) :: biang  = ZERO  ! bias scan angle terms
+    REAL(sp) :: biang2 = ZERO
+    REAL(sp) :: biang3 = ZERO
+    REAL(sp) :: biang4 = ZERO
+    REAL(sp) :: biang5 = ZERO
+    REAL(sp) :: bisst  = ZERO  ! bias sst term
   END TYPE RadDiag_Data_Channel_type
 
   ! The complete data structure

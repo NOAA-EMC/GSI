@@ -28,7 +28,9 @@ module adjtest_obs
            rw_ob_type, dw_ob_type, srw_ob_type, tcp_ob_type, sst_ob_type, &
            oz_ob_type, o3l_ob_type, gps_ob_type, colvk_ob_type, pm2_5_ob_type, rad_ob_type, &
            pm10_ob_type, aero_ob_type, &
-           gust_ob_type,vis_ob_type,pblh_ob_type
+           gust_ob_type,vis_ob_type,pblh_ob_type, & 
+           wspd10m_ob_type,td2m_ob_type,mxtm_ob_type,mitm_ob_type,pmsl_ob_type, & 
+           howv_ob_type,tcamt_ob_type,lcbas_ob_type,cldch_ob_type
 
   use jfunc, only: jiter
   use constants, only: zero, two
@@ -229,8 +231,17 @@ subroutine get_lhs(yobs, lhs)
   type(vis_ob_type),   pointer  :: visptr   ! 17. Conventional visibility
   type(pblh_ob_type),  pointer  :: pblhptr  ! 18. Conventional pbl height
   type(gust_ob_type),  pointer  :: gustptr  ! 19. Conventional wind gust 
-  type(pm10_ob_type),  pointer  :: pm10ptr  ! 20. pm10
-  type(aero_ob_type),  pointer  :: aeroptr  ! 21. aero aod
+  type(wspd10m_ob_type),pointer :: wspd10mptr ! 20. Conventional wind speed
+  type(td2m_ob_type),  pointer :: td2mptr   ! 21. Conventional 2m dew point
+  type(mxtm_ob_type),  pointer :: mxtmptr   ! 22. Conventional maxT
+  type(mitm_ob_type),  pointer :: mitmptr   ! 23. Conventional minT
+  type(pmsl_ob_type),  pointer :: pmslptr   ! 24. Conventional pressure at MSL
+  type(howv_ob_type),  pointer :: howvptr   ! 25. Conventional significant wave height
+  type(tcamt_ob_type), pointer :: tcamtptr  ! 26. Conventional total cloud amount
+  type(lcbas_ob_type), pointer :: lcbasptr  ! 27. Conventional lowest cloud base
+  type(cldch_ob_type), pointer :: cldchptr  ! 28. Conventional cloud ceiling height
+  type(pm10_ob_type),  pointer  :: pm10ptr  ! 29. pm10
+  type(aero_ob_type),  pointer  :: aeroptr  ! 30. aero aod
 
 
 ! ----------------------------------------------------------------------
@@ -550,6 +561,19 @@ subroutine get_lhs(yobs, lhs)
   call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 
 !--------------------------------------------------------------------------
+! Do wspd10m obs
+  nob = 0
+!-------------------------------------------------------------------------
+  wspd10mptr => yobs%wspd10m
+  do while (associated(wspd10mptr))
+     if (wspd10mptr%luse) then
+        lhs = lhs + wspd10mptr%diags%tldepart(jiter) * wspd10mptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     wspd10mptr => wspd10mptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+!--------------------------------------------------------------------------
 ! Do pm10 obs
   nob = 0
 !-------------------------------------------------------------------------
@@ -579,6 +603,125 @@ subroutine get_lhs(yobs, lhs)
         enddo
      end if
      aeroptr => aeroptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+!--------------------------------------------------------------------------
+! Do td2m obs
+  nob = 0
+!-------------------------------------------------------------------------
+  td2mptr => yobs%td2m
+  do while (associated(td2mptr))
+
+     if (td2mptr%luse) then
+        lhs = lhs + td2mptr%diags%tldepart(jiter) * td2mptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     td2mptr => td2mptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do mxtm obs
+  nob = 0
+!-------------------------------------------------------------------------
+  mxtmptr => yobs%mxtm
+  do while (associated(mxtmptr))
+
+     if (mxtmptr%luse) then
+        lhs = lhs + mxtmptr%diags%tldepart(jiter) * mxtmptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     mxtmptr => mxtmptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do mitm obs
+  nob = 0
+!-------------------------------------------------------------------------
+  mitmptr => yobs%mitm
+  do while (associated(mitmptr))
+
+     if (mitmptr%luse) then
+        lhs = lhs + mitmptr%diags%tldepart(jiter) * mitmptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     mitmptr => mitmptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do pmsl obs
+  nob = 0
+!-------------------------------------------------------------------------
+  pmslptr => yobs%pmsl
+  do while (associated(pmslptr))
+
+     if (pmslptr%luse) then
+        lhs = lhs + pmslptr%diags%tldepart(jiter) * pmslptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     pmslptr => pmslptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do howv obs
+  nob = 0
+!-------------------------------------------------------------------------
+  howvptr => yobs%howv
+  do while (associated(howvptr))
+
+     if (howvptr%luse) then
+        lhs = lhs + howvptr%diags%tldepart(jiter) * howvptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     howvptr => howvptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do tcamt obs
+  nob = 0
+!-------------------------------------------------------------------------
+  tcamtptr => yobs%tcamt
+  do while (associated(tcamtptr))
+
+     if (tcamtptr%luse) then
+        lhs = lhs + tcamtptr%diags%tldepart(jiter) * tcamtptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     tcamtptr => tcamtptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do lcbas obs
+  nob = 0
+!-------------------------------------------------------------------------
+  lcbasptr => yobs%lcbas
+  do while (associated(lcbasptr))
+
+     if (lcbasptr%luse) then
+        lhs = lhs + lcbasptr%diags%tldepart(jiter) * lcbasptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     lcbasptr => lcbasptr%llpoint
+  end do
+  call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
+
+!--------------------------------------------------------------------------
+! Do cldch obs
+  nob = 0
+!-------------------------------------------------------------------------
+  cldchptr => yobs%cldch
+  do while (associated(cldchptr))
+
+     if (cldchptr%luse) then
+        lhs = lhs + cldchptr%diags%tldepart(jiter) * cldchptr%diags%tldepart(jiter)
+        nob = nob + 1
+     end if
+     cldchptr => cldchptr%llpoint
   end do
   call mpi_allreduce(nob,nobs,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
 

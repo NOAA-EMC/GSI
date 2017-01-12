@@ -18,6 +18,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
 !                        dynamic allocated array
+!   2016-03-15  Su      - modified the code so that the program won't stop when
+!                         no subtype is found in non linear qc error table and b table
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -56,7 +58,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
   use convinfo, only: nconvtype,ctwind, &
        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv,index_sub, &
+       ithin_conv,rmesh_conv,pmesh_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -93,7 +95,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) c_prvstg,c_sprvstg
 
   integer(i_kind) ireadmg,ireadsb,iuse,mxtb,nmsgmax
-  integer(i_kind) i,maxobs,idomsfc,nsattype
+  integer(i_kind) i,maxobs,idomsfc,nsattype,j,ncount
   integer(i_kind) nc,nx,isflg,itx,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
@@ -106,7 +108,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntest,nvtest
   integer(i_kind) kl,k1,k2
   integer(i_kind) nmsg                ! message index
-  integer(i_kind) qc1,qc2,qc3,ierr,ierr2
+  integer(i_kind) qc1,qc2,qc3,ierr
   
   
  
@@ -244,7 +246,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   nmsg=0
   nrep=0
   ntb =0
-  
+  ncount=0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
 !    if(trim(subset) == 'NC005012') cycle msg_report 
 
@@ -540,17 +542,27 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
  
            ppb=max(zero,min(ppb,r2000))
            itypey=itype
-           ierr=index_sub(nc)
-           if (ierr >maxsub_uv) ierr=2
-           ierr2=ierr-1
-           if( iobsub /= isuble_uv(itypey,ierr2)) then
-              write(6,*) ' READ_SFCWND: the subtypes do not match subtype &
-              in the errortable,iobsub=',iobsub,isuble_uv(itypey,ierr2),itypey,itype,ierr2,nc,index_sub(nc)
-              call stop2(49)
-           endif
-
-           ppb=max(zero,min(ppb,r2000))
            if(njqc) then
+              ierr=0
+              do i =1,maxsub_uv
+                 if( icsubtype(nc) == isuble_uv(itypey,i) ) then
+                    ierr=i+1
+                    exit
+                 else if( i == maxsub_uv .and. icsubtype(nc) /= isuble_uv(itypey,i)) then
+                    ncount=ncount+1
+                    do j=1,maxsub_uv
+                       if(isuble_uv(itypey,j) ==0 ) then
+                          ierr=j+1
+                          exit
+                       endif
+                    enddo
+                    if (ncount ==1) then
+                       write(6,*) 'READ_SFCWND,WARNING!! cannot find subtyep in the error table,&
+                                   itype,iobsub=',itypey,icsubtype
+                       write(6,*) 'read error table at colomn subtype as 0,error table column=',j
+                    endif
+                 endif
+              enddo
               if(ppb>=etabl_uv(itypey,1,1)) k1=1
               do kl=1,32
                  if(ppb>=etabl_uv(itypey,kl+1,1).and.ppb<=etabl_uv(itypey,kl,1)) k1=kl
@@ -569,7 +581,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! get non linear qc parameter from b table
               var_jb=(one-del)*btabl_uv(itypey,k1,ierr)+del*btabl_uv(itypey,k2,ierr)
               var_jb=max(var_jb,wjbmin)
-              if (var_jb >10.0_r_kind) var_jb=zero
+              if (var_jb >= 10.0_r_kind) var_jb=zero
           else
              if(ppb>=etabl(itype,1,1)) k1=1
               do kl=1,32
@@ -717,7 +729,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg)
+  deallocate(lmsg,nrep,tab)
  
 
   ! Write header record and data to output file for further processing

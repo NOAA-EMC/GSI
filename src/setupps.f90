@@ -62,6 +62,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -435,15 +436,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
         ratio_errors = ratio_errors/sqrt(dup(i))
      end if
-! yang: 07/2015: 
-! When variable's pdf follows super-logistic model (Jim's ON468),
-! the current way to use dup is questionable provided that the number of multiple-reports is large. 
-! Currently, the penalty is divided by the dup, which is close to the number of multiple-reports,
-! when variable's pdf is of Gaussian or Gaussian+ uniform distribution. 
-! Say the multiple-reported data is 12 within the observation time window at a
-! station, the dup is close to 12. 
-! The better way is to add an element to store dup in the type X_ob_type, X is
-! the observation type.
 
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false.
 
@@ -477,7 +469,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               wgt=ddiff*error/sqrt(two*var_jb)
               wgt=tanh(wgt)/wgt
            endif
-           term=-two*var_jb*ratio_errors*log(cosh((val)/sqrt(two*var_jb)))
+           term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
            rwgt = wgt/wgtlim
            valqc = -two*term
         else if (vqc  .and. (cvar_pg(ikx)> tiny_r_kind) .and. (error >tiny_r_kind)) then

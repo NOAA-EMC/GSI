@@ -15,6 +15,9 @@ module anberror
 !   2008-11-03  sato - update for global mode and sub-domain mode
 !   2008-12-10  zhu  - use nvars from jfunc,add changes for generalized control variables
 !   2010-06-05  todling - an_amp no longer has wired-in order of variables in CV
+!   2015-05-02  parrish - add logical parameter rtma_bkerr_sub2slab to allow
+!                          anisotropic recursive filter to be used in slab mode,
+!                          while rest of code is run in subdomain mode
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
@@ -71,6 +74,15 @@ module anberror
 !   def rtma_subdomain_option - if true, then apply recursive filters in subdomain space
 !                                (currently constructed to work only when running 2d analysis
 !                                 and analysis and filter grid are the same)
+!   def rtma_bkerr_sub2slab - for rtma, if rtma_subdomain_option=T, and rtma_bkerr_sub2slab=T,
+!                               then in anbkerror, use following sequence of
+!                               operations:
+!                                   sub2grid
+!                                   tfgrid2agrid
+!                                   raf4,
+!                                   raf4_ad
+!                                   fgrid2agrid
+!                                   gridsub
 !
 !
 ! attributes:
@@ -86,6 +98,7 @@ module anberror
   use gridmod, only: lat2,lon2,nsig
   use fgrid2agrid_mod, only: fgrid2agrid_parm
   use control_vectors, only: nvars
+  use general_sub2grid_mod, only: sub2grid_info
   implicit none
 
 ! set default to private
@@ -102,6 +115,8 @@ module anberror
   public :: halo_update_reg
 ! set passed variables to public
   public :: pf2aP1,pf2aP2,pf2aP3,nx,ny,mr,nr,nf,rtma_subdomain_option
+  public :: s2g_rff
+  public :: rtma_bkerr_sub2slab
   public :: nsmooth,nsmooth_shapiro,indices,indices_p,ngauss,filter_all,filter_p2,filter_p3
   public :: kvar_start,kvar_end,var_names,levs_jdvar,anisotropic
   public :: idvar,triad4,ifilt_ord,npass,normal,binom,rgauss,anhswgt,an_amp,an_vs
@@ -132,6 +147,7 @@ module anberror
   real(r_kind) grid_ratio, grid_ratio_p
   real(r_double) an_flen_u,an_flen_t,an_flen_z
   type(fgrid2agrid_parm):: pf2aP1,pf2aP2,pf2aP3
+  type(sub2grid_info):: s2g_rff
 !                          for full/zonal_patch, and polar_patches
   real(r_kind),allocatable:: afact0(:)
   logical:: covmap         ! flag for covariance map
@@ -139,6 +155,7 @@ module anberror
 
 !--- for subdomain option
   logical rtma_subdomain_option
+  logical rtma_bkerr_sub2slab
   integer(i_kind),allocatable:: nrecv_halo(:),ndrecv_halo(:),nsend_halo(:),ndsend_halo(:)
   integer(i_kind) nrecv_halo_loc,nsend_halo_loc
   integer(i_kind),allocatable:: info_send_halo(:,:),info_recv_halo(:,:)
@@ -233,6 +250,7 @@ contains
     anhswgt(:)=one
 
     rtma_subdomain_option=.false.
+    rtma_bkerr_sub2slab=.false.
 
     allocate(afact0(nvars))
     afact0=zero
@@ -398,6 +416,9 @@ contains
 !   2005-02-08  parrish
 !   2005-05-24  pondeca - take into consideration that nrclen=0 for 2dvar only
 !                         surface analysis option!
+!   2015-05-02  parrish - add general_sub2grid type(sub2grid_info) s2g_rff-- 
+!                           similar to s2g_raf, but for filter grid which 
+!                           will be coarser than analysis grid to reduce run time.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -413,9 +434,12 @@ contains
     use jfunc, only: nrclen,nclen,diag_precon
     use berror, only: varprd,vprecond
     use gridmod, only: nlat,nlon,istart,jstart
+    use general_commvars_mod, only: s2g_raf
+    use general_sub2grid_mod, only: general_sub2grid_create_info
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
+    logical regional
 
     allocate(varprd(max(1,nrclen)))
     if(diag_precon)allocate(vprecond(nclen))
@@ -423,12 +447,19 @@ contains
     an_amp=one/three
 
 !   initialize fgrid2agrid interpolation constants
-    if(rtma_subdomain_option) grid_ratio=one
+  ! if(rtma_subdomain_option) grid_ratio=one   ! commented out to allow dual resolution
 
     pf2aP1%grid_ratio=grid_ratio
     pf2aP1%nlata=nlat
     pf2aP1%nlona=nlon
     call create_fgrid2agrid(pf2aP1)
+
+!    as alternative to indices, for use with rtma_bkerr_sub2slab, set up
+!     s2g_rff, which is equivalent to s2g_raf, but for filter grid.
+
+    regional=.true.
+    call general_sub2grid_create_info(s2g_rff,s2g_raf%inner_vars, &
+                   pf2aP1%nlatf,pf2aP1%nlonf,s2g_raf%nsig,s2g_raf%num_fields,regional)
 
 !   compute vertical partition variables used by anisotropic filter code
     if(rtma_subdomain_option) then
@@ -476,6 +507,8 @@ contains
 !   2008-12-10 zhu     - add changes with nrf* for generalized control variables
 !                      - use vlevs from gridmod
 !   2010-05-28 todling - obtain variable id's on the fly (add getindex)
+!   2015-06-09  pondeca - remove reference to stl and sti, which are now
+!   handled more generally as motley control variales
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -498,26 +531,20 @@ contains
 
     integer(i_kind),intent(in   ) :: mype
 
-    integer(i_kind) idvar_last,k,kk,nrf2_sst
+    integer(i_kind) idvar_last,k,kk
     integer(i_kind) nlevs0(0:npe-1),nlevs1(0:npe-1),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
 
     indices%kds=  1 ; indices%kde=vlevs
     indices_p%kds=1 ; indices_p%kde=vlevs
-    nrf2_sst=getindex(cvars2d,'sst')
 
 !  initialize idvar,kvar_start,kvar_end
 ! Determine how many vertical levels each mpi task will
 ! handle in the horizontal smoothing
     allocate(idvar(indices%kds:indices%kde),jdvar(indices%kds:indices%kde),kvar_start(nvars),kvar_end(nvars))
     allocate(var_names(nvars))
-    do k=1,nrf
+    do k=1,nvars
        var_names(k)=nrf_var(k)
     end do
-    if (nrf2_sst>0) then
-       var_names(nrf+1)="stl"
-       var_names(nrf+2)="sti"
-    end if
-
 
 !                     idvar  jdvar
 !                       1      1       stream function
@@ -611,6 +638,7 @@ contains
 !   2008-06-05  safford - rm unused var
 !   2010-06-01  zhu  - add vprecond deallocate
 !   2010-06-05  todling - add an_amp
+!   2015-05-02  parrish - add general_sub2grid_destroy_info to remove s2g_rff
 !
 !   input argument list:
 !
@@ -625,6 +653,7 @@ contains
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
     use jfunc, only: diag_precon
     use berror, only: vprecond
+    use general_sub2grid_mod, only: general_sub2grid_destroy_info
     implicit none
 
     deallocate(an_amp)
@@ -632,6 +661,8 @@ contains
     deallocate(qvar3d)
     if(diag_precon)deallocate(vprecond)
     call destroy_fgrid2agrid(pf2aP1)
+    call general_sub2grid_destroy_info(s2g_rff)
+!write(6,'(" FOR TEST ONLY--REMOVE THIS MESSAGE BEFORE FINAL COMMIT--SUCCESSFUL CALL TO general_sub2grid_destroy_info to remove s2g_rff in destroy_anberror_vars_reg")')
 
   end subroutine destroy_anberror_vars_reg
 

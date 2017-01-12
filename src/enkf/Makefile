@@ -280,7 +280,7 @@ include $(MAKE_DEPEND)
 # ----
 
 $(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) $(GSIOBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(GSIOBJS) $(LIBS)
+	$(LD) -o $@ $(OBJS) $(OBJS_NOSWAP) $(GSIOBJS) $(LIBS) $(LDFLAGS)
 
 
 # ------------------------

@@ -420,30 +420,33 @@
 		// Determine chartTitle1
 		// Any reason I couldn't use the actual value of the Statistic selection
 		// for this?
+                var line2 = curSrcName + ", " + chartData[idx][0].time[0];
+                log( "line2 = " + line2 );
+
                 if( curStat === 0 ) {
-                    chartTitle1 = "Mean Term";
+                    chartTitle1 = "Mean Term\n" + line2;
                 } else if( curStat === 1 ) {
-                    chartTitle1 = "Scan Angle";
+                    chartTitle1 = "Scan Angle\n" + line2;
                 } else if( curStat === 2 ) {
-                    chartTitle1 = "Lapse Rate";
+                    chartTitle1 = "Lapse Rate\n" + line2;
                 } else if( curStat === 3 ) {
-                    chartTitle1 = "(Lapse Rate)**2";
+                    chartTitle1 = "(Lapse Rate)**2\n" + line2;
                 } else if( curStat === 4 ) {
-                    chartTitle1 = "Cloud Liquid Water";
+                    chartTitle1 = "Cloud Liquid Water\n" + line2;
                 } else if( curStat === 5 ) {
-                    chartTitle1 = "Cos SSMIS";
+                    chartTitle1 = "Cos SSMIS\n" + line2;
                 } else if( curStat === 6 ) {
-                    chartTitle1 = "Sin SSMIS";
+                    chartTitle1 = "Sin SSMIS\n" + line2;
                 } else if( curStat === 7 ) {
-                    chartTitle1 = "Emissivity";
+                    chartTitle1 = "Emissivity\n" + line2;
                 } else if( curStat === 8 ) {
-                    chartTitle1 = "1st Order Angle";
+                    chartTitle1 = "1st Order Angle\n" + line2;
                 } else if( curStat === 9 ) {
-                    chartTitle1 = "2nd Order Angle";
+                    chartTitle1 = "2nd Order Angle\n" + line2;
                 } else if( curStat === 10 ) {
-                    chartTitle1 = "3rd Order Angle";
+                    chartTitle1 = "3rd Order Angle\n" + line2;
                 } else if( curStat === 11 ) {
-                    chartTitle1 = "4th Order Angle";
+                    chartTitle1 = "4th Order Angle\n" + line2;
                 }
 
                
@@ -456,7 +459,11 @@
                     titleTextStyle:{ fontSize: 20 },
                     vAxis:{ format          : '0.##E+0'},
                     hAxis:{ title           : 'Cycle Time',
-                        showTextEvery       :  1 }
+                        showTextEvery       :  1 },
+                    explorer: {
+                        actions: ['dragToZoom', 'rightClickToReset'],
+                        axis: 'horizontal',
+                        keepInBounds: true}
                 };
 
                 var chart1 = new google.visualization.LineChart(document.getElementById('plot1'));
@@ -468,6 +475,13 @@
                 // Create a view for the display of only selected values for chart1.
                 //-------------------------------------------------------------------
                 var myView1 = new google.visualization.DataView( data1 );
+
+                google.visualization.events.addListener(chart1, 'ready', function () {
+                    var printDiv = document.getElementById( "png1" );
+                    chart1.innerHTML = '<img src="' + chart1.getImageURI() + '">';
+                    //log( "innerHTML = " + chart1.innerHTML );
+                    printDiv.outerHTML = '<a id="png1" class="link1" href="' + chart1.getImageURI() + '">Printable version </a>';
+                });
 
 
                 // turn on/off viewed data according to current checkbox configuration
@@ -919,6 +933,14 @@
 
 
     </SCRIPT>
+
+    <style>
+        .link1{
+            position: relative;
+            left: 310px;
+            top:  365px;
+        }
+    </style>
 </HEAD>
 
 
@@ -931,7 +953,7 @@
 <label id="suffix" value="INSERT_SUFFIX" style="position: absolute; left: 72px; top:12px; color: blue"><b>INSERT_SUFFIX</b></label>
 
 <div id="plot1" style="width: 1000px; height: 400px; float:right"></div>
-<!--<div id="plot2" style="width: 1100px; height: 400px; left:170px"></div> -->
+<div id="png1" class="link1"></div>
 
 <form id="satSelectForm" action="" style="position:absolute; left:2px;top:40px">
     <b>Platform:</b>
@@ -941,38 +963,38 @@
              a source might be missing for some reason, and we should know about that
              if it was to happen, so it's better that a data load would fail here.  -->
         <!-- INSERT_TABLE -->
-        <OPTION VALUE="airs_aqua"> AQUA AIRS </OPTION>
-        <OPTION VALUE="amsua_aqua"> AQUA AMSU-A </OPTION>
-        <OPTION VALUE="ssmis_f16"> F16 SSMIS </OPTION> 
-        <OPTION VALUE="ssmis_f17"> F17 SSMIS </OPTION>
-        <OPTION VALUE="ssmis_f18"> F18 SSMIS </OPTION>
-        <OPTION VALUE="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
-        <OPTION VALUE="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
-        <OPTION VALUE="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
-        <OPTION VALUE="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
-        <OPTION VALUE="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
-        <OPTION VALUE="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
-        <OPTION VALUE="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
-        <OPTION VALUE="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
-        <OPTION VALUE="seviri_m10"> M10 SEVIRI </OPTION>
-        <OPTION VALUE="amsua_metop-a"> METOP-A AMSU-A </OPTION>
-        <option value="avhrr_metop-a"> METOP-A AVHRR </option>
-        <OPTION VALUE="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
-        <OPTION VALUE="iasi_metop-a"> METOP-A IASI </OPTION>
-        <OPTION VALUE="mhs_metop-a"> METOP-A MHS </OPTION>
-        <OPTION VALUE="amsua_metop-b"> METOP-B AMSU-A </OPTION>
-        <OPTION VALUE="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
-        <OPTION VALUE="iasi_metop-b"> METOP-B IASI </OPTION>
-        <OPTION VALUE="mhs_metop-b"> METOP-B MHS </OPTION>
-        <OPTION VALUE="amsua_n15"> NOAA-15 AMSU-A </OPTION>
-        <OPTION VALUE="amsua_n18"> NOAA-18 AMSU-A </OPTION>
-        <option value="avhrr_n18"> NOAA-18 AVHRR </option>
-        <OPTION VALUE="mhs_n18"> NOAA-18 MHS </OPTION>
-        <OPTION VALUE="amsua_n19"> NOAA-19 AMSU-A </OPTION>
-        <OPTION VALUE="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
-        <OPTION VALUE="mhs_n19"> NOAA-19 MHS </OPTION>
-        <OPTION VALUE="atms_npp"> NPP ATMS </OPTION>
-        <OPTION VALUE="cris_npp"> NPP CRIS </OPTION> 
+<OPTION value="airs_aqua" id="airs_aqua"> AQUA AIRS </OPTION>
+<OPTION value="amsua_aqua" id="amsua_aqua"> AQUA AMSU-A </OPTION>
+<OPTION value="ssmis_f16" id="ssmis_f16"> F16 SMIS </OPTION>
+<OPTION value="ssmis_f17" id="ssmis_f17"> F17 SMIS </OPTION>
+<OPTION value="ssmis_f18" id="ssmis_f18"> F18 SMIS </OPTION>
+<OPTION value="sndrd1_g13" id="sndrd1_g13"> GOES-13 SNDRD1 </OPTION>
+<OPTION value="sndrd2_g13" id="sndrd2_g13"> GOES-13 SNDRD2 </OPTION>
+<OPTION value="sndrd3_g13" id="sndrd3_g13"> GOES-13 SNDRD3 </OPTION>
+<OPTION value="sndrd4_g13" id="sndrd4_g13"> GOES-13 SNDRD4 </OPTION>
+<OPTION value="sndrd1_g15" id="sndrd1_g15"> GOES-15 SNDRD1 </OPTION>
+<OPTION value="sndrd2_g15" id="sndrd2_g15"> GOES-15 SNDRD2 </OPTION>
+<OPTION value="sndrd3_g15" id="sndrd3_g15"> GOES-15 SNDRD3 </OPTION>
+<OPTION value="sndrd4_g15" id="sndrd4_g15"> GOES-15 SNDRD4 </OPTION>
+<OPTION value="seviri_m10" id="seviri_m10"> M10 SEVIRI </OPTION>
+<OPTION value="amsua_metop-a" id="amsua_metop-a"> METOP-A AMSU-A </OPTION>
+<OPTION value="avhrr_metop-a" id="avhrr_metop-a"> METOP-A AVHR </OPTION>
+<OPTION value="hirs4_metop-a" id="hirs4_metop-a"> METOP-A HIRS/4 </OPTION>
+<OPTION value="iasi_metop-a" id="iasi_metop-a"> METOP-A IASI </OPTION>
+<OPTION value="mhs_metop-a" id="mhs_metop-a"> METOP-A MHS </OPTION>
+<OPTION value="amsua_metop-b" id="amsua_metop-b"> METOP-B AMSU-A </OPTION>
+<OPTION value="hirs4_metop-b" id="hirs4_metop-b"> METOP-B HIRS/4 </OPTION>
+<OPTION value="iasi_metop-b" id="iasi_metop-b"> METOP-B IASI </OPTION>
+<OPTION value="mhs_metop-b" id="mhs_metop-b"> METOP-B MHS </OPTION>
+<OPTION value="amsua_n15" id="amsua_n15"> NOAA-15 AMSU-A </OPTION>
+<OPTION value="amsua_n18" id="amsua_n18"> NOAA-18 AMSU-A </OPTION>
+<OPTION value="avhrr_n18" id="avhrr_n18"> NOAA-18 AVHR </OPTION>
+<OPTION value="mhs_n18" id="mhs_n18"> NOAA-18 MHS </OPTION>
+<OPTION value="amsua_n19" id="amsua_n19"> NOAA-19 AMSU-A </OPTION>
+<OPTION value="hirs4_n19" id="hirs4_n19"> NOAA-19 HIRS/4 </OPTION>
+<OPTION value="mhs_n19" id="mhs_n19"> NOAA-19 MHS </OPTION>
+<OPTION value="atms_npp" id="atms_npp"> NPP ATMS </OPTION>
+<OPTION value="cris_npp" id="cris_npp"> NPP CRIS </OPTION>
         <!-- END_TABLE_INSERT -->
     </select>
 </form>

@@ -82,6 +82,7 @@ module gridmod
 !   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
 !                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
 !                        to allow spectral to grid transformation to a lower resolution grid
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !                      
 !                        
 !
@@ -141,7 +142,7 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
-  public :: use_reflectivity
+  public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
 
@@ -173,9 +174,9 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
-  logical use_reflectivity  ! .t. for using reflectivity for NMMB
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
+  logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
   real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
@@ -383,6 +384,8 @@ contains
 !   2010-10-14  pagowski- add CMAQ
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio to determine whether to use NEMSIO to read global first guess field
 !   2011-09-14  todling - add use_sp_eqspace to better control lat/lon grid case
+!   2016-08-28       li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
+!                         between analysis grids and others
 !
 ! !REMARKS:
 !   language: f90
@@ -447,10 +450,15 @@ contains
     jcap=62
     jcap_b=62
     hires_b=.false.
-    nvege_type=24
+    ! -------------------------------------------------------!
+    ! nvege_type set to 20 (i.e. default vege type is IGBP)  !
+    ! Updated in EXP-crtm_sfc_intrface branch: June 16, 2016 !
+    ! -------------------------------------------------------!
+    nvege_type = 20
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio = .false.
+    use_readin_anl_sfcmask = .false.
 
     use_sp_eqspace = .false.
 

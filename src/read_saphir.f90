@@ -1,7 +1,7 @@
 subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use,radmod)
 ! subprogram:    read_saphir                 read bufr format saphir data
 ! prgmmr :   ejones          org: jcsda               date: 2015-01-02
 ! code copied from read_atms.f90
@@ -17,6 +17,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !  2015-01-02  ejones  - adapted from read_atms.f90
 !  2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !  2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
+!  2016-03-09  ejones  - update mnemonics for operational SAPHIR bufr
+!  2016-04-01  ejones  - add binning of fovs for scan angle bias correction 
+!  2016-07-25  ejones  - remove binning of fovs
+!  2016-10-05  acollard -Fix interaction with NSST and missing zenith angle issue.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -54,7 +58,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,nusis,jpch_rad, &
       use_edges,radedge1,radedge2,radstart,radstep
-  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv
@@ -62,6 +65,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
@@ -83,14 +87,14 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   type(rad_obs_type),intent(in ) :: radmod
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
+  logical         ,intent(in   ) :: dval_use
 
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: n1bhdr=12
   integer(i_kind),parameter:: n2bhdr=4
-  integer(i_kind),parameter:: maxinfo=33
-  integer(i_kind),parameter:: maxobs = 800000
+  integer(i_kind),parameter:: maxobs = 5000000
   integer(i_kind),parameter:: max_chanl = 22
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -109,7 +113,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: ireadsb,ireadmg,irec
   integer(i_kind)       :: i,j,k,ntest,iob
   integer(i_kind)       :: iret,idate,nchanl,n,idomsfc(1)
-  integer(i_kind)       :: kidsat
+  integer(i_kind)       :: kidsat,maxinfo
   integer(i_kind)       :: nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind)       :: iskip 
   integer(i_kind)       :: lnbufr,ksatid,isflg  
@@ -118,8 +122,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: instr,ichan
   integer(i_kind)       :: ier
   integer(i_kind)       :: radedge_min, radedge_max
-  integer(i_kind), POINTER :: ifov
-  integer(i_kind), TARGET  :: ifov_save(maxobs)
+  integer(i_kind), POINTER :: ifov  
 
   real(r_kind)          :: sfcr 
   real(r_kind)          :: expansion
@@ -136,6 +139,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
 
+  integer(i_kind), ALLOCATABLE, TARGET  :: ifov_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
@@ -146,6 +150,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
+
 
   integer(i_kind),allocatable,dimension(:):: nrec
   real(r_double),allocatable,dimension(:) :: data1b8
@@ -158,6 +163,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 ! Initialize variables
 
+  maxinfo=31
   lnbufr = 15
   disterrmax=zero
   ntest=0
@@ -209,6 +215,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 ! IFSCALC setup
   nchanl=6
+  if (dval_use) maxinfo = maxinfo+2 
   if (isfcalc==1) then
      instr=19                    ! This section isn't really updated.
      expansion=2.9_r_kind        ! use almost three for microwave sensors.
@@ -254,6 +261,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(data1b8(nchanl))
   ALLOCATE(rsat_save(maxobs))
   ALLOCATE(t4dv_save(maxobs))
+  ALLOCATE(ifov_save(maxobs))
   ALLOCATE(dlon_earth_save(maxobs))
   ALLOCATE(dlat_earth_save(maxobs))
   ALLOCATE(crit1_save(maxobs))
@@ -269,10 +277,11 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   open(lnbufr,file=trim(infile),form='unformatted',status = 'old',err = 500)
 
   call openbf(lnbufr,'IN',lnbufr)
-!  hdr1b ='SAID FOVN YEAR MNTH DAY HOUR MINU SECO CLAT CLON CLATH CLONH'
-!  mnemonics in SAPHIR bufr (non-operational) are a little different:
-  hdr1b ='SAID FOVN YEAR MONTH DAY HOUR MINU SECO CLATH CLONH'
-  hdr2b ='AGIND SOZA BEARAZ SOLAZI'  ! AGIND instead of SAZA
+  hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
+  hdr2b ='IANG SOZA BEARAZ SOLAZI'
+!  mnemonics in non-operational SAPHIR bufr are a little different:
+!  hdr1b ='SAID FOVN YEAR MONTH DAY HOUR MINU SECO CLATH CLONH'
+!  hdr2b ='AGIND SOZA BEARAZ SOLAZI'  ! AGIND instead of SAZA
 
 ! Loop to read bufr file
   irec=0
@@ -354,11 +363,15 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
           cycle read_loop
         end if
 
-        solzen_save(iob)=bfr2bhdr(2) 
+!       solzen_save(iob)=bfr2bhdr(2) ! encoded as 0.1E+12 in BUFR file
+        solzen_save(iob)=zero        ! set to 0.0 to bypass CRTM check
         solazi_save(iob)=bfr2bhdr(4) 
 
 !       Read data record.  Increment data counter
-        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
+        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
+
+!       non-operational SAPHIR bufr:
+!        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
 
         bt_save(1:nchanl,iob) = data1b8(1:nchanl)
 
@@ -545,9 +558,11 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      data_all(29,itx)= ff10                      ! ten meter wind factor
      data_all(30,itx) = dlon_earth_deg           ! earth relative longitude (deg)
      data_all(31,itx) = dlat_earth_deg           ! earth relative latitude (deg)
-     
-     data_all(32,itx)= val_tovs
-     data_all(33,itx)= itt
+
+     if(dval_use) then     
+        data_all(32,itx)= val_tovs
+        data_all(33,itx)= itt
+     endif
      
      if(nst_gsi>0) then
         data_all(maxinfo+1,itx) = tref            ! foundation temperature
@@ -566,6 +581,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)
   DEALLOCATE(t4dv_save)
+  DEALLOCATE(ifov_save)
   DEALLOCATE(dlon_earth_save)
   DEALLOCATE(dlat_earth_save)
   DEALLOCATE(crit1_save)
@@ -584,11 +600,15 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
            if(data_all(i+nreal,n) > tbmin .and. &
                 data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_tovs
-        
      end do
-     
+
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(maxinfo,n))
+           super_val(itt)=super_val(itt)+val_tovs
+        end do
+     endif
+             
 !    Write final set of "best" observations to output file
      call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon

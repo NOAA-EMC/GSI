@@ -57,10 +57,12 @@ subroutine wrwrfnmma_binary(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use native_endianness, only: byte_swap
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
   use radiance_mod, only: n_actual_clouds,icloud_cv
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
+  use mpeu_util, only: die
 
   implicit none
 
@@ -1071,7 +1073,10 @@ subroutine wrnemsnmma_binary(mype,cold_start)
 !   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
 !   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !   2015-05-12  wu      - write analysis to file "wrf_inout(nhr_assimilation)"
+!   2015-05-12  S.Liu   - interpolate water content before converting to fraction
 !   2015-09-10  zhu     - use centralized radiance_mod for all-sky & aerosol usages in radiances
+!   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
+!   2016-06-30  s.liu - remove gridtype, add_saved in write_fraction
 !
 !   input argument list:
 !     mype     - pe number
@@ -1089,14 +1094,16 @@ subroutine wrnemsnmma_binary(mype,cold_start)
   use guess_grids, only: &
         ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype,&
-        use_gfs_ozone,regional_ozone,use_reflectivity
+        use_gfs_ozone,regional_ozone
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   use constants, only: zero,half,one,two,rd_over_cp,r10,r100,qcmin
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
-  use gsi_nemsio_mod, only: gsi_nemsio_update
+  use gsi_nemsio_mod, only: gsi_nemsio_update,gsi_nemsio_write_fraction
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
   use gsi_4dvar, only: nhr_assimilation
   use radiance_mod, only: n_actual_clouds,icloud_cv
@@ -1116,6 +1123,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
   integer(i_kind) near_sfc,kp
   real(r_kind) pd,psfc_this,pd_to_ps,wmag
   real(r_kind),dimension(lat2,lon2):: work_sub,pd_new,delu10,delv10,u10this,v10this,fact10_local
+  real(r_kind),dimension(lat2,lon2):: work_sub_t,work_sub_i,work_sub_r,work_sub_l
   real(r_kind),dimension(lat2,lon2):: delt2,delq2,t2this,q2this,fact2t_local,fact2q_local
   real(r_kind),dimension(lat2,lon2,6):: delu,delv,delt,delq,pott
   real(r_kind) hmin,hmax,hmin0,hmax0,ten,wgt1,wgt2
@@ -1188,7 +1196,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
   mype_input=0
   add_saved=.true.
 
-  if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+  if (n_actual_clouds>0 .and. (i_gsdcldanal_type/=2)) then
 
 !    Get pointer to cloud water mixing ratio
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cw,iret); ier_cloud=iret
@@ -1201,7 +1209,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
 
      if ((.not. icloud_cv) .or. ier_cloud/=0) n_actual_clouds=0
 
-  else if (use_reflectivity)then
+  else if (i_gsdcldanal_type==2)then
     
 !    Get pointer to hydrometeor mixing ratios, reflectivity, and temperature tendency
 !       for the cloud analysis
@@ -1290,30 +1298,20 @@ subroutine wrnemsnmma_binary(mype,cold_start)
      endif
 
 !* use GSD cloud analysis for NMMB
-     if(use_reflectivity) then
+     if(i_gsdcldanal_type==2) then
 !    write(6,*)'sliu in wrwrfnmma.F90:: enter dump dfi_tten'
      do i=1,lon2
         do j=1,lat2
-           work_sub(j,i)=ges_qr(j,i,k)
+           work_sub_t(j,i)=ges_tsen(j,i,k,it)
+           work_sub_i(j,i)=ges_qi(j,i,k)
+           work_sub_r(j,i)=ges_qr(j,i,k)
+           work_sub_l(j,i)=ges_ql(j,i,k)
         end do
      end do
+
      add_saved=.false.
-     call gsi_nemsio_write('f_rain','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
-
-     do i=1,lon2
-        do j=1,lat2
-           work_sub(j,i)=ges_qi(j,i,k)
-        end do
-     end do
-     call gsi_nemsio_write('f_ice','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
-
-!    do i=1,lon2
-!       do j=1,lat2
-!          work_sub(j,i)=ges_ql(j,i,k)
-!       end do
-!    end do
-!    call gsi_nemsio_write('f_rimef','mid
-!    layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     call gsi_nemsio_write_fraction('f_rain','f_ice','mid layer',kr,       &
+                 work_sub_t(:,:),work_sub_i(:,:),work_sub_r(:,:),work_sub_l(:,:),mype,mype_input)
 
      do i=1,lon2
         do j=1,lat2
@@ -1321,15 +1319,6 @@ subroutine wrnemsnmma_binary(mype,cold_start)
         end do
      end do
      call gsi_nemsio_write('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
-
-!    do i=1,lon2
-!       do j=1,lat2
-!          if(ges_ref(j,i,k)>60)ges_ref(j,i,k)=60
-!          if(ges_ref(j,i,k)<-10)ges_ref(j,i,k)=-10
-!          work_sub(j,i)=ges_ref(j,i,k)
-!       end do
-!    end do
-!    call gsi_nemsio_write('obs_ref','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tten',dfi_tten,iret)
      do i=1,lon2
@@ -1385,7 +1374,7 @@ subroutine wrnemsnmma_binary(mype,cold_start)
      end if
 
                              ! cloud
-     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+     if (n_actual_clouds>0 .and. (i_gsdcldanal_type/=2)) then
         call gsi_nemsio_read('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input)
         if (cold_start) then
            do i=1,lon2
@@ -1684,10 +1673,11 @@ subroutine wrwrfnmma_netcdf(mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save
   use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save
   use radiance_mod, only: n_actual_clouds,icloud_cv
+  use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
 
   implicit none
 

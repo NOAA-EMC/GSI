@@ -84,7 +84,7 @@ module loadbal
 
 use mpisetup
 use params, only: ndim, datapath, nanals, simple_partition, letkf_flag,&
-                  corrlengthnh, corrlengthsh, corrlengthtr
+                  corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
 use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
@@ -127,7 +127,9 @@ real(r_double) t1
 logical test_loadbal
 
 if (letkf_flag) then
-   kdtree_obs2  => kdtree2_create(obloc,sort=.false.,rearrange=.true.)
+   ! used for finding nearest obs to grid point in LETKF.
+   ! results are sorted by distance.
+   kdtree_obs2  => kdtree2_create(obloc,sort=.true.,rearrange=.true.)
 endif
 
 ! partition state vector for using Grahams rule..
@@ -210,7 +212,7 @@ do i=1,numptsperproc(nproc+1)
 end do
 
 ! for serial filter, partition obs for observation space update.
-if (.not. letkf_flag) then
+if (.not. letkf_flag .or. lupd_obspace_serial) then
    allocate(numobsperproc(numproc))
    allocate(iprocob(nobstot))
    ! default is to partition obs simply, since
@@ -292,7 +294,7 @@ if (.not. letkf_flag) then
          anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
       end do
       ! now we don't need anal_ob anymore for serial EnKF.
-      deallocate(anal_ob)
+      if (.not. lupd_obspace_serial) deallocate(anal_ob)
    else
       ! recv one large message on each task.
       call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
@@ -319,13 +321,13 @@ if (.not. letkf_flag) then
    enddo
    ! set up kd-trees for serial filter to search only the subset
    ! of gridpoints, obs to be updated on this processor..
-   if (numptsperproc(nproc+1) >= 3) then
+   if (numptsperproc(nproc+1) >= 3 .and. .not. lupd_obspace_serial) then
       kdtree_grid => kdtree2_create(grdloc_chunk,sort=.false.,rearrange=.true.)
    endif
    if (numobsperproc(nproc+1) >= 3) then
       kdtree_obs  => kdtree2_create(obloc_chunk,sort=.false.,rearrange=.true.)
    end if
-end if ! end if (.not. letkf_flag)
+end if ! end if (.not. letkf_flag .or. lupd_obspace_serial)
 
 end subroutine load_balance
 

@@ -35,11 +35,11 @@ shell=ksh
 
 # 
 # Need better reference here!
-if [[ $SUFFIX = "wopr" ]]; then
+if [[ $RADMON_SUFFIX = "wopr" ]]; then
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/wopr"
-elif [[ $SUFFIX = "pr4dev" ]]; then 
+elif [[ $RADMON_SUFFIX = "pr4dev" ]]; then 
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/pr4dev"
-elif [[ $SUFFIX = "nrx" ]]; then
+elif [[ $RADMON_SUFFIX = "nrx" ]]; then
 #   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
    HPSSDIR="/2year/NCEPDEV/emc-da/Edward.Safford/nbns/stats/regional/nrx"
 fi
@@ -133,9 +133,9 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    #------------------------------------------------------------------
    #  Copy the data_map.xml file to the $TOP_ARCHIVE_DIR 
    #------------------------------------------------------------------
-   if [[ -e ${RADMON_PARM}/data_map.xml ]]; then
-      cp -f ${RADMON_PARM}/data_map.xml ${TOP_ARCHIVE_DIR}/.
-   fi 
+#   if [[ -e ${RADMON_PARM}/data_map.xml ]]; then
+#      cp -f ${RADMON_PARM}/data_map.xml ${TOP_ARCHIVE_DIR}/.
+#   fi 
  
 fi
 

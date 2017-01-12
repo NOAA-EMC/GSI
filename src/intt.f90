@@ -14,7 +14,7 @@ module inttmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-09      Su  - add non linear qc from Purser's scheme
-!   2015-02-26      Su   -  add njqc as an option to choose Purse varqc
+!   2015-02-26      Su  - add njqc as an option to choose Purser varqc
 !
 ! subroutines included:
 !   sub intt_
@@ -77,6 +77,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2013-05-26  zhu  - add aircraft temperature bias correction contribution
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -314,7 +315,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            endif
            if (njqc .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
               val=sqrt(two*tptr%jb)*tanh(sqrt(tptr%err2)*val/sqrt(two*tptr%jb))
-              grad = val*sqrt(tptr%raterr2*tptr%err2)
+              grad = val*tptr%raterr2*sqrt(tptr%err2)
            else
               grad = val*tptr%raterr2*tptr%err2
            endif

@@ -11,6 +11,8 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 !   2010-03-30  zhu    - use nvars from control_vectors
 !   2010-12-05  pondeca - change variable names: "tv" is now "t" , and "st" is "sf"
 !   2013-10-19  todling - metguess now holds background
+!   2016-04-19  pondeca - comment out call to "ansmoothrf(howrk)". must update to use
+!                         bundle type as argument
 !
 !   input argument list:
 !    mype
@@ -208,7 +210,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
         if(var_plotcor=='ps') exit
      end do
 
-     call ansmoothrf(hwork)
+!    call ansmoothrf(hwork) !Must replace hwork with bundle / MPondeca 19Apr2016
 
      if(mype==0) write(lunin) ref_plotcor,var_plotcor,j_plotcor,i_plotcor,k_plotcor, &
                   nlon,nlat,kvar_end(ivar_plot)-kvar_start(ivar_plot)+1

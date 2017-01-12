@@ -89,10 +89,26 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
+! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
+! if npefiles>0, npefiles+1 pe* files read directly
+! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
+! (<obspath>/gsitmp_ensmean for ensemble mean).
+integer,public :: npefiles = 0
+! for LETKF, max number of obs in local volume.
+! default is -1, which means take all obs within
+! specified localization radius.  if nobsl_max > 0,
+! only the first nobsl_max closest obs within the 
+! localization radius will be used. Ignored
+! if letkf_flag = .false.
+integer,public :: nobsl_max = -1
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .false.
+! do ob space update with serial filter (only used if letkf_flag=.true.)
+logical,public :: lupd_obspace_serial = .false. 
+! disable vertical localization for letkf
+logical,public :: letkf_novlocal = .false.
 ! simple_partition=.false. does more sophisticated
 ! load balancing for ob space update.
 logical,public :: simple_partition = .true.
@@ -123,11 +139,12 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
+                   fgfileprefixes,anlfileprefixes,lupd_obspace_serial,letkf_novlocal,&
                    nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
-                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs
+                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles
 namelist /nam_wrf/arw,nmm
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -294,9 +311,6 @@ delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
 if (.not. letkf_flag .and. numiter < 1) numiter = 1
-! simple_partition should be true for LETKF
-! (partitioning in ob space only used for serial filter)
-if (letkf_flag .and. .not. simple_partition) simple_partition=.true.
 
 if (nproc == 0) then
 
@@ -312,8 +326,8 @@ if (nproc == 0) then
       print *,nlons,nlats,nlevs,nanals
       call stop2(19)
    end if
-   if (numproc .lt. nanals+1) then
-      print *,'total number of mpi tasks must be >= nanals+1'
+   if (numproc .lt. nanals) then
+      print *,'total number of mpi tasks must be >= nanals'
       print *,'tasks, nanals = ',numproc,nanals
       call stop2(19)
    endif
@@ -423,6 +437,13 @@ corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
 ! this var is .false. until this routine is called.
 params_initialized = .true.
 
+! reset lupd_obspace_serial to false if letkf not requested.
+if (.not. letkf_flag .and. lupd_obspace_serial) then
+  lupd_obspace_serial = .false.
+  if (nproc == 0) then
+   print *,'setting lupd_obspace_serial to .false., since letkf_flag is .false.'
+  endif
+endif
 end subroutine read_namelist
 
 end module params

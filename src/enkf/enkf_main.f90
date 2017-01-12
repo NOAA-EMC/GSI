@@ -45,9 +45,10 @@ program enkf_main
 !     ozinfo        - ozone retrieval info file
 !     diag_YYYYMMDDHH_ges_mem*  - observation diagnostic files for each ensemble member
 !                     created GSI forward operator.
-!     hybens_locinfo - if parameter readin_localization is true, contains 
+!     hybens_info   - if parameter readin_localization is true, contains 
 !                      vertical profile of horizontal and vertical localization
-!                      length scales.
+!                      length scales (along with static and ensemble weights
+!                      used in hybrid).
 !
 !   output files: 
 !     sanl_YYYYMMDDHH_mem* - analysis ensemble members. A separate program
@@ -68,7 +69,7 @@ program enkf_main
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
  use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
-                    numiter, nanals
+                    numiter, nanals, lupd_obspace_serial
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
                       numproc, mpi_wtime
@@ -155,6 +156,8 @@ program enkf_main
  t1 = mpi_wtime()
  ! state and bias correction coefficient update iteration.
  if(letkf_flag) then
+    ! do ob space update using serial filter if desired
+    if (lupd_obspace_serial) call enkf_update()
     call letkf_update()
  else
     call enkf_update()

@@ -9,6 +9,7 @@ module stpmxtmmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2015-07-10  pondeca  - force return if no mxtm data available
 !
 ! subroutines included:
 !   sub stpmxtm
@@ -80,6 +81,9 @@ subroutine stpmxtm(mxtmhead,rval,sval,out,sges,nstep)
   type(mxtm_ob_type), pointer :: mxtmptr
 
   out=zero_quad
+
+! If no mxtm data return
+  if(.not. associated(mxtmhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

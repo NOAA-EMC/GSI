@@ -36,6 +36,7 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
 !
 ! program history log:
 !   2014-03-19  pondeca
+!   2015-07-10  pondeca  - force return if no td2m data available
 !
 !   input argument list:
 !     td2mhead
@@ -80,6 +81,9 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
   type(td2m_ob_type), pointer :: td2mptr
 
   out=zero_quad
+
+! If no td2m data return
+  if(.not. associated(td2mhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

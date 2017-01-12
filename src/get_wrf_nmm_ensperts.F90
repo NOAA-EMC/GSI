@@ -25,7 +25,7 @@ subroutine get_wrf_nmm_ensperts
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: netcdf,half_grid,filled_grid,regional
     use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
-    use hybrid_ensemble_isotropic, only: en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar
+    use hybrid_ensemble_parameters, only: en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
                          rd_over_cp,one_tenth,ten
     use mpimod, only: mpi_comm_world,ierror,mype
@@ -2276,8 +2276,7 @@ subroutine convert_binary_nmm_ens
 !$$$ end documentation block
   implicit none
 
-  write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does
-nothing!'
+  write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine convert_binary_nmm_ens
 #endif /* end NO WRF-library block */
@@ -2466,7 +2465,7 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
 !$$$ end documentation block
 
      use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
-     use hybrid_ensemble_isotropic, only: region_lon_ens,region_lat_ens
+     use hybrid_ensemble_parameters, only: region_lon_ens,region_lat_ens
      use kinds, only: r_kind,i_kind,r_single
      use constants, only: zero,one,rad2deg
      use gridmod, only: half_grid,filled_grid
@@ -2943,7 +2942,7 @@ subroutine ens_member_mean_dualres_regional(en_bar,mype)
 !
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use hybrid_ensemble_parameters, only: en_perts,nelen
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,one
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
