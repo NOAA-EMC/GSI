@@ -1860,11 +1860,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
-!                if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-!                   call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-!                else
+                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
+                    call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 else
                     call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-!                end if
+                 end if
                  toe=obserr(3,k)*errout
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
@@ -1913,11 +1913,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Winds 
               else if(uvob) then 
-!                if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-!                   call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-!                else
+                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
+                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 else
                     call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-!                end if
+                 end if
                  woe=obserr(5,k)*errout
                  if (inflate_error) woe=woe*r1_2
                  if(obsdat(1,k) < r50)woe=woe*r1_2
@@ -2103,11 +2103,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Specific humidity 
               else if(qob) then
                  qmaxerr=emerr
-!                if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-!                   call errormod_aircraft(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-!                else
+                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
+                    call errormod_aircraft(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 else
                     call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-!                end if
+                 end if
                  qoe=obserr(2,k)*one_tenth*errout
                  if (inflate_error) then
                     qmaxerr=emerr*r0_7; qoe=qoe*r1_2
