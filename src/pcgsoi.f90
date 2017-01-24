@@ -102,6 +102,8 @@ subroutine pcgsoi()
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
+!   2016-05-13  parrish -  remove beta12mult.  Replace with sqrt_beta_s_mult, sqrt_beta_e_mult, inside
+!                          bkerror and bkerror_a_en.
 !   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
 !                       
 !
@@ -148,7 +150,7 @@ subroutine pcgsoi()
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en,ntlevs_ens
-  use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
+  use hybrid_ensemble_isotropic, only: bkerror_a_en
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
@@ -380,12 +382,6 @@ subroutine pcgsoi()
         else
            call bkerror_a_en(gradx,grady)
         end if
-
-!       multiply static (Jb) part of grady by betas_inv(:), and
-!       multiply ensemble (Je) part of grady by betae_inv(:) [default : betae_inv(:) = 1 - betas_inv(:)] 
-!         (this determines relative contributions from static background Jb and ensemble background Je)
-
-        call beta12mult(grady)
 
      end if
 
@@ -707,12 +703,6 @@ subroutine pcgsoi()
        else
           call bkerror_a_en(gradx,grady)
        end if
-
-!    multiply static (Jb) part of grady by betas_inv(:), and
-!    multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
-!      (this determines relative contributions from static background Jb and ensemble background Je)
-
-       call beta12mult(grady)
 
      end if
 

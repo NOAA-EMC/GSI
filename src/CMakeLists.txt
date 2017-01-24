@@ -30,6 +30,7 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/evaljgrad.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/pcgsoi.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/en_perts_io.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/bkerror.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/hybrid_ensemble_isotropic.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/write_all.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/glbsoi.f90" 

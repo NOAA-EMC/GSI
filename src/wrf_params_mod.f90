@@ -6,6 +6,10 @@ module wrf_params_mod
     logical cold_start             !  if true, then restart file is from GFS
   contains
     subroutine init(update,restart_date,coldstart)      
+       implicit none
+       logical, intent(in   )  :: update
+       logical, intent(in   )  :: restart_date
+       logical, intent(in   )  :: coldstart
        update_pint = update
        preserve_restart_date = restart_date
        cold_start = coldstart
