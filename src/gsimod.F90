@@ -101,8 +101,8 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,merge_two_grid_ensperts, &
-                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,coef_bw,&
-                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
+                         full_ensemble,pseudo_hybens,pwgtflg,&
+                         beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path
@@ -247,7 +247,7 @@
 !  09-14-2011 todling   add use_gfs_ens to control global ensemble; also use_localization_grid
 !  11-14-2011  wu       add logical switch to use extended forward model for sonde data
 !  01-16-2012 m. tong   add parameter pseudo_hybens to turn on pseudo ensemble hybrid
-!  01-17-2012 wu        add switches: gefs_in_regional,full_ensemble,betaflg,pwgtflg
+!  01-17-2012 wu        add switches: gefs_in_regional,full_ensemble,pwgtflg
 !  01-18-2012 parrish   add integer parameter regional_ensemble_option to select ensemble source.
 !                                 =1: use GEFS internally interpolated to ensemble grid.
 !                                 =2: ensembles are WRF NMM format.
@@ -288,7 +288,6 @@
 !                       revisit various init/final procedures
 !  10-30-2013 jung      added clip_supersaturation to setup namelist
 !  12-02-2013 todling   add call to set_fgrid2agrid
-!  12-03-2013 wu        add parameter coef_bw for option:betaflg
 !  12-03-2013 Hu        add parameter grid_ratio_wrfmass for analysis on larger
 !                              grid than mass background grid
 !  12-10-2013 zhu       add cwoption
@@ -776,20 +775,20 @@
 !     nlat_ens     - number of latitudes on ensemble grid (may be different from analysis grid nlat)
 !     jcap_ens     - for global spectral model, spectral truncation
 !     jcap_ens_test- for global spectral model, test spectral truncation (to test dual resolution)
-!     beta1_inv           - 1/beta1, the default weight given to static background error covariance if (.not. readin_beta)
-!                              0 <= beta1_inv <= 1,  tuned for optimal performance
+!     beta_s0      -  the default weight given to static background error covariance if (.not. readin_beta)
+!                              0 <= beta_s0 <= 1,  tuned for optimal performance
 !                             =1, then ensemble information turned off
 !                             =0, then static background turned off
 !                            the weights are applied per vertical level such that : 
-!                                        betas_inv(:) = beta1_inv     , vertically varying weights given to static B ; 
-!                                        betae_inv(:) = 1 - beta1_inv , vertically varying weights given ensemble derived covariance.
-!                            If (readin_beta) then betas_inv and betae_inv are read from a file and beta1_inv is not used.
+!                                        beta_s(:) = beta_s0     , vertically varying weights given to static B ; 
+!                                        beta_e(:) = 1 - beta_s0 , vertically varying weights given ensemble derived covariance.
+!                            If (readin_beta) then beta_s and beta_e are read from a file and beta_s0 is not used.
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
-!                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
+!                              s_ens_h, s_ens_v, and beta_s0 are tunable parameters.
 !     use_gfs_ens  - controls use of global ensemble: .t. use GFS (default); .f. uses user-defined ens
 !     readin_localization - flag to read (.true.)external localization information file
-!     readin_beta         - flag to read (.true.) the vertically varying beta parameters betas_inv and betae_inv
+!     readin_beta         - flag to read (.true.) the vertically varying beta parameters beta_s and beta_e
 !                              from a file.
 !     eqspace_ensgrid     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                               poles.  if .false., then gaussian grid assumed
@@ -806,8 +805,6 @@
 !                                 =3: ensembles are ARW netcdf format.
 !                                 =4: ensembles are NEMS NMMB format.
 !     full_ensemble    - if true, first ensemble perturbation on first guess istead of on ens mean
-!     betaflg          - if true, use vertical weighting on beta1_inv and beta2_inv, for regional
-!     coef_bw          - fraction of weight given to the vertical boundaries when betaflg is true
 !     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
@@ -828,10 +825,10 @@
 !              
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
+                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,pwgtflg,&
+                jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens,coef_bw, &
+                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
