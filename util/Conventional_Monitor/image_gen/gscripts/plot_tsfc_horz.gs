@@ -93,7 +93,7 @@ setmap(plotfile,he)
 'set gxout contour'
 'set clevs'
 'set ccolor 98'
-'set cint 0'
+*'set cint 0'
 'd TMPsfc.1-273.15'
 'cbarb'
 'set ccolor 98'

@@ -52,8 +52,8 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,beta1_inv,q_hyb_ens
-  use hybrid_ensemble_parameters, only: betas_inv,betae_inv
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,q_hyb_ens
+  use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_grid
@@ -165,11 +165,11 @@ subroutine get_gefs_ensperts_dualres
 
        ! Check read return code.  Revert to static B if read error detected
        if ( iret /= 0 ) then
-          beta1_inv=one
-          betas_inv=one
-          betae_inv=zero
+          beta_s0=one
+          beta_s=one
+          beta_e=zero
           if ( mype == npe ) &
-             write(6,'(A,2(F7.4,1X))')'***WARNING*** RESET betas_inv, betae_inv = ',betas_inv, betae_inv
+             write(6,'(A,I4,A,F6.3)')'***WARNING*** ERROR READING ENS FILE, iret = ',iret,' RESET beta_s0 = ',beta_s0
           cycle
        endif
 

@@ -11,7 +11,7 @@ OBJS=   mainread_q.o read_q.o read_q_mor.o histgram.o dup.o convinfo.o
 MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
-CMD=    read_q.x    
+CMD=    read_q.x
 
 all:    $(CMD)
 
@@ -22,6 +22,7 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp $(CMD) ../../exec/.
 
 mainread_q.o : mainread_q.f90
 	$(CF) $(FFLAGS) -c $(*).f90

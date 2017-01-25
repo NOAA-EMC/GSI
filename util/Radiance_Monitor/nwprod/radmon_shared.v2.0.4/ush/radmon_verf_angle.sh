@@ -141,12 +141,17 @@ else
 
    for type in ${SATYPE}; do
 
+      if [[ ! -s ${type} ]]; then
+         echo "ZERO SIZED:  ${type}"
+         continue
+      fi
+
       for dtype in ${gesanl}; do
 
           echo "pgm    = $pgm"
           echo "pgmout = $pgmout"
-#         prep_step
-         /nwprod2/util/ush/prep_step.sh
+         prep_step
+#         /nwprod2/util/ush/prep_step.sh
 
          ctr=`expr $ctr + 1`
 
@@ -165,6 +170,7 @@ else
          else
             angl_file=angle.${data_file}
          fi
+
 
          rm input
 
@@ -191,7 +197,7 @@ EOF
 	 startmsg
          ./${angle_exec} < input >>   ${pgmout} 2>>errfile
          export err=$?; err_chk
-         if [[ $? -ne 0 ]]; then
+         if [[ $err -ne 0 ]]; then
              fail=`expr $fail + 1`
          fi
 

@@ -100,7 +100,7 @@ setmap(plotfile,he)
 'set clevs'
 'set ccolor 98'
 'set ccols 98'
-'set cint 0'
+*'set cint 0'
 'd PRESsfc.1/1000.0'
 'cbarb'
 'set ccolor 98'

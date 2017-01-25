@@ -25,6 +25,7 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp $(CMD) ../../exec/.
 
 mainread_t.o : mainread_t.f90
 	$(CF) $(FFLAGS) -c $(*).f90
