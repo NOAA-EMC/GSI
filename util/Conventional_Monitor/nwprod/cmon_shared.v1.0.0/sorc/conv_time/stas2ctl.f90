@@ -1,110 +1,122 @@
-!  the program is creat the control file 
+!==========================================================
+!  creatstas_ctl
+!
+!     Create the GrADS control file 
+!==========================================================
 
- subroutine creatstas_ctl(dtype,itype,ituse,nt,nc,nlev,nregion,nvar,&
+subroutine creatstas_ctl(dtype,itype,ituse,nt,nc,nlev,nregion,nvar,&
                               region,rlatmin,rlatmax,rlonmin,rlonmax,isubtype)
-    implicit none
+   implicit none
 
-    integer nregion,nt,nlev,nc,i,icc,nvar
-    integer,dimension(nt):: itype,ituse,isubtype
-    character(7) dtype
-    character(20) fileo
-    character(40),dimension(nregion) :: region
-    real,dimension(nregion) :: rlatmin,rlatmax,rlonmin,rlonmax
-    character(3) :: clatmin,clatmax
-    character(4) :: clonmin,clonmax
-    character(80) string
-    character(2) cword
-    character(80),dimension(nregion):: stringr
-    real rmiss
+   integer nregion,nt,nlev,nc,i,icc,nvar
+   integer,dimension(nt):: itype,ituse,isubtype
+   character(7) dtype
+   character(20) fileo
+   character(40),dimension(nregion) :: region
+   real,dimension(nregion) :: rlatmin,rlatmax,rlonmin,rlonmax
+   character(3) :: clatmin,clatmax
+   character(4) :: clonmin,clonmax
+   character(80) string
+   character(2) cword
+   character(80),dimension(nregion):: stringr
+   real rmiss
 
    nc=nc
 
-    rmiss=-999.0
+   rmiss=-999.0
   
-    if(nvar /=18) then
-      print *,'wrong variable number'
+   if(nvar /=18) then
+      print *,'wrong number of variables'
       return
-     endif
+   endif
 
-    fileo=trim(dtype)//'_stas.ctl'
+   fileo=trim(dtype)//'_stas.ctl'
     
 
-    open(21,file=fileo,form='formatted')
+   open(21,file=fileo,form='formatted')
 
    do i=1, nregion
 
-   if (rlatmin(i)>0.) then
-        write(clatmin,10) int(rlatmin(i))
-     else
-        write(clatmin,20) abs(int(rlatmin(i)))
-     endif
-     if (rlatmax(i)>0.) then
-        write(clatmax,10) int(rlatmax(i))
-     else
-        write(clatmax,20) abs(int(rlatmax(i)))
-     endif
-     if (rlonmin(i)>0.) then
-        write(clonmin,30) int(rlonmin(i))
-     else
-        write(clonmin,40) abs(int(rlonmin(i)))
-     endif
-     if (rlonmax(i)>0.) then
-        write(clonmax,30) int(rlonmax(i))
-     else
-        write(clonmax,40) abs(int(rlonmax(i)))
-     endif
-     stringr(i) = trim(region(i)) // ' (' // &
+      if (rlatmin(i)>0.) then
+         write(clatmin,10) int(rlatmin(i))
+      else
+         write(clatmin,20) abs(int(rlatmin(i)))
+      endif
+
+      if (rlatmax(i)>0.) then
+         write(clatmax,10) int(rlatmax(i))
+      else
+         write(clatmax,20) abs(int(rlatmax(i)))
+      endif
+
+      if (rlonmin(i)>0.) then
+         write(clonmin,30) int(rlonmin(i))
+      else
+         write(clonmin,40) abs(int(rlonmin(i)))
+      endif
+
+      if (rlonmax(i)>0.) then
+         write(clonmax,30) int(rlonmax(i))
+      else
+         write(clonmax,40) abs(int(rlonmax(i)))
+      endif
+
+      stringr(i) = trim(region(i)) // ' (' // &
           trim(clonmin) // '-' // trim(clonmax) // ', ' // &
           trim(clatmin) // '-' // trim(clatmax) // ')'
-     end do
+   end do
+
 10 format(i2,'N')
 20 format(i2,'S')
 30 format(i3,'E')
 40 format(i3,'W')
 
-    write(21,100)
-    write(21,110)
-    write(21,120) rmiss
-    write(21,130) 
-    write(21,140) 
-    write(21,150) 
-    write(21,160)  
-    do i=1,nc
-     write(21,141) dtype,i,itype(i),isubtype(i),ituse(i)
-    enddo
-icc=nc+1
-    write(21,142) dtype,icc 
-    write(21,143) icc
-    write(21,151) nregion 
-    do i=1,nregion
-     write(cword,'(i2)') i
-     string = '*  region= ' // cword // ' ' // trim(stringr(i))
-     write(21,152) string
-  end do
+   write(21,100)
+   write(21,110)
+   write(21,120) rmiss
+   write(21,130) 
+   write(21,140) 
+   write(21,150) 
+   write(21,160)  
 
-    write(21,161) nlev 
-    write(21,170)  
-    write(21,180) nvar 
-    write(21,181) nlev
-    write(21,182) nlev
-    write(21,183) nlev
-    write(21,184) nlev
-    write(21,185) nlev
-    write(21,186) nlev
-    write(21,187) nlev
-    write(21,188) nlev
-    write(21,189) nlev
-    write(21,190) nlev
-    write(21,191) nlev
-    write(21,192) nlev
-    write(21,193) nlev
-    write(21,194) nlev
-    write(21,195) nlev
-    write(21,196) nlev
-    write(21,197) nlev
-    write(21,198) nlev
-    
-    write(21,200)
+   do i=1,nc
+      write(21,141) dtype,i,itype(i),isubtype(i),ituse(i)
+   enddo
+
+   icc=nc+1
+   write(21,142) dtype,icc 
+   write(21,143) icc
+   write(21,151) nregion 
+
+   do i=1,nregion
+      write(cword,'(i2)') i
+      string = '*  region= ' // cword // ' ' // trim(stringr(i))
+      write(21,152) string
+   end do
+
+   write(21,161) nlev 
+   write(21,170)  
+   write(21,180) nvar 
+   write(21,181) nlev
+   write(21,182) nlev
+   write(21,183) nlev
+   write(21,184) nlev
+   write(21,185) nlev
+   write(21,186) nlev
+   write(21,187) nlev
+   write(21,188) nlev
+   write(21,189) nlev
+   write(21,190) nlev
+   write(21,191) nlev
+   write(21,192) nlev
+   write(21,193) nlev
+   write(21,194) nlev
+   write(21,195) nlev
+   write(21,196) nlev
+   write(21,197) nlev
+   write(21,198) nlev
+   
+   write(21,200)
 
 
 
@@ -143,7 +155,7 @@ icc=nc+1
 198 format('qcrat3     ', i3,'  0  qc penalty for monitored data')
 200 format('endvars')
 
-close(21)
+   close(21)
 
-return
+   return
 end

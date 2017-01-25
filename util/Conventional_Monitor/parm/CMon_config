@@ -34,7 +34,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh
    . /usrx/local/Modules/default/init/${shell}
    module load lsf
-   module load GrADS/2.0.1
+   module load GrADS
    export UTILS_BIN=
    export LLQ=
    export SUB="bsub"
@@ -45,7 +45,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="gunzip -f"
    export Z="gz"
    export TIMEX=
-   export GRADS=/usrx/local/GrADS/2.0.1/bin/grads
+#   export GRADS=/usrx/local/GrADS/2.0.1/bin/grads
    export PROJECT=${PROJECT:-GDAS-T2O}
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
@@ -66,7 +66,7 @@ export C_PTMP=${C_PTMP:-/ptmpp1}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs
-export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}/cmon_${CMON_SUFFIX}}
+export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
 export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
 
 export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?

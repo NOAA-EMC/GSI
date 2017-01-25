@@ -141,7 +141,7 @@ setmap(latmin,latmax,lonmin,lonmax)
 'set gxout contour'
 'set clevs'
 'set ccolor 98'
-'set cint 0'
+*'set cint 0'
 'd TMPprs.1-273.15'
 'cbarb'
 'set ccolor 98'

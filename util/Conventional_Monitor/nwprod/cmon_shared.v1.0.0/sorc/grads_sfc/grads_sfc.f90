@@ -1,6 +1,8 @@
 ! the program read temeprature files
+
   subroutine grads_sfc(fileo,ifileo,nobs,nreal,nreal2,iscater,igrads,isubtype,subtype)
-     implicit none
+
+  implicit none
  
   integer ifileo 
   real(4),allocatable,dimension(:,:)  :: rdiag
@@ -10,13 +12,11 @@
   character(30) :: files,filein,filegrads
   character(2) :: subtype
   integer nobs,nreal,nlfag,nflg0,nlev,nlev0,iscater,igrads
-  real(4) bmiss,rtim,xlat0,xlon0,rlat,rlon
+  real(4) rtim,xlat0,xlon0,rlat,rlon
  
-  integer(4):: ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
+  integer(4):: isubtype
   real(4) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg
   integer i,j,ii,ilat,ilon,ipres,itime,iweight,ndup,nreal2
-
-  data bmiss/-999.0/
 
   rtim=0.0
   nflg0=0
@@ -54,18 +54,12 @@ if (igrads ==1 .AND. nobs > 0) then
   open(21,file=filegrads,form='unformatted',status='new')    ! open output file
 
 
-  print *,'ituse=',ituse
-  print *, rdiag(1,1),rdiag(2,1),rdiag(3,1),rdiag(4,1),rdiag(5,1),&
-           rdiag(6,1),rdiag(7,1),rdiag(8,1),rdiag(9,1),rdiag(10,1)
-
-!  print *, rdiag(1,100),rdiag(2,100),rdiag(3,100),rdiag(4,100),rdiag(5,100),&
-!           rdiag(6,100),rdiag(7,100),rdiag(8,100),rdiag(9,100),rdiag(10,100)
-
   ilat=1                           ! the position of lat
   ilon=2                           ! the position of lon
   ipres=4                          ! the position of pressure
   itime=6                          ! the position of relative time
   iweight=11                       ! the position of weight 
+
 ! check wether data have duplicate
 
   call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)

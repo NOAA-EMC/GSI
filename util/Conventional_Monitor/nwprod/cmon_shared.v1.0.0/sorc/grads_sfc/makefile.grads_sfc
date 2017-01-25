@@ -25,6 +25,7 @@ clean:
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp $(CMD) ../../exec/.
 
 maingrads_sfc.o : maingrads_sfc.f90
 	$(CF) $(FFLAGS) -c $(*).f90

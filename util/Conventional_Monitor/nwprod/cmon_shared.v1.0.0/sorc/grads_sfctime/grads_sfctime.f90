@@ -1,6 +1,7 @@
 ! the program read temeprature files
   subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isubtype,subtype)
-     implicit none
+
+  implicit none
   
   real(4),allocatable,dimension(:,:)  :: rdiag
   character(8),allocatable,dimension(:) :: cdiag
@@ -14,17 +15,15 @@
   character(2) :: subtype 
   character(30) :: files,filein,filegrads
   integer :: nobs,nreal,nlfag,nflag0,nlev,nlev0,gettim,iscater,igrads
-  real(4) :: bmiss,rtim,xlat0,xlon0,rtime
+  real(4) :: rmiss,rtim,xlat0,xlon0,rtime
 
-  integer(4):: ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
-  real(4) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg
+  integer(4):: isubtype
   integer nt,ifileo,k,i,ii,j,nflag,nreal2
-  integer nlat,nlon,npres,ntime,nweight,ndup
-  integer ilat,ilon,ipres,itime,iweight
+  integer ilat,ilon,ipres,itime,iweight,ndup
 
-  data bmiss/-999.0/
+  data rmiss/-999.0/
 
-  tobs=bmiss 
+  tobs=rmiss 
   stid='        '
   ndata=0
   
@@ -44,6 +43,7 @@
 
   if(iscater ==1) then
    files=trim(fileo)//'_'//trim(subtype)//'.scater'
+   print *, 'scatter files = ', files
    open(51,file=files,form='unformatted')
    write(51) nobs,nreal
    write(51) rdiag
@@ -54,6 +54,7 @@ if( igrads ==1 )  then
 
    filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
   open(21,file=filegrads,form='unformatted',status='new')     !  open output file 
+  print *, 'filegrads = ', filegrads
 
   print *, rdiag(1,1),rdiag(2,1),rdiag(3,1),rdiag(4,1),rdiag(5,1),&
            rdiag(6,1),rdiag(7,1),rdiag(8,1),rdiag(9,1),rdiag(10,1)
@@ -66,13 +67,13 @@ if( igrads ==1 )  then
   ipres=4                          ! the position of pressure
   itime=6                          ! the position of relative time
   iweight=11                       ! the position of weight 
-! check wether data have duplicate
 
-!  call hash(rdiag,nobs,nreal,nlat,nlon,npres,ntime,nweight,ndup)
-  call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
-!  call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
 
-     ii=0
+!#####################################
+!   check for duplicate data 
+   call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+
+   ii=0
      do  i=1,nobs
         if(rdiag(iweight,i) >0.0 ) then
             rtime=rdiag(itime,i)
@@ -81,56 +82,81 @@ if( igrads ==1 )  then
             rlat(ii)=rdiag(ilat,i)
             rlon(ii)=rdiag(ilon,i)
             k=gettim(rtime,plev,nlev)
+
             if(k /=0) then
                tobs(1:nreal2,ii,k)=rdiag(3:nreal,i) 
                ndata(k)=ndata(k)+1
             endif
+
             do j=i+1,nobs
                if( cdiag(j) == stid(ii) .and. rdiag(ilat,i) == rdiag(ilat,j) &
                    .and. rdiag(ilon,i)  == rdiag(ilon,j) .and. rdiag(iweight,j) >0.0 ) then
                    rtime=rdiag(itime,j)
                    k=gettim(rtime,plev,nlev)
+            
                    if(k /=0) then
                       tobs(1:nreal2,ii,k)=rdiag(3:nreal,j) 
                       rdiag(iweight,j)=-rdiag(iweight,j)
                       ndata(k)=ndata(k)+1
                    endif
                endif
-           enddo
+            enddo
          endif 
 
       enddo
    
      print *,'ii=',ii
 
+! ################################################################################
 !  write out into grads file
-            
-    do k=1,nlev
-      do i=1,ii
-        nflag=1
-        rtim=0.0
-        nlev0=1
-        write(21) stid(i),rlat(i),rlon(i),rtim,nlev0,nflag
-        write(21) (tobs(j,i,k),j=1,nreal2)
-      enddo
-        nflag=1
-        rtim=0.0
-        nlev0=0
-        write(21) stid(i),rlat(i),rlon(i),rtim,nlev0,nflag
-    enddo
+!
+!   NOTE:  This block used to write all nlev worth of data to the output file
+!          and then also wrote a nt_{type}_00.yyyymmddcc file which contained
+!          the value of nt.  The nt=maxloc(data,dim=1) statment below gives nt
+!          the value of the largest element in the data array.  This nt value
+!          was read and then used in the GrADS script to set the correct time
+!          step.  I'm having problems making that work, but if we're only going
+!          to use the step at nt, it makes more sense to write only that into
+!          the data file, reducing the output data file size by ~90%, and always
+!          using an nt value of 1 in the GrADS scripts.  Simple is better.
+!
+!   NOTE Further:  Per Su the idea behind the nlev arrangment is 
+!          "... I try to plot the point which close to analysis time.  There
+!          are multiple observations (every 30 minutes or every hour) for the six 
+!          hour window (-3.0 to 3.0 relative to analysis time), so I divided time
+!          -2.5,-2.0,-1.5,-1.0,-0.5,0.0,0.5,1.0,1.5,2.0,2.5."
+!
+!          Generally I see that the nt ends up as either 1 or 6.  Either way
+!          things can be simplified by writing only the nt step data into the
+!          output file, not creating the nt_{type}_00.yyyymmddcc file at all,
+!          and always sending GrADS a nt value of 1. 
+! ################################################################################
+  
+   nt=maxloc(ndata,dim=1)
+   k=nt          
 
-   nflag0=0
+   nflag=1
+   rtim=0.0
+   nlev0=1
+   do i=1,ii
+      write(21) stid(i),rlat(i),rlon(i),rtim,nlev0,nflag
+      write(21) (tobs(j,i,k),j=1,nreal2)
+   enddo
+
+   nlev0=0
+   write(21) stid(i),rlat(i),rlon(i),rtim,nlev0,nflag
+
+! ##################
+!  write file end 
+! ##################
+
    xlat0=0.0
    xlon0=0.0
-   nlev0=0
-
-!  the end of file
-     stidend='        '
-     write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
+   nflag0=0
+   stidend='        '
+   write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
         
-  close(21)
-
-   nt=maxloc(ndata,dim=1)
+   close(21)
 
    print *,nt
 
@@ -141,22 +167,26 @@ endif
   return 
   end
 
-  function gettim(p1,plev,nlevs)
+
+function gettim(p1,plev,nlevs)
+
+   implicit none
   
-  real*4 p1
-  real*4,dimension(nlevs) :: plev
-  integer gettim
+   real*4 p1
+   real*4,dimension(nlevs) :: plev
+   integer gettim,ii,nlevs
 
-  do i=1,nlevs
-    gettim=0
-    if(p1 <= plev(i)) then
-      gettim=i
-!     print *, p1,plev(i),i,gettim
-      return 
-    endif
-  enddo
+   gettim=0
 
- return 
- end
+   do ii=1,nlevs
+      if(p1 <= plev(ii)) then
+         gettim=ii
+!        print *, p1,plev(ii),ii,gettim
+         return 
+      endif
+   enddo
+
+   return 
+end
 
   

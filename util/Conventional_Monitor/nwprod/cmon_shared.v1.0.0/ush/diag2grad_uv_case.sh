@@ -27,13 +27,29 @@ card=alllev
 
 nreal_uv=$nreal              ### one less than the data items of diagnostic files
 nreal2_uv=`expr $nreal - 2`
+echo "nreal2_uv = ", ${nreal2_uv}
+echo "mtype     = ", ${mtype}
 
 ctype=`echo ${mtype} | cut -c3-5`
 
 if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" = 'uv232' -o "$mtype" = 'uv233' -o "$mtype" = 'uv234' -o "$mtype" = 'uv235' -o "$mtype" = 'uv242' -o "$mtype" = 'uv243'  -o "$mtype" = 'uv245' -o "$mtype" = 'uv246' -o "$mtype" = 'uv247' -o "$mtype" = 'uv248' -o "$mtype" = 'uv249' -o "$mtype" = 'uv250' -o "$mtype" = 'uv251' -o "$mtype" = 'uv252' -o "$mtype" = 'uv253' -o "$mtype" = 'uv254' -o "$mtype" = 'uv255' -o "$mtype" = 'uv256' -o "$mtype" = 'uv257' -o "$mtype" = 'uv258' ]; then
 
+   echo "IN if condition 1"
    rm -f diag2grads
    cp ${EXECcmon}/grads_lev.x ./diag2grads
+
+      echo "INPUTS to grads_lev.x = "
+      echo "intype   =  uv"
+      echo "stype    = ", ${mtype}
+      echo "itype    = ", ${ctype}
+      echo "nreal    = ", ${nreal_uv}
+      echo "nreal2   = ", ${nreal2_uv}
+      echo "iscater  = 1"
+      echo "igrads   = 1"
+      echo "levcard  = ", ${card}
+      echo "intv     = ", ${hint}
+      echo "subtype  = ", ${subtype}
+      echo "isubtype = ", ${subtype} 
 
    rm -f input
    cat <<EOF >input
@@ -44,10 +60,23 @@ if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" 
 EOF
 
 elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
+   echo "IN if condition 2"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_sig.x ./diag2grads
    rm -f input
+
+   echo "9 inputs to grads_sig.x = "
+   echo "intype =  uv"
+   echo "stype  = ", ${mtype}
+   echo "itype  = ", ${ctype}
+   echo "nreal  = ", ${nreal_uv}
+   echo "nreal2 = ", ${nreal2_uv}
+   echo "iscater = 1"
+   echo "igrads  = 1"
+   echo "subtype = ", ${subtype}
+   echo "isubtype = ", ${subtype}
+
    cat <<EOF >input
       &input
        intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
@@ -56,6 +85,7 @@ elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
 EOF
 
 elif [ "$mtype" = 'uv220' ]; then
+   echo "IN if condition 3"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_mandlev.x ./diag2grads
@@ -68,6 +98,7 @@ elif [ "$mtype" = 'uv220' ]; then
 EOF
 
 elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype" = 'uv284'  -o "$mtype" = 'uv287' ]; then
+   echo "IN if condition 4"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_sfctime.x ./diag2grads
@@ -80,6 +111,7 @@ elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype
 EOF
 
 elif [ "$mtype" = 'uv229' ]; then
+   echo "IN if condition 5"
    rm -f diag2grads
    cp ${EXECcmon}/grads_sfctime.x ./diag2grads
    rm -f input

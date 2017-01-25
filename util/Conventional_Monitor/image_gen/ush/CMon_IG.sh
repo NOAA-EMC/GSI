@@ -102,7 +102,7 @@ jobname=CMon_ig_${CMON_SUFFIX}
 #  Create LOGdir as needed
 #--------------------------------------------------------------------
 if [[ ! -d ${C_LOGDIR} ]]; then
-   mkdir -p $C_LOGSDIR
+   mkdir -p $C_LOGDIR
 fi
 
 

@@ -143,7 +143,7 @@ for type in uv; do
          continue
       fi
 
-      stnmap -i ${dtype}_grads_ges.ctl 
+      stnmap -1 -i ${dtype}_grads_ges.ctl 
 
       ### set up plot variables
 

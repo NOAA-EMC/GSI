@@ -131,7 +131,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
    'set gxout contour'
    'set clevs'
    'set ccolor 98'
-   'set cint 0'
+*   'set cint 0'
    if(var=u)
       'd UGRDprs.1'
    endif
