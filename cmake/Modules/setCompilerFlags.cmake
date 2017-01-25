@@ -58,11 +58,8 @@ function (setIntel)
     message("Building DEBUG version of GSI")
     set( debug_suffix "_DBG" PARENT_SCOPE )
     if(( HOST-Tide ) OR ( HOST-Gyre ))
-      set(GSI_Fortran_FLAGS "-g -O0 -debug  -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn -fp-model source \
-                             -assume byterecl -convert big_endian -implicitnone -D_REAL8_ -traceback \
-                             ${OMPFLAG} ${MPI_Fortran_COMPILE_FLAGS}" PARENT_SCOPE)
-      set(ENKF_Fortran_FLAGS "-g -O0 -fp-model source -convert big_endian -assume byterecl -implicitnone -warn all \
-                              -traceback -debug all -check all -implicitnone  -DGFS -D_REAL8_ ${OMPFLAG}" PARENT_SCOPE)
+      set(GSI_Fortran_FLAGS "-O0 -fp-model source -convert big_endian -assume byterecl -implicitnone -mcmodel medium -shared-intel -g -traceback -debug -ftrapuv -check all  -fp-stack-check  -fstack-protector -warn nointerfaces -convert big_endian -implicitnone -D_REAL8_ ${OMPFLAG} ${MPI_Fortran_COMPILE_FLAGS}" PARENT_SCOPE)
+      set(ENKF_Fortran_FLAGS "-g -O0 -fp-model source -convert big_endian -assume byterecl -implicitnone -warn all -traceback -debug all -check all -implicitnone  -DGFS -D_REAL8_ ${OMPFLAG}" PARENT_SCOPE)
       if( FREEFORM )
         set (BACIO_Fortran_FLAGS "-g -free -assume nocc_omp " PARENT_SCOPE )
       else()
