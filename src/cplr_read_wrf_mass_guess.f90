@@ -2,14 +2,14 @@ module read_wrf_mass_guess_mod
 use abstract_read_wrf_mass_guess_mod
   type, extends(abstract_read_wrf_mass_guess_class) :: read_wrf_mass_guess_class 
   contains
-    procedure, pass(this) :: read_wrf_mass_binary_guess => read_wrf_mass_binary_guess_wrf 
     procedure, pass(this) :: read_wrf_mass_netcdf_guess => read_wrf_mass_netcdf_guess_wrf
-    procedure, pass(this) :: transfer_jbuf2ibuf
+    procedure, pass(this) :: read_wrf_mass_binary_guess => read_wrf_mass_binary_guess_wrf 
+    procedure, nopass :: transfer_jbuf2ibuf
     procedure, pass(this) :: generic_grid2sub
-    procedure, pass(this) :: expand_ibuf
-    procedure, pass(this) :: move_ibuf_hg
-    procedure, pass(this) :: move_ibuf_ihg
-    procedure, pass(this) :: reorder2_s
+    procedure, nopass :: expand_ibuf
+    procedure, nopass :: move_ibuf_hg
+    procedure, nopass :: move_ibuf_ihg
+    procedure, nopass :: reorder2_s
   end type read_wrf_mass_guess_class 
 contains
   subroutine read_wrf_mass_binary_guess_wrf(this,mype)
@@ -1259,9 +1259,9 @@ contains
     use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
     use mpeu_util, only: die
     implicit none
+    class(read_wrf_mass_guess_class),intent(inout) :: this
   
   ! Declare passed variables
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in):: mype
   
   ! Declare local parameters
@@ -2171,7 +2171,7 @@ contains
          all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
   
   end subroutine generic_grid2sub
-  subroutine reorder2_s(this,work,k_in)
+  subroutine reorder2_s(work,k_in)
   !$$$  subprogram documentation block
   !                .      .    .
   ! subprogram:    reorder2_s
@@ -2211,7 +2211,6 @@ contains
   
   ! !INPUT PARAMETERS:
   
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind)                       ,intent(in   ) :: k_in    ! number of levs in work array
   
   ! !INPUT/OUTPUT PARAMETERS:
@@ -2255,7 +2254,7 @@ contains
     return
   end subroutine reorder2_s
 
-  subroutine expand_ibuf(this,ibuf,im,jm,imp,jmp)
+  subroutine expand_ibuf(ibuf,im,jm,imp,jmp)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    expand_ibuf    expand array in place
@@ -2287,7 +2286,6 @@ contains
     use kinds, only: i_long,i_kind
     implicit none
     
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: im,jm,imp,jmp
     integer(i_long),intent(inout) :: ibuf(imp*jmp)
     
@@ -2317,7 +2315,7 @@ contains
     end do
   end subroutine expand_ibuf
 
-  subroutine transfer_jbuf2ibuf(this,jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc, &
+  subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc, &
        jbegin,jend,kbegin,kend,mype,npe,im_jbuf,jm_jbuf,lm_jbuf, &
        im_ibuf,jm_ibuf,k_start,k_end)
   !$$$  subprogram documentation block
@@ -2366,7 +2364,6 @@ contains
     use kinds, only: i_long,i_kind
     implicit none
     
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
     integer(i_kind),intent(in   ) :: im_ibuf,jm_ibuf,k_start,k_end
     
@@ -2422,7 +2419,7 @@ contains
     end do
     
   end subroutine transfer_jbuf2ibuf
-  subroutine move_ibuf_hg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
+  subroutine move_ibuf_hg(ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    move_ibuf_hg  copy from one array to another
@@ -2455,7 +2452,6 @@ contains
     use constants, only: zero_single
     implicit none
     
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
     integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
     real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
@@ -2470,7 +2466,7 @@ contains
     
   end subroutine move_ibuf_hg
   
-  subroutine move_ibuf_ihg(this,ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
+  subroutine move_ibuf_ihg(ibuf,temp1,im_buf,jm_buf,im_out,jm_out)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    move_ibuf_hg  copy from one array to another
@@ -2502,7 +2498,6 @@ contains
     use kinds, only: i_long,r_single,i_kind
     implicit none
     
-    class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
     integer(i_long),intent(in   ) :: ibuf(im_buf,jm_buf)
     real(r_single) ,intent(  out) :: temp1(im_out,jm_out)
