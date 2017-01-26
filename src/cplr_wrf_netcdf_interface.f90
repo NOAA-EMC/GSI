@@ -2,13 +2,13 @@ module convert_netcdf_mod
 use abstract_convert_netcdf_mod 
   type, extends(abstract_convert_netcdf_class) :: convert_netcdf_class
   contains
-    procedure, pass(this) :: convert_netcdf_mass => convert_netcdf_mass_wrf
-    procedure, pass(this) :: convert_netcdf_nmm  => convert_netcdf_nmm_wrf
-    procedure, pass(this) :: update_netcdf_mass  => update_netcdf_mass_wrf
-    procedure, pass(this) :: update_netcdf_nmm   => update_netcdf_nmm_wrf
+    procedure, nopass :: convert_netcdf_mass => convert_netcdf_mass_wrf
+    procedure, nopass :: convert_netcdf_nmm  => convert_netcdf_nmm_wrf
+    procedure, nopass :: update_netcdf_mass  => update_netcdf_mass_wrf
+    procedure, nopass :: update_netcdf_nmm   => update_netcdf_nmm_wrf
   end type convert_netcdf_class
 contains  
-  subroutine convert_netcdf_mass_wrf(this)
+  subroutine convert_netcdf_mass_wrf
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    convert_netcdf_mass   read wrf mass netcdf restart
@@ -59,7 +59,6 @@ contains
     use gsi_chemguess_mod, only: gsi_chemguess_get
   
     implicit none
-    class(convert_netcdf_class), intent(inout) :: this 
   
   ! Declare local parameters
     real(r_single),parameter:: one_single = 1.0_r_single
@@ -1019,7 +1018,7 @@ contains
      
   end subroutine convert_netcdf_mass_wrf
   
-  subroutine convert_netcdf_nmm_wrf(this,update_pint,ctph0,stph0,tlm0,guess)
+  subroutine convert_netcdf_nmm_wrf(update_pint,ctph0,stph0,tlm0,guess)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    convert_netcdf_nmm    read wrf nmm netcdf restart
@@ -1082,7 +1081,6 @@ contains
   ! include 'wrf_status_codes.h'
   ! include 'netcdf.inc'
   
-    class(convert_netcdf_class), intent(inout) :: this 
     logical     ,intent(in   ) :: guess
     logical     ,intent(inout) :: update_pint
     real(r_kind),intent(  out) :: ctph0,stph0,tlm0
@@ -1986,7 +1984,7 @@ contains
   
   end subroutine convert_netcdf_nmm_wrf
   
-  subroutine update_netcdf_mass_wrf(this)
+  subroutine update_netcdf_mass_wrf
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    update_netcdf_mass  create netcdf format wrf restart file from internal binary file.
@@ -2034,7 +2032,6 @@ contains
     use gsi_chemguess_mod, only: gsi_chemguess_get
   
     implicit none
-    class(convert_netcdf_class), intent(inout) :: this 
   
     include 'netcdf.inc'
   
@@ -2779,7 +2776,7 @@ contains
     
   end subroutine update_netcdf_mass_wrf
   
-  subroutine update_netcdf_nmm_wrf(this)
+  subroutine update_netcdf_nmm_wrf
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    update_netcdf_nmm   create netcdf format wrf restart from internal binary file.
@@ -2817,7 +2814,6 @@ contains
     use obsmod, only: iadate
   ! use wrf_data
     implicit none
-    class(convert_netcdf_class), intent(inout) :: this 
     include 'netcdf.inc'
   
     character(len=120) :: flnm1,flnm2
