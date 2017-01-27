@@ -75,6 +75,8 @@ contains
      real(r_single),allocatable,dimension(:,:)   :: scr2
      real(r_single),allocatable,dimension(:,:,:) :: scr3
  
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
      if ( enspreproc ) then
   
         if ( member == 0 ) then
@@ -236,6 +238,8 @@ contains
       integer(i_kind) :: mype_atm
       logical,save :: inithead = .true.
   
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
       mype_atm = member
   
       write(filename,13) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),member
@@ -276,6 +280,8 @@ contains
       class(get_gfs_ensmod_class), intent(inout) :: this
       real(r_kind), intent(out) :: elats(size(sp_ens%rlats)),elons(size(sp_ens%rlons))
   
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
       elats=sp_ens%rlats
       elons=sp_ens%rlons
   

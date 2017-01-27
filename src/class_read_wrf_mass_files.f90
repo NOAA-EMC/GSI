@@ -5,13 +5,12 @@ module abstract_read_wrf_mass_files_mod
   end type abstract_read_wrf_mass_files_class
 
   abstract interface
-  subroutine read_wrf_mass_files(this,mype,test)
+  subroutine read_wrf_mass_files(this,mype)
     use kinds, only: i_kind
     import abstract_read_wrf_mass_files_class
     implicit none
     class(abstract_read_wrf_mass_files_class),intent(inout) :: this
     integer(i_kind),intent(in):: mype
-    logical, optional, intent(in   ) :: test 
   end subroutine read_wrf_mass_files
   end interface
 

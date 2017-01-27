@@ -5,7 +5,7 @@ use abstract_read_wrf_mass_files_mod
     procedure, pass(this) :: read_wrf_mass_files => read_wrf_mass_files_dummy
   end type read_wrf_mass_files_class 
 contains
-  subroutine read_wrf_mass_files_dummy(this,mype,test)
+  subroutine read_wrf_mass_files_dummy(this,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    read_wrf_mass_files   same as read_files, but for wrfmass
@@ -44,7 +44,6 @@ contains
   ! Declare passed variables
     class(read_wrf_mass_files_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: mype
-    logical, optional, intent(in   ) :: test 
 
   
     write(6,*)'READ_WRF_MASS_FILES:     ***WARNING*** dummy call ... does nothing!'

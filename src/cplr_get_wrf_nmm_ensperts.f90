@@ -6,15 +6,15 @@ use abstract_get_wrf_nmm_ensperts_mod
     procedure, pass(this) :: convert_binary_nmm_ens => convert_binary_nmm_ens_wrf
     procedure, pass(this) :: general_read_wrf_nmm_binary
     procedure, pass(this) :: general_read_wrf_nmm_netcdf
-    procedure, pass(this) :: create_e2a_blend
+    procedure, nopass :: create_e2a_blend
     procedure, pass(this) :: grads3a
-    procedure, pass(this) :: strip_grd
+    procedure, nopass :: strip_grd
     procedure, pass(this) :: grads3d
     procedure, pass(this) :: sub2grid_3a
     procedure, pass(this) :: generic_grid2sub_ens
-    procedure, pass(this) :: general_fill_nmm_grid2
-    procedure, pass(this) :: general_half_nmm_grid2
-    procedure, pass(this) :: general_reorder2_s
+    procedure, nopass :: general_fill_nmm_grid2
+    procedure, nopass :: general_half_nmm_grid2
+    procedure, nopass :: general_reorder2_s
     procedure, pass(this) :: ens_member_mean_dualres_regional
 
   end type get_wrf_nmm_ensperts_class
@@ -1114,7 +1114,6 @@ contains
     use get_wrf_binary_interface_mod, only: get_wrf_binary_interface_class
     implicit none
     class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-  
     integer(i_kind),parameter:: in_unit = 15
   
     character(9) wrfens
@@ -1146,6 +1145,8 @@ contains
     integer(i_kind) nlp
     integer(i_kind) i0,j0
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     if(.not. merge_two_grid_ensperts)then
        nlp=n_ens
     else
@@ -1457,9 +1458,9 @@ contains
       use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   
       implicit none
+      class(get_wrf_nmm_ensperts_class), intent(inout) :: this
   !
   ! Declare passed variables
-      class(get_wrf_nmm_ensperts_class), intent(inout) :: this
       type(sub2grid_info)                   ,intent(in   ) :: grd
       character(24)                         ,intent(in   ) :: filename
       integer(i_kind)                       ,intent(in   ) :: mype
@@ -2112,7 +2113,7 @@ contains
   return
   end subroutine general_read_wrf_nmm_netcdf
 
-  subroutine general_reorder2_s(this,grd,work,k_in)
+  subroutine general_reorder2_s(grd,work,k_in)
   !$$$  subprogram documentation block
   !                .      .    .
   ! subprogram:    general_reorder2_s
@@ -2154,7 +2155,6 @@ contains
   
   ! !INPUT PARAMETERS:
   
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
     type(sub2grid_info),intent(in   ) :: grd
     integer(i_kind)    ,intent(in   ) :: k_in    ! number of levs in work array
   
@@ -2525,7 +2525,7 @@ contains
   
   end subroutine sub2grid_3a
   
-  subroutine strip_grd(this,grd,field_in,field_out)
+  subroutine strip_grd(grd,field_in,field_out)
   
   ! !USES:
   
@@ -2535,7 +2535,6 @@ contains
   
   ! !INPUT PARAMETERS:
   
-      class(get_wrf_nmm_ensperts_class), intent(inout) :: this
       type(sub2grid_info)                  ,intent(in   ) :: grd
       real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
                                                                          !    array containing
@@ -2579,7 +2578,7 @@ contains
   end subroutine strip_grd
   
   
-  subroutine create_e2a_blend(this,nmix,nord_blend,wgt,region_lat_ens,region_lon_ens)
+  subroutine create_e2a_blend(nmix,nord_blend,wgt,region_lat_ens,region_lon_ens)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    get_overlap_domain_index
@@ -2614,7 +2613,6 @@ contains
   
        implicit none
   
-       class(get_wrf_nmm_ensperts_class), intent(inout) :: this
        real(r_kind),allocatable, intent(inout) :: region_lat_ens(:,:)
        real(r_kind),allocatable, intent(inout) :: region_lon_ens(:,:)
        integer(i_kind),intent(in   ) :: nord_blend,nmix
@@ -2752,7 +2750,7 @@ contains
        deallocate(wgt_x,wgt_y,blendx)
   
   end subroutine create_e2a_blend
-  subroutine general_fill_nmm_grid2(this,grd,gin,nx,ny,gout,igtype,iorder,ireturn)
+  subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    fill_nmm_grid2         fill holes in (wrf) nmm e-grid
@@ -2823,7 +2821,6 @@ contains
     implicit none
   
   !   Declare passed variables
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
     type(sub2grid_info) ,intent(in   ) :: grd
     integer(i_kind)     ,intent(in   ) :: nx,ny,igtype,iorder
     real(r_single)      ,intent(in   ) :: gin(nx,ny)
@@ -2928,7 +2925,7 @@ contains
   
   end subroutine general_fill_nmm_grid2
   
-  subroutine general_half_nmm_grid2(this,grd,gin,nx,ny,gout,igtype,iorder,ireturn)
+  subroutine general_half_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    half_nmm_grid2    make a-grid from every other row of e-grid
@@ -2996,7 +2993,6 @@ contains
     implicit none
   
   ! Declare passed variables
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
     type(sub2grid_info)                  ,intent(in   ) :: grd
     integer(i_kind)                      ,intent(in   ) :: nx,ny,igtype,iorder
     real(r_single),dimension(nx,ny)      ,intent(in   ) :: gin

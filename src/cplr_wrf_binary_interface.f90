@@ -5,18 +5,18 @@ use abstract_get_wrf_binary_interface_mod
     procedure, pass(this) :: convert_binary_mass => convert_binary_mass_wrf
     procedure, pass(this) :: convert_binary_nmm => convert_binary_nmm_wrf
     procedure, pass(this) :: convert_nems_nmmb => convert_nems_nmmb_wrf
-    procedure, pass(this) :: latlon2radians
+    procedure, nopass :: latlon2radians
     procedure, pass(this) :: count_recs_wrf_binary_file
     procedure, pass(this) :: inventory_wrf_binary_file
     procedure, pass(this) :: initialize_byte_swap_wrf_binary_file
     procedure, pass(this) :: int_get_ti_header_char
     procedure, pass(this) :: int_get_write_field_header 
-    procedure, pass(this) :: retrieve_index
-    procedure, pass(this) :: retrieve_field_i1
-    procedure, pass(this) :: retrieve_field_r1
-    procedure, pass(this) :: retrieve_field_rn1
-    procedure, pass(this) :: retrieve_field_rn1n2
-    procedure, pass(this) :: next_buf 
+    procedure, nopass :: retrieve_index
+    procedure, nopass :: retrieve_field_i1
+    procedure, nopass :: retrieve_field_r1
+    procedure, nopass :: retrieve_field_rn1
+    procedure, nopass :: retrieve_field_rn1n2
+    procedure, nopass :: next_buf 
   end type get_wrf_binary_interface_class
 contains
   subroutine convert_binary_mass_wrf(this)
@@ -775,7 +775,7 @@ contains
     real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)
     integer(i_kind) ksize
     integer(i_kind) index
-    
+     
   ! Inquire about cloud guess fields
     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
   
@@ -1815,7 +1815,7 @@ contains
     enddo n_loop
   
   end subroutine convert_nems_nmmb_wrf
-  subroutine latlon2radians(this,glat,glon,dx,dy,nx,ny)
+  subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    latlon2radians  check for degrees and convert to radians
@@ -1855,7 +1855,6 @@ contains
     use constants, only: zero,deg2rad,rearth
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: nx,ny
     real(r_single) ,intent(inout) :: glat(nx,ny),glon(nx,ny)
     real(r_single) ,intent(in   ) :: dx(nx,ny),dy(nx,ny)
@@ -2431,7 +2430,7 @@ contains
     call closefile(in_unit,ierr)
   
   end subroutine inventory_wrf_binary_file
-  subroutine next_buf(this,in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+  subroutine next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    next_buf    bring in next direct access block
@@ -2469,7 +2468,6 @@ contains
     use kinds, only: i_byte,i_llong,i_kind
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_llong),intent(in   ) :: lrecl
     integer(i_kind) ,intent(in   ) :: in_unit
     integer(i_llong),intent(in   ) :: nextbyte
@@ -2509,7 +2507,7 @@ contains
     lastbuf = ierr == 1
   
   end subroutine next_buf
-  subroutine retrieve_index(this,index,string,varname_all,nrecs)
+  subroutine retrieve_index(index,string,varname_all,nrecs)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    retrieve_index  get record number of desired variable
@@ -2539,7 +2537,6 @@ contains
     use kinds, only: i_kind
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: nrecs
     integer(i_kind),intent(  out) :: index
     character(*)   ,intent(in   ) :: string
@@ -2561,7 +2558,7 @@ contains
   
   end subroutine retrieve_index
   
-  subroutine retrieve_field_i1(this,in_unit,wrfges,outi1,start_block,end_block,start_byte,end_byte)
+  subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_byte,end_byte)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    retrieve_field_i1 retrieve single integer(4) variable from binary restart file
@@ -2599,7 +2596,6 @@ contains
     use native_endianness, only: byte_swap
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: in_unit
     character(9)   ,intent(in   ) :: wrfges
     integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
@@ -2644,7 +2640,7 @@ contains
     
   end subroutine retrieve_field_i1
   
-  subroutine retrieve_field_r1(this,in_unit,wrfges,outr1,start_block,end_block,start_byte,end_byte)
+  subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_byte,end_byte)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    retrieve_field_r1 retrieve single real(4) variable from binary restart file
@@ -2682,7 +2678,6 @@ contains
     use native_endianness, only: byte_swap
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: in_unit
     character(9)   ,intent(in   ) :: wrfges
     integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
@@ -2727,7 +2722,7 @@ contains
     
   end subroutine retrieve_field_r1
   
-  subroutine retrieve_field_rn1(this,in_unit,wrfges,outrn1,n1,start_block,end_block,start_byte,end_byte)
+  subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,start_byte,end_byte)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    retrieve_field_rn1 retrieve real(4) outrn1(n1) from wrf binary file
@@ -2767,7 +2762,6 @@ contains
     use constants, only: zero
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: in_unit,n1
     character(9)   ,intent(in   ) :: wrfges
     integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
@@ -2821,7 +2815,7 @@ contains
     
   end subroutine retrieve_field_rn1
   
-  subroutine retrieve_field_rn1n2(this,in_unit,wrfges,outrn1n2,n1,n2,start_block,end_block,start_byte,end_byte)
+  subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_block,start_byte,end_byte)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    retrieve_field_rn1n2 retrieve real(4) outrn1n2(n1,n2) from wrf binary file
@@ -2860,7 +2854,6 @@ contains
     use native_endianness, only: byte_swap
     implicit none
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: in_unit,n1,n2
     character(9)   ,intent(in   ) :: wrfges
     integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
@@ -2963,12 +2956,14 @@ contains
     CHARACTER * 132  dummyData
   !  logical, external :: debug_foo
   !
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     call int_get_ti_header_c ( hdrbuf, hdrbufsize, n, itypesize, typesize, &
                              DataHandle, dummyData, DummyCount, code )
     i = n/itypesize+1 ;
-    call int_unpack_string (this, Element, hdrbuf( i ), n ) ; i = i + n
-    call int_unpack_string (this, Data   , hdrbuf( i ), n ) ; i = i + n
-    call int_unpack_string (this, VarName  , hdrbuf( i ), n ) ; i = i + n
+    call int_unpack_string ( Element, hdrbuf( i ), n ) ; i = i + n
+    call int_unpack_string ( Data   , hdrbuf( i ), n ) ; i = i + n
+    call int_unpack_string ( VarName  , hdrbuf( i ), n ) ; i = i + n
     hdrbufsize = hdrbuf(1)
                          write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
                                                                 hdrbufsize,itypesize,typesize
@@ -3044,6 +3039,8 @@ contains
     CHARACTER*132 mess
     INTEGER(i_kind) i, n
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     hdrbufsize = hdrbuf(1)
     IF ( hdrbuf(2) /= int_field ) THEN
        write(mess,*)'int_get_write_field_header: hdrbuf(2) ne int_field ',hdrbuf(2),int_field
@@ -3053,14 +3050,14 @@ contains
   
     i = 4
     DataHandle = hdrbuf(i)     ; i = i+1
-    call int_unpack_string(this, DateStr, hdrbuf(i), n )     ; i = i+n
-    call int_unpack_string(this, VarName, hdrbuf(i), n )     ; i = i+n
+    call int_unpack_string( DateStr, hdrbuf(i), n )     ; i = i+n
+    call int_unpack_string( VarName, hdrbuf(i), n )     ; i = i+n
     FieldType = hdrbuf(i)      ; i = i+1
-    call int_unpack_string(this, MemoryOrder, hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, Stagger, hdrbuf(i), n )     ; i = i+n
-    call int_unpack_string(this, DimNames(1), hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, DimNames(2), hdrbuf(i), n ) ; i = i+n
-    call int_unpack_string(this, DimNames(3), hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string( MemoryOrder, hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string( Stagger, hdrbuf(i), n )     ; i = i+n
+    call int_unpack_string( DimNames(1), hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string( DimNames(2), hdrbuf(i), n ) ; i = i+n
+    call int_unpack_string( DimNames(3), hdrbuf(i), n ) ; i = i+n
     DomainStart(1) = hdrbuf(i)    ; i = i+1
     DomainStart(2) = hdrbuf(i)    ; i = i+1
     DomainStart(3) = hdrbuf(i)    ; i = i+1
@@ -3078,7 +3075,7 @@ contains
     RETURN
   END SUBROUTINE int_get_write_field_header
 
-  SUBROUTINE int_unpack_string ( this, str, buf, n )
+  SUBROUTINE int_unpack_string ( str, buf, n )
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    int_unpack_string
@@ -3107,7 +3104,6 @@ contains
     use kinds, only: i_kind
     IMPLICIT NONE
   
-    class(get_wrf_binary_interface_class), intent(inout) :: this
     CHARACTER*(*)                , INTENT(  OUT) :: str
     INTEGER(i_kind)              , INTENT(  OUT) :: n       ! on return, N is the number of ints copied from buf
     INTEGER(i_kind), DIMENSION(*), INTENT(IN   ) :: buf

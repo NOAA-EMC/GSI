@@ -193,6 +193,8 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   !  NMM input grid dimensions in module reg_glob_ll
   !      These are the following:
   !          im -- number of NMM longitudes (x-points) on E-grid
@@ -1131,6 +1133,8 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   !  NMM input grid dimensions in module reg_glob_ll
   !      These are the following:
   !          im -- number of NMM longitudes (x-points) on E-grid
@@ -1739,6 +1743,8 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   !  check to see if using GFS stratosphere:
     if(use_gfs_stratosphere) then
        nsig_read=nsig_save

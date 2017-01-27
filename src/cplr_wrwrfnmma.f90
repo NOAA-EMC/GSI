@@ -4,8 +4,8 @@ use abstract_wrwrfnmma_mod
   contains
     procedure, pass(this) :: wrwrfnmma_binary => wrwrfnmma_binary_wrf  
     procedure, pass(this) :: wrwrfnmma_netcdf => wrwrfnmma_netcdf_wrf  
-    procedure, pass(this) :: get_bndy_file
-    procedure, pass(this) :: wrnemsnmma_binary
+    procedure, nopass :: get_bndy_file
+    procedure, nopass :: wrnemsnmma_binary
   end type wrwrfnmma_class
 contains
   subroutine wrwrfnmma_binary_wrf(this,mype)
@@ -928,7 +928,7 @@ contains
     
   end subroutine wrwrfnmma_binary_wrf
   
-  subroutine get_bndy_file(this,temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
+  subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                            n_actual_clouds,im,jm,lm,bdim,igtype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -973,7 +973,6 @@ contains
     use kinds, only: r_single,i_kind
     implicit none
   
-    class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v,im,jm,lm,bdim,igtype
     integer(i_kind),intent(in   ) :: n_actual_clouds
     real(r_single), intent(in   ) :: temp1(im,jm)
@@ -1060,7 +1059,7 @@ contains
   
   end subroutine get_bndy_file
   
-  subroutine wrnemsnmma_binary(this,mype)
+  subroutine wrnemsnmma_binary(mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    wrwrfnmma              write out wrf NMM restart file
@@ -1132,7 +1131,6 @@ contains
     implicit none
   
   ! Declare passed variables
-    class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
   
   ! Declare local variables
