@@ -4,12 +4,12 @@ use abstract_wrwrfmassa_mod
   contains
     procedure, pass(this) :: wrwrfmassa_binary => wrwrfmassa_binary_wrf  
     procedure, pass(this) :: wrwrfmassa_netcdf => wrwrfmassa_netcdf_wrf  
-    procedure, pass(this) :: update_start_date
+    procedure, nopass :: update_start_date
     procedure, pass(this) :: generic_sub2grid
-    procedure, pass(this) :: reorder_s 
-    procedure, pass(this) :: contract_ibuf
-    procedure, pass(this) :: transfer_ibuf2jbuf
-    procedure, pass(this) :: move_hg_ibuf
+    procedure, nopass :: reorder_s 
+    procedure, nopass :: contract_ibuf
+    procedure, nopass :: transfer_ibuf2jbuf
+    procedure, nopass :: move_hg_ibuf
   end type wrwrfmassa_class
 contains
   subroutine wrwrfmassa_binary_wrf(this,mype)
@@ -231,7 +231,7 @@ contains
   !     update START_DATE record so it contains new analysis time in place of old starting time
     call mpi_file_read_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
     if(mype==0)  then
-       call update_start_date(this,chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
+       call update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
        call mpi_file_write_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
     end if
   
@@ -1345,7 +1345,7 @@ contains
   
   end subroutine generic_sub2grid
   
-    subroutine reorder_s(this,work,k_in)
+    subroutine reorder_s(work,k_in)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    reorder_s 
@@ -1379,7 +1379,6 @@ contains
       use gridmod, only: ijn,itotsub
       implicit none
   
-      class(wrwrfmassa_class), intent(inout) :: this 
       integer(i_kind)                       , intent(in   ) :: k_in    ! number of levs in work array
   
       real(r_single),dimension(itotsub*k_in), intent(inout) :: work ! array to reorder
@@ -1423,7 +1422,7 @@ contains
       return
     end subroutine reorder_s
   
-  subroutine contract_ibuf(this,ibuf,im,jm,imp,jmp)
+  subroutine contract_ibuf(ibuf,im,jm,imp,jmp)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    contract_ibuf    contract array in place
@@ -1458,7 +1457,6 @@ contains
     use kinds, only: i_long,i_kind
     implicit none
   
-    class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: im,jm,imp,jmp
     integer(i_long),intent(inout) :: ibuf(imp*jmp)
   
@@ -1489,7 +1487,7 @@ contains
   
   end subroutine contract_ibuf
   
-  subroutine transfer_ibuf2jbuf(this,jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc, &
+  subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc, &
                        jbegin,jend,kbegin,kend,mype,npe,im_jbuf,jm_jbuf,lm_jbuf, &
                        im_ibuf,jm_ibuf,k_start,k_end)
   !$$$  subprogram documentation block
@@ -1538,7 +1536,6 @@ contains
     use kinds, only: i_long,i_kind
     implicit none
   
-    class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
     integer(i_kind),intent(in   ) :: im_ibuf,jm_ibuf,k_start,k_end
   
@@ -1602,7 +1599,7 @@ contains
   
   end subroutine transfer_ibuf2jbuf
   
-  subroutine move_hg_ibuf(this,temp1,ibuf,im_buf,jm_buf,im_out,jm_out)
+  subroutine move_hg_ibuf(temp1,ibuf,im_buf,jm_buf,im_out,jm_out)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    move_hg_ibuf  copy from one array to another
@@ -1635,7 +1632,6 @@ contains
     use constants, only: zero_ilong
     implicit none
   
-    class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: im_buf,jm_buf,im_out,jm_out
     real(r_single) ,intent(in   ) :: temp1(im_out,jm_out)
     integer(i_long),intent(  out) :: ibuf(im_buf,jm_buf)
@@ -1780,6 +1776,8 @@ contains
     real(r_kind), pointer :: ges_p25  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_pm2_5  (:,:,:)=>NULL()
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     it=ntguessig
   
   ! Inquire about cloud guess fields
@@ -2624,7 +2622,7 @@ contains
     
   end subroutine wrwrfmassa_netcdf_wrf
 
-  subroutine update_start_date(this,chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
+  subroutine update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    update_start_date  update start date on wrf file
@@ -2660,7 +2658,6 @@ contains
     use kinds, only: i_kind
     implicit none
   
-    class(wrwrfmassa_class), intent(inout) :: this 
     character(1)   ,intent(inout) :: chdrbuf(2048)
     integer(i_kind),intent(in   ) :: iyear,imonth,iday,ihour,iminute,isecond
   

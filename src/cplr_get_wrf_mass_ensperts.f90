@@ -1,11 +1,12 @@
 module get_wrf_mass_ensperts_mod
 use abstract_get_wrf_mass_ensperts_mod
+  use kinds, only : i_kind
   type, extends(abstract_get_wrf_mass_ensperts_class) :: get_wrf_mass_ensperts_class
   contains
     procedure, pass(this) :: get_wrf_mass_ensperts => get_wrf_mass_ensperts_wrf
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_wrf
     procedure, pass(this) :: general_read_wrf_mass
-    procedure, pass(this) :: fill_regional_2d
+    procedure, nopass :: fill_regional_2d
   end type get_wrf_mass_ensperts_class
 contains
   subroutine ens_spread_dualres_regional_wrf(this,mype,en_perts,nelen,en_bar)
@@ -68,7 +69,10 @@ contains
     real(r_kind),pointer,dimension(:,:):: ps
     real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
     real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
-  
+
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
+ 
   !      create simple regular grid
           call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
           call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
@@ -244,7 +248,7 @@ contains
       type(gsi_grid):: grid_ens
       real(r_kind):: bar_norm,sig_norm,kapr,kap1
   
-      integer(i_kind):: iret,i,j,k,n,mm1,istatus
+      integer(i_kind):: i,j,k,n,mm1,istatus
       integer(i_kind):: ic2,ic3
   
       character(24) filename
@@ -276,7 +280,7 @@ contains
   ! 
   ! READ ENEMBLE MEMBERS DATA
          if (mype == 0) write(6,*) 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',filename
-         call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype,iret) 
+         call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
          do ic3=1,nc3d
@@ -450,7 +454,7 @@ contains
   return
   end subroutine get_wrf_mass_ensperts_wrf
   
-  subroutine general_read_wrf_mass(this,filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype,iret)
+  subroutine general_read_wrf_mass(this,filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    general_read_wrf_mass  read arw model ensemble members
@@ -502,7 +506,6 @@ contains
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
                                                     g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
-      integer(i_kind),intent(inout):: iret
       character(24),intent(in):: filename
   !
   ! Declare local parameters
@@ -871,7 +874,7 @@ contains
   return       
   end subroutine general_read_wrf_mass
   
-  subroutine fill_regional_2d(this,fld_in,fld_out)
+  subroutine fill_regional_2d(fld_in,fld_out)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    fill_regional_2d
@@ -897,7 +900,6 @@ contains
     use kinds, only: r_kind,i_kind
     use hybrid_ensemble_parameters, only: grd_ens
     implicit none
-    class(get_wrf_mass_ensperts_class), intent(inout) :: this
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon)::fld_in
     real(r_kind),dimension(grd_ens%itotsub)::fld_out
     integer(i_kind):: i,j,k

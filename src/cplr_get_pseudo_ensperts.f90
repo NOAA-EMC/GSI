@@ -3,10 +3,10 @@ use abstract_get_pseudo_ensperts_mod
   type, extends(abstract_get_pseudo_ensperts_class) :: get_pseudo_ensperts_class
   contains
     procedure, pass(this) :: get_pseudo_ensperts => get_pseudo_ensperts_wrf
-    procedure, pass(this) :: read_wrf_nmm_tclib
-    procedure, pass(this) :: get_bgtc_center
-    procedure, pass(this) :: create_pseudo_enpert_blend
-    procedure, pass(this) :: pseudo_ens_e2a
+    procedure, nopass :: read_wrf_nmm_tclib
+    procedure, nopass :: get_bgtc_center
+    procedure, nopass :: create_pseudo_enpert_blend
+    procedure, nopass :: pseudo_ens_e2a
   end type get_pseudo_ensperts_class
 
 contains
@@ -103,6 +103,9 @@ contains
     real(r_kind) bc_lon,bc_lat,lclon,lclat,lc_lon,lc_lat,lc_lonm,lc_latm
     integer(i_kind) lon_bc,lat_bc,lon_lc,lat_lc,ratio_lon,ratio_lat
     logical :: test
+
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   
   ! create ensemble perturbation and ensemble mean bundle
     allocate(lib_perts(n_ens))
@@ -188,7 +191,7 @@ contains
   ! read background TC center longitude and latide and convert to analysis
   ! grid index
   
-    call get_bgtc_center(this,bc_lon,bc_lat)
+    call get_bgtc_center(bc_lon,bc_lat)
   
   !  if(mype == 0) print *,'bc_lon,bc_lat=', bc_lon,bc_lat
   
@@ -210,7 +213,7 @@ contains
   
     blend=zero
     nord_blend=4
-    call create_pseudo_enpert_blend(this,bc_lon,bc_lat,dlmd2,dphd2,nord_blend,blend)
+    call create_pseudo_enpert_blend(bc_lon,bc_lat,dlmd2,dphd2,nord_blend,blend)
   
     if(mype==0)then
        allocate(outwork(grd_ens%nlon,grd_ens%nlat))
@@ -308,7 +311,7 @@ contains
   
   !    read fields from TC library
   
-       call read_wrf_nmm_tclib(this,grd_lib,filename,mype,ps,u,v,tv,rh)
+       call read_wrf_nmm_tclib(grd_lib,filename,mype,ps,u,v,tv,rh)
   
   !     write(fileout,'("tclib",i3.3)') n
   !     call grads3a(grd_lib,u,v,tv,rh,ps,grd_lib%nsig,mype,fileout)
@@ -345,7 +348,7 @@ contains
        work_reg=zero
   
        do k=grd_lib%kbegin_loc,grd_lib%kend_loc
-          call pseudo_ens_e2a(this,lon_bc,lat_bc,lon_lc,lat_lc,grd_lib%nlon,grd_lib%nlat,work(1,1,1,k), &
+          call pseudo_ens_e2a(lon_bc,lat_bc,lon_lc,lat_lc,grd_lib%nlon,grd_lib%nlat,work(1,1,1,k), &
                               blend,ratio_lon,ratio_lat,grd_ens%nlon,grd_ens%nlat,work_reg(1,1,1,k))
   
        end do
@@ -752,7 +755,7 @@ contains
      call stop2(400)
   end subroutine get_pseudo_ensperts_wrf
   
-  subroutine read_wrf_nmm_tclib(this,grd,filename,mype,ps,u,v,tv,rh)
+  subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    read_wrf_nmm_tclib        read wrf_nmm TC library
@@ -784,7 +787,6 @@ contains
     implicit none
   
   ! Declare passed variables here
-    class(get_pseudo_ensperts_class)            ,intent(inout) :: this
     type(sub2grid_info)                   ,intent(in   ) :: grd
     character(120)                        ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
@@ -1017,7 +1019,7 @@ contains
   
   end subroutine read_wrf_nmm_tclib
   
-  subroutine get_bgtc_center(this,bc_lon,bc_lat)
+  subroutine get_bgtc_center(bc_lon,bc_lat)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    get_bgtc_center  
@@ -1047,7 +1049,6 @@ contains
   
     implicit none
   
-    class(get_pseudo_ensperts_class)            ,intent(inout) :: this
     real(r_kind)                          ,intent(inout) :: bc_lon,bc_lat
     integer(i_kind) iclat,iclon
     character*1 sn,ew
@@ -1087,7 +1088,7 @@ contains
   
   end subroutine get_bgtc_center 
   
-  subroutine create_pseudo_enpert_blend(this,bc_lon,bc_lat,dlmd,dphd,nord_blend,blndmsk)
+  subroutine create_pseudo_enpert_blend(bc_lon,bc_lat,dlmd,dphd,nord_blend,blndmsk)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    get_pseudo_enpert_blend 
@@ -1122,7 +1123,6 @@ contains
     use blendmod, only: blend
     implicit none
   
-    class(get_pseudo_ensperts_class)            ,intent(inout) :: this
     real(r_kind)                          ,intent(in   ) :: bc_lon,bc_lat 
     real(r_kind  )                        ,intent(in   ) :: dlmd,dphd
     integer(i_kind)                       ,intent(in   ) :: nord_blend
@@ -1168,7 +1168,7 @@ contains
   
   end subroutine create_pseudo_enpert_blend
   
-  subroutine pseudo_ens_e2a(this,lon_bc,lat_bc,lon_lc,lat_lc,nlone,nlate,e,blend,ratio_lon, &
+  subroutine pseudo_ens_e2a(lon_bc,lat_bc,lon_lc,lat_lc,nlone,nlate,e,blend,ratio_lon, &
                             ratio_lat,nlona,nlata,a)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -1207,7 +1207,6 @@ contains
     use constants, only: zero
     implicit none
   
-    class(get_pseudo_ensperts_class)            ,intent(inout) :: this
     integer(i_kind)                       ,intent(in   ) :: lon_bc,lat_bc,lon_lc,lat_lc
     integer(i_kind)                       ,intent(in   ) :: nlone,nlate,nlona,nlata
     integer(i_kind)                       ,intent(in   ) :: ratio_lon,ratio_lat

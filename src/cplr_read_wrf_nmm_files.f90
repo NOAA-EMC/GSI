@@ -70,6 +70,8 @@ contains
     real(r_kind) hourg,temp,t4dv
     real(r_kind),dimension(202,2):: time_ges
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
  
   !-----------------------------------------------------------------------------
   ! Start read_wrf_nmm_files here.
@@ -311,6 +313,8 @@ contains
     real(r_kind) hourg,temp,t4dv
     real(r_kind),dimension(202,2):: time_ges
   
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   
   !-----------------------------------------------------------------------------
   ! Start read_nems_nmmb_files here.

@@ -1,5 +1,6 @@
 module read_wrf_mass_guess_mod
 use abstract_read_wrf_mass_guess_mod
+use kinds, only: i_kind
   type, extends(abstract_read_wrf_mass_guess_class) :: read_wrf_mass_guess_class 
   contains
     procedure, pass(this) :: read_wrf_mass_netcdf_guess => read_wrf_mass_netcdf_guess_wrf
@@ -1343,7 +1344,8 @@ contains
     real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_p25(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_pm2_5(:,:,:)=>NULL()
-  
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
   !  WRF MASS input grid dimensions in module gridmod
   !      These are the following:
   !          im -- number of x-points on C-grid

@@ -43,6 +43,8 @@ contains
      use wrf_params_mod, only: preserve_restart_date
      implicit none
      class(regional_io_class), intent(inout) :: this
+     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+     end associate
      preserve_restart_date = .false.
      return
   end subroutine init_regional_io_wrf
@@ -99,6 +101,8 @@ contains
   
   !   Convert nmm guess file to internal gsi format.  Consider
   !   two possible input formats:  netcdf or binary
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
   
       update_pint=.false.
       cold_start=.true.
@@ -216,6 +220,8 @@ contains
       type(wrwrfnmma_class) :: wrwrfnmma
       type(convert_netcdf_class) :: netcdf_converter
   
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
   !   Write nmm analysis file.  Consider two possible
   !   output formats:  netcdf or binary
       if (wrf_nmm_regional) then
