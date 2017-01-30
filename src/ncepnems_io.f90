@@ -1471,7 +1471,7 @@ contains
     character(len=6)   :: filename
     character(len=120) :: my_name = 'READ_NEMSNST'
     character(len=1)   :: null = ' '
-    integer(i_kind) :: it,latb,lonb
+    integer(i_kind) :: i,j,it,latb,lonb
     integer(i_kind) :: iret, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 103
@@ -1586,7 +1586,13 @@ contains
 !
 !      Get diurnal warming amout at z=0
 !
-       dt_warm(:,:,it) = two*xt(:,:,it)/z_w(:,:,it)
+       do j = 1,nlon_sfc
+          do i = 1,nlat_sfc
+             if (z_w(i,j,it) > zero) then
+                dt_warm(i,j,it) = two*xt(i,j,it)/z_w(i,j,it)
+             end if
+          end do
+       end do
 
 !      Deallocate local work arrays
        deallocate(work,rwork2d)

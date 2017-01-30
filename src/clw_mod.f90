@@ -792,6 +792,10 @@ subroutine retrieval_gmi(tb,nchanl,clw,gwp,kraintype,ierr)
 
 ! ---------- Calculate predictors ---------------------------
 
+  if(tb_use(4) > tb_use(3)) then
+     return
+  endif
+
   pred_var_clw(1) = log(tb_use(3)-tb_use(4))  !(tb18v - tb18h)
   pred_var_clw(2) = log(tb_use(6)-tb_use(7))   !(tb37v - tb37h)
 

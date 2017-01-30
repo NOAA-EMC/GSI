@@ -392,7 +392,7 @@ subroutine skindepth_(obstype,sd_rad)
 
  use kinds, only: r_kind
  implicit none
- character(10),     intent(in)  :: obstype
+ character(*),      intent(in)  :: obstype
  real(kind=r_kind), intent(out) :: sd_rad
 
   sd_rad = 0.000015_r_kind
