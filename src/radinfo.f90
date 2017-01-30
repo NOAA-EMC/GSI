@@ -773,7 +773,8 @@ contains
        update_tlapmean=.true.
     end if
 
-    maxscan=90  ! Default value for old files
+    maxscan=250 ! Default value for old files
+!   maxscan=90  ! Default value for old files
     allocate(cbiasx(maxscan))
     allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
     cbias=zero
