@@ -23,7 +23,7 @@ export MY_CMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventiona
 #  this location.
 #
 
-export CMON_TANKDIR=/u/Edward.Safford/nbns
+export CMON_TANKDIR=/u/${LOGNAME}/nbns
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
 export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
@@ -79,7 +79,7 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this c
 #  for the html on the web server (WEBDIR).
 #
 export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=esafford
+export WEBUSER=${LOGNAME}
 export WEBSVR=emcrzdm
 
 
