@@ -35,6 +35,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    . /usrx/local/Modules/default/init/${shell}
    module load lsf
    module load GrADS
+   export GRADS=grads
+
    export UTILS_BIN=
    export LLQ=
    export SUB="bsub"
@@ -45,7 +47,6 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="gunzip -f"
    export Z="gz"
    export TIMEX=
-#   export GRADS=/usrx/local/GrADS/2.0.1/bin/grads
    export PROJECT=${PROJECT:-GDAS-T2O}
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
@@ -77,7 +78,7 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this c
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
 export WEBUSER=esafford
 export WEBSVR=emcrzdm
 
