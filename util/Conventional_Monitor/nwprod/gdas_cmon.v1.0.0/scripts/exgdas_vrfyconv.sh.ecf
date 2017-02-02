@@ -129,7 +129,7 @@ export C_COMINm6h=${C_COMINm6h:-${C_COM_IN}/${RUN}.${PDYm6h}}
 export TANKDIR_prev_cmon=${C_TANKDIR}/cmon.${PDYm6h}
 
 #  Filenames
-export cnvstat=${cnvstat:-${C_COMIN}/cnvstat.gdas.${PDATE}}
+export cnvstat=${cnvstat:-${C_COMIN}/gdas1.t${CYC}z.cnvstat}
 export pgrbf00=${pgrbf00:-${C_COMIN}/gdas1.t${CYC}z.pgrbf00}
 export pgrbf06=${pgrbf06:-${C_COMINm6h}/gdas1.t${GCYC}z.pgrbf06}
 export convinfo=${convinfo:-${FIXgdascmon}/global_convinfo.txt}	

@@ -24,6 +24,16 @@
     write(6,*)' User input below'
     write(6,input)
 
+    print *, 'intype   = ', intype
+    print *, 'stype    = ', stype
+    print *, 'itype    = ', itype
+    print *, 'nreal    = ', nreal
+    print *, 'nreal2   = ', nreal2
+    print *, 'iscater  = ', iscater
+    print *, 'igrads   = ', igrads 
+    print *, 'subtype  = ', subtype
+    print *, 'isubtype = ', isubtype
+
     lstype=len_trim(stype) 
 
     call read_conv2grads(intype,stype,itype,nreal,nreal2,nobs,isubtype,subtype)
