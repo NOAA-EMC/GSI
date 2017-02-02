@@ -54,8 +54,9 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,&
    filein=trim(fileo)//'_'//trim(subtype)//'.tmp'
 
    filegrad=trim(fileo)//'_'//trim(subtype)//'_grads'
-
-   print *,filegrad
+   
+   print *, 'filein   = ', filein
+   print *, 'filegrad = ', filegrad
 
    allocate(rdiag(nreal,nobs),cdiag(nobs))
    open(21,file=filein,form='unformatted')

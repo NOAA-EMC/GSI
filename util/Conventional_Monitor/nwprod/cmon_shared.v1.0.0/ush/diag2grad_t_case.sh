@@ -50,6 +50,7 @@ EOF
   
    elif [ "$mtype" = 't120' ]; then
       cp $EXECcmon/grads_mandlev.x ./diag2grads
+
       cat <<EOF >input
          &input
          intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,nreal2=$nreal2,

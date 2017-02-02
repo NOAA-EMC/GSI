@@ -22,18 +22,13 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads
    character(30)  :: files,filegrads 
    character(8)  :: stidend
    integer nobs,nreal,nlfag,nflag0,nlev,nlev0,getlev,iscater,igrads,nflg0
-   real*4 rmiss,rtim,xlat0,xlon0
+   real*4 rtim,xlat0,xlon0
    character(30) filein
 
    integer nreal2,ifileo,i,j,ii,k
-   integer ilat,ilon,ipres,itime,iweight,ndup,tobs
-   integer(4):: ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
-   real(4) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg
+   integer ilat,ilon,ipres,itime,iweight,ndup
+   integer(4):: isubtype
  
-
-   data rmiss/-999.0/
-
-   tobs=rmiss 
    stid='        '
    nflag0=0
    rtim=0.0
@@ -98,6 +93,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads
             if(k /=0)  then
                write(21) stid,rlat,rlon,rtim,1,0
                write(21) plev(k),(rdiag(j,i),j=3,nreal)
+               print *, 'added obs to level plev(k) ', plev(k)
             endif   
 
          endif

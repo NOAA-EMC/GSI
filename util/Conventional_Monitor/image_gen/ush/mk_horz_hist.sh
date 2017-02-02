@@ -35,7 +35,8 @@ set -ax
 
    export nreal_ps=${nreal_ps:-17}
    export nreal_q=${nreal_q:-18}
-   export nreal_t=${nreal_t:-17}
+#   export nreal_t=${nreal_t:-17}
+   export nreal_t=${nreal_t:-22}
    export nreal_uv=${nreal_uv:-21}
 
 

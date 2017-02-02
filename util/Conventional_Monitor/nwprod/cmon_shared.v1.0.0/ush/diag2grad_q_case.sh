@@ -25,20 +25,22 @@ echo "--> diag2grad_q_case.sh"
   nreal2_q=`expr $nreal - 2`     ### the data items in the grads files 
 
 
-  q130_card=alllev
-  q132_card=alllev
-  q133_card=alllev
+#  q130_card=alllev
+#  q132_card=alllev
+#  q133_card=alllev
+#  q134_card=alllev
+#  q135_card=alllev
 
   ctype=`echo ${mtype} | cut -c2-4`
 
-  if [  "$mtype" = 'q132' -o "$mtype" = 'q133' -o "$mtype" = 'q134'  ]; then
+  if [ "$mtype" = 'q130' -o "$mtype" = 'q132' -o "$mtype" = 'q133' -o "$mtype" = 'q134' -o "$mtype" = 'q135' ]; then
      rm -f diag2grads
      cp ${EXECcmon}/grads_lev.x ./diag2grads
-     eval card=\${${mtype}_card}
+#     eval card=\${${mtype}_card}
   cat <<EOF >input
      &input
      intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,nreal2=$nreal2_q,
-     iscater=1,igrads=1,levcard='$card',intv=$hint,subtype='${subtype}',isubtype=${subtype},
+     iscater=1,igrads=1,levcard='alllev',intv=$hint,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
   elif [ "$mtype" = 'q120' ]; then

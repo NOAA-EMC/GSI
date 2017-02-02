@@ -75,6 +75,7 @@ subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
          varqc_t(ntype_t,1)=vtar_b
          varqc_t(ntype_t,2)=vtar_pg
          ituse_t(ntype_t)=ituse
+!         print *, 'ctype, ntype_t, iotype_t(ntype_t), iosubtype_t(ntype_t), ituse_t = ', ctype, ntype_t, iotype_t(ntype_t), iosubtype_t(ntype_t), ituse_t(ntype_t)
       else if(trim(ctype) == 'uv') then
          ntype_uv=ntype_uv+1
          iotype_uv(ntype_uv)=ittype

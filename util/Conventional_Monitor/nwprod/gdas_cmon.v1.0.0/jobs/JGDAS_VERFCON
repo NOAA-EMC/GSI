@@ -121,6 +121,7 @@ export CMON_AREA=${CMON_AREA:-glb}
 export cnvstat=${cnvstat:-$COMIN/gdas1.t${CYC}z.cnvstat}
 export pgrbf00=${pgrbf00:-$COMIN/gdas1.t${CYC}z.pgrbf00}
 export pgrbf06=${pgrbf06:-$COMIN/gdas1.t${CYC}z.pgrbf06}   # need 6 hrs prior to $CYC 
+							   # pdyM1?
 
 echo "cnvstat = $cnvstat"
 echo "pgrbf00 = $pgrbf00"
