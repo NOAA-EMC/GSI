@@ -66,7 +66,7 @@ export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
 export C_PTMP=${C_PTMP:-/ptmpp1}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
-export C_LOGDIR=${C_PTMP_USER}/logs
+export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon/
 export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
 export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
 
