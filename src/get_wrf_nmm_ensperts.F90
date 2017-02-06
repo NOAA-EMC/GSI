@@ -2272,8 +2272,7 @@ subroutine convert_binary_nmm_ens
 !$$$ end documentation block
   implicit none
 
-  write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does
-nothing!'
+  write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does nothing!'
   return
 end subroutine convert_binary_nmm_ens
 #endif /* end NO WRF-library block */
