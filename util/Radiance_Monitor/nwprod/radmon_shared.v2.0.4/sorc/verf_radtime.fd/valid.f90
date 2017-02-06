@@ -115,9 +115,6 @@ module valid
             end do
          end do
 
-!        write(*,*) 'chan 18, region 2, avg_count(18,1), sdv_count(18,1), avg_penalty(18,1), sdv_penalty(18,1) = ', &
-!                                avg_count(18,1), sdv_count(18,1), avg_penalty(18,1), sdv_penalty(18,1)
-
          iret = 0 
          base_loaded = .TRUE.
       else
@@ -158,10 +155,12 @@ module valid
       if( base_loaded .eqv. .TRUE. ) then
          if( channel < 1 .OR. channel > nchan ) then
             iret = -1
-            write(*,*) 'attempt to validate channel out of range', channel
+            write(*,*) 'Warning:  In validate_count attempt to validate channel out of range', channel
+            valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2
-            write(*,*) 'attempt to validate region out of range', region
+            write(*,*) 'Warnig:  In validate_count attempt to validate region out of range', region
+            valid = .TRUE.
          else
             ! 
             !  all unassimilated channels in the base files will have an rmiss
@@ -232,13 +231,15 @@ module valid
       valid = .FALSE.
       bound = rmiss
 
-      if( base_loaded .eqv. .TRUE. ) then
+      if( base_loaded .eqv. .TRUE. .AND. nchan > 1 ) then
          if( channel < 1 .OR. channel > nchan ) then
             iret = -1
-            write(*,*) 'attempt to validate channel out of range', channel
+            write(*,*) 'Warning:  In validate_penalty attempt to validate channel out of range', channel
+            valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2
-            write(*,*) 'attempt to validate region out of range', region
+            write(*,*) 'Warning:  In validate_penalty attempt to validate region out of range', region
+            valid = .TRUE.
          else
             !
             !  all unassimilated channels in the base files will have an rmiss
@@ -267,8 +268,6 @@ module valid
                else if( (penalty > 0.0) .AND. &
                    (penalty <= (max_penalty( channel,region )*1.2) )  ) then
                   valid = .TRUE.
-               !else if( penalty > hi ) then
-               !   bound = max_penalty( channel,region )
                end if
   
             end if
@@ -279,7 +278,9 @@ module valid
          end if
          write (*,*) '<-- valid, iret=', valid, iret
       else 
-         !--- base file was not loaded, so return a warning that validation isn't possible
+         !--- base file was not loaded, or nchan was 0 so return 
+         !--- a warning that validation isn't possible
+         write (*,*) 'Warning:  base file not loaded or nchan < 1, nchan= ', nchan
          iret = 1 
       end if 
     end subroutine validate_penalty

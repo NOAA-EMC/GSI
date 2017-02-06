@@ -13,6 +13,8 @@ subroutine bicg()
 !   2012-07-10  todling - add ability to invoke hybrid ensemble
 !   2012-12-06  todling - half-backed implementation of adjoint analysis
 !                         (for now, only works in single outer loop case)
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
+!                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
 !   input argument list:
 !
@@ -40,7 +42,7 @@ use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
 use control_vectors, only: dot_product,assignment(=)
 use obs_ferrscale, only: lferrscale, apply_hrm1h
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
+use hybrid_ensemble_isotropic, only: bkerror_a_en
 use timermod,      only: timer_ini, timer_fnl
 use bicglanczos, only:  pcglanczos, setup_pcglanczos, save_pcgprecond, pcgprecond, LMPCGL 
 
@@ -107,13 +109,6 @@ else
      else
        call bkerror_a_en(gradx,grady)
      end if
-
-   ! multiply static (Jb) part of grady by betas_inv(:), and
-   ! multiply ensemble (Je) part of grady by betae_inv(:). [Default:  betae_inv(:)  =  1 - betas_inv(:)]
-   !   (this determines relative contributions from static background Jb and
-   !   ensemble background Je)
-
-     call beta12mult(grady)
 
    end if
 endif
@@ -201,13 +196,6 @@ else ! not sensitivity run
      else
        call bkerror_a_en(gradf,grads)
      end if
-
-! multiply static (Jb) part of grady by betas_inv(:), and
-! multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
-!   (this determines relative contributions from static background Jb and
-!   ensemble background Je)
-
-     call beta12mult(grads)
 
    end if
 

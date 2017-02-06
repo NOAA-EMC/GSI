@@ -13,6 +13,6 @@ setenv FC $FCOMP
 setenv FFLAGS "-O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl"
 setenv D_FFLAGS "-O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl -debug"
 setenv CHECK_LIBS "/nwprod/spa_util/check_libs.bash"
-module load ics/12.1
-module load w3nco/v2.0.6
+module load ics
+module load w3nco
 
