@@ -62,6 +62,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-03-14  Nebuda  - add QC for clear air WV AMV (WVCS) from GOES type 247, removed PCT1 check not applicable to 247
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table !                         table
+!   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -87,7 +88,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional
+       rlats,rlons,twodvar_regional,wrf_nmm_regional
   use qcmod, only: errormod,noiqc,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
@@ -749,10 +750,24 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(qifn <85.0_r_kind .and. itype /= 247)  then
                     qm=15
                  endif
+                 if(wrf_nmm_regional) then
+! Minimum speed requirement for CAWV of 8m/s for HWRF. 
+! Tighten QC for 247 winds by removing winds below 450hPa
+                    if(itype == 247 .and. obsdat(4) < 8.0_r_kind .and. ppb > 450.0_r_kind) then
+                       qm=15
+! Tighten QC for 240 winds by remove winds above 700hPa
+                    elseif(itype == 240 .and. ppb < 700.0_r_kind) then
+                       qm=15
+! Tighten QC for 251 winds by remove winds above 750hPa
+                    elseif(itype == 251 .and. ppb < 750.0_r_kind) then
+                       qm=15
+                    endif
+                 else
 ! Minimum speed requirement for CAWV of 10m/s
-                 if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
-                   qm=15
-                endif
+                    if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
+                       qm=15
+                    endif
+                 endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -832,6 +847,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif
                     endif
                  enddo
+! Tighten QC for 240 winds by removing winds above 700hPa
+                 if(wrf_nmm_regional) then
+                    if(itype == 240 .and. ppb < 700.0_r_kind) qm=15
+                 endif
               endif
            else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
                if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
@@ -917,11 +936,21 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  end if
                  if (experr_norm > 0.9_r_double) qm=15 ! reject data with EE/SPD>0.9
                  pct1=cvwd_dat(1)             ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
-                ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
-           	    if (pct1 < 0.04_r_double) qm=15  
-		    if (pct1 > 0.50_r_double) qm=15
-		 endif
+                 if(wrf_nmm_regional) then
+                    ! type 251 has been determine not suitable to be subjected to pct1 range check
+                    if(itype==240 .or. itype==245 .or. itype==246) then
+                       if (pct1 < 0.04_r_double) qm=15
+                       if (pct1 > 0.50_r_double) qm=15
+                    elseif (itype==251) then
+                       if (pct1 > 0.50_r_double) qm=15
+                    endif
+                 else
+                    if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
+                    ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
+           	       if (pct1 < 0.04_r_double) qm=15  
+		       if (pct1 > 0.50_r_double) qm=15
+		    endif
+                 endif
                 ! winds rejected by qc dont get used
                 if (qm == 15) usage=r100
                 if (qm == 3 .or. qm ==7) woe=woe*r1_2
