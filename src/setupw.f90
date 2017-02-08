@@ -22,7 +22,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds,njqc,vqc
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
-  use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
+  use gridmod, only: get_ijk,nsig,twodvar_regional,regional,wrf_nmm_regional,&
+      rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: tropprs,sfcmod_mm5
   use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height
@@ -741,9 +742,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
         LNVD_ratio = LNVD_omb / log(LNVD_wspd)
         LNVD_threshold = 3.0_r_kind
-        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-            (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
-           error = zero
+        if( .not. wrf_nmm_regional) then   ! LNVD check not use for CAWV winds in HWRF
+           if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+              (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
+              error = zero
+           endif
         endif
 ! check for direction departure gt 50 deg 
         wdirdiffmax=50._r_kind
