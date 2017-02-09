@@ -156,7 +156,7 @@ elif [[ $MY_MACHINE = "theia" ]]; then
 
    #------------------------------------------------------------------------
    #  The links below are a hack around the modules that are available
-   #  on the wcoss ibm&cray machines but not here on theia.  The alternative
+   #  on the wcoss ibm & cray machines but not here on theia.  The alternative
    #  was a bunch of contitional executions within the scripts to avoid the
    #  nco mandated log and error requirements.
    #------------------------------------------------------------------------
@@ -169,7 +169,7 @@ elif [[ $MY_MACHINE = "theia" ]]; then
    export PATH=$PATH:${STMP_USER}
 
    #------------------------------------------------------------------------
-   # err_chk "helpfully" calls postmsg.sh directly so need to override
+   # err_chk "helpfully" calls postmsg.sh directly so we need to override
    # the utilscript location on theia to defeat err_chk's helpfulness and
    # avoid a fatal error.
    #------------------------------------------------------------------------
