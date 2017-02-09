@@ -9,9 +9,8 @@ find_file( CONTROL_EXE
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
         $ENV{CONTROLPATH}
         $ENV{CONTROLPATH}/src
-        /da/save/Michael.Lueken/trunk/src
+        /da/save/Michael.Lueken/svn1/src
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/src
-        /scratch4/NCEPDEV/da/save/Michael.Lueken/trunk/src
    
     ${NO_DEFAULT_PATH})
 
@@ -24,9 +23,8 @@ find_file( ENKF_CONTROL_EXE
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
         $ENV{CONTROLPATH}/enkf
         $ENV{CONTROLPATH}/src/enkf
-        /da/save/Michael.Lueken/trunk/src/enkf
+        /da/save/Michael.Lueken/svn1/src/enkf
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/src/enkf
-        /scratch4/NCEPDEV/da/save/Michael.Lueken/trunk/src/enkf
    
     ${NO_DEFAULT_PATH})
 
