@@ -32,8 +32,6 @@ if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
    exit 1
 fi
 
-. /usrx/local/Modules/3.2.9/init/sh
-module load /nwprod2/modulefiles/prod_util/v1.0.2
 
 this_file=`basename $0`
 this_dir=`dirname $0`

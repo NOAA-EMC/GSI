@@ -128,6 +128,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh
    . /usrx/local/Modules/default/init/${shell}
    module load lsf
+   module load prod_util
 
    export SUB="bsub"
    export NWPROD=/nwprod
@@ -144,11 +145,35 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    export UNCOMPRESS="gunzip -f"
 
 elif [[ $MY_MACHINE = "theia" ]]; then
+
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export NDATE=${NWPROD}/util/exec/ndate
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
+
+   #------------------------------------------------------------------------
+   #  The links below are a hack around the modules that are available
+   #  on the wcoss ibm&cray machines but not here on theia.  The alternative
+   #  was a bunch of contitional executions within the scripts to avoid the
+   #  nco mandated log and error requirements.
+   #------------------------------------------------------------------------
+   prevday=`$NDATE -24 $PDATE`
+   export PDYm1=`echo $prevday | cut -c1-8`
+   ln -s ${NWPRODush}/startmsg.sh ${STMP_USER}/startmsg
+   ln -s ${NWPRODush}/postmsg.sh ${STMP_USER}/postmsg
+   ln -s ${NWPRODush}/prep_step.sh ${STMP_USER}/prep_step
+   ln -s ${NWPRODush}/err_chk.sh ${STMP_USER}/err_chk
+   export PATH=$PATH:${STMP_USER}
+
+   #------------------------------------------------------------------------
+   # err_chk "helpfully" calls postmsg.sh directly so need to override
+   # the utilscript location on theia to defeat err_chk's helpfulness and
+   # avoid a fatal error.
+   #------------------------------------------------------------------------
+   export utilscript=${utilscript:-${NWPRODush}}           
+                                                          
+                                                         
 fi
 
 
