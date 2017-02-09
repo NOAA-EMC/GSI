@@ -147,8 +147,10 @@ elif [[ $MY_MACHINE = "cray" ]]; then
 elif [[ $MY_MACHINE = "theia" ]]; then
 
    export SUB=/apps/torque/default/bin/qsub
-   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
-   export NDATE=${NWPROD}/util/exec/ndate
+   NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
+   NWPRODush=${NWPRODush:=${NWPROD}/ush}
+   NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
+   export NDATE=${NDATE:-${NWPRODexec}/ndate}
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
 
