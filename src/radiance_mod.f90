@@ -69,18 +69,18 @@ module radiance_mod
   character(len=20),save,allocatable,dimension(:) :: aerosol_names
   character(len=20),save,allocatable,dimension(:) :: aerosol_names_fwd
   character(len=20),save,allocatable,dimension(:) :: aerosol_names_jac
-  logical :: icloud_fwd,icloud_cv,iallsky,cw_cv,icf_fwd
+  logical :: icloud_fwd,icloud_cv,iallsky,cw_cv
   logical :: iaerosol_fwd,iaerosol_cv,iaerosol
   integer(i_kind) :: n_actual_clouds,n_clouds_jac,n_clouds_fwd
   integer(i_kind) :: n_actual_aerosols,n_aerosols_fwd,n_aerosols_jac
-  integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh,idx_cf
+  integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
 
   integer(i_kind) :: total_rad_type
 
   type rad_obs_type
     character(10) :: rtype            ! instrument
     integer(i_kind) :: nchannel       ! total channel number
-    character(8) :: cfoption          ! cloud fraction option: gmao_lcf4crtm, emc_lcf4crtm 
+!   character(8) :: cfoption          ! cloud fraction option: gmao_lcf4crtm, emc_lcf4crtm 
     logical :: cld_sea_only           ! .true. only perform all-sky over ocean
     logical :: ex_obserr              ! .true. for special obs error assignment
     logical :: ex_biascor             ! .true. for special bias correction
@@ -139,7 +139,6 @@ contains
     icloud_cv=.false.
     iallsky=.false.
     cw_cv=.false.
-    icf_fwd=.false.
 
     n_actual_clouds=0
     n_clouds_fwd=0 
@@ -158,7 +157,7 @@ contains
     if (n_actual_clouds>0) then
        allocate(cloud_names(n_actual_clouds))
        call gsi_metguess_get ('clouds::3d', cloud_names, ier)
-       call gsi_metguess_get ( 'clouds_4crtm_fwd::3d', n_clouds_fwd, ier )
+       call gsi_metguess_get ('clouds_4crtm_fwd::3d', n_clouds_fwd, ier)
        n_clouds_fwd=max(0,n_clouds_fwd)
        if (n_clouds_fwd>0) then
           icloud_fwd=.true.
@@ -180,10 +179,8 @@ contains
        call gsi_metguess_get ( 'i4crtm::qs', idx_qs, ier )
        call gsi_metguess_get ( 'i4crtm::qg', idx_qg, ier )
        call gsi_metguess_get ( 'i4crtm::qh', idx_qh, ier )
-       call gsi_metguess_get ( 'i4crtm::cf', idx_cf, ier )
 !      if (idx_ql>10 .or. idx_qi>10 .or. idx_qr>10 .or. idx_qs>10 &
 !         .or. idx_qg>10 .or. idx_qh>10) icloud_fwd=.true.
-       if (idx_cf>10) icf_fwd=.true. 
 
 !      Determine whether or not cloud-condensate is the control variable
 !      (ges_cw=ges_ql+ges_qi)
@@ -420,7 +417,6 @@ contains
 
     do k=1, total_rad_type
        rad_type_info(k)%rtype=rrtype(k)
-       rad_type_info(k)%cfoption=' ' 
        rad_type_info(k)%cld_sea_only=.false.
        rad_type_info(k)%ex_obserr=.false.
        rad_type_info(k)%ex_biascor=.false.
@@ -534,7 +530,6 @@ contains
                                   ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
           radmod%nchannel = rad_type_info(i)%nchannel
-          radmod%cfoption = rad_type_info(i)%cfoption
           radmod%cld_sea_only = rad_type_info(i)%cld_sea_only
           radmod%cld_effect = rad_type_info(i)%cld_effect
           radmod%ex_obserr = rad_type_info(i)%ex_obserr
@@ -620,7 +615,6 @@ contains
     character(len=20) :: tablename
     character(len=10) :: obsname
     character(len=8)  :: obsloc   ! global, sea, or, land ...
-    character(len=8)  :: cfoption ! gmao_cf, emc_cf, none
     logical :: ex_obserr,ex_biascor,cld_effect
     logical :: pcexist
 
@@ -646,15 +640,14 @@ contains
     call gettable(toptablename,lunin,ntot,nrows,utable)
 
     do ii=1,nrows
-       read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption
-       if (mype==0) write(6,*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption 
-       if (.not. icf_fwd) cfoption=' '
+!      read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption
+       read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
+       if (mype==0) write(6,*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
 
        do i=1,total_rad_type
           if (index(trim(rad_type_info(i)%rtype),trim(obsname)) /= 0) then
              istr=i
              if (trim(obsloc)=='sea') rad_type_info(i)%cld_sea_only=.true.
-             rad_type_info(i)%cfoption=cfoption
              rad_type_info(i)%ex_obserr=ex_obserr
              rad_type_info(i)%ex_biascor=ex_biascor
              rad_type_info(i)%cld_effect=cld_effect
@@ -664,23 +657,15 @@ contains
                 rad_type_info(i)%cld_effect=.false.
                 rad_type_info(i)%ex_obserr=.false.
                 rad_type_info(i)%ex_biascor=.false.
-                if ((trim(cfoption)=='gmao_cf') .and. (rad_type_info(i)%laerosol_fwd)) then
-                   rad_type_info(i)%cfoption=cfoption
-                else
-                   rad_type_info(i)%cfoption=' '
-                end if
              end if
 
              if (mype==0) write(6,*) 'cloudy_radiance_info for ', trim(obsname),&
                  ' cld_sea_only=', rad_type_info(i)%cld_sea_only, &
-                 ' cfoption=', trim(rad_type_info(i)%cfoption), &
                  ' ex_obserr=', rad_type_info(i)%ex_obserr, &
                  ' ex_biascor=', rad_type_info(i)%ex_biascor
 
              if (trim(obsname)=='amsua') then
                 cloudy_amsua%nchannel=rad_type_info(i)%nchannel
-                cloudy_amsua%cfoption=rad_type_info(i)%cfoption
-   
                 cloudy_amsua%lcloud_fwd=rad_type_info(i)%lcloud_fwd
                 cloudy_amsua%lallsky=rad_type_info(i)%lallsky
                 cloudy_amsua%lcloud4crtm=>rad_type_info(i)%lcloud4crtm
