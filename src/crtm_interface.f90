@@ -30,8 +30,10 @@ module crtm_interface
 !   2014-02-26  zhu - add non zero jacobian
 !   2014-04-27  eliu    - add call crtm_forward to calculate clear-sky Tb under all-sky condition    
 !   2015-09-10  zhu  - generalize enabling all-sky and using aerosol (radiance_mod & radmod) in radiance 
-!                      assimilation. use n_clouds_jac,cloud_names_jac,n_aerosols_jac,aerosol_names_jac,etc
+!                      assimilation. use n_clouds_jac,cloud_names_jac,n_aerosols_jac,aerosol_names_jac, 
+!                      n_clouds_fwd,cloud_names_fwd, mixed_use, etc for difference sensors and channels
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
+!   2017-02-24  zhu  - remove gmao cloud fraction treatment
 !
 ! subroutines included:
 !   sub init_crtm
