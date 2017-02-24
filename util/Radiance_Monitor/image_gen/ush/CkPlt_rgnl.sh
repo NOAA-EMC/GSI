@@ -204,7 +204,7 @@ if [[ $PLOT -eq 1 ]]; then
       fi
 
       cut_grp=2
-      if [[ $REGIONAL_RR ]]; then
+      if [[ $REGIONAL_RR -eq 1 ]]; then
          cut_grp=3
       fi
 
