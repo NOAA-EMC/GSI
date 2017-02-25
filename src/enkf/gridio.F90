@@ -1033,7 +1033,7 @@ module gridio
   use mpisetup, only: nproc
   use netcdf_io
   use params,   only: nlevs, nvars, nlons, nlats, cliptracers, datapath,     &
-                      arw, nmm, datestring, pseudo_rh,                       &
+                      arw, nmm, nmm_restart, datestring, pseudo_rh,          &
                       nbackgrounds,fgfileprefixes,anlfileprefixes
   use constants, only: zero,one,cp,fv,rd,grav,zero
 
@@ -2419,7 +2419,7 @@ contains
     read(datestring(5:6),'(i2)') imonth
     read(datestring(7:8),'(i2)') iday
     read(datestring(9:10),'(i2)') ihour
-    if (nmm) then
+    if (nmm .and. nmm_restart) then
        varstrname = 'NSTART_HOUR'
        vargrid_native(1,1,1) = ihour
        call writenetcdfdata(filename,vargrid_native,varstrname,1,1,1)

@@ -118,6 +118,7 @@ logical,public :: regional = .false.
 logical,public :: use_gfs_nemsio = .false.
 logical,public :: arw = .false.
 logical,public :: nmm = .true.
+logical,public :: nmm_restart = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
 logical,public :: massbal_adjust = .false.
@@ -145,7 +146,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles
-namelist /nam_wrf/arw,nmm
+namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
