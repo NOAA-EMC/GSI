@@ -1,4 +1,3 @@
-echo start getbestnamrr_radstat.sh
 
 function usage {
   echo "Usage:  getbestnamrr_radstat.sh DATE workdir COM rgnhh rgntm"
@@ -9,6 +8,8 @@ function usage {
   echo "            rgnTM  : desired regional radstat file time step"
 }
 
+
+echo "start getbestnamrr_radstat.sh"
 
 nargs=$#
 if [[ $nargs -ne 5 ]]; then
