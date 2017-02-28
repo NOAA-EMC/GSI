@@ -33,6 +33,8 @@ kreq=-150
 method=1
 #method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
+#maximum time between observations in a pair, in minutes
+time_sep=1.0
 #bin size for obs pairs in km
 bsize=30
 #bin center, in km, needed for Hollingsworth-Lonnberg
@@ -244,6 +246,7 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
+time_sep=$time_sep
 bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set
@@ -280,6 +283,7 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
+time_sep=$time_sep
 bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set

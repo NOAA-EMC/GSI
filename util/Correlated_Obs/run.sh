@@ -33,6 +33,8 @@ kreq=-150
 method=1
 #method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
+#maximum time between observations in a pair, in minutes
+time_sep=1.0
 #bin size for obs pairs in km
 bsize=30
 #bin center, in km, needed for Hollingsworth-Lonnberg
@@ -93,7 +95,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $bsize $bcen
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen
 EOF
 
 cp Rcov_$instr $savdir
