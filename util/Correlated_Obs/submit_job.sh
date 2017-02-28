@@ -14,7 +14,7 @@
 #BSUB -e comperr
 #BSUB -o compout
 #BSUB -J cov_calc
-#BSUB -q dev
+#BSUB -q dev2
 #BSUB -n 1
 #BSUB -W 01:00
 #BSUB -R affinity[core]
@@ -22,7 +22,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/Desroziers/util/Correlated_Obs/
+rundir=/da/save/${USER}/GSI/upd_covcalc/util/Correlated_Obs/
 cd ${rundir}
 ./run.sh 
 
