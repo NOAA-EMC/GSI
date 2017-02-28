@@ -11,7 +11,7 @@ implicit none
 public :: make_pairs
 
 contains
-subroutine make_pairs(ges_locs,anl_loc,ges_times,anl_time,Tg,dist_threshold,obs_pairs,n_pair)
+subroutine make_pairs(ges_locs,anl_loc,ges_times,anl_time,Tg,dist_threshold,time_threshold,obs_pairs,n_pair)
 !For a given analysis omg, this subroutine searches through an array of
 !background omg's and identifies all that are within a certain distance and time 
 !of the analysis omg
@@ -23,15 +23,15 @@ real(r_kind), dimension(:),intent(in):: anl_loc  !location of analysis omg (lat,
 real(r_kind),intent(in):: anl_time               !time of analysis omg (minutes)
 real(r_kind),dimension(:,:),intent(in)::ges_locs !locations of background omg's (lat,lon)
 real(r_kind),dimension(:),intent(in):: ges_times !times of background omg's (minutes)
-real(r_kind), intent(in):: dist_threshold         !km, max distance between the omg's
+real(r_kind), intent(in):: time_threshold        !minutes, max time between the omg's
+real(r_kind), intent(in):: dist_threshold        !km, max distance between the omg's
 integer, dimension(:), intent(out):: obs_pairs   !indicies of ges that correspond to pairs
 integer,intent(in):: Tg                          !length of ges
-integer,intent(out):: n_pair                         !number of pairs found
+integer,intent(out):: n_pair                     !number of pairs found
 real(r_kind),dimension(2):: p1,p2
 integer:: g
 real(r_kind):: d1
 real(r_kind)::dt
-real(r_kind), parameter:: time_threshold=60.0_r_kind !minutes, max time between the omg's
 obs_pairs=0
 n_pair=0
 do g=1,Tg
@@ -48,7 +48,7 @@ do g=1,Tg
 end do
 
 end subroutine make_pairs
-subroutine make_pairs_hl(ges_locs,current_loc,ges_times,current_time,Tg,dist_threshold, num_bins, obs_pairs, n_pair)
+subroutine make_pairs_hl(ges_locs,current_loc,ges_times,current_time,Tg,dist_threshold, time_threshold,num_bins, obs_pairs, n_pair)
 !For a given background omg, this subroutine searches through an array of
 !background omg's and bins the pairs based on distance between the two
 !This subroutine is used with the Hollingsworth-Lonnberg method.
@@ -62,13 +62,14 @@ real(r_kind), intent(in):: current_time
 integer, intent(in):: Tg
 real(r_kind), dimension(:), intent(in):: dist_threshold
 integer, intent(in):: num_bins
+real(r_kind), intent(in):: time_threshold  !minutes, max time between the omg's
 integer, dimension(:,:), intent(out):: obs_pairs
 integer, dimension(:), intent(out):: n_pair
 real(r_kind),dimension(2):: p1,p2
 integer:: g, dis
 real(r_kind):: d1
 real(r_kind)::dt
-real(r_kind), parameter:: time_threshold=60.0_r_kind !minutes, max time between the omg's
+
 n_pair=0
 obs_pairs=0
 do g=1,Tg

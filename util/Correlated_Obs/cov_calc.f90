@@ -99,7 +99,7 @@ real(r_kind):: anl_time                                  !time of analysis obs, 
 real(r_kind), dimension(:,:), allocatable::gesloc        !locations (lat,lon) of background obs
 real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of analysis obs
 integer:: num_bin,num_bins
-real(r_kind):: bin_size
+real(r_kind):: bin_size, timeth
 real(r_kind),dimension(:),allocatable:: bin_dist 
 real(r_kind)::bin_center                                 !bin center, km, used for Hollingworth Lonnberg method
 
@@ -130,7 +130,7 @@ integer:: rec_method
 real(r_kind), parameter:: errt=0.0001_r_kind
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err,  &
-   out_corr, kreq, rec_method, cov_method, chan_choice, bin_size, bin_center
+   out_corr, kreq, rec_method, cov_method, chan_choice, timeth, bin_size, bin_center
 if (cov_method==desroziers) then
    allocate(bin_dist(1))
    bin_dist(1)=bin_size
@@ -375,7 +375,7 @@ do tim=1,ntimes
          !find all possible pairs for this one oma
          !cycle through current ges file to find all matches
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
-              bin_dist(1),obs_pairs,n_pair)
+              bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
             do r=1,nch_active
                do c=1,nch_active
@@ -405,7 +405,7 @@ do tim=1,ntimes
          obs_pairs=zero
          n_pair_hl=zero
          call make_pairs_hl(gesloc(:,:),gesloc(dd,:),ges_times(:), &
-              ges_times(dd),ng,bin_dist, num_bin, obs_pairs_hl,n_pair_hl)
+              ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
                do r=1,nch_active
