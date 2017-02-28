@@ -279,6 +279,7 @@ do tim=1,ntimes
          cycle ges_read_loop
       if (abs(RadDiag_Data%Scalar%satzen_ang)>satang) cycle ges_read_loop
       nc=0
+      ng=ng+1
       if (ng>dsize) then
          ng=dsize
          cycle ges_read_loop
