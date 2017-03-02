@@ -65,7 +65,7 @@ one=1
 while [[ $cdate -le $edate ]] ; do
    while [[ ! -f $diagdir/radstat.gdas.$cdate ]] ; do 
       cdate=`$ndate +06 $cdate`
-      if [ $cdate -gt $edate ] ; then
+      if [ $cdate -ge $edate ] ; then
          break
       fi
    done
