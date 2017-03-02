@@ -1,8 +1,19 @@
-!   intype  : the observarion type like t for tem., uv for wind
-!   stype   : the observation sub type, like t120 uv220
+!----------------------------------------------------------------------
+!  read_conv2grads
+!
+!     This subroutine reads the diagnostic data from the cnvstat
+!     file and writes it to the [stype]_[subtype].tmp file.
+!
+!     NOTE:  Next step in clean-up is to write directly to the 
+!               GrADS output file rather than to the .tmp file,
+!               which is then re-read and converted to the GrADS
+!               output file.  Unnecessary I/O.
+!     Note:
+!        intype  : the observarion type like t for temp, uv for wind
+!        stype   : the observation sub type, like t120 uv220
+!----------------------------------------------------------------------
 
 subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtype)
-!  the program read conventional diagnose files from gdas
 
    implicit none
 
@@ -24,56 +35,59 @@ subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtyp
    data lunot2 / 22 /
 
 
-  nobs=0
-  print *,'nreal1=',nreal1
-  print *,'intype=',intype
+   nobs=0
+   print *,'nreal1=',nreal1
+   print *,'intype=',intype
    
- fileo=trim(stype)//'_'//trim(subtype)//'.tmp' 
-  print *,fileo
+   fileo=trim(stype)//'_'//trim(subtype)//'.tmp' 
+   print *,fileo
 
    print *,fileo
    open(lunin,file='conv_diag',form='unformatted')  
    open(lunot,file=fileo,form='unformatted')
    rewind(lunin)
 
-    read(lunin) idate
+   read(lunin) idate
 
-    print *, 'idate=',idate 
+   print *, 'idate=',idate 
 
-  loopd: do  
+   loopd: do  
 
-         read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype
-         if( iflag /= 0 ) exit loopd
-!         print *, dtype,nchar,nreal,ii,mype
-         if( trim(dtype) == trim(ctype) .and. nreal1 /= nreal-2) then
-            print *, 'observation type:',dtype,' nreal=',nreal
-            exit 
-          endif
-          allocate(cdiag(ii),rdiag(nreal,ii))
-          read(lunin,IOSTAT=iflag) cdiag,rdiag
-          if( iflag /= 0 ) exit loopd
-          if(trim(dtype) /= trim(ctype))  then
-             deallocate(cdiag,rdiag)
-             cycle
-          endif
-          do i=1,ii
-             itype = int(rdiag(1,i)) 
-             jsubtype = int(rdiag(2,i)) 
-!            print *,'itype=',itype
-             if(itype == intype .and. jsubtype ==isubtype)  then 
-                nobs=nobs+1
-                write(lunot) cdiag(i),rdiag(3:nreal,i)
-              endif
-           enddo
-        deallocate(cdiag,rdiag)
-  enddo   loopd               !  ending read data do loop
+      read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype
+      if( iflag /= 0 ) exit loopd
+
+      if( trim(dtype) == trim(ctype) .and. nreal1 /= nreal-2) then
+         print *, 'observation type:',dtype,' nreal=',nreal
+         exit 
+      endif
+
+      allocate(cdiag(ii),rdiag(nreal,ii))
+      read(lunin,IOSTAT=iflag) cdiag,rdiag
+      if( iflag /= 0 ) exit loopd
+
+      if(trim(dtype) /= trim(ctype))  then
+         deallocate(cdiag,rdiag)
+         cycle
+      endif
+
+      do i=1,ii
+         itype = int(rdiag(1,i)) 
+         jsubtype = int(rdiag(2,i)) 
+
+         if(itype == intype .and. jsubtype ==isubtype)  then 
+            nobs=nobs+1
+            write(lunot) cdiag(i),rdiag(3:nreal,i)
+         endif
+      enddo
+
+      deallocate(cdiag,rdiag)
+   enddo   loopd               !  ending read data do loop
 
     
- close(lunin)
-
-close(lunot)
+   close(lunin)
+   close(lunot)
 
    print *, 'end of read_conv2grads subroutine'
 
-  return 
-   end 
+   return 
+end 

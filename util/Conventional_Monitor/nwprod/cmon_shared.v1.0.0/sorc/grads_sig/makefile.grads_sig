@@ -4,9 +4,9 @@ SHELL=/bin/sh
 #  makefile.grads_sig
 #-----------------------
 
-SRCS=   maingrads_sig.f90 read_conv2grads.f90 grads_sig.f90 dup.f90 convinfo.f90 
+SRCS=   maingrads_sig.f90 read_conv2grads.f90 grads_sig.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=   maingrads_sig.o read_conv2grads.o grads_sig.o dup.o convinfo.o 
+OBJS=   maingrads_sig.o read_conv2grads.o grads_sig.o rm_dups.o convinfo.o 
 
 #---------------------------------------------------
 # Include machine dependent compile & load options
@@ -36,7 +36,7 @@ read_conv2grads.o : read_conv2grads.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 grads_sig.o : grads_sig.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-dup.o : dup.f90
+rm_dups.o : rm_dups.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 convinfo.o : convinfo.f90
 	$(CF) $(FFLAGS) -c $(*).f90

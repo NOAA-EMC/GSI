@@ -1,8 +1,10 @@
-
-! ############################################################
-!  This program extracts GrADS ready data files by manditory 
-!    level from the conventional data files.
-! ############################################################
+!-------------------------------------------------------------
+!  grads_mandlev
+!
+!       This subroutine extracts GrADS ready data files by
+!       manditory level from the conventional data files.
+!
+!-------------------------------------------------------------
 
 subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isubtype,subtype)
 
@@ -71,13 +73,11 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads
       iweight=11                       ! the position of weight 
 
 
+
       ! ####################################
       !  remove any duplicate data
       !
-      !    Note To Self:  hash is a really bad name for this routine.  Rename it
-      !    when all is working correctly.
-      ! ####################################
-      call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+      call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
 
       ii=0
       do  i=1,nobs

@@ -77,8 +77,7 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev)
    iogv=19                         !  v obs-ges
 
 
-!  check for duplicate data
-   call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+   call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
 
    do  i=1,nobs
       if( rdiag(iweight,i) >= 0.0 .and. rdiag(imuse,i) >0.0 ) then
