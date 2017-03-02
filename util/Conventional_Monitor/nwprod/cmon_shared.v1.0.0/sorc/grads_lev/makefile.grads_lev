@@ -4,9 +4,9 @@ SHELL=/bin/sh
 #  makefile.grads_lev
 #--------------------------
 
-SRCS=         maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 dup.f90 convinfo.f90 
+SRCS=         maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=         maingrads_lev.o read_conv2grads.o grads_lev.o dup.o convinfo.o 
+OBJS=         maingrads_lev.o read_conv2grads.o grads_lev.o rm_dups.o convinfo.o 
 
 #------------
 # Include machine dependent compile & load options
@@ -34,7 +34,7 @@ read_conv2grads.o : read_conv2grads.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 grads_lev.o : grads_lev.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-dup.o : dup.f90
+rm_dups.o : rm_dups.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 convinfo.o : convinfo.f90
 	$(CF) $(FFLAGS) -c $(*).f90

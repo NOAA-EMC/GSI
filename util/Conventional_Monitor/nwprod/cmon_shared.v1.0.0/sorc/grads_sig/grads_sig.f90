@@ -1,10 +1,12 @@
-!===========================================================
+!-----------------------------------------------------------
 !  grads_sig
 !
-!  extract uv data and write to scatter and GrADS files
-!===========================================================
+!    Read uv data from the .tmp file and write it to the 
+!    scatter and horiz GrADS data files.
+!-----------------------------------------------------------
 
 subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isubtype,subtype)
+
    implicit none
  
    integer nreal2,ifileo 
@@ -31,20 +33,20 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
    xlon0=0.0
    nlev0=0
  
-   print *, '--> BEGIN grads_sig.x'
-   print *, ' ' 
-   print *, 'inputs to grads_sig.x ='
-   print *, 'fileo    = ',fileo
-   print *, 'ifileo   = ',ifileo
-   print *, 'nobs     = ',nobs
-   print *, 'nreal    = ',nreal
-   print *, 'nreal2   = ',nreal2
-   print *, 'nlev     = ',nlev  
-   print *, 'plev     = ',plev  
-   print *, 'iscater  = ',iscater  
-   print *, 'igrads   = ',igrads   
-   print *, 'isubtype = ',isubtype   
-   print *, 'subtype  = ',subtype   
+!   print *, '--> BEGIN grads_sig.x'
+!   print *, ' ' 
+!   print *, 'inputs to grads_sig.x ='
+!   print *, 'fileo    = ',fileo
+!   print *, 'ifileo   = ',ifileo
+!   print *, 'nobs     = ',nobs
+!   print *, 'nreal    = ',nreal
+!   print *, 'nreal2   = ',nreal2
+!   print *, 'nlev     = ',nlev  
+!   print *, 'plev     = ',plev  
+!   print *, 'iscater  = ',iscater  
+!   print *, 'igrads   = ',igrads   
+!   print *, 'isubtype = ',isubtype   
+!   print *, 'subtype  = ',subtype   
 
    allocate(rdiag(nreal,nobs),cdiag(nobs))
 
@@ -55,8 +57,8 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
       read(11) cdiag(i),rdiag(1:nreal,i)
    enddo
 
-   !=========================
-   ! write scatter file
+   !------------------------------
+   ! write scatter plot data file
    !
    if(iscater ==1) then
       files=trim(fileo)//'_'//trim(subtype)//'.scater'
@@ -66,8 +68,8 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
       close(51)
    endif
 
-   !====================================================================
-   !  write grads data file and 
+   !--------------------------------------------------------------------
+   !  write horiz grads data file and 
    !  avoid trying to write output if nobs == 0.  Seg faults are uncool.
    !
    if (igrads ==1 .AND. nobs > 0)  then 
@@ -80,9 +82,10 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
       itime=6                          ! the position of relative time
       iweight=11                       ! the position of weight 
 
-      !==========================================
-      !  check for duplicate data
-      call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+      !------------------------------------------
+      !  rm duplicate data
+      !
+      call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
       
       ctr=0
       do  i=1,nobs
@@ -99,8 +102,8 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
          endif
       enddo
    
-
-      !  write file end 
+      !--------------------------
+      !  write EOF marker
       stidend='        '
       write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
         

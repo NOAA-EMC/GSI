@@ -4,9 +4,9 @@ SHELL=/bin/sh
 #  makefile.read_ps
 #--------------------
 
-SRCS=   mainread_ps.f90 read_ps.f90 read_ps_mor.f90 histgram.f90 dup.f90 convinfo.f90 
+SRCS=   mainread_ps.f90 read_ps.f90 read_ps_mor.f90 histgram.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=   mainread_ps.o read_ps.o read_ps_mor.o histgram.o dup.o convinfo.o 
+OBJS=   mainread_ps.o read_ps.o read_ps_mor.o histgram.o rm_dups.o convinfo.o 
 
 #FC=             xlf95
 #FFLAGS =        -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g  
@@ -35,7 +35,7 @@ read_ps_mor.o : read_ps_mor.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 histgram.o : histgram.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-dup.o : dup.f90
+rm_dups.o : rm_dups.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 convinfo.o : convinfo.f90
 	$(CF) $(FFLAGS) -c $(*).f90

@@ -21,18 +21,16 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    integer nobs,nreal,ntotal,ngross,nreal_in,nlev
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs,iqsges
    integer i,ndup,ioges,igos
-   real(4) :: bmiss,vqclmt,vqclmte
+   real(4) :: rmiss,vqclmt,vqclmte
 
-   data bmiss/-999.0/ 
-
-!  print *,'nreal=',nreal
+   data rmiss / -999.0 / 
+   data huge / 1.0e6 /
+   data tiny / 1.0e-6 /
 
    ncount=0
-   rpress=bmiss
+   rpress=rmiss
    ncount_vqc=0
    ncount_gros=0
-   huge=1.0e6
-   tiny=1.0e-6
 
 
 
@@ -42,16 +40,17 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
 
    read(11) nobs,nreal_in
 !  print *, 'nobs=',nobs
+
    if (nreal /= nreal_in) then
-     print *,'nreal_in,nreal ',nreal_in,nreal
-     stop
+      print *,'nreal_in,nreal ',nreal_in,nreal
+      stop
    endif 
 
    allocate(rdiag(nreal,nobs))
    read(11) rdiag
 
 
-   ilat=1                           !  lat
+   ilat=1                          !  lat
    ilon=2                          !  lon
    ipres=4                         !  pressure
    itime=6                         !  relative time
@@ -59,7 +58,7 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    iuse=9                          !  original data usage flag
    imuse=10                        !  data usage flag in the analsis
    iweight=11                      !  variational relative weight
-   ierr=12                        !  original error from bufr error table
+   ierr=12                         !  original error from bufr error table
    ierr2=13                        !  error from read_bufr
    ierr3=14                        !  error from final adjusted
    iobs=15                         !  obs
@@ -67,8 +66,7 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    iqsges=18                       !  guess saturation specific humidity
 
 
-!  check duplicate data
-   call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+   call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
 
    do  i=1,nobs
       if( rdiag(iweight,i) >= 0.0 .and. rdiag(imuse,i) >0.0 ) then
@@ -125,7 +123,6 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
 
 !  calculate the the areacd usr2
    rgtross=-gtross
-
    nlev=nint((gtross-rgtross)/rlev) 
     
    print *,nlev

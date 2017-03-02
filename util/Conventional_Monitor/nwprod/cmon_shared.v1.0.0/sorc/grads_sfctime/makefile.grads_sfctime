@@ -4,9 +4,9 @@ SHELL=/bin/sh
 #  makefile.grads_sfctime
 #--------------------------
 
-SRCS=   maingrads_sfctime.f90 read_conv2grads.f90 grads_sfctime.f90 dup.f90 convinfo.f90 
+SRCS=  maingrads_sfctime.f90 read_conv2grads.f90 grads_sfctime.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=   maingrads_sfctime.o read_conv2grads.o grads_sfctime.o dup.o convinfo.o 
+OBJS=  maingrads_sfctime.o read_conv2grads.o grads_sfctime.o rm_dups.o convinfo.o 
 
 #-----------------------------------------------------
 # Include machine dependent compile & load options
@@ -37,7 +37,7 @@ read_conv2grads.o : read_conv2grads.f90
 	$(CF) $(FFLAGS) -c -C $(*).f90
 grads_sfctime.o : grads_sfctime.f90
 	$(CF) $(FFLAGS) -c -C $(*).f90
-dup.o : dup.f90
+rm_dups.o : rm_dups.f90
 	$(CF) $(FFLAGS) -c -C $(*).f90
 convinfo.o : convinfo.f90
 	$(CF) $(FFLAGS) -c -C $(*).f90

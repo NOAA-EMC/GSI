@@ -1,7 +1,9 @@
 !=================================================================================
 !  grads_lev
 !
-!    read temeprature data, arrange by level and write into the GrADS data file
+!    Read in data from the .tmp file, arrange by level and write into 
+!    the GrADS data files (one for scatter plots, and one for horizontal plots)
+!    depending on the iscater and igrads parameters.
 !=================================================================================
 
 
@@ -89,11 +91,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,&
       itime=6                          ! the position of relative time
       iweight=11                       ! the position of weight 
 
-      !=============================================================
-      ! remove any duplicats -- note "hash" is a 
-      !   really bad name for this routine.  Fix when time permits.
-      !=============================================================
-      call hash(rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup)
+      call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
 
       open(31,file=filegrad,form='unformatted',status='new')
 
