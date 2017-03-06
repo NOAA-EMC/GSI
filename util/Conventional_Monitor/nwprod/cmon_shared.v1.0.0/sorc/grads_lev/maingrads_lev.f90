@@ -19,12 +19,12 @@
    character(10) :: levcard,fileo,stype 
    character(3) :: intype
    character(2) :: subtype
-   integer nreal,nreal2,iscater,igrads 
+   integer nreal,nreal_m2,iscater,igrads 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype,intv,isubtype
    real hint
 
 
-   namelist /input/intype,stype,itype,nreal,nreal2,iscater,igrads,levcard,intv,subtype,isubtype
+   namelist /input/intype,stype,itype,nreal,iscater,igrads,levcard,intv,subtype,isubtype
    data pacft /700.,600.,500.,400.,300.,100./
    data palllev /950.,850.,700.,600.,500.,400.,300.,250.,200.,100./
    data plowlev /950.,850.,700./
@@ -43,15 +43,26 @@
    lstype=len_trim(stype) 
    hint=real(intv)
 
-   call read_conv2grads( intype,stype,itype,nreal,nreal2,nobs,isubtype,subtype )
- 
-   if(trim(levcard) == 'alllev' ) call grads_lev(stype,lstype,nobs,nreal,nreal2,n_alllev,&
+   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype )
+
+   print *, 'AFTER read_conv2grads, nreal =', nreal
+
+   !------------------------------------------------------------------------
+   !  here's what's going on with nreal_m2:  
+   !  
+   !  The read_conv2grads routine reads all input fields from the intended
+   !  obs (nreals) but only writes fields 3:nreal to the temporary file.
+   !  So we need to send grads_lev nreal_m2 (minus 2). 
+   !    
+   nreal_m2 = nreal -2
+
+   if(trim(levcard) == 'alllev' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_alllev,&
                                palllev,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'acft' ) call grads_lev(stype,lstype,nobs,nreal,nreal2,n_acft,&
+   if(trim(levcard) == 'acft' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_acft,&
                                pacft,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'lowlev' ) call grads_lev(stype,lstype,nobs,nreal,nreal2,n_lowlev,&
+   if(trim(levcard) == 'lowlev' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_lowlev,&
                                plowlev,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'upair' ) call grads_lev(stype,lstype,nobs,nreal,nreal2,n_upair,&
+   if(trim(levcard) == 'upair' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_upair,&
                                pupair,iscater,igrads,levcard,hint,isubtype,subtype)
      
 

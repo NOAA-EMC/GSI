@@ -5,11 +5,11 @@
 !    scatter and horiz GrADS data files.
 !-----------------------------------------------------------
 
-subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isubtype,subtype)
+subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,subtype)
 
    implicit none
  
-   integer nreal2,ifileo 
+   integer ifileo 
    real(4),allocatable,dimension(:,:)  :: rdiag
    character(8),allocatable,dimension(:) :: cdiag
    real(4),dimension(nlev) :: plev
@@ -40,7 +40,6 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isu
 !   print *, 'ifileo   = ',ifileo
 !   print *, 'nobs     = ',nobs
 !   print *, 'nreal    = ',nreal
-!   print *, 'nreal2   = ',nreal2
 !   print *, 'nlev     = ',nlev  
 !   print *, 'plev     = ',plev  
 !   print *, 'iscater  = ',iscater  

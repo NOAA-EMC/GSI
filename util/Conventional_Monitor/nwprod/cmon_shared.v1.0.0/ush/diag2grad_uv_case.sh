@@ -25,7 +25,7 @@ echo "--> diag2grad_uv_case.sh"
 
 card=alllev
 
-nreal_uv=$nreal              ### one less than the data items of diagnostic files
+nreal_uv=$nreal   
 nreal2_uv=`expr $nreal - 2`
 echo "nreal2_uv = ", ${nreal2_uv}
 echo "mtype     = ", ${mtype}
@@ -54,7 +54,7 @@ if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" 
    rm -f input
    cat <<EOF >input
       &input
-       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
+       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
        iscater=1,igrads=1,levcard='$card',intv=$hint,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -79,7 +79,7 @@ elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
 
    cat <<EOF >input
       &input
-       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
+       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
        iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -92,7 +92,7 @@ elif [ "$mtype" = 'uv220' ]; then
    rm -f input
    cat <<EOF >input
       &input
-       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
+       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
        iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -105,7 +105,7 @@ elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype
    rm -f input
    cat <<EOF >input
       &input
-       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
+       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
        iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -117,7 +117,7 @@ elif [ "$mtype" = 'uv229' ]; then
    rm -f input
    cat <<EOF >input
       &input
-       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,nreal2=$nreal2_uv,
+       intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
        iscater=1,igrads=1,timecard='time7',subtype='${subtype}',isubtype=${subtype},
 /
 EOF

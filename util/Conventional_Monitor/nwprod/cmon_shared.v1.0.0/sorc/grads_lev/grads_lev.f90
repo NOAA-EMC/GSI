@@ -7,12 +7,12 @@
 !=================================================================================
 
 
-subroutine grads_lev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,&
+subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
                         levcard,hint,isubtype,subtype)
 
    implicit none
  
-   integer nreal2,ifileo 
+   integer ifileo 
    real(4),allocatable,dimension(:,:)  :: rdiag
    character(8),allocatable,dimension(:) :: cdiag
    real(4),dimension(nlev) :: plev,plev2
@@ -46,6 +46,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,&
    print *, '--> BEGIN grads_lev.x'  
    print *, 'nobs=',nobs
    print *, 'fileo=',fileo
+   print *, 'nreal=', nreal
 
    do i=1,nlev
       print *, 'i, plev2(i) = ', i, plev2(i)
@@ -110,6 +111,12 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,&
             if(k /=0) then
 !               print *, ' k matches:: k, rdiag(ipres,i) = ', k, rdiag(ipres,i)
                write(31) stid,rlat,rlon,rtim,1,0
+                !
+                !  I wonder about this j=3,nreal.  Is that a mistake?
+                !  keep an eye on it; if the plots are ok I guess we're ok, but
+                !  I wonder if this is a cut&paste error taking code from
+                !  read_conv2grads.f90?  not clear yet.
+                !
                write(31) plev2(k),(rdiag(j,i),j=3,nreal)
             endif
          endif

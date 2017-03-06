@@ -32,7 +32,7 @@ if [ "$mtype" = 'ps180' -o "$mtype" = 'ps181' -o  "$mtype" = 'ps183' -o  "$mtype
    rm -f input
 cat <<EOF >input
       &input
-       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,nreal2=$nreal2_ps,
+       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
        iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -42,7 +42,7 @@ elif [ "$mtype" = 'ps120' ]; then
    rm -f input
 cat <<EOF >input
       &input
-       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,nreal2=$nreal2_ps,
+       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
        iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
 /
 EOF

@@ -29,10 +29,10 @@
    mkdir -p ${TANKDIR_cmon}/horz_hist/ges
    mkdir -p ${TANKDIR_cmon}/horz_hist/anl
 
-   export nreal_ps=${nreal_ps:-17}
-   export nreal_q=${nreal_q:-18}
-   export nreal_t=${nreal_t:-22}
-   export nreal_uv=${nreal_uv:-21}
+   export nreal_ps=${nreal_ps:-19}
+   export nreal_q=${nreal_q:-20} 
+   export nreal_t=${nreal_t:-24} 
+   export nreal_uv=${nreal_uv:-23} 
 
 
    for type in ps q t uv; do

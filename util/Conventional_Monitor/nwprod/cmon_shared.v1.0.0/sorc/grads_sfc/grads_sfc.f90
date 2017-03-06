@@ -5,7 +5,7 @@
 !       horizontal GrADS data files.
 !------------------------------------------------------------------------
 
-subroutine grads_sfc(fileo,ifileo,nobs,nreal,nreal2,iscater,igrads,isubtype,subtype)
+subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype)
 
    implicit none
  
@@ -20,7 +20,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,nreal2,iscater,igrads,isubtype,subt
    real(4) rtim,xlat0,xlon0,rlat,rlon
  
    integer(4):: isubtype
-   integer i,j,ii,ilat,ilon,ipres,itime,iweight,ndup,nreal2
+   integer i,j,ii,ilat,ilon,ipres,itime,iweight,ndup
 
    rtim=0.0
    nflg0=0
@@ -85,6 +85,8 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,nreal2,iscater,igrads,isubtype,subt
             rlat=rdiag(ilat,i)
             rlon=rdiag(ilon,i)
             write(21) stid,rlat,rlon,rtim,1,1
+
+            !  really not sure of this j=3,nreal write
             write(21) (rdiag(j,i),j=3,nreal)
          endif
       enddo

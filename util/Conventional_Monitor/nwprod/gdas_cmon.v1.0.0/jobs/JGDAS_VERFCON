@@ -25,9 +25,9 @@ export PS4='$SECONDS + '
 # obtain unique process id (pid) and make temp directories
 ###########################################################
 export pid=$$
-export DATA_IN=${DATA_IN:-/tmpnwprd}
+export CMON_WORK_DIR=${CMON_WORK_DIR:-/tmpnwprd}
 
-export DATA=$DATA_IN/${jobname}.${pid}
+export DATA=$CMON_WORK_DIR/${jobname}.${pid}
 mkdir -p $DATA
 cd $DATA
 
@@ -58,11 +58,11 @@ export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
 export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
-export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.v${gdas_cmon_ver}}
+export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.${gdas_cmon_ver}}
 export SCRIPTSgdascmon=${SCRIPTSgdascmon:-$HOMEgdascmon/scripts}
 export FIXgdascmon=${FIXgdascmon:-$HOMEgdascmon/fix}
 
-export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.v${cmon_shared_ver}}
+export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.${cmon_shared_ver}}
 export EXECcmon=${EXECcmon:-$HOMEcmon/exec}
 export FIXcmon=${FIXcmon:-${FIXgdascmon}}
 export USHcmon=${USHcmon:-$HOMEcmon/ush}
@@ -90,10 +90,10 @@ $utilscript/setpdy.sh
 source ./PDY
 
 
-#############################################
-# COMIN    - WHERE GSI OUTPUT RESIDES
-# TANKverf - WHERE OUTPUT DATA WILL RESIDE
-#############################################
+##############################################################
+# COMIN    - WHERE GSI OUTPUT (which is input data) RESIDES
+# TANKDIR_cmon - WHERE OUTPUT DATA WILL RESIDE
+##############################################################
 export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
 export TANKDIR_cmon=${C_TANKDIR}/cmon.${PDY}
 export COM_IN=${COM_IN:-/com/${NET}/${envir}}
@@ -101,7 +101,13 @@ export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 export CMON_SUFFIX=${CMON_SUFFIX:-gdas}
 
 mkdir -p -m 775 $TANKDIR_cmon
- 
+
+m6h_date=`$NDATE -06 $PDATE`
+export CYC_m6h=`echo $m6h_date|cut -c9-10`
+export PDY_m6h=`echo $m6h_date|cut -c1-8`
+
+export COMIN_m6h=${COMIN_m6h:-$COM_IN/${RUN}.${PDY_m6h}}
+
 env
 
 #############################################################################
@@ -116,12 +122,10 @@ env
 #############################################################################
 export CMON_AREA=${CMON_AREA:-glb}
 
-#export biascr=${biascr:-$COMIN/gdas1.t${CYC}z.abias}
-#export radstat=${radstat:-$COMIN/gdas1.t${CYC}z.radstat}
-export cnvstat=${cnvstat:-$COMIN/gdas1.t${CYC}z.cnvstat}
-export pgrbf00=${pgrbf00:-$COMIN/gdas1.t${CYC}z.pgrbf00}
-export pgrbf06=${pgrbf06:-$COMIN/gdas1.t${CYC}z.pgrbf06}   # need 6 hrs prior to $CYC 
-							   # pdyM1?
+export cnvstat=${cnvstat:-${COMIN}/gdas1.t${CYC}z.cnvstat}
+export pgrbf00=${pgrbf00:-${COMIN}/gdas1.t${CYC}z.pgrbf00}
+export pgrbf06=${pgrbf06:-${COMIN_m6h}/gdas1.t${CYC_m6h}z.pgrbf06}
+
 
 echo "cnvstat = $cnvstat"
 echo "pgrbf00 = $pgrbf00"

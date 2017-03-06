@@ -39,7 +39,7 @@ echo "--> diag2grad_q_case.sh"
 #     eval card=\${${mtype}_card}
   cat <<EOF >input
      &input
-     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,nreal2=$nreal2_q,
+     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
      iscater=1,igrads=1,levcard='alllev',intv=$hint,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -48,7 +48,7 @@ EOF
      cp ${EXECcmon}/grads_mandlev.x ./diag2grads
   cat <<EOF >input
      &input
-     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,nreal2=$nreal2_q,
+     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
      iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
 /
 EOF
@@ -57,7 +57,7 @@ EOF
      cp ${EXECcmon}/grads_sfctime.x ./diag2grads
   cat <<EOF >input
      &input
-     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,nreal2=$nreal2_q,
+     intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
      iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
 /
 EOF
