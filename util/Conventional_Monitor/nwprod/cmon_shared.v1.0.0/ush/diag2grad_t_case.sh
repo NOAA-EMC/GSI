@@ -43,7 +43,7 @@ echo "--> diag2grad_t_case.sh"
 
       cat <<EOF >input
          &input
-         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,nreal2=$nreal2,
+         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,levcard='$card',intv=$hint,subtype='${subtype}',isubtype=${subtype},
          /
 EOF
@@ -53,7 +53,7 @@ EOF
 
       cat <<EOF >input
          &input
-         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,nreal2=$nreal2,
+         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
          /
 EOF
@@ -62,7 +62,7 @@ EOF
       cp $EXECcmon/grads_sfc.x ./diag2grads
       cat <<EOF >input
          &input
-         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,nreal2=$nreal2,
+         intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
          /
 EOF

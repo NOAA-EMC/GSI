@@ -148,8 +148,6 @@ echo PDYm6h = $PDYm6h
 #################
 export C_DATDIR=${C_DATDIR:-/com2/gfs/prod/gdas.$PDY}
 export C_GDATDIR=${C_GDATDIR:-/com2/gfs/prod/gdas.$PDYm6h}
-#export C_DATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
-#export C_GDATDIR=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/CMon_data/gdas.${PDY}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
@@ -168,40 +166,24 @@ export DATA_IN=${WORKverf_cmon}
 # grib2 will be the only standard with the next major release of 
 # GSI. 
 
-#if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs13" ]]; then
-#   export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
-#   export pgrbf00=${C_DATDIR}/pgrbf00.gdas.${PDATE}.grib2
-#   export pgrbf06=${C_DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-#else
-#   export cnvstat="${C_DATDIR}/gdas1.t${CYC}z.cnvstat"
-#   export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
-#   export pgrbf06="${C_GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
-#fi
-
 export grib2=${grib2:-0}
 export cnvstat="${C_DATDIR}/gdas1.t${CYC}z.cnvstat"
-#export cnvstat="${C_DATDIR}/cnvstat.gdas.${PDATE}"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
-#export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
 export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
 if [[ ! -s ${pgrbf00} ]]; then
-#   export pgrbf00=${C_DATDIR}/pgrbf00.gdas.${PDATE}.grib2
    export pgrbf00=${C_DATDIR}/pgbanl.gdas.${PDATE}
-#   export pgrbf00=${C_DATDIR}/pgbhnl.gdas.${PDATE}.grib2
 fi
 
 export pgrbf06="${C_GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
 if [[ ! -s ${pgrbf06} ]]; then
-#   export pgrbf06=${C_DATDIR}/pgrbf006.gdas.${GDATE}.grib2
-#   export pgrbf06=${C_DATDIR}/pgbh06.gdas.${GDATE}.grib2
    export pgrbf06=${C_DATDIR}/pgbf06.gdas.${GDATE}
 fi
 
 exit_value=0
-if [ -s $cnvstat  -a -s $pgrbf00 ]; then
+if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    #------------------------------------------------------------------
    #   Submit data extraction job.
    #------------------------------------------------------------------

@@ -6,7 +6,7 @@
 !
 !-------------------------------------------------------------
 
-subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads,isubtype,subtype)
+subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,subtype)
 
    implicit none
   
@@ -27,7 +27,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads
    real*4 rtim,xlat0,xlon0
    character(30) filein
 
-   integer nreal2,ifileo,i,j,ii,k
+   integer ifileo,i,j,ii,k
    integer ilat,ilon,ipres,itime,iweight,ndup
    integer(4):: isubtype
  
@@ -92,6 +92,9 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,igrads
             k=getlev(rp,plev,nlev)
             if(k /=0)  then
                write(21) stid,rlat,rlon,rtim,1,0
+
+               !  I wonder about this j=3,nreal write.  see grads_lev for more
+               !  info.
                write(21) plev(k),(rdiag(j,i),j=3,nreal)
                print *, 'added obs to level plev(k) ', plev(k)
             endif   

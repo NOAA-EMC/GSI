@@ -13,7 +13,10 @@
 !        stype   : the observation sub type, like t120 uv220
 !----------------------------------------------------------------------
 
-subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtype)
+subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype)
+
+!       nreal1 is target_nreal 
+!       nreal is file_nreal  (now renamed)
 
    implicit none
 
@@ -25,8 +28,8 @@ subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtyp
    character(10)  :: stype,otype
    character(15)  :: fileo,fileo_subtyp
 
-   integer nchar,nreal,i,ii,mype,idate,iflag,itype,nreal_c,iscater,igrads
-   integer lunin,lunot,lunot2,nreal1,nreal2,ldtype,intype,isubtype,jsubtype
+   integer nchar,file_nreal,i,ii,mype,idate,iflag,itype,iscater,igrads
+   integer lunin,lunot,lunot2,target_nreal,ldtype,intype,isubtype,jsubtype
    integer nobs
  
    logical lexist
@@ -36,7 +39,7 @@ subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtyp
 
 
    nobs=0
-   print *,'nreal1=',nreal1
+   print *,'target_nreal=',target_nreal
    print *,'intype=',intype
    
    fileo=trim(stype)//'_'//trim(subtype)//'.tmp' 
@@ -53,15 +56,18 @@ subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtyp
 
    loopd: do  
 
-      read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype
+      read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype
       if( iflag /= 0 ) exit loopd
 
-      if( trim(dtype) == trim(ctype) .and. nreal1 /= nreal-2) then
-         print *, 'observation type:',dtype,' nreal=',nreal
+      print *, 'observation type:',dtype,' ctype=', ctype
+      print *, 'file_nreal      :',file_nreal,' target_nreal=', target_nreal
+
+      if( trim(dtype) == trim(ctype) .and. file_nreal /= target_nreal ) then
+         print *, 'observation type:',dtype,' file_nreal=', file_nreal
          exit 
       endif
 
-      allocate(cdiag(ii),rdiag(nreal,ii))
+      allocate(cdiag(ii),rdiag(file_nreal,ii))
       read(lunin,IOSTAT=iflag) cdiag,rdiag
       if( iflag /= 0 ) exit loopd
 
@@ -76,7 +82,7 @@ subroutine read_conv2grads(ctype,stype,intype,nreal1,nreal2,nobs,isubtype,subtyp
 
          if(itype == intype .and. jsubtype ==isubtype)  then 
             nobs=nobs+1
-            write(lunot) cdiag(i),rdiag(3:nreal,i)
+            write(lunot) cdiag(i),rdiag(3:file_nreal,i)
          endif
       enddo
 
