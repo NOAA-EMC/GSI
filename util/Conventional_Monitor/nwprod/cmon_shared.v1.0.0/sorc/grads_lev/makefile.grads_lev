@@ -6,6 +6,8 @@ SHELL=/bin/sh
 #     load module CMonBuild before running this script.
 #--------------------------------------------------------
 
+BINDIR = ../../exec
+
 SRCS=         maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=         maingrads_lev.o read_conv2grads.o grads_lev.o rm_dups.o convinfo.o 
@@ -20,10 +22,15 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp $(CMD) ../../exec/.
 
 maingrads_lev.o : maingrads_lev.f90
 	$(CF) $(FFLAGS) -c $(*).f90

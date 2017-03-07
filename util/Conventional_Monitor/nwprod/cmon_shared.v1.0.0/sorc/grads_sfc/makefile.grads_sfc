@@ -4,6 +4,8 @@ SHELL=/bin/sh
 #  makefile.grads_sfc
 #-----------------------
 
+BIINDIR = ../../exec
+
 SRCS=         maingrads_sfc.f90 read_conv2grads.f90 grads_sfc.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=         maingrads_sfc.o read_conv2grads.o grads_sfc.o rm_dups.o convinfo.o 
@@ -18,9 +20,14 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) ../../exec/.
+
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp $(CMD) ../../exec/.
 
 maingrads_sfc.o : maingrads_sfc.f90
 	$(CF) $(FFLAGS) -c $(*).f90

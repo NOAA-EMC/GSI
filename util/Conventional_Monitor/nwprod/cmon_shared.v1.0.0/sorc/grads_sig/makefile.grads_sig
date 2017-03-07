@@ -4,6 +4,8 @@ SHELL=/bin/sh
 #  makefile.grads_sig
 #-----------------------
 
+BINDIR = ../../exec
+
 SRCS=   maingrads_sig.f90 read_conv2grads.f90 grads_sig.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=   maingrads_sig.o read_conv2grads.o grads_sig.o rm_dups.o convinfo.o 
@@ -19,9 +21,15 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) $(BINDIR)/
+
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp $(CMD) ../../exec/.
+
 
 maingrads_sig.o : maingrads_sig.f90
 	$(CF) $(FFLAGS) -c $(*).f90

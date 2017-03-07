@@ -1,5 +1,7 @@
 SHELL=/bin/sh
 
+BINDIR = ../../exec
+
 SRCS=         mainconv_time.f90 read_conv.f90 convinfo2.f90 stas_time.f90 stas2ctl.f90 
 
 OBJS=         mainconv_time.o read_conv.o convinfo2.o stas_time.o stas2ctl.o 
@@ -15,9 +17,14 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp $(CMD) ../../exec/.
 
 mainconv_time.o : mainconv_time.f90
 	$(CF) $(FFLAGS) -c $(*).f90
