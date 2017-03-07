@@ -28,26 +28,31 @@ echo machine = $machine
 
 sorc_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/sorc"
 echo "sorc_path = $sorc_path"
+
 exec_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/exec"
 mod_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/modulefiles/${machine}"
 echo "mod_path = $mod_path"
+
+mod_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/modulefiles/${machine}"
+echo "mod_path = ${mod_path}"
+
 
 executables="conv_time grads_sfc read_t read_q grads_lev grads_sfctime read_ps read_uv grads_mandlev grads_sig read_pw"
 
 if [[ ${machine} = "wcoss" ]]; then
    . /usrx/local/Modules/3.2.10/init/ksh
+elif [[ ${machine} = "theia" ]]; then
+   echo "loading lmod"
+   . /apps/lmod/6.0.1/init/ksh
 fi
 
 
 if [[ ${machine} = "wcoss" || ${machine} = "theia" ]]; then
-
-   module use -a ${mod_path}  
+   module use -a ${mod_path}
    module load CMonBuild
-
+ 
    for var in ${executables}; do
       cd ${sorc_path}/${var}
-      rm -f Makefile.conf
-      cp -f ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       echo ""
