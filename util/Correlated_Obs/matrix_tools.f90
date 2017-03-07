@@ -52,8 +52,8 @@ end do
 
 do i=1,niter
    num=zero
-   do r=1,n-1
-      do c=r+1,n
+   do c=1,n-1
+      do r=r+1,n
          num=num+abs(A(r,c))
       end do
    end do

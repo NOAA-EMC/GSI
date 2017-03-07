@@ -378,8 +378,8 @@ do tim=1,ntimes
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
               bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
-            do r=1,nch_active
-               do c=1,nch_active
+            do c=1,nch_active
+               do r=1,nch_active
                   cov_sum=zero
                   div=0
                   anl_sum=zero
@@ -396,8 +396,8 @@ do tim=1,ntimes
                   anl_ave(r,c)=anl_ave(r,c)+anl_sum
                   ges_ave(r,c)=ges_ave(r,c)+ges_sum
                   divider(r,c)=divider(r,c)+div
-               end do !c=1,nch_active
-            end do  !r=1,nch_active
+               end do !r=1,nch_active
+            end do  !c=1,nch_active
          end if  !npair>zero 
       end do anl_read_loop
       close(anlid)
@@ -409,8 +409,8 @@ do tim=1,ntimes
               ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
-               do r=1,nch_active
-                  do c=1,nch_active
+               do c=1,nch_active
+                  do r=1,nch_active
                      cov_sum=zero
                      div=0
                      ges_sum1=zero
@@ -427,8 +427,8 @@ do tim=1,ntimes
                      divbig(r,c,dis)=divbig(r,c,dis)+div
                      ges_avebig1(r,c,dis)=ges_avebig1(r,c,dis)+ges_sum1
                      ges_avebig2(r,c,dis)=ges_avebig2(r,c,dis)+ges_sum2
-                  end do
-               end do
+                  end do !r=1,nch_active
+               end do !c=1,nch_active
             end if  !n_pair>0
          end do !dis=1,num_bin
       end do !dd=1,ng
@@ -436,8 +436,8 @@ do tim=1,ntimes
 end do !tim=1,ntimes
 !covariance calculation
 if (cov_method==desroziers) then
-   do r=1,nch_active
-      do c=1,nch_active
+   do c=1,nch_active
+      do r=1,nch_active
          if (divider(r,c)>zero) then
             divreal=real(divider(r,c),r_kind)
             !the second term here subtracts the biases
@@ -450,8 +450,8 @@ if (cov_method==desroziers) then
       end do
    end do
 else if (cov_method==hl_method) then
-   do r=1,nch_active
-      do c=1,nch_active
+   do c=1,nch_active
+      do r=1,nch_active
          do dis=1,num_bins
             if (divbig(r,c,dis)>zero) then
                divreal=real(divbig(r,c,dis),r_kind)
@@ -491,9 +491,12 @@ if (kreq>zero) then
    end do
    print *, 'New condition number: ', mx/mn
 end if
+do r=1,nch_active
+   print *, 'wave, div', chaninfo(r), divider(r,r)
+end do
 if (out_corr) then
-   do r=1,nch_active
-      do c=1,nch_active
+   do c=1,nch_active
+      do r=1,nch_active
         if (divider(r,c)>zero) then
             val=Rcov(r,r)*Rcov(c,c)
             val=sqrt(abs(val))

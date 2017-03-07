@@ -22,7 +22,7 @@
 #BSUB -x
 #BSUB -P GFS-T2O
 
-rundir=/da/save/${USER}/GSI/upd_covcalc/util/Correlated_Obs/
+rundir=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/GSI/upd_covcalc/util/Correlated_Obs
 cd ${rundir}
 ./run.sh 
 
