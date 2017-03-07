@@ -8,11 +8,6 @@ SRCS=  maingrads_mandlev.f90 read_conv2grads.f90 grads_mandlev.f90 rm_dups.f90 c
 
 OBJS=  maingrads_mandlev.o read_conv2grads.o grads_mandlev.o rm_dups.o convinfo.o 
 
-#---------------------------------------------------
-# Include machine dependent compile & load options
-#---------------------------------------------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=    grads_mandlev.x 
 

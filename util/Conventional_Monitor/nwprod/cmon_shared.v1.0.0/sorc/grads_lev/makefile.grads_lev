@@ -1,18 +1,15 @@
 SHELL=/bin/sh
 
-#--------------------------
+#--------------------------------------------------------
 #  makefile.grads_lev
-#--------------------------
+#
+#     load module CMonBuild before running this script.
+#--------------------------------------------------------
 
 SRCS=         maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=         maingrads_lev.o read_conv2grads.o grads_lev.o rm_dups.o convinfo.o 
 
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=    grads_lev.x 
 

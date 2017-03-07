@@ -8,11 +8,6 @@ SRCS=         mainread_uv.f90 read_uv.f90 read_uv_mor.f90 histgram.f90 histgramu
 
 OBJS=         mainread_uv.o read_uv.o read_uv_mor.o histgram.o histgramuv.o rm_dups.o convinfo.o 
 
-#---------------------------------------------------
-# Include machine dependent compile & load options
-#---------------------------------------------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=    read_uv.x    
 
