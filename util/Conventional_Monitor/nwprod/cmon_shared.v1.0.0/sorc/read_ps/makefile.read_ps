@@ -4,6 +4,8 @@ SHELL=/bin/sh
 #  makefile.read_ps
 #--------------------
 
+BINDIR = ../../exec
+
 SRCS=   mainread_ps.f90 read_ps.f90 read_ps_mor.f90 histgram.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=   mainread_ps.o read_ps.o read_ps_mor.o histgram.o rm_dups.o convinfo.o 
@@ -19,9 +21,15 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) $(BINDIR)/ 
+
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp $(CMD) ../../exec/.
+
 
 mainread_ps.o : mainread_ps.f90
 	$(CF) $(FFLAGS) -c $(*).f90

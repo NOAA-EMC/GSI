@@ -4,6 +4,8 @@ SHELL=/bin/sh
 # makefile.grads_manlev
 #-------------------------
 
+BINDIR = ../../exec
+
 SRCS=  maingrads_mandlev.f90 read_conv2grads.f90 grads_mandlev.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=  maingrads_mandlev.o read_conv2grads.o grads_mandlev.o rm_dups.o convinfo.o 
@@ -18,9 +20,17 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
-	cp ${CMD} ../../exec/.
+
 
 maingrads_mandlev.o : maingrads_mandlev.f90
 	$(CF) $(FFLAGS) -c $(*).f90

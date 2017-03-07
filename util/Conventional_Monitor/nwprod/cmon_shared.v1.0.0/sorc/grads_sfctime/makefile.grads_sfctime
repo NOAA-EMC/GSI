@@ -4,6 +4,8 @@ SHELL=/bin/sh
 #  makefile.grads_sfctime
 #--------------------------
 
+BINDIR = ../../exec
+
 SRCS=  maingrads_sfctime.f90 read_conv2grads.f90 grads_sfctime.f90 rm_dups.f90 convinfo.f90 
 
 OBJS=  maingrads_sfctime.o read_conv2grads.o grads_sfctime.o rm_dups.o convinfo.o 
@@ -19,10 +21,15 @@ clean:
 	rm -f *.mod
 	rm -f *.x
 
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) $(BINDIR)/
+
 
 $(CMD):         $(OBJS)
 	$(FC)    -o $(@) $(OBJS) $(FFLAGS) -C
-	cp ${CMD} ../../exec/.
 
 maingrads_sfctime.o : maingrads_sfctime.f90
 	$(CF) $(FFLAGS) -c -C $(*).f90
