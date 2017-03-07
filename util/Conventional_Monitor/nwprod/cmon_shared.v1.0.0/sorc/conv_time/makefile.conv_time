@@ -4,11 +4,7 @@ SRCS=         mainconv_time.f90 read_conv.f90 convinfo2.f90 stas_time.f90 stas2c
 
 OBJS=         mainconv_time.o read_conv.o convinfo2.o stas_time.o stas2ctl.o 
 
-#------------
-# Include machine dependent compile & load options
-#------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
+
 
 CMD=    conv_time.x 
 

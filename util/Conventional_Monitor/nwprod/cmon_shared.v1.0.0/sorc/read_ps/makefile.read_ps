@@ -8,11 +8,7 @@ SRCS=   mainread_ps.f90 read_ps.f90 read_ps_mor.f90 histgram.f90 rm_dups.f90 con
 
 OBJS=   mainread_ps.o read_ps.o read_ps_mor.o histgram.o rm_dups.o convinfo.o 
 
-#FC=             xlf95
-#FFLAGS =        -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g  
 
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=    read_ps.x    
 

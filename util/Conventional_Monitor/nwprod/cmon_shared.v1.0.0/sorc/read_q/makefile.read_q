@@ -8,8 +8,6 @@ SRCS=   mainread_q.f90 read_q.f90 read_q_mor.f90 histgram.f90 rm_dups.f90 convin
 
 OBJS=   mainread_q.o read_q.o read_q_mor.o histgram.o rm_dups.o convinfo.o 
 
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=    read_q.x
 

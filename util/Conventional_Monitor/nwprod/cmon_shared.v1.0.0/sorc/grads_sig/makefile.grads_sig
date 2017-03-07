@@ -8,14 +8,7 @@ SRCS=   maingrads_sig.f90 read_conv2grads.f90 grads_sig.f90 rm_dups.f90 convinfo
 
 OBJS=   maingrads_sig.o read_conv2grads.o grads_sig.o rm_dups.o convinfo.o 
 
-#---------------------------------------------------
-# Include machine dependent compile & load options
-#---------------------------------------------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
-#FC=             xlf95
-#FFLAGS =        -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g  
 
 CMD=    grads_sig.x 
 

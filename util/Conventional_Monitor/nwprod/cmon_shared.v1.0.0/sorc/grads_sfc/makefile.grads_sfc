@@ -8,11 +8,6 @@ SRCS=         maingrads_sfc.f90 read_conv2grads.f90 grads_sfc.f90 rm_dups.f90 co
 
 OBJS=         maingrads_sfc.o read_conv2grads.o grads_sfc.o rm_dups.o convinfo.o 
 
-#----------------------------------------------------
-# Include machine dependent compile & load options
-#----------------------------------------------------
-MAKE_CONF = Makefile.conf
-include $(MAKE_CONF)
 
 CMD=            grads_sfc.x 
 
