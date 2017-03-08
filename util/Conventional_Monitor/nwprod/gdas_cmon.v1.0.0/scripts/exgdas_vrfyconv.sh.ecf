@@ -322,8 +322,7 @@ if [[ "$VERBOSE" = "YES" ]]; then
 fi
 
 if [[ ${err} -ne 0 ]]; then
-   export err
-   $ERRSCRIPT||exit ${err} 
+   export err=$err; err_chr
 fi
 
 set +x
