@@ -86,8 +86,8 @@ export NDATE=${NDATE:-$utilexec/ndate}
 $utilscript/setup.sh
 
 # Run setpdy and initialize PDY variables
-$utilscript/setpdy.sh
-source ./PDY
+#$utilscript/setpdy.sh
+#source ./PDY
 
 
 ##############################################################
@@ -139,14 +139,14 @@ postmsg "$jlogfile" "$msg"
 ${CMONSH:-$HOMEgdascmon/scripts/exgdas_vrfyconv.sh.ecf} ${PDY} ${CYC}
 ########################################################
 
-msg="JOB COMPLETED NORMALLY"
+msg="J-JOB COMPLETED NORMALLY"
 postmsg "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory
 ################################
 #RM_TMPDIR=NO
-cd $DATA_IN
+#cd $DATA_IN
 #if [ ${RM_TMPDIR:-YES} = YES ] ; then 
 #  rm -rf $DATA 
 #fi
