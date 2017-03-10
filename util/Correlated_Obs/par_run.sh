@@ -1,5 +1,6 @@
 
 
+export OMP_NUM_THREADS=$PBS_NP
 cdate=$bdate
 nt=0
 one=1

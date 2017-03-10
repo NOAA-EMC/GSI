@@ -7,7 +7,7 @@
 #PBS -q batch
 #PBS -l walltime=04:00:00
 #PBS -A cloud
-#PBS -l procs=1
+#PBS -l nodes=1:ppn=16
 #PBS -V
 
 #WCOSS Job options
@@ -21,8 +21,8 @@
 #BSUB -R span[ptile=1]
 #BSUB -x
 #BSUB -P GFS-T2O
-
-rundir=/scratch4/NCEPDEV/da/save/Kristen.Bathmann/GSI/upd_covcalc/util/Correlated_Obs
+export OMP_NUM_THREADS=$PBS_NP
+rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
 cd ${rundir}
 ./run.sh 
 
