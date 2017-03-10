@@ -378,6 +378,7 @@ do tim=1,ntimes
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
               bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
+!$omp parallel do private(r,c,j,cov_sum,div,anl_sum,ges_sum)
             do c=1,nch_active
                do r=1,nch_active
                   cov_sum=zero
@@ -398,6 +399,7 @@ do tim=1,ntimes
                   divider(r,c)=divider(r,c)+div
                end do !r=1,nch_active
             end do  !c=1,nch_active
+!$omp end parallel do
          end if  !npair>zero 
       end do anl_read_loop
       close(anlid)
@@ -409,6 +411,7 @@ do tim=1,ntimes
               ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
+!$omp parallel do private(r,c,j,cov_sum,div,ges_sum1,ges_sum2)
                do c=1,nch_active
                   do r=1,nch_active
                      cov_sum=zero
@@ -429,6 +432,7 @@ do tim=1,ntimes
                      ges_avebig2(r,c,dis)=ges_avebig2(r,c,dis)+ges_sum2
                   end do !r=1,nch_active
                end do !c=1,nch_active
+!$omp end parallel do
             end if  !n_pair>0
          end do !dis=1,num_bin
       end do !dd=1,ng
@@ -436,6 +440,7 @@ do tim=1,ntimes
 end do !tim=1,ntimes
 !covariance calculation
 if (cov_method==desroziers) then
+!$omp parallel do private(r,c,divreal)
    do c=1,nch_active
       do r=1,nch_active
          if (divider(r,c)>zero) then
@@ -449,7 +454,9 @@ if (cov_method==desroziers) then
          end if
       end do
    end do
+!$omp end parallel do
 else if (cov_method==hl_method) then
+!$omp parallel do private(r,c,dis,divreal)
    do c=1,nch_active
       do r=1,nch_active
          do dis=1,num_bins
@@ -463,6 +470,7 @@ else if (cov_method==hl_method) then
           if ((r==c).and.(abs(Rcov(r,c))<=small)) Rcov(r,c)=errout(r)**2
       end do
    end do      
+!$omp end parallel do
 end if
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
 
@@ -491,9 +499,6 @@ if (kreq>zero) then
    end do
    print *, 'New condition number: ', mx/mn
 end if
-do r=1,nch_active
-   print *, 'wave, div', chaninfo(r), divider(r,r)
-end do
 if (out_corr) then
    do c=1,nch_active
       do r=1,nch_active

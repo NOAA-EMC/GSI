@@ -228,7 +228,7 @@ cat << EOF > params.sh
 #PBS -e comp_err
 #PBS -q batch
 #PBS -l walltime=$wall_time
-#PBS -l procs=1
+#PBS -l nodes=1:ppn=16
 #PBS -N cov_calc
 #PBS -W depend=afterany:${jobid}
 bdate=$bdate
