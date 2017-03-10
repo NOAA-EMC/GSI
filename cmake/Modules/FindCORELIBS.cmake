@@ -1,4 +1,8 @@
 function (findSrc varName version varDir )
+      if(EXISTS ${CMAKE_SOURCE_DIR}/libsrc/${varName})
+          set( ${varDir} "${CMAKE_SOURCE_DIR}/libsrc/${varName}" PARENT_SCOPE)
+          set( ${varCacheName} "${CMAKE_SOURCE_DIR}/libsrc/${varName}" CACHE STRING "" FORCE )
+      else()
         set(searchName ${varName}_v${${version}})
         message("searching for source for ${searchName} in ${CRTM_BASE}")
         string( TOLOWER ${varName} varNameLower )
@@ -98,6 +102,7 @@ function (findSrc varName version varDir )
             endif()
           endif()
         endif()
+      endif()
 endfunction()
 
 function (findInc incName version incFile )
@@ -210,18 +215,20 @@ if(NOT  BUILD_CRTM )
   else()
   findInc( crtm CRTM_VER CRTMINC )
   find_library( CRTM_LIBRARY 
-    NAMES libcrtm_v${CRTM_VER}.a libCRTM.a libcrtm.a 
+    NAMES libcrtm_v${CRTM_VER}.a libcrtm.a libCRTM.a 
     HINTS 
+      /usr/local/jcsda/nwprod_gdas_2014	
       ${CRTM_BASE}
+      ${CRTM_BASE}/lib
       ${CRTM_BASE}/${CRTM_VER}
+      ${CRTM_BASE}/${CRTM_VER}/lib
       ${COREPATH}
       ${COREPATH}/lib
-      /nwprod2/lib/crtm/v${CRTM_VER}
       $ENV{COREPATH} 
       $ENV{COREPATH}/lib 
       $ENV{COREPATH}/include 
-      /usr/local/jcsda/nwprod_gdas_2014	
       ${CORECRTM}/crtm/${CRTM_VER}
+      /nwprod2/lib/crtm/v${CRTM_VER}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
@@ -232,13 +239,14 @@ else()
     if( NOT DEFINED ENV{CRTM_SRC} )
       if( FIND_SRC ) 
         findSrc( "crtm" CRTM_VER CRTM_DIR )
+        set(CRTMINC  "${CMAKE_BINARY_DIR}/include")
       endif()
     else()
       set( CRTM_DIR "$ENV{CRTM_SRC}/libsrc" CACHE STRING "CRTM Source Location")
+      set(CRTMINC  "${CORECRTM}/crtm/${CRTM_VER}/incmod/crtm_v${CRTM_VER}")
     endif()
     set( libsuffix "_v${CRTM_VER}${debug_suffix}" )
     set( CRTM_LIBRARY "${LIBRARY_OUTPUT_PATH}/libcrtm${libsuffix}.a" CACHE STRING "CRTM Library" )
-    set(CRTMINC  "${CORECRTM}/crtm/${CRTM_VER}/incmod/crtm_v${CRTM_VER}")
     set( crtm "crtm${libsuffix}")
 endif()
 if(NOT  BUILD_EMC  )
