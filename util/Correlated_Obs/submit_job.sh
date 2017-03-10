@@ -15,14 +15,15 @@
 #BSUB -o compout
 #BSUB -J cov_calc
 #BSUB -q dev2
-#BSUB -n 1
+#BSUB -openmp
+#BSUB -n 16
 #BSUB -W 01:00
-#BSUB -R affinity[core]
-#BSUB -R span[ptile=1]
-#BSUB -x
+#BSUB -R span[ptile=16]
 #BSUB -P GFS-T2O
-export OMP_NUM_THREADS=$PBS_NP
+if [ ! -z "$PBS_NP" ] ; then
+   export OMP_NUM_THREADS=$PBS_NP
+fi
 rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
 cd ${rundir}
-./run.sh 
+./myrun.sh 
 
