@@ -1,18 +1,18 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040200
+bdate=2014040700
 #date of last radstat file
-edate=2014060118
+edate=2014042718
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-a
+#instr=airs_aqua
+instr=iasi_metop-a
 #location of radstat file
-exp=prCtl
-diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+exp=prdiag
+diagdir=/da/noscrub/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
+wrkdir=/stmpp1/${USER}/corr_obs
 #location the covariance matrix is saved to
-savdir=$diagdir
+savdir=$wrkdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
 #4 for mixed (recommended to use 0 for mixed)
 #5 for ice and 6 for snow and ice combined (recommended when using ice)
@@ -36,25 +36,25 @@ cov_method=2
 #maximum time between observations in a pair, in minutes
 time_sep=1.0
 #bin size for obs pairs in km
-bsize=30
+bsize=3
 #bin center, in km, needed for Hollingsworth-Lonnberg
 bcen=70
 #channel set choice:  0 to only use active channels, 1 to use all channels
-chan_set=0
+chan_set=1
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=20
+num_proc=19
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
-unpack_walltime=02:30:00
+unpack_walltime=02:30
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=00:30:00
+wall_time=00:30
 #job account name (needed on theia only)
 account=cloud
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
-machine=theia
+machine=wcoss
 
-ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+ndate=/da/save/Kristen.Bathmann/anl_tools/ndate
 
 ####################################################################
 
@@ -261,11 +261,11 @@ cat << EOF > params.sh
 #!/bin/sh
 #BSUB -o comp_out
 #BSUB -e comp_err
+#BSUB -openmp
 #BSUB -q dev
-#BSUB -n 1
+#BSUB -n 16
 #BSUB -W $wall_time
-#BSUB -R affinity[core]
-#BSUB -R span[ptile=1]
+#BSUB -R span[ptile=16]
 #BSUB -P ${project_code}
 #BSUB -J cov_calc
 bdate=$bdate
