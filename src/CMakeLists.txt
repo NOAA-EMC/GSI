@@ -14,6 +14,7 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/get_gefs_ensperts_dualres.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/get_gefs_for_regional.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/read_guess.F90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/bkgcov.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/bicglanczos.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/bicg.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/set_crtm_cloudmod.f90" 
@@ -137,7 +138,9 @@ cmake_minimum_required(VERSION 2.8)
     endif()
   endif()
 
-  list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
+  if( NOT HOST-Luna AND NOT HOST-Surge )
+    list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
+  endif()
   if(USE_WRF) 
     target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
