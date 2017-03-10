@@ -73,6 +73,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 
   real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq
   real(r_kind) slons0,slats0,rsat,solzen,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) rlat,rlon,rpress,rsza
   real(r_kind),allocatable,dimension(:):: pco
   real(r_kind),allocatable,dimension(:):: apco
@@ -143,6 +144,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 110
      if(slons0< zero) slons0=slons0+r360
      if(slons0>=r360) slons0=slons0-r360
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -180,8 +183,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
      coout(2,ndata)=t4dv
      coout(3,ndata)=dlon               ! grid relative longitude
      coout(4,ndata)=dlat               ! grid relative latitude
-     coout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-     coout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     coout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+     coout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
      coout(7,ndata)=poq                ! profile co error flag
      coout(8,ndata)=solzen             ! solar zenith angle
      do k=1,nlco

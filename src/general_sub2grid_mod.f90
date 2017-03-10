@@ -705,87 +705,65 @@ end subroutine get_iuse_pe
 !
 ! !REVISION HISTORY:
 !   2011-04-07 todling  embed in this package; update argument list
+!   2015-02-17 trayanov revamp; made consistent with MAPL
 !
 !EOP
 !-------------------------------------------------------------------------
 
 ! Declare local variables
 
-  integer(i_kind) i,j,k,iinum,jjnum,iistart,jjstart
-  integer(i_kind) lsetx,lsety,nxseg,nyseg
-  integer(i_kind),allocatable,dimension(:) :: imxy, jmxy
-  integer(i_kind) im,jm,mm1,ierr
+  integer(i_kind) :: i,j,k,istart0, jstart0
+  integer(i_kind) :: imxy(nxpe), jmxy(nype)
+  integer(i_kind) :: im,jm,mm1,ierr
 
 ! start
 
   periodic=.false.
   periodic_s=.false.
   im=nlon; jm=nlat
-  allocate(imxy(0:nxpe-1),jmxy(0:nype-1), stat=ierr)
-  if(ierr /= 0) then
-     write(6,*)' DETER_SUBDOMAIN: ALLOCATE ERROR.'
-     call stop2(30)
-  end if
  
   call GET_LOCAL_DIMS_ ( im,imxy,nxpe )
   call GET_LOCAL_DIMS_ ( jm,jmxy,nype )
 
 ! compute subdomain boundaries  (axis indices)
 
-  k=0
-  iinum=imxy(0)
-  jjnum=jmxy(0)
-  nxseg=2
-  nyseg=2
-  istart=1
-  jstart=1
-  iistart=1
-  jjstart=1
-  lsetx=npe/nype
-  lsety=npe/nype
-  do j=0,nype-1
-     do i=0,nxpe-1
-        k=k+1
-        if(i>0) then
-           if(imxy(i)<imxy(i-1)) iinum = imxy(i)
+! compute local subdomain (offset and sizes)
+
+  K=0
+  jstart0 = 1
+  DO J=1,NYPE
+     istart0 = 1
+     if (J>1) then
+        jstart0 = jstart0 + JMXY(J-1)
+     end if
+     DO I=1,NXPE
+        k = k + 1
+        ilat1(k) = JMXY(J)
+        istart(k) = jstart0
+        jlon1(k) = IMXY(I)
+        if (I>1) then
+           istart0 = istart0 + IMXY(I-1)
         end if
-        if(j>0) then
-           if(jmxy(j)<jmxy(j-1)) jjnum = jmxy(j)
-        end if
-        ilat1(k)=jjnum
-        jlon1(k)=iinum
-            if (jlon1(k)==nlon.and..not.regional) then  ! _RT I have no idea if
-                                                        !     this is correct
-               periodic=.true.
-               periodic_s(k)=.true.
-            endif
-        if(k>1) then
-           if(nxseg<=lsetx) then
-              jstart(k)=iistart+jlon1(k)
-              iistart=jstart(k)
-              nxseg=nxseg+1
-           else
-              jstart(k)=1
-              iistart=1
-              nxseg=2
-           end if
-           if(nyseg<=lsety) then
-              istart(k)=jjstart
-              nyseg=nyseg+1
-           else
-              if(ilat1(k)<ilat1(k-1)) then
-                 istart(k)=jjstart+ilat1(k)+1
-              else
-                 istart(k)=jjstart+ilat1(k)
-              end if
-              jjstart=istart(k)
-              nyseg=2
-           end if
-        end if
-        if(mype == 0 .and. verbose) &
+        jstart(k) = istart0
+
+        if (jlon1(k)==nlon.and..not.regional) then
+           periodic=.true.
+           periodic_s(k)=.true.
+        endif
+!@        if (.not.regional) then
+!@           if (I==1 .or. I==NXPE) then
+!@              periodic_s(k) = .true.
+!@           end if
+!@        end if
+     END DO
+  END DO
+
+  if ( verbose ) then
+     do k=1,nxpe*nype
+        if(mype == 0) &
              write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
      end do
-  end do
+  end if
 
 100 format('general_DETER_SUBDOMAIN_withlayout:  task,istart,jstart,ilat1,jlon1=',5(i6,1x))
   
@@ -796,13 +774,7 @@ end subroutine get_iuse_pe
   lon1=jlon1(mm1)
   lat2=lat1+2
   lon2=lon1+2
-
-  deallocate(imxy,jmxy, stat=ierr)
-  if(ierr /= 0) then
-     write(6,*)' DETER_SUBDOMAIN: DEALLOCATE ERROR.'
-     call stop2(30)
-  end if 
-
+!@  periodic=periodic_s(mm1)
 
   return
 

@@ -67,7 +67,7 @@ module jfunc
 !   def qoption    - option of q analysis variable; 1:q/qsatg 2:norm RH
 !   def iguess     - flag for guess solution
 !   def biascor    - background error bias correction coefficient 
-!   def bcoption   - 0=ibc (no bias correction to bkg); 1= sbc(original implementation)
+!   def bcoption   - =0:do-nothing; =1:sbc; when <0 will estimate but not correct bkg bias
 !   def diurnalbc  - 1= diurnal bias; 0= persistent bias
 !   def niter      - number of inner interations (for each other iter.)
 !   def niter_no_qc- number of inner interations without nonlinear qc (for each outer iter.)
@@ -148,7 +148,7 @@ module jfunc
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
-  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,factl, & 
+  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor(2),diurnalbc,factg,factv,factp,factl,&
                factw10m,facthowv,factcldch,step_start
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:):: varq
@@ -223,9 +223,10 @@ contains
     jiterstart=1
     jiterend=1
     jiter=jiterstart
-    biascor=-one        ! bias multiplicative coefficient
+    biascor(1)=0.98_r_kind ! dump coefficient for background bias correction
+    biascor(2)=0.1_r_kind  ! time-scale associated to background bias estimate (cov model)
     diurnalbc=0         ! 1= diurnal bias; 0= persistent bias
-    bcoption=1          ! 0=ibc; 1=sbc
+    bcoption=0             ! =0:do-nothing; =1:sibc; when <0 will estimate but not correct bkg bias
     nclen=1
     nclenz=1
 
@@ -361,9 +362,11 @@ contains
 !   2005-05-05  treadon - read guess solution from 4-byte reals
 !   2008-05-12  safford - rm unused uses and vars
 !   2013-10-25  todling - reposition ltosi and others to commvars
+!   2016-05-04  todling - allow for bias component of solution to be taken in
 !
 !   input argument list:
 !     mype   - mpi task id
+!     dirx,diry - dynamic components, e.g. %values(:), must be already allocated
 !
 !   output argument list:
 !     dirx,diry
@@ -382,10 +385,10 @@ contains
     implicit none
 
     integer(i_kind)     ,intent(in   ) :: mype
-    type(control_vector),intent(  out) :: dirx,diry
+    type(control_vector),intent(inout) :: dirx,diry
 
     integer(i_kind) i,k,mm1,myper,kk,i1,i2
-    integer(i_kind) nlatg,nlong,nsigg
+    integer(i_kind) nlatg,nlong,nsigg,nrcleng
     integer(i_kind),dimension(5):: iadateg
     real(r_single),dimension(max(iglobal,itotsub)):: fieldx,fieldy
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
@@ -402,13 +405,14 @@ contains
     nlatg=0
     nlong=0
     nsigg=0
-    read(12,end=1234)iadateg,nlatg,nlong,nsigg
+    nrcleng=0
+    read(12,end=1234)iadateg,nlatg,nlong,nsigg,nrcleng
     if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
        iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
        iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
        nlon == nlong .and. nsig == nsigg) then
        if(mype == 0) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
-                     iadateg,nlatg,nlong,nsigg
+                     iadateg,nlatg,nlong,nsigg,nrcleng
        jiterstart=0
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
@@ -431,7 +435,19 @@ contains
        end do  !end do over nval_levs
 
 !      Read radiance and precipitation bias correction terms
-       read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
+       if ( nrcleng==nrclen ) then
+          read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
+       else
+          if(mype == 0) then
+             write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE RADIANCE COMPONENT in GESFILE, gesfile_in'
+             write(6,*) 'READ_GUESS_SOLUTION:  nrclen: input,current=',nrcleng,nrclen
+             write(6,*) 'READ_GUESS_SOLUTION:  ignoring previous radiance guess' 
+          endif
+          do i=nclen1+1,nclen
+             xhatsave_r4(i)=zero
+             yhatsave_r4(i)=zero
+          end do
+       endif
        do i=1,nclen
           dirx%values(i)=real(xhatsave_r4(i),r_kind)
           diry%values(i)=real(yhatsave_r4(i),r_kind)
@@ -520,7 +536,7 @@ contains
 ! Write header record to output file
     if (mype==mypew) then
        open(51,file='gesfile_out',form='unformatted')
-       write(51) iadate,nlat,nlon,nsig
+       write(51) iadate,nlat,nlon,nsig,nrclen
     endif
 
 ! Loop over levels.  Gather guess solution and write to output
@@ -561,7 +577,7 @@ contains
        write(51) (xhatsave4(i),i=1,nrclen),(yhatsave4(i),i=1,nrclen)
        close(51)
        write(6,*)'WRITE_GUESS_SOLUTION:  write guess solution for ',&
-                  iadate,nlat,nlon,nsig
+                  iadate,nlat,nlon,nsig,nrclen
     endif
 
     return

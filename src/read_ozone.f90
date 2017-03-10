@@ -59,10 +59,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2012-10-12  h.liu  - read in MLS v2 Near Real Time (NRT) and v2.2 standard bufr data
 !   2013-01-17  h.liu  - read in MLS v3 Near Real Time (NRT) 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!   2013-02-05  guo     - STOP in dec2bin() was replaced with die() to signal an _abort_.
 !   2014-02-03  guo	- removed unused "o3lev" handling, which can (and should) be
 !                         implemented again in module m_extOzone, if ever needed.
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -102,6 +102,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use convinfo, only: nconvtype, &
       icuse,ictype,ioctype
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use radinfo, only: dec2bin
   use qcmod, only: use_poq7
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   use mpimod, only: npe
@@ -154,6 +155,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   real(r_kind) tdiff,sstime,dlon,dlat,t4dv,timedif,crit1,dist1
   real(r_kind) slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind),allocatable,dimension(:):: poz
 
 ! maximum number of observations set to 
@@ -289,6 +291,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 110  
      if(slons0< zero) slons0=slons0+r360
      if(slons0==r360) slons0=zero
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -391,8 +395,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ozout(2,ndata)=t4dv
      ozout(3,ndata)=dlon               ! grid relative longitude
      ozout(4,ndata)=dlat               ! grid relative latitude
-     ozout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-     ozout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     ozout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+     ozout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
      ozout(7,ndata)=toq                ! total ozone error flag
      ozout(8,ndata)=poq                ! profile ozone error flag
      ozout(9,ndata)=solzen             ! solar zenith angle
@@ -473,6 +477,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 120  
      if(slons0< zero) slons0=slons0+r360
      if(slons0==r360) slons0=zero
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -541,8 +547,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ozout(2,itx)=t4dv
      ozout(3,itx)=dlon               ! grid relative longitude
      ozout(4,itx)=dlat               ! grid relative latitude
-     ozout(5,itx)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-     ozout(6,itx)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     ozout(5,itx)=dlon_earth_deg     ! earth relative longitude (degrees)
+     ozout(6,itx)=dlat_earth_deg     ! earth relative latitude (degrees)
      ozout(7,itx)=toq                ! total ozone error flag
      ozout(8,itx)=hdrozg(9)          ! solar zenith angle
      ozout(9,itx)=hdrozg(10)         ! solar azimuth angle
@@ -620,6 +626,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 130  
      if(slons0< zero) slons0=slons0+r360
      if(slons0==r360) slons0=zero
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -695,8 +703,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ozout(2,itx)=t4dv
      ozout(3,itx)=dlon               ! grid relative longitude
      ozout(4,itx)=dlat               ! grid relative latitude
-     ozout(5,itx)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-     ozout(6,itx)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     ozout(5,itx)=dlon_earth_deg     ! earth relative longitude (degrees)
+     ozout(6,itx)=dlat_earth_deg     ! earth relative latitude (degrees)
      ozout(7,itx)=hdrozo2(5)         ! total ozone quality code
      ozout(8,itx)=hdrozo(10)         ! solar zenith angle
      ozout(9,itx)=binary(10)         ! row anomaly flag
@@ -844,6 +852,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 140  
      if(slons0< zero) slons0=slons0+r360
      if(slons0==r360) slons0=zero
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -984,8 +994,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozout(2,ndata)=t4dv
         ozout(3,ndata)=dlon               ! grid relative longitude
         ozout(4,ndata)=dlat               ! grid relative latitude
-        ozout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-        ozout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+        ozout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+        ozout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
         ozout(7,ndata)=hdrmls(10)         ! solar zenith angle
 
         ozout(8,ndata)=usage1(k)          ! 
@@ -1050,68 +1060,3 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   return
   
 end subroutine read_ozone
-
-
-
-
-
-
-SUBROUTINE dec2bin(dec,bin,ndim)
- 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dec2bin                  convert decimal number to binary 
-!   prgmmr: unknown             org: np23                date: 2010-04-06
-!
-! abstract:  This routine convert a decimal number to binary
-!
-! program history log:
-!   2010-04-06  hliu
-
-!   input argument list:
-!     dec  - observation type to process
-!
-!   output argument list:
-!     bin    - number of sbuv/omi ozone observations read
-!
-! remarks:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-
-    use kinds, only: i_kind
-    use mpeu_util, only: die, perr
-
-    implicit none
- 
-! Declare passed variables
-    integer(i_kind) ,intent(inout) :: dec
-    integer(i_kind) ,intent(in)    :: ndim
-    integer(i_kind) ,intent(out)   :: bin(ndim)
-
-! Declare local variables
-    integer(i_kind):: bindec, i
-
-!   Check to determine decimal # is within bounds
-    i = ndim
-    IF ((dec - 2**i) >= 0) THEN
-       write(6,*) 'Decimal Number too Large. Must be < 2^(',ndim-1,')'
-       call die('dec2bin')
-    END IF
-
-!   Determine the scalar for each of the decimal positions
-    DO WHILE (i >= 1)
-       bindec = 2**(i-1)
-       IF ((dec - bindec) >= 0) THEN
-          bin(i) = 1
-          dec = dec - bindec
-       ELSE
-          bin(i) = 0
-       END IF
-       i = i - 1
-    END DO
-
-    RETURN
-END subroutine dec2bin

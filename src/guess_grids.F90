@@ -836,6 +836,7 @@ contains
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2008-06-30  derber - remove sfct deallocate to allow earlier call
 !   2009-01-17  todling - move isli2,sno2 into destroy_sfct
+!   2010-03-15  todling - esmf protection
 !   2012-03-06  akella  - add call to destroy NST analysis arrays
 !
 ! !REMARKS:
@@ -851,7 +852,7 @@ contains
     integer(i_kind):: istatus
 
 ! Deallocate arrays containing full horizontal nst fields
-!   if (nst_gsi > 0) call gsi_nstcoupler_final()
+    if (nst_gsi > 0) call gsi_nstcoupler_final()
 
     if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
     sfc_grids_allocated_=.false.
@@ -860,6 +861,7 @@ contains
     if (istatus/=0) &
          write(6,*)'DESTROY_SFC_GRIDS:  deallocate error, istatus=',&
          istatus
+#ifndef HAVE_ESMF
     if(allocated(isli))deallocate(isli)
     if(allocated(fact10))deallocate(fact10)
     if(allocated(sfct))deallocate(sfct)
@@ -872,6 +874,7 @@ contains
     if(allocated(soil_moi))deallocate(soil_moi)
     if(allocated(dsfct))deallocate(dsfct)
     if(allocated(coast_prox))deallocate(coast_prox)
+#endif
 
     return
   end subroutine destroy_sfc_grids
@@ -1778,6 +1781,7 @@ contains
 ! !REVISION HISTORY:
 !   2006-09-26  treadon
 !   2008-12-05  todling - use dsfct(:,:,ntguessfc) for calculation
+!   2015-03-10  todling - assign missing ps pointers
 !
 ! !REMARKS:
 !   language: f90
@@ -1864,6 +1868,10 @@ contains
     dtsigp=one-dtsig
 
     ier=0
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'ps' ,ges_ps_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'ps' ,ges_ps_itsigp,istatus)
+    ier=ier+istatus
     call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'u' ,ges_u_itsig ,istatus)
     ier=ier+istatus
     call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'u' ,ges_u_itsigp,istatus)

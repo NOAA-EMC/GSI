@@ -40,12 +40,12 @@ use abstract_regional_io_mod
 contains
 
   subroutine init_regional_io_wrf(this)
-     use wrf_params_mod, only: preserve_restart_date
+     use wrf_params_mod, only: preserve_restart_date, update_pint, cold_start, init_wrf_params
      implicit none
      class(regional_io_class), intent(inout) :: this
      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
      end associate
-     preserve_restart_date = .false.
+     call init_wrf_params(.false.,.false.,.true.)
      return
   end subroutine init_regional_io_wrf
 

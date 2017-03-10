@@ -55,6 +55,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !   2013-05-07  tong   -  add reading tdr superobs data 
 !   2013-05-22  tong   -  Modified the criteria of seperating fore and aft sweeps for TDR NOAA/FRENCH antenna
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !
 !   input argument list:
@@ -150,6 +151,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   
   real(r_kind) timeb,rmesh,usage,ff10,sfcr,skint,t4dv,t4dvo,toff
   real(r_kind) eradkm,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) dlat,dlon,staheight,tiltangle,clon,slon,clat,slat
   real(r_kind) timeo,clonh,slonh,clath,slath,cdist,dist
   real(r_kind) rwnd,azm,height,error,wqm
@@ -552,6 +554,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      dlon_earth=this_stalon    !station lon (degrees)
      if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
+     dlat_earth_deg = dlat_earth
+     dlon_earth_deg = dlon_earth
      dlat_earth = dlat_earth * deg2rad
      dlon_earth = dlon_earth * deg2rad
      
@@ -632,6 +636,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
      if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
      
+     dlat_earth_deg = dlat_earth
+     dlon_earth_deg = dlon_earth
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad
      if(regional) then
@@ -765,8 +771,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         cdata(14)= skint             ! skin temperature
         cdata(15)= ff10              ! 10 meter wind factor
         cdata(16)= sfcr              ! surface roughness
-        cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-        cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+        cdata(17)=dlon_earth_deg     ! earth relative longitude (degrees)
+        cdata(18)=dlat_earth_deg     ! earth relative latitude (degrees)
         cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
         cdata(20)=zsges              ! model elevation at radar site
         cdata(21)=thiserr
@@ -1031,6 +1037,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         if(radar_obs(3,k)>=r360) radar_obs(3,k)=radar_obs(3,k)-r360
         if(radar_obs(3,k)<zero ) radar_obs(3,k)=radar_obs(3,k)+r360
 
+        dlat_earth_deg = radar_obs(2,k)
+        dlon_earth_deg = radar_obs(3,k)
         dlat_earth = radar_obs(2,k)*deg2rad
         dlon_earth = radar_obs(3,k)*deg2rad
         if(regional) then
@@ -1189,8 +1197,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            cdata(14)= skint             ! skin temperature
            cdata(15)= ff10              ! 10 meter wind factor
            cdata(16)= sfcr              ! surface roughness
-           cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-           cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+           cdata(17)=dlon_earth_deg     ! earth relative longitude (degrees)
+           cdata(18)=dlat_earth_deg     ! earth relative latitude (degrees)
            cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
            cdata(20)=zsges              ! model elevation at radar site
            cdata(21)=radar_obs(7,k)     ! original error from bufr file
@@ -1680,6 +1688,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         dlon_earth=elon8(i)
         if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
         if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+        dlat_earth_deg = dlat_earth
+        dlon_earth_deg = dlon_earth
         dlat_earth = dlat_earth*deg2rad
         dlon_earth = dlon_earth*deg2rad
 
@@ -1867,8 +1877,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            cdata(14)= skint             ! skin temperature
            cdata(15)= ff10              ! 10 meter wind factor
            cdata(16)= sfcr              ! surface roughness
-           cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-           cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+           cdata(17)=dlon_earth_deg     ! earth relative longitude (degrees)
+           cdata(18)=dlat_earth_deg     ! earth relative latitude (degrees)
            cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
            cdata(20)=zsges              ! model elevation at radar site
            cdata(21)=thiserr
@@ -1997,6 +2007,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         dlon_earth=elon8(ii)
         if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
         if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+        dlat_earth_deg = dlat_earth
+        dlon_earth_deg = dlon_earth
         dlat_earth = dlat_earth*deg2rad
         dlon_earth = dlon_earth*deg2rad
 
@@ -2179,8 +2191,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            cdata(14)= skint             ! skin temperature
            cdata(15)= ff10              ! 10 meter wind factor
            cdata(16)= sfcr              ! surface roughness
-           cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-           cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+           cdata(17)=dlon_earth_deg     ! earth relative longitude (degrees)
+           cdata(18)=dlat_earth_deg     ! earth relative latitude (degrees)
            cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
            cdata(20)=zsges              ! model elevation at radar site
            cdata(21)=thiserr

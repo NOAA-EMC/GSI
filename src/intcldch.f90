@@ -8,6 +8,7 @@ module intcldchmod
 !
 ! program history log:
 !   2015-07-10  Manuel Pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intcldch
@@ -20,6 +21,10 @@ module intcldchmod
 !
 !$$$ end documentation block
 
+use m_obsNode  , only: obsNode
+use m_cldchNode, only: cldchNode
+use m_cldchNode, only: cldchNode_typecast
+use m_cldchNode, only: cldchNode_nextcast
 implicit none
 
 PRIVATE
@@ -55,7 +60,7 @@ subroutine intcldch(cldchhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: cldch_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -65,7 +70,7 @@ subroutine intcldch(cldchhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(cldch_ob_type),pointer,intent(in   ) :: cldchhead
+  class(obsNode),pointer,intent(in) :: cldchhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -78,7 +83,7 @@ subroutine intcldch(cldchhead,rval,sval)
   real(r_kind) cg_cldch,p0,grad,wnotgross,wgross,pg_cldch
   real(r_kind),pointer,dimension(:) :: scldch
   real(r_kind),pointer,dimension(:) :: rcldch
-  type(cldch_ob_type), pointer :: cldchptr
+  type(cldchNode), pointer :: cldchptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -87,7 +92,8 @@ subroutine intcldch(cldchhead,rval,sval)
   call gsi_bundlegetpointer(rval,'cldch',rcldch,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  cldchptr => cldchhead
+  !cldchptr => cldchhead
+  cldchptr => cldchNode_typecast(cldchhead)
   do while (associated(cldchptr))
      j1=cldchptr%ij(1)
      j2=cldchptr%ij(2)
@@ -139,7 +145,8 @@ subroutine intcldch(cldchhead,rval,sval)
         rcldch(j4)=rcldch(j4)+w4*grad
      endif
 
-     cldchptr => cldchptr%llpoint
+     !cldchptr => cldchptr%llpoint
+     cldchptr => cldchNode_nextcast(cldchptr)
 
   end do
 

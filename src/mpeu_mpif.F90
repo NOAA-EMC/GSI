@@ -26,6 +26,41 @@ module mpeu_mpif
    implicit none
    private          ! except
 
+   public :: MPI_type
+   interface MPI_type; module procedure &
+     type_r0_of_integer1, &
+     type_r0_of_integer2, &
+     type_r0_of_integer4, &
+     type_r0_of_integer8, &
+     type_r0_of_real4   , &
+     type_r0_of_real8   , &
+     type_r0_of_real16  , &
+     type_r1_of_integer1, &
+     type_r1_of_integer2, &
+     type_r1_of_integer4, &
+     type_r1_of_integer8, &
+     type_r1_of_real4   , &
+     type_r1_of_real8   , &
+     type_r1_of_real16  , &
+     type_r2_of_integer1, &
+     type_r2_of_integer2, &
+     type_r2_of_integer4, &
+     type_r2_of_integer8, &
+     type_r2_of_real4   , &
+     type_r2_of_real8   , &
+     type_r2_of_real16  , &
+     type_r3_of_integer1, &
+     type_r3_of_integer2, &
+     type_r3_of_integer4, &
+     type_r3_of_integer8, &
+     type_r3_of_real4   , &
+     type_r3_of_real8   , &
+     type_r3_of_real16
+   end interface
+
+   public :: MPI_IKIND
+   public :: MPI_ADDRESS_KIND
+
    public :: MPI_INTEGER1
    public :: MPI_INTEGER2
    public :: MPI_INTEGER4
@@ -117,7 +152,187 @@ include "mpif.h"
 !       compatible with free-format Fortran.
 !EOP
 !_______________________________________________________________________
+
+    integer, parameter:: MPI_IKIND=kind(MPI_COMM_WORLD)
+
     character(len=*),parameter :: myname='mpeu_mpif'
+
+contains
+function type_r0_of_integer1(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*1,intent(in):: mold
+  mtype=MPI_INTEGER1
+end function type_r0_of_integer1
+function type_r0_of_integer2(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*2,intent(in):: mold
+  mtype=MPI_INTEGER2
+end function type_r0_of_integer2
+function type_r0_of_integer4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*4,intent(in):: mold
+  mtype=MPI_INTEGER4
+end function type_r0_of_integer4
+function type_r0_of_integer8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*8,intent(in):: mold
+  mtype=MPI_INTEGER8
+end function type_r0_of_integer8
+
+function type_r0_of_real4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*4,intent(in):: mold
+  mtype=MPI_real4
+end function type_r0_of_real4
+function type_r0_of_real8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*8,intent(in):: mold
+  mtype=MPI_real8
+end function type_r0_of_real8
+function type_r0_of_real16(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*16,intent(in):: mold
+  mtype=MPI_real16
+end function type_r0_of_real16
+
+function type_r1_of_integer1(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*1,dimension(:),intent(in):: mold
+  mtype=MPI_INTEGER1
+end function type_r1_of_integer1
+function type_r1_of_integer2(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*2,dimension(:),intent(in):: mold
+  mtype=MPI_INTEGER2
+end function type_r1_of_integer2
+function type_r1_of_integer4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*4,dimension(:),intent(in):: mold
+  mtype=MPI_INTEGER4
+end function type_r1_of_integer4
+function type_r1_of_integer8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*8,dimension(:),intent(in):: mold
+  mtype=MPI_INTEGER8
+end function type_r1_of_integer8
+
+function type_r1_of_real4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*4,dimension(:),intent(in):: mold
+  mtype=MPI_real4
+end function type_r1_of_real4
+function type_r1_of_real8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*8,dimension(:),intent(in):: mold
+  mtype=MPI_real8
+end function type_r1_of_real8
+function type_r1_of_real16(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*16,dimension(:),intent(in):: mold
+  mtype=MPI_real16
+end function type_r1_of_real16
+
+function type_r2_of_integer1(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*1,dimension(:,:),intent(in):: mold
+  mtype=MPI_INTEGER1
+end function type_r2_of_integer1
+function type_r2_of_integer2(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*2,dimension(:,:),intent(in):: mold
+  mtype=MPI_INTEGER2
+end function type_r2_of_integer2
+function type_r2_of_integer4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*4,dimension(:,:),intent(in):: mold
+  mtype=MPI_INTEGER4
+end function type_r2_of_integer4
+function type_r2_of_integer8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*8,dimension(:,:),intent(in):: mold
+  mtype=MPI_INTEGER8
+end function type_r2_of_integer8
+
+function type_r2_of_real4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*4,dimension(:,:),intent(in):: mold
+  mtype=MPI_real4
+end function type_r2_of_real4
+function type_r2_of_real8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*8,dimension(:,:),intent(in):: mold
+  mtype=MPI_real8
+end function type_r2_of_real8
+function type_r2_of_real16(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*16,dimension(:,:),intent(in):: mold
+  mtype=MPI_real16
+end function type_r2_of_real16
+
+function type_r3_of_integer1(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*1,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_INTEGER1
+end function type_r3_of_integer1
+function type_r3_of_integer2(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*2,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_INTEGER2
+end function type_r3_of_integer2
+function type_r3_of_integer4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*4,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_INTEGER4
+end function type_r3_of_integer4
+function type_r3_of_integer8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  integer*8,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_INTEGER8
+end function type_r3_of_integer8
+
+function type_r3_of_real4(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*4,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_real4
+end function type_r3_of_real4
+function type_r3_of_real8(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*8,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_real8
+end function type_r3_of_real8
+function type_r3_of_real16(mold) result(mtype)
+  implicit none
+  integer(kind=MPI_IKIND):: mtype
+  real*16,dimension(:,:,:),intent(in):: mold
+  mtype=MPI_real16
+end function type_r3_of_real16
 
 end module mpeu_mpif
 !.

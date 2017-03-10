@@ -13,6 +13,7 @@ module intpwmod
 !   2008-11-26  Todling - remove intpw_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpw_
@@ -25,6 +26,10 @@ module intpwmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_pwNode, only: pwNode
+use m_pwNode, only: pwNode_typecast
+use m_pwNode, only: pwNode_nextcast
 implicit none
 
 PRIVATE
@@ -87,7 +92,7 @@ subroutine intpw_(pwhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
@@ -98,7 +103,7 @@ subroutine intpw_(pwhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(pw_ob_type),pointer,intent(in   ) :: pwhead
+  class(obsNode), pointer, intent(in   ) :: pwhead
   type(gsi_bundle)        ,intent(in   ) :: sval
   type(gsi_bundle)        ,intent(inout) :: rval
 
@@ -112,7 +117,7 @@ subroutine intpw_(pwhead,rval,sval)
   real(r_kind) cg_pw,grad,p0,wnotgross,wgross,pg_pw
   real(r_kind),pointer,dimension(:) :: sq
   real(r_kind),pointer,dimension(:) :: rq
-  type(pw_ob_type), pointer :: pwptr
+  type(pwNode), pointer :: pwptr
 
 !  If no pw data return
   if(.not. associated(pwhead))return
@@ -130,7 +135,8 @@ subroutine intpw_(pwhead,rval,sval)
    
   time_pw = zero
 
-  pwptr => pwhead
+  !pwptr => pwhead
+  pwptr => pwNode_typecast(pwhead)
   do while (associated(pwptr))
      w1=pwptr%wij(1)
      w2=pwptr%wij(2)
@@ -212,7 +218,8 @@ subroutine intpw_(pwhead,rval,sval)
         endif
      endif
 
-     pwptr => pwptr%llpoint
+     !pwptr => pwptr%llpoint
+     pwptr => pwNode_nextcast(pwptr)
 
   end do
 

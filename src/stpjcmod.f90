@@ -691,7 +691,6 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
 !   2009-07-07  kleist
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber  - modify to decrease number of communications
-!   2010-08-18  hu      - add qpvals= to mpl_allreduce call
 !   2011-11-01  eliu    - add handling for ql & qi increments and search directions
 !   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
 !
@@ -802,7 +801,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
      dmass(n+nbins) = dmn2
   end do
 
-  call mpl_reduce(2*nbins,0,qpvals=dmass)
+  call mpl_reduce(2*nbins,0,dmass)
 
 !    Now penalize non-zero global mean dry ps increment
 !    Notice there will only be a contribution from PE=0

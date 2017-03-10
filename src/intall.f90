@@ -14,6 +14,9 @@ module intallmod
 !   2009-08-13  lueken - update documentation
 !   2012-02-08  kleist - changes related to 4d-ensemble-var additions and consolidation of 
 !                   int... individual modules to one intjcmod
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
 !
 ! subroutines included:
 !   sub intall
@@ -175,7 +178,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use jfunc, only: l_foto,dhat_dt
   use jfunc, only: nrclen,nsclen,npclen,ntclen
-  use obsmod, only: yobs
   use intradmod, only: setrad
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
@@ -190,6 +192,10 @@ subroutine intall(sval,sbias,rval,rbias)
   use mpimod, only: mype
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
+
+  use m_obsHeadBundle, only: obsHeadBundle
+  use m_obsHeadBundle, only: obsHeadBundle_create
+  use m_obsHeadBundle, only: obsHeadBundle_destroy
   implicit none
 
 ! Declare passed variables
@@ -203,6 +209,8 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii,it,i
+
+  type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !******************************************************************************
 ! Initialize timer
@@ -221,18 +229,19 @@ subroutine intall(sval,sbias,rval,rbias)
 ! Compute RHS in physical space
   call setrad(sval(1))
   qpred_bin=zero_quad
+  call obsHeadBundle_create(yobs,nobs_bins)
 ! RHS for Jo
 !$omp parallel do  schedule(dynamic,1) private(ibin)
-  do ibin=1,nobs_bins
+  do ibin=1,size(yobs)  ! == nobs_bins
      call intjo(yobs(ibin),rval(ibin),qpred_bin(:,ibin),sval(ibin),sbias,ibin)
   end do
   qpred=zero_quad
-  do ibin=1,nobs_bins
+  do ibin=1,size(yobs)  ! == nobs_bins
      do i=1,nrclen
         qpred(i)=qpred(i)+qpred_bin(i,ibin)
      end do
   end do
-
+  call obsHeadBundle_destroy(yobs)
 
   if(.not.ltlint)then
 ! RHS for moisture constraint
@@ -274,20 +283,22 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for dry ps constraint: part 1
   if(ljcpdry)then
+
     if (.not.ljc4tlevs) then
       call intjcpdry1(sval(ibin_anl),1,mass)
     else 
       call intjcpdry1(sval,nobs_bins,mass)
     end if
-  end if
 
-! Put reduces together to minimize wait time
-! First, use MPI to get global mean increment
-  call mpl_allreduce(2*nobs_bins,qpvals=mass)
+!   Put reduces together to minimize wait time
+!   First, use MPI to get global mean increment
+    call mpl_allreduce(2*nobs_bins,mass)
+
+  end if
 
 ! Take care of background error for bias correction terms
 
-  call mpl_allreduce(nrclen,qpvals=qpred)
+  call mpl_allreduce(size(qpred),qpred)
 
 
 ! RHS for dry ps constraint: part 2

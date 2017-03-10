@@ -92,6 +92,8 @@ subroutine glbsoi(mype)
 !   2014-02-05  todling - update interface to prebal
 !   2014-06-19  carley/zhu - Modify for R_option: optional variable correlation length twodvar_regional
 !                            lcbas analysis variable
+!   2015-10-01  guo     - omb at full res; support via obsdiags 
+!   2015-12-08  el akkraoui - Y. Zhu sat-bias-corr now works with BiCG option
 !
 !   input argument list:
 !     mype - mpi task id
@@ -155,8 +157,10 @@ subroutine glbsoi(mype)
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
   use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc_pof,aircraft_t_bc,mype_airobst
 
-  implicit none
+  use m_prad, only: prad_updatePredx    ! was -- prad_bias()
+  use m_obsdiags, only: obsdiags_write
 
+  implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
@@ -207,7 +211,6 @@ subroutine glbsoi(mype)
 
 ! Create/setup background error and background error balance
   if (regional)then
-     write(6,*) 'MAP calling regional sections!!!'
      call create_balance_vars_reg(mype)
      if(anisotropic) then
         call create_anberror_vars_reg(mype)
@@ -292,7 +295,6 @@ subroutine glbsoi(mype)
 !      another twodvar_regional variables.  All other variables are handled
 !      as they would have been otherwise.
      if (R_option .and. twodvar_regional .and. jiter==jiterstart) then
-        write(6,*) 'MAP anisotropic = ',anisotropic
         if(anisotropic) then
            call anprewgt_reg(mype)
         else
@@ -314,16 +316,17 @@ subroutine glbsoi(mype)
  
 !       Call inner minimization loop
         if (laltmin) then
-           if (newpc4pred) then
-              if (mype==0) write(6,*)'GLBSOI: newpc4pred is not available for lsqrtb'
-              call stop2(334)
-           end if
            if (lsqrtb) then
+              if (newpc4pred) then
+                 if (mype==0) write(6,*)'GLBSOI: newpc4pred is not available for lsqrtb'
+                 call stop2(334)
+              end if
               if (mype==0) write(6,*)'GLBSOI: Using sqrt(B), jiter=',jiter
               call sqrtmin
            endif
            if (lbicg) then
               if (mype==0) write(6,*)'GLBSOI: Using bicg, jiter=',jiter
+              call pcinfo ! Set up additional preconditioning information
               call bicg
            endif
         else
@@ -339,16 +342,18 @@ subroutine glbsoi(mype)
         if (lobsensfc) then
            clfile='obsdiags.ZZZ'
            write(clfile(10:12),'(I3.3)') 100+jiter
-           call write_obsdiags(clfile)
+           call obsdiags_write(clfile)  ! replacing write_obsdiags()
            if (lobsensincr .or. lobsensjb) then
               clfile='xhatsave.ZZZ'
               write(clfile(10:12),'(I3.3)') jiter
               call view_cv(xhatsave,iadate,clfile,.not.lnested_loops)
            endif
         elseif (l4dvar.or.lanczosave) then
-           clfile='obsdiags.ZZZ'
-           write(clfile(10:12),'(I3.3)') jiter
-           call write_obsdiags(clfile)
+           if (l4dvar) then
+              clfile='obsdiags.ZZZ'
+              write(clfile(10:12),'(I3.3)') jiter
+              call obsdiags_write(clfile)  ! replacing write_obsdiags()
+           endif
            clfile='xhatsave.ZZZ'
            write(clfile(10:12),'(I3.3)') jiter
            call view_cv(xhatsave,iadate,clfile,.not.lnested_loops)
@@ -378,7 +383,7 @@ subroutine glbsoi(mype)
      if (write_diag(jiter)) then 
         call setuprhsall(ndata,mype,.true.,.true.)
         if (.not. lsqrtb) call pcinfo
-        if (any(ditype=='rad') .and. passive_bc) call prad_bias
+        if (any(ditype=='rad') .and. passive_bc) call prad_updatePredx() ! was -- call prad_bias
      end if
 
 !    Write xhat- and yhat-save for use as a guess for the solution

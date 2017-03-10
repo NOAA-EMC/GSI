@@ -8,6 +8,7 @@ module intaodmod
 !
 ! program history log:
 !   2010-10-20  hclin   - modified from intrad for total aod
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intaod_
@@ -20,6 +21,10 @@ module intaodmod
 !
 !$$$ end documentation block
 
+  use m_obsNode , only: obsNode
+  use m_aeroNode , only: aeroNode
+  use m_aeroNode , only: aeroNode_typecast
+  use m_aeroNode , only: aeroNode_nextcast
   implicit none
 
   private
@@ -60,7 +65,7 @@ contains
     use kinds, only: r_kind,i_kind,r_quad
     use aeroinfo, only: aerojacnames,aerojacindxs,nsigaerojac
     use state_vectors, only: svars
-    use obsmod, only: aero_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+    use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
     use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
     use gridmod, only: latlon11,latlon1n,nsig
     use qcmod, only: nlnqc_iter,varqc_iter
@@ -74,7 +79,7 @@ contains
     implicit none
 
 ! Declare passed variables
-    type(aero_ob_type),pointer,intent(in) :: aerohead
+    class(obsNode),pointer,intent(in) :: aerohead
     type(gsi_bundle), intent(in   ) :: sval
     type(gsi_bundle), intent(inout) :: rval
 
@@ -85,7 +90,7 @@ contains
     real(r_kind) val
     real(r_kind) w1,w2,w3,w4
 !   real(r_kind) cg_aero,p0,wnotgross,wgross
-    type(aero_ob_type), pointer :: aeroptr
+    type(aeroNode), pointer :: aeroptr
 
     real(r_kind),pointer,dimension(:) :: sv_chem
     real(r_kind),pointer,dimension(:) :: rv_chem
@@ -95,7 +100,8 @@ contains
     naero = size(aerojacnames)
     if ( naero <= 0 ) return
 
-    aeroptr => aerohead
+    !aeroptr => aerohead
+    aeroptr => aeroNode_typecast(aerohead)
     do while (associated(aeroptr))
        j1=aeroptr%ij(1)
        j2=aeroptr%ij(2)
@@ -207,7 +213,8 @@ contains
           end do
        endif ! < l_do_adjoint >
 
-       aeroptr => aeroptr%llpoint
+       !aeroptr => aeroptr%llpoint
+       aeroptr => aeroNode_nextcast(aeroptr)
 !       call stop2(999)
     end do
 

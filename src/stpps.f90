@@ -16,6 +16,7 @@ module stppsmod
 !   2013-10-28  todling - reame p3d to prse
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to chose new non linear qc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpps
@@ -78,17 +79,20 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: ps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_psNode , only: psNode
+  use m_psNode , only: psNode_typecast
+  use m_psNode , only: psNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer            ,intent(in   ) :: pshead
+  class(obsNode), pointer             ,intent(in   ) :: pshead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -103,7 +107,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  type(ps_ob_type), pointer :: psptr
+  type(psNode), pointer :: psptr
 
   out=zero_quad
 
@@ -120,7 +124,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
   endif
   if(ier/=0)return
 
-  psptr => pshead
+  psptr => psNode_typecast(pshead)
   do while (associated(psptr))
      if(psptr%luse)then
         if(nstep > 0)then
@@ -180,7 +184,7 @@ subroutine stpps(pshead,rval,sval,out,sges,nstep)
 
      end if
 
-     psptr => psptr%llpoint
+     psptr => psNode_nextcast(psptr)
   end do
   
   return

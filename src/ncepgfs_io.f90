@@ -2927,7 +2927,7 @@ end subroutine write_ghg_grid
      enddo
   enddo
   xave=xave/(two_quad*float(nlon))
-  call mpl_allreduce(size(ave,1),xave)
+  call mpl_allreduce(size(ave,1),qpvals=xave)
   ave=xave
   deallocate(xave)
   end subroutine glbave

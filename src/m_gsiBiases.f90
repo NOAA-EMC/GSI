@@ -11,7 +11,7 @@ module m_gsiBiases
 ! program history log:
 !   2010-03-24  j guo   - added this document block
 !   2011-08-01  lueken  - replaced F90 with f90, replace izero/ione with 0/1, remove _i_kind
-!   2012-04-06  todling - change all refs from cvars to svars (never to depend on c-vec)
+!  
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -40,7 +40,21 @@ module m_gsiBiases
 
   use kinds,only : r_kind
   use kinds,only : i_kind
-  use jfunc, only : biascor, bcoption, diurnalbc
+  use mpimod, only: mype
+  use jfunc,  only: biascor, bcoption, diurnalbc
+  use gridmod, only: lat2,lon2,nsig
+  use gsi_4dvar, only: nhr_assimilation,ibdate
+
+  use GSI_BundleMod, only: gsi_grid
+  use GSI_BundleMod, only: gsi_bundle
+  use GSI_BundleMod, only: gsi_gridcreate
+  use GSI_BundleMod, only: gsi_bundlecreate
+  use GSI_BundleMod, only: gsi_bundledestroy
+  use GSI_BundleMod, only: gsi_bundlegetpointer
+  use GSI_BundleMod, only: gsi_bundlegetvar
+  use GSI_BundleMod, only: gsi_bundleputvar
+  use GSI_MetGuess_Mod, only: gsi_metguess_bundle
+  use GSI_ChemGuess_Mod, only: gsi_chemguess_bundle
 
   implicit none
 
@@ -54,11 +68,9 @@ module m_gsiBiases
 !   2007-04-10  todling - bug fix in alloc/dealloc (init/clean)
 !   2009-01-20  todling - protect against re-initialization try
 !   2013-10-19  todling - metguess now holds background
-!   2014-03-19  pondeca - add wspd10m
-!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
-!   2014-05-07  pondeca - add howv
-!   2014-06-19  carley/zhu - add tcamt and lcbas
-!   2015-07-10  pondeca - add cldch
+!
+! !REMARS:
+!     Acronym BBC stands for background bias correction.
 !
 ! !AUTHOR:
 !   guo           org: gmao                date: 2006-10-01
@@ -70,76 +82,211 @@ module m_gsiBiases
   public :: bias_hour
   public :: nbc
 
-  public :: correct_bias
-  public :: update_bias
-  public :: compress_bias
-  public :: create_bias_grids
-  public :: destroy_bias_grids
+  public :: bkg_bias_correction
+  public :: bkg_bias_update
+  public :: bkg_bias_model
+  public :: create_bkgbias_grids
+  public :: destroy_bkgbias_grids
 
-  public :: bias_ps
-  public :: bias_tskin
-  public :: bias_vor
-  public :: bias_div
-  public :: bias_cwmr
-  public :: bias_q
-  public :: bias_oz
-  public :: bias_tv
-  public :: bias_u
-  public :: bias_v
-  public :: bias_gust
-  public :: bias_vis
-  public :: bias_pblh
-  public :: bias_wspd10m
-  public :: bias_td2m
-  public :: bias_mxtm
-  public :: bias_mitm
-  public :: bias_pmsl
-  public :: bias_howv
-  public :: bias_tcamt
-  public :: bias_lcbas
-  public :: bias_cldch
+  public :: gsi_bkgbias_bundle
+  public :: bvars2d, bvars3d    ! TODO: temporarily made public
 
   integer(i_kind),save :: bias_hour = -1
   integer(i_kind),save :: nbc       = -1
 
-  interface compress_bias; module procedure &
-     comp2d_,comp3d_; end interface
-  interface update_bias 
-     module procedure update2d_,update3d_,update3d3d_,updateall_,update_st
+  interface bkg_bias_model; module procedure &
+     bias_model2d_,bias_model3d_,bias_model_bundle_; end interface
+  interface bkg_bias_update 
+     module procedure update2d_,update3d_,updateall_
   end interface
-  interface correct_bias; module procedure correct_; end interface
-  interface create_bias_grids ; module procedure init_   ; end interface
-  interface destroy_bias_grids; module procedure clean_  ; end interface
-
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_ps
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_tskin
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_gust
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_vis
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_pblh
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_wspd10m
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_td2m
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_mxtm
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_mitm
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_pmsl
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_howv
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_tcamt
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_lcbas
-  real(r_kind),allocatable,dimension(:,:,:)   :: bias_cldch
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_vor
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_div
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_cwmr
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_q
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_oz
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_tv
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_u
-  real(r_kind),allocatable,dimension(:,:,:,:) :: bias_v
+  interface bkg_bias_correction; module procedure correct_; end interface
+  interface create_bkgbias_grids ; module procedure init_   ; end interface
+  interface destroy_bkgbias_grids; module procedure clean_  ; end interface
 
   logical,save:: initialized_=.false.
+  logical,save:: bkg_bias_set_=.false.
+
+  character(len=32),allocatable,dimension(:):: bvars2d, bvars3d
+  character(len=32),allocatable,dimension(:):: bsrcs2d, bsrcs3d
+  integer(i_kind),allocatable,dimension(:):: levels
+  integer(i_kind),allocatable,dimension(:):: bkg_nymd ! Bkg date: YYYYMMDD
+  integer(i_kind),allocatable,dimension(:):: bkg_nhms ! Bkg time: HHMMSS
+
+  type(gsi_bundle),pointer :: gsi_bkgbias_bundle(:)
 
   character(len=*),parameter::myname='m_gsiBiases'
+
+  integer(i_kind), parameter :: bkg_nstarthr=3  ! GSI always starts 3hrs from syn hour 
 contains
 
-subroutine init_()
+subroutine set_ (iamroot,rcname)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 define background bias variables
+!   prgmmr:	 todling
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:	 2014-10-05
+!
+! abstract: - set which variables in background is GSI to estimate biases for
+!
+! program history log:
+!   2014-10-05  todling  - initial code
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+use file_utility, only : get_lun
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
+use mpeu_util, only: getindex
+implicit none
+
+logical,optional,intent(in) :: iamroot         ! optional root processor id
+character(len=*),optional,intent(in) :: rcname ! optional input filename
+
+character(len=*),parameter::myname_=myname//'*set_'
+character(len=*),parameter:: tbname='background_bias_estimator::'
+integer(i_kind) luin,ii,nrows,ntot,ipnt,istatus
+integer(i_kind) i2d,i3d,n2d,n3d,irank
+integer(i_kind),allocatable,dimension(:)::nlevs
+character(len=256),allocatable,dimension(:):: utable
+character(len=32),allocatable,dimension(:):: vars
+character(len=32),allocatable,dimension(:):: sources
+logical iamroot_,matched
+
+if(bkg_bias_set_) return
+
+iamroot_=mype==0
+if(present(iamroot)) iamroot_=iamroot 
+
+! load file
+if (present(rcname)) then
+   luin=get_lun()
+   open(luin,file=trim(rcname),form='formatted')
+else
+   luin=5
+endif
+
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nrows)
+if(nrows==0) then
+   if(luin/=5) close(luin)
+   return
+endif
+
+! Get contents of table
+allocate(utable(nrows))
+call gettable(tbname,luin,ntot,nrows,utable)
+
+! release file unit
+if(luin/=5) close(luin)
+
+! allocate space for entries from table
+allocate(vars(nrows),nlevs(nrows),sources(nrows))
+
+! Retrieve each token of interest from table and define
+! variables participating in state vector
+n2d=0; n3d=0
+do ii=1,nrows
+   read(utable(ii),*) vars(ii),&  ! variable name
+                      nlevs(ii),& ! number of levels
+                      sources(ii) ! source
+   if (nlevs(ii)==1) then
+      n2d=n2d+1
+   else
+      n3d=n3d+1
+   endif
+enddo
+
+deallocate(utable)
+
+allocate(bvars2d(n2d),bvars3d(n3d),&
+         bsrcs2d(n2d),bsrcs3d(n3d),levels(n3d))
+
+! loop over variables and identify them by comparison
+i2d=0; i3d=0
+do ii=1,nrows
+   matched=.false.
+   if(trim(sources(ii))=='met_guess') then
+      if(associated(gsi_metguess_bundle)) then
+         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(vars(ii)),ipnt,istatus,irank=irank);
+         if (ipnt>0) then
+            if(irank==2) then 
+               i2d=i2d+1
+               bvars2d(i2d)=trim(vars(ii))
+               bsrcs2d(i2d)=trim(sources(ii))
+               matched=.true.
+            endif
+            if(irank==3) then 
+               i3d=i3d+1
+               bvars3d(i3d)=trim(vars(ii))
+               bsrcs3d(i3d)=trim(sources(ii))
+               levels(i3d) =abs(nlevs(ii))
+               matched=.true.
+            endif
+         endif
+      endif
+   endif
+   if(trim(sources(ii))=='chem_guess') then
+      if(associated(gsi_chemguess_bundle)) then
+         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(vars(ii)),ipnt,istatus,irank=irank);
+         if (ipnt>0) then
+            if(irank==2) then
+               i2d=i2d+1
+               bvars2d(i2d)=trim(vars(ii))
+               bsrcs2d(i2d)=trim(sources(ii))
+               matched=.true.
+            endif
+            if(irank==3) then 
+               i3d=i3d+1
+               bvars3d(i3d)=trim(vars(ii))
+               bsrcs3d(i3d)=trim(sources(ii))
+               levels(i3d) =abs(nlevs(ii))
+               matched=.true.
+            endif
+         endif
+      endif
+   endif
+   ! now care for variables not in guess (eventual use)
+   if (.not.matched) then
+      if(nlevs(ii)==1) then
+         i2d=i2d+1
+         bvars2d(i2d)=trim(vars(ii))
+         bsrcs2d(i2d)='unmatched'
+      else
+         i3d=i3d+1
+         bvars3d(i3d)=trim(vars(ii))
+         bsrcs3d(i3d)='unmatched'
+         levels(i3d) =abs(nlevs(ii))
+      endif
+   endif
+enddo
+
+if (iamroot_) then
+    write(6,*) myname_,':  BKG BIAS VARIABLES: '
+    write(6,*) myname_,':  2D-BKG BIAS VARIABLES: '
+    do ii=1,n2d
+       write(6,*) trim(bvars2d(ii))
+    enddo
+    write(6,*) myname_,':  3D-BKG BIAS VARIABLES:'
+    do ii=1,n3d
+       write(6,*) trim(bvars3d(ii))
+    enddo
+end if
+
+deallocate(vars,nlevs,sources)
+bkg_bias_set_=.true.
+
+end subroutine set_
+
+subroutine init_(hour)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_
@@ -149,8 +296,8 @@ subroutine init_()
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
-!   2014-06-19  carley/zhu - add tcamt and lcbas
-!   2015-07-10  pondeca - add cldch
+!   2014-10-04  todling - pass hour of analysis
+!                       - bias estimates now held in bundle
 !
 !   input argument list:
 !
@@ -162,72 +309,81 @@ subroutine init_()
 !
 !$$$ end documentation block
 
-  use gridmod, only: lat2,lon2,nsig
-  use constants, only: zero
+  use constants, only: zero,one
+  use guess_grids, only: nfldsig
   implicit none
 
+  integer(i_kind),intent(in) :: hour
+
+  character(len=*), parameter :: myname_=myname//'*init_'
+  character(len=32) bname
+  type(gsi_grid) :: grid
+
   integer(i_kind):: istatus
-  integer(i_kind):: i,j,k,n
+  integer(i_kind):: nt,i,j,k,n
+  integer(i_kind) ida(8),jda(8)
+  real(r_kind) fhrstep,fha(5),bkg_nhr
 
   if (initialized_) return 
-  if ( biascor < zero ) return
+  if (bcoption==0 ) return
+
+! set table with fields to bias correct
+  call set_(rcname='anavinfo')   ! would be better placed in Observer
+  if ( .not. bkg_bias_set_ ) then
+     bcoption = 0  ! in case table is absent but user sets to do BBC
+     if(mype==0) then
+        write(6,*) myname_,': WARNING, BKG bias correction missing driving table'
+        write(6,*) myname_,': WARNING, BKG bias correction deactivated ...'
+     endif
+     return
+  endif
+
   nbc = 1
   if (nint(diurnalbc)==1) nbc=3
 
-  allocate(bias_ps(lat2,lon2,nbc),bias_tskin(lat2,lon2,nbc),&
-           bias_gust(lat2,lon2,nbc),bias_vis(lat2,lon2,nbc),&
-           bias_pblh(lat2,lon2,nbc),bias_wspd10m(lat2,lon2,nbc),&
-           bias_td2m(lat2,lon2,nbc),bias_mxtm(lat2,lon2,nbc), &
-           bias_mitm(lat2,lon2,nbc),bias_pmsl(lat2,lon2,nbc),&
-           bias_howv(lat2,lon2,nbc),bias_cldch(lat2,lon2,nbc),&
-           bias_vor(lat2,lon2,nsig,nbc),&
-           bias_tcamt(lat2,lon2,nbc),bias_lcbas(lat2,lon2,nbc),&
-           bias_div(lat2,lon2,nsig,nbc),bias_cwmr(lat2,lon2,nsig,nbc),&
-           bias_oz(lat2,lon2,nsig,nbc),bias_q(lat2,lon2,nsig,nbc),&
-           bias_tv(lat2,lon2,nsig,nbc),bias_u(lat2,lon2,nsig,nbc),&
-           bias_v(lat2,lon2,nsig,nbc),stat=istatus)
-  if (istatus/=0) then
-     write(6,*)'CREATE_BIAS_GRIDS:  allocate error5, istatus=',&
-        istatus
+! create grid which biases are defined over
+  call GSI_GridCreate(grid,lat2,lon2,nsig)
+
+! allocate structures
+  allocate(gsi_bkgbias_bundle(nbc))
+
+! loop over slots
+  do nt=1,nbc
+
+!    create background bias bundle for this slot
+     write(bname,'(a,i3.3)') 'Bkg Bias Vector-',nt
+     call GSI_BundleCreate(gsi_bkgbias_bundle(nt),grid,bname,istatus, &
+                           names2d=bvars2d,names3d=bvars3d,levels=levels,bundle_kind=r_kind)
+
+  enddo
+
+! store dates/time background available for 
+! NOTE: This should not really be done here (it belongs to guess_grids)
+  allocate(bkg_nymd(nfldsig))
+  allocate(bkg_nhms(nfldsig))
+  if(nfldsig>1) then
+    bkg_nhr=nhr_assimilation/nfldsig+1.0_r_kind 
+  else
+    bkg_nhr=6.0_r_kind 
   endif
+  do nt=1,nfldsig
+     ida(1:3)=ibdate(1:3)
+     ida(5:6)=ibdate(4:5)
+     jda(:)=0
+     fha(:)=0.0
+     fhrstep = bkg_nstarthr + (nt-1)*bkg_nhr
+     fha(2)=fhrstep-3.0_r_kind ! NCEP counts time from previous syn analysis
+     call w3movdat(fha,ida,jda)
+     bkg_nymd(nt)=jda(1)*10000+jda(2)*100+jda(3)
+     bkg_nhms(nt)=jda(5)*10000
+     if (mype==0) then
+        write(6,'(2a,i8.8,a,i6.6)') myname_, 'Background fields available on ', bkg_nymd(nt), ' ', bkg_nhms(nt)
+     endif
+  enddo
 
-  do n=1,nbc
-     do j=1,lon2
-        do i=1,lat2
-           bias_ps   (i,j,n)=zero
-           bias_tskin(i,j,n)=zero
-           bias_gust (i,j,n)=zero
-           bias_vis  (i,j,n)=zero
-           bias_pblh (i,j,n)=zero
-           bias_wspd10m (i,j,n)=zero
-           bias_td2m (i,j,n)=zero
-           bias_mxtm (i,j,n)=zero
-           bias_mitm (i,j,n)=zero
-           bias_pmsl  (i,j,n)=zero
-           bias_howv  (i,j,n)=zero
-           bias_tcamt (i,j,n)=zero
-           bias_lcbas (i,j,n)=zero
-           bias_cldch (i,j,n)=zero
-        end do
-     end do
-  end do
-  do n=1,nbc
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              bias_vor (i,j,k,n)=zero
-              bias_div (i,j,k,n)=zero
-              bias_tv  (i,j,k,n)=zero
-              bias_q   (i,j,k,n)=zero
-              bias_oz  (i,j,k,n)=zero
-              bias_cwmr(i,j,k,n)=zero
-              bias_u   (i,j,k,n)=zero
-              bias_v   (i,j,k,n)=zero
-           end do
-        end do
-     end do
-  end do
-
+  bias_hour=hour
+  if(mype==0) &
+    write(6,*) myname_, ': created ', nbc, ' slot(s) to hold bias estimate'
   initialized_ = .true.
 
 end subroutine init_
@@ -242,8 +398,7 @@ subroutine clean_()
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
-!   2014-06-19  carley/zhu - add tcamt and lcbas
-!   2015-07-10  pondeca - add cldch
+!   2014-10-04  todling - bias estimates now held in bundle
 !
 !   input argument list:
 !
@@ -257,14 +412,27 @@ subroutine clean_()
 
    implicit none
 
-   integer(i_kind):: istatus
+   character(len=*), parameter :: myname_=myname//'*clean_'
+   integer(i_kind):: nt,istatus
 
    if (.not.initialized_) return 
-   if ( nbc < 0 ) return
-   deallocate(bias_ps,bias_tskin,bias_gust,bias_vis,bias_pblh,bias_wspd10m, &
-              bias_td2m,bias_mxtm,bias_mitm,bias_pmsl,bias_howv,bias_cldch,bias_vor,bias_div,&
-              bias_tv,bias_q,bias_oz,bias_cwmr,bias_u,bias_v,bias_tcamt,bias_lcbas,stat=istatus)
-   write(6,*)'CREATE_BIAS_GRIDS:  deallocate error5, istatus=',istatus
+
+   deallocate(bkg_nhms)
+   deallocate(bkg_nymd)
+
+!  destroy each instance of bundle
+   do nt=1,size(gsi_bkgbias_bundle)
+
+!     destroy nt slot ...
+      call GSI_BundleDestroy(gsi_bkgbias_bundle(nt),istatus)
+       if(istatus/=0) then
+        if(mype==0) &
+        write(6,*)myname_,':  Error Dealloc(), istatus=',istatus
+      endif
+
+   enddo
+   deallocate(gsi_bkgbias_bundle)
+
 end subroutine clean_
 
 !-------------------------------------------------------------------------
@@ -273,12 +441,12 @@ end subroutine clean_
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: comp2d_ --- 2d-interface to bias compression
+! !IROUTINE: bias_model2d_ --- 2d-interface to bias model
 !
 ! !INTERFACE:
 !
 
-subroutine comp2d_(bias2d_,bias,hour)
+subroutine bias_model2d_(bias2d,varname,rc,hour,iflag)
 
 ! !USES:
 
@@ -287,12 +455,17 @@ subroutine comp2d_(bias2d_,bias,hour)
 
 ! !INPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:),intent(in   ) :: bias
-   integer(i_kind)                 ,intent(in   ) :: hour
+   character(len=*)        ,intent(in   ) :: varname
+   integer(i_kind),optional,intent(in   ) :: hour
+   integer(i_kind),optional,intent(in   ) :: iflag  ! when -1 routine simple compress biases
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:)  ,intent(inout) :: bias2d_
+   real   (r_kind),dimension(:,:),intent(inout) :: bias2d
+
+! !OUTPUT PARAMETERS:
+
+   integer(i_kind)               ,intent(  out) :: rc
 
 ! !DESCRIPTION: 2d-interface to bias prediction model
 !
@@ -300,6 +473,8 @@ subroutine comp2d_(bias2d_,bias,hour)
 !
 !   2006-10-01  guo     - initial code
 !   2006-12-04  todling - documentation/prologue
+!   2014-10-04  todling - bug fix: was incorrect for persistent bias case
+!                       - bias estimate now kept in bundle
 !
 ! !REMARKS:
 !   language: f90
@@ -311,17 +486,41 @@ subroutine comp2d_(bias2d_,bias,hour)
 !EOP
 !-------------------------------------------------------------------------
 
+   integer(i_kind) :: istatus
    real(r_kind) :: twopi
-   real(r_kind) :: coshr,sinhr
+   real(r_kind) :: coshr,sinhr,coeff
+   real(r_kind),allocatable,dimension(:,:,:):: bias
 
-   twopi=8._r_kind*atan(one)
-   coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
-   sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
+   rc=0
+   allocate(bias(lat2,lon2,nbc))
+   call gsi_bundlegetvar(gsi_bkgbias_bundle,varname,bias,istatus)
+   if(istatus/=0) then
+      deallocate(bias)
+      rc=-1
+      return
+   endif
 
-   bias2d_(:,:) = bias(:,:,1) + &
-                  bias(:,:,2)*coshr + &
-                  bias(:,:,3)*sinhr
-end subroutine comp2d_
+   coeff = biascor(1)
+   if (present(iflag)) then
+      if(iflag==-1) coeff=one
+   endif
+
+   if (nbc==1) then
+      bias2d(:,:) = coeff*bias(:,:,1)
+   endif
+ 
+   if (nbc==3) then
+      twopi=8._r_kind*atan(one)
+      coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
+      sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
+
+      bias2d(:,:) = coeff*(bias(:,:,1) + &
+                           bias(:,:,2)*coshr + &
+                           bias(:,:,3)*sinhr)
+   endif
+   deallocate(bias)
+
+end subroutine bias_model2d_
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -329,12 +528,12 @@ end subroutine comp2d_
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: comp3d_ --- 3d-interface to bias compression
+! !IROUTINE: bias_model3d_ --- 3d-interface to bias model
 !
 ! !INTERFACE:
 !
 
-subroutine comp3d_(bias3d_,bias,hour)
+subroutine bias_model3d_(bias3d,varname,rc,hour,iflag)
 
 ! USES:
 
@@ -343,12 +542,17 @@ subroutine comp3d_(bias3d_,bias,hour)
 
 ! !INPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:,:),intent(in   ) :: bias
-   integer(i_kind)                   ,intent(in   ) :: hour
+   character(len=*)        ,intent(in   ) :: varname
+   integer(i_kind),optional,intent(in   ) :: hour
+   integer(i_kind),optional,intent(in   ) :: iflag  ! when -1 routine simple compress biases
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-   real   (r_kind),dimension(:,:,:)  ,intent(inout) :: bias3d_
+   real   (r_kind),dimension(:,:,:),intent(inout) :: bias3d
+
+! !OUTPUT PARAMETERS:
+
+   integer(i_kind)                 ,intent(  out) :: rc
 
 ! !DESCRIPTION: 3d-interface to bias prediction model
 !
@@ -356,6 +560,8 @@ subroutine comp3d_(bias3d_,bias,hour)
 !
 !   2006-10-01  guo     - initial code
 !   2006-12-04  todling - documentation/prologue
+!   2014-10-04  todling - bug fix: was incorrect for persistent bias case
+!                       - bias estimate now kept in bundle
 !
 ! !REMARKS:
 !   language: f90
@@ -367,17 +573,98 @@ subroutine comp3d_(bias3d_,bias,hour)
 !EOP
 !-------------------------------------------------------------------------
 
+   integer(i_kind) :: istatus
    real(r_kind) :: twopi
-   real(r_kind) :: coshr,sinhr
+   real(r_kind) :: coshr,sinhr,coeff
+   real(r_kind),allocatable,dimension(:,:,:,:):: bias
 
-   twopi=8._r_kind*atan(one)
-   coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
-   sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
+   rc=0
 
-   bias3d_(:,:,:) = bias(:,:,:,1) + &
-                    bias(:,:,:,2)*coshr + &
-                    bias(:,:,:,3)*sinhr
-end subroutine comp3d_
+   allocate(bias(lat2,lon2,nsig,nbc))
+   call gsi_bundlegetvar(gsi_bkgbias_bundle,varname,bias,istatus)
+   if(istatus/=0) then
+      rc=-1
+      deallocate(bias)
+      return
+   endif
+
+   coeff = biascor(1)
+   if (present(iflag)) then
+      if(iflag==-1) coeff=one
+   endif
+
+   if (nbc==1) then
+      bias3d(:,:,:) = coeff*bias(:,:,:,1)
+   endif
+
+   if (nbc==3) then
+      twopi=8._r_kind*atan(one)
+      coshr=one*cos(twopi*hour/24._r_kind)*diurnalbc
+      sinhr=one*sin(twopi*hour/24._r_kind)*diurnalbc
+
+      bias3d(:,:,:) = coeff*(bias(:,:,:,1) + &
+                             bias(:,:,:,2)*coshr + &
+                             bias(:,:,:,3)*sinhr)
+   endif
+   deallocate(bias)
+
+end subroutine bias_model3d_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!    &    NASA/GMAO, Global Modeling and Assimilation Office             !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: bias_mode_bundle_ --- bundle-interface to bias model
+!
+! !INTERFACE:
+!
+subroutine bias_model_bundle_ (bundle,hour)
+
+! USES:
+
+   implicit none
+
+! !INPUT PARAMETERS:
+
+integer(i_kind),optional,intent(in) :: hour
+
+! !INPUT/OUTPUT PARAMETERS:
+
+type(gsi_bundle) bundle
+
+! !DESCRIPTION: bundle-interface to bias prediction model
+!
+! !REVISION HISTORY:
+!
+!   2014-10-04  todling - initial code
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP; Altix Linux
+!
+! !AUTHOR:
+!   todling      org: gmao     date: 2014-10-04
+!
+!EOP
+!-------------------------------------------------------------------------
+
+integer(i_kind) iv,istatus
+real(r_kind), pointer, dimension(:,:)   :: ptr2d
+real(r_kind), pointer, dimension(:,:,:) :: ptr3d
+
+do iv=1,size(bvars2d)
+   call gsi_bundlegetpointer(bundle, bvars2d(iv), ptr2d, istatus)
+   if(istatus==0) call bias_model2d_ (ptr2d,bvars2d(iv),istatus,hour=hour)
+enddo
+
+do iv=1,size(bvars3d)
+   call gsi_bundlegetpointer(bundle, bvars3d(iv), ptr3d, istatus)
+   if(istatus==0) call bias_model3d_ (ptr3d,bvars3d(iv),istatus,hour=hour)
+enddo
+
+end subroutine bias_model_bundle_
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -390,7 +677,7 @@ end subroutine comp3d_
 ! !INTERFACE:
 !
 
-subroutine update2d_(bias,lat2,lon2,xhat,hour)
+subroutine update2d_(bias,sval,hour)
 
 ! USES:
 
@@ -399,13 +686,12 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind)                     ,intent(in   ) :: lat2,lon2
-  real   (r_kind),dimension(lat2*lon2),intent(in   ) :: xhat
-  integer(i_kind),optional            ,intent(in   ) :: hour
+  real   (r_kind),dimension(:,:),intent(in   ) :: sval
+  integer(i_kind),optional      ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-  real   (r_kind),dimension(:,:,:)    ,intent(inout) :: bias
+  real   (r_kind),dimension(:,:,:),intent(inout) :: bias
 
 ! !DESCRIPTION: 2d-interface to bias prediction model
 !
@@ -413,6 +699,10 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
 !
 !   2006-10-01  guo     - initial code
 !   2006-12-04  todling - documentation/prologue
+!   2014-10-04  todling - revisit selection of persistent/diurnal cases
+!                       - multiplicative parameter belongs to bias model
+!   2014-10-11  todling - make bias sign consistent with Dee and da Silva (1998)
+!                         and Dee and Todling (2000)
 !
 ! !REMARKS:
 !   language: f90
@@ -426,36 +716,21 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
 
 ! local variables
 
-  real   (r_kind) :: dumpcor_
-  real   (r_kind) :: twopi,coshr,sinhr
-  integer(i_kind) :: i,ib,ie
+  real(r_kind) :: twopi,coshr,sinhr
 
-  dumpcor_=one
-  if (bcoption == 1) dumpcor_=0.98_r_kind
-  if (bcoption == 2) dumpcor_=one-half*biascor
-
-  if(present(hour)) then
-     twopi=8._r_kind*atan(one)
-     coshr=cos(twopi*hour/24._r_kind)*two*biascor
-     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
-
-     ib=0
-     do i=1,lon2
-        ie=ib+lat2
-        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+1:ie)
-        bias(:,i,2)=dumpcor_*bias(:,i,2) +   coshr*xhat(ib+1:ie)
-        bias(:,i,3)=dumpcor_*bias(:,i,3) +   sinhr*xhat(ib+1:ie)
-        ib=ie
-     end do
-
-  else
-     ib=0
-     do i=1,lon2
-        ie=ib+lat2
-        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+1:ie)
-        ib=ie
-     end do
+  if (nbc==1) then
+     bias(:,:,1)=bias(:,:,1) - biascor(2)*sval
   endif
+  if (nbc==3) then
+     twopi=8._r_kind*atan(one)
+     coshr=cos(twopi*hour/24._r_kind)*two*biascor(2)
+     sinhr=sin(twopi*hour/24._r_kind)*two*biascor(2)
+
+     bias(:,:,1)=bias(:,:,1) - biascor(2)*sval
+     bias(:,:,2)=bias(:,:,2) -      coshr*sval
+     bias(:,:,3)=bias(:,:,3) -      sinhr*sval
+  endif
+
 end subroutine update2d_
 
 !-------------------------------------------------------------------------
@@ -469,7 +744,7 @@ end subroutine update2d_
 ! !INTERFACE:
 !
 
-subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
+subroutine update3d_(bias,sval,hour)
 
 ! !USES:
 
@@ -478,21 +753,24 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
 
 ! !INPUT PARAMETERS:
 
-  integer(i_kind)                          ,intent(in   ) :: lat2,lon2,nsig
-  real   (r_kind),dimension(lat2*lon2*nsig),intent(in   ) :: xhat
-  integer(i_kind),optional                 ,intent(in   ) :: hour
+  real   (r_kind),dimension(:,:,:),intent(in   ) :: sval
+  integer(i_kind),optional        ,intent(in   ) :: hour
 
 ! !INPUT/OUTPUT PARAMETERS:
 
-  real   (r_kind),dimension(:,:,:,:)       ,intent(inout) :: bias
+  real   (r_kind),dimension(:,:,:,:),intent(inout) :: bias
 
-! !DESCRIPTION: 3d-interface to bias prediction model, w/ xhat as
+! !DESCRIPTION: 3d-interface to bias prediction model, w/ sval as
 !               a single-dimension array.
 !
 ! !REVISION HISTORY:
 !
 !   2006-10-01  guo     - initial code
 !   2006-12-04  todling - documentation/prologue
+!   2014-10-04  todling - revisit selection of persistent/diurnal cases
+!                       - multiplicative parameter belongs to bias model
+!   2014-10-11  todling - make bias sign consistent with Dee and da Silva (1998)
+!                         and Dee and Todling (2000)
 !
 ! !REMARKS:
 !   language: f90
@@ -506,108 +784,22 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
 
 ! local variables
 
-  real   (r_kind) :: dumpcor_
-  real   (r_kind) :: twopi,coshr,sinhr
-  integer(i_kind) :: k,i,ib,ie
+  real(r_kind) :: twopi,coshr,sinhr
 
-  dumpcor_=one
-  if (bcoption == 1) dumpcor_=0.98_r_kind
-  if (bcoption == 2) dumpcor_=one-half*biascor
-
-  if(present(hour)) then
+  if(nbc==1) then
+     bias(:,:,:,1)=bias(:,:,:,1) - biascor(2)*sval
+  endif
+  if(nbc==3) then
      twopi=8._r_kind*atan(one)
-     coshr=cos(twopi*hour/24._r_kind)*two*biascor
-     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
+     coshr=cos(twopi*hour/24._r_kind)*two*biascor(2)
+     sinhr=sin(twopi*hour/24._r_kind)*two*biascor(2)
  
-     ib=0
-     do k=1,nsig
-        do i=1,lon2
-           ie=ib+lat2
-           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+1:ie)
-           bias(:,i,k,2)=dumpcor_*bias(:,i,k,2) +   coshr*xhat(ib+1:ie)
-           bias(:,i,k,3)=dumpcor_*bias(:,i,k,3) +   sinhr*xhat(ib+1:ie)
-           ib=ie
-        end do
-     end do
-
-  else
-     ib=0
-     do k=1,nsig
-        do i=1,lon2
-           ie=ib+lat2
-           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+1:ie)
-           ib=ie
-        end do
-     end do
+     bias(:,:,:,1)=bias(:,:,:,1) - biascor(2)*sval
+     bias(:,:,:,2)=bias(:,:,:,2) -      coshr*sval
+     bias(:,:,:,3)=bias(:,:,:,3) -      sinhr*sval
   endif
+
 end subroutine update3d_
-
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!    &    NASA/GMAO, Global Modeling and Assimilation Office             !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: update3d3d_ --- 3d-interface to bias prediction model
-!
-! !INTERFACE:
-!
-
-subroutine update3d3d_(bias,xhat,hour)
-
-! !USES:
-
-  use constants, only: half,one,two
-  implicit none
-
-! !INPUT PARAMETERS:
-
-  real   (r_kind),dimension(:,:,:)  ,intent(in   ) :: xhat
-  integer(i_kind),optional          ,intent(in   ) :: hour
-
-! !INPUT/OUTPUT PARAMETERS:
-
-  real   (r_kind),dimension(:,:,:,:),intent(inout) :: bias
-
-! !DESCRIPTION: 3d-interface to bias prediction model
-!
-! !REVISION HISTORY:
-!
-!   2006-10-01  guo     - initial code
-!   2006-12-04  todling - documentation/prologue
-!
-! !REMARKS:
-!   language: f90
-!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP; Altix Linux
-!
-! !AUTHOR:
-!   guo          org: gmao     date: 2006-10-01
-!
-!EOP
-!-------------------------------------------------------------------------
-
-! local variables
-
-  real   (r_kind) :: dumpcor_
-  real   (r_kind) :: twopi,coshr,sinhr
-                                                                                                                                                             
-  dumpcor_=one
-  if (bcoption == 1) dumpcor_=0.98_r_kind
-  if (bcoption == 2) dumpcor_=one-half*biascor
-                                                                                                                                                             
-  if(present(hour)) then
-     twopi=8._r_kind*atan(one)
-     coshr=cos(twopi*hour/24._r_kind)*two*biascor
-     sinhr=sin(twopi*hour/24._r_kind)*two*biascor
-                                                                                                                                                             
-     bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
-     bias(:,:,:,2)=dumpcor_*bias(:,:,:,2) +   coshr*xhat(:,:,:)
-     bias(:,:,:,3)=dumpcor_*bias(:,:,:,3) +   sinhr*xhat(:,:,:)
-
-  else
-     bias(:,:,:,1)=dumpcor_*bias(:,:,:,1) + biascor*xhat(:,:,:)
-  endif
-end subroutine update3d3d_
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -620,20 +812,19 @@ end subroutine update3d3d_
 ! !INTERFACE:
 !
 
-subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
+subroutine updateall_ (sval,sval_div,sval_vor,hour)
 
 ! !USES:
 
-  use gridmod, only: lat2,lon2,nsig,latlon11,latlon1n
+  use gridmod, only: twodvar_regional
 
   implicit none
 
 ! !INPUT PARAMETERS:
 
-  real(r_kind),dimension(:)    ,intent(in   ) :: xhat
-  real(r_kind),dimension(:)    ,intent(in   ) :: xhatuv
-  real(r_kind),dimension(:,:,:),intent(in   ) :: xhat_vor,xhat_div,xhat_q
-  integer(i_kind),optional     ,intent(in   ) :: hour
+  type(gsi_bundle)             ,intent(in) :: sval
+  real(r_kind),dimension(:,:,:),intent(in) :: sval_vor,sval_div
+  integer(i_kind),optional     ,intent(in) :: hour
 
 ! !OUTPUT PARAMETERS:
 
@@ -642,13 +833,9 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 ! !REVISION HISTORY:
 !
 !   2006-12-04  todling - initial code
-!
-! !TO DO:
-!
-!   1. check dims of input xhat arrays
-!       real(r_kind),dimension(nclen),intent(inout):: xhat
-!       real(r_kind),dimension(2*latlon1n),intent(in):: xhatuv
-!       real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q
+!   2011-02-11  zhu     - add gust,vis,pblh
+!   2014-10-04  todling - bias now kept in bundle
+!                       - bug fix: vor/div where fed in reverse (ie, vor to div) 
 !
 ! !REMARKS:
 !   language: f90
@@ -660,35 +847,152 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
 !EOP
 !-------------------------------------------------------------------------
 
-  integer(i_kind) :: l2,l3
-  integer(i_kind) :: ncw,nt,np,noz,nsst,nq,nu,nv,nst,nvp
+  character(len=*), parameter :: myname_=myname//'*updateall_'
+  logical upa_update
+  integer(i_kind) :: ier,istatus
+  real(r_kind),allocatable :: bias2dp1(:,:,:)
+  real(r_kind),allocatable :: bias3dp1(:,:,:,:)
+  real(r_kind),pointer :: ptr_2d(:,:)
+  real(r_kind),pointer :: ptr_ps(:,:), ptr_sst(:,:)
+  real(r_kind),pointer :: ptr_tv(:,:,:), ptr_q(:,:,:)
+  real(r_kind),pointer :: ptr_u(:,:,:), ptr_v(:,:,:)
+  real(r_kind),pointer :: ptr_oz(:,:,:), ptr_cw(:,:,:)
  
-  l2=lat2*lon2-1
-  l3=lat2*lon2*nsig-1
-
-  nst=1                               ! streamfunction
-  nvp=nst+latlon1n                    ! velocity potential
-  nt=nvp +latlon1n                    ! t
-  nq=nt  +latlon1n                    ! q
-  noz=nq +latlon1n                    ! oz
-  ncw=noz+latlon1n                    ! cloud water
-  np=ncw +latlon1n                    ! surface pressure
-  nsst=np+latlon11                    ! skin temperature
-
 ! Define pointers for isolated u,v on subdomains work vector
-  nu=1                                ! zonal wind
-  nv=nu+latlon1n                      ! meridional wind
 
-  call update3d_  (bias_u    ,lat2,lon2,nsig,xhatuv(nu:nu+l3)  ,hour)
-  call update3d_  (bias_v    ,lat2,lon2,nsig,xhatuv(nv:nv+l3)  ,hour)
-  call update3d_  (bias_tv   ,lat2,lon2,nsig,xhat(nt:nt+l3)    ,hour)
-  call update3d_  (bias_q    ,lat2,lon2,nsig,xhat_q            ,hour)
-  call update3d_  (bias_oz   ,lat2,lon2,nsig,xhat(noz:noz+l3)  ,hour)
-  call update3d_  (bias_cwmr ,lat2,lon2,nsig,xhat(ncw:ncw+l3)  ,hour)
-  call update3d3d_(bias_vor  ,               xhat_div          ,hour)
-  call update3d3d_(bias_div  ,               xhat_vor          ,hour)
-  call update2d_  (bias_ps   ,lat2,lon2     ,xhat(np:np+l2)    ,hour)
-  call update2d_  (bias_tskin,lat2,lon2     ,xhat(nsst:nsst+l2),hour)
+
+  upa_update=.false.
+  allocate(bias2dp1(lat2,lon2,nbc))
+  allocate(bias3dp1(lat2,lon2,nsig,nbc))
+
+  call gsi_bundlegetpointer(sval,'u',  ptr_u, istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'u',bias3dp1,istatus);ier=ier+istatus
+  if(ier==0) then
+     call update3d_ (bias3dp1,ptr_u,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'u',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'v',  ptr_v,  istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'v',bias3dp1,istatus); ier=ier+istatus
+  if(ier==0) then
+     call update3d_ (bias3dp1,ptr_v,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'v',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'tv', ptr_tv, istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'tv',bias3dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update3d_ (bias3dp1,ptr_tv,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'tv',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'q',  ptr_q,  istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'q',bias3dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update3d_ (bias3dp1,ptr_q,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'q',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'oz', ptr_oz, istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'oz',bias3dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update3d_ (bias3dp1,ptr_oz,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'oz',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'cw', ptr_cw, istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'cw',bias3dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update3d_ (bias3dp1,ptr_cw,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'cw',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'div',bias3dp1,istatus)
+  if(istatus==0) then 
+     call update3d_ (bias3dp1,sval_div,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'div',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'vor',bias3dp1,istatus)
+  if(istatus==0) then 
+     call update3d_ (bias3dp1,sval_vor,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'vor',bias3dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'ps', ptr_ps, istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'ps',bias2dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update2d_ (bias2dp1,ptr_ps,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'ps',bias2dp1,istatus)
+     upa_update=.true.
+  endif
+
+  call gsi_bundlegetpointer(sval,'sst',ptr_sst,istatus); ier=istatus
+  call gsi_bundlegetvar(gsi_bkgbias_bundle,'sst',bias2dp1,istatus); ier=ier+istatus
+  if(ier==0) then 
+     call update2d_ (bias2dp1,ptr_sst,hour=hour)
+     call gsi_bundleputvar(gsi_bkgbias_bundle,'sst',bias2dp1,istatus)
+     upa_update=.true.
+  endif
+
+  deallocate(bias2dp1)
+  deallocate(bias3dp1)
+
+  if (upa_update) then
+     if(present(hour)) then
+       if(mype==0) & 
+       write(6,*) trim(myname_), ': complete bias update for all upper-air vars at hour ',hour
+     else
+       if(mype==0) & 
+       write(6,*) trim(myname_), ': complete bias update for all upper-air variables'
+     endif
+  endif
+
+
+  if (twodvar_regional) then
+     call gsi_bundlegetpointer (sval,'gust' ,ptr_2d, istatus)
+     if (istatus>0) then
+        allocate(bias2dp1(size(ptr_2d,1),size(ptr_2d,2),nbc))
+        call gsi_bundlegetpointer (sval,'gust' ,ptr_2d, istatus)
+        call gsi_bundlegetvar (gsi_bkgbias_bundle,'gust' ,bias2dp1, istatus)
+        call update2d_  (bias2dp1,ptr_2d,hour=hour)
+        call gsi_bundleputvar (gsi_bkgbias_bundle,'gust' ,bias2dp1, istatus)
+        deallocate(bias2dp1)
+     end if
+
+     call gsi_bundlegetpointer (sval,'vis' ,ptr_2d, istatus)
+     if (istatus>0) then
+        allocate(bias2dp1(size(ptr_2d,1),size(ptr_2d,2),nbc))
+        call gsi_bundlegetvar (gsi_bkgbias_bundle,'vis' ,bias2dp1, istatus)
+        call update2d_  (bias2dp1 ,ptr_2d,hour=hour)
+        call gsi_bundleputvar (gsi_bkgbias_bundle,'vis' ,bias2dp1, istatus)
+        deallocate(bias2dp1)
+     end if
+
+     call gsi_bundlegetpointer (sval,'pblh' ,ptr_2d, istatus)
+     if (istatus>0) then
+        allocate(bias2dp1(size(ptr_2d,1),size(ptr_2d,2),nbc))
+        call gsi_bundlegetvar (gsi_bkgbias_bundle,'pblh' ,bias2dp1, istatus)
+        call update2d_  (bias2dp1,ptr_2d,hour=hour)
+        call gsi_bundleputvar (gsi_bkgbias_bundle,'pblh' ,bias2dp1, istatus)
+        deallocate(bias2dp1)
+     end if
+     if (present(hour)) then
+        if(mype==0) & 
+        write(6,*) trim(myname_), ': complete bias update for 2d-Var vars at hour ', hour
+     else
+        if(mype==0) & 
+        write(6,*) trim(myname_), ': complete bias update for 2d-Var variables'
+     endif
+  end if
 
 end subroutine updateall_
 
@@ -698,165 +1002,7 @@ end subroutine updateall_
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: update_st   --- update bias in all analysis fields
-!
-! !INTERFACE:
-!
-
-subroutine update_st(xhat,xhat_div,xhat_vor,hour)
-
-  use gridmod, only: lat2,lon2,nsig,twodvar_regional
-  use gsi_bundlemod, only: gsi_bundle
-  use gsi_bundlemod, only: gsi_bundlegetpointer
-
-  implicit none
-
-  type(gsi_bundle)             ,intent(in   ) :: xhat
-  real(r_kind),dimension(:,:,:),intent(in   ) :: xhat_vor,xhat_div
-  integer(i_kind),optional     ,intent(in   ) :: hour
-
-! !DESCRIPTION: state vector interface to update bias of all fields
-!
-! !REVISION HISTORY:
-!
-!   2007-04-13  tremolet - initial code
-!   2010-05-13  todling  - update to use gsi_bundle (not fully up-to-date)
-!   2011-02-11  zhu      - add gust,vis,pblh
-!   2014-03-19  pondeca  - add wspd10m
-!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
-!   2014-05-07  pondeca - add howv
-!   2014-06-19  carley/zhu - add tcamt and lcbas
-!   2015-07-10  pondeca - add cldch
-!
-! !REMARKS:
-!   language: f90
-!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP; Altix Linux
-!
-!EOP
-!-------------------------------------------------------------------------
-
-   character(len=*),parameter::myname_='update_st'
-   integer(i_kind) ier,istatus
-   integer(i_kind) i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch
-   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh,sv_wspd10m, &
-                                            sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_tcamt,sv_lcbas,sv_cldch
-   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_q,sv_tv,sv_oz,sv_cw
-!  real(r_kind),pointer,dimension(:,:,:) :: sv_prse,sv_tsen
-
-!  Get pointers to require state variables
-   ier=0
-   call gsi_bundlegetpointer (xhat,'u'   ,sv_u,   istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'v'   ,sv_v,   istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'tv'  ,sv_tv,  istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'q'   ,sv_q ,  istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'oz'  ,sv_oz , istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'cw'  ,sv_cw , istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'ps'  ,sv_ps,  istatus); ier=istatus+ier
-!  call gsi_bundlegetpointer (xhat,'prse',sv_prse,istatus); ier=istatus+ier
-!  call gsi_bundlegetpointer (xhat,'tsen',sv_tsen,istatus); ier=istatus+ier
-   call gsi_bundlegetpointer (xhat,'sst' ,sv_sst, istatus); ier=istatus+ier
-   if (twodvar_regional) then
-      call gsi_bundlegetpointer (xhat,'gust' ,i_gust, istatus)
-      if (i_gust>0) then
-         call gsi_bundlegetpointer (xhat,'gust' ,sv_gust, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'vis' ,i_vis, istatus)
-      if (i_vis>0) then
-         call gsi_bundlegetpointer (xhat,'vis' ,sv_vis, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'pblh' ,i_pblh, istatus)
-      if (i_pblh>0) then
-         call gsi_bundlegetpointer (xhat,'pblh' ,sv_pblh, istatus); ier=istatus+ier
-      end if
-      
-      call gsi_bundlegetpointer (xhat,'wspd10m' ,i_wspd10m, istatus)
-      if (i_wspd10m>0) then
-         call gsi_bundlegetpointer (xhat,'wspd10m' ,sv_wspd10m, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'td2m' ,i_td2m, istatus)
-      if (i_td2m>0) then
-         call gsi_bundlegetpointer (xhat,'td2m' ,sv_td2m, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'mxtm' ,i_mxtm, istatus)
-      if (i_mxtm>0) then
-         call gsi_bundlegetpointer (xhat,'mxtm' ,sv_mxtm, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'mitm' ,i_mitm, istatus)
-      if (i_mitm>0) then
-         call gsi_bundlegetpointer (xhat,'mitm' ,sv_mitm, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'pmsl' ,i_pmsl, istatus)
-      if (i_pmsl>0) then
-         call gsi_bundlegetpointer (xhat,'pmsl' ,sv_pmsl, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'howv' ,i_howv, istatus)
-      if (i_howv>0) then
-         call gsi_bundlegetpointer (xhat,'howv' ,sv_howv, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'tcamt' ,i_tcamt, istatus)
-      if (i_tcamt>0) then
-         call gsi_bundlegetpointer (xhat,'tcamt' ,sv_tcamt, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'lcbas' ,i_lcbas, istatus)
-      if (i_lcbas>0) then
-         call gsi_bundlegetpointer (xhat,'lcbas' ,sv_lcbas, istatus); ier=istatus+ier
-      end if
-
-      call gsi_bundlegetpointer (xhat,'cldch' ,i_cldch, istatus)
-      if (i_cldch>0) then
-         call gsi_bundlegetpointer (xhat,'cldch' ,sv_cldch, istatus); ier=istatus+ier
-      end if
-
-   end if
-   if(ier/=0) then
-      write(6,*) trim(myname_), ': trouble getting SV pointers, ier=',ier
-      call stop2(999)
-   endif
-
- 
-  call update3d_  (bias_u    ,lat2,lon2,nsig,sv_u    ,hour)
-  call update3d_  (bias_v    ,lat2,lon2,nsig,sv_v    ,hour)
-  call update3d_  (bias_tv   ,lat2,lon2,nsig,sv_tv   ,hour)
-  call update3d_  (bias_q    ,lat2,lon2,nsig,sv_q    ,hour)
-  call update3d_  (bias_oz   ,lat2,lon2,nsig,sv_oz   ,hour)
-  call update3d_  (bias_cwmr ,lat2,lon2,nsig,sv_cw   ,hour)
-  call update3d3d_(bias_vor  ,               xhat_div,hour)
-  call update3d3d_(bias_div  ,               xhat_vor,hour)
-  call update2d_  (bias_ps   ,lat2,lon2     ,sv_ps   ,hour)
-  call update2d_  (bias_tskin,lat2,lon2     ,sv_sst  ,hour)
-  if (twodvar_regional) then
-     if (i_gust>0) call update2d_  (bias_gust,lat2,lon2,sv_gust,hour)
-     if (i_vis>0 ) call update2d_  (bias_vis ,lat2,lon2,sv_vis ,hour)
-     if (i_pblh>0) call update2d_  (bias_pblh,lat2,lon2,sv_pblh,hour)
-     if (i_wspd10m>0) call update2d_  (bias_wspd10m,lat2,lon2,sv_wspd10m,hour)
-     if (i_td2m>0) call update2d_  (bias_td2m,lat2,lon2,sv_td2m,hour)
-     if (i_mxtm>0) call update2d_  (bias_mxtm,lat2,lon2,sv_mxtm,hour)
-     if (i_mitm>0) call update2d_  (bias_mitm,lat2,lon2,sv_mitm,hour)
-     if (i_pmsl>0) call update2d_  (bias_pmsl,lat2,lon2,sv_pmsl,hour)
-     if (i_howv>0) call update2d_  (bias_howv,lat2,lon2,sv_howv,hour)
-     if (i_tcamt>0) call update2d_ (bias_tcamt,lat2,lon2,sv_tcamt,hour)
-     if (i_lcbas>0) call update2d_ (bias_lcbas,lat2,lon2,sv_lcbas,hour)
-     if (i_cldch>0) call update2d_ (bias_cldch,lat2,lon2,sv_cldch,hour)
-  end if
-
-end subroutine update_st
-
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!    &    NASA/GMAO, Global Modeling and Assimilation Office             !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: updateall_ --- update bias in all analysis fields
+! !IROUTINE: correct_ --- perform bias correction of background state
 !
 ! !INTERFACE:
 !
@@ -865,14 +1011,11 @@ subroutine correct_()
 
 ! !USES:
 
-  use gridmod, only: lat2,lon2,nsig,latlon1n,twodvar_regional
-  use guess_grids, only: nfldsig,ntguessig
+  use gridmod, only: twodvar_regional
+  use guess_grids, only: nfldsig
   use guess_grids, only: sfct
-  use constants, only: tiny_r_kind
-  use gsi_metguess_mod, only: gsi_metguess_bundle
-  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use constants, only: tiny_r_kind,qmin,qcmin
   use mpeu_util, only: die
-  use state_vectors, only: svars2d
   use mpeu_util, only: getindex
 
   implicit none
@@ -886,19 +1029,8 @@ subroutine correct_()
 !   2006-12-04  todling - initial code
 !   2011-02-11  zhu     - add gust,vis,pblh
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
-!   2014-03-19  pondeca - add wspd10m
-!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
-!   2014-05-07  pondeca - add howv
-!   2014-06-19  carley/zhu - add tcamt and lcbas
-!   2015-07-10  pondeca - add cldch
-!
-! !TO DO:
-!
-!   1. check dims of input xhat arrays
-!       real(r_kind),dimension(nclen)     ,intent(inout) :: xhat
-!       real(r_kind),dimension(2*latlon1n),intent(in   ) :: xhatuv
-
-!       real(r_kind),dimension(lat2,lon2,nsig):: xhat_vor,xhat_div,xhat_q
+!   2014-10-11  todling - make bias sign consistent with Dee and da Silva (1998)
+!                         and Dee and Todling (2000)
 !
 ! !REMARKS:
 !   language: f90
@@ -911,7 +1043,7 @@ subroutine correct_()
 !-------------------------------------------------------------------------
 ! local variables
 
-  character(len=*),parameter::myname_=myname//'correct_'
+  character(len=*),parameter::myname_=myname//'*correct_'
 
   real(r_kind),pointer,dimension(:,:  )  :: ptr2dges   =>NULL()
   real(r_kind),pointer,dimension(:,:  )  :: ges_ps_it  =>NULL()
@@ -924,192 +1056,163 @@ subroutine correct_()
   real(r_kind),pointer,dimension(:,:,:)  :: ges_oz_it  =>NULL()
   real(r_kind),pointer,dimension(:,:,:)  :: ges_cwmr_it=>NULL()
 
-  real(r_kind),allocatable,dimension(:,:)  :: b_ps
-  real(r_kind),allocatable,dimension(:,:)  :: b_tskin
-  real(r_kind),allocatable,dimension(:,:)  :: b_gust
-  real(r_kind),allocatable,dimension(:,:)  :: b_vis
-  real(r_kind),allocatable,dimension(:,:)  :: b_pblh
-  real(r_kind),allocatable,dimension(:,:)  :: b_wspd10m
-  real(r_kind),allocatable,dimension(:,:)  :: b_td2m
-  real(r_kind),allocatable,dimension(:,:)  :: b_mxtm
-  real(r_kind),allocatable,dimension(:,:)  :: b_mitm
-  real(r_kind),allocatable,dimension(:,:)  :: b_pmsl
-  real(r_kind),allocatable,dimension(:,:)  :: b_howv
-  real(r_kind),allocatable,dimension(:,:)  :: b_tcamt
-  real(r_kind),allocatable,dimension(:,:)  :: b_lcbas
-  real(r_kind),allocatable,dimension(:,:)  :: b_cldch
-  real(r_kind),allocatable,dimension(:,:,:):: b_vor
-  real(r_kind),allocatable,dimension(:,:,:):: b_div
-  real(r_kind),allocatable,dimension(:,:,:):: b_cwmr
-  real(r_kind),allocatable,dimension(:,:,:):: b_q
-  real(r_kind),allocatable,dimension(:,:,:):: b_oz
-  real(r_kind),allocatable,dimension(:,:,:):: b_tv
-  real(r_kind),allocatable,dimension(:,:,:):: b_u
-  real(r_kind),allocatable,dimension(:,:,:):: b_v
+  real(r_kind),allocatable,dimension(:,:)  :: work2d
+  real(r_kind),allocatable,dimension(:,:,:):: work3d
 
-  integer(i_kind),allocatable,dimension(:) :: hours
-  integer(i_kind) :: i,j,k,it,ier,istatus
+  integer(i_kind) :: i,j,k,it,bkg_hour,idummy,ier,istatus
 
 ! Get memory for bias-related arrays
 
-  allocate(hours(nfldsig))
-  allocate(b_ps(lat2,lon2),b_tskin(lat2,lon2),b_gust(lat2,lon2),&
-           b_vis(lat2,lon2),b_pblh(lat2,lon2),b_wspd10m(lat2,lon2), &
-           b_td2m(lat2,lon2),b_mxtm(lat2,lon2),b_mitm(lat2,lon2), &
-           b_pmsl(lat2,lon2),b_howv(lat2,lon2),b_vor(lat2,lon2,nsig),&
-           b_div(lat2,lon2,nsig),b_cwmr(lat2,lon2,nsig),b_tcamt(lat2,lon2),&
-           b_lcbas(lat2,lon2),b_oz(lat2,lon2,nsig),b_q(lat2,lon2,nsig),&
-           b_tv(lat2,lon2,nsig),b_u(lat2,lon2,nsig),b_v(lat2,lon2,nsig),&
-           b_cldch(lat2,lon2))
- 
+  allocate(work2d(lat2,lon2),work3d(lat2,lon2,nsig))
 
   do it=1,nfldsig
+     bkg_hour = bkg_nhms(it)/10000
 
 !    Get pointer to could water mixing ratio
-     ier=0
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,istatus)
-     ier=ier+istatus
+     if (istatus==0) then
+        call bias_model2d_(work2d,'ps',ier,hour=bkg_hour,iflag=-1)
+        if(ier==0) then
+           ges_ps_it = ges_ps_it - work2d
+        endif
+     endif
+
+     call bias_model2d_(work2d,'sst',ier,hour=bkg_hour,iflag=-1)
+     if(ier==0) then
+        sfct(:,:,it) = sfct(:,:,it) - work2d
+     endif
+
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u_it,istatus)
-     ier=ier+istatus
+     if (istatus==0) then
+        call bias_model3d_(work3d,'u',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_u_it,work3d)
+        endif
+     endif
+
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v_it,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
-     ier=ier+istatus
+     if (istatus==0) then
+        call bias_model3d_(work3d,'v',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_v_it,work3d)
+        endif
+     endif
+
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q_it,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,istatus)
-     ier=ier+istatus
+     if (istatus==0) then
+        call bias_model3d_(work3d,'tv',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_tv_it,work3d)
+        endif
+     endif
+
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     if (istatus==0) then
+        call bias_model3d_(work3d,'vor',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_vor_it,work3d)
+        endif
+     endif
+
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     if (istatus==0) then
+        call bias_model3d_(work3d,'div',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_div_it,work3d)
+        endif
+     endif
+
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-     ier=ier+istatus
-     if (ier/=0) call die(trim(myname_),'cannot get pointers for bias correction, ier =',ier)
+     if (istatus==0) then
+        call bias_model3d_(work3d,'cw' ,ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_cwmr_it,work3d,qcmin)
+        endif
+     endif
 
-     call comp2d_(b_ps   ,bias_ps   ,hours(it))
-     call comp2d_(b_tskin,bias_tskin,hours(it))
-     call comp3d_(b_u    ,bias_u    ,hours(it))
-     call comp3d_(b_v    ,bias_v    ,hours(it))
-     call comp3d_(b_tv   ,bias_tv   ,hours(it))
-     call comp3d_(b_vor  ,bias_vor  ,hours(it))
-     call comp3d_(b_div  ,bias_div  ,hours(it))
-     call comp3d_(b_cwmr ,bias_cwmr ,hours(it))
-     call comp3d_(b_q    ,bias_q    ,hours(it))
-     call comp3d_(b_oz   ,bias_oz   ,hours(it))
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q_it,istatus)
+     if (istatus==0) then
+        call bias_model3d_(work3d ,'q',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_q_it,work3d,qmin)
+        endif
+     endif
 
-     if (twodvar_regional) then
-        if (getindex(svars2d,'gust')>0) &
-        call comp2d_(b_gust,bias_gust,hours(it))
-        if (getindex(svars2d,'vis')>0) &
-        call comp2d_(b_vis ,bias_vis ,hours(it))
-        if (getindex(svars2d,'pblh')>0) &
-        call comp2d_(b_pblh,bias_pblh,hours(it))
-        if (getindex(svars2d,'wspd10m')>0) &
-        call comp2d_(b_wspd10m,bias_wspd10m,hours(it))
-        if (getindex(svars2d,'td2m')>0) &
-        call comp2d_(b_td2m,bias_td2m,hours(it))
-        if (getindex(svars2d,'mxtm')>0) &
-        call comp2d_(b_mxtm,bias_mxtm,hours(it))
-        if (getindex(svars2d,'mitm')>0) &
-        call comp2d_(b_mitm,bias_mitm,hours(it))
-        if (getindex(svars2d,'pmsl')>0) &
-        call comp2d_(b_pmsl,bias_pmsl,hours(it))
-        if (getindex(svars2d,'howv')>0) &
-        call comp2d_(b_howv,bias_howv,hours(it))
-        if (getindex(svars2d,'tcamt')>0) &
-        call comp2d_(b_tcamt,bias_tcamt,hours(it))
-        if (getindex(svars2d,'lcbas')>0) &
-        call comp2d_(b_lcbas,bias_lcbas,hours(it))
-        if (getindex(svars2d,'cldch')>0) &
-        call comp2d_(b_cldch,bias_cldch,hours(it))
-     end if
-
-     bias_hour=hours(ntguessig)
-
-     do j=1,lon2
-        do i=1,lat2
-           ges_ps_it(i,j)= ges_ps_it(i,j) + b_ps(i,j)
-        end do
-     end do
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              ges_u_it(i,j,k)   =                 ges_u_it(i,j,k)    + b_u(i,j,k)
-              ges_v_it(i,j,k)   =                 ges_v_it(i,j,k)    + b_v(i,j,k)
-              ges_vor_it(i,j,k) =                 ges_vor_it(i,j,k)  + b_vor(i,j,k)
-              ges_div_it(i,j,k) =                 ges_div_it(i,j,k)  + b_div(i,j,k)
-              ges_cwmr_it(i,j,k)=                 ges_cwmr_it(i,j,k) + b_cwmr(i,j,k)
-              ges_q_it(i,j,k)   = max(tiny_r_kind,ges_q_it(i,j,k)    + b_q(i,j,k))
-              ges_oz_it(i,j,k)  = max(tiny_r_kind,ges_oz_it(i,j,k)   + b_oz(i,j,k))
-              ges_tv_it(i,j,k)  = max(tiny_r_kind,ges_tv_it(i,j,k)   + b_tv(i,j,k))
-           end do
-        end do
-     end do
-     do j=1,lon2
-        do i=1,lat2
-           sfct(i,j,it)= sfct(i,j,it) + b_tskin(i,j)
-        end do
-     end do
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,istatus)
+     if (istatus==0) then
+        call bias_model3d_(work3d,'oz',ier,hour=bkg_hour,iflag=-1)
+        if (ier==0) then
+           call upd_fldr3_(ges_oz_it,work3d,tiny_r_kind)
+        endif
+     endif
 
      if (twodvar_regional) then
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'gust')>0) then
-           ptr2dges = ptr2dges + b_gust
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',idummy,istatus)
+        if(istatus==0) then
+           call bias_model2d_(work2d,'gust',ier,hour=bkg_hour,iflag=-1)
+           if (ier==0) then
+              call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ptr2dges,ier)
+              if (ier==0) then
+                 ptr2dges = ptr2dges - work2d
+                 ptr2dges =>NULL()
+              end if
+           end if
         end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'vis')>0) then
-           ptr2dges = ptr2dges + b_vis
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',idummy,istatus)
+        if(istatus==0) then
+           call bias_model2d_(work2d,'vis',ier,hour=bkg_hour,iflag=-1)
+           if (ier==0) then
+              call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ptr2dges,ier)
+              if (ier==0) then
+                 ptr2dges = ptr2dges - work2d
+                 ptr2dges =>NULL()
+              end if
+           end if
         end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'pblh')>0) then
-           ptr2dges = ptr2dges + b_pblh
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'wspd10m',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'wspd10m')>0) then
-           ptr2dges = ptr2dges + b_wspd10m
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'td2m',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'td2m')>0) then
-           ptr2dges = ptr2dges + b_td2m
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mxtm',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'mxtm')>0) then
-           ptr2dges = ptr2dges + b_mxtm
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'mitm',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'mitm')>0) then
-           ptr2dges = ptr2dges + b_mitm
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pmsl',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'pmsl')>0) then
-           ptr2dges = ptr2dges + b_pmsl
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'howv',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'howv')>0) then
-           ptr2dges = ptr2dges + b_howv
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'tcamt')>0) then
-           ptr2dges = ptr2dges + b_tcamt
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'lcbas')>0) then
-           ptr2dges = ptr2dges + b_lcbas
-        end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cldch',ptr2dges,ier)
-        if (ier==0.and.getindex(svars2d,'cldch')>0) then
-           ptr2dges = ptr2dges + b_cldch
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',idummy,istatus)
+        if(istatus==0) then
+           call bias_model2d_(work2d,'pblh',ier,hour=bkg_hour,iflag=-1)
+           if (ier==0) then
+              call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ptr2dges,ier)
+              if (ier==0) then
+                 ptr2dges = ptr2dges - work2d
+                 ptr2dges =>NULL()
+              end if
+           end if
         end if
      end if
   end do
 
 ! Clean up bias-related arrays
 
-  deallocate(hours)
-  deallocate(b_ps,b_tskin,b_gust,b_vis,b_pblh,b_wspd10m,b_td2m,b_mxtm,b_mitm,b_pmsl,b_howv, &
-             b_vor,b_div,b_cwmr,b_oz,b_q,b_tv,b_u,b_v,b_tcamt,b_lcbas,b_cldch)
+  deallocate(work2d,work3d)
 
 end subroutine correct_
+
+subroutine upd_fldr3_(ges,xinc,threshold)
+  real(r_kind),optional:: threshold
+  real(r_kind),pointer :: ges(:,:,:)
+  real(r_kind)         :: xinc(:,:,:)
+  integer(i_kind) i,j,k
+  if(present(threshold))then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ges(i,j,k) = max(ges(i,j,k)-xinc(i,j,k),threshold)
+           end do
+        end do
+     end do
+  else
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ges(i,j,k) = ges(i,j,k)-xinc(i,j,k)
+           end do
+        end do
+     end do
+  endif
+end subroutine upd_fldr3_
 
 end module m_gsiBiases

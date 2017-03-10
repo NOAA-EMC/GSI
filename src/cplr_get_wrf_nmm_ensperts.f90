@@ -19,171 +19,6 @@ use abstract_get_wrf_nmm_ensperts_mod
 
   end type get_wrf_nmm_ensperts_class
 contains
-  subroutine ens_member_mean_dualres_regional(this,en_bar,mype,en_perts,nelen)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    ens_member_mean_dualres_regional
-  !   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
-  !
-  ! abstract:
-  !
-  !
-  ! program history log:
-  !   2010-08-11  parrish, initial documentation
-  !   2011-04-05  parrish - add pseudo-bundle capability
-  !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
-  !
-  !   input argument list:
-  !     en_bar - ensemble mean
-  !      mype  - current processor number
-  !
-  !   output argument list:
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$ end documentation block
-  !
-    use kinds, only: r_single,r_kind,i_kind
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-!   use hybrid_ensemble_isotropic, only: en_perts,nelen
-    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
-    use constants, only:  zero,one
-    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
-    use gsi_bundlemod, only: gsi_bundlecreate
-    use gsi_bundlemod, only: gsi_grid
-    use gsi_bundlemod, only: gsi_bundle
-    use gsi_bundlemod, only: gsi_bundlegetpointer
-    use gsi_bundlemod, only: gsi_gridcreate
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),intent(in):: en_bar
-    integer(i_kind),intent(in):: mype
-    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
-    integer(i_kind), intent(in   ):: nelen
-  
-    type(gsi_bundle):: sube,suba
-    type(gsi_grid):: grid_ens,grid_anl
-    real(r_kind) sig_norm_inv
-    type(sub2grid_info)::se,sa
-    integer(i_kind) k
-  
-    integer(i_kind) i,n,ic3
-    logical regional
-    integer(i_kind) num_fields,inner_vars,istat,istatus
-    logical,allocatable::vector(:)
-    real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
-    real(r_kind),pointer,dimension(:,:):: ps
-    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
-    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
-    character(24) filename
-  
-  !      create simple regular grid
-          call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
-          call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
-  
-  !      create two internal bundles, one on analysis grid and one on ensemble grid
-  
-         call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
-                                   names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-         if(istatus/=0) then
-            write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
-            call stop2(999)
-         endif
-         call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
-                                   names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-         if(istatus/=0) then
-            write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
-            call stop2(999)
-         endif
-  
-    sig_norm_inv=sqrt(n_ens-one)
-  
-    do n=1,n_ens+1
-  
-       do i=1,nelen
-          if(n <= n_ens)then
-             sube%values(i)=en_perts(n,1)%valuesr4(i)*sig_norm_inv+en_bar%values(i)
-          else
-             sube%values(i)=en_bar%values(i)
-          end if
-       end do
-  
-       if(grd_ens%latlon1n == grd_anl%latlon1n) then
-          do i=1,nelen
-             suba%values(i)=sube%values(i)
-          end do
-       else
-          inner_vars=1
-          num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
-          allocate(vector(num_fields))
-          vector=.false.
-          do ic3=1,nc3d
-             if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
-                do k=1,grd_ens%nsig
-                   vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
-                end do
-             end if
-          end do
-          call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
-                                            regional,vector)
-          call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
-                                            regional,vector)
-          deallocate(vector)
-          call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
-       end if
-  
-       dum2=zero
-       dum3=zero
-       call gsi_bundlegetpointer(suba,'sf',st,istat)
-       if(istat/=0) then
-          write(6,*)' no sf pointer in ens_member_dualres, point st at dum3 array'
-          st => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'vp',vp,istat)
-       if(istat/=0) then
-          write(6,*)' no vp pointer in ens_member_dualres, point vp at dum3 array'
-          vp => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'t',tv,istat)
-       if(istat/=0) then
-          write(6,*)' no t pointer in ens_member_dualres, point tv at dum3 array'
-          tv => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'q',rh,istat)
-       if(istat/=0) then
-             write(6,*)' no q pointer in ens_member_dualres, point rh at dum3 array'
-          rh => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'oz',oz,istat)
-       if(istat/=0) then
-          write(6,*)' no oz pointer in ens_member_dualres, point oz at dum3 array'
-          oz => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'cw',cw,istat)
-       if(istat/=0) then
-             write(6,*)' no cw pointer in ens_member_dualres, point cw at dum3 array'
-          cw => dum3
-       end if
-       call gsi_bundlegetpointer(suba,'ps',ps,istat)
-       if(istat/=0) then
-          write(6,*)' no ps pointer in ens_member_dualres, point ps at dum2 array'
-          ps => dum2
-       end if
-     
-       if(n <= n_ens)then
-          write(filename,"('ens_mem',i3.3)") n
-          call this%grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,filename)
-       else
-          call this%grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,'ens_bar')
-       end if
-    end do
-     
-    return
-  
-  end subroutine ens_member_mean_dualres_regional
   subroutine get_wrf_nmm_ensperts_wrf(this,en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -2112,644 +1947,6 @@ contains
   
   return
   end subroutine general_read_wrf_nmm_netcdf
-
-  subroutine general_reorder2_s(grd,work,k_in)
-  !$$$  subprogram documentation block
-  !                .      .    .
-  ! subprogram:    general_reorder2_s
-  !
-  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
-  !
-  ! abstract:  adapt reorder2 to single precision
-  !
-  ! program history log:
-  !   2004-01-25  kleist
-  !   2004-05-14  kleist, documentation
-  !   2004-07-15  todling, protex-complaint prologue
-  !   2004-11-29  parrish, adapt reorder2 to single precision
-  !   2008-04-16  safford -- add subprogram doc block
-  !   2011-09-16  mtong, add structure variable grd
-  !
-  !   input argument list:
-  !     grd
-  !     k_in    ! number of levs in work array
-  !     work
-  !
-  !   output argument list:
-  !     work
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
-  !
-  !$$$
-  
-  ! !USES:
-  
-    use constants, only: zero_single
-    use mpimod, only: npe
-    use kinds, only: r_single,i_kind
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-  
-  ! !INPUT PARAMETERS:
-  
-    type(sub2grid_info),intent(in   ) :: grd
-    integer(i_kind)    ,intent(in   ) :: k_in    ! number of levs in work array
-  
-  ! !INPUT/OUTPUT PARAMETERS:
-  
-    real(r_single),dimension(grd%itotsub,k_in),intent(inout) :: work
-  
-    integer(i_kind) iloc,iskip,i,k,n
-    real(r_single),dimension(grd%itotsub*k_in):: temp
-  
-  ! Zero out temp array
-    do k=1,grd%itotsub*k_in
-       temp(k)=zero_single
-    end do
-  
-  ! Load temp array in order of subdomains
-    iloc=0
-    iskip=0
-    do n=1,npe
-       if (n/=1) then
-          iskip=iskip+grd%ijn_s(n-1)
-       end if
-  
-       do k=1,k_in
-          do i=1,grd%ijn_s(n)
-             iloc=iloc+1
-             temp(iloc)=work(iskip+i,k)
-          end do
-       end do
-    end do
-  
-  ! Now load the tmp array back into work
-    iloc=0
-    do k=1,k_in
-       do i=1,grd%itotsub
-          iloc=iloc+1
-          work(i,k)=temp(iloc)
-       end do
-    end do
-  
-    return
-  end subroutine general_reorder2_s
-  subroutine generic_grid2sub_ens(this,grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
-  !   prgmmr: parrish          org: np22                date: 2004-11-29
-  !
-  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
-  !              along the k index.
-  !
-  ! program history log:
-  !   2004-02-03  kleist, new mpi strategy
-  !   2004-05-06  derber
-  !   2004-07-15  treadon - handle periodic subdomains
-  !   2004-07-28  treadon - add only on use declarations; add intent in/out
-  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
-  !               sub2grid routine if necessary
-  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
-  !   2011-09-16  mtong, add structure variable grd
-  !
-  !   input argument list:
-  !     tempa    - input grid values in horizontal slab mode.
-  !     kbegin_loc - starting k index for tempa on local processor
-  !     kend_loc   - ending k index for tempa on local processor
-  !     kbegin     - starting k indices for tempa for all processors
-  !     kend       - ending k indices for tempa for all processors
-  !     mype       - local processor number
-  !     num_fields - total range of k index (1 <= k <= num_fields)
-  !
-  !   output argument list:
-  !     all_loc  - output grid values in vertical subdomain mode
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$
-  
-    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
-    use kinds, only: r_single,i_kind
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-   
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info),intent(in   ) :: grd
-    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
-    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-    real(r_single) ,intent(inout) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
-    real(r_single) ,intent(  out) :: all_loc(grd%lat2*grd%lon2*num_fields)
-   
-    integer(i_kind) k
-    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
-  
-  ! first get alltoallv indices
-   
-    sdispls(0)=0
-    do k=0,npe-1
-       sendcounts(k)=grd%ijn_s(k+1)*(kend_loc-kbegin_loc+1)
-       sdispls(k+1)=sdispls(k)+sendcounts(k)
-    end do
-    rdispls(0)=0
-    do k=0,npe-1
-       recvcounts(k)=grd%ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
-       rdispls(k+1)=rdispls(k)+recvcounts(k)
-    end do
-   
-  ! then call reorder2
-  
-    call this%general_reorder2_s(grd,tempa,kend_loc-kbegin_loc+1)
-  
-  ! then alltoallv and i think we are done??
-  
-    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
-         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
-  
-  end subroutine generic_grid2sub_ens
-
-  subroutine grads3a(this,grd,u,v,tsen,q,pd,nvert,mype,fname)
-  
-    use kinds, only: r_kind,i_kind,r_single
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind) nvert
-    integer(i_kind), intent(in)::mype
-    character(*) fname
-    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: u,v,tsen,q
-    real(r_kind),dimension(grd%lat2,grd%lon2):: pd
-  
-    real(r_kind),dimension(grd%nlat,grd%nlon)::work
-    real(r_single) outfield(grd%nlon,grd%nlat)
-  
-    character(50) dsname,title,filename
-  ! data dsname/'test.dat'/
-    data title/'inmi'/
-    character(112) datdes(50000)
-    character(1) blank
-    data blank/' '/
-    data undef/-9.99e33_r_single/
-  
-    integer(i_kind) i,k,next,ioutdes,ioutdat
-    integer(i_kind) last,j,koutmax
-    real(r_single) undef
-    real(r_single) startp,pinc
-  
-    if(mype==0) then
-      startp=1._r_single
-      pinc=1._r_single
-      ioutdes=98750
-      ioutdat=98751
-      write(filename,'(a,".des")')trim(fname)
-      write(dsname,'(a,".dat")')trim(fname)
-      open(unit=ioutdes,file=trim(filename),form='formatted')
-      open(unit=ioutdat,file=trim(dsname),form='unformatted')
-      rewind ioutdes
-      rewind ioutdat
-      do i=1,50000
-        write(datdes(i),'(112a1)')(blank,k=1,112)
-      end do
-      write(datdes(1),'("DSET ^",a50)')dsname
-      write(datdes(2),'("options big_endian sequential")')
-      write(datdes(3),'("TITLE ",a50)')title
-      write(datdes(4),'("UNDEF ",e11.2)')undef
-      next=5
-      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
-      next=next+1
-      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
-      next=next+1
-      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
-      next=next+1
-      koutmax=1
-      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
-      next=next+1
-      write(datdes(next),'("VARS 5")')
-      next=next+1
-      write(datdes(next),'("u   ",i5," 99 u   ")')nvert
-      next=next+1
-      write(datdes(next),'("v   ",i5," 99 v   ")')nvert
-      next=next+1
-      write(datdes(next),'("t   ",i5," 99 t   ")')nvert
-      next=next+1
-      write(datdes(next),'("q   ",i5," 99 q   ")')nvert
-      next=next+1
-      write(datdes(next),'("pd  ",i5," 99 pd  ")')0
-      next=next+1
-      write(datdes(next),'("ENDVARS")')
-      last=next
-      write(ioutdes,'(a112)')(datdes(i),i=1,last)
-    endif
-    do k=1,nvert
-      call this%sub2grid_3a(grd,u(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,v(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,q(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    call this%sub2grid_3a(grd,pd(1,1),work,0,mype)
-    if(mype==0) then
-      do j=1,grd%nlon ; do i=1,grd%nlat
-          outfield(j,i)=work(i,j)
-      end do ; end do
-      write(ioutdat)outfield
-    end if
-  
-    if(mype==0) then
-      close(ioutdes)
-      close(ioutdat)
-    end if
-  end subroutine grads3a
-  
-  subroutine grads3d(this,grd,field,nvert,mype,fname)
-  
-    use kinds, only: r_kind,i_kind,r_single
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                   ,intent(in   ) :: grd
-    integer(i_kind) nvert
-    integer(i_kind), intent(in)::mype
-    character(*) fname
-    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
-  
-    real(r_kind),dimension(grd%nlat,grd%nlon)::work
-    real(r_single) outfield(grd%nlon,grd%nlat)
-  
-    character(50) dsname,title,filename
-  ! data dsname/'test.dat'/
-    data title/'inmi'/
-    character(112) datdes(50000)
-    character(1) blank
-    data blank/' '/
-    data undef/-9.99e33_r_single/
-  
-    integer(i_kind) i,k,next,ioutdes,ioutdat
-    integer(i_kind) last,j,koutmax
-    real(r_single) undef
-    real(r_single) startp,pinc
-  
-    if(mype==0) then
-      startp=1._r_single
-      pinc=1._r_single
-      ioutdes=98752
-      ioutdat=98753
-      write(filename,'(a,"x3d.ctl")')trim(fname)
-      write(dsname,'(a,"x3d.dat")')trim(fname)
-      open(unit=ioutdes,file=trim(filename),form='formatted')
-      open(unit=ioutdat,file=trim(dsname),form='unformatted')
-      rewind ioutdes
-      rewind ioutdat
-      do i=1,50000
-        write(datdes(i),'(112a1)')(blank,k=1,112)
-      end do
-      write(datdes(1),'("DSET ^",a50)')dsname
-      write(datdes(2),'("options big_endian sequential")')
-      write(datdes(3),'("TITLE ",a50)')title
-      write(datdes(4),'("UNDEF ",e11.2)')undef
-      next=5
-      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
-      next=next+1
-      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
-      next=next+1
-      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
-      next=next+1
-      koutmax=1
-      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
-      next=next+1
-      write(datdes(next),'("VARS 1")')
-      next=next+1
-      write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
-      next=next+1
-      write(datdes(next),'("ENDVARS")')
-      last=next
-      write(ioutdes,'(a112)')(datdes(i),i=1,last)
-      write(6,'(a112)')(datdes(i),i=1,last)
-    endif
-  
-    do k=1,nvert
-      call this%sub2grid_3a(grd,field(1,1,k),work,0,mype)
-      if(mype==0) then
-        do j=1,grd%nlon ; do i=1,grd%nlat
-            outfield(j,i)=work(i,j)
-        end do ; end do
-        write(ioutdat)outfield
-      end if
-    end do
-  
-    if(mype==0) then
-      close(ioutdes)
-      close(ioutdat)
-    end if
-  
-  end subroutine grads3d
-  
-  subroutine sub2grid_3a(this,grd,sub,grid,gridpe,mype)
-  
-  !     straightforward, but inefficient code to convert a single variable on subdomains to complete
-  !      slab on one processor.
-  !  2013-10-24 todling - revisit strip interface
-  
-    use kinds, only: r_kind,i_kind
-    use constants, only: zero
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-    use general_sub2grid_mod, only: sub2grid_info
-    implicit none
-  
-    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
-    type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind), intent(in)::gridpe,mype
-    real(r_kind),dimension(grd%lat2,grd%lon2),intent(in):: sub
-    real(r_kind),dimension(grd%nlat,grd%nlon),intent(out)::grid
-  
-    real(r_kind),dimension(grd%lat1*grd%lon1):: zsm
-    real(r_kind),dimension(grd%itotsub):: work1
-    integer(i_kind) mm1,i,j,k
-  
-    mm1=mype+1
-  
-    do j=1,grd%lon1*grd%lat1
-      zsm(j)=zero
-    end do
-    call this%strip_grd(grd,sub,zsm)
-    call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
-                   work1,grd%ijn,grd%displs_g,mpi_rtype, &
-                   gridpe,mpi_comm_world,ierror)
-    if(mype==gridpe) then
-      do k=1,grd%iglobal
-        i=grd%ltosi(k) ; j=grd%ltosj(k)
-        grid(i,j)=work1(k)
-      end do
-    end if
-  
-  end subroutine sub2grid_3a
-  
-  subroutine strip_grd(grd,field_in,field_out)
-  
-  ! !USES:
-  
-      use kinds, only: i_kind,r_kind
-      use general_sub2grid_mod, only: sub2grid_info
-      implicit none
-  
-  ! !INPUT PARAMETERS:
-  
-      type(sub2grid_info)                  ,intent(in   ) :: grd
-      real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
-                                                                         !    array containing
-                                                                         !    buffer points
-  ! !OUTPUT PARAMETERS:
-  
-      real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
-                                                                        !   with buffer points
-                                                                        !   stripped off
-  
-  ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
-  !               purposes
-  !
-  ! !REVISION HISTORY:
-  !
-  !   2004-01-25  kleist
-  !   2004-05-14  kleist, documentation
-  !   2004-07-15  todling, protex-compliant prologue
-  !
-  ! !REMARKS:
-  !
-  !   language: f90
-  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
-  !
-  ! !AUTHOR:
-  !    kleist           org: np20                date: 2004-01-25
-  !
-  !EOP
-  !-------------------------------------------------------------------------
-  
-      integer(i_kind) i,j,jp1
-  
-      do j=1,grd%lon1
-         jp1 = j+1
-         do i=1,grd%lat1
-            field_out(i,j)=field_in(i+1,jp1)
-         end do
-      end do
-  
-      return
-  end subroutine strip_grd
-  
-  
-  subroutine create_e2a_blend(nmix,nord_blend,wgt,region_lat_ens,region_lon_ens)
-  !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    get_overlap_domain_index
-  !   prgmmr: mtong           org: np22                date: 2012-02-18
-  !
-  ! abstract: create blend zone for moving nest overlaping area
-  !
-  ! program history log:
-  !
-  !   input argument list:
-  !    nord_blend   - order of continuity of blend function (1=continuous 1st derivative, etc)
-  !    nmix         - width of blend zone on edge of e grid in e grid units.
-  !
-  !   output argument list:
-  !    wgt
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$ end documentation block
-  
-       use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
-       use kinds, only: r_kind,i_kind,r_single
-       use constants, only: zero,one,rad2deg
-       use gridmod, only: half_grid,filled_grid
-       use blendmod, only: blend
-       use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform, &
-                                     general_tll2xy
-       use mpimod, only: mype
-       use gsi_io, only: lendian_in
-  
-       implicit none
-  
-       real(r_kind),allocatable, intent(inout) :: region_lat_ens(:,:)
-       real(r_kind),allocatable, intent(inout) :: region_lon_ens(:,:)
-       integer(i_kind),intent(in   ) :: nord_blend,nmix
-       real(r_kind)   ,intent(out  ) :: wgt(nlat_ens,nlon_ens)
-  
-       type(llxy_cons) gt_a
-       character(24) :: filename
-       integer(i_kind):: nlon_regional,nlat_regional,nlon_e,nlat_e
-       integer(i_kind):: i,j,n,istr,jstr,iend,jend
-       real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
-       real(r_kind) :: xe_a,ye_a,xstr,ystr,xend,yend
-  
-       integer(i_kind),dimension(0:40):: iblend
-       integer(i_kind) mm
-       real(r_kind) dxx,x,y
-       real(r_kind),allocatable::blendx(:),wgt_x(:),wgt_y(:)
-       logical :: outside
-  
-       call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,gt_a)
-  
-       n=0
-       xstr=-huge(xstr)
-       ystr=-huge(ystr)
-       xend=huge(xend)
-       yend=huge(yend)
-  
-       do n=1,n_ens
-          write(filename,"('sigf06_d02_ens_mem',i3.3)") n
-  !        if(mype == 0)print *,'filename=', filename 
-          open(lendian_in,file=trim(filename),form='unformatted')
-  !    Assuming ensemble memebers have the same dimensions
-          if(n == 1)then
-             read(lendian_in) nlon_regional,nlat_regional
-  
-             if(filled_grid) then
-                nlon_e=2*nlon_regional-1
-                nlat_e=nlat_regional
-             end if
-             if(half_grid) then
-                nlon_e=nlon_regional
-                nlat_e=1+nlat_regional/2
-             end if
-             allocate(region_lat_e(nlat_e,nlon_e),region_lon_e(nlat_e,nlon_e))
-          else 
-             read(lendian_in)
-          end if
-  
-          read(lendian_in)
-          read(lendian_in)
-  
-          read(lendian_in) region_lat_e
-          read(lendian_in) region_lon_e
-  
-          do i=1,nlat_e
-             call general_tll2xy(gt_a,region_lon_e(i,1),region_lat_e(i,1),xe_a,ye_a,outside)
-  !           if(mype == 0)print *,'xe_a=', i, xe_a
-             xstr=max(xstr,xe_a)
-          end do
-             
-          do j=1,nlon_e
-             call general_tll2xy(gt_a,region_lon_e(1,j),region_lat_e(1,j),xe_a,ye_a,outside)
-  !           if(mype == 0)print *,'ye_a=', j, ye_a
-             ystr=max(ystr,ye_a)
-          end do
-  
-          do i=1,nlat_e
-             call general_tll2xy(gt_a,region_lon_e(i,nlon_e),region_lat_e(i,nlon_e),xe_a,ye_a,outside)
-             xend=min(xend,xe_a)
-          end do
-  
-          do j=1,nlon_e
-             call general_tll2xy(gt_a,region_lon_e(nlat_e,j),region_lat_e(nlat_e,j),xe_a,ye_a,outside)
-             yend=min(yend,ye_a)
-          end do
-  
-  !        if(mype == 0)print *,'xstr,ystr,xend,yend=', xstr,ystr,xend,yend
-  
-       end do
-  
-       deallocate(region_lat_e,region_lon_e)
-  
-  !     istr=INT(xstr)+1
-  !     jstr=INT(ystr)+1
-  
-  !     iend=INT(xend)
-  !     jend=INT(yend)
-  
-       istr=NINT(xstr)
-       jstr=NINT(ystr)
-  
-       iend=NINT(xend)
-       jend=NINT(yend)
-  
-  !     if(mype == 0)print *,'mtong: istr,jstr,iend,jend=', istr,jstr,iend,jend
-  
-    !  set up blend function
-  
-       mm=nord_blend
-       call blend(mm,iblend)
-       allocate(blendx(nmix))
-       blendx(nmix)=one
-       dxx=one/nmix
-       blendx(1)=zero
-       do i=2,nmix
-          x=(i-one)*dxx
-          y=iblend(mm)
-          do j=mm-1,0,-1
-             y=x*y+iblend(j)
-          end do
-          y=y*x**(mm+1)
-          blendx(i)=y
-       end do
-  
-       allocate(wgt_x(nlon_ens),wgt_y(nlat_ens))
-       wgt_x=zero ; wgt_y=zero ; wgt=zero
-       do i=istr,iend
-          wgt_x(i)=one
-       end do
-       do j=jstr,jend
-          wgt_y(j)=one
-       end do
-       do j=1,nmix
-          wgt_x(istr-1+j)=blendx(j)
-          wgt_x(iend+1-j)=blendx(j)
-          wgt_y(jstr-1+j)=blendx(j)
-          wgt_y(jend+1-j)=blendx(j)
-       end do
-  
-       do j=1,nlon_ens
-          do i=1,nlat_ens
-             wgt(i,j)=wgt_x(j)*wgt_y(i)
-          end do
-       end do
-  
-       deallocate(wgt_x,wgt_y,blendx)
-  
-  end subroutine create_e2a_blend
   subroutine general_fill_nmm_grid2(grd,gin,nx,ny,gout,igtype,iorder,ireturn)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -3047,4 +2244,805 @@ contains
     endif
   
   end subroutine general_half_nmm_grid2
+
+  subroutine generic_grid2sub_ens(this,grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,num_fields)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    generic_grid2sub   converts from full horizontal grid to subdomains
+  !   prgmmr: parrish          org: np22                date: 2004-11-29
+  !
+  ! abstract: variation on subroutine grid2sub, with more general distribution of variables
+  !              along the k index.
+  !
+  ! program history log:
+  !   2004-02-03  kleist, new mpi strategy
+  !   2004-05-06  derber
+  !   2004-07-15  treadon - handle periodic subdomains
+  !   2004-07-28  treadon - add only on use declarations; add intent in/out
+  !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
+  !               sub2grid routine if necessary
+  !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
+  !   2011-09-16  mtong, add structure variable grd
+  !
+  !   input argument list:
+  !     tempa    - input grid values in horizontal slab mode.
+  !     kbegin_loc - starting k index for tempa on local processor
+  !     kend_loc   - ending k index for tempa on local processor
+  !     kbegin     - starting k indices for tempa for all processors
+  !     kend       - ending k indices for tempa for all processors
+  !     mype       - local processor number
+  !     num_fields - total range of k index (1 <= k <= num_fields)
+  !
+  !   output argument list:
+  !     all_loc  - output grid values in vertical subdomain mode
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$
+  
+    use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
+    use kinds, only: r_single,i_kind
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+   
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info),intent(in   ) :: grd
+    integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
+    integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
+    real(r_single) ,intent(inout) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
+    real(r_single) ,intent(  out) :: all_loc(grd%lat2*grd%lon2*num_fields)
+   
+    integer(i_kind) k
+    integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
+  
+  ! first get alltoallv indices
+   
+    sdispls(0)=0
+    do k=0,npe-1
+       sendcounts(k)=grd%ijn_s(k+1)*(kend_loc-kbegin_loc+1)
+       sdispls(k+1)=sdispls(k)+sendcounts(k)
+    end do
+    rdispls(0)=0
+    do k=0,npe-1
+       recvcounts(k)=grd%ijn_s(mype+1)*(kend(k)-kbegin(k)+1)
+       rdispls(k+1)=rdispls(k)+recvcounts(k)
+    end do
+   
+  ! then call reorder2
+  
+    call this%general_reorder2_s(grd,tempa,kend_loc-kbegin_loc+1)
+  
+  ! then alltoallv and i think we are done??
+  
+    call mpi_alltoallv(tempa,sendcounts,sdispls,mpi_real4, &
+         all_loc,recvcounts,rdispls,mpi_real4,mpi_comm_world,ierror)
+  
+  end subroutine generic_grid2sub_ens
+  
+  subroutine general_reorder2_s(grd,work,k_in)
+  !$$$  subprogram documentation block
+  !                .      .    .
+  ! subprogram:    general_reorder2_s
+  !
+  !   prgrmmr:  kleist           org: np20                date: 2004-01-25
+  !
+  ! abstract:  adapt reorder2 to single precision
+  !
+  ! program history log:
+  !   2004-01-25  kleist
+  !   2004-05-14  kleist, documentation
+  !   2004-07-15  todling, protex-complaint prologue
+  !   2004-11-29  parrish, adapt reorder2 to single precision
+  !   2008-04-16  safford -- add subprogram doc block
+  !   2011-09-16  mtong, add structure variable grd
+  !
+  !   input argument list:
+  !     grd
+  !     k_in    ! number of levs in work array
+  !     work
+  !
+  !   output argument list:
+  !     work
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+  !
+  !$$$
+  
+  ! !USES:
+  
+    use constants, only: zero_single
+    use mpimod, only: npe
+    use kinds, only: r_single,i_kind
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+  
+  ! !INPUT PARAMETERS:
+  
+    type(sub2grid_info),intent(in   ) :: grd
+    integer(i_kind)    ,intent(in   ) :: k_in    ! number of levs in work array
+  
+  ! !INPUT/OUTPUT PARAMETERS:
+  
+    real(r_single),dimension(grd%itotsub,k_in),intent(inout) :: work
+  
+    integer(i_kind) iloc,iskip,i,k,n
+    real(r_single),dimension(grd%itotsub*k_in):: temp
+  
+  ! Zero out temp array
+    do k=1,grd%itotsub*k_in
+       temp(k)=zero_single
+    end do
+  
+  ! Load temp array in order of subdomains
+    iloc=0
+    iskip=0
+    do n=1,npe
+       if (n/=1) then
+          iskip=iskip+grd%ijn_s(n-1)
+       end if
+  
+       do k=1,k_in
+          do i=1,grd%ijn_s(n)
+             iloc=iloc+1
+             temp(iloc)=work(iskip+i,k)
+          end do
+       end do
+    end do
+  
+  ! Now load the tmp array back into work
+    iloc=0
+    do k=1,k_in
+       do i=1,grd%itotsub
+          iloc=iloc+1
+          work(i,k)=temp(iloc)
+       end do
+    end do
+  
+    return
+  end subroutine general_reorder2_s
+  subroutine create_e2a_blend(nmix,nord_blend,wgt,region_lat_ens,region_lon_ens)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    get_overlap_domain_index
+  !   prgmmr: mtong           org: np22                date: 2012-02-18
+  !
+  ! abstract: create blend zone for moving nest overlaping area
+  !
+  ! program history log:
+  !
+  !   input argument list:
+  !    nord_blend   - order of continuity of blend function (1=continuous 1st derivative, etc)
+  !    nmix         - width of blend zone on edge of e grid in e grid units.
+  !
+  !   output argument list:
+  !    wgt
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+  
+       use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
+       use kinds, only: r_kind,i_kind,r_single
+       use constants, only: zero,one,rad2deg
+       use gridmod, only: half_grid,filled_grid
+       use blendmod, only: blend
+       use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform, &
+                                     general_tll2xy
+       use mpimod, only: mype
+       use gsi_io, only: lendian_in
+  
+       implicit none
+  
+       real(r_kind),allocatable, intent(inout) :: region_lat_ens(:,:)
+       real(r_kind),allocatable, intent(inout) :: region_lon_ens(:,:)
+       integer(i_kind),intent(in   ) :: nord_blend,nmix
+       real(r_kind)   ,intent(out  ) :: wgt(nlat_ens,nlon_ens)
+  
+       type(llxy_cons) gt_a
+       character(24) :: filename
+       integer(i_kind):: nlon_regional,nlat_regional,nlon_e,nlat_e
+       integer(i_kind):: i,j,n,istr,jstr,iend,jend
+       real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
+       real(r_kind) :: xe_a,ye_a,xstr,ystr,xend,yend
+  
+       integer(i_kind),dimension(0:40):: iblend
+       integer(i_kind) mm
+       real(r_kind) dxx,x,y
+       real(r_kind),allocatable::blendx(:),wgt_x(:),wgt_y(:)
+       logical :: outside
+  
+       call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,gt_a)
+  
+       n=0
+       xstr=-huge(xstr)
+       ystr=-huge(ystr)
+       xend=huge(xend)
+       yend=huge(yend)
+  
+       do n=1,n_ens
+          write(filename,"('sigf06_d02_ens_mem',i3.3)") n
+  !        if(mype == 0)print *,'filename=', filename 
+          open(lendian_in,file=trim(filename),form='unformatted')
+  !    Assuming ensemble memebers have the same dimensions
+          if(n == 1)then
+             read(lendian_in) nlon_regional,nlat_regional
+  
+             if(filled_grid) then
+                nlon_e=2*nlon_regional-1
+                nlat_e=nlat_regional
+             end if
+             if(half_grid) then
+                nlon_e=nlon_regional
+                nlat_e=1+nlat_regional/2
+             end if
+             allocate(region_lat_e(nlat_e,nlon_e),region_lon_e(nlat_e,nlon_e))
+          else 
+             read(lendian_in)
+          end if
+  
+          read(lendian_in)
+          read(lendian_in)
+  
+          read(lendian_in) region_lat_e
+          read(lendian_in) region_lon_e
+  
+          do i=1,nlat_e
+             call general_tll2xy(gt_a,region_lon_e(i,1),region_lat_e(i,1),xe_a,ye_a,outside)
+  !           if(mype == 0)print *,'xe_a=', i, xe_a
+             xstr=max(xstr,xe_a)
+          end do
+             
+          do j=1,nlon_e
+             call general_tll2xy(gt_a,region_lon_e(1,j),region_lat_e(1,j),xe_a,ye_a,outside)
+  !           if(mype == 0)print *,'ye_a=', j, ye_a
+             ystr=max(ystr,ye_a)
+          end do
+  
+          do i=1,nlat_e
+             call general_tll2xy(gt_a,region_lon_e(i,nlon_e),region_lat_e(i,nlon_e),xe_a,ye_a,outside)
+             xend=min(xend,xe_a)
+          end do
+  
+          do j=1,nlon_e
+             call general_tll2xy(gt_a,region_lon_e(nlat_e,j),region_lat_e(nlat_e,j),xe_a,ye_a,outside)
+             yend=min(yend,ye_a)
+          end do
+  
+  !        if(mype == 0)print *,'xstr,ystr,xend,yend=', xstr,ystr,xend,yend
+  
+       end do
+  
+       deallocate(region_lat_e,region_lon_e)
+  
+  !     istr=INT(xstr)+1
+  !     jstr=INT(ystr)+1
+  
+  !     iend=INT(xend)
+  !     jend=INT(yend)
+  
+       istr=NINT(xstr)
+       jstr=NINT(ystr)
+  
+       iend=NINT(xend)
+       jend=NINT(yend)
+  
+  !     if(mype == 0)print *,'mtong: istr,jstr,iend,jend=', istr,jstr,iend,jend
+  
+    !  set up blend function
+  
+       mm=nord_blend
+       call blend(mm,iblend)
+       allocate(blendx(nmix))
+       blendx(nmix)=one
+       dxx=one/nmix
+       blendx(1)=zero
+       do i=2,nmix
+          x=(i-one)*dxx
+          y=iblend(mm)
+          do j=mm-1,0,-1
+             y=x*y+iblend(j)
+          end do
+          y=y*x**(mm+1)
+          blendx(i)=y
+       end do
+  
+       allocate(wgt_x(nlon_ens),wgt_y(nlat_ens))
+       wgt_x=zero ; wgt_y=zero ; wgt=zero
+       do i=istr,iend
+          wgt_x(i)=one
+       end do
+       do j=jstr,jend
+          wgt_y(j)=one
+       end do
+       do j=1,nmix
+          wgt_x(istr-1+j)=blendx(j)
+          wgt_x(iend+1-j)=blendx(j)
+          wgt_y(jstr-1+j)=blendx(j)
+          wgt_y(jend+1-j)=blendx(j)
+       end do
+  
+       do j=1,nlon_ens
+          do i=1,nlat_ens
+             wgt(i,j)=wgt_x(j)*wgt_y(i)
+          end do
+       end do
+  
+       deallocate(wgt_x,wgt_y,blendx)
+  
+  end subroutine create_e2a_blend
+
+  subroutine grads3a(this,grd,u,v,tsen,q,pd,nvert,mype,fname)
+  
+    use kinds, only: r_kind,i_kind,r_single
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                  ,intent(in   ) :: grd
+    integer(i_kind) nvert
+    integer(i_kind), intent(in)::mype
+    character(*) fname
+    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: u,v,tsen,q
+    real(r_kind),dimension(grd%lat2,grd%lon2):: pd
+  
+    real(r_kind),dimension(grd%nlat,grd%nlon)::work
+    real(r_single) outfield(grd%nlon,grd%nlat)
+  
+    character(50) dsname,title,filename
+  ! data dsname/'test.dat'/
+    data title/'inmi'/
+    character(112) datdes(50000)
+    character(1) blank
+    data blank/' '/
+    data undef/-9.99e33_r_single/
+  
+    integer(i_kind) i,k,next,ioutdes,ioutdat
+    integer(i_kind) last,j,koutmax
+    real(r_single) undef
+    real(r_single) startp,pinc
+  
+    if(mype==0) then
+      startp=1._r_single
+      pinc=1._r_single
+      ioutdes=98750
+      ioutdat=98751
+      write(filename,'(a,".des")')trim(fname)
+      write(dsname,'(a,".dat")')trim(fname)
+      open(unit=ioutdes,file=trim(filename),form='formatted')
+      open(unit=ioutdat,file=trim(dsname),form='unformatted')
+      rewind ioutdes
+      rewind ioutdat
+      do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+      end do
+      write(datdes(1),'("DSET ^",a50)')dsname
+      write(datdes(2),'("options big_endian sequential")')
+      write(datdes(3),'("TITLE ",a50)')title
+      write(datdes(4),'("UNDEF ",e11.2)')undef
+      next=5
+      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
+      next=next+1
+      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
+      next=next+1
+      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
+      next=next+1
+      koutmax=1
+      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
+      next=next+1
+      write(datdes(next),'("VARS 5")')
+      next=next+1
+      write(datdes(next),'("u   ",i5," 99 u   ")')nvert
+      next=next+1
+      write(datdes(next),'("v   ",i5," 99 v   ")')nvert
+      next=next+1
+      write(datdes(next),'("t   ",i5," 99 t   ")')nvert
+      next=next+1
+      write(datdes(next),'("q   ",i5," 99 q   ")')nvert
+      next=next+1
+      write(datdes(next),'("pd  ",i5," 99 pd  ")')0
+      next=next+1
+      write(datdes(next),'("ENDVARS")')
+      last=next
+      write(ioutdes,'(a112)')(datdes(i),i=1,last)
+    endif
+    do k=1,nvert
+      call this%sub2grid_3a(grd,u(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,v(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,tsen(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,q(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    call this%sub2grid_3a(grd,pd(1,1),work,0,mype)
+    if(mype==0) then
+      do j=1,grd%nlon ; do i=1,grd%nlat
+          outfield(j,i)=work(i,j)
+      end do ; end do
+      write(ioutdat)outfield
+    end if
+  
+    if(mype==0) then
+      close(ioutdes)
+      close(ioutdat)
+    end if
+  end subroutine grads3a
+  
+  subroutine grads3d(this,grd,field,nvert,mype,fname)
+  
+    use kinds, only: r_kind,i_kind,r_single
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                   ,intent(in   ) :: grd
+    integer(i_kind) nvert
+    integer(i_kind), intent(in)::mype
+    character(*) fname
+    real(r_kind),dimension(grd%lat2,grd%lon2,nvert):: field
+  
+    real(r_kind),dimension(grd%nlat,grd%nlon)::work
+    real(r_single) outfield(grd%nlon,grd%nlat)
+  
+    character(50) dsname,title,filename
+  ! data dsname/'test.dat'/
+    data title/'inmi'/
+    character(112) datdes(50000)
+    character(1) blank
+    data blank/' '/
+    data undef/-9.99e33_r_single/
+  
+    integer(i_kind) i,k,next,ioutdes,ioutdat
+    integer(i_kind) last,j,koutmax
+    real(r_single) undef
+    real(r_single) startp,pinc
+  
+    if(mype==0) then
+      startp=1._r_single
+      pinc=1._r_single
+      ioutdes=98752
+      ioutdat=98753
+      write(filename,'(a,"x3d.ctl")')trim(fname)
+      write(dsname,'(a,"x3d.dat")')trim(fname)
+      open(unit=ioutdes,file=trim(filename),form='formatted')
+      open(unit=ioutdat,file=trim(dsname),form='unformatted')
+      rewind ioutdes
+      rewind ioutdat
+      do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+      end do
+      write(datdes(1),'("DSET ^",a50)')dsname
+      write(datdes(2),'("options big_endian sequential")')
+      write(datdes(3),'("TITLE ",a50)')title
+      write(datdes(4),'("UNDEF ",e11.2)')undef
+      next=5
+      write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
+      next=next+1
+      write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
+      next=next+1
+      write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')nvert,startp,pinc
+      next=next+1
+      koutmax=1
+      write(datdes(next),'("TDEF ",i5," LINEAR 00Z01Jan2000 12hr")')koutmax
+      next=next+1
+      write(datdes(next),'("VARS 1")')
+      next=next+1
+      write(datdes(next),'("f3d   ",i5," 99 f3d   ")')nvert
+      next=next+1
+      write(datdes(next),'("ENDVARS")')
+      last=next
+      write(ioutdes,'(a112)')(datdes(i),i=1,last)
+      write(6,'(a112)')(datdes(i),i=1,last)
+    endif
+  
+    do k=1,nvert
+      call this%sub2grid_3a(grd,field(1,1,k),work,0,mype)
+      if(mype==0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+            outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+      end if
+    end do
+  
+    if(mype==0) then
+      close(ioutdes)
+      close(ioutdat)
+    end if
+  
+  end subroutine grads3d
+
+  subroutine sub2grid_3a(this,grd,sub,grid,gridpe,mype)
+  
+  !     straightforward, but inefficient code to convert a single variable on subdomains to complete
+  !      slab on one processor.
+  !  2013-10-24 todling - revisit strip interface
+  
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    use general_sub2grid_mod, only: sub2grid_info
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(sub2grid_info)                  ,intent(in   ) :: grd
+    integer(i_kind), intent(in)::gridpe,mype
+    real(r_kind),dimension(grd%lat2,grd%lon2),intent(in):: sub
+    real(r_kind),dimension(grd%nlat,grd%nlon),intent(out)::grid
+  
+    real(r_kind),dimension(grd%lat1*grd%lon1):: zsm
+    real(r_kind),dimension(grd%itotsub):: work1
+    integer(i_kind) mm1,i,j,k
+  
+    mm1=mype+1
+  
+    do j=1,grd%lon1*grd%lat1
+      zsm(j)=zero
+    end do
+    call this%strip_grd(grd,sub,zsm)
+    call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
+                   work1,grd%ijn,grd%displs_g,mpi_rtype, &
+                   gridpe,mpi_comm_world,ierror)
+    if(mype==gridpe) then
+      do k=1,grd%iglobal
+        i=grd%ltosi(k) ; j=grd%ltosj(k)
+        grid(i,j)=work1(k)
+      end do
+    end if
+  
+  end subroutine sub2grid_3a
+  subroutine strip_grd(grd,field_in,field_out)
+  
+  ! !USES:
+  
+      use kinds, only: i_kind,r_kind
+      use general_sub2grid_mod, only: sub2grid_info
+      implicit none
+  
+  ! !INPUT PARAMETERS:
+  
+      type(sub2grid_info)                  ,intent(in   ) :: grd
+      real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
+                                                                         !    array containing
+                                                                         !    buffer points
+  ! !OUTPUT PARAMETERS:
+  
+      real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+  
+  ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+  !               purposes
+  !
+  ! !REVISION HISTORY:
+  !
+  !   2004-01-25  kleist
+  !   2004-05-14  kleist, documentation
+  !   2004-07-15  todling, protex-compliant prologue
+  !
+  ! !REMARKS:
+  !
+  !   language: f90
+  !   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+  !
+  ! !AUTHOR:
+  !    kleist           org: np20                date: 2004-01-25
+  !
+  !EOP
+  !-------------------------------------------------------------------------
+  
+      integer(i_kind) i,j,jp1
+  
+      do j=1,grd%lon1
+         jp1 = j+1
+         do i=1,grd%lat1
+            field_out(i,j)=field_in(i+1,jp1)
+         end do
+      end do
+  
+      return
+  end subroutine strip_grd
+  subroutine ens_member_mean_dualres_regional(this,en_bar,mype,en_perts,nelen)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    ens_member_mean_dualres_regional
+  !   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
+  !
+  ! abstract:
+  !
+  !
+  ! program history log:
+  !   2010-08-11  parrish, initial documentation
+  !   2011-04-05  parrish - add pseudo-bundle capability
+  !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
+  !
+  !   input argument list:
+  !     en_bar - ensemble mean
+  !      mype  - current processor number
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+  !
+    use kinds, only: r_single,r_kind,i_kind
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
+!   use hybrid_ensemble_isotropic, only: en_perts,nelen
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
+    use constants, only:  zero,one
+    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_gridcreate
+    implicit none
+  
+    class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+    type(gsi_bundle),intent(in):: en_bar
+    integer(i_kind),intent(in):: mype
+    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
+    integer(i_kind), intent(in   ):: nelen
+  
+    type(gsi_bundle):: sube,suba
+    type(gsi_grid):: grid_ens,grid_anl
+    real(r_kind) sig_norm_inv
+    type(sub2grid_info)::se,sa
+    integer(i_kind) k
+  
+    integer(i_kind) i,n,ic3
+    logical regional
+    integer(i_kind) num_fields,inner_vars,istat,istatus
+    logical,allocatable::vector(:)
+    real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
+    real(r_kind),pointer,dimension(:,:):: ps
+    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
+    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
+    character(24) filename
+  
+  !      create simple regular grid
+          call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+          call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+  
+  !      create two internal bundles, one on analysis grid and one on ensemble grid
+  
+         call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
+                                   names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+         if(istatus/=0) then
+            write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
+            call stop2(999)
+         endif
+         call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
+                                   names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+         if(istatus/=0) then
+            write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
+            call stop2(999)
+         endif
+  
+    sig_norm_inv=sqrt(n_ens-one)
+  
+    do n=1,n_ens+1
+  
+       do i=1,nelen
+          if(n <= n_ens)then
+             sube%values(i)=en_perts(n,1)%valuesr4(i)*sig_norm_inv+en_bar%values(i)
+          else
+             sube%values(i)=en_bar%values(i)
+          end if
+       end do
+  
+       if(grd_ens%latlon1n == grd_anl%latlon1n) then
+          do i=1,nelen
+             suba%values(i)=sube%values(i)
+          end do
+       else
+          inner_vars=1
+          num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
+          allocate(vector(num_fields))
+          vector=.false.
+          do ic3=1,nc3d
+             if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
+                do k=1,grd_ens%nsig
+                   vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
+                end do
+             end if
+          end do
+          call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
+                                            regional,vector)
+          call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
+                                            regional,vector)
+          deallocate(vector)
+          call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
+       end if
+  
+       dum2=zero
+       dum3=zero
+       call gsi_bundlegetpointer(suba,'sf',st,istat)
+       if(istat/=0) then
+          write(6,*)' no sf pointer in ens_member_dualres, point st at dum3 array'
+          st => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'vp',vp,istat)
+       if(istat/=0) then
+          write(6,*)' no vp pointer in ens_member_dualres, point vp at dum3 array'
+          vp => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'t',tv,istat)
+       if(istat/=0) then
+          write(6,*)' no t pointer in ens_member_dualres, point tv at dum3 array'
+          tv => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'q',rh,istat)
+       if(istat/=0) then
+             write(6,*)' no q pointer in ens_member_dualres, point rh at dum3 array'
+          rh => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'oz',oz,istat)
+       if(istat/=0) then
+          write(6,*)' no oz pointer in ens_member_dualres, point oz at dum3 array'
+          oz => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'cw',cw,istat)
+       if(istat/=0) then
+             write(6,*)' no cw pointer in ens_member_dualres, point cw at dum3 array'
+          cw => dum3
+       end if
+       call gsi_bundlegetpointer(suba,'ps',ps,istat)
+       if(istat/=0) then
+          write(6,*)' no ps pointer in ens_member_dualres, point ps at dum2 array'
+          ps => dum2
+       end if
+     
+       if(n <= n_ens)then
+          write(filename,"('ens_mem',i3.3)") n
+          call this%grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,filename)
+       else
+          call this%grads3a(grd_ens,st,vp,tv,rh,ps,grd_ens%nsig,mype,'ens_bar')
+       end if
+    end do
+     
+    return
+  
+  end subroutine ens_member_mean_dualres_regional
 end module get_wrf_nmm_ensperts_mod

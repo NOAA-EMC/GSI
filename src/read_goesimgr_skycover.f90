@@ -19,6 +19,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !   2016-01-11 D. Keyser - Enable use of efclam dump as the primary observation
 !                          source file. However, if ob is missing, will look for it in old
 !                          BUFR mnemonic sequence
+!   2016-03-11 j. guo    - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !   2016-04-22 M. Pondeca  - Replace "if (goescld(3)==bmiss)" condition with "if (goescld(3) > r0_01_bmiss)"
 !
 !   input argument list:
@@ -97,6 +98,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   integer(i_kind),dimension(5) :: idate5
   integer(i_kind),allocatable,dimension(:):: isort,iloc
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
+  real(r_kind) :: dlat_earth_deg,dlon_earth_deg
   real(r_kind) :: dx,dx1,dy,dy1,w00,w10,w01,w11,crit1,timedif,tdiff
   real(r_kind) :: rmesh,pmesh,xmesh,tcamt,tcamt_oe,ff10,tsavg
   real(r_kind) :: rminobs,ppb
@@ -239,6 +241,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
             if(abs(hdr(8))>r90 .or. abs(hdr(9))>r360) cycle loop_readsb
             if(hdr(9)== r360)hdr(9)=hdr(9)-r360
             if(hdr(9) < zero)hdr(9)=hdr(9)+r360
+            dlon_earth_deg = hdr(9)
+            dlat_earth_deg = hdr(8)
             dlon_earth=hdr(9)*deg2rad
             dlat_earth=hdr(8)*deg2rad
             nread=nread+1
@@ -362,8 +366,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
          cdata_all(11,iout)=tsavg                  !  skin temperature
          cdata_all(12,iout)=ff10                   !  10 meter wind factor
          cdata_all(13,iout)=sfcr                   !  surface roughness
-         cdata_all(14,iout)=dlon_earth*rad2deg     !  earth relative longitude (degrees)
-         cdata_all(15,iout)=dlat_earth*rad2deg     !  earth relative latitude (degrees)
+         cdata_all(14,iout)=dlon_earth_deg         !  earth relative longitude (degrees)
+         cdata_all(15,iout)=dlat_earth_deg         !  earth relative latitude (degrees)
          cdata_all(16,iout)=bmiss                  !  station elevation (m)
          cdata_all(17,iout)=bmiss                  !  observation height (m)
          cdata_all(18,iout)=zz                     !  terrain height at ob location

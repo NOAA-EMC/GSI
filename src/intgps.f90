@@ -13,6 +13,7 @@ module intgpsmod
 !   2008-11-28  Todling - add interface back
 !   2009-08-13  lueken - update documentation
 !   2013-10-28  todling - rename p3d to prse
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intgps_
@@ -24,6 +25,10 @@ module intgpsmod
 !   machine:
 !
 !$$$ end documentation block
+use m_obsNode, only: obsNode
+use m_gpsNode, only: gpsNode
+use m_gpsNode, only: gpsNode_typecast
+use m_gpsNode, only: gpsNode_nextcast
 implicit none
 
 PRIVATE
@@ -91,7 +96,7 @@ subroutine intgps_(gpshead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: gps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,nsig,latlon1n1
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
@@ -102,7 +107,7 @@ subroutine intgps_(gpshead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(gps_ob_type),pointer,intent(in   ) :: gpshead
+  class(obsNode),  pointer, intent(in   ) :: gpshead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -119,7 +124,7 @@ subroutine intgps_(gpshead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rp
   real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_prse
   real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_prse
-  type(gps_ob_type), pointer :: gpsptr
+  type(gpsNode), pointer :: gpsptr
 
 !  If no gps obs return
   if(.not. associated(gpshead))return
@@ -142,7 +147,8 @@ subroutine intgps_(gpshead,rval,sval)
   endif
   if(ier/=0)return
 
-  gpsptr => gpshead
+  !gpsptr => gpshead
+  gpsptr => gpsNode_typecast(gpshead)
   do while (associated(gpsptr))
 
 ! Load location information into local variables
@@ -258,7 +264,8 @@ subroutine intgps_(gpshead,rval,sval)
 
      endif
 
-     gpsptr => gpsptr%llpoint
+     !gpsptr => gpsptr%llpoint
+     gpsptr => gpsNode_nextcast(gpsptr)
 
   end do
 

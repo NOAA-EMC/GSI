@@ -8,6 +8,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
 !
 ! program history log:
 !   2015-08-05 pondeca 
+!   2016-03-11 j. guo   - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !
 !   input argument list:
 !     gstime   - analysis time in minutes from reference date
@@ -79,6 +80,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   integer(i_kind) :: nc,k,ilat,ilon,nchanl
   integer(i_kind) :: idate,iout,maxobs,icount,ierr
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
+  real(r_kind) :: dlat_earth_deg,dlon_earth_deg
   real(r_kind) :: rminobs,pob,dlnpob,obval
   real(r_kind) :: stnelev
   real(r_kind) :: usage,tsavg,ff10,sfcr,zz
@@ -246,15 +248,15 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
          linvalidob=.false.
       endif
 
-      dlat_earth=real(rlat4,kind=r_kind)
-      dlon_earth=real(rlon4,kind=r_kind)
+      dlat_earth_deg=real(rlat4,kind=r_kind)
+      dlon_earth_deg=real(rlon4,kind=r_kind)
       stnelev=real(stnelev4,kind=r_kind)
 
-      if(abs(dlat_earth)>r90 .or. abs(dlon_earth)>r360) cycle loop_readobs
-      if (dlon_earth == r360) dlon_earth=dlon_earth-r360
-      if (dlon_earth < zero)  dlon_earth=dlon_earth+r360
-      dlon_earth=dlon_earth*deg2rad
-      dlat_earth=dlat_earth*deg2rad
+      if(abs(dlat_earth_deg)>r90 .or. abs(dlon_earth_deg)>r360) cycle loop_readobs
+      if (dlon_earth_deg == r360) dlon_earth_deg=dlon_earth_deg-r360
+      if (dlon_earth_deg < zero)  dlon_earth_deg=dlon_earth_deg+r360
+      dlon_earth=dlon_earth_deg*deg2rad
+      dlat_earth=dlat_earth_deg*deg2rad
 
       outside=.false. !need this on account of global gsi
       if(regional)then
@@ -341,8 +343,8 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
          cdata_all(14,iout)=tsavg                  ! skin temperature
          cdata_all(15,iout)=ff10                   ! 10 meter wind factor
          cdata_all(16,iout)=sfcr                   ! surface roughness
-         cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-         cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+         cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+         cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
          cdata_all(19,iout)=stnelev                ! station elevation (m)
          cdata_all(20,iout)=stnelev                ! observation height (m)
          cdata_all(21,iout)=zz                     ! terrain height at ob location
@@ -371,8 +373,8 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
          cdata_all(14,iout)=tsavg                  ! skin temperature
          cdata_all(15,iout)=ff10                   ! 10 meter wind factor
          cdata_all(16,iout)=sfcr                   ! surface roughness
-         cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-         cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+         cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+         cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
          cdata_all(19,iout)=stnelev                ! station elevation (m)
          cdata_all(20,iout)=stnelev                ! observation height (m)
          cdata_all(21,iout)=zz                     ! terrain height at ob location

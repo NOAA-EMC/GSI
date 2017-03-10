@@ -40,7 +40,7 @@ module berror
 !   sub create_berror_vars  - allocate global background error related variables
 !   sub destroy_berror_vars - deallocate global background error 
 !                                    related variables
-!   sub set_predictor_var   - set background variances for bias correction coefs
+!   sub set_predictors_var  - set background variances for bias correction coefs
 !   sub init_rftable        - load global/global pointers and tables for 
 !                                    recursive filters
 !   sub initable            - initialize tables/pointers for recursive filters
@@ -573,7 +573,7 @@ contains
 
 
 !   Set up L=inverse(B)*M for preconditioning purpose
-!   Only diagonal elememts are considered
+!   Only diagonal elements are considered
 
 !   set a coeff. factor for variances of control variables
     if(diag_precon)then

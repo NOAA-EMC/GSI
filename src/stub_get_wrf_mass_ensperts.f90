@@ -47,6 +47,7 @@ contains
 
   subroutine get_wrf_mass_ensperts_dummy(this,en_perts,nelen,ps_bar)
     use kinds, only: i_kind,r_single
+    use gsi_bundlemod, only: gsi_bundle
     implicit none
     class(get_wrf_mass_ensperts_class), intent(inout) :: this
     type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)

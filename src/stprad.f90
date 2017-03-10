@@ -13,6 +13,7 @@ module stpradmod
 !   2008-12-02  Todling - remove stprad_tl
 !   2009-08-12  lueken - update documentation
 !   2011-05-17  todling - add internal routine set_
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stprad
@@ -101,7 +102,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,b_rad,pg_rad
   use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use obsmod, only: rad_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad,one_quad
   use gridmod, only: nsig,latlon11,latlon1n
@@ -113,10 +113,14 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
           luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+  use m_obsNode, only: obsNode
+  use m_radNode, only: radNode
+  use m_radNode, only: radNode_typecast
+  use m_radNode, only: radNode_nextcast
   implicit none
   
 ! Declare passed variables
-  type(rad_ob_type),pointer              ,intent(in   ) :: radhead
+  class(obsNode), pointer                ,intent(in   ) :: radhead
   integer(i_kind)                        ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep))   ,intent(inout) :: out
   real(r_kind),dimension(npred,jpch_rad) ,intent(in   ) :: rpred,spred
@@ -133,7 +137,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   real(r_kind) time_rad
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
-  type(rad_ob_type), pointer :: radptr
+  type(radNode), pointer :: radptr
   real(r_kind), dimension(:,:), allocatable:: rsqrtinv
   integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -198,7 +202,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   tdir=zero
   rdir=zero
 
-  radptr=>radhead
+  radptr=> radNode_typecast(radhead)
   do while(associated(radptr))
      if(radptr%luse)then
         if(nstep > 0)then
@@ -408,9 +412,10 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
         end do
         if (radptr%use_corr_obs) deallocate(rsqrtinv)
-     end if  !luse
 
-     radptr => radptr%llpoint
+     end if
+
+     radptr => radNode_nextcast(radptr)
   end do
   return
 end subroutine stprad
