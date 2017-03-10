@@ -20,6 +20,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2014-12-23 zaizhong cleaned up and finalized with the proxy data
 !   2015-03-23 zaizhong cleaned up and finalized with the real sample data
 !   2015-09-17 Thomas   add l4densvar and thin4d to data selection procedure
+!   2016-03-11 j. guo   Fixed {dlat,dlon}_earth_deg in the obs data stream
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -99,6 +100,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -235,6 +237,8 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if (hdrh8arr(ilonh)>=r360) hdrh8arr(ilonh)=hdrh8arr(ilonh)-r360
         if (hdrh8arr(ilonh)< zero) hdrh8arr(ilonh)=hdrh8arr(ilonh)+r360
 
+        dlon_earth_deg = hdrh8arr(ilonh)
+        dlat_earth_deg = hdrh8arr(ilath)
         dlon_earth=hdrh8arr(ilonh)*deg2rad
         dlat_earth=hdrh8arr(ilath)*deg2rad
 
@@ -388,8 +392,8 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg          ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg          ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg              ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg              ! earth relative latitude (degrees)
         data_all(32,itx) = val_img
         data_all(33,itx) = itt
 

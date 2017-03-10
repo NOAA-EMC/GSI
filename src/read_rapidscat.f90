@@ -15,6 +15,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 ! program history log:
 !   2015-04-03 Ling Liu    
 !   2015-09-17 Thomas  - add l4densvar and thin4d to data selection procedure
+!   2016-03-11 j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -138,6 +139,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
@@ -485,6 +487,8 @@ loopd : do
 
 
            nread=nread+1
+           dlon_earth_deg = obsdat(2)
+           dlat_earth_deg = obsdat(1)
            dlon_earth=obsdat(2)*deg2rad
            dlat_earth=obsdat(1)*deg2rad
 !       If regional, map obs lat,lon to rotated grid.
@@ -650,8 +654,8 @@ loopd : do
            cdata_all(16,iout)=9999999               ! tsavg skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
-           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+           cdata_all(19,iout)=dlon_earth_deg      ! earth relative longitude (degrees)
+           cdata_all(20,iout)=dlat_earth_deg      ! earth relative latitude (degrees)
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name

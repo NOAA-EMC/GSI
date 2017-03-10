@@ -16,6 +16,7 @@ module intpsmod
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       Su - add njqc as an option to choose Purser's varqc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intps_
@@ -28,6 +29,10 @@ module intpsmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_psNode , only: psNode
+use m_psNode , only: psNode_typecast
+use m_psNode , only: psNode_nextcast
 implicit none
 
 PRIVATE
@@ -88,7 +93,7 @@ subroutine intps_(pshead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
-  use obsmod, only: ps_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -98,7 +103,7 @@ subroutine intps_(pshead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer,intent(in   ) :: pshead
+  class(obsNode), pointer, intent(in   ) :: pshead
   type(gsi_bundle),        intent(in   ) :: sval
   type(gsi_bundle),        intent(inout) :: rval
 
@@ -112,7 +117,7 @@ subroutine intps_(pshead,rval,sval)
   real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  type(ps_ob_type), pointer :: psptr
+  type(psNode), pointer :: psptr
 
 !  If no ps data return
   if(.not. associated(pshead))return
@@ -127,7 +132,8 @@ subroutine intps_(pshead,rval,sval)
   endif
   if(ier/=0)return
 
-  psptr => pshead
+  !psptr => pshead
+  psptr => psNode_typecast(pshead)
   do while (associated(psptr))
      j1=psptr%ij(1)
      j2=psptr%ij(2)
@@ -198,7 +204,8 @@ subroutine intps_(pshead,rval,sval)
 
      endif
 
-     psptr => psptr%llpoint
+     !psptr => psptr%llpoint
+     psptr => psNode_nextcast(psptr)
   end do
   return
 end subroutine intps_

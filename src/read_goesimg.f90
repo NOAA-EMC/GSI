@@ -44,6 +44,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -121,6 +122,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: sfcpct
@@ -250,6 +252,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if (hdrgoesarr(ilonh)>=r360) hdrgoesarr(ilonh)=hdrgoesarr(ilonh)-r360
         if (hdrgoesarr(ilonh)< zero) hdrgoesarr(ilonh)=hdrgoesarr(ilonh)+r360
 
+        dlon_earth_deg=hdrgoesarr(ilonh)
+        dlat_earth_deg=hdrgoesarr(ilath)
         dlon_earth=hdrgoesarr(ilonh)*deg2rad
         dlat_earth=hdrgoesarr(ilath)*deg2rad
 
@@ -372,8 +376,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg          ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg          ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg              ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg              ! earth relative latitude (degrees)
 
         if(dval_use)then
            data_all(36,itx) = val_img

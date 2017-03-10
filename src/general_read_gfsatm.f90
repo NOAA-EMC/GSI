@@ -783,7 +783,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    endif ! if ( procuse )
 
    ! Get pointer to relevant variables (this should be made flexible and general)
-   call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=ier
    iredundant=0
    call gsi_bundlegetpointer(gfs_bundle,'sf',g_div ,ier)
    if ( ier == 0 ) iredundant = iredundant + 1
@@ -823,6 +822,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       endif
       call stop2(999)
    endif
+   istatus=0
+   call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
    call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
    call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
    call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier

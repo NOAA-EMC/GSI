@@ -45,6 +45,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         also add another ob scoring approach based on observed Tb only.
 !                         add check: bufsat(jsatid) == satellite id
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -135,6 +136,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   real(r_kind) dlon,dlat,timedif,rsc
   real(r_kind) dlon_earth,dlat_earth,sfcr
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) w00,w01,w10,w11,dx1,dy1
   real(r_kind) pred,crit1,tdiff,sstime,dx,dy,dist1
   real(r_kind) dlat_sst,dlon_sst,sst_hires
@@ -298,6 +300,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         if (hdr(8)==r360) hdr(8)=hdr(8)-r360
         if (hdr(8)< zero) hdr(8)=hdr(8)+r360
 
+        dlon_earth_deg = hdr(8)
+        dlat_earth_deg = hdr(7)
+
         dlon_earth = hdr(8)*deg2rad   !convert degrees to radians
         dlat_earth = hdr(7)*deg2rad
 
@@ -373,10 +378,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                3 snow
 !                4 mixed                          
 
-        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                       ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        if(sfcpct(0) == zero)  cycle read_loop
 
+        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        if(isflg /= zero)  cycle read_loop
 
         call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
@@ -490,8 +495,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(27,itx) = idomsfc + 0.001_r_kind ! dominate surface type
         data_all(28,itx) = sfcr                   ! surface roughness
         data_all(29,itx) = ff10                   ! ten meter wind factor
-        data_all(30,itx) = dlon_earth*rad2deg     ! earth relative longitude (degrees)
-        data_all(31,itx) = dlat_earth*rad2deg     ! earth relative latitude (degrees)
+        data_all(30,itx) = dlon_earth_deg         ! earth relative longitude (degrees)
+        data_all(31,itx) = dlat_earth_deg         ! earth relative latitude (degrees)
         data_all(32,itx) = hdr(13)                ! CLAVR Cloud flag (only 0 = clear and 1 = probably clear included the data set used now)
         data_all(33,itx) = sst_hires              ! interpolated hires SST (deg K)
         if(dval_use)then

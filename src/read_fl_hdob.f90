@@ -22,6 +22,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !   2016-03-15  Su      - modified the code so that the program won't stop when no subtype is found in non 
 !                         linear qc error table and b table
 
+!   2015-10-01  guo      - calc ob location once in deg
 !
 !   input argument list:
 !     infile    - unit from which to read BUFR data
@@ -154,6 +155,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      real(r_kind) :: usage
      real(r_kind) :: woe,toe,qoe,psoe,obserr,var_jb
      real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth
+     real(r_kind) :: dlat_earth_deg,dlon_earth_deg
      real(r_kind) :: cdist,disterr,disterrmax,rlon00,rlat00
      real(r_kind) :: vdisterrmax,u00,v00,u0,v0
      real(r_kind) :: dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -535,6 +537,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                write(6,*) 'READ_FL_HDOB: bad lat/lon values: ', obsloc(1,1),obsloc(2,1)              
                cycle loop_readsb2     
            endif
+           dlon_earth_deg = obsloc(2,1)
+           dlat_earth_deg = obsloc(1,1)
            dlon_earth = obsloc(2,1)*deg2rad ! degree to radian
            dlat_earth = obsloc(1,1)*deg2rad ! degree to radian
 
@@ -983,8 +987,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(14,iout)=tsavg                  ! skin temperature
               cdata_all(15,iout)=ff10                   ! 10 meter wind factor   
               cdata_all(16,iout)=sfcr                   ! surface roughness
-              cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degree)                   
-              cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degree)                       
+              cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degree)                   
+              cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degree)                       
               cdata_all(19,iout)=gob                    ! station elevation (m)   
               cdata_all(20,iout)=zz                     ! terrain height at ob location                    
               cdata_all(21,iout)=r_prvstg(1,1)          ! provider name
@@ -1028,8 +1032,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(16,iout)=tsavg                  ! skin temperature
               cdata_all(17,iout)=ff10                   ! 10 meter wind
               cdata_all(18,iout)=sfcr                   ! surface roughness
-              cdata_all(19,iout)=dlon_earth*rad2deg     ! earth relative longitude (degree)                
-              cdata_all(20,iout)=dlat_earth*rad2deg     ! earth relative latitude (degree)                    
+              cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degree)                
+              cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degree)                    
               cdata_all(21,iout)=zz                     ! terrain height at ob location             
               cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
               cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
@@ -1065,8 +1069,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(14,iout)=tsavg                  ! skin temperature
               cdata_all(15,iout)=ff10                   ! 10 meter wind factor
               cdata_all(16,iout)=sfcr                   ! surface roughness
-              cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)   
-              cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)     
+              cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)   
+              cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)     
               cdata_all(19,iout)=gob                    ! station elevation (m)   
               cdata_all(20,iout)=gob                    ! observation height (m)   
               cdata_all(21,iout)=zz                     ! terrain height at ob location             
@@ -1102,8 +1106,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(12,iout)=obserr*one_tenth       ! original obs error (RH e.g. 0.98)       
               cdata_all(13,iout)=usage                  ! usage parameter
               cdata_all(14,iout)=idomsfc                ! dominate surface type    
-              cdata_all(15,iout)=dlon_earth*rad2deg     ! earth relative longitude (degree)        
-              cdata_all(16,iout)=dlat_earth*rad2deg     ! earth relative latitude (degree)
+              cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degree)        
+              cdata_all(16,iout)=dlat_earth_deg         ! earth relative latitude (degree)
               cdata_all(17,iout)=gob                    ! station elevation (m)    
               cdata_all(18,iout)=gob                    ! observation height (m)   
               cdata_all(19,iout)=zz                     ! terrain height at ob location             
@@ -1140,8 +1144,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(15,iout)=tsavg                  ! skin temperature 
               cdata_all(16,iout)=ff10                   ! 10 meter wind factor     
               cdata_all(17,iout)=sfcr                   ! surface roughness 
-              cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degree)                
-              cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degree)                  
+              cdata_all(18,iout)=dlon_earth_deg         ! earth relative longitude (degree)                
+              cdata_all(19,iout)=dlat_earth_deg         ! earth relative latitude (degree)                  
               cdata_all(20,iout)=gob                    !  station elevation (m)    
               cdata_all(21,iout)=zz                     !  terrain height at ob location        
               cdata_all(22,iout)=r_prvstg(1,1)          !  provider name 

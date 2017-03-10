@@ -86,104 +86,106 @@ contains
         endif
  11     format(a,'ensmean',     '_f',i2.2,'.pe',i4.4)
  21     format(a,'ens_mem',i3.3,'_f',i2.2,'.pe',i4.4)
-         ! This is all that needs to be done.
-         !call preproc_read_gfsatm(grd,filename,iret)
-  
-         ! Keeping this for now
-         im = en_perts(1,1)%grid%im
-         jm = en_perts(1,1)%grid%jm
-         km = en_perts(1,1)%grid%km
-  
-         allocate(scr2(im,jm))
-         allocate(scr3(im,jm,km))
-  
-         call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = ierr
-         call gsi_bundlegetpointer(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
-         call gsi_bundlegetpointer(atm_bundle,'vp',v ,  ierr); iret = ierr + iret
-         call gsi_bundlegetpointer(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
-         call gsi_bundlegetpointer(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
-         call gsi_bundlegetpointer(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
-         call gsi_bundlegetpointer(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
-         if ( iret /= 0 ) then
-            if ( mype == 0 ) then
-               write(6,'(A)') 'get_user_ens_: ERROR!'
-               write(6,'(A)') 'For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
-               write(6,'(A)') 'but some have not been found. Aborting ... '
-            endif
-            goto 100
-         endif
-  
-         open(lunit,file=trim(adjustl(filename)),form='unformatted',iostat=iret)
-         if ( iret /= 0 ) goto 100
-         read(lunit,iostat=ierr) scr2; ps   = scr2; iret = ierr
-         read(lunit,iostat=ierr) scr3; u    = scr3; iret = ierr + iret
-         read(lunit,iostat=ierr) scr3; v    = scr3; iret = ierr + iret
-         read(lunit,iostat=ierr) scr3; tv   = scr3; iret = ierr + iret
-         read(lunit,iostat=ierr) scr3; q    = scr3; iret = ierr + iret
-         read(lunit,iostat=ierr) scr3; oz   = scr3; iret = ierr + iret
-         read(lunit,iostat=ierr) scr3; cwmr = scr3; iret = ierr + iret
-         close(lunit)
-         if ( iret /= 0 ) goto 100
-  
-         call gsi_bundleputvar(atm_bundle,'ps',ps,  ierr); iret = ierr
-         call gsi_bundleputvar(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
-         call gsi_bundleputvar(atm_bundle,'vp',v ,  ierr); iret = ierr + iret
-         call gsi_bundleputvar(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
-         call gsi_bundleputvar(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
-         call gsi_bundleputvar(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
-         call gsi_bundleputvar(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
-  
-         if ( iret /= 0 ) then
-            if ( mype == 0 ) then
-               write(6,'(A)') 'get_user_ens_: ERROR!'
-               write(6,'(A)') 'For now, GFS needs to put all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
-               write(6,'(A)') 'but some have not been found. Aborting ... '
-            endif
-            goto 100
-         endif
-  
-         if ( allocated(scr2) ) deallocate(scr2)
-         if ( allocated(scr3) ) deallocate(scr3)
-  
-      else ! if ( enspreproc )
-  
-         if ( regional ) then
-            zflag = .true.
-         else
-            zflag = .false.
-         endif
-  
-         ! if member == 0, read ensemble mean
-         if ( member == 0 ) then
-            write(filename,12) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex)
-         else
-            write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),member
-         endif
-  12     format(a,'sigf',i2.2,'_ensmean'     )
-  22     format(a,'sigf',i2.2,'_ens_mem',i3.3)
-  
-         if ( use_gfs_nemsio ) then
-            call general_read_gfsatm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
-                 zflag,atm_bundle,.true.,iret)
-         else
-            call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &
-                 zflag,atm_bundle,inithead,iret)
-         endif
-  
-         inithead = .false.
-  
-      endif ! if ( enspreproc )
-  
-  100 continue
-  
-     if ( iret /= 0 ) then
-        if ( mype == 0 ) &
-           write(6,'(A)') 'GET_USER_ENS: WARNING!'
-           write(6,'(3A,I5)') 'Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
-     endif
-  
-     return
-  
+
+       ! This is all that needs to be done.
+       !call preproc_read_gfsatm(grd,filename,iret)
+
+       ! Keeping this for now
+       im = en_perts(1,1)%grid%im
+       jm = en_perts(1,1)%grid%jm
+       km = en_perts(1,1)%grid%km
+
+       allocate(scr2(im,jm))
+       allocate(scr3(im,jm,km))
+
+       call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = ierr
+       call gsi_bundlegetpointer(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
+       call gsi_bundlegetpointer(atm_bundle,'vp',v ,  ierr); iret = ierr + iret
+       call gsi_bundlegetpointer(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
+       call gsi_bundlegetpointer(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
+       call gsi_bundlegetpointer(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
+       call gsi_bundlegetpointer(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
+       if ( iret /= 0 ) then
+          if ( mype == 0 ) then
+             write(6,'(A)') 'get_user_ens_: ERROR!'
+             write(6,'(A)') 'For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
+             write(6,'(A)') 'but some have not been found. Aborting ... '
+          endif
+          goto 100
+       endif
+
+       open(lunit,file=trim(adjustl(filename)),form='unformatted',iostat=iret)
+       if ( iret /= 0 ) goto 100
+       read(lunit,iostat=ierr) scr2; ps   = scr2; iret = ierr
+       read(lunit,iostat=ierr) scr3; u    = scr3; iret = ierr + iret
+       read(lunit,iostat=ierr) scr3; v    = scr3; iret = ierr + iret
+       read(lunit,iostat=ierr) scr3; tv   = scr3; iret = ierr + iret
+       read(lunit,iostat=ierr) scr3; q    = scr3; iret = ierr + iret
+       read(lunit,iostat=ierr) scr3; oz   = scr3; iret = ierr + iret
+       read(lunit,iostat=ierr) scr3; cwmr = scr3; iret = ierr + iret
+       close(lunit)
+       if ( iret /= 0 ) goto 100
+
+       call gsi_bundleputvar(atm_bundle,'ps',ps,  ierr); iret = ierr
+       call gsi_bundleputvar(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
+       call gsi_bundleputvar(atm_bundle,'vp',v ,  ierr); iret = ierr + iret
+       call gsi_bundleputvar(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
+       call gsi_bundleputvar(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
+       call gsi_bundleputvar(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
+       call gsi_bundleputvar(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
+
+       if ( iret /= 0 ) then
+          if ( mype == 0 ) then
+             write(6,'(A)') 'get_user_ens_: ERROR!'
+             write(6,'(A)') 'For now, GFS needs to put all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
+             write(6,'(A)') 'but some have not been found. Aborting ... '
+          endif
+          goto 100
+       endif
+
+       if ( allocated(scr2) ) deallocate(scr2)
+       if ( allocated(scr3) ) deallocate(scr3)
+
+    else ! if ( enspreproc )
+
+       if ( regional ) then
+          zflag = .true.
+       else
+          zflag = .false.
+       endif
+
+       ! if member == 0, read ensemble mean
+       if ( member == 0 ) then
+          write(filename,12) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex)
+       else
+          write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),member
+       endif
+12     format(a,'sigf',i2.2,'_ensmean'     )
+22     format(a,'sigf',i2.2,'_ens_mem',i3.3)
+
+       if ( use_gfs_nemsio ) then
+          call general_read_gfsatm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,.true.,iret)
+       else
+          call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,inithead,iret)
+       endif
+
+       inithead = .false.
+
+    endif ! if ( enspreproc )
+
+100 continue
+
+    if ( iret /= 0 ) then
+        if ( mype == 0 ) then
+            write(6,'(A)') 'get_user_ens_: WARNING!'
+          write(6,'(3A,I5)') 'Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
+       endif
+    endif
+
+    return
+
   end subroutine get_user_ens_wrf
   
   subroutine put_gsi_ens_wrf(this,grd,member,ntindex,atm_bundle,iret)

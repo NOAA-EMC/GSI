@@ -11,6 +11,9 @@ module obs_ferrscale
 !   2008-11-17 todling 
 !   2010-05-14 todling - update  to use gsi_bundle
 !   2010-08-19 lueken  - add only to module use
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
 !
 ! Subroutines Included:
 !   init_ferr_scale  - Initialize parameters
@@ -297,12 +300,14 @@ use kinds, only: r_quad
 use gsi_4dvar, only: nsubwin, l4dvar
 use constants, only: zero_quad
 use mpimod, only: mype
-use obsmod, only: yobs
 use intjomod, only: intjo
 use intradmod, only: setrad
 use mpl_allreducemod, only: mpl_allreduce
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 
+use m_obsHeadBundle, only: obsHeadBundle
+use m_obsHeadBundle, only: obsHeadBundle_create
+use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -322,6 +327,8 @@ logical :: llprt,llouter
 character(len=255) :: seqcalls
 real(r_quad),dimension(max(1,nrclen)) :: qpred
 
+
+type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -380,13 +387,15 @@ call setrad(rval(1))
 
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-do ibin=1,nobs_bins
+call obsHeadBundle_create(yobs,nobs_bins)
+do ibin=1,size(yobs)    ! == nobs_bins
    call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
 end do
+call obsHeadBundle_destroy(yobs)
 
 ! Take care of background error for bias correction terms
 
-call mpl_allreduce(nrclen,qpvals=qpred)
+call mpl_allreduce(size(qpred),qpred)
 
 do i=1,nsclen
    rbias%predr(i)=rbias%predr(i)+qpred(i)

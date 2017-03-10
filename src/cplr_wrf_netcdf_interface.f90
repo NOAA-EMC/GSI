@@ -2,13 +2,13 @@ module convert_netcdf_mod
 use abstract_convert_netcdf_mod 
   type, extends(abstract_convert_netcdf_class) :: convert_netcdf_class
   contains
-    procedure, nopass :: convert_netcdf_mass => convert_netcdf_mass_wrf
-    procedure, nopass :: convert_netcdf_nmm  => convert_netcdf_nmm_wrf
-    procedure, nopass :: update_netcdf_mass  => update_netcdf_mass_wrf
-    procedure, nopass :: update_netcdf_nmm   => update_netcdf_nmm_wrf
+    procedure, pass(this) :: convert_netcdf_mass => convert_netcdf_mass_wrf
+    procedure, pass(this) :: convert_netcdf_nmm  => convert_netcdf_nmm_wrf
+    procedure, pass(this) :: update_netcdf_mass  => update_netcdf_mass_wrf
+    procedure, pass(this) :: update_netcdf_nmm   => update_netcdf_nmm_wrf
   end type convert_netcdf_class
 contains  
-  subroutine convert_netcdf_mass_wrf
+  subroutine convert_netcdf_mass_wrf(this)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    convert_netcdf_mass   read wrf mass netcdf restart
@@ -57,10 +57,12 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
+    use netcdf_mod, only: nc_check
   
     implicit none
   
   ! Declare local parameters
+    class(convert_netcdf_class), intent(inout) :: this
     real(r_single),parameter:: one_single = 1.0_r_single
     real(r_single),parameter:: r45 = 45.0_r_single
   
@@ -1018,7 +1020,7 @@ contains
      
   end subroutine convert_netcdf_mass_wrf
   
-  subroutine convert_netcdf_nmm_wrf(update_pint,ctph0,stph0,tlm0,guess)
+  subroutine convert_netcdf_nmm_wrf(this,update_pint,ctph0,stph0,tlm0,guess)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    convert_netcdf_nmm    read wrf nmm netcdf restart
@@ -1081,6 +1083,7 @@ contains
   ! include 'wrf_status_codes.h'
   ! include 'netcdf.inc'
   
+    class(convert_netcdf_class), intent(inout) :: this
     logical     ,intent(in   ) :: guess
     logical     ,intent(inout) :: update_pint
     real(r_kind),intent(  out) :: ctph0,stph0,tlm0
@@ -1984,7 +1987,7 @@ contains
   
   end subroutine convert_netcdf_nmm_wrf
   
-  subroutine update_netcdf_mass_wrf
+  subroutine update_netcdf_mass_wrf(this)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    update_netcdf_mass  create netcdf format wrf restart file from internal binary file.
@@ -2021,6 +2024,8 @@ contains
   !
   !$$$ end documentation block
   
+    use netcdf, only: nf90_open,nf90_close,nf90_put_att
+    use netcdf, only: nf90_write,nf90_global
     use kinds, only: r_single,i_kind,r_kind
     use constants, only: h300,tiny_single
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
@@ -2030,8 +2035,10 @@ contains
     use obsmod, only: iadate
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
+    use netcdf_mod, only: nc_check
   
     implicit none
+    class(convert_netcdf_class), intent(inout) :: this
   
     include 'netcdf.inc'
   
@@ -2052,6 +2059,7 @@ contains
     character (len= 3) :: ordering
   
     character (len=80), dimension(3)  ::  dimnames
+    character(len=24),parameter :: myname_ = 'update_netcdf_mass'
   
   
     integer(i_kind) :: it, n_actual_clouds, ierr, istatus, Status, Status_next_time
@@ -2075,6 +2083,9 @@ contains
     integer(i_kind),allocatable::ifield2(:,:)
     integer(i_kind) wrf_real
     data iunit / 15 /
+
+
+
     wrf_real=104
     end_index1=0
   
@@ -2759,24 +2770,24 @@ contains
     !
     !  reopen, update global attributes.
     !
-    ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
-    IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
-    ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
-    ierr = NF_CLOSE(dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
+    call nc_check( nf90_open(trim(adjustl(flnm1)),nf90_write,dh1),&
+      myname_,'open: '//trim(flnm1) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(flnm1) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(flnm1) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(flnm1) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(flnm1) )
+    call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(flnm1) )
     
   end subroutine update_netcdf_mass_wrf
   
-  subroutine update_netcdf_nmm_wrf
+  subroutine update_netcdf_nmm_wrf(this)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    update_netcdf_nmm   create netcdf format wrf restart from internal binary file.
@@ -2803,6 +2814,8 @@ contains
   !
   !$$$ end documentation block
   
+    use netcdf, only: nf90_open,nf90_close,nf90_put_att
+    use netcdf, only: nf90_write,nf90_global
     use kinds, only: r_single,i_kind,r_kind
     use constants, only: tiny_single
     use wrf_params_mod, only: update_pint
@@ -2812,9 +2825,11 @@ contains
     use control_vectors, only: cvars3d
     use guess_grids, only: ntguessig
     use obsmod, only: iadate
+    use netcdf_mod, only: nc_check
   ! use wrf_data
     implicit none
     include 'netcdf.inc'
+    class(convert_netcdf_class), intent(inout) :: this
   
     character(len=120) :: flnm1,flnm2
     character(len=19)  :: DateStr1
@@ -2830,6 +2845,7 @@ contains
     character (len= 3) :: ordering
   
     character (len=80), dimension(3)  ::  dimnames
+    character(len=24),parameter :: myname_ = 'update_netcdf_nmm'
     
     integer(i_kind) :: it, n_actual_clouds, ier, iret, ierr, Status, Status_next_time
     integer(i_kind) icw4crtm,iqtotal
@@ -3214,20 +3230,20 @@ contains
     !
     !  reopen, update global attributes.
     !
-    ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
-    IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
-    ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
-    ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
-    IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
-    ierr = NF_CLOSE(dh1)
-    IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
+    call nc_check( nf90_open(trim(adjustl(flnm1)),nf90_write,dh1),&
+      myname_,'open: '//trim(adjustl(flnm1)) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  START_DATE '//trim(adjustl(flnm1)) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
+      myname_,'put_att:  SIMULATION_START_DATE '//trim(adjustl(flnm1)) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+      myname_,'put_att: GMT '//trim(adjustl(flnm1)) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
+      myname_,'put_att: JULYR'//trim(adjustl(flnm1)) )
+    call nc_check( nf90_put_att(dh1,nf90_global,'JULDAY',iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1),&
+      myname_,'put_att: JULDAY'//trim(adjustl(flnm1)) )
+    call nc_check( nf90_close(dh1),&
+      myname_,'close: '//trim(adjustl(flnm1)) )
     
   end subroutine update_netcdf_nmm_wrf
 end module convert_netcdf_mod

@@ -13,6 +13,7 @@ module intdwmod
 !   2008-11-26  Todling - remove intdw_tl
 !   2009-08-13  lueken - updated documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intdw_
@@ -25,6 +26,10 @@ module intdwmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_dwNode , only: dwNode
+use m_dwNode , only: dwNode_typecast
+use m_dwNode , only: dwNode_nextcast
 implicit none
 
 PRIVATE
@@ -85,7 +90,7 @@ subroutine intdw_(dwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: dw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -95,7 +100,7 @@ subroutine intdw_(dwhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(dw_ob_type),pointer,intent(in   ) :: dwhead
+  class(obsNode),pointer,intent(in   ) :: dwhead
   type(gsi_bundle),        intent(in   ) :: sval
   type(gsi_bundle),        intent(inout) :: rval
 
@@ -108,7 +113,7 @@ subroutine intdw_(dwhead,rval,sval)
   real(r_kind) cg_dw,p0,grad,wnotgross,wgross,time_dwi
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(dw_ob_type), pointer :: dwptr
+  type(dwNode), pointer :: dwptr
 
 !  If no dw observations return
   if(.not. associated(dwhead))return
@@ -127,7 +132,8 @@ subroutine intdw_(dwhead,rval,sval)
   endif
   if(ier/=0)return
 
-  dwptr => dwhead
+  !dwptr => dwhead
+  dwptr => dwNode_typecast(dwhead)
   do while (associated(dwptr))
      j1=dwptr%ij(1)
      j2=dwptr%ij(2)
@@ -240,7 +246,8 @@ subroutine intdw_(dwhead,rval,sval)
         end if
      endif
 
-     dwptr => dwptr%llpoint
+     !dwptr => dwptr%llpoint
+     dwptr => dwNode_nextcast(dwptr)
 
   end do
 

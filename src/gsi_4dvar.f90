@@ -23,6 +23,7 @@ module gsi_4dvar
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs 
 !   2015-02-23 Rancic/Thomas - iwinbgn changed from hours to mins, added thin4d
 !                         option to remove thinning in time       
+!   2015-10-01 Guo      - trigger for redistribution of obs when applicable
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -112,6 +113,7 @@ module gsi_4dvar
   public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens_nhr,ens_fhrlevs,ens_nstarthr,ibin_anl
   public :: lwrite4danl,thin4d
+  public :: mPEs_observer
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -142,6 +144,8 @@ module gsi_4dvar
   integer(i_kind) :: jsiga
   integer(i_kind) :: ens_nhr,ens_nstarthr,ibin_anl
   integer(i_kind),allocatable,dimension(:) :: ens_fhrlevs
+
+  integer(i_kind),save:: mPEs_observer=0
 
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 

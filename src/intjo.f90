@@ -10,6 +10,9 @@ module intjomod
 ! program history log:
 !   2008-12-01  Todling - wrap in module
 !   2009-08-13  lueken - update documentation
+!   2015-09-03  guo     - obsmod::obs_handle has been replaced with obsHeadBundle,
+!                         defined by m_obsHeadBundle.
+!   2016-08-29  J Guo   - Separated calls to intozlay() and intozlev()
 !
 ! subroutines included:
 !   sub intjo_
@@ -193,7 +196,6 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
 use bias_predictors, only: predictors
 use intaodmod, only: intaod
@@ -211,7 +213,8 @@ use intsrwmod, only: intsrw
 use intsstmod, only: intsst
 use intdwmod, only: intdw
 use intpcpmod, only: intpcp
-use intozmod, only: intoz
+use intozmod, only: intozlay
+use intozmod, only: intozlev
 use intcomod, only: intco
 use intpm2_5mod, only: intpm2_5
 use intpm10mod, only: intpm10
@@ -230,11 +233,13 @@ use intlcbasmod, only: intlcbas
 use intcldchmod, only: intcldch
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
+
+use m_obsHeadBundle, only: obsHeadBundle
 implicit none
 
 ! Declare passed variables
-integer(i_kind) , intent(in   ) :: ibin
-type(obs_handle), intent(in   ) :: yobs
+integer(i_kind)    , intent(in) :: ibin
+type(obsHeadBundle), intent(in) :: yobs
 type(gsi_bundle), intent(in   ) :: sval
 type(predictors), intent(in   ) :: sbias
 type(gsi_bundle), intent(inout) :: rval
@@ -284,7 +289,8 @@ real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
   call intspd(yobs%spd,rval,sval)
 
 ! RHS for ozone observations
-  call intoz(yobs%oz,yobs%o3l,rval,sval)
+  call intozlay(yobs%oz ,rval,sval)
+  call intozlev(yobs%o3l,rval,sval)
 
 ! RHS for carbon monoxide
   call intco(yobs%colvk,rval,sval)

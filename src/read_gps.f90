@@ -57,6 +57,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2012-10-25 cucurull - add qc flag for bnd=0 case
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -128,6 +129,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   
   real(r_kind) timeo,t4dv
   real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth,freq_chk,freq
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) height,rlat,rlon,ref,bend,impact,roc,geoid,&
                bend_error,ref_error,bend_pccf,ref_pccf
 
@@ -384,6 +386,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               if (rlon==r360)  rlon=zero
               if (rlon<zero  ) rlon=rlon+r360
 
+              dlat_earth_deg = rlat
+              dlon_earth_deg = rlon
               dlat_earth = rlat * deg2rad  !convert to radians
               dlon_earth = rlon * deg2rad
  
@@ -422,8 +426,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(11,ndata)= said            ! satellite identifier
               cdata_all(12,ndata)= ptid            ! platform transmitter id number
               cdata_all(13,ndata)= usage           ! usage parameter
-              cdata_all(14,ndata)= dlon_earth*rad2deg  ! earth relative longitude (degrees)
-              cdata_all(15,ndata)= dlat_earth*rad2deg  ! earth relative latitude (degrees)
+              cdata_all(14,ndata)= dlon_earth_deg  ! earth relative longitude (degrees)
+              cdata_all(15,ndata)= dlat_earth_deg  ! earth relative latitude (degrees)
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
 
            else

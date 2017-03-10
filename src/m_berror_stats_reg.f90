@@ -13,6 +13,7 @@
       use constants, only: zero,one,max_varname_length
       use gridmod, only: nsig
       use chemmod, only : berror_chem,upper2lower,lower2upper
+      use m_berror_stats, only: berror_stats
 
       implicit none
 
@@ -32,12 +33,18 @@
 !                     - extract from rdgstat_reg
 !                     - change sructure of error file
 !                     - make changes for generalized control variables
+!       24Jun16 - Guo - replaced the local berror_stats, with a global user
+!                       configurable m_berror_stats::berror_stats, for the
+!                       filename.  This ensure the consistency, as well as the
+!                       reconfigurability of this variable through the GSI.
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
 
-     ! Reconfigurable parameters, vai NAMELISt/setup/
-  character(len=256),save :: berror_stats = "berror_stats"   ! filename
+        ! The same default filename is used as in m_berror_stats,  to take the
+        ! advantage of the same berror_stats= entry in the /setup/ namelist, to
+        ! override the default value.  Otherwise, a special entry would have to
+        ! be defined for this module in the /setup/ namelist.
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2

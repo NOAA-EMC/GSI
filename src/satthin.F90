@@ -422,6 +422,7 @@ contains
 !   2010-04-01  treadon - move strip to gridmod
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-25  todling - reposition ltosi and others to commvars
+!   2014-10-05  todling - revisit bkg bias-tskin; rename bkg-bias-related interface
 !   2014-12-03  derber  - modify reading of surface fields
 !   2015-05-01  li      - modify to handle the single precision sfc fields read from sfc file
 !  
@@ -444,19 +445,19 @@ contains
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip,&
        use_gfs_nemsio,use_readin_anl_sfcmask
-    use hybrid_ensemble_parameters, only: l_hyb_ens
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
        veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
-    use m_gsiBiases, only: bias_tskin,compress_bias,bias_hour
-    use jfunc, only: biascor
+    use m_gsiBiases, only: bkg_bias_model,bias_hour
+    use jfunc, only: bcoption
 
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
     use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl
     use sfcio_module, only: sfcio_realfill
+    use obsmod, only: lobserver
 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -469,7 +470,6 @@ contains
     real(r_kind),dimension(lat1*lon1):: zsm
     real(r_kind),dimension(itotsub):: work1
     real(r_kind),dimension(lat2,lon2):: work2
-    real(r_kind),dimension(lat2,lon2):: b_tskin
     real(r_kind),dimension(nlat,nlon):: bias
     real(r_kind),dimension(nlat):: ailoc
     real(r_kind),dimension(nlon):: ajloc
@@ -567,34 +567,30 @@ contains
           deallocate(veg_type_full)
        end if
  
-       if (biascor > zero) then
-          if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ',&
-                                      filename
-          call compress_bias(b_tskin,bias_tskin,bias_hour)
-          do j=1,lon2
-             do i=1,lat2
-                work2(i,j)=b_tskin(i,j)
-             end do
-          end do
-          call strip(work2,zsm)
+       if (bcoption>0) then
+          if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ', trim(filename)
  
-          call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
-             work1,ijn,displs_g,mpi_rtype,&
-             mpi_comm_world,ierror)
- 
-          do k=1,iglobal
-             i=ltosi(k) ; j=ltosj(k)
-             bias(i,j)=nint(work1(k))
-          end do
-!  Need to add interpolation of bias to nlon_sfc, nlat_sfc grid if
+!         Correct Tskin over the full grid
           if(nlon == nlon_sfc .and. nlat == nlat_sfc)then
-             do it=1,nfldsfc
-                do j=1,nlon
-                   do i=1,nlat
-                      sst_full(i,j,it)=sst_full(i,j,it)+bias(i,j)
+             call bkg_bias_model(work2,'sst',bias_hour,ierror)
+             if (ierror==0) then ! successful application of bkg bias model ...
+                call strip(work2,zsm)
+                call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
+                   work1,ijn,displs_g,mpi_rtype,&
+                   mpi_comm_world,ierror)
+ 
+                do k=1,iglobal
+                   i=ltosi(k) ; j=ltosj(k)
+                   bias(i,j)=nint(work1(k))
+                end do
+                do it=1,nfldsfc
+                   do j=1,nlon
+                      do i=1,nlat
+                         sst_full(i,j,it)=sst_full(i,j,it)+bias(i,j)
+                      end do
                    end do
                 end do
-             end do
+             end if  ! check for successful application of bkg bias model
           else
              write(6,*)'satthin bias correction - incompatible surface resolution',&
                  nlon,nlon_sfc,nlat,nlat_sfc
@@ -741,6 +737,9 @@ contains
     it=ntguessig
     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z',ges_z,istatus)
     if (istatus==0) then
+       do j=1,lon1*lat1
+          zsm(j)=zero
+       end do
        call strip(ges_z,zsm)
        call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
           work1,ijn,displs_g,mpi_rtype,&
@@ -834,12 +833,13 @@ contains
        end if
 
     end if
-
-    if(allocated(veg_frac)) deallocate(veg_frac)
-    if(allocated(veg_type)) deallocate(veg_type)
-    if(allocated(soil_type)) deallocate(soil_type)
-    if(allocated(soil_moi)) deallocate(soil_moi)
-    if(allocated(sfc_rough)) deallocate(sfc_rough)
+    if (.not.lobserver) then
+       if(allocated(veg_frac)) deallocate(veg_frac)
+       if(allocated(veg_type)) deallocate(veg_type)
+       if(allocated(soil_type)) deallocate(soil_type)
+       if(allocated(soil_moi)) deallocate(soil_moi)
+       if(allocated(sfc_rough)) deallocate(sfc_rough)
+    endif
     return
 
   end subroutine getsfc

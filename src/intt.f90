@@ -15,6 +15,7 @@ module inttmod
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-09      Su  - add non linear qc from Purser's scheme
 !   2015-02-26      Su  - add njqc as an option to choose Purser varqc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intt_
@@ -27,6 +28,10 @@ module inttmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_tNode, only: tNode
+use m_tNode, only: tNode_typecast
+use m_tNode, only: tNode_nextcast
 implicit none
 
 PRIVATE
@@ -112,7 +117,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600,two
-  use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -125,7 +130,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   
 
 ! Declare passed variables
-  type(t_ob_type),pointer,intent(in   ) :: thead
+  class(obsNode), pointer,intent(in   ) :: thead
   type(gsi_bundle)       ,intent(in   ) :: sval
   type(gsi_bundle)       ,intent(inout) :: rval
   real(r_kind),optional,dimension(npredt*ntail),intent(in   ) :: spred
@@ -149,7 +154,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   real(r_kind) ts_grad,us_grad,vs_grad,qs_grad
   real(r_kind) qs_prime0,tg_prime0,ts_prime0,psfc_prime0
   real(r_kind) us_prime0,vs_prime0
-  type(t_ob_type), pointer :: tptr
+  type(tNode), pointer :: tptr
 
 !  If no t data return
   if(.not. associated(thead))return
@@ -192,7 +197,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   endif
 
   time_t=zero
-  tptr => thead
+  !tptr => thead
+  tptr => tNode_typecast(thead)
   do while (associated(tptr))
 
      j1=tptr%ij(1)
@@ -465,7 +471,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
      end if
 
-     tptr => tptr%llpoint
+     !tptr => tptr%llpoint
+     tptr => tNode_nextcast(tptr)
   end do
   return
 end subroutine intt_

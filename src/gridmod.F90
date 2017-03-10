@@ -82,6 +82,7 @@ module gridmod
 !   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
 !                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
 !                        to allow spectral to grid transformation to a lower resolution grid
+!   2015-02-03 todling - update max nlayers to 200
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !                      
 !                        
@@ -258,7 +259,7 @@ module gridmod
   integer(i_kind),allocatable,dimension(:):: displs_s  !   displacement for send from subdomain
   integer(i_kind),allocatable,dimension(:):: displs_g  !   displacement for receive on global grid
 
-  integer(i_kind),dimension(100):: nlayers        ! number of RTM layers per model layer
+  integer(i_kind),dimension(200):: nlayers        ! number of RTM layers per model layer
                                                   ! (k=1 is near surface layer), default is 1
   integer(i_kind), allocatable, dimension(:)::  jtstart,jtstop ! starting and ending indicies for j threading
 

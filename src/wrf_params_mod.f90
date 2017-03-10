@@ -5,7 +5,7 @@ module wrf_params_mod
     logical preserve_restart_date  !  if true, then do not update date information on restart file
     logical cold_start             !  if true, then restart file is from GFS
   contains
-    subroutine init(update,restart_date,coldstart)      
+    subroutine init_wrf_params(update,restart_date,coldstart)      
        implicit none
        logical, intent(in   )  :: update
        logical, intent(in   )  :: restart_date
@@ -13,5 +13,5 @@ module wrf_params_mod
        update_pint = update
        preserve_restart_date = restart_date
        cold_start = coldstart
-    end subroutine init
+    end subroutine init_wrf_params
 end module wrf_params_mod

@@ -18,6 +18,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
 !                        dynamic allocated array
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table
 !
@@ -126,6 +127,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,var_jb
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1,wjbmin
@@ -478,6 +480,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 
            nread=nread+1
+           dlon_earth_deg=hdrdat(3)
+           dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
            dlat_earth=hdrdat(2)*deg2rad
                               
@@ -708,8 +712,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(16,iout)=tsavg               ! skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
-           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+           cdata_all(19,iout)=dlon_earth_deg      ! earth relative longitude (degrees)
+           cdata_all(20,iout)=dlat_earth_deg      ! earth relative latitude (degrees)
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name

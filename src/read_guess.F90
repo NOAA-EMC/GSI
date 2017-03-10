@@ -65,6 +65,10 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-30  jung    - changed zero to qmin in sensible temp calc and re-compute sensible
 !                         temperature after clipping supersaturation
+!   2014-10-04  todling - bug fix in dim of work array
+!   2014-10-05  todling - background biases now held in bundle
+!                       - redefined meanning of bcoption
+!                       - renamed bkg-bias interface for clarity
 !   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
 !                         proximity over full domain instead of subdomain
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
@@ -81,11 +85,10 @@ subroutine read_guess(iyear,month,idd,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: biascor,bcoption,clip_supersaturation
+  use jfunc, only: bcoption,clip_supersaturation
   use guess_grids, only:  nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl
-  use m_gsiBiases,only : correct_bias,nbc
-  use m_gsiBiases,only : bias_q,bias_tv,bias_cwmr,bias_oz,bias_ps,&
-       bias_vor,bias_div,bias_tskin,bias_u,bias_v
+  use m_gsiBiases,only : bkg_bias_correction,nbc
+  use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_io, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
@@ -121,7 +124,8 @@ subroutine read_guess(iyear,month,idd,mype)
 
   real(r_kind) :: satval
   real(r_kind),dimension(lat2,lon2,nsig) :: satq
-  real(r_kind),dimension(lat2,lon2):: work
+! real(r_kind),dimension(lat2,lon2):: work
+  real(r_kind),dimension(:,:,:),allocatable:: work
   real(r_kind),dimension(:,:,:),pointer:: ges_tv=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q =>NULL()
 
@@ -160,11 +164,11 @@ subroutine read_guess(iyear,month,idd,mype)
 
 !       If requested, read bias correction fields
         iret_bias=0
-        if (biascor >= zero) then
+        if (abs(bcoption)>0) then
            filename='biascor_in'
-           call read_bias(filename,mype,nbc,work,bias_ps,bias_tskin,&
-                bias_vor,bias_div,bias_u,bias_v,bias_tv,bias_q,&
-                bias_cwmr,bias_oz,iret_bias)
+           allocate(work(lat2,lon2,nbc))
+           call read_bias(filename,mype,nbc,work,gsi_bkgbias_bundle,iret_bias)
+           deallocate(work)
         endif
         
 !       Read atmospheric fields
@@ -184,7 +188,7 @@ subroutine read_guess(iyear,month,idd,mype)
         
 ! If doing SBC, apply bias correction ...
 
-  if(biascor>=zero .and. iret_bias==0 .and. bcoption==1 ) call correct_bias()
+  if(iret_bias==0 .and. bcoption>0) call bkg_bias_correction()
 
 ! Get sensible temperature (after bias correction's been applied)
 

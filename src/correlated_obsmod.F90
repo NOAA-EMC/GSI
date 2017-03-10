@@ -1253,13 +1253,13 @@ implicit none
      enddo
      if (iii/=ncp) then
        if (iamroot_) then
-          write(6,'') myname, ' iii,ncp= ',iii,ncp
+          write(6,*) myname, ' iii,ncp= ',iii,ncp
        endif
        call die(myname_,' serious dimensions insconsistency, aborting')
      endif
      if (jjj/=ncp) then
        if (iamroot_) then
-          write(6,'') myname, ' jjj,ncp= ',jjj,ncp
+          write(6,*) myname, ' jjj,ncp= ',jjj,ncp
        endif
        call die(myname_,' serious dimensions insconsistency, aborting')
      endif
