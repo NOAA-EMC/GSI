@@ -58,7 +58,7 @@ EOF
          /
 EOF
 
-   elif [ "$mtype" = 't180' -o "$mtype" = 't181' -o "$mtype" = 't182' -o "$mtype" = 't183'  -o "$mtype" = 't187' ]; then
+   elif [ "$mtype" = 't180' -o "$mtype" = 't181' -o "$mtype" = 't183'  -o "$mtype" = 't187' ]; then
       cp $EXECcmon/grads_sfc.x ./diag2grads
       cat <<EOF >input
          &input
