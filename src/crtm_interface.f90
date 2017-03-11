@@ -393,7 +393,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
           exit
        end if
     end do
-    print*, 'mixed_use=', mixed_use
 
     allocate(cloud_cont(msig,n_clouds_fwd))
     allocate(cloud_efr(msig,n_clouds_fwd))
@@ -691,7 +690,7 @@ endif
     write(6,*)myname_,' ***ERROR** creating atmosphere.'
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution)))) &
     write(6,*)myname_,' ***ERROR** creating rtsolution.'
- if (radmod%lcloud_fwd) then                                            
+ if (radmod%lcloud_fwd .and. (.not. mixed_use)) then                                            
  if (.NOT.(ANY(crtm_rtsolution_associated(rtsolution0)))) &  
     write(6,*)' ***ERROR** creating rtsolution0.'             
  endif                                                        
