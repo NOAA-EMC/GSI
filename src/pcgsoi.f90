@@ -93,19 +93,19 @@ subroutine pcgsoi()
 !   2010-05-13  todling - update interface to update_geswtend; update to gsi_bundle for state vector
 !                       - declare all use explicitly
 !   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
-!   2010-09-24  todling - must turn off variational qc when ltlint=.t.
-!   2011-04-25  eL akkraoui - add option for re-orthogonalization.
+!   2011-04-25  el akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
 !   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to ensctl2state_ad
 !                          and ensctl2state.  I put in temporary fix to allow debug compile
 !                          by replacing mval with mval(1).  This is likely not
 !                          correct for multiple obs bins.
+!   2014-10-25  todling - reposition final clean to allow proper complition of 4dvar
 !   2014-12-22  Hu      -  add option i_gsdcldanal_type to control cloud analysis  
+!   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
+!   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
 !   2016-05-13  parrish -  remove beta12mult.  Replace with sqrt_beta_s_mult, sqrt_beta_e_mult, inside
 !                          bkerror and bkerror_a_en.
-!   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
-!                       
 !
 ! input argument list:
 !
@@ -123,13 +123,13 @@ subroutine pcgsoi()
 !$$$
   use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc,vqc
-  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag,yobs
+  use obsmod, only: destroyobs,oberror_tune,luse_obsdiag
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,diag_precon,step_start, &
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
-                       ltlint, iorthomax
+                       iorthomax
   use gridmod, only: twodvar_regional
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
@@ -157,6 +157,10 @@ subroutine pcgsoi()
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
+  use stpjomod, only: stpjo_setup
+  use m_obsHeadBundle, only: obsHeadBundle
+  use m_obsHeadBundle, only: obsHeadBundle_create
+  use m_obsHeadBundle, only: obsHeadBundle_destroy
   implicit none
 
 ! Declare passed variables
@@ -192,6 +196,8 @@ subroutine pcgsoi()
 !     inmi generates a linear correction to t,u,v,p.  already have xhatuv which can
 !      be used for the corrected wind, but nothing for t,p.  xhatt, etc are used exactly
 !       like xhatuv,dirxuv.
+
+  type(obsHeadBundle),pointer,dimension(:):: yobs
 
 ! Step size diagnostic strings
   data step /'good', 'SMALL'/
@@ -245,7 +251,9 @@ subroutine pcgsoi()
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   nlnqc_iter=.false.
-  call stpjo_setup(yobs,nobs_bins)
+  call obsHeadBundle_create(yobs,nobs_bins)
+  call stpjo_setup(yobs)
+  call obsHeadBundle_destroy(yobs)
 
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
@@ -351,14 +359,6 @@ subroutine pcgsoi()
         gradx%values(i)=gradx%values(i)+yhatsave%values(i)
      end do
 
-!    Multiply by background error
-     if(anisotropic) then
-        call anbkerror(gradx,grady)
-        if(lanlerr .and. lgschmidt) call mgram_schmidt(gradx,grady)
-     else
-        call bkerror(gradx,grady)
-     end if
-
 !    first re-orthonormalization
      if(iorthomax>0) then 
         iortho=min(iorthomax,iter) 
@@ -370,6 +370,14 @@ subroutine pcgsoi()
               end do
            end do
         end if
+     end if
+
+!    Multiply by background error
+     if(anisotropic) then
+        call anbkerror(gradx,grady)
+        if(lanlerr .and. lgschmidt) call mgram_schmidt(gradx,grady)
+     else
+        call bkerror(gradx,grady)
      end if
 
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
@@ -788,13 +796,13 @@ subroutine pcgsoi()
       call write_all(-1)
     else
       if(jiter == miter) then
-         call clean_
          call write_all(-1)
       endif
   endif
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
+     call view_st (sval,'xinc')
      call inc2guess(sval)
      call write_all(iwrtinc)
      call prt_guess('increment')
@@ -809,7 +817,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  if (jiter < miter) call clean_
+  call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')
@@ -904,10 +912,13 @@ subroutine clean_
 !$$$ end documentation block
 
   use jfunc, only: diag_precon
+  use m_obsdiags, only: obsdiags_reset
+  use obsmod, only: destroyobs,lobsdiagsave
   implicit none
 
 ! Deallocate obs file
-  if (.not.l4dvar) call destroyobs
+  if (.not.l4dvar) call destroyobs()      ! phasing out, by gradually reducing its funtionality
+  if (.not.l4dvar) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
 
 ! Release state-vector memory
   call deallocate_cv(xhat)

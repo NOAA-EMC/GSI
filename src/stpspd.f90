@@ -13,6 +13,7 @@ module stpspdmod
 !   2008-12-02  Todling - remove stpspd_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutine included:
 !   sub stpspd
@@ -79,7 +80,6 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: spd_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
@@ -87,10 +87,14 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   use gsi_4dvar, only: ltlint
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_spdNode, only: spdNode
+  use m_spdNode, only: spdNode_typecast
+  use m_spdNode, only: spdNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer           ,intent(in   ) :: spdhead
+  class(obsNode), pointer             ,intent(in   ) :: spdhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
@@ -107,7 +111,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(spd_ob_type), pointer :: spdptr
+  type(spdNode), pointer :: spdptr
 
   out=zero_quad
 
@@ -135,7 +139,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
      call stop2(314)
   end if
 
-  spdptr => spdhead
+  spdptr => spdNode_typecast(spdhead)
   do while (associated(spdptr))
 
      if(spdptr%luse)then
@@ -215,7 +219,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
 
      end if
     
-     spdptr => spdptr%llpoint
+     spdptr => spdNode_nextcast(spdptr)
 
   end do
   return

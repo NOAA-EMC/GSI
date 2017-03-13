@@ -9,6 +9,7 @@ module stpgustmod
 !
 ! program history log:
 !   2009-02-24  zhu
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpgust
@@ -54,16 +55,19 @@ subroutine stpgust(gusthead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: gust_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_gustNode, only: gustNode
+  use m_gustNode, only: gustNode_typecast
+  use m_gustNode, only: gustNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(gust_ob_type),pointer           ,intent(in   ) :: gusthead
+  class(obsNode ),pointer             ,intent(in   ) :: gusthead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +82,7 @@ subroutine stpgust(gusthead,rval,sval,out,sges,nstep)
   real(r_kind) pg_gust
   real(r_kind),pointer,dimension(:) :: sgust
   real(r_kind),pointer,dimension(:) :: rgust
-  type(gust_ob_type), pointer :: gustptr
+  type(gustNode), pointer :: gustptr
 
   out=zero_quad
 
@@ -89,7 +93,7 @@ subroutine stpgust(gusthead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'gust',rgust,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  gustptr => gusthead
+  gustptr => gustNode_typecast(gusthead)
   do while (associated(gustptr))
      if(gustptr%luse)then
         if(nstep > 0)then
@@ -131,7 +135,7 @@ subroutine stpgust(gusthead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     gustptr => gustptr%llpoint
+     gustptr => gustNode_nextcast(gustptr)
 
   end do
   

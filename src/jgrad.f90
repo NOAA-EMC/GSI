@@ -14,20 +14,29 @@ subroutine jgrad(xhat,yhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2013-05-15  todling - add total water constraint (also used in pcgsoi)
 !   2013-05-18  todling - evaljcdfi placed in intjcmod w/ name intjcdfi
 !   2014-02-07  todling - update bias when doing 4dvar
+!   2014-09-17  todling - handle output of 4d-inc more carefully to allow for
+!                         update of state in non-convensional 4d (ie, 4densvar)
+!   2014-10-14  todling - write-all only called at last outer iteration
+!   2015-12-01  todling - add setrad to init pointers in intrad
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
+!   2016-05-09  todling - allow increment to be written out at end of outer iter
 !
 !$$$
 
 use kinds, only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc, idmodel
+use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc
+use gsi_4dvar, only: l4densvar
 use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only : xhatsave,yhatsave
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 use jcmod, only: ljcdfi,ljcpdry
 use intjcmod, only: intjcpdry
-use jfunc, only: nclen,l_foto,xhat_dt,jiter,jiterend
-use gridmod, only: lat2,lon2,nsig,twodvar_regional
-use obsmod, only: yobs, lsaveobsens, l_do_adjoint
+use jfunc, only: nclen,jiter,miter
+use gridmod, only: twodvar_regional
+use obsmod, only: lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
 use mod_strong, only: l_tlnmc,baldiag_inc
 use control_vectors, only: control_vector
@@ -40,11 +49,15 @@ use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment
 use bias_predictors, only: update_bias_preds
 use intjomod, only: intjo
 use intjcmod, only: intjcdfi
+use intradmod, only: setrad
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 use mpl_allreducemod, only: mpl_allreduce
 
+use m_obsHeadBundle, only: obsHeadBundle
+use m_obsHeadBundle, only: obsHeadBundle_create
+use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -67,7 +80,10 @@ integer(i_kind)      :: i,ii,iobs,ibin
 !real(r_kind)         :: zdummy(lat2,lon2,nsig)
 logical              :: llprt,llouter
 character(len=255)   :: seqcalls
-  real(r_quad),dimension(max(1,nrclen)) :: qpred
+character(len=8)     :: xincfile
+real(r_quad),dimension(max(1,nrclen)) :: qpred
+
+type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -142,9 +158,12 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
+call setrad(sval(1))
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-do ibin=1,nobs_bins
+call obsHeadBundle_create(yobs,nobs_bins)
+
+do ibin=1,size(yobs)    ! == nobs_bins
    call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
 end do
 ! Take care of background error for bias correction terms
@@ -163,6 +182,7 @@ if (ntclen>0) then
    end do
 end if
 
+call obsHeadBundle_destroy(yobs)
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)
@@ -275,19 +295,30 @@ if (lupdfgs) then
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
     if (mype==0) write(6,*)trim(seqcalls),': Saving increment to file'
-    call inc2guess(sval)
-    call view_st (sval,'xinc')
-    call write_all(iwrtinc)
-    call prt_guess('increment')
+    if (miter==1) then
+        xincfile='xinc'
+    else
+        xincfile='xinc.ZZZ'
+        write(xincfile(6:8),'(i3.3)') jiter
+    endif
+    call view_st (sval,trim(xincfile))
+    if ((.not.l4densvar).and.l4dvar)then
+       call inc2guess(sval)
+       call write_all(iwrtinc)
+       call prt_guess('increment')
       ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent when
       ! as when in 3dvar - that is, the state is not updated, but the biases are.
       ! This assumes GSI handles a single iteration of the outer loop at a time
       ! when doing 4dvar (that is, multiple iterations require stop-and-go).
-    call update_bias_preds(twodvar_regional,sbias)
+      call update_bias_preds(twodvar_regional,sbias)
+    else
+       if (mype==0) write(6,*)trim(seqcalls),': Updating guess'
+       call update_guess(sval,sbias)
+    endif
   else ! Update guess (model background, bias correction) fields
      if (mype==0) write(6,*)trim(seqcalls),': Updating guess'
      call update_guess(sval,sbias)
-     if(jiter == jiterend)call write_all(iwrtinc)
+     if(jiter == miter)call write_all(iwrtinc)
      call prt_guess('analysis')
   endif
 

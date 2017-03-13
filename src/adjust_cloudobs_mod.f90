@@ -376,7 +376,7 @@ subroutine adjust_goescldobs(goescld,timeobs,dlat_earth,dlon_earth, &
 !$$$
   use kinds, only: r_kind,i_kind
   use obsmod, only: iadate
-  use constants, only: tiny_r_kind,zero,one,deg2rad,rad2deg,pi
+  use constants, only: zero,one,deg2rad,rad2deg,pi
   implicit none
 
 ! input variables

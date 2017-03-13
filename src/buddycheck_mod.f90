@@ -48,9 +48,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! !USES:
 
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use gridmod, only: nsig,twodvar_regional,regional
-  use jfunc, only: jiter
+  use gridmod, only: nsig,regional
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pt_ll
   use constants, only: zero,one,r10
@@ -472,9 +470,8 @@ end subroutine buddy_check_t
 subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 
 ! !USES:
-  use jfunc, only: jiter,last,jiterstart
+  use jfunc, only: jiter
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_comm_world
-  use gridmod, only: nsig,twodvar_regional,regional
   use constants, only: zero, one,one_tenth,r100,tiny_r_kind
   use obsmod, only: obs_sub_comm,bmiss,dtype
   use qcmod, only: buddydiag_save

@@ -53,8 +53,6 @@ subroutine nst_final_()
 
     implicit none
 
-    integer(i_kind),intent(in) :: mype_io
-
     if ( mype == 0 ) &
         write(6,*) 'Doing nothing in dummy routine NST_FINAL_'
 
@@ -74,7 +72,7 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
     real(r_kind), intent(in   ) :: dlat_earth,dlon_earth,obstime,zob
     real(r_kind), intent(  out) :: tref,dtw,dtc,tz_tr
 
-    f ( mype == 0 ) &
+    if ( mype == 0 ) &
        write(6,*) 'Doing nothing in dummy routine DETER_NST_'
 
     tref = zero

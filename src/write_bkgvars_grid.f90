@@ -113,11 +113,11 @@ subroutine write_bkgvars2_grid
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mype
   use constants, only: zero,r1000,one_tenth
-  use gridmod, only: nlat,nlon,nsig,lat2,lon2
-  use gridmod, only: ak5,bk5,ck5,tref5,idvc5,&
+  use gridmod, only: nlat,nlon,nsig
+  use gridmod, only: ak5,bk5,idvc5,&
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
          cmaq_regional,pt_ll,&
-         eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
+         eta2_ll,pdtop_ll,eta1_ll,twodvar_regional
   use control_vectors, only: nc3d,nc2d,mvars
   use control_vectors, only: cvars3d,cvars2d,cvarsmd
   use berror, only: dssv,dssvs
