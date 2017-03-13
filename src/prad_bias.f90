@@ -173,6 +173,7 @@ contains
   implicit none
 
   integer(i_kind),parameter :: nthreshold=100
+  real(r_kind),parameter :: atiny=1.0e-10_r_kind
   integer(i_kind) i,n,j,ii,jj,jpassive,ibin,ic,mp,mm,kpred
   integer(i_kind),dimension(jpch_rad) :: icp
   integer(i_kind),dimension(npred)    :: iorder
@@ -229,10 +230,11 @@ contains
               if (inew_rad(ic) .and. all(predx(:,ic)==zero)) cycle 
 
               mp=icp(ic)
-              iobs(mp)=iobs(mp)+one
 
 !             Assign arrays Ax=b              
               varc=radptrm%err2(n)*radptrm%raterr2(n)
+              if (sqrt(varc)<atiny) cycle
+              iobs(mp)=iobs(mp)+one
               do i=1,npred
                  do j=1,npred
                     A(i,j,mp)=A(i,j,mp)+radptrm%pred(i,n)*radptrm%pred(j,n)*varc
@@ -301,6 +303,8 @@ contains
         jj=(mm-1)*npred+ii
         AA(i,i) = AA(i,i)+one/varprd(jj)
      end do
+     if (all(abs(AA)<atiny)) cycle
+     if (all(abs(be)<atiny)) cycle
      call linmm(AA,be,kpred,1,kpred,kpred)
 
 
