@@ -10,6 +10,7 @@ module stpmitmmod
 ! program history log:
 !   2014-04-10  pondeca
 !   2015-07-10  pondeca  - force return if no mitm data available
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpmitm
@@ -20,6 +21,10 @@ module stpmitmmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_mitmNode, only: mitmNode
+use m_mitmNode, only: mitmNode_typecast
+use m_mitmNode, only: mitmNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +59,6 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: mitm_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
@@ -63,7 +67,7 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
   implicit none
 
 ! Declare passed variables
-  type(mitm_ob_type),pointer           ,intent(in   ) :: mitmhead
+  class(obsNode),pointer              ,intent(in   ) :: mitmhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +82,7 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_mitm
   real(r_kind),pointer,dimension(:) :: smitm
   real(r_kind),pointer,dimension(:) :: rmitm
-  type(mitm_ob_type), pointer :: mitmptr
+  type(mitmNode), pointer :: mitmptr
 
   out=zero_quad
 
@@ -92,7 +96,8 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'mitm',rmitm,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  mitmptr => mitmhead
+  !mitmptr => mitmhead
+  mitmptr => mitmNode_typecast(mitmhead)
   do while (associated(mitmptr))
      if(mitmptr%luse)then
         if(nstep > 0)then
@@ -134,7 +139,8 @@ subroutine stpmitm(mitmhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     mitmptr => mitmptr%llpoint
+     !mitmptr => mitmptr%llpoint
+     mitmptr => mitmNode_nextcast(mitmptr)
 
   end do
   

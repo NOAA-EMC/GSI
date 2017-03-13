@@ -45,10 +45,10 @@ subroutine control2model(xhat,sval,bval)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d,cvarsmd
-use control_vectors, only: nc2d,nc3d,mvars
+use control_vectors, only: nc2d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
-use gridmod, only: lat2,lon2,nsig,nnnn1o
+use gridmod, only: lat2,lon2,nsig
 use jfunc, only: nsclen,npclen,ntclen
 use berror, only: varprd,fpsproj,fut2ps
 use balmod, only: balance

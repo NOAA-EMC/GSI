@@ -15,6 +15,7 @@ module stptmod
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choos new non linear qc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpt
@@ -99,7 +100,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
@@ -107,10 +107,14 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_tNode  , only: tNode
+  use m_tNode  , only: tNode_typecast
+  use m_tNode  , only: tNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(t_ob_type),pointer             ,intent(in   ) :: thead
+  class(obsNode), pointer             ,intent(in   ) :: thead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
@@ -131,7 +135,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   real(r_kind) vs_prime
   real(r_kind) psfc_prime
   real(r_kind) time_t
-  type(t_ob_type), pointer :: tptr
+  type(tNode), pointer :: tptr
   real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
   real(r_kind),pointer,dimension(:) :: rsst,ssst
   real(r_kind),pointer,dimension(:) :: rp,sp
@@ -179,7 +183,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
      if(ier/=0)return
   endif
 
-  tptr => thead
+  tptr => tNode_typecast(thead)
   do while (associated(tptr))
 
      if(tptr%luse)then
@@ -342,7 +346,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
         endif
 
      endif
-     tptr => tptr%llpoint
+     tptr => tNode_nextcast(tptr)
 
   end do
   return

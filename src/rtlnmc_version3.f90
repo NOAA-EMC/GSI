@@ -2051,7 +2051,7 @@ contains
 
   subroutine test_hop(test_div,nx1,ny1,helmholtz_on)
 
-    use constants, only: zero,one,two,rearth
+    use constants, only: zero,one,two
 
     integer(i_kind),intent(in):: nx1,ny1
     real(r_kind),intent(in):: test_div(0:ny1,0:nx1)
@@ -2815,7 +2815,7 @@ end module helmholtz_fmg_mod
 subroutine fmg_initialize(mype)
 
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: deg2rad,rad2deg,zero,half,one,rearth
+  use constants, only: zero,half,one
   use gridmod, only: region_lat,region_dx,region_dy,nlon,nlat
   use helmholtz_fmg_mod, only: generate_grids,init_mgvars
   use mod_vtrans, only: nvmodes_keep,depths
@@ -2844,7 +2844,7 @@ end subroutine fmg_initialize
 subroutine fmg_initialize_e(mype)
 
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: deg2rad,rad2deg,zero,half,one,rearth
+  use constants, only: zero,half,one
   use gridmod, only: region_lat,region_dx,region_dy,nlon,nlat,txy2ll
   use helmholtz_fmg_mod, only: generate_grids,init_mgvars
   use mod_vtrans, only: nvmodes_keep,depths
@@ -2917,7 +2917,6 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
   use kinds, only: r_kind,i_kind
   use constants, only: zero,two,omega
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,region_lat
-                  use gridmod, only: istart,jstart
   use mod_vtrans, only: vtrans,vtrans_inv,nvmodes_keep,depths
   use mpimod, only: mpi_comm_world,ierror,mpi_sum,mpi_rtype
   use zrnmi_mod, only: zrnmi_filter_uvm2
@@ -3133,10 +3132,9 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
   use kinds, only: r_kind,i_kind
   use constants, only: zero,two,omega
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,region_lat
-                  use gridmod, only: istart,jstart
   use mod_vtrans, only: vtrans_ad,vtrans_inv_ad,nvmodes_keep,depths
 ! use helmholtz_fmg_mod, only: mg
-  use mpimod, only: mpi_comm_world,ierror,mpi_sum,mpi_rtype
+  use mpimod, only: mpi_comm_world,mpi_sum,mpi_rtype
   use zrnmi_mod, only: zrnmi_filter_uvm2_ad
   use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
@@ -3415,7 +3413,7 @@ subroutine zrnmi_filter_uvm_ad_test(mype)
            use constants, only: zero,two
            use mpimod, only: mpi_rtype,mpi_sum,mpi_comm_world,ierror
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2
   use mod_vtrans, only: nvmodes_keep
   use zrnmi_mod, only: zrnmi_filter_uvm2,zrnmi_filter_uvm2_ad
            implicit none
@@ -3871,7 +3869,7 @@ subroutine special_for_llfmg_grid2sub2(f1,f2,a1,a2,b1,b2,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use gridmod, only: lat2,lon2,nlat,nlon,itotsub
   use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none
@@ -3931,7 +3929,7 @@ subroutine special_for_llfmg_grid2sub3(f1,f2,f3,a1,a2,a3,b1,b2,b3,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use gridmod, only: lat2,lon2,nlat,nlon,itotsub
   use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none

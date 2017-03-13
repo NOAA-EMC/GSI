@@ -65,11 +65,9 @@ subroutine bkgvar(cvec,iflg)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one
-  use balmod, only: rllat1,llmax
   use berror, only: dssv,dssvs
-  use gridmod, only: nsig,regional,lat2,lon2
+  use gridmod, only: nsig,lat2,lon2
   use guess_grids, only: isli2
-  use control_vectors, only: mvars, nc2d
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : gsi_bundlegetpointer
   implicit none
@@ -215,7 +213,6 @@ subroutine bkg_stddev(cvec,svec)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: assignment(=)
-  use gridmod, only: lat2,lon2,nsig
 
   implicit none
   

@@ -60,6 +60,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-26  Genkova - read GOES-R like winds from ASCII files & apply Sharon Nebuda's changes for GOES-R
 !   2015-05-12  Genkova - reading from ASCII files removed, read GOES-R from new BUFR, keep Nebuda's GOES-R related changes 
 !   2015-03-14  Nebuda  - add QC for clear air WV AMV (WVCS) from GOES type 247, removed PCT1 check not applicable to 247
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table !                         table
 !
@@ -88,20 +89,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc,njqc
+  use qcmod, only: errormod,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r100,r2000
   use converr,only: etabl
-  use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
-  use convb_uv,only: btabl_uv,isuble_buv
-  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
-  use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
+  use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
+  use convb_uv,only: btabl_uv
+  use obsmod, only: perturb_obs,perturb_fact,ran01dom,bmiss
+  use convinfo, only: nconvtype, &
+       icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+       use_prepb_satwnd
 
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -118,6 +119,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
 ! Declare local parameters
+
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
@@ -184,6 +186,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1,var_jb,wjbmin,wjbmax
@@ -941,6 +944,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if ( ee == zero)   ee=r110
 
            nread=nread+1
+           dlon_earth_deg=hdrdat(3)
+           dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
            dlat_earth=hdrdat(2)*deg2rad
                               
@@ -1267,8 +1272,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(16,iout)=tsavg               ! skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
-           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+           cdata_all(19,iout)=dlon_earth_deg      ! earth relative longitude (degrees)
+           cdata_all(20,iout)=dlat_earth_deg      ! earth relative latitude (degrees)
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name

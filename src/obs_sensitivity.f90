@@ -19,6 +19,7 @@ module obs_sensitivity
 !   2012-04-15 todling  - add reference to gust, vis, pblh
 !   2015-07-10 pondeca  - add reference to wspd10m, td2m ,mxtm ,mitm ,pmsl,
 !                         howv ,tcamt, lcbas, cldch
+!   2016-02-20 pagowski - add pm10
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -36,16 +37,17 @@ use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad, two
 use gsi_4dvar, only: nobs_bins, l4dvar, lsqrtb, nsubwin
 use jfunc, only: jiter, miter, niter, iter
-use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
+use obsmod, only: cobstype, nobs_type, obscounts, &
                   i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
                   i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                   i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, & 
-                  i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, & 
-                  i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, & 
+                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
+                  i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, &
+                  i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, &
                   i_cldch_ob_type,i_pm10_ob_type
+
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
@@ -74,6 +76,7 @@ integer(i_kind) :: iobsconv
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
 character(len=5) :: cobtype(nobs_type)
+integer(i_kind):: my_nobs_type=34
 ! ------------------------------------------------------------------------------
 contains
 ! ------------------------------------------------------------------------------
@@ -123,6 +126,7 @@ subroutine init_fc_sens
 !   2009-08-07  lueken - added subprogram doc block
 !   2010-05-27  todling - gsi_4dcoupler; remove dependence on GMAO specifics
 !   2012-05-22  todling - update interface to getpert
+!   2015-12-01  todling - add several obs-types that Pondeca forget to add here
 !
 !   input argument list:
 !
@@ -145,6 +149,10 @@ real(r_kind) :: zjx
 integer(i_kind) :: ii
 character(len=80),allocatable,dimension(:)::fname
 
+if(my_nobs_type/=nobs_type) then
+   write(6,*)'init_fc_sens: inconsistent nobs_types, code needs update'
+   call stop2(999)
+endif
 if (mype==0) then
    write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
                             lobsensincr,lobsensfc,lobsensjb
@@ -262,15 +270,16 @@ cobtype(i_pm10_ob_type)  ="pm10 "
 cobtype(i_gust_ob_type)  ="gust "
 cobtype(i_vis_ob_type)   ="vis  "
 cobtype(i_pblh_ob_type)  ="pblh "
-cobtype(i_wspd10m_ob_type) ="w10m"
+cobtype(i_wspd10m_ob_type)  ="ws10m"
 cobtype(i_td2m_ob_type)  ="td2m "
 cobtype(i_mxtm_ob_type)  ="mxtm "
 cobtype(i_mitm_ob_type)  ="mitm "
 cobtype(i_pmsl_ob_type)  ="pmsl "
 cobtype(i_howv_ob_type)  ="howv "
-cobtype(i_tcamt_ob_type) ="tcamt "
-cobtype(i_lcbas_ob_type) ="lcbas "
-cobtype(i_cldch_ob_type) ="cldch "
+cobtype(i_tcamt_ob_type)  ="tcamt"
+cobtype(i_lcbas_ob_type)  ="lcbas"
+cobtype(i_cldch_ob_type)  ="cldch"
+
 
 return
 end subroutine init_fc_sens
@@ -382,11 +391,14 @@ real(r_kind) function dot_prod_obs()
 !   machine:
 !
 !$$$ end documentation block
+use obsmod, only: obs_diag
+use obsmod, only: obsdiags
 implicit none
 
 integer(i_kind) :: ii,jj,ij,it
 real(r_quad)    :: zzz
 real(r_quad)    :: zprods(nobs_type*nobs_bins)
+type(obs_diag),pointer:: obsptr
 ! ----------------------------------------------------------
 
 zprods(:)=zero_quad

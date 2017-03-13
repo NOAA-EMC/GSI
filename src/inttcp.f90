@@ -13,6 +13,7 @@ module inttcpmod
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2013-10-28  todling - rename p3d to prse
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub inttcp_
@@ -25,6 +26,10 @@ module inttcpmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_tcpNode, only: tcpNode
+use m_tcpNode, only: tcpNode_typecast
+use m_tcpNode, only: tcpNode_nextcast
 implicit none
 
 PRIVATE
@@ -65,7 +70,7 @@ subroutine inttcp_(tcphead,rval,sval)
 
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,xhat_dt,dhat_dt,l_foto
@@ -75,7 +80,7 @@ subroutine inttcp_(tcphead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer,intent(in   ) :: tcphead
+  class(obsNode),  pointer, intent(in   ) :: tcphead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -88,7 +93,7 @@ subroutine inttcp_(tcphead,rval,sval)
   real(r_kind) w1,w2,w3,w4,time_tcp
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  type(tcp_ob_type), pointer :: tcpptr
+  type(tcpNode), pointer :: tcpptr
 
 !  If no tcp data return
   if(.not. associated(tcphead))return
@@ -104,7 +109,8 @@ subroutine inttcp_(tcphead,rval,sval)
   endif
   if(ier/=0)return
 
-  tcpptr => tcphead
+  !tcpptr => tcphead
+  tcpptr => tcpNode_typecast(tcphead)
   do while (associated(tcpptr))
      j1=tcpptr%ij(1)
      j2=tcpptr%ij(2)
@@ -170,7 +176,8 @@ subroutine inttcp_(tcphead,rval,sval)
         endif
 
      end if
-     tcpptr => tcpptr%llpoint
+     !tcpptr => tcpptr%llpoint
+     tcpptr => tcpNode_nextcast(tcpptr)
   end do
   return
 end subroutine inttcp_
