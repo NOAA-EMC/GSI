@@ -5,7 +5,7 @@
 #PBS -e comperr
 #PBS -N covcalc
 #PBS -q batch
-#PBS -l walltime=04:00:00
+#PBS -l walltime=01:00:00
 #PBS -A cloud
 #PBS -l nodes=1:ppn=16
 #PBS -V
@@ -13,7 +13,7 @@
 #WCOSS Job options
 #BSUB -e comperr
 #BSUB -o compout
-#BSUB -J cov_calc
+#BSUB -J covcalc
 #BSUB -q dev2
 #BSUB -openmp
 #BSUB -n 16
@@ -23,7 +23,7 @@
 if [ ! -z "$PBS_NP" ] ; then
    export OMP_NUM_THREADS=$PBS_NP
 fi
-rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
-cd ${rundir}
-./myrun.sh 
+corrdir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
+cd ${corrdir}
+./run.sh 
 

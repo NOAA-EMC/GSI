@@ -36,7 +36,7 @@ real(r_kind),dimension(:), allocatable::Bv,Zv
 integer(i_kind),parameter:: niter=50
 real(r_kind):: tt, ss, cc
 
-allocate(Bv(500),Zv(500))
+allocate(Bv(n),Zv(n))
 allocate(A(n,n))
 A=Ain
 Q=zero
