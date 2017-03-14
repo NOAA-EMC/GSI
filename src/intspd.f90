@@ -12,6 +12,7 @@ module intspdmod
 !   2008-11-26  Todling - remove intspd_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intspd_
@@ -24,6 +25,10 @@ module intspdmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_spdNode, only: spdNode
+use m_spdNode, only: spdNode_typecast
+use m_spdNode, only: spdNode_nextcast
 implicit none
 
 PRIVATE
@@ -84,10 +89,9 @@ subroutine intspd_(spdhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero, half, one, tiny_r_kind,cg_term,r3600
-  use gridmod, only: latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -96,7 +100,7 @@ subroutine intspd_(spdhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer,intent(in   ) :: spdhead
+  class(obsNode),  pointer, intent(in   ) :: spdhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -112,7 +116,7 @@ subroutine intspd_(spdhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(spd_ob_type), pointer :: spdptr
+  type(spdNode), pointer :: spdptr
   logical :: ltlint_tmp
 
 !  If no spd data return
@@ -137,7 +141,8 @@ subroutine intspd_(spdhead,rval,sval)
      ltlint_tmp = ltlint   
      ltlint = .true.
   end if
-  spdptr => spdhead
+  !spdptr => spdhead
+  spdptr => spdNode_typecast(spdhead)
   do while (associated(spdptr))
 
      j1 = spdptr%ij(1)
@@ -266,7 +271,8 @@ subroutine intspd_(spdhead,rval,sval)
         endif
      endif
 
-     spdptr => spdptr%llpoint
+     !spdptr => spdptr%llpoint
+     spdptr => spdNode_nextcast(spdptr)
 
   end do
   if( ladtest_obs) ltlint = ltlint_tmp

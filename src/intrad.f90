@@ -16,6 +16,7 @@ module intradmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off and
 !                         add threading
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intrad_
@@ -29,6 +30,10 @@ module intradmod
 !$$$ end documentation block
 
 use kinds, only: i_kind
+use m_obsNode, only: obsNode
+use m_radNode, only: radNode
+use m_radNode, only: radNode_typecast
+use m_radNode, only: radNode_nextcast
 implicit none
 
 PRIVATE
@@ -72,8 +77,7 @@ subroutine setrad(sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use radinfo, only: radjacnames,radjacindxs
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
@@ -279,10 +283,10 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use radinfo, only: nsigradjac
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use gridmod, only: latlon11,latlon1n,nsig
+  use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
   use gsi_bundlemod, only: gsi_bundle
@@ -290,12 +294,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
-
-
+  use timermod, only: timer_ini, timer_fnl
   implicit none
 
 ! Declare passed variables
-  type(rad_ob_type),pointer,intent(in) :: radhead
+  class(obsNode),pointer,intent(in) :: radhead
   type(gsi_bundle), intent(in   ) :: sval
   type(gsi_bundle), intent(inout) :: rval
   real(r_kind),dimension(npred*jpch_rad),intent(in   ) :: spred
@@ -309,8 +312,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind) w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
-  type(rad_ob_type), pointer :: radptr
-  real(r_kind), dimension(:,:), allocatable:: rsqrtinv
+  type(radNode), pointer :: radptr
+  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   integer(i_kind) :: ic1,ix1
   integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
@@ -325,6 +328,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 ! Set required parameters
   if(lgoback) return
 
+  call timer_ini('intrad')
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0
@@ -407,7 +411,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      if(ier/=0)return
   endif
 
-  radptr => radhead
+  !radptr => radhead
+  radptr => radNode_typecast(radhead)
   do while (associated(radptr))
      j1=radptr%ij(1)
      j2=radptr%ij(2)
@@ -776,9 +781,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      endif ! < l_do_adjoint >
      deallocate(val)
 
-     radptr => radptr%llpoint
+     !radptr => radptr%llpoint
+     radptr => radNode_nextcast(radptr)
   end do
 
+  call timer_fnl('intrad')
 
   return
 end subroutine intrad_

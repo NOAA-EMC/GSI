@@ -22,7 +22,7 @@ module radinfo
 !   2006-02-03  derber  - modify for new obs control and obs count
 !   2006-04-27  derber  - remove jppf
 !   2008-04-23  safford - add standard documentation block
-!   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
+!   2010-04-29  zhu     - add analysis variance info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc for variational radiance angle bias correction 
 !   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
 !   2010-07-12  zhu     - add inew_rad
@@ -37,6 +37,7 @@ module radinfo
 !   2013-02-19  sienkiewicz   - add adjustable SSMIS bias term weight
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
+!   2014-04-06  j.jin   - add tmi_trmm and gmi
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !   2015-03-01   li     - add zsea1 & zsea2 to handle the vertical mean temperature based on NSST T-Profile
@@ -44,6 +45,8 @@ module radinfo
 !   2016-03-24  ejones  - add control for AMSR2 noise reduction
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !   2016-08-12  mahajan - moved nst related variables from radinfo to gsi_nstcouplermod
+!   2016-09-20  Guo     - added SAVE attributes to module variables *_method, to
+!                         improve standard conformance of the code.
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -100,6 +103,8 @@ module radinfo
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
   public :: radinfo_get_rsqrtinv
+
+  public :: dec2bin
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -190,7 +195,7 @@ contains
   subroutine init_rad
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    int_rad
+! subprogram:    init_rad
 !
 !   prgrmmr:     derber      org: np23                date: 1995-07-06
 !
@@ -235,6 +240,7 @@ contains
     tzr_qc = 0              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
     tzr_bufrsave = .false.  ! .true.=generate bufr file for Tz retrieval
 
+    newpc4pred = .false.  ! .true.=turn on new preconditioning for bias coefficients
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
     emiss_bc = .false.    ! .true.=turn on emissivity bias correction
@@ -504,7 +510,7 @@ contains
 !   2007-03-13  derber  - modify to allow input bias correction files of different lengths and orders
 !   2007-06-29  treadon - determine/build n_sensors and sensorlist from satinfo file
 !   2008-04-23  safford - add standard doc block, rm unused vars and uses
-!   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
+!   2010-04-29  zhu     - add analysis variance info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
@@ -514,9 +520,12 @@ contains
 !                         additional SSMIS bias correction coefficients)
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !   2014-04-13  todling - add initialization of correlated R-covariance
+!   2014-07-28  sienkiewicz - revert to allocate cbias, cbiasx after maxscan 
+!                             reset in non adp_anglebc case
+!   2014-12-19  W. Gu   - update the obs error in satinfo for instruments accounted for the correlated R-covariance
+!   2015-04-01  W. Gu   - add the hook to scale the bias correction term for inter-channel correlated obs errors.
 !   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
-!   2016-07-19  W. Gu   - update the obs error in satinfo for instruments accounted for the correlated R-covariance
-!   2016-07-19  W. Gu   - add the hook to scale the bias correction term for inter-channel correlated obs errors.
+!   2016-09-08  sienkiewicz - revert again to allocate cbias, cbiasx after maxscan reset in non adp_anglebc case
 !
 !   input argument list:
 !
@@ -529,7 +538,8 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use correlated_obsmod, only: corr_ob_initialize, corr_oberr_qc
+
+    use correlated_obsmod, only: corr_ob_initialize,corr_oberr_qc
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
@@ -766,19 +776,21 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
+    maxscan=90  ! Default value for old files
+
     if (adp_anglebc) then 
+
        allocate(count_tlapmean(jpch_rad),update_tlapmean(jpch_rad),tsum_tlapmean(jpch_rad))
        count_tlapmean=0
        tsum_tlapmean=zero
        update_tlapmean=.true.
-    end if
+       allocate(cbiasx(maxscan))
+       allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
+       cbias=zero
+       tlapmean=zero
 
-    maxscan=90  ! Default value for old files
-    allocate(cbiasx(maxscan))
-    allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
-    cbias=zero
-    tlapmean=zero
-    if (.not. adp_anglebc) then
+    else
+
        open(lunin,file='satbias_angle',form='formatted',status='old',iostat=istat)
        if (istat /= 0 ) then
           write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" does not exist'
@@ -793,12 +805,19 @@ contains
           call stop2(79)
        endif
 
+       ! Read nscan to reset the size of cbias(:) for maxscan/=90 (default)
        rewind(lunin)
        if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
        if (istat /= 0 .OR. maxscan <= 0 .OR. maxscan > 1000) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
        endif
+
+       allocate(cbiasx(maxscan))
+       allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
+       cbias=zero
+       tlapmean=zero
+
        read2: do
           read(lunin,'(I5,1x,A20,2x,I4,e15.6)',iostat=istat,end=1111) &
                ich,isis,ichan,tlapm
@@ -1072,6 +1091,7 @@ contains
 !   instruments we account for inter-channel correlations
     call corr_ob_initialize
     call corr_oberr_qc(jpch_rad,iuse_rad,nusis,varch)
+
 !   Close unit for runtime output.  Return to calling routine
     if(mype==mype_rad)close(iout_rad)
     return
@@ -1095,7 +1115,7 @@ contains
 !   2004-06-22  treadon - update documentation
 !   2004-07-15  todling - protex-compliant prologue
 !   2008-04-23  safford - add standard subprogram doc block
-!   2010-04-29  zhu     - add analysis varaince info for radiance bias correction coefficients
+!   2010-04-29  zhu     - add analysis variance info for radiance bias correction coefficients
 !   2010-05-06  zhu     - add option adp_anglebc
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !
@@ -1117,7 +1137,7 @@ contains
     real(r_kind),dimension(npred):: varx
     data lunout / 51 /
 
-!   Open unit to output file.  Write analysis varaince info.  Close unit.
+!   Open unit to output file.  Write analysis variance info.  Close unit.
     if (newpc4pred) then
        open(lunout,file='satbias_pc.out',form='formatted')
        rewind lunout
@@ -1449,11 +1469,14 @@ contains
 ! program history log:
 !   2010-07-13  zhu  - modified from global_angupdate
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
-!   2013-01-03  j.jin   - adding logical tmi for mean_only. (radinfo file not yet ready. JJ)
+!   2013-01-03  j.jin   - adding logical tmi for mean_only.
 !   2013-07-19  zhu  - unify the weight assignments for both active and passive channels
 !   2014-10-01  ejones  - add gmi and amsr2 logical
 !   2015-01-16  ejones  - add saphir logical
 !   2015-03-23  zaizhong ma - added the Himawari-8 ahi
+!   2015-05-28  sienkiewicz - check if satinfo relative index from diag
+!                              is correct (i.e. instrument and channel match);
+!                              if not use newchn to get correct relative index
 !   2015-10-22  jung    - changed from using satinfo information in the radstat file to
 !                         using information from the satinfo file.
 !   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
@@ -1565,6 +1588,8 @@ contains
       platid=dplat(iii)
       satsens_id=dsis(iii)
 
+      if (dplat(iii) == '') cycle loopf
+
 !     Create diagnostic filename
       fdiag_rad = 'diag_' // trim(dtype(iii)) // '_' // trim(dplat(iii))
 
@@ -1575,7 +1600,8 @@ contains
 !     Open file and read header
       open(lndiag,file=fdiag_rad,form='unformatted',status='old',iostat=istatus)
       if (istatus/=0) then
-         write(6,*)'INIT_PREDX:  Task ',mype,' problem opening file ',trim(fdiag_rad),' iostat=',istatus
+         write(6,'(''INIT_PREDX:  Task '',i5,'' problem opening file '',a,'' iostat='',i4)') &
+             mype,trim(fdiag_rad),istatus
          close(lndiag)
          cycle loopf
       endif
@@ -1583,13 +1609,15 @@ contains
       lverbose=.false. 
       call read_radiag_header(lndiag,npred,retrieval,header_fix,header_chan,data_name,istatus,lverbose) 
       if (istatus/=0) then
-         write(6,*)'INIT_PREDX:  Task ',mype,' problem reading file ',trim(fdiag_rad),' header, iostat=',istatus
+         write(6,'(''INIT_PREDX:  Task '',i5,'' problem reading file '',a,'' header, iostat='',i4)') &
+              mype,trim(fdiag_rad),istatus
          close(lndiag)
          cycle loopf
       endif
 
 !     Process file
-      if(mype == 0)write(6,*)'INIT_PREDX:  Task ',mype,' processing ',trim(fdiag_rad)
+      write(6,'(''INIT_PREDX:  Task '',i5,'' processing '',a,'' data date= '',i10)') &
+           mype, trim(fdiag_rad), header_fix%idate
       satsens = header_fix%isis
       n_chan = header_fix%nchan
 
@@ -1604,8 +1632,8 @@ contains
            if (index(satsens,'metop-c') /= 0) satsens='iasi_metop-c'
       end select 
       if (satsens /= satsens_id) then
-         write(6,*)'INIT_PREDX:  ***ERROR*** inconsistent satellite ids ',&
-              ' fdiag_rad= ',trim(fdiag_rad),' satsens,satsens_id=',satsens,satsens_id
+         write(6,'(''INIT_PREDX:  ***ERROR*** inconsistent satellite ids '',&
+              '' fdiag_rad= '',a,'' satsens,satsens_id='')')trim(fdiag_rad),satsens,satsens_id
          cycle loopf
       endif
 
@@ -1904,7 +1932,8 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0)&
+               write(6,'(''INIT_PREDX:  processing update file i='',i6,'' with fname='',a)') i, trim(fname)
             open(lntemp,file=fname,form='formatted')
             do
                read(lntemp,210,end=160) iich,(predr(k),k=1,angord+1)
@@ -1928,7 +1957,8 @@ contains
 !        Process the scratch file
          if (lexist) then
 !           Read data from scratch file
-            if(mype == 0)write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
+            if(mype == 0) &
+              write(6,'(''INIT_PREDX:  processing update file i='',i5,'' with fname='',a)')i,trim(fname)
             open(lntemp,file=fname,form='formatted')
             do 
                read(lntemp,220,end=260) jj,tlaptmp,tsumtmp,counttmp
@@ -1958,6 +1988,68 @@ contains
 !  End of program
    return
    end subroutine init_predx
+
+
+subroutine dec2bin(dec,bin,ndim)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    dec2bin                  convert decimal number to binary
+!   prgmmr: unknown             org: np23                date: 2010-04-06
+!
+! abstract:  This routine convert a decimal number to binary
+!
+! program history log:
+!   2010-04-06  hliu
+!   2013-02-05  guo  - STOP in dec2bin() was replaced with die() to signal an _abort_.
+!
+!   input argument list:
+!     dec  - observation type to process
+!
+!   output argument list:
+!     bin    - number of sbuv/omi ozone observations read
+!
+! remarks:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+
+    use kinds, only: i_kind
+    use mpeu_util, only: die, perr
+
+    implicit none
+
+! Declare passed variables
+    integer(i_kind) ,intent(inout) :: dec
+    integer(i_kind) ,intent(in)    :: ndim
+    integer(i_kind) ,intent(out)   :: bin(ndim)
+
+! Declare local variables
+    integer(i_kind):: bindec, i
+
+!   Check to determine decimal # is within bounds
+    i = ndim
+    IF ((dec - 2**i) >= 0) THEN
+       write(6,*) 'Decimal Number too Large. Must be < 2^(',ndim-1,')'
+       call die('dec2bin')
+    END IF
+
+!   Determine the scalar for each of the decimal positions
+    DO WHILE (i >= 1)
+       bindec = 2**(i-1)
+       IF ((dec - bindec) >= 0) THEN
+          bin(i) = 1
+          dec = dec - bindec
+       ELSE
+          bin(i) = 0
+       END IF
+       i = i - 1
+    END DO
+    RETURN
+END subroutine dec2bin
+
  logical function adjust_jac_ (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
                                depart,obvarinv,adaptinf,wgtjo,jacobian)
 !$$$  subprogram documentation block
@@ -1970,23 +2062,22 @@ contains
 !
 ! program history log:
 !   2014-04-15  todling - initial code
-!   2016-07-19  todling - change obtype to isis for more flexibity
-!   2016-07-19  todling - add wgtjo to arg list
-!   2016-07-19  W. Gu - revisit bias handling
+!   2014-08-06  todling - change obtype to isis for more flexibity
+!   2014-10-01  todling - add wgtjo to arg list
+!   2015-04-01  W. Gu - revisit bias handling
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-   use constants, only: tiny_r_kind,zero,one
+   use constants, only: zero,one
    use correlated_obsmod, only: idnames
    use correlated_obsmod, only: corr_ob_amiset
    use correlated_obsmod, only: corr_ob_scale_jac
    use correlated_obsmod, only: GSI_BundleErrorCov 
    use mpeu_util, only: getindex
    use mpeu_util, only: die
-   use mpimod, only: mype
    implicit none
 
    character(len=*),intent(in) :: isis
@@ -2056,12 +2147,11 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-   use constants, only: tiny_r_kind,zero,one
+   use constants, only: zero,one
    use correlated_obsmod, only: corr_ob_rsqrtinv
    use correlated_obsmod, only: GSI_BundleErrorCov
    use mpeu_util, only: getindex
    use mpeu_util, only: die
-   use mpimod, only: mype
    implicit none
    integer(i_kind), intent(in) :: iinstr
    integer(i_kind), intent(in) :: nchasm

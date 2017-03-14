@@ -48,7 +48,7 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 !$$$
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
-     jstart,region_lat,region_lon,eta2_ll,wrf_nmm_regional,nems_nmmb_regional,nlon,regional,&
+     jstart,region_lat,eta2_ll,wrf_nmm_regional,nems_nmmb_regional,nlon,regional,&
      region_dx,region_dy,nthreads,jtstart,jtstop
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&

@@ -89,9 +89,9 @@
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-12-07  b.yan   - changed qc for channel 5 (relaxed)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check(), and
-!			  new arguments init_pass and last_pass.
+!                         new arguments init_pass and last_pass.
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
-!			- fixed a bug in diag header output while is not init_pass.
+!                       - fixed a bug in diag header output while is not init_pass.
 !   2010-03-01  gayno - allow assimilation of "mixed" amsua fovs
 !   2010-03-30  collard - changes for interface with CRTM v2.0. 
 !   2010-03-30  collard - Add CO2 interface (fixed value for now).
@@ -166,11 +166,19 @@
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-03-31  zhu     - move cloudy AMSUA radiance observation error adjustment to qcmod.f90;
 !                         change quality control interface for AMSUA and ATMS.
+!   2014-08-06  todling - Correlated obs now platform-instrument specific
+!   2014-09-02  todling - Must protect NST-related diag out for when NST is on
+!   2014-09-03  j.jin   - Added GMI 1CR radiance, obstype=gmi.
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-04-01  W. Gu   - add isis to obs type
+!   2015-08-18  W. Gu   - include the dependence of the correlated obs errors on the surface types.
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR).
 !   2015-09-30  ejones  - Pull AMSR2 sun azimuth and sun zenith angles for passing to quality control,
 !                         modify qc_amsr2 function call
-!   2016-07-19  W. Gu   - add isis to obs type
-!   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
+!   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
+!                       . removed (%dlat,%dlon) debris.
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
 !
 !  input argument list:
@@ -188,7 +196,8 @@
 !   output argument list:
 !     aivals - array holding sums for various statistics as a function of obs type
 !     stats  - array holding sums for various statistics as a function of channel
-!! attributes:
+!
+! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
@@ -204,32 +213,37 @@
   use gsi_nstcouplermod, only: nstinfo
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
+  use m_prad, only: radheadm
+  use m_obsdiags, only: radhead
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
-      dplat,dtbduv_on,radhead,radtail,radheadm,radtailm,&
+      dplat,dtbduv_on,&
       i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
-  use obsmod, only: rad_ob_type
+  use m_obsNode, only: obsNode
+  use m_radNode, only: radNode, radNode_typecast
+  use m_obsLList, only: obsLList_appendNode
+  use m_obsLList, only: obsLList_tailNode
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r100,r10,r0_01,pi
+      two,three,cg_term,wgtlim,r100,r10,r0_01,r_missing
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
-      isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
-      ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
-      ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
-      isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr 
-  use clw_mod, only: calc_clw, ret_amsua 
-  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms,qc_gmi,qc_amsr2,qc_saphir
+      itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
+      ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
+      izz,idomsfc,isfcr,iff10,ilone,ilate, &
+      isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
+  use clw_mod, only: calc_clw, ret_amsua
+  use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc,ifail_outside_range,ifail_scanedge_qc
+  use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
+  use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use gsi_metguess_mod, only: gsi_metguess_get
-  use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
 
@@ -256,7 +270,6 @@
   real(r_kind),parameter:: r1e10=1.0e10_r_kind
   character(len=*),parameter:: myname="setuprad"
 
-
 ! Declare local variables
   character(128) diag_rad_file
 
@@ -265,6 +278,7 @@
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
+  integer(i_kind) ii_ptr
   integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
@@ -310,7 +324,7 @@
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
-  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf,wgtjo 
+  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf,wgtjo
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -342,11 +356,13 @@
 
   logical channel_passive
   logical,dimension(nobs):: luse
+  integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
   character(10) filex
   character(12) string
 
-  type(rad_ob_type),pointer:: my_head,my_headm
+  class(obsNode),pointer:: my_node
+  type(radNode),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
 
   n_alloc(:)=0
@@ -718,7 +734,7 @@
   endif
 
 ! Load data array for current satellite
-  read(lunin) data_s,luse 
+  read(lunin) data_s,luse,ioid
 
   if (nobskeep>0) then
      write(6,*)'setuprad: nobskeep',nobskeep
@@ -774,18 +790,17 @@
         snow = data_s(ifrac_sno,n)  >= 0.99_r_kind
         mixed = .not. sea  .and. .not. ice .and.  &
                 .not. land .and. .not. snow
-
-       if(sea) then
+        if(sea) then
           isfctype=0
-       else if(land) then
+        else if(land) then
           isfctype=1
-       else if(ice) then
+        else if(ice) then
           isfctype=2
-       else if(snow) then
+        else if(snow) then
           isfctype=3
-       else if(mixed) then
+        else if(mixed) then
           isfctype=4
-       endif
+        endif
          
 !       Count data of different surface types
         if(luse(n))then
@@ -816,13 +831,13 @@
 !       Interpolate model fields to observation location, call crtm and create jacobians
 !       Output both tsim and tsim_clr for allsky
         if (lcw4crtm) then
-           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr)
         else
-           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
@@ -1285,6 +1300,7 @@
 
         else if( ssmi .or. amsre .or. ssmis )then   
 
+           frac_sea=data_s(ifrac_sea,n)
            if(amsre)then
               bearaz= (270._r_kind-data_s(ilazi_ang,n))*deg2rad
               sun_zenith=data_s(iszen_ang,n)*deg2rad
@@ -1434,7 +1450,7 @@
                     if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
                  endif
               endif !cenlat/lon
-           endif !lsinglerad
+           endif !lsingleradob
 
 !          Only process observations to be assimilated
 
@@ -1529,41 +1545,38 @@
            if(icc > 0)then
               nchan_total=nchan_total+icc
  
-              if(.not. associated(radhead(ibin)%head))then
-                 allocate(radhead(ibin)%head,stat=istat)
-                 if(istat /= 0)write(6,*)' failure to write radhead '
-                 radtail(ibin)%head => radhead(ibin)%head
-              else
-                 allocate(radtail(ibin)%head%llpoint,stat=istat)
-                 if(istat /= 0)write(6,*)' failure to write radtail%llpoint '
-                 radtail(ibin)%head => radtail(ibin)%head%llpoint
-              end if
-
+              allocate(my_head)
               m_alloc(ibin) = m_alloc(ibin) +1
-              my_head => radtail(ibin)%head
+              my_node => my_head        ! this is a workaround
+              call obsLList_appendNode(radhead(ibin),my_node)
+              my_node => null()
+
               my_head%idv = is
-              my_head%iob = n
+              my_head%iob = ioid(n)
+              my_head%elat= data_s(ilate,n)
+              my_head%elon= data_s(ilone,n)
+              my_head%isis = isis
+              my_head%isfctype = isfctype
 
-              allocate(radtail(ibin)%head%res(icc),radtail(ibin)%head%err2(icc), &
-                       radtail(ibin)%head%raterr2(icc),radtail(ibin)%head%pred(npred,icc), &
-                       radtail(ibin)%head%dtb_dvar(nsigradjac,icc), &
-                       radtail(ibin)%head%ich(icc),&  
-                       radtail(ibin)%head%icx(icc))
-              if (luse_obsdiag) allocate(radtail(ibin)%head%diags(icc))
+              allocate(my_head%res(icc),my_head%err2(icc), &
+                       my_head%raterr2(icc),my_head%pred(npred,icc), &
+                       my_head%dtb_dvar(nsigradjac,icc), &
+                       my_head%ich(icc),&
+                       my_head%icx(icc))
+              if(luse_obsdiag)allocate(my_head%diags(icc))
 
-              call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
-              radtail(ibin)%head%time=dtime
-              radtail(ibin)%head%luse=luse(n)
-              radtail(ibin)%head%ich(:)=-1  
-              radtail(ibin)%head%isis=isis
-              radtail(ibin)%head%isfctype=isfctype
+              call get_ij(mm1,slats,slons,my_head%ij(:),my_head%wij(:))
+              my_head%time=dtime
+              my_head%luse=luse(n)
+              my_head%ich(:)=-1
+
               utbc=tbc
               wgtjo= varinv     ! weight used in Jo term
-!              adaptinf = error0 ! on input 
-              adaptinf = varinv
-              obvarinv = error0
-              account_for_corr_obs = radinfo_adjust_jacobian(iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
-                                                             utbc,obvarinv,adaptinf,wgtjo,jacobian)
+              adaptinf = varinv ! on input
+              obvarinv = error0 ! on input
+              account_for_corr_obs = radinfo_adjust_jacobian (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
+                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian)
+
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1572,22 +1585,22 @@
                     iii=iii+1
 
                     if(account_for_corr_obs) then
-                      radtail(ibin)%head%res(iii)= utbc(ii)                   ! evecs(R)*[obs-ges innovation]
-                      radtail(ibin)%head%err2(iii)= obvarinv(ii)              ! 1/eigenvalue(R)
-                      radtail(ibin)%head%raterr2(iii)=adaptinf(ii)            ! inflation factor 
+                      my_head%res(iii)= utbc(ii)                   ! evecs(R)*[obs-ges innovation]
+                      my_head%err2(iii)= obvarinv(ii)              ! 1/eigenvalue(R)
+                      my_head%raterr2(iii)=adaptinf(ii)            ! inflation factor 
                     else
-                      radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
-                      radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
-                      radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                      my_head%res(iii)= tbc(ii)                    ! obs-ges innovation
+                      my_head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
+                      my_head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     endif
-                    radtail(ibin)%head%icx(iii)= m                         ! channel index
-                    radtail(ibin)%head%ich(iii)=ii              
+                    my_head%icx(iii)= m                         ! channel index
+
                     do k=1,npred
-                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
+                       my_head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
                     end do
 
                     do k=1,nsigradjac
-                       radtail(ibin)%head%dtb_dvar(k,iii)=jacobian(k,ii)
+                       my_head%dtb_dvar(k,iii)=jacobian(k,ii)
                     end do
 
 !                   Load jacobian for ozone (dTb/doz).  For hirs and goes channel 9
@@ -1598,7 +1611,7 @@
                        if (regional .or. qc_noirjaco3 .or. zero_irjaco3_pole(n) .or. & 
                           ((hirs .or. goessndr).and.(varinv(ich9) < tiny_r_kind))) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(ioz+k,iii) = zero
+                             my_head%dtb_dvar(ioz+k,iii) = zero
                           end do
                        endif
                     endif
@@ -1606,8 +1619,8 @@
 !                   Load Jacobian for wind speed (dTb/du, dTb/dv)
                     if(ius>=0.and.ivs>=0) then
                        if( .not. dtbduv_on .or. .not. microwave) then
-                          radtail(ibin)%head%dtb_dvar(ius+1,iii) = zero
-                          radtail(ibin)%head%dtb_dvar(ivs+1,iii) = zero
+                          my_head%dtb_dvar(ius+1,iii) = zero
+                          my_head%dtb_dvar(ivs+1,iii) = zero
                        endif
                     end if
 
@@ -1615,22 +1628,22 @@
                     if (regional .and. lcw4crtm) then
                        if (iqs>0) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqs+k,iii) = zero
+                             my_head%dtb_dvar(iqs+k,iii) = zero
                           end do
                        end if
                        if (iqg>0) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqg+k,iii) = zero
+                             my_head%dtb_dvar(iqg+k,iii) = zero
                           end do
                        end if
                        if (iqh>0) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqh+k,iii) = zero
+                             my_head%dtb_dvar(iqh+k,iii) = zero
                           end do
                        end if
                        if (iqr>0) then
                           do k = 1,nsig
-                             radtail(ibin)%head%dtb_dvar(iqr+k,iii) = zero
+                             my_head%dtb_dvar(iqr+k,iii) = zero
                           end do
                        end if
                     end if
@@ -1640,121 +1653,144 @@
 !                   compute hessian contribution from Jo bias correction terms
                     if (newpc4pred .and. luse(n)) then
                        do k=1,npred
-                          rstats(k,m)=rstats(k,m)+radtail(ibin)%head%pred(k,iii) &
-                               *radtail(ibin)%head%pred(k,iii)*varinv(ii)
+                          rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
+                               *my_head%pred(k,iii)*varinv(ii)
                        end do
                     end if  ! end of newpc4pred loop
 
                  end if
               end do
-              radtail(ibin)%head%nchan  = iii         ! profile observation count
-              radtail(ibin)%head%use_corr_obs=.false.
+              my_head%nchan  = iii         ! profile observation count
+
+              my_head%use_corr_obs=.false.
               if (account_for_corr_obs) then
-                 chan_count=(radtail(ibin)%head%nchan*(radtail(ibin)%head%nchan+1))/2
-                 allocate(radtail(ibin)%head%rsqrtinv(chan_count)) 
-                 allocate(rsqrtinv(radtail(ibin)%head%nchan,radtail(ibin)%head%nchan))
-                 radtail(ibin)%head%rsqrtinv=zero
+                 chan_count=(my_head%nchan*(my_head%nchan+1))/2
+                 allocate(my_head%rsqrtinv(chan_count)) 
+                 allocate(rsqrtinv(my_head%nchan,my_head%nchan))
+                 my_head%rsqrtinv=zero
                  rsqrtinv=zero
-                 call radinfo_get_rsqrtinv(iinstr,radtail(ibin)%head%nchan,radtail(ibin)%head%icx,radtail(ibin)%head%ich,&
-                                           radtail(ibin)%head%err2,rsqrtinv)
+                 call radinfo_get_rsqrtinv(iinstr,my_head%nchan,my_head%icx,my_head%ich,&
+                      my_head%err2,rsqrtinv)
                  chan_count=0
-                 do ii=1,radtail(ibin)%head%nchan
-                    do jj=ii,radtail(ibin)%head%nchan
+                 do ii=1,my_head%nchan
+                    do jj=ii,my_head%nchan
                        chan_count=chan_count+1
-                       radtail(ibin)%head%rsqrtinv(chan_count)=rsqrtinv(ii,jj)
+                       my_head%rsqrtinv(chan_count)=rsqrtinv(ii,jj)
                     end do
                  end do
                  deallocate(rsqrtinv)
-                 radtail(ibin)%head%use_corr_obs=.true.
+                 my_head%use_corr_obs=.true.
               end if
 
+              my_head => null()
            end if ! icc
+
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure
         iii=0
+        obsptr => null()
         do ii=1,nchanl
           m=ich(ii)
-          if (luse_obsdiag) then
-           if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
-                 allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setuprad: failure to allocate obsdiags',istat
-                    call stop2(276)
-                 end if
-                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
-              else
-                 allocate(obsdiags(i_rad_ob_type,ibin)%tail%next,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setuprad: failure to allocate obsdiags',istat
-                    call stop2(277)
-                 end if
-                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
-              end if
-              allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_rad_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_rad_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_rad_ob_type,ibin)%tail%indxglb=(n-1)*nchanl+ii 
-              obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_rad_ob_type,ibin)%tail%luse=.false.
-              obsdiags(i_rad_ob_type,ibin)%tail%muse(:)=.false.
-              obsdiags(i_rad_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_rad_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_rad_ob_type,ibin)%tail%obssen(:)=zero
+          if (luse_obsdiag ) then
+           if (iuse_rad(m)>=1 .or. l4dvar .or. lobsdiagsave) then
+            if (.not.lobsdiag_allocated) then
+               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%head)) then
+                  obsdiags(i_rad_ob_type,ibin)%n_alloc = 0
+                  allocate(obsdiags(i_rad_ob_type,ibin)%head,stat=istat)
+                  if (istat/=0) then
+                     write(6,*)'setuprad: failure to allocate obsdiags',istat
+                     call stop2(276)
+                  end if
+                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
+               else
+                  allocate(obsdiags(i_rad_ob_type,ibin)%tail%next,stat=istat)
+                  if (istat/=0) then
+                     write(6,*)'setuprad: failure to allocate obsdiags',istat
+                     call stop2(277)
+                  end if
+                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
+               end if
+               obsdiags(i_rad_ob_type,ibin)%n_alloc = obsdiags(i_rad_ob_type,ibin)%n_alloc +1
+  
+               allocate(obsdiags(i_rad_ob_type,ibin)%tail%muse(miter+1))
+               allocate(obsdiags(i_rad_ob_type,ibin)%tail%nldepart(miter+1))
+               allocate(obsdiags(i_rad_ob_type,ibin)%tail%tldepart(miter))
+               allocate(obsdiags(i_rad_ob_type,ibin)%tail%obssen(miter))
+               obsdiags(i_rad_ob_type,ibin)%tail%indxglb=(ioid(n)-1)*nchanl+ii
+               obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs=-99999
+               obsdiags(i_rad_ob_type,ibin)%tail%luse=luse(n)
+               obsdiags(i_rad_ob_type,ibin)%tail%muse(:)=.false.
+               obsdiags(i_rad_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
+               obsdiags(i_rad_ob_type,ibin)%tail%tldepart(:)=zero
+               obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=-huge(zero)
+               obsdiags(i_rad_ob_type,ibin)%tail%obssen(:)=zero
+  
+               n_alloc(ibin) = n_alloc(ibin) +1
+               my_diag => obsdiags(i_rad_ob_type,ibin)%tail
+               my_diag%idv = is
+               my_diag%iob = ioid(n)
+               my_diag%ich = ii
+               my_diag%elat= data_s(ilate,n)
+               my_diag%elon= data_s(ilone,n)
+            else
+               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
+                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
+               else
+                  obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
+               end if
+               if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
+                  call die(myname,'.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)')
+               end if
+               if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(ioid(n)-1)*nchanl+ii) then
+                  write(6,*)'setuprad: index error'
+                  call stop2(278)
+               endif
+            endif ! (.not.lobsdiag_allocated)
+                ! Mark the pointer to the leading obsdiags node (ii==1) of the current
+                ! observation profile (n).
+            if (ii==1) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
+  
+            if(in_curbin.and.icc>0) then
+               !my_head => radNode_typecast(obsLList_tailNode(radhead(ibin)))
+               my_node => obsLList_tailNode(radhead(ibin))
+               if(.not.associated(my_node)) &
+                  call die(myname,'unexpected, associated(my_node) =',associated(my_node))
+               my_head => radNode_typecast(my_node)
+               if(.not.associated(my_head)) &
+                  call die(myname,'unexpected, associated(my_head) =',associated(my_head))
+               my_node => null()
 
-              n_alloc(ibin) = n_alloc(ibin) +1
-              my_diag => obsdiags(i_rad_ob_type,ibin)%tail
-              my_diag%idv = is
-              my_diag%iob = n 
-              my_diag%ich = ii
-           else
-              if (.not.associated(obsdiags(i_rad_ob_type,ibin)%tail)) then
-                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%head
-              else
-                 obsdiags(i_rad_ob_type,ibin)%tail => obsdiags(i_rad_ob_type,ibin)%tail%next
-              end if
+               if (ii==1) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
+               obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = utbc(ii)
+               obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=wgtjo(ii)
+  
+!              Load data into output arrays
+               m=ich(ii)
+               if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+                  iii=iii+1
+                  my_head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
+                  obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
+  
+                  ! verify the pointer to obsdiags
+  
+                  my_diag => my_head%diags(iii)%ptr
+  
+                  if(my_head%idv      /= my_diag%idv .or. &
+                     my_head%iob      /= my_diag%iob .or. &
+                             ii       /= my_diag%ich ) then
+                     call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
+                                (/is,ioid(n),ii,ibin/))
+                     call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,        ii /))
+                     call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
+                     call die(myname)
+                  endif
+               endif ! (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1)
 
-              if (obsdiags(i_rad_ob_type,ibin)%tail%indxglb/=(n-1)*nchanl+ii) then 
-                 write(6,*)'setuprad: index error'
-                 call stop2(278)
-              endif
-           endif
-
-           if(in_curbin) then
-              if (ii==1) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
-              if (ii==1) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
-              obsdiags(i_rad_ob_type,ibin)%tail%luse = luse(n)
-              obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = tbc(ii)
-              obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=wgtjo(ii) 
- 
-!             Load data into output arrays
-              m=ich(ii)
-              if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-                 iii=iii+1
-                 radtail(ibin)%head%diags(iii)%ptr => obsdiags(i_rad_ob_type,ibin)%tail
-                 obsdiags(i_rad_ob_type,ibin)%tail%muse(jiter) = .true.
- 
-                 ! verify the pointer to obsdiags
-
-                 my_head => radtail(ibin)%head
-                 my_diag => radtail(ibin)%head%diags(iii)%ptr
-
-                 if(my_head%idv      /= my_diag%idv .or. &
-                    my_head%iob      /= my_diag%iob .or. &
-                    my_head%ich(iii) /= my_diag%ich ) then
-                    call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                          (/is,i,ii,ibin/))
-                    call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,my_head%ich(iii)/))
-                    call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                    call die(myname)
-                 endif
-
-              endif
-           endif ! (in_curbin)
-          end if
+               my_head => null()
+            endif ! (in_curbin.and.icc>0)
+           endif ! (iuse_rad(m)>=1 .or. l4dvar .or. lobsdiagsave)
+          endif ! (luse_obsdiag)
         enddo
         if(in_curbin .and. luse_obsdiag) then
            if(.not. retrieval.and.(iii/=icc)) then
@@ -1764,39 +1800,34 @@
         endif ! (in_curbin)
  
 !    End of l_may_be_passive block
-     endif
+     endif ! (l_may_by_passive)
 
 
 !    Load passive data into output arrays
      if (passive_bc .and. (jiter>miter) .and. .not. retrieval) then
         if(in_curbin) then
            if(iccm > 0)then
-              if(.not. associated(radheadm(ibin)%head))then
+              allocate(my_headm)
+              my_node => my_headm        ! this is a workaround
+              call obsLList_appendNode(radheadm(ibin),my_node)
+              my_node => null()
 
-                 allocate(radheadm(ibin)%head,stat=istat)
-                 if(istat /= 0)write(6,*)' failure to write radheadm '
-                 radtailm(ibin)%head => radheadm(ibin)%head
-              else
-                 allocate(radtailm(ibin)%head%llpoint,stat=istat)
-                 if(istat /= 0)write(6,*)' failure to write radtailm%llpoint '
-                 radtailm(ibin)%head => radtailm(ibin)%head%llpoint
-              end if
-
-              my_headm => radtailm(ibin)%head
               my_headm%idv = is
-              my_headm%iob = n
+              my_headm%iob = ioid(n)
+              my_headm%elat= data_s(ilate,n)
+              my_headm%elon= data_s(ilone,n)
+              my_headm%isis = isis
+              my_headm%isfctype = isfctype
 
-              allocate(radtailm(ibin)%head%res(iccm),radtailm(ibin)%head%err2(iccm), &
-                       radtailm(ibin)%head%raterr2(iccm),radtailm(ibin)%head%pred(npred,iccm), &
-                       radtailm(ibin)%head%ich(iccm), & 
-                       radtailm(ibin)%head%icx(iccm))
+              allocate(my_headm%res(iccm),my_headm%err2(iccm), &
+                       my_headm%raterr2(iccm),my_headm%pred(npred,iccm), &
+                       my_headm%ich(iccm), &
+                       my_headm%icx(iccm))
 
-              radtailm(ibin)%head%nchan  = iccm        ! profile observation count
-              radtailm(ibin)%head%time=dtime
-              radtailm(ibin)%head%luse=luse(n)
-              radtailm(ibin)%head%ich(:)=-1
-              radtailm(ibin)%head%isis=isis
-              radtailm(ibin)%head%isfctype=isfctype
+              my_headm%nchan  = iccm        ! profile observation count
+              my_headm%time=dtime
+              my_headm%luse=luse(n)
+              my_headm%ich(:)=-1
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1804,22 +1835,22 @@
                  if (varinv(ii)>tiny_r_kind .and. channel_passive) then
 
                     iii=iii+1
-                    radtailm(ibin)%head%res(iii)=tbc(ii)                 ! obs-ges innovation
-                    radtailm(ibin)%head%err2(iii)=one/error0(ii)**2      ! 1/(obs error)**2  (original uninflated error)
-                    radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
-                    radtailm(ibin)%head%icx(iii)=m                       ! channel index
+                    my_headm%res(iii)=tbc(ii)                 ! obs-ges innovation
+                    my_headm%err2(iii)=one/error0(ii)**2      ! 1/(obs error)**2  (original uninflated error)
+                    my_headm%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    my_headm%icx(iii)=m                       ! channel index
                     do k=1,npred
-                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*cld_rbc_idx(ii)*upd_pred(k)
+                       my_headm%pred(k,iii)=pred(k,ii)*upd_pred(k)
                     end do
 
-                    my_headm%ich(iii)=ii 
+                    my_headm%ich(iii)=ii
 
 !                   compute hessian contribution,
 !                   skip rstats accumulation for channels without coef. initialization
                     if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
                        do k=1,npred
-                          rstats(k,m)=rstats(k,m)+radtailm(ibin)%head%pred(k,iii) &
-                             *radtailm(ibin)%head%pred(k,iii)*varinv(ii)
+                          rstats(k,m)=rstats(k,m)+my_headm%pred(k,iii) &
+                             *my_headm%pred(k,iii)*varinv(ii)
                        end do
                     end if  ! end of newpc4pred loop
 
@@ -1831,7 +1862,9 @@
                  call stop2(279)
               endif
 
-              radtailm(ibin)%head%nchan = iii         ! profile observation count
+              my_headm%nchan = iii         ! profile observation count
+
+              my_headm => null()
            end if ! <iccm>
         endif ! (in_curbin)
      end if   !    End of passive_bc block
@@ -1907,10 +1940,17 @@
            endif
 
 !          For NST
-           diagbuf(27) = data_s(itref,n)
-           diagbuf(28) = data_s(idtw,n)
-           diagbuf(29) = data_s(idtc,n)
-           diagbuf(30) = data_s(itz_tr,n)
+           if (nstinfo==0) then
+              diagbuf(27) = r_missing
+              diagbuf(28) = r_missing
+              diagbuf(29) = r_missing
+              diagbuf(30) = r_missing
+           else
+              diagbuf(27) = data_s(itref,n)
+              diagbuf(28) = data_s(idtw,n)
+              diagbuf(29) = data_s(idtc,n)
+              diagbuf(30) = data_s(itz_tr,n)
+           endif
 
            if (lwrite_peakwt) then
               do i=1,nchanl_diag
@@ -1925,7 +1965,7 @@
               do i=1,nchanl_diag
                  diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
               end do
-          end if
+           end if
 
            do i=1,nchanl_diag
               diagbufchan(1,i)=tb_obs(ich_diag(i))       ! observed brightness temperature (K)
@@ -1966,16 +2006,51 @@
               end if
            end do
 
-           if (lobsdiagsave) then
+           if (luse_obsdiag .and. lobsdiagsave) then
               if (l_may_be_passive) then
+                 ii_ptr=1       ! obsptr is currently associated with this node
                  do ii=1,nchanl_diag
                     if (.not.associated(obsptr)) then
                        write(6,*)'setuprad: error obsptr'
                        call stop2(280)
                     end if
-                    if (obsptr%indxglb/=(n-1)*nchanl+ii) then 
-                       write(6,*)'setuprad: error writing diagnostics'
-                       call stop2(281)
+
+                    do jj=ii_ptr,ich_diag(ii)-1         ! move up to the current node at ich_diag(ii)
+                      if(.not.associated(obsptr)) then
+                       call perr('setuprad', '.not.associated(obsptr)')
+                       call perr('setuprad', '                   ii =',ii)
+                       call perr('setuprad', '               ii_ptr =',ii_ptr)
+                       call perr('setuprad', '         ich_diag(ii) =',ich_diag(ii))
+                       call perr('setuprad', '                   jj =',jj)
+                       call  die('setuprad')
+                      endif
+
+                      obsptr => obsptr%next
+                      ii_ptr =  ii_ptr+1
+                    enddo
+
+                    if(ii_ptr/=ich_diag(ii)) then
+                       call perr('setuprad', 'ii_ptr /= ich_diag(ii), ii =',ii)
+                       call perr('setuprad', '                    ii_ptr =',ii_ptr)
+                       call perr('setuprad', '              ich_diag(ii) =',ich_diag(ii))
+                       call  die('setuprad')
+                    endif
+
+                    if (obsptr%indxglb/=(ioid(n)-1)*nchanl+ich_diag(ii)) then
+                       !!! This test will fail, if(reduce_diag)!
+                       !write(6,*)'setuprad: error writing diagnostics'
+                       !call stop2(281)
+                       call perr('setuprad','failed on writing diagnostics, reduce_diag =',reduce_diag)
+                       call perr('setuprad','                                    nchanl =',nchanl)
+                       call perr('setuprad','                               nchanl_diag =',nchanl_diag)
+                       call perr('setuprad','                            obsptr%indxglb =',obsptr%indxglb)
+                       call perr('setuprad','           (ioid(n)-1)*nchanl+ich_diag(ii) =',(ioid(n)-1)*nchanl+ich_diag(ii))
+                       call perr('setuprad','                                   ioid(n) =',ioid(n))
+                       call perr('setuprad','                                        ii =',ii)
+                       call perr('setuprad','                              ich_diag(ii) =',ich_diag(ii))
+                       call perr('setuprad','                                    ii_ptr =',ii_ptr)
+                       call perr('setuprad','                                         n =',n)
+                       call  die('setuprad')
                     end if
  
                     ioff=ipchan_radiag+npred+2
@@ -2000,7 +2075,8 @@
                        diagbufchan(ioff,ich_diag(ii)) = obsptr%obssen(jj)
                     enddo
 
-                    obsptr => obsptr%next
+                    obsptr => obsptr%next       ! move up to the first node of the next profile
+                    ii_ptr =  ii_ptr+1
                  enddo
               else
                  ioff=ipchan_radiag+npred+2

@@ -27,11 +27,10 @@ subroutine get_wrf_mass_ensperts_netcdf
 !$$$ end documentation block
 
     use kinds, only: r_kind,i_kind,r_single
-    use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
     use hybrid_ensemble_parameters, only: en_perts,nelen,ps_bar
-    use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
+    use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens,q_hyb_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use gsi_bundlemod, only: gsi_bundlecreate
     use gsi_bundlemod, only: gsi_grid
@@ -39,17 +38,9 @@ subroutine get_wrf_mass_ensperts_netcdf
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundledestroy
     use gsi_bundlemod, only: gsi_gridcreate
+    use ens_spread_mod, only: ens_spread_dualres_regional
 
     implicit none
-    interface 
-       subroutine ens_spread_dualres_regional(mype,en_bar)
-         use kinds, only: r_kind,i_kind,r_single
-         use gsi_bundlemod, only: gsi_bundle
-         integer(i_kind),intent(in):: mype
-         type(gsi_bundle),OPTIONAL,intent(in) :: en_bar
-       end subroutine ens_spread_dualres_regional
-    end interface
-
 
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,cwmr,oz,rh
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
@@ -247,7 +238,7 @@ subroutine get_wrf_mass_ensperts_netcdf
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CALCULATE ENSEMBLE SPREAD
-    call ens_spread_dualres_regional(mype,en_bar)
+    call ens_spread_dualres_regional(en_bar)
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
@@ -307,10 +298,10 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
     use kinds, only: r_kind,r_single,i_kind
-    use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-    use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,q_hyb_ens
-    use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
+    use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll
+    use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
+    use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use netcdf_mod, only: nc_check
 
     implicit none
@@ -724,180 +715,3 @@ subroutine fill_regional_2d(fld_in,fld_out)
   enddo
 return 
 end subroutine fill_regional_2d
-
-subroutine ens_spread_dualres_regional(mype,en_bar)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    ens_spread_dualres_regional
-!   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
-!
-! abstract:
-!
-!
-! program history log:
-!   2010-08-11  parrish, initial documentation
-!   2011-04-05  parrish - add pseudo-bundle capability
-!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
-!
-!   input argument list:
-!     en_bar - ensemble mean
-!      mype  - current processor number
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-!
-  use kinds, only: r_single,r_kind,i_kind
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
-                                        regional_ensemble_option
-  use hybrid_ensemble_parameters, only: en_perts,nelen
-  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
-  use constants, only:  zero,two,half,one
-  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
-  use gsi_bundlemod, only: gsi_bundlecreate
-  use gsi_bundlemod, only: gsi_grid
-  use gsi_bundlemod, only: gsi_bundle
-  use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_bundlemod, only: gsi_bundledestroy
-  use gsi_bundlemod, only: gsi_gridcreate
-  implicit none
-
-  type(gsi_bundle),OPTIONAL,intent(in):: en_bar
-  integer(i_kind),intent(in):: mype
-
-  type(gsi_bundle):: sube,suba
-  type(gsi_grid):: grid_ens,grid_anl
-  real(r_kind) sp_norm,sig_norm_sq_inv
-  type(sub2grid_info)::se,sa
-  integer(i_kind) k
-
-  integer(i_kind) i,n,ic3
-  logical regional
-  integer(i_kind) num_fields,inner_vars,istat,istatus
-  logical,allocatable::vector(:)
-  real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
-  real(r_kind),pointer,dimension(:,:):: ps
-  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
-  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
-
-!      create simple regular grid
-        call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
-        call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
-
-!      create two internal bundles, one on analysis grid and one on ensemble grid
-
-       call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
-                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-       if(istatus/=0) then
-          write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
-          call stop2(999)
-       endif
-       call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
-                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-       if(istatus/=0) then
-          write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
-          call stop2(999)
-       endif
-
-  sp_norm=(one/float(n_ens))
-
-  sube%values=zero
-!
-
-  if(regional_ensemble_option == 1)then
-     print *,'global ensemble'
-     sig_norm_sq_inv=n_ens-one
-
-     do n=1,n_ens
-        do i=1,nelen
-           sube%values(i)=sube%values(i) &
-             +en_perts(n,1)%valuesr4(i)*en_perts(n,1)%valuesr4(i)
-        end do
-     end do
-
-     do i=1,nelen
-       sube%values(i) = sqrt(sp_norm*sig_norm_sq_inv*sube%values(i))
-     end do
-  else
-     do n=1,n_ens
-        do i=1,nelen
-           sube%values(i)=sube%values(i) &
-             +(en_perts(n,1)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1)%valuesr4(i)-en_bar%values(i))
-        end do
-     end do
- 
-     do i=1,nelen
-       sube%values(i) = sqrt(sp_norm*sube%values(i))
-     end do
-  end if
-
-  if(grd_ens%latlon1n == grd_anl%latlon1n) then
-     do i=1,nelen
-        suba%values(i)=sube%values(i)
-     end do
-  else
-     inner_vars=1
-     num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
-     allocate(vector(num_fields))
-     vector=.false.
-     do ic3=1,nc3d
-        if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
-           do k=1,grd_ens%nsig
-              vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
-           end do
-        end if
-     end do
-     call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
-                                       regional,vector)
-     call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
-                                       regional,vector)
-     deallocate(vector)
-     call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
-  end if
-
-  dum2=zero
-  dum3=zero
-  call gsi_bundlegetpointer(suba,'sf',st,istat)
-  if(istat/=0) then
-     write(6,*)' no sf pointer in ens_spread_dualres, point st at dum3 array'
-     st => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'vp',vp,istat)
-  if(istat/=0) then
-     write(6,*)' no vp pointer in ens_spread_dualres, point vp at dum3 array'
-     vp => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'t',tv,istat)
-  if(istat/=0) then
-     write(6,*)' no t pointer in ens_spread_dualres, point tv at dum3 array'
-     tv => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'q',rh,istat)
-  if(istat/=0) then
-     write(6,*)' no q pointer in ens_spread_dualres, point rh at dum3 array'
-     rh => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'oz',oz,istat)
-  if(istat/=0) then
-     write(6,*)' no oz pointer in ens_spread_dualres, point oz at dum3 array'
-     oz => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'cw',cw,istat)
-  if(istat/=0) then
-     write(6,*)' no cw pointer in ens_spread_dualres, point cw at dum3 array'
-     cw => dum3
-  end if
-  call gsi_bundlegetpointer(suba,'ps',ps,istat)
-  if(istat/=0) then
-     write(6,*)' no ps pointer in ens_spread_dualres, point ps at dum2 array'
-     ps => dum2
-  end if
-
-  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
-
-  return
-end subroutine ens_spread_dualres_regional
