@@ -836,47 +836,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    endif
    allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
    allocate(g_z(grd%lat2,grd%lon2))
-   iredundant=0
-   call gsi_bundlegetpointer(gfs_bundle,'vp',g_vor ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   call gsi_bundlegetpointer(gfs_bundle,'vor',g_vor ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   if ( iredundant==2 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'cannot handle having both vp and vor'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   iredundant=0
-   call gsi_bundlegetpointer(gfs_bundle,'t' ,g_tv  ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   call gsi_bundlegetpointer(gfs_bundle,'tv',g_tv  ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   if ( iredundant==2 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'cannot handle having both t and tv'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   istatus=0
-   call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
-   if ( istatus /= 0 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'Missing some of the required fields'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
-   allocate(g_z(grd%lat2,grd%lon2))
 
    icount=0
 

@@ -142,13 +142,10 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) is_t,is_q,is_oz,is_cw,is_sst
   integer(i_kind) icloud,ncloud
   integer(i_kind) idq
-  logical sbbc
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()

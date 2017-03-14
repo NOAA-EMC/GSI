@@ -1,10 +1,10 @@
 module netcdf_mod
 !<------------------------------------------------------------------->
 !<---- next few lines under version control, D O  N O T  E D I T ---->
-! $Date$
-! $Revision$
-! $Author$
-! $Id$
+! $Date: 2016-10-11 12:58:01 +0000 (Tue, 11 Oct 2016) $
+! $Revision: 82928 $
+! $Author: Michael.Lueken@noaa.gov $
+! $Id: netcdf_mod.f90 82928 2016-10-11 12:58:01Z Michael.Lueken@noaa.gov $
 !<------------------------------------------------------------------->
 !$$$  subprogram documentation block
 !                .      .    .                                       .

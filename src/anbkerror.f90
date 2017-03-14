@@ -277,7 +277,6 @@ subroutine anbkgcov(bundle)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  USE MPIMOD, only: mype
   implicit none
 
 ! Passed Variables
@@ -959,30 +958,7 @@ subroutine ansmoothrf(cstate)
 
      allocate(workbnp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe))
      allocate(workbsp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe ))
-              kk=kk+1
-              do j=1,lon2
-                 do i=1,lat2
-                    fields(1,i,j,kk)=rank3(i,j,k)
-                 end do
-              end do
-           end do
-        endif
-     else        !2d flds including motley flds
-        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
-        if(istatus==0) then
-           kk=kk+1
-           do j=1,lon2
-              do i=1,lat2
-                 fields(1,i,j,kk)=rank2(i,j)
-              end do
-           end do
-        endif
-     endif
-  end do
-
-! Convert from subdomain to full horizontal fields distributed among processors
-
-  call general_sub2grid(s2g_raf,fields,work)
+  end if
 
   fields=zero
   kk=0

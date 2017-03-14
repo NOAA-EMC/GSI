@@ -295,7 +295,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
   use timermod, only: timer_ini, timer_fnl
-  use timermod, only: timer_ini, timer_fnl
   implicit none
 
 ! Declare passed variables

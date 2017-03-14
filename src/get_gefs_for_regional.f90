@@ -35,7 +35,7 @@ subroutine get_gefs_for_regional
   use gridmod, only: idsl5,regional,use_gfs_nemsio
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
@@ -70,7 +70,6 @@ subroutine get_gefs_for_regional
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
-  use ens_spread_mod, only: ens_spread_dualres_regional
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
   implicit none
 

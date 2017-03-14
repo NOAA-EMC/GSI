@@ -90,8 +90,6 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   use gridmod, only : cmaq_regional,wrf_mass_regional
 
-  use gridmod, only : cmaq_regional,wrf_mass_regional
-
   implicit none
   
 ! !input parameters:

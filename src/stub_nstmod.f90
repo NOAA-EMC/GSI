@@ -58,6 +58,11 @@ subroutine nst_final_()
 
     return
 
+end subroutine nst_final_
+!*******************************************************************************************
+
+subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
+
     use mpimod, only: mype
     use kinds,     only: r_kind
     use constants, only: zero
@@ -66,10 +71,9 @@ subroutine nst_final_()
 
     real(r_kind), intent(in   ) :: dlat_earth,dlon_earth,obstime,zob
     real(r_kind), intent(  out) :: tref,dtw,dtc,tz_tr
-        write(6,*) 'Doing nothing in dummy routine NST_FINAL_'
+
     if ( mype == 0 ) &
        write(6,*) 'Doing nothing in dummy routine DETER_NST_'
-!*******************************************************************************************
 
     tref = zero
     dtw = zero

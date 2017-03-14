@@ -175,7 +175,6 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    use constants, only: zero,one_tenth,half,one,ten,r0_01
    use blendmod, only: init_blend,blend_f,blend_df
 
-
    implicit none
 
    ! Declare passed variables
@@ -2116,9 +2115,6 @@ subroutine restore_nmmb_gfs
       enddo
    endif
 
-   return
-
-end subroutine restore_nmmb_gfs
    return
 
 end subroutine restore_nmmb_gfs

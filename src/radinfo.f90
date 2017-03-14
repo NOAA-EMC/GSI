@@ -579,8 +579,6 @@ contains
     logical pcexist
     logical cold_start_seviri         ! flag to fix wrong channel numbers for seviri.  True = fix, false = already correct
 
-    integer(i_kind) binary_iextra_det(10)
-
     data lunin / 49 /
     data lunout / 51 /
 
@@ -1521,7 +1519,7 @@ contains
    character(len=50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
-   integer(i_kind):: i,j,jj,jk,n_chan,k,lunout,jadj
+   integer(i_kind):: i,j,jj,n_chan,k,lunout
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
@@ -2168,6 +2166,5 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
                           rsqrtinv,GSI_BundleErrorCov(iinstr))
 
 end subroutine get_rsqrtinv_
-
 
 end module radinfo

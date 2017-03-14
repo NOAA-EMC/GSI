@@ -577,6 +577,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
 !   2009-07-07  kleist
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-05-25  derber  - modify to minimize number of communications
+!   2010-08-18  hu      - added qpvals= to mpl_allreduce call
 !   2010-11-03  treadon - correct i,j loop limits for rq,rc update
 !   2011-11-01  eliu    - add handling for ql & qi increments and search directions
 !   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
@@ -680,7 +681,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
   end do
 
 ! First, use MPI to get global mean increment
-  call mpl_allreduce(2*nbins,mass)
+  call mpl_allreduce(2*nbins,qpvals=mass)
 
   do n=1,nbins
      ier=0; icw=0; iql=0; iqi=0

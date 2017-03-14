@@ -1094,7 +1094,6 @@ endif
    allocate(row(ncp,ncp))
    row=zero
 
-
    if(ErrorCov%method==1) then
      do ii=1,ncp
        do jj=1,ncp

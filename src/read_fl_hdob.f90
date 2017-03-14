@@ -65,7 +65,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      use convb_q,only: btabl_q
      use convb_t,only: btabl_t
      use convb_uv,only: btabl_uv
-     use convb_uv,only: btabl_uv
      use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
      use qcmod, only: errormod,njqc
      use convthin, only: make3grids,map3grids,del3grids,use_all

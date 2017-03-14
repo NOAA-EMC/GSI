@@ -88,6 +88,7 @@ subroutine get_gefs_ensperts_dualres
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl
+  type(get_gfs_ensmod_class) :: enscoupler
   logical ice
   type(sub2grid_info) :: grd_tmp
 

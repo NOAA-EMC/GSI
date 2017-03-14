@@ -420,7 +420,7 @@ do ii=1,nobs_bins
 enddo
 
 ! Gather contributions
-call mpl_allreduce(nobs_type*nobs_bins,zprods)
+call mpl_allreduce(nobs_type*nobs_bins,qpvals=zprods)
 
 ! Save intermediate values
 it=-1

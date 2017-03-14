@@ -936,18 +936,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                 if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
               endif
 ! Extra block for GOES-R winds: End
-		 endif
-           ! assign types and get quality info : end
-
-                if (qm == 3 .or. qm ==7) woe=woe*r1_2
-                ! set strings for diagnostic output
-                if(itype==240 )  then;  c_prvstg='GOESR' ; c_sprvstg='IRSW'  ; endif
-                if(itype==245 )  then;  c_prvstg='GOESR' ; c_sprvstg='IR'  ; endif
-                if(itype==246 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCT'  ; endif
-                if(itype==247 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCS'  ; endif
-                if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
-              endif
-! Extra block for GOES-R winds: End
            endif
            ! assign types and get quality info : end
 
