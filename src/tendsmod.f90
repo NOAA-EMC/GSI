@@ -326,9 +326,18 @@ subroutine create_ges_tendencies(tendsflag)
 ! create tendency bundle
   call GSI_GridCreate(grid,lat2,lon2,nsig)
   write(bname,'(a)') 'Tendency Vector'
-  call GSI_BundleCreate(gsi_tendency_bundle,grid,bname,ierror, &
-                        names2d=tvars2d,names3d=tvars3d,levels=levels,bundle_kind=r_kind)
-
+  if (allocated(tvars2d) .and. allocated(tvars3d) ) then
+      call GSI_BundleCreate(gsi_tendency_bundle,grid,bname,ierror, &
+                            names2d=tvars2d,names3d=tvars3d,levels=levels,bundle_kind=r_kind)
+  else if (allocated(tvars2d)) then
+      call GSI_BundleCreate(gsi_tendency_bundle,grid,bname,ierror, &
+                            names2d=tvars2d,bundle_kind=r_kind)
+  else if (allocated(tvars3d)) then
+      call GSI_BundleCreate(gsi_tendency_bundle,grid,bname,ierror, &
+                            names3d=tvars3d,levels=levels,bundle_kind=r_kind)
+  else
+       call stop2(999) ! should never get here
+  endif
 
 ! create wired-in fields
   call create_tendvars

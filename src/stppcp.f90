@@ -13,6 +13,7 @@ module stppcpmod
 !   2008-12-02  Todling - remove stppcp_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppcp
@@ -93,7 +94,6 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use pcpinfo, only: b_pcp,pg_pcp,tinym1_obs
-  use obsmod, only: pcp_ob_type
   use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11,nsig,latlon1n
@@ -101,10 +101,14 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_pcpNode, only: pcpNode
+  use m_pcpNode, only: pcpNode_typecast
+  use m_pcpNode, only: pcpNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer           ,intent(in   ) :: pcphead
+  class(obsNode), pointer             ,intent(in   ) :: pcphead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
@@ -123,7 +127,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   real(r_kind) pcp_gest,pcp_ges0,pcp_ges,obsges,termges,termgtl,obsgtl
   real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) cg_pcp,wgross,wnotgross,pentl,pencur
-  type(pcp_ob_type), pointer :: pcpptr
+  type(pcpNode), pointer :: pcpptr
   real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
   real(r_kind),pointer,dimension(:):: rql,rqi,sql,sqi
   real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
@@ -174,7 +178,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   lcld = (icw==0 .or. (iql+iqi)==0)
 
 ! Loop over number of observations.
-  pcpptr => pcphead
+  pcpptr => pcpNode_typecast(pcphead)
   do while(associated(pcpptr))
      if(pcpptr%luse)then
         pcp_ges0 = pcpptr%ges
@@ -324,7 +328,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 
      end if ! <luse>
      
-     pcpptr => pcpptr%llpoint
+     pcpptr => pcpNode_nextcast(pcpptr)
   end do
  
   return

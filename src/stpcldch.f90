@@ -9,6 +9,7 @@ module stpcldchmod
 !
 ! program history log:
 !   2015-07-10  pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpcldch
@@ -19,6 +20,10 @@ module stpcldchmod
 !
 !$$$ end documentation block
 
+use m_obsNode  , only: obsNode
+use m_cldchNode, only: cldchNode
+use m_cldchNode, only: cldchNode_typecast
+use m_cldchNode, only: cldchNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +59,6 @@ subroutine stpcldch(cldchhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: cldch_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
@@ -63,7 +67,7 @@ subroutine stpcldch(cldchhead,rval,sval,out,sges,nstep)
   implicit none
 
 ! Declare passed variables
-  type(cldch_ob_type),pointer           ,intent(in   ) :: cldchhead
+  class(obsNode),pointer              ,intent(in   ) :: cldchhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +82,7 @@ subroutine stpcldch(cldchhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_cldch
   real(r_kind),pointer,dimension(:) :: scldch
   real(r_kind),pointer,dimension(:) :: rcldch
-  type(cldch_ob_type), pointer :: cldchptr
+  type(cldchNode), pointer :: cldchptr
 
   out=zero_quad
 
@@ -92,7 +96,8 @@ subroutine stpcldch(cldchhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'cldch',rcldch,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  cldchptr => cldchhead
+  !cldchptr => cldchhead
+  cldchptr => cldchNode_typecast(cldchhead)
   do while (associated(cldchptr))
      if(cldchptr%luse)then
         if(nstep > 0)then
@@ -134,7 +139,8 @@ subroutine stpcldch(cldchhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     cldchptr => cldchptr%llpoint
+     !cldchptr => cldchptr%llpoint
+     cldchptr => cldchNode_nextcast(cldchptr)
 
   end do
   

@@ -87,7 +87,6 @@ subroutine stp3dvar(dirx,dir_dt)
 !$$$
   use kinds, only: i_kind,r_kind
   use mpimod, only: mype
-  use gridmod, only: nnnn1o
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

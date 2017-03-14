@@ -27,7 +27,7 @@ subroutine get_pseudo_ensperts
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: nhr_assimilation 
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens,pseudo_hybens, &
+  use hybrid_ensemble_parameters, only: n_ens,grd_ens,uv_hyb_ens, &
                                         grid_ratio_ens,write_ens_sprd
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub, &
                                   general_sub2grid_create_info
@@ -40,6 +40,7 @@ subroutine get_pseudo_ensperts
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
+  use ens_spread_mod, only: ens_spread_dualres_regional
 
 
   implicit none
@@ -470,7 +471,7 @@ subroutine get_pseudo_ensperts
 
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)
-     call ens_spread_dualres_regional(mype,en_bar)
+     call ens_spread_dualres_regional(en_bar)
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 

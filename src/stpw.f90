@@ -15,6 +15,7 @@ module stpwmod
 !   2010-05-13  todling - uniform interface across stp routines
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to chose new non linear qc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpw
@@ -81,17 +82,20 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: w_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_wNode  , only: wNode
+  use m_wNode  , only: wNode_typecast
+  use m_wNode  , only: wNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(w_ob_type),pointer             ,intent(in):: whead
+  class(obsNode), pointer             ,intent(in):: whead
   integer(i_kind)                     ,intent(in):: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout):: out
   type(gsi_bundle)                    ,intent(in):: rval,sval
@@ -107,7 +111,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
   real(r_kind) uu,vv
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind),pointer,dimension(:):: ru,rv,su,sv
-  type(w_ob_type), pointer :: wptr
+  type(wNode), pointer :: wptr
 
   out=zero_quad
 
@@ -127,7 +131,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
   endif
   if(ier/=0) return
 
-  wptr => whead
+  wptr => wNode_typecast(whead)
   do while (associated(wptr))
      if(wptr%luse)then
         if(nstep > 0)then
@@ -218,7 +222,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
         endif
      end if
 
-     wptr => wptr%llpoint
+     wptr => wNode_nextcast(wptr)
 
   end do
   return

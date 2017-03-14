@@ -26,10 +26,10 @@ subroutine get_wrf_nmm_ensperts
     use gridmod, only: netcdf,half_grid,filled_grid,regional
     use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
     use hybrid_ensemble_parameters, only: en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar
-    use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
-                         rd_over_cp,one_tenth,ten
+    use constants, only: zero,one,half,zero_single, &
+                         one_tenth,ten
     use mpimod, only: mpi_comm_world,ierror,mype
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens, &
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens, &
                                           merge_two_grid_ensperts,uv_hyb_ens, &
                                           grid_ratio_ens,write_ens_sprd
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -49,17 +49,9 @@ subroutine get_wrf_nmm_ensperts
     use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,blend_rm, &
                                 aeta1_save,aeta2_save 
     use aniso_ens_util, only: intp_spl
+    use ens_spread_mod, only: ens_spread_dualres_regional
 
     implicit none
-    interface
-       subroutine ens_spread_dualres_regional(mype,en_bar)
-         use kinds, only: r_kind,i_kind,r_single
-         use gsi_bundlemod, only: gsi_bundle
-         integer(i_kind),intent(in):: mype
-         type(gsi_bundle),OPTIONAL,intent(in) :: en_bar
-       end subroutine ens_spread_dualres_regional
-    end interface
-
 
     real(r_kind),allocatable,dimension(:,:,:):: u,v,tv,cwmr,oz,rh
     real(r_kind),allocatable,dimension(:,:):: ps
@@ -871,7 +863,7 @@ subroutine get_wrf_nmm_ensperts
 
     if(write_ens_sprd)then
        call mpi_barrier(mpi_comm_world,ierror)
-       call ens_spread_dualres_regional(mype,en_bar)
+       call ens_spread_dualres_regional(en_bar)
        call mpi_barrier(mpi_comm_world,ierror)
     end if
 !
@@ -925,7 +917,7 @@ subroutine convert_binary_nmm_ens
 !$$$
 
   use kinds, only: r_single,i_llong,r_kind,i_kind
-  use constants, only: zero,half,rad2deg
+  use constants, only: zero,half
   use gsi_io, only: lendian_out
   use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
   use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
@@ -1261,10 +1253,10 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
 !$$$ end documentation block
 
     use kinds, only: r_kind,r_single,i_kind,i_llong,i_long
-    use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass, &
-                         one_tenth,h300,rad2deg,ten,half
+    use constants, only: zero,one,fv,zero_single, &
+                         one_tenth,h300,ten,half
     use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
-    use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts,q_hyb_ens
+    use hybrid_ensemble_parameters, only: q_hyb_ens
     use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
          mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
     use general_sub2grid_mod, only: sub2grid_info
@@ -1683,10 +1675,10 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
      use kinds, only: r_kind,r_single,i_kind
      use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
      use gridmod, only: half_grid,filled_grid,fill_nmm_grid2a3,half_nmm_grid2a
-     use constants, only: zero,one,ten,one_tenth,half,grav,zero_single,fv,rad2deg
+     use constants, only: zero,one,ten,one_tenth,half,zero_single,fv
      use gsi_io, only: lendian_in
      use general_sub2grid_mod, only: sub2grid_info
-     use hybrid_ensemble_parameters, only: merge_two_grid_ensperts,q_hyb_ens
+     use hybrid_ensemble_parameters, only: q_hyb_ens
      implicit none
    
    ! Declare passed variables here
@@ -2467,12 +2459,11 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
      use hybrid_ensemble_parameters, only: region_lon_ens,region_lat_ens
      use kinds, only: r_kind,i_kind,r_single
-     use constants, only: zero,one,rad2deg
+     use constants, only: zero,one
      use gridmod, only: half_grid,filled_grid
      use blendmod, only: blend
      use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform, &
                                    general_tll2xy
-     use mpimod, only: mype
      use gsi_io, only: lendian_in
 
      implicit none

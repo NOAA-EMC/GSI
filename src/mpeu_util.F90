@@ -10,9 +10,18 @@ module mpeu_util
 !
 ! program history log:
 !   2010-03-17  j guo   - added this document block
-!   2010-05-30  todling - add some real dirty mimic of i90's table read 
+!   2010-05-30  todling - add some real dirty mimic of i90''s table read 
 !   2010-87-19  todling - remove reference to abor1
 !   2013-05-14  guo     - added getarec(), for not-commented text buffer.
+!   2014-02-03  guo     - added mprefix for easy messaging, but commented
+!                         out for the use of F2003 feature of dynamically
+!                         allocatable character(len=:).
+!   2015-08-13  guo     - added mesg_prefix() for easy messaging.
+!   2016-03-03  guo     - Merged in uppercase() and lowercase().
+!                       . Adjusted re-styling by EMC to balance the
+!                         readability.
+!                       . Added a description of the "code style" used
+!                         for this module.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -38,6 +47,71 @@ module mpeu_util
 !
 !   To be compiled with -Dsys`uname -s` if necessary.
 !
+! The coding style considerations used in this code: (Jing Guo)
+!
+!   (1) I don't fight a <tab>s vs. <space>s holy war.  I have made my
+!       peace with spaces, by configuring my Fortran code editor to
+!       convert all new tab typings into corresponding spaces
+!       automatically.
+!
+!       However, just to make my code lining up nicely with tabs typed,
+!       I use even number space counts for indentation stops, meaning,
+!       2,4,6,8, etc., but never 3,9, or 5.
+!
+!       This is important, otherwise we would choose a coding style
+!       always in odds with tab typings unnecessarily.  While it is true
+!       that one can always configure the code editor to tab-stops of
+!       any value, I believe the policy of keeping-it-simple-and-stupid.
+!       So I often use tab-stop values configured for me by the OS.
+!
+!   (2) Indentation is a way of adding visual "encapsulation" effects,
+!       for indenting most program constructs.
+!       
+!       With this rule in mind, I indent comments as well, corresponding
+!       to their code construct levels, since these comments are there
+!       for the reasons of their code contructs only.  So they should be
+!       indented accordingly.  I don't see the point of making a line of
+!       comment to be on the same level of the top program unit, where
+!       this comment won't make any sense.
+!
+!       Similariy, a code segement has its primary algorithmic logic, as
+!       well as sencondary logic, such as exception handlings.  I would
+!       highlight the primary algorithmic statements by pushing them to
+!       their most left, while push secondary statements to the right as
+!       indetation.  This helps reading the code with visual focus to
+!       the primary logic.
+!
+!   (3) Indentation is also a way of "tabulation", to let developers
+!       to identify relevent entities between code lines quickly.
+!
+!       A common use of this rule, is to line up the same variables,
+!
+!         print'(...)', a(  i,  j), &
+!                       a(1+i,  j), &
+!                       a(  i,1+j), &
+!                       a(1+i,1+j)
+!
+!       A different example is, for interlaced calculations, lining up
+!       may help to show concurrent logical threads in a serial form.
+!       For example, more or less exaggerated, with a code segment from
+!       this file,
+!
+!                               i=nymd
+!         iy4=i/10000
+!         iy2=mod(iy4,100)
+!                               i=mod(i,10000)
+!         imo=i/100
+!                               i=mod(i,100)
+!         idy=i
+!
+!       Also, for a similar consideration, sometime comments are pushed
+!       to the right, serving the purpose of "marginal notes".  
+!
+!       So when there is an indentation, please believe there may be a
+!       reason for being the way it is.  In particular, there is really
+!       no reason to shoehorn the code unnessarily for a "coding style".
+!       Rushing to change the coding style can be counter productive,
+!       making a maybe structured code too flat and much less readable.
 
 #define USE_MPI
 #ifdef USE_MPI
@@ -54,9 +128,10 @@ module mpeu_util
       use kinds, only: DP => r_double   ! DOUBLE PRECISION kind
 #endif
       implicit none
-      private    ! except
+      private   ! except
 
       public :: die, perr, warn, tell, assert_
+      public :: mesg_prefix
       public :: luavail
       public :: stdin, stdout, stderr
       public :: strTemplate
@@ -67,12 +142,17 @@ module mpeu_util
         ! a stable sorting tool.  See <Use indexed sorting> section below
       public :: IndexSet                ! setup an index array
       public :: IndexSort               ! (stable)sort through the index array
-      
+
       public :: check_iostat            ! check the status of ioerror; if non-zero die
+
+      public :: uppercase               ! convert a string to all upper cases
+      public :: lowercase               ! convert a string to all lower cases
+      public :: basename
 
 #ifdef INCLUDE_MPOUT
       public :: stdout_open
       public :: stdout_close
+      public :: stdout_lead
 #endif
 
     integer,parameter :: STDIN = 5
@@ -127,6 +207,16 @@ module mpeu_util
       mprint_dbl_, &
       mprint_; end interface
 
+    interface mesg_prefix; module procedure &
+      mprefix1_, &
+      mprefix2_; end interface
+
+#ifdef INCLUDE_MPOUT
+    interface stdout_lead; module procedure &
+      mprefix1_, &
+      mprefix2_; end interface
+#endif
+
     interface IndexSet; module procedure &
       set_; end interface
 
@@ -136,6 +226,9 @@ module mpeu_util
       dSort_, & ! by a DOUBLE PRECISION key
       cSort_    ! by a CHARACTER(len=*) key
       end interface
+
+    interface Check_IOstat; module procedure &
+      check_iostat_; end interface
 
     interface GetTableSize; module procedure &
       get_table_size_; end interface
@@ -509,18 +602,23 @@ end function myid_
 
 subroutine mype_get_(mype,npes,who,comm)
   use mpeu_mpif, only : MPI_comm_world
+  use mpeu_mpif, only : MPI_ikind
   implicit none
   integer,intent(out) :: mype
   integer,intent(out) :: npes
   character(len=*),intent(in) :: who
   integer,optional,intent(in) :: comm
 
-  integer :: ier
-  integer :: mycomm
+  integer(MPI_ikind) :: ier
+  integer(MPI_ikind) :: mycomm
+  logical:: initialized_
   mycomm=MPI_comm_world
   if(present(comm)) mycomm=comm
   mype=0;npes=1
 #ifdef USE_MPI
+  call MPI_initialized(initialized_,ier)
+  if(.not.initialized_ .or. ier/=0) return
+
   call MPI_comm_rank(mycomm,mype,ier)
     if(ier/=0) then
       write(stderr,'(3a)') &
@@ -530,6 +628,7 @@ subroutine mype_get_(mype,npes,who,comm)
         trim(who),'>mype_get_(): >>> ERROR <<< ','MPI_comm_rank(), ier= ',ier
       call dropdead_()
     endif
+
   call MPI_comm_size(mycomm,npes,ier)
     if(ier/=0) then
       write(stderr,'(3a)') &
@@ -541,6 +640,16 @@ subroutine mype_get_(mype,npes,who,comm)
     endif
 #endif
 end subroutine mype_get_
+
+function basename(path)
+  implicit none
+  character(len=:),allocatable:: basename
+  character(len=*), intent(in):: path
+
+  integer:: i
+  i=index(path,"/",back=.true.)
+  basename=trim(path(i+1:))
+end function basename
 
 function luavail_() result(lu)
   implicit none
@@ -575,11 +684,25 @@ function luavail_() result(lu)
   if(ios/=0) lu=-1
 end function luavail_
 
+function mprefix1_(who) result(str)
+  implicit none
+  character(len=:),allocatable:: str
+  character(len=*),intent(in) :: who
+  str = trim(myid_(who))//'(): '
+end function mprefix1_
+function mprefix2_(who,what) result(str)
+  implicit none
+  character(len=:),allocatable:: str
+  character(len=*),intent(in):: who
+  character(len=*),intent(in):: what
+  str = trim(myid_(who))//'(): '//what
+end function mprefix2_
+
 subroutine mprint_(lu,who,what)
   implicit none
   integer,intent(in) :: lu
   character(len=*),intent(in) :: who,what
-  write(lu,'(3a)') &
+  write(lu,'(3a,1x)') &
     trim(myid_(who)),'(): ',trim(what)
 end subroutine mprint_
 subroutine mprint_chr_(lu,who,what,val)
@@ -1003,7 +1126,7 @@ end subroutine assert_GE_
 
       integer,intent(in ),optional :: nymd
                         ! yyyymmdd, substituting "%y4", "%y2", "%m1",
-                        ! "%m2", "%mc", "%Mc', and "%MC"
+                        ! "%m2", "%mc", "%Mc", and "%MC"
 
       integer,intent(in ),optional :: nhms
                         ! hhmmss, substituting "%h1", "%h2", "%h3",
@@ -1418,7 +1541,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
       case ("A":"Z","a":"z","_","0":"9")
         je=j
         j=j+1
-      case ("}")           ! End if "}" or eos
+      case ("}")        ! End if "}" or eos
         j=j+1
         exit
       case default
@@ -1466,7 +1589,7 @@ end subroutine strTemplate
 
     subroutine set_(indx)
       implicit none
-      integer, dimension(:), intent(out) :: indx          ! indices
+      integer, dimension(:), intent(out) :: indx        ! indices
 
 ! !REVISION HISTORY:
 !       15Mar00 - Jing Guo
@@ -2033,7 +2156,42 @@ function leadchar_(line) result(c)
 end function leadchar_
 end subroutine getarec_
 
-subroutine check_iostat(ierror,myname,message)
+function uppercase(str) result(ustr)
+  implicit none
+  character(len=*), intent(in) :: str
+  character(len=len(str))      :: ustr
+
+  integer:: i,iach
+  integer,parameter :: IUA=iachar('A')
+  integer,parameter :: ILA=iachar('a')
+  integer,parameter :: ILZ=iachar('z')
+  integer,parameter :: L2U=IUA-ILA
+
+  ustr=str
+  do i=1,len_trim(str)
+    iach=iachar(str(i:i))
+    if(iach>=ILA.and.iach<=ILZ) ustr(i:i)=achar(iach+L2U)
+  end do
+end function uppercase
+function lowercase(str) result(lstr)
+  implicit none
+  character(len=*), intent(in) :: str
+  character(len=len(str))      :: lstr
+
+  integer:: i,iach
+  integer,parameter :: IUA=iachar('A')
+  integer,parameter :: ILA=iachar('a')
+  integer,parameter :: IUZ=iachar('Z')
+  integer,parameter :: L2U=IUA-ILA
+
+  lstr=str
+  do i=1,len_trim(str)
+    iach=iachar(str(i:i))
+    if(iach>=IUA.and.iach<=IUZ) lstr(i:i)=achar(iach-L2U)
+  end do
+end function lowercase
+
+subroutine check_iostat_(ierror,myname,message)
    use mpimod, only: mype
    implicit none
    integer,intent(in) :: ierror
@@ -2045,6 +2203,6 @@ subroutine check_iostat(ierror,myname,message)
       call die(myname)
    endif
    return
-end subroutine check_iostat
+end subroutine check_iostat_
 
 end module mpeu_util

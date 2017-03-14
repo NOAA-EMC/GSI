@@ -39,6 +39,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !   2011-08-01  lueken  - added module use deter_sfc_mod
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -60,9 +61,9 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &  !added mccarty
-      ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype  !mccarty
-  use constants, only: deg2rad,rad2deg,zero,r60inv ! check the usage   msq
+  use convinfo, only: nconvtype,ctwind, &  !added mccarty
+      ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype  !mccarty
+  use constants, only: deg2rad,zero,r60inv ! check the usage   msq
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
   use deter_sfc_mod, only: deter_sfc2
@@ -97,6 +98,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
 
   real(r_kind) time,usage,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) hloswind,sfcr,tsavg,ff10,toff,t4dv ! msq changed to hloswind
   real(r_kind),allocatable,dimension(:,:):: cdata_all
 
@@ -231,6 +233,8 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
   if (hdr(2) < zero)  hdr(2)=hdr(2)+r360
 
 
+  dlat_earth_deg = hdr(3)
+  dlon_earth_deg = hdr(2)
   dlat_earth = hdr(3) * deg2rad
   dlon_earth = hdr(2) * deg2rad
 
@@ -283,8 +287,8 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
      cdata_all(16,ndata)=tsavg                 ! skin temperature      
      cdata_all(17,ndata)=ff10                  ! 10 meter wind factor  
      cdata_all(18,ndata)=sfcr                  ! surface roughness     
-     cdata_all(19,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
-     cdata_all(20,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
+     cdata_all(19,ndata)=dlon_earth_deg        ! earth relative longitude (degrees)
+     cdata_all(20,ndata)=dlat_earth_deg        ! earth relative latitude (degrees)
   enddo   ! ilev
 
 
