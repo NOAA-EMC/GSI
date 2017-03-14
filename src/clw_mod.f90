@@ -1223,7 +1223,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: deg2rad,zero,half,one,two,five
+  use constants, only: zero,half,one,two,five
 
   implicit none
 

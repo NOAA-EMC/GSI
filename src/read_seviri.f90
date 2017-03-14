@@ -26,6 +26,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -57,9 +58,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
-  use obsmod, only: offtime_data,bmiss
+  use obsmod, only: bmiss
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iadatebgn,iadateend,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -104,6 +105,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: sfcpct
@@ -258,6 +260,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         if (hdr(ilonh)>=r360) hdr(ilonh)=hdr(ilonh)-r360
         if (hdr(ilonh)< zero) hdr(ilonh)=hdr(ilonh)+r360
 
+        dlon_earth_deg=hdr(ilonh)
+        dlat_earth_deg=hdr(ilath)
         dlon_earth=hdr(ilonh)*deg2rad
         dlat_earth=hdr(ilath)*deg2rad
 
@@ -413,8 +417,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
-        data_all(30,itx) = dlon_earth*rad2deg         ! earth relative longitude (degrees)
-        data_all(31,itx) = dlat_earth*rad2deg         ! earth relative latitude (degrees)
+        data_all(30,itx) = dlon_earth_deg             ! earth relative longitude (degrees)
+        data_all(31,itx) = dlat_earth_deg             ! earth relative latitude (degrees)
 
         if(dval_use)then
            data_all(32,itx) = val_sev

@@ -33,10 +33,9 @@ subroutine get_gefs_for_regional
 !$$$ end documentation block
 
   use gridmod, only: idsl5,regional,use_gfs_nemsio
-  use gridmod, only: region_lat,region_lon  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
@@ -57,7 +56,7 @@ subroutine get_gefs_for_regional
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
-  use guess_grids, only: ges_prsl,ntguessig,geop_hgti
+  use guess_grids, only: ges_prsl,ntguessig
   use guess_grids, only: ges_tsen,ifilesig,hrdifsig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
@@ -71,6 +70,7 @@ subroutine get_gefs_for_regional
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
+  use ens_spread_mod, only: ens_spread_dualres_regional
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -1155,7 +1155,7 @@ subroutine get_gefs_for_regional
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)
-     call ens_spread_dualres_regional(mype)
+     call ens_spread_dualres_regional
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 

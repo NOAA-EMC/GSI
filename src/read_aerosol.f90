@@ -22,6 +22,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo      - calc ob location once in deg
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -34,6 +35,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     sis      - satellite/instrument/sensor indicator
 !     ithin    - flag to thin data
 !     rmesh    - thinning mesh size (km)
+!     mype     - mpi task id
 !     mype_root - "root" task for sub-communicator
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
@@ -55,8 +57,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use kinds,     only: r_kind, r_double, i_kind
   use gridmod,   only: nlat, nlon, regional, tll2xy, rlats, rlons
   use chemmod,   only: aod_qa_limit, luse_deepblue
-  use constants, only: deg2rad, zero, two, three, four, rad2deg, r60inv
-  use obsmod,    only: iadate, rmiss_single
+  use constants, only: deg2rad, zero, two, three, four, r60inv
+  use obsmod,    only: rmiss_single
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
@@ -139,6 +141,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   real(r_kind) :: tdiff, sstime, dlon, dlat, t4dv, timedif, crit1, dist1
   real(r_kind) :: slons0, slats0, rsat, solzen, azimuth, dlat_earth, dlon_earth
+  real(r_kind) :: dlat_earth_deg, dlon_earth_deg
   real(r_kind) :: styp, dbcf, qaod
   real(r_kind),dimension(0:6):: rlndsea
 
@@ -223,6 +226,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               slons0= hdraerog(3)
               if(slons0< zero) slons0=slons0+r360
               if(slons0>=r360) slons0=slons0-r360
+              dlat_earth_deg = slats0
+              dlon_earth_deg = slons0
               dlat_earth = slats0 * deg2rad
               dlon_earth = slons0 * deg2rad
 
@@ -310,8 +315,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               aeroout( 2,itx) = tdiff
               aeroout( 3,itx) = dlon               ! grid relative longitude
               aeroout( 4,itx) = dlat               ! grid relative latitude
-              aeroout( 5,itx) = dlon_earth*rad2deg ! earth relative longitude (degrees)
-              aeroout( 6,itx) = dlat_earth*rad2deg ! earth relative latitude (degrees)
+              aeroout( 5,itx) = dlon_earth_deg     ! earth relative longitude (degrees)
+              aeroout( 6,itx) = dlat_earth_deg     ! earth relative latitude (degrees)
               aeroout( 7,itx) = qaod               ! total column AOD error flag
               aeroout( 8,itx) = solzen             ! solar zenith angle
               aeroout( 9,itx) = azimuth            ! solar azimuth angle

@@ -150,7 +150,7 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2,nlat,nlon
+  use gridmod,only: nsig,lat2,lon2
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
@@ -375,7 +375,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2,nlat,nlon
+  use gridmod,only: nsig,lat2,lon2
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
@@ -617,7 +617,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2,nlat,nlon
+  use gridmod,only: nsig,lat2,lon2
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: tcompact_dlat,tcompact_dlon

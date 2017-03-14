@@ -12,6 +12,7 @@ module intsrwmod
 !   2008-11-26  Todling - remove intsrw_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intsrw_
@@ -24,6 +25,10 @@ module intsrwmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_srwNode, only: srwNode
+use m_srwNode, only: srwNode_typecast
+use m_srwNode, only: srwNode_nextcast
 implicit none
 
 PRIVATE
@@ -80,7 +85,7 @@ subroutine intsrw_(srwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: srw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -90,7 +95,7 @@ subroutine intsrw_(srwhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(srw_ob_type),pointer,intent(in   ) :: srwhead
+  class(obsNode),  pointer, intent(in   ) :: srwhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -105,7 +110,7 @@ subroutine intsrw_(srwhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(srw_ob_type), pointer :: srwptr
+  type(srwNode), pointer :: srwptr
 
 !  If not srw data return
   if(.not. associated(srwhead))return
@@ -125,7 +130,8 @@ subroutine intsrw_(srwhead,rval,sval)
   endif
   if(ier/=0)return
 
-  srwptr => srwhead
+  !srwptr => srwhead
+  srwptr => srwNode_typecast(srwhead)
   do while (associated(srwptr))
      i1=srwptr%ij(1)
      i2=srwptr%ij(2)
@@ -170,22 +176,20 @@ subroutine intsrw_(srwhead,rval,sval)
      valsrw1=bigu11*valu+bigu12*valv
      valsrw2=bigu21*valu+bigu22*valv
 
-     if (lsaveobsens) then
-        srwptr%diagu%obssen(jiter) = valsrw1*srwptr%raterr2*srwptr%err2
-        srwptr%diagv%obssen(jiter) = valsrw2*srwptr%raterr2*srwptr%err2
-     else
-        if (srwptr%luse) then
-           srwptr%diagu%tldepart(jiter)=valsrw1
-           srwptr%diagv%tldepart(jiter)=valsrw2
+     if(luse_obsdiag) then
+        if (lsaveobsens) then
+           srwptr%diagu%obssen(jiter) = valsrw1*srwptr%raterr2*srwptr%err2
+           srwptr%diagv%obssen(jiter) = valsrw2*srwptr%raterr2*srwptr%err2
+        else
+           if (srwptr%luse) then
+              srwptr%diagu%tldepart(jiter)=valsrw1
+              srwptr%diagv%tldepart(jiter)=valsrw2
+           endif
         endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           gradsrw1 = srwptr%diagu%obssen(jiter)
-           gradsrw2 = srwptr%diagv%obssen(jiter)
- 
-        else
+        if (.not.lsaveobsens) then
           if( ladtest_obs ) then
              valsrw1=valsrw1
              valsrw2=valsrw2
@@ -214,6 +218,24 @@ subroutine intsrw_(srwhead,rval,sval)
               gradsrw1 = valsrw1*srwptr%raterr2*srwptr%err2
               gradsrw2 = valsrw2*srwptr%raterr2*srwptr%err2
            end if
+
+        else
+                ! This luse_obsdiag blocking is implemented according to what
+                ! has been done in intw.f90, where the implementation for
+                ! condition (lsaveobsens.and.luse_obsidag) seems to be removed
+                ! altogether.  The implementation here is simply based on
+                ! reading the code.  It is possible that lsaveobsens implies
+                ! luse_obsdiag, which has not been verified.
+                ! -- J.G.  Fri May 13 13:00:56 EDT 2016
+
+           if(luse_obsdiag) then
+             gradsrw1 = srwptr%diagu%obssen(jiter)
+             gradsrw2 = srwptr%diagv%obssen(jiter)
+           else
+             gradsrw1 = valsrw1*srwptr%raterr2*srwptr%err2
+             gradsrw2 = valsrw2*srwptr%raterr2*srwptr%err2
+           endif
+ 
         endif
 
         valu=bigu11*gradsrw1+bigu21*gradsrw2
@@ -259,7 +281,8 @@ subroutine intsrw_(srwhead,rval,sval)
         endif
      endif
 
-     srwptr => srwptr%llpoint
+     !srwptr => srwptr%llpoint
+     srwptr => srwNode_nextcast(srwptr)
 
   end do
   return
