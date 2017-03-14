@@ -92,7 +92,6 @@
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io_mod, only: regional_io_class
-! use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
   use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid,final_fgrid2agrid,set_fgrid2agrid

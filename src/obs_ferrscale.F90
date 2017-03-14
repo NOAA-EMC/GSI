@@ -395,7 +395,7 @@ call obsHeadBundle_destroy(yobs)
 
 ! Take care of background error for bias correction terms
 
-call mpl_allreduce(size(qpred),qpred)
+call mpl_allreduce(nrclen,qpvals=qpred)
 
 do i=1,nsclen
    rbias%predr(i)=rbias%predr(i)+qpred(i)

@@ -171,10 +171,7 @@ subroutine intozlay_(ozhead,rval,sval)
   real(r_kind),allocatable,dimension(:,:) :: soz
   real(r_kind),allocatable,dimension(:,:) :: roz
   type(ozNode), pointer :: ozptr
-  real(r_kind),dimension(nloz_omi):: efficiency, val_lay
-
-!  If no data, return
-  if(.not. associated(ozhead))return
+  real(r_kind),dimension(nloz_omi):: val_lay
 
 !  If no data, return
   if(.not. associated(ozhead))return

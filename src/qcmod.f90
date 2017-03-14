@@ -1694,8 +1694,8 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
   return
 end subroutine qc_saphir
 
-subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,mixed,luse,goessndr,   &
-     cris, hirs, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
+     cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
@@ -1771,7 +1771,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,mixed,luse,goessnd
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,mixed,luse,goessndr, cris, hirs
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris
   logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
@@ -1781,7 +1781,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,mixed,luse,goessnd
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs
   real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp

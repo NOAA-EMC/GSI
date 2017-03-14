@@ -297,7 +297,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Take care of background error for bias correction terms
 
-  call mpl_allreduce(size(qpred),qpred)
+  call mpl_allreduce(nrclen,qpvals=qpred)
 
 
 ! RHS for dry ps constraint: part 2

@@ -50,8 +50,8 @@ module m_obsNode
 !     real(r_kind)    :: dlat = 0._r_kind      ! for verification, only temorary
 !     real(r_kind)    :: dlon = 0._r_kind      ! for verification, only temorary
 
-     integer(i_kind) :: idv  =-1._i_kind      ! device ID
-     integer(i_kind) :: iob  =-1._i_kind      ! initial obs sequential ID
+     integer(i_kind) :: idv  =-1              ! device ID
+     integer(i_kind) :: iob  =-1              ! initial obs sequential ID
 
   contains
 
@@ -424,8 +424,8 @@ _ENTRY_(myname_)
   aNode%time = 0._r_kind
   aNode%elat = 0._r_kind
   aNode%elon = 0._r_kind
-  aNode%idv  =-1_i_kind
-  aNode%iob  =-1_i_kind
+  aNode%idv  =-1
+  aNode%iob  =-1
 _EXIT_(myname_)
 return
 end subroutine init_

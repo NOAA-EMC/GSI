@@ -253,12 +253,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   !logical,parameter:: OBSDIAGS_RELOAD = .true.
   logical:: opened
   character(len=256):: tmpname,tmpaccess,tmpform
-  character(len=256):: tmpname,tmpaccess,tmpform
 
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
 ! Initialize timer
   call timer_ini('setuprhsall')
+
+
 
 ! Initialize variables and constants.
   first = jiter == jiterstart   ! .true. on first outer iter
@@ -379,12 +380,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
       end if
    endif   
 
+
 ! Compute derived quantities on grid
   if(.not.cmaq_regional) call compute_derived(mype,init_pass)
 
   ! ------------------------------------------------------------------------
 
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
+
 
      ! Init for Lagrangian data assimilation (gather winds and NL integration)
      call lag_presetup()
@@ -676,7 +679,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     call mpl_allreduce(jpch_rad,ostats)
+     call mpl_allreduce(jpch_rad,rpvals=ostats)
      call mpl_allreduce(npred,jpch_rad,rstats)
   end if
 
@@ -748,7 +751,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Print Jo table
   nprt=2
   llouter=.true.
-  if(luse_obsdiag) call evaljo(zjo,iobs,nprt,llouter)
+  if(luse_obsdiag)call evaljo(zjo,iobs,nprt,llouter)
 
 ! If only performing sst retrieval, end program execution
   if(retrieval)then

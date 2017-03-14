@@ -277,9 +277,8 @@
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
-  integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag,nchanl2
+  integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) ii_ptr
-  integer(i_kind) kraintype_guess_retrieval, ierrret_guess_retrieval
   integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
@@ -294,7 +293,7 @@
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
 ! real(r_kind) wltm1,wltm2,wltm3  
-  real(r_kind) ys_bias_sst,cosza,val_obs,cosza2
+  real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
@@ -1178,8 +1177,8 @@
                  end if
               end if
            end do
-           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,mixed,luse(n),goessndr, &
-              cris,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,  &
+           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
+              cris,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 

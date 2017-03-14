@@ -136,8 +136,6 @@ contains
                                                     'vor ', 'div ', &
                                                     'tv  ', 'q   ', &
                                                     'cw  ', 'oz  ' /)
-    real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>null()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>null()
@@ -817,7 +815,6 @@ end subroutine write_ghg_grid
     use sfcio_module, only: sfcio_axdata,sfcio_sclose
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: nlat,nlon
-    use guess_grids, only: nfldsfc,ifilesfc
 
     integer(i_kind), dimension(nlat,nlon), intent(  out) :: isli_anl
     integer(i_kind) :: latb,lonb
@@ -910,11 +907,6 @@ end subroutine write_ghg_grid
 
 !   Load onto all processors
     npts=nlat*nlon
-
-    call mpi_bcast(isli_anl,npts,mpi_itype,iope,mpi_comm_world,iret)
-
-    return
-  end subroutine read_gfssfc_anl
 
     call mpi_bcast(isli_anl,npts,mpi_itype,iope,mpi_comm_world,iret)
 
@@ -1014,15 +1006,6 @@ end subroutine write_ghg_grid
              call tran_gfssfc(nst_data%xz,z_w(1,1,it),lonb,latb)                       
 
           else if(n == 6) then                      ! coefficient 1 to get d(Tz)/d(Tf)
-          else if(n == 7) then                      ! coefficient 2 to get d(Tz)/d(Tf)
-
-             call tran_gfssfc(nst_data%c_d,c_d(1,1,it),lonb,latb)            
-
-          else if(n == 8 ) then                     ! coefficient 3 to get d(Tz)/d(Tf)
-
-             call tran_gfssfc(nst_data%w_0,w_0(1,1,it),lonb,latb)            
-
-          else if(n == 9 ) then                     ! coefficient 4 to get d(Tz)/d(Tf)
 
              call tran_gfssfc(nst_data%c_0,c_0(1,1,it),lonb,latb)                           
 
@@ -1208,16 +1191,6 @@ end subroutine write_ghg_grid
     real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>null()
     real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>null()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>null()
-
-    type(gsi_bundle) :: atm_bundle
-    type(gsi_grid)   :: atm_grid
-    integer(i_kind),parameter :: n2d=2
-    integer(i_kind),parameter :: n3d=8
-    character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
-    character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
-                                                    'vor ', 'div ', &
-                                                    'tv  ', 'q   ', &
-                                                    'cw  ', 'oz  ' /)
 
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
@@ -2947,7 +2920,7 @@ end subroutine write_ghg_grid
      enddo
   enddo
   xave=xave/(two_quad*float(nlon))
-  call mpl_allreduce(size(ave,1),qpvals=xave)
+  call mpl_allreduce(size(ave,1),xave)
   ave=xave
   deallocate(xave)
   end subroutine glbave

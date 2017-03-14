@@ -252,7 +252,7 @@ contains
 
 
 ! Collect data from all processors
-  call mpl_allreduce(jpassive,iobs)
+  call mpl_allreduce(jpassive,rpvals=iobs)
   call mpl_allreduce(npred,jpassive,b)
 
   do n = 1,jpassive

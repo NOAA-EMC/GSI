@@ -125,7 +125,6 @@ subroutine read_guess(iyear,month,idd,mype)
   real(r_kind) :: satval
   real(r_kind),dimension(lat2,lon2,nsig) :: satq
   real(r_kind),dimension(:,:,:),allocatable:: work
-  real(r_kind),dimension(:,:,:),allocatable:: work
   real(r_kind),dimension(:,:,:),pointer:: ges_tv=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q =>NULL()
 

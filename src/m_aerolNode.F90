@@ -109,10 +109,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(aerolNode),intent(in):: aNode
   mytype="[aerolNode]"
 end function mytype
 
