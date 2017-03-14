@@ -13,6 +13,7 @@ module intsstmod
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intsst
@@ -25,6 +26,10 @@ module intsstmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_sstNode, only: sstNode
+use m_sstNode, only: sstNode_typecast
+use m_sstNode, only: sstNode_nextcast
 implicit none
 
 PRIVATE
@@ -74,9 +79,8 @@ subroutine intsst(ssthead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: sst_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11
   use gsi_nstcouplermod, only: nst_gsi
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
@@ -85,7 +89,7 @@ subroutine intsst(ssthead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(sst_ob_type),pointer,intent(in   ) :: ssthead
+  class(obsNode),  pointer, intent(in   ) :: ssthead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -99,7 +103,7 @@ subroutine intsst(ssthead,rval,sval)
   real(r_kind) cg_sst,p0,grad,wnotgross,wgross,pg_sst
   real(r_kind),pointer,dimension(:) :: ssst
   real(r_kind),pointer,dimension(:) :: rsst
-  type(sst_ob_type), pointer :: sstptr
+  type(sstNode), pointer :: sstptr
 
 !  If no sst data return
   if(.not. associated(ssthead))return
@@ -111,7 +115,8 @@ subroutine intsst(ssthead,rval,sval)
   call gsi_bundlegetpointer(rval,'sst',rsst,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  sstptr => ssthead
+  !sstptr => ssthead
+  sstptr => sstNode_typecast(ssthead)
   do while (associated(sstptr))
      j1=sstptr%ij(1)
      j2=sstptr%ij(2)
@@ -180,7 +185,8 @@ subroutine intsst(ssthead,rval,sval)
 
      endif                           ! if (l_do_adjoint) then
 
-     sstptr => sstptr%llpoint
+     !sstptr => sstptr%llpoint
+     sstptr => sstNode_nextcast(sstptr)
 
   end do
 

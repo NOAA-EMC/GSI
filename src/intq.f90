@@ -15,6 +15,7 @@ module intqmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-04-14      Su   -  add another non linear qc(purser's scheme) 
 !   2015-02-26      Su   -  add njqc as an option to choose Purser's varqc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intq_
@@ -27,6 +28,10 @@ module intqmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_qNode, only: qNode
+use m_qNode, only: qNode_typecast
+use m_qNode, only: qNode_nextcast
 implicit none
 
 PRIVATE
@@ -87,7 +92,7 @@ subroutine intq_(qhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
-  use obsmod, only: q_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
@@ -97,7 +102,7 @@ subroutine intq_(qhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer,intent(in   ) :: qhead
+  class(obsNode),pointer ,intent(in   ) :: qhead
   type(gsi_bundle)       ,intent(in   ) :: sval
   type(gsi_bundle)       ,intent(inout) :: rval
 
@@ -110,7 +115,7 @@ subroutine intq_(qhead,rval,sval)
   real(r_kind) cg_q,val,p0,grad,wnotgross,wgross,q_pg
   real(r_kind),pointer,dimension(:) :: sq
   real(r_kind),pointer,dimension(:) :: rq
-  type(q_ob_type), pointer :: qptr
+  type(qNode), pointer :: qptr
 
 !  If no q data return
   if(.not. associated(qhead))return
@@ -125,7 +130,8 @@ subroutine intq_(qhead,rval,sval)
   endif
   if(ier/=0) return
 
-  qptr => qhead
+  !qptr => qhead
+  qptr => qNode_typecast(qhead)
   do while (associated(qptr))
      j1=qptr%ij(1)
      j2=qptr%ij(2)
@@ -215,7 +221,8 @@ subroutine intq_(qhead,rval,sval)
         endif
      endif
 
-     qptr => qptr%llpoint
+     !qptr => qptr%llpoint
+     qptr => qNode_nextcast(qptr)
 
   end do
   return

@@ -97,7 +97,7 @@ subroutine rhs_alloc(aworkdim2)
   integer(i_kind):: aworkdim2_
 _ENTRY_(myname_)
   if(rhs_allocated) call die(myname_,'already allocated')
-  aworkdim2_=13
+  aworkdim2_=25
   if(present(aworkdim2)) aworkdim2_=aworkdim2
 
 #ifdef VERBOSE
