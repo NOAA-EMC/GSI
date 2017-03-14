@@ -284,6 +284,11 @@ subroutine get_gefs_for_regional
            nvcoord=1
         end if
      end if
+     if (nvcoord > 2) then
+        write(6,*)' GET_GEFS_FOR_REGIONAL: NOT READY YET FOR ak5,bk5,ck5 vert &
+                    coordinate'
+        call stop2(85)
+     endif
 
      allocate(vcoord(levs+1,nvcoord))
      vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
@@ -306,9 +311,6 @@ subroutine get_gefs_for_regional
         write(6,*) ' nemsio: latb,lonb=',latb,lonb
         write(6,*) ' nemsio: idvc,nvcoord=',idvc,nvcoord
         write(6,*) ' nemsio: idsl=',idsl
-        do k=1,levs+1
-           write(6,*)' k,vcoord=',k,vcoord(k,:)
-        end do
      end if
 
   end if
@@ -380,7 +382,7 @@ subroutine get_gefs_for_regional
            ck5(k) = sighead%vcoord(k,3)*zero_001
         end do
      else
-        write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
+        write(6,*)'GET_GEFS_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
         call stop2(85)
      endif
   else
