@@ -813,7 +813,7 @@ subroutine add_gfs_stratosphere
    use gsi_metguess_mod, only: gsi_metguess_bundle
    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
    use general_sub2grid_mod, only: general_grid2sub,general_sub2grid,general_sub2grid_destroy_info
-   use general_specmod, only: spec_vars,general_init_spec_vars
+   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
    use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
    use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
    use guess_grids, only: ntguessig,nfldsig,ifilesig 
@@ -1067,10 +1067,8 @@ subroutine add_gfs_stratosphere
             write(6,*) ' sighead%fhour,sighead%idate=',sighead%fhour,sighead%idate
             write(6,*) ' iadate(y,m,d,hr,min)=',iadate
             write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
-            do k=1,sighead%levs+1
-               write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
-            enddo
          endif
+         jcap_org=sighead%jcap
       else
          call nemsio_init(iret=iret)
          if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','init',istop,iret)
@@ -1097,7 +1095,7 @@ subroutine add_gfs_stratosphere
          call nemsio_close(gfile,iret=iret)
          if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),' ', &
                                          'close',istop,iret)
-
+         jcap_org=njcap
       end if 
    
       ! Extract header information
@@ -1151,14 +1149,6 @@ subroutine add_gfs_stratosphere
       endif
 
       inner_vars=1
-      if(.not. use_gfs_nemsio)then
-         jcap_org=sighead%jcap
-      else
-         jcap_org=njcap
-         jcap_gfs=njcap
-         nlat_gfs=latb+2
-         nlon_gfs=lonb
-      end if
       nsig_gfs=nsigg
       num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
       num_fieldst=min(num_fields,npe)!  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
@@ -1167,13 +1157,18 @@ subroutine add_gfs_stratosphere
      
       hires=.false.
       nlon_b=((2*jcap_org+1)/nlon_gfs+1)*nlon_gfs
-      if(.not. use_gfs_nemsio)then
-         if ( nlon_b > nlon_gfs ) then
-            hires=.true.
-         else
+      if ( nlon_b > nlon_gfs ) then
+         hires=.true.
+      else
+         hires=.false.
+         if(.not. use_gfs_nemsio)then
             jcap_gfs=sighead%jcap
             nlat_gfs=sighead%latf+2
             nlon_gfs=sighead%lonf
+         else
+            jcap_gfs=njcap
+            nlat_gfs=latb+2
+            nlon_gfs=lonb
          endif 
       end if
      
@@ -1193,7 +1188,7 @@ subroutine add_gfs_stratosphere
                                       .not.regional,vector)
       jcap_gfs_test=jcap_gfs
       call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
-      if ( hires ) call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
+      if ( hires .and. .not. use_gfs_nemsio ) call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
 
       !  also want to set up regional grid structure variable grd_mix, which still has number of
       !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
@@ -1811,6 +1806,8 @@ subroutine add_gfs_stratosphere
          endif
       endif
      
+      call general_destroy_spec_vars(sp_gfs)
+      if ( hires .and. .not. use_gfs_nemsio ) call general_destroy_spec_vars(sp_b)
       deallocate(xspli_r,yspliu_r,yspliv_r,xsplo)
       deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
       deallocate(xspli_g,yspliu_g,yspliv_g)

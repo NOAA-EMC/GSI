@@ -216,9 +216,6 @@ subroutine read_gfs_ozone_for_regional
 
      nsig_gfs=levs
      jcap_org=njcap
-     jcap_gfs=njcap
-     nlat_gfs=latb+2
-     nlon_gfs=lonb
 
      allocate(nems_vcoord(levs+1,3,2))
      call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)
@@ -236,12 +233,14 @@ subroutine read_gfs_ozone_for_regional
            nvcoord=1
         end if
      end if
+     if (nvcoord > 2) then
+        write(6,*)' READ_GFS_OZONE_FOR_REGIONAL: NOT READY YET FOR ak5,bk5,ck5 vert &
+                    coordinate'
+        call stop2(85)
+     endif
 
      allocate(vcoord(levs+1,nvcoord))
      vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
-     do k=1,levs+1
-        write(6,*)' k,vcoord=',k,vcoord(k,:)
-     enddo
      deallocate(nems_vcoord)
 
      call nemsio_close(gfile,iret=iret)
@@ -261,9 +260,6 @@ subroutine read_gfs_ozone_for_regional
         write(6,*) ' nemsio: latb,lonb=',latb,lonb
         write(6,*) ' nemsio: idvc,nvcoord=',idvc,nvcoord
         write(6,*) ' nemsio: idsl=',idsl
-        do k=1,levs+1
-           write(6,*)' k,vcoord=',k,vcoord(k,:)
-        end do
      end if
 
   end if
@@ -370,14 +366,19 @@ subroutine read_gfs_ozone_for_regional
 
   hires=.false.
   nlon_b=((2*jcap_org+1)/nlon_gfs+1)*nlon_gfs
-  if (.not. use_gfs_nemsio) then
-     if (nlon_b > nlon_gfs) then
-        hires=.true.
-     else
+  if ( nlon_b > nlon_gfs ) then
+     hires=.true.
+  else
+     hires=.false.
+     if(.not. use_gfs_nemsio)then
         jcap_gfs=sighead%jcap
         nlat_gfs=sighead%latf+2
         nlon_gfs=sighead%lonf
-     end if
+     else
+        jcap_gfs=njcap
+        nlat_gfs=latb+2
+        nlon_gfs=lonb
+     endif
   end if
 
   if(mype==0) write(6,*)'read_gfs_ozone_for_regional: jcap_org, jcap_gfs= ', &
@@ -395,7 +396,7 @@ subroutine read_gfs_ozone_for_regional
   deallocate(vector)
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
-  if (hires) then
+  if (hires .and. .not. use_gfs_nemsio) then
       call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
   end if
 
@@ -619,6 +620,7 @@ subroutine read_gfs_ozone_for_regional
      end do
   end if
   call general_destroy_spec_vars(sp_gfs)
+  if ( hires .and. .not. use_gfs_nemsio ) call general_destroy_spec_vars(sp_b)
   deallocate(xspli,yspli,xsplo,ysplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
              glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
