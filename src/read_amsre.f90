@@ -101,7 +101,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use radinfo, only: iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
+  use constants, only: deg2rad,zero,one,three,r60inv
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low

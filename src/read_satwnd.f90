@@ -89,20 +89,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc,njqc
+  use qcmod, only: errormod,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r100,r2000
   use converr,only: etabl
-  use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
-  use convb_uv,only: btabl_uv,isuble_buv
-  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
-  use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
+  use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
+  use convb_uv,only: btabl_uv
+  use obsmod, only: perturb_obs,perturb_fact,ran01dom,bmiss
+  use convinfo, only: nconvtype, &
+       icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+       use_prepb_satwnd
 
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -927,6 +927,18 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 		 endif
                 ! winds rejected by qc dont get used
                 if (qm == 15) usage=r100
+                if (qm == 3 .or. qm ==7) woe=woe*r1_2
+                ! set strings for diagnostic output
+                if(itype==240 )  then;  c_prvstg='GOESR' ; c_sprvstg='IRSW'  ; endif
+                if(itype==245 )  then;  c_prvstg='GOESR' ; c_sprvstg='IR'  ; endif
+                if(itype==246 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCT'  ; endif
+                if(itype==247 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCS'  ; endif
+                if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
+              endif
+! Extra block for GOES-R winds: End
+		 endif
+           ! assign types and get quality info : end
+
                 if (qm == 3 .or. qm ==7) woe=woe*r1_2
                 ! set strings for diagnostic output
                 if(itype==240 )  then;  c_prvstg='GOESR' ; c_sprvstg='IRSW'  ; endif

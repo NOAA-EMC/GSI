@@ -287,7 +287,6 @@ contains
 ! !USES:
 
     use constants, only: zero
-    use mpimod, only: mype
     use obsmod, only: iadate
     implicit none
 

@@ -114,7 +114,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use obsmod, only: obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig
+  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -123,7 +123,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
-  use jfunc, only: jiter,miter,iter
+  use jfunc, only: jiter,miter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 

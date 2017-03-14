@@ -62,7 +62,6 @@ subroutine intcldch(cldchhead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term
   use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

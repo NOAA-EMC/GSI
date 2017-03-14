@@ -80,7 +80,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,use_edges, &
+  use radinfo, only: iuse_rad,jpch_rad,nusis,use_edges, &
                      radedge1,radedge2,gmi_method
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll

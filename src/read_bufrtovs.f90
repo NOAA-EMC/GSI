@@ -139,7 +139,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use antcorr_application, only: remove_antcorr
-  use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc

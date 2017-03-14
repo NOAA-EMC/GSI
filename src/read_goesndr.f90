@@ -96,7 +96,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
       newpc4pred
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
+  use constants, only: deg2rad,zero,rad2deg, r60inv,one,two
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo

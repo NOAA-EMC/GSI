@@ -37,14 +37,14 @@ module m_gpsNode
   type,extends(obsNode):: gpsNode
      !type(gps_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
-     real(r_kind)    :: res    =0.    !  gps residual
-     real(r_kind)    :: err2   =0.    !  gps error squared
-     real(r_kind)    :: raterr2=0.    !  square of ratio of final obs error 
+     real(r_kind)    :: res    =0._r_kind    !  gps residual
+     real(r_kind)    :: err2   =0._r_kind    !  gps error squared
+     real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error 
                                       !  to original obs error
      !real(r_kind)    :: time          !  observation time in sec     
-     real(r_kind)    :: b      =0.    !  variational quality control parameter
-     real(r_kind)    :: pg     =0.    !  variational quality control parameter
-     real(r_kind)    :: wij(4) =0.    !  horizontal interpolation weights
+     real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: pg     =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: wij(4) =0._r_kind    !  horizontal interpolation weights
 
      real(r_kind),dimension(:),pointer :: jac_q => NULL()
                                       !  q jacobian 
@@ -59,7 +59,7 @@ module m_gpsNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -116,10 +116,9 @@ function nextcast_(aNode) result(ptr_)
 return
 end function nextcast_
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(gpsNode),intent(in):: aNode
   mytype="[gpsNode]"
 end function mytype
 
@@ -192,15 +191,6 @@ _ENTRY_(myname_)
 _EXIT_(myname_)
 return
 end subroutine obsNode_clean_
-
-subroutine init_(aNode)
-  implicit none
-  class(gpsNode),intent(inout):: aNode
-!  select type(aNode)
-!  type is(gpsNode)
-!    aNode = gpsNode()
-!  end select
-end subroutine init_
 
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate

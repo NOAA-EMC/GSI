@@ -113,9 +113,6 @@ subroutine update_guess(sval,sbias)
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
-  use radinfo, only: npred,jpch_rad,predx
-  use pcpinfo, only: npredp,npcptype,predxp
-  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,npredt,predt,ntail
   use m_gsiBiases,only : bias_hour, bkg_bias_update, bkg_bias_correction
   use bias_predictors, only: predictors,update_bias_preds
   use gsi_bundlemod, only: gsi_bundle

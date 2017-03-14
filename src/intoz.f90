@@ -176,6 +176,9 @@ subroutine intozlay_(ozhead,rval,sval)
 !  If no data, return
   if(.not. associated(ozhead))return
 
+!  If no data, return
+  if(.not. associated(ozhead))return
+
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0 
@@ -524,7 +527,6 @@ subroutine intozlev_(o3lhead,rval,sval)
 
   use kinds, only: r_kind,i_kind
   use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
-  use gridmod, only: latlon1n
   use constants, only: r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle

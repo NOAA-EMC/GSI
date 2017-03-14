@@ -52,7 +52,7 @@ module m_o3lNode
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -110,10 +110,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(o3lNode),intent(in):: aNode
   mytype="[o3lNode]"
 end function mytype
 

@@ -36,17 +36,17 @@ module m_dwNode
   type,extends(obsNode):: dwNode
      !type(dw_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
-     real(r_kind)    :: res    =0.    !  doppler wind residual
-     real(r_kind)    :: err2   =0.    !  radial wind error squared
-     real(r_kind)    :: raterr2=0.    !  square of ratio of final obs error 
-                                      !  to original obs error
-     !real(r_kind)    :: time          !  observation time in sec     
-     real(r_kind)    :: b      =0.    !  variational quality control parameter
-     real(r_kind)    :: pg     =0.    !  variational quality control parameter
-     real(r_kind)    :: cosazm =0.    !  v factor
-     real(r_kind)    :: sinazm =0.    !  u factor
-     real(r_kind)    :: wij(8) =0.    !  horizontal interpolation weights
-     integer(i_kind) :: ij(8)  =0     !  horizontal locations
+     real(r_kind)    :: res    =0._r_kind    !  doppler wind residual
+     real(r_kind)    :: err2   =0._r_kind    !  radial wind error squared
+     real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error 
+                                             !  to original obs error
+     !real(r_kind)    :: time                !  observation time in sec     
+     real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: pg     =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: cosazm =0._r_kind    !  v factor
+     real(r_kind)    :: sinazm =0._r_kind    !  u factor
+     real(r_kind)    :: wij(8) =0._r_kind    !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)  =0_i_kind     !  horizontal locations
      !logical         :: luse          !  flag indicating if ob is used in pen.
 
      !integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
@@ -55,7 +55,7 @@ module m_dwNode
      real   (r_kind) :: dlev            ! reference to the vertical grid
      real   (r_kind) :: factw           ! factor of 10m wind
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -113,10 +113,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(dwNode),intent(in):: aNode
   mytype="[dwNode]"
 end function mytype
 

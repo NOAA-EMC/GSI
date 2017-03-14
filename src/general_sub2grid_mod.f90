@@ -167,36 +167,36 @@ module general_sub2grid_mod
       integer(i_kind) mype            ! local processor
       integer(i_kind) nskip           ! # of processors skipped between full horizontal fields in grid mode.
       logical periodic                ! logical flag for periodic e/w domains
-      logical,pointer :: periodic_s(:) => NULL()    ! logical flag for periodic e/w subdomain (all tasks)
-      logical,pointer :: vector(:)     => NULL()    ! logical flag, true for vector variables
-      integer(i_kind),pointer :: ilat1(:)       => NULL()    !  no. of lats for each subdomain (no buffer)
-      integer(i_kind),pointer :: jlon1(:)       => NULL()    !  no. of lons for each subdomain (no buffer)
-      integer(i_kind),pointer :: istart(:)      => NULL()    !  start lat of the whole array on each pe
-      integer(i_kind),pointer :: jstart(:)      => NULL()    !  start lon of the whole array on each pe
-      integer(i_kind),pointer :: recvcounts(:)  => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::  displs_g(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: rdispls(:)     => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: sendcounts(:)  => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: sdispls(:)     => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: ijn(:)         => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: ltosj(:)       => NULL()    !  lat index for reordering slab
-      integer(i_kind),pointer :: ltosi(:)       => NULL()    !  lon index for reordering slab
-      integer(i_kind),pointer :: recvcounts_s(:)=> NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::     irc_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::     ird_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::     isc_g(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::     isd_g(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer ::  displs_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: rdispls_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: sendcounts_s(:)=> NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: sdispls_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: ijn_s(:)       => NULL()    !  for mpi_alltoallv (sub2grid)
-      integer(i_kind),pointer :: ltosj_s(:)     => NULL()    !  lat index for reordering slab
-      integer(i_kind),pointer :: ltosi_s(:)     => NULL()    !  lon index for reordering slab
-      integer(i_kind),pointer :: kbegin(:)      => NULL()    !  starting slab index for each processor
-      integer(i_kind),pointer :: kend(:)        => NULL()    !  ending slab index for each processor
-      integer(i_kind),pointer :: lnames(:,:)    => NULL()    !  optional level index for each variable
-      character(64),pointer   :: names(:,:)     => NULL()    !  optional variable names
+      logical,pointer :: periodic_s(:) => null()    ! logical flag for periodic e/w subdomain (all tasks)
+      logical,pointer :: vector(:)     => null()    ! logical flag, true for vector variables
+      integer(i_kind),pointer :: ilat1(:)       => null()    !  no. of lats for each subdomain (no buffer)
+      integer(i_kind),pointer :: jlon1(:)       => null()    !  no. of lons for each subdomain (no buffer)
+      integer(i_kind),pointer :: istart(:)      => null()    !  start lat of the whole array on each pe
+      integer(i_kind),pointer :: jstart(:)      => null()    !  start lon of the whole array on each pe
+      integer(i_kind),pointer :: recvcounts(:)  => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::  displs_g(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: rdispls(:)     => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: sendcounts(:)  => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: sdispls(:)     => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: ijn(:)         => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: ltosj(:)       => null()    !  lat index for reordering slab
+      integer(i_kind),pointer :: ltosi(:)       => null()    !  lon index for reordering slab
+      integer(i_kind),pointer :: recvcounts_s(:)=> null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     irc_s(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     ird_s(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     isc_g(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     isd_g(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::  displs_s(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: rdispls_s(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: sendcounts_s(:)=> null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: sdispls_s(:)   => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: ijn_s(:)       => null()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer :: ltosj_s(:)     => null()    !  lat index for reordering slab
+      integer(i_kind),pointer :: ltosi_s(:)     => null()    !  lon index for reordering slab
+      integer(i_kind),pointer :: kbegin(:)      => null()    !  starting slab index for each processor
+      integer(i_kind),pointer :: kend(:)        => null()    !  ending slab index for each processor
+      integer(i_kind),pointer :: lnames(:,:)    => null()    !  optional level index for each variable
+      character(64),pointer   :: names(:,:)     => null()    !  optional variable names
       logical:: lallocated = .false.
     
 
@@ -714,7 +714,7 @@ end subroutine get_iuse_pe
 
   integer(i_kind) :: i,j,k,istart0, jstart0
   integer(i_kind) :: imxy(nxpe), jmxy(nype)
-  integer(i_kind) :: im,jm,mm1,ierr
+  integer(i_kind) :: im,jm,mm1
 
 ! start
 
@@ -722,8 +722,8 @@ end subroutine get_iuse_pe
   periodic_s=.false.
   im=nlon; jm=nlat
  
-  call GET_LOCAL_DIMS_ ( im,imxy,nxpe )
-  call GET_LOCAL_DIMS_ ( jm,jmxy,nype )
+  call get_local_dims_ ( im,imxy,nxpe )
+  call get_local_dims_ ( jm,jmxy,nype )
 
 ! compute subdomain boundaries  (axis indices)
 
@@ -731,18 +731,18 @@ end subroutine get_iuse_pe
 
   K=0
   jstart0 = 1
-  DO J=1,NYPE
+  do j=1,nype
      istart0 = 1
-     if (J>1) then
-        jstart0 = jstart0 + JMXY(J-1)
+     if (j>1) then
+        jstart0 = jstart0 + jmxy(J-1)
      end if
-     DO I=1,NXPE
+     do i=1,nxpe
         k = k + 1
-        ilat1(k) = JMXY(J)
+        ilat1(k) = jmxy(j)
         istart(k) = jstart0
-        jlon1(k) = IMXY(I)
-        if (I>1) then
-           istart0 = istart0 + IMXY(I-1)
+        jlon1(k) = imxy(i)
+        if (i>1) then
+           istart0 = istart0 + imxy(i-1)
         end if
         jstart(k) = istart0
 
@@ -780,10 +780,10 @@ end subroutine get_iuse_pe
 
   end subroutine general_deter_subdomain_withLayout
 
-  subroutine GET_LOCAL_DIMS_ ( dim_world,dim,NDEs )
+  subroutine get_local_dims_ ( dim_world,dim,ndes )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    GET_LOCAL_DIMS
+! subprogram:    get_local_dims
 !   prgmmr:                  org                      date:
 !
 ! abstract:
@@ -793,7 +793,7 @@ end subroutine get_iuse_pe
 !
 !   input argument list:
 !    dim_world
-!    NDEs
+!    ndes
 !    dim
 !
 !   output argument list:
@@ -807,18 +807,18 @@ end subroutine get_iuse_pe
 
    implicit   none
 
-   integer(i_kind),intent(in   ) :: dim_world, NDEs
-   integer(i_kind),intent(inout) :: dim(0:NDEs-1)
+   integer(i_kind),intent(in   ) :: dim_world, ndes
+   integer(i_kind),intent(inout) :: dim(0:ndes-1)
 
    integer(i_kind)    n,im,rm
 
-   im = dim_world/NDEs
-   rm = dim_world-NDEs*im
-   do n=0,NDEs-1
+   im = dim_world/ndes
+   rm = dim_world-ndes*im
+   do n=0,ndes-1
       dim(n) = im
       if( n<=rm-1 ) dim(n) = im+1
    enddo
-   end subroutine GET_LOCAL_DIMS_
+   end subroutine get_local_dims_
 
    subroutine general_deter_subdomain_nolayout(npe,mype,nlat,nlon,regional, &
                     periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)

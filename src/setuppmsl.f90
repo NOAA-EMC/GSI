@@ -37,7 +37,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig,ntguessig
+  use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: pmslhead
   use m_obsNode , only: obsNode
   use m_pmslNode, only: pmslNode

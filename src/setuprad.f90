@@ -179,6 +179,7 @@
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -227,23 +228,22 @@
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r100,r10,r0_01,pi,r_missing
+      two,three,cg_term,wgtlim,r100,r10,r0_01,r_missing
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
-      isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
-      ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg, &
-      ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate, &
-      isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
+      itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
+      ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
+      izz,idomsfc,isfcr,iff10,ilone,ilate, &
+      isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use gsi_metguess_mod, only: gsi_metguess_get
-  use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
 
@@ -832,13 +832,13 @@
 !       Interpolate model fields to observation location, call crtm and create jacobians
 !       Output both tsim and tsim_clr for allsky
         if (lcw4crtm) then
-           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr)
         else
-           call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &

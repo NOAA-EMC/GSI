@@ -448,7 +448,7 @@ contains
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
-       veg_frac,sfc_rough,ifilesfc,nfldsig,isli2,sno2
+       veg_frac,sfc_rough,nfldsig,isli2,sno2
     use m_gsiBiases, only: bkg_bias_model,bias_hour
     use jfunc, only: bcoption
 

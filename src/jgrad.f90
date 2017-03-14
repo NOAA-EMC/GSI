@@ -26,7 +26,7 @@ subroutine jgrad(xhat,yhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !$$$
 
 use kinds, only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc, idmodel
+use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc
 use gsi_4dvar, only: l4densvar
 use constants, only: zero,zero_quad
 use mpimod, only: mype
@@ -34,8 +34,8 @@ use jfunc, only : xhatsave,yhatsave
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 use jcmod, only: ljcdfi,ljcpdry
 use intjcmod, only: intjcpdry
-use jfunc, only: nclen,l_foto,xhat_dt,jiter,jiterend,miter
-use gridmod, only: lat2,lon2,nsig,twodvar_regional
+use jfunc, only: nclen,jiter,miter
+use gridmod, only: twodvar_regional
 use obsmod, only: lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
 use mod_strong, only: l_tlnmc,baldiag_inc

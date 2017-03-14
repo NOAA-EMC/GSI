@@ -99,10 +99,8 @@ module m_obsdiagNode
 
 contains
 subroutine lwrite_(diagLL,iunit,luseonly,jiter,miter,jj_type,ii_bin,luseRange)
-  use obs_sensitivity, only: lobsensfc, lsensrecompute
   use m_latlonRange  , only: latlonRange
   use m_latlonRange  , only: latlonRange_enclose
-  use mpimod, only: myPE
   use mpeu_util, only: stdout
   use mpeu_util, only: stdout_lead
   implicit none
@@ -455,6 +453,8 @@ _ENTRY_(myname_)
 !    call  die(myname_)
 !  endif
 
+   if(present(itype)) jtype=itype
+   if(present(ibin))  jbin =ibin
 #ifdef DEBUG_TRACE
   if(diagLL%n_alloc>0) then
     jtype=0
@@ -604,7 +604,7 @@ function lcount_(diagLL,luseonly,recount,nuse,nooo,ndup,ksum,leadNode) result(lo
   type(_obsNode_ ), pointer:: iNode
   type(_obsLList_), target :: tempLL
   integer(kind=i_kind):: nuse_
-  integer(kind=i_kind):: k,ksize
+  integer(kind=i_kind):: k
   integer(kind=i_kind),dimension(3) :: kprev
   logical:: luseonly_,recount_,checksum_
 _ENTRY_(myname_)
@@ -834,11 +834,12 @@ subroutine lbuild_(diagLL,leadNode,jiter)
   type(_obsNode_),pointer:: iNode,pNode
   integer(kind=i_kind),allocatable,dimension(:):: indx,idv_,iob_,ich_
   integer(kind=i_kind):: i,m,n
-  logical:: do_verify_
+  integer(kind=i_kind):: idum
   logical:: good
 _ENTRY_(myname_)
 !_TIMER_ON_(myname_)
 !  call timer_ini(myname_)
+  if(present(jiter)) idum=jiter
 
         ! Mark the leading node
   iNode => null()
@@ -1087,7 +1088,9 @@ subroutine obsNode_check_(who,aNode)
   type(_obsNode_),intent(in):: aNode
 
   logical:: equival
+  character(len=256)::mywho
 
+  mywho=who
     !_TRACEV_(who,'associated(aNode%muse    ) =',associated(aNode%muse    ))
     !_TRACEV_(who,'associated(aNode%nldepart) =',associated(aNode%nldepart))
     !_TRACEV_(who,'associated(aNode%tldepart) =',associated(aNode%tldepart))
@@ -1126,9 +1129,9 @@ _ENTRY_(myname_)
   aNode_%luse = .false.
   aNode_%elat = 0._r_kind
   aNode_%elon = 0._r_kind
-  aNode_%idv  =-1._i_kind
-  aNode_%iob  =-1._i_kind
-  aNode_%ich  =-1._i_kind
+  aNode_%idv  =-1
+  aNode_%iob  =-1
+  aNode_%ich  =-1
 
   aNode_%indxglb    =-99999
   aNode_%nchnperobs =-99999
@@ -1144,9 +1147,6 @@ return
 end function obsNode_alloc_
 
 subroutine obsNode_read_(aNode,iunit,kiter,istat,redistr)
-  use mpimod, only: mype
-  use obs_sensitivity, only: lobsensfc, lsensrecompute
-  use obsmod, only: lobserver
   implicit none
   type(_obsNode_), intent(inout):: aNode
   integer(kind=i_kind), intent(in   ):: iunit
@@ -1217,7 +1217,6 @@ return
 end subroutine obsNode_read_
 
 subroutine obsNode_write_(aNode,iunit,jiter,istat)
-  use mpimod, only: mype
   implicit none
   type(_obsNode_), intent(in   ):: aNode
   integer(kind=i_kind), intent(in   ):: iunit

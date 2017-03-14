@@ -53,7 +53,7 @@ module m_pwNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -111,10 +111,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(pwNode),intent(in):: aNode
   mytype="[pwNode]"
 end function mytype
 
@@ -167,8 +166,8 @@ _ENTRY_(myname_)
   aNode%elat = 0._r_kind
   aNode%elon = 0._r_kind
   aNode%time = 0._r_kind
-  aNode%idv  =-1._i_kind
-  aNode%iob  =-1._i_kind
+  aNode%idv  =-1
+  aNode%iob  =-1
   allocate(aNode%dp(nsig))
 _EXIT_(myname_)
 return

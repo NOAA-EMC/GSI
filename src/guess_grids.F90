@@ -396,7 +396,7 @@ contains
 ! !USES:
 
     use constants,only: zero,one
-    use gridmod, only: lat2,lon2,nsig,regional,nsig_soil
+    use gridmod, only: lat2,lon2,nsig
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -418,7 +418,6 @@ contains
 !   2005-07-27  kleist  - modified to include some shared arrays
 !   2006-01-10  treadon - remove mype from calling list (not used)
 !   2006-07-31  kleist  - use ges_ps arrays instead of ln(ps)
-!   2006-06-08  zhang,b - change "biascor>0" to "biascor>=0" for debug purposes
 !   2006-12-04  todling - remove bias initialization; rename routine
 !   2006-12-15  todling - protection to allow initializing ges/tnd/drv at will
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes

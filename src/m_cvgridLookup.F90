@@ -167,7 +167,7 @@ subroutine isubdom_index_(elat,elon,ilat,ilon)
   use constants, only: deg2rad
   implicit none
   real(kind=r_kind),intent(in ):: elat,elon
-  integer          ,intent(out):: ilat,ilon
+  integer(kind=i_kind),intent(out):: ilat,ilon
 
   real(kind=r_kind):: dlat,dlon
   dlat=elat*deg2rad

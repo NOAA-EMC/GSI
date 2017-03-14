@@ -482,7 +482,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   return
 end subroutine stpjo
 
-subroutine stpjo_setup(yobs,nobs_bins)
+subroutine stpjo_setup(yobs)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -516,7 +516,6 @@ subroutine stpjo_setup(yobs,nobs_bins)
 
 ! Declare passed variables
   type(obsHeadBundle),dimension(:),intent(in   ) :: yobs
-  integer(i_kind)                 ,intent(in   ) :: nobs_bins
 
 ! Declare local variables
 

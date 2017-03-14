@@ -73,7 +73,7 @@ module m_radNode
      integer(i_kind) :: isfctype      ! surf mask: ocean=0,land=1,ice=2,snow=3,mixed=4
      !integer(i_kind),dimension(:),pointer :: ich => NULL()
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -131,10 +131,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(radNode),intent(in):: aNode
   mytype="[radNode]"
 end function mytype
 

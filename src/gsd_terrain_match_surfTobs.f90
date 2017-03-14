@@ -27,7 +27,6 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use constants, only: one
-  use gridmod, only: nlon,nlat,nsig
   use guess_grids, only: ntguessig,ntguessfc,geop_hgti,ges_tsen
   use convinfo, only: ictype
   use gsi_metguess_mod, only: gsi_metguess_bundle

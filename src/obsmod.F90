@@ -830,7 +830,7 @@ contains
 !
 !$$$ end documentation block
     use gsi_4dvar, only: nobs_bins
-    use mpimod, only: npe,mype
+    use mpimod, only: mype
     implicit none
 
     if (l4dvar) then
@@ -883,7 +883,7 @@ contains
 !   language: f90
 !
 !$$$  end documentation block
-    use gridmod, only: regional,twodvar_regional
+    use gridmod, only: twodvar_regional
     implicit none
 
     integer(i_kind),intent(in   ) :: nhr_assim

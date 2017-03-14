@@ -1522,7 +1522,6 @@ contains
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
    integer(i_kind):: i,j,jj,jk,n_chan,k,lunout,jadj
-   integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
@@ -1591,7 +1590,7 @@ contains
       platid=dplat(iii)
       satsens_id=dsis(iii)
 
-      if (dplat(iii) .eq. '') cycle loopf
+      if (dplat(iii) == '') cycle loopf
 
 !     Create diagnostic filename
       fdiag_rad = 'diag_' // trim(dtype(iii)) // '_' // trim(dplat(iii))
@@ -2074,14 +2073,13 @@ END subroutine dec2bin
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-   use constants, only: tiny_r_kind,zero,one
+   use constants, only: zero,one
    use correlated_obsmod, only: idnames
    use correlated_obsmod, only: corr_ob_amiset
    use correlated_obsmod, only: corr_ob_scale_jac
    use correlated_obsmod, only: GSI_BundleErrorCov 
    use mpeu_util, only: getindex
    use mpeu_util, only: die
-   use mpimod, only: mype
    implicit none
 
    character(len=*),intent(in) :: isis
@@ -2151,12 +2149,11 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-   use constants, only: tiny_r_kind,zero,one
+   use constants, only: zero,one
    use correlated_obsmod, only: corr_ob_rsqrtinv
    use correlated_obsmod, only: GSI_BundleErrorCov
    use mpeu_util, only: getindex
    use mpeu_util, only: die
-   use mpimod, only: mype
    implicit none
    integer(i_kind), intent(in) :: iinstr
    integer(i_kind), intent(in) :: nchasm
@@ -2171,5 +2168,6 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
                           rsqrtinv,GSI_BundleErrorCov(iinstr))
 
 end subroutine get_rsqrtinv_
+
 
 end module radinfo

@@ -116,7 +116,7 @@ subroutine intcolev_(colvkhead,rval,sval)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use gridmod, only: lat2,lon2,nsig
-  use jfunc, only: jiter,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

@@ -124,11 +124,12 @@ subroutine read_guess(iyear,month,idd,mype)
 
   real(r_kind) :: satval
   real(r_kind),dimension(lat2,lon2,nsig) :: satq
-! real(r_kind),dimension(lat2,lon2):: work
+  real(r_kind),dimension(:,:,:),allocatable:: work
   real(r_kind),dimension(:,:,:),allocatable:: work
   real(r_kind),dimension(:,:,:),pointer:: ges_tv=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q =>NULL()
 
+  iret_bias=0
 !-----------------------------------------------------------------------------------
 ! Certain functions are only done once --> on the first outer iteration. 
 ! One-time functions include
@@ -163,7 +164,6 @@ subroutine read_guess(iyear,month,idd,mype)
      else
 
 !       If requested, read bias correction fields
-        iret_bias=0
         if (abs(bcoption)>0) then
            filename='biascor_in'
            allocate(work(lat2,lon2,nbc))

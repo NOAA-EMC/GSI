@@ -516,7 +516,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
     use gsi_chemguess_mod, only: gsi_chemguess_get
     implicit none
     integer(i_kind) :: ipm2_5,ier

@@ -93,7 +93,7 @@ subroutine intpw_(pwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use gridmod, only: latlon11,latlon1n,nsig
+  use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt

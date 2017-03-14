@@ -740,7 +740,7 @@ end subroutine general_get_xytilde_domain
 ! !USES:
 
     use kinds, only: r_kind,i_kind
-    use constants, only: one,two,pi,rad2deg,one_tenth
+    use constants, only: one,two,one_tenth
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -922,7 +922,6 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
   use kinds, only: r_kind,i_kind
   use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform,general_tll2xy
   use egrid2agrid_mod, only: egrid2agrid_parm,create_egrid2points_slow
-  use mpimod, only: mype
   use constants, only: zero,one
   implicit none
 

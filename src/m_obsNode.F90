@@ -63,7 +63,7 @@ module m_obsNode
     procedure:: clean => clean_                                 ! clean a node
 
         !----------- procedures must be defined by extensions ------------------
-    procedure(intrfc_mytype_ ), deferred:: mytype     ! return my type name
+    procedure(intrfc_mytype_ ),nopass,deferred:: mytype     ! return my type name
     procedure(intrfc_setHop_ ), deferred:: setHop     ! re-construct H
     procedure(intrfc_xread_  ), deferred:: xread      ! read extensions
     procedure(intrfc_xwrite_ ), deferred:: xwrite     ! write extensions
@@ -147,10 +147,9 @@ module m_obsNode
   end interface
 
   abstract interface
-    function intrfc_mytype_(aNode)
+    function intrfc_mytype_
       import:: obsNode
       implicit none
-      class(obsNode)  , intent(in):: aNode
       character(len=:),allocatable:: intrfc_mytype_
     end function intrfc_mytype_
   end interface

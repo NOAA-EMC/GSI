@@ -320,7 +320,7 @@ subroutine init_(hour)
   type(gsi_grid) :: grid
 
   integer(i_kind):: istatus
-  integer(i_kind):: nt,i,j,k,n
+  integer(i_kind):: nt
   integer(i_kind) ida(8),jda(8)
   real(r_kind) fhrstep,fha(5),bkg_nhr
 
@@ -370,7 +370,7 @@ subroutine init_(hour)
      ida(1:3)=ibdate(1:3)
      ida(5:6)=ibdate(4:5)
      jda(:)=0
-     fha(:)=0.0
+     fha(:)=0.0_r_kind
      fhrstep = bkg_nstarthr + (nt-1)*bkg_nhr
      fha(2)=fhrstep-3.0_r_kind ! NCEP counts time from previous syn analysis
      call w3movdat(fha,ida,jda)
@@ -1059,7 +1059,7 @@ subroutine correct_()
   real(r_kind),allocatable,dimension(:,:)  :: work2d
   real(r_kind),allocatable,dimension(:,:,:):: work3d
 
-  integer(i_kind) :: i,j,k,it,bkg_hour,idummy,ier,istatus
+  integer(i_kind) :: it,bkg_hour,idummy,ier,istatus
 
 ! Get memory for bias-related arrays
 

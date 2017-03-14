@@ -1083,13 +1083,12 @@ subroutine wr2d_binary(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,&
+  use guess_grids, only: ntguessig,ifilesig,&
        ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
-  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip,&
+  use gridmod, only: lat2,iglobal,itotsub,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use mpeu_util, only: getindex
-  use state_vectors, only: svars2d
   use constants, only: zero_single,r10,r100
   use derivsmod, only: qsatg
   use jfunc, only: jiter,miter
@@ -2466,8 +2465,6 @@ subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
 !
 !$$$ end documentation block
   use constants, only: rad2deg
-  use convinfo, only: ncnumgrp,ncgroup
-  use  gridmod, only: nlon,nlat
 
   implicit none
 

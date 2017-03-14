@@ -205,7 +205,7 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad,r_double
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_real8,mpi_real16
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real8,mpi_real16
   implicit none
 
 ! Declare passed variables

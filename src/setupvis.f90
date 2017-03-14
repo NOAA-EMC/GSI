@@ -42,7 +42,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
+  use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: vishead
   use obsmod, only: rmiss_single,i_vis_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
@@ -52,7 +52,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
-  use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
+  use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
             two,cg_term,pi,huge_single

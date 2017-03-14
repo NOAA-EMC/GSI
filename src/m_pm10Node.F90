@@ -57,7 +57,7 @@ module m_pm10Node
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -115,10 +115,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(pm10Node),intent(in):: aNode
   mytype="[pm10Node]"
 end function mytype
 
@@ -207,7 +206,7 @@ subroutine obsNode_setHop_(aNode)
   ! %dlev is defined, but not used.  See setuppm10() for information.
   call cvgridLookup_getiw(aNode%elat,aNode%elon,aNode%ij(1:4),aNode%wij(1:4))
   aNode% ij(5:8) = aNode%ij(1:4)
-  aNode%wij(5:8) = 0.
+  aNode%wij(5:8) = 0._r_kind
 !_EXIT_(myname_)
 return
 end subroutine obsNode_setHop_

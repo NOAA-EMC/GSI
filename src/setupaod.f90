@@ -314,7 +314,7 @@
         end if
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
-        call call_crtm(obstype,dtime,data_s(1,n),nchanl,nreal,ich, &
+        call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,clw_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &

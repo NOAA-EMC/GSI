@@ -31,17 +31,15 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
 
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,half,&
-      three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
-      r60inv,r10,r100,r2000,t0c
+      three,four,r60inv,r10,r100,r2000,t0c
 
   use convinfo, only: nconvtype, &
-      icuse,ictype,icsubtype,ioctype,ctwind
-  use converr,only: etabl
-  use gridmod, only: regional,nlon,nlat,nsig,tll2xy,txy2ll,&
+      icuse,ictype,ioctype
+  use gridmod, only: regional,nlon,nlat,tll2xy,txy2ll,&
       rlats,rlons,twodvar_regional
   use deter_sfc_mod, only: deter_sfc2
-  use obsmod, only: ianldate,bmiss,oberrflg,hilbert_curve
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
+  use obsmod, only: ianldate,bmiss,hilbert_curve
+  use gsi_4dvar, only: iwinbgn,time_4dvar
   use sfcobsqc,only: init_rjlists,get_usagerj,destroy_rjlists
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &

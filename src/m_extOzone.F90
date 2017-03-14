@@ -311,15 +311,14 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
   case('omieff','tomseff')       ! layer-ozone or total-ozone types
      select case(dfile_format(dfile))
      case('nc')
-        call oztot_ncInquire_(dfile,dtype,dplat, &
-                              nreal,nchan,ilat,ilon, &
+        call oztot_ncInquire_(nreal,nchan,ilat,ilon, &
                               ithin,rmesh,maxobs)
 
         allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
-        call oztot_ncRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
-                           gstime, twind, nreal,nchan,ilat,ilon, ithin,rmesh)
+        call oztot_ncRead_(dfile,dtype,dsis, p_out,nread,npuse,nouse, &
+                           gstime, twind, ithin)
 
                 ! Skip all "thinned" data records, and reset values of
                 ! nread, npuse, and nouse, as they are required by
@@ -349,27 +348,25 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
 !                             gstime,twind, nreal,nchan,ilat,ilon)
 !
      case('bufr')
-        call ozlev_bufrInquire_(dfile,dtype,dplat,  &
-                                nreal,nchan,ilat,ilon,maxobs)
+        call ozlev_bufrInquire_(nreal,nchan,ilat,ilon,maxobs)
 
         allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
-        call ozlev_bufrRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
-                             jsatid, gstime,twind, nreal,nchan,ilat,ilon)
+        call ozlev_bufrRead_(dfile,dtype,dsis, p_out,nread,npuse,nouse, &
+                             jsatid, gstime,twind)
      end select
 
   case('mls55')
      select case(dfile_format(dfile))
      case('nc')
-        call ozlev_ncInquire_(dfile,dtype,dplat,  &
-                              nreal,nchan,ilat,ilon,maxobs)
+        call ozlev_ncInquire_( nreal,nchan,ilat,ilon,maxobs)
 
         allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
 
-        call ozlev_ncRead_(dfile,dtype,dplat,dsis, p_out,nread,npuse,nouse, &
-                             gstime,twind, nreal,nchan,ilat,ilon)
+        call ozlev_ncRead_(dfile, p_out,nread,npuse,nouse, &
+                             gstime,twind)
      end select
 
   end select
@@ -416,13 +413,10 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
 
 end subroutine read_
 
-subroutine oztot_ncInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon, ithin,rmesh,maxrec)
+subroutine oztot_ncInquire_( nreal,nchan,ilat,ilon, ithin,rmesh,maxrec)
   use satthin, only: satthin_itxmax    => itxmax
   use satthin, only: satthin_makegrids => makegrids
   implicit none
-  character(len=*), intent(in):: dfile   ! obs_input filename
-  character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
 
   integer(kind=i_kind), intent(out):: nreal  ! number of real parameters per record
   integer(kind=i_kind), intent(out):: nchan  ! number of channels or levels per record
@@ -449,8 +443,8 @@ subroutine oztot_ncInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon, ithin,rmes
 end subroutine oztot_ncInquire_
 
 !..................................................................................
-subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
-                         gstime,twind, nreal,nchan,ilat,ilon,ithin,rmesh)
+subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
+                         gstime,twind, ithin)
 !..................................................................................
 
   use netcdf, only: nf90_open
@@ -478,7 +472,6 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   implicit none
   character(len=*), intent(in):: dfile   ! obs_input filename
   character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
   character(len=*), intent(in):: dsis    ! sensor/instrument/satellite tag (see gsiparm.anl:&OBSINPUT/ and ozinfo)
 
   real   (kind=r_kind), dimension(:,:), intent(out):: ozout
@@ -489,13 +482,8 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   real   (kind=r_kind), intent(in):: gstime ! analysis time (minute) from reference date
   real   (kind=r_kind), intent(in):: twind  ! input group time window (hour)
 
-  integer(kind=i_kind), intent(in):: nreal  ! number of real parameters per record
-  integer(kind=i_kind), intent(in):: nchan  ! number of channels or levels per record
-  integer(kind=i_kind), intent(in):: ilat   ! index to latitude in nreal parameters.
-  integer(kind=i_kind), intent(in):: ilon   ! index to longitude in nreal parameters.
 
   integer(kind=i_kind), intent(in ):: ithin     ! flag to thin data
-  real   (kind=r_kind), intent(in ):: rmesh     ! size (km) of the thinning mesh
 
   character(len=*), parameter:: myname_=myname//'::oztot_ncRead_'
 
@@ -787,11 +775,8 @@ end subroutine oztot_ncread_
 !..................................................................................
 
 
-subroutine ozlev_ncInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon, maxrec)
+subroutine ozlev_ncInquire_( nreal,nchan,ilat,ilon, maxrec)
   implicit none
-  character(len=*), intent(in):: dfile   ! obs_input filename
-  character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
 
   integer(kind=i_kind), intent(out):: nreal  ! number of real parameters per record
   integer(kind=i_kind), intent(out):: nchan  ! number of channels or levels per record
@@ -813,7 +798,7 @@ subroutine ozlev_ncInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon, maxrec)
 end subroutine ozlev_ncInquire_
 
 !..................................................................................
-subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gstime,twind, nreal,nchan,ilat,ilon)
+subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
 !..................................................................................
   use netcdf, only: nf90_open
   use netcdf, only: nf90_nowrite
@@ -834,9 +819,6 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
 
   implicit none
   character(len=*), intent(in):: dfile   ! obs_input filename
-  character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dsis    ! sensor/instrument/satellite tag (see gsiparm.anl:&OBSINPUT/ and ozinfo)
 
   real   (kind=r_kind), dimension(:,:), intent(out):: ozout
   integer(kind=i_kind), intent(out):: nmrecs ! count of records read
@@ -846,10 +828,6 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
   real   (kind=r_kind), intent(in):: gstime ! analysis time (minute) from reference date
   real   (kind=r_kind), intent(in):: twind  ! input group time window (hour)
 
-  integer(kind=i_kind), intent(in):: nreal  ! number of real parameters per record
-  integer(kind=i_kind), intent(in):: nchan  ! number of channels or levels per record
-  integer(kind=i_kind), intent(in):: ilat   ! index to latitude in nreal parameters.
-  integer(kind=i_kind), intent(in):: ilon   ! index to longitude in nreal parameters.
 
   character(len=*), parameter:: myname_=myname//'::ozlev_ncRead_'
 
@@ -1112,11 +1090,8 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
 !!end subroutine read_mlsnc_
 end subroutine ozlev_ncread_
 
-subroutine ozlev_bufrInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon,maxrec)
+subroutine ozlev_bufrInquire_(nreal,nchan,ilat,ilon,maxrec)
   implicit none
-  character(len=*), intent(in):: dfile   ! obs_input filename
-  character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
 
   integer(kind=i_kind), intent(out):: nreal  ! number of real parameters per record
   integer(kind=i_kind), intent(out):: nchan  ! number of channels or levels per record
@@ -1136,8 +1111,8 @@ subroutine ozlev_bufrInquire_(dfile,dtype,dplat, nreal,nchan,ilat,ilon,maxrec)
      maxrec = MAXOBS_
 end subroutine ozlev_bufrInquire_
 
-subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
-                           jsatid, gstime,twind, nreal,nchan,ilat,ilon)
+subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
+                           jsatid, gstime,twind)
 
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
@@ -1152,7 +1127,6 @@ subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   implicit none
   character(len=*), intent(in):: dfile   ! obs_input filename
   character(len=*), intent(in):: dtype   ! observation type (see gsiparm.anl:&OBSINPUT/)
-  character(len=*), intent(in):: dplat   ! platform (see gsiparm.anl:&OBSINPUT/)
   character(len=*), intent(in):: dsis    ! sensor/instrument/satellite tag (see gsiparm.anl:&OBSINPUT/ and ozinfo)
 
   real   (kind=r_kind), dimension(:,:), intent(out):: ozout
@@ -1163,11 +1137,6 @@ subroutine ozlev_bufrread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   character(len=*)    , intent(in):: jsatid ! platform ID (verification)
   real   (kind=r_kind), intent(in):: gstime ! analysis time (minute) from reference date
   real   (kind=r_kind), intent(in):: twind  ! input group time window (hour)
-
-  integer(kind=i_kind), intent(in):: nreal  ! number of real parameters per record
-  integer(kind=i_kind), intent(in):: nchan  ! number of channels or levels per record
-  integer(kind=i_kind), intent(in):: ilat   ! index to latitude in nreal parameters.
-  integer(kind=i_kind), intent(in):: ilon   ! index to longitude in nreal parameters.
 
 
   character(len=*),parameter:: myname_=myname//'::ozlev_bufrread_'
@@ -1432,8 +1401,8 @@ end subroutine ozlev_bufrread_
     use netcdf, only: nf90_strerror
     use mpeu_util, only: die,perr,warn
     implicit none
-    integer, intent (in) :: status
-    integer, optional, intent(out):: stat
+    integer(i_kind), intent (in) :: status
+    integer(i_kind), optional, intent(out):: stat
     character(len=*),parameter:: myname_=myname//'::check'
 
     if(present(stat)) stat=status

@@ -613,7 +613,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 !$$$
    use kinds, only: r_kind,r_single,i_kind
    use mpimod, only: mype
-   use gridmod, only: ntracer,ncloud,itotsub,jcap_b
    use general_sub2grid_mod, only: sub2grid_info
    use general_specmod, only: spec_vars
    use mpimod, only: npe
@@ -622,7 +621,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
    use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
-   use general_commvars_mod, only: fill2_ns,filluv2_ns,ltosj_s,ltosi_s
+   use general_commvars_mod, only: fill2_ns,filluv2_ns
    use constants, only: two,pi,half,deg2rad,r60,r3600
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -796,6 +795,47 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       endif
       call stop2(999)
    endif
+   iredundant=0
+   call gsi_bundlegetpointer(gfs_bundle,'vp',g_vor ,ier)
+   if ( ier == 0 ) iredundant = iredundant + 1
+   call gsi_bundlegetpointer(gfs_bundle,'vor',g_vor ,ier)
+   if ( ier == 0 ) iredundant = iredundant + 1
+   if ( iredundant==2 ) then
+      if ( mype == 0 ) then
+         write(6,*) 'general_read_gfsatm_nems: ERROR'
+         write(6,*) 'cannot handle having both vp and vor'
+         write(6,*) 'Aborting ... '
+      endif
+      call stop2(999)
+   endif
+   iredundant=0
+   call gsi_bundlegetpointer(gfs_bundle,'t' ,g_tv  ,ier)
+   if ( ier == 0 ) iredundant = iredundant + 1
+   call gsi_bundlegetpointer(gfs_bundle,'tv',g_tv  ,ier)
+   if ( ier == 0 ) iredundant = iredundant + 1
+   if ( iredundant==2 ) then
+      if ( mype == 0 ) then
+         write(6,*) 'general_read_gfsatm_nems: ERROR'
+         write(6,*) 'cannot handle having both t and tv'
+         write(6,*) 'Aborting ... '
+      endif
+      call stop2(999)
+   endif
+   istatus=0
+   call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
+   call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
+   call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
+   call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
+   if ( istatus /= 0 ) then
+      if ( mype == 0 ) then
+         write(6,*) 'general_read_gfsatm_nems: ERROR'
+         write(6,*) 'Missing some of the required fields'
+         write(6,*) 'Aborting ... '
+      endif
+      call stop2(999)
+   endif
+   allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
+   allocate(g_z(grd%lat2,grd%lon2))
    iredundant=0
    call gsi_bundlegetpointer(gfs_bundle,'vp',g_vor ,ier)
    if ( ier == 0 ) iredundant = iredundant + 1
@@ -1298,7 +1338,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
 ! !USES:
 
   use kinds, only: r_kind,i_kind
-  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,mype
+  use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
   use general_sub2grid_mod, only: sub2grid_info
   implicit none
 

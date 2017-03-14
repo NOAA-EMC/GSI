@@ -58,9 +58,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
-  use obsmod, only: offtime_data,bmiss
+  use obsmod, only: bmiss
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iadatebgn,iadateend,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter

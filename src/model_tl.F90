@@ -13,7 +13,7 @@ subroutine model_tl(xini,xobs,ldprt)
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
-use gsi_4dvar, only: iadatebgn,idmodel
+use gsi_4dvar, only: iadatebgn
 use gsi_4dvar, only: liauon
 use constants, only: zero,r3600
 use state_vectors, only: allocate_state,deallocate_state,dot_product
@@ -28,7 +28,6 @@ use gsi_4dcouplermod, only: gsi_4dcoupler_final_model_tl
 use m_tick, only: tick
 use timermod, only: timer_ini,timer_fnl
 use mpeu_util,only: die,tell
-use mpimod, only: mype
 
 #ifdef _LAG_MODEL_
 use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag

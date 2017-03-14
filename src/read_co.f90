@@ -29,14 +29,11 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 !     nobs     - array of observations on each subdomain for each processor
 
   use kinds, only: r_kind,r_double,i_kind
-  use satthin, only: makegrids,map2tgrid,finalcheck,itxmax
+  use satthin, only: makegrids,map2tgrid,finalcheck
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
-  use obsmod, only: iadate,nlco
-  use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype
+  use constants, only: deg2rad,zero,one_tenth,r60inv,two
+  use obsmod, only: nlco
   use gsi_4dvar, only: iwinbgn
-  use qcmod, only: use_poq7
   use mpimod, only: npe
   implicit none
 

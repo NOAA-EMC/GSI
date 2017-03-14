@@ -32,15 +32,12 @@
 !
 !$$$
       use kinds, only: r_kind,r_double,i_kind
-      use constants, only: zero,one_tenth,one,deg2rad,three,&
-            rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind
-      use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
+      use constants, only: zero,one_tenth,one,deg2rad,rad2deg,three
+      use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
            tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
            rlats,rlons
       use convinfo, only: nconvtype,ctwind, &
-           ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-           ithin_conv,rmesh_conv,pmesh_conv, &
-           id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
+           icuse,ictype,ioctype
       use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
       use obsmod, only: iadate,offtime_data,bmiss
       use deter_sfc_mod, only: deter_sfc2

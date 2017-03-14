@@ -2409,8 +2409,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use gridmod, only: regional
-  use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use radinfo, only: emiss_bc
