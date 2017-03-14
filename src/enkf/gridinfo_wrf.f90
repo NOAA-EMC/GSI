@@ -1,3 +1,52 @@
+!   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
+integer(i_kind),public :: nlevs_pres,idvc
+integer(i_kind) nlevsin, ierr, iunit, nvar, k, nn, idvc
+real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
+                             dimz=nlevsin,jcap=ntrunc,idvc=idvc)
+
+!       Extract vertical coordinate descriptions nems_vcoord.
+!       nems_vcoord(gfshead%levs+1,3,2) dimension is hardwired here.
+!       Present NEMSIO modules do not allow flexibility of 2nd and 3rd
+!       array dimension for nems_vcoord, for now, it is hardwired as
+!       (levs,3,2) If NEMS changes the setting of vcoord dimension,
+!       GSI needs to update its setting of nems_vcoord accordingly.
+
+        if (allocated(nems_vcoord))     deallocate(nems_vcoord)
+        allocate(nems_vcoord(nlevs_pres,3,2))
+        call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)
+        if ( iret /= 0 ) then
+           write(6,*)' gridinfo:  ***ERROR*** problem reading header ', &
+              'vcoord, Status = ',iret
+           call stop2(99)
+        endif
+
+
+      allocate(ak(nlevs+1),bk(nlevs+1))
+
+      if ( idvc == 0 ) then                         ! sigma coordinate, old file format.
+         ak = zero
+         bk = nems_vcoord(1:nlevs+1,1,1)
+      elseif ( idvc == 1 ) then                     ! sigma coordinate
+         ak = zero
+         bk = nems_vcoord(1:nlevs+1,2,1)
+      elseif ( idvc == 2 .or. idvc == 3 ) then      ! hybrid coordinate
+         ak = 0.01_r_kind*nems_vcoord(1:nlevs+1,1,1) ! convert to mb
+         bk = nems_vcoord(1:nlevs+1,2,1)
+      else
+         write(6,*)'gridinfo:  ***ERROR*** INVALID value for idvc=',idvc
+         call stop2(85)
+      endif
+
+      ! pressure at interfaces
+      do k=1,nlevs+1
+         pressimn(:,k) = ak(k)+bk(k)*spressmn(:)
+      ptop = ak(nlevs+1)
+      deallocate(ak,bk)
+      if (sighead%idvc == 0) then                              ! sigma coordinate, old file format.
+      else if (sighead%idvc == 1) then                         ! sigma coordinate
+      else if (sighead%idvc == 2 .or. sighead%idvc == 3) then  ! hybrid coordinate
+         ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)          ! convert to mb
+         bk = sighead%vcoord(1:nlevs+1,2) 
 module gridinfo
 
   !========================================================================
@@ -1509,3 +1558,4 @@ contains
   !=========================================================================
 
 end module gridinfo
+                  nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes

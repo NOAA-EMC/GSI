@@ -57,7 +57,7 @@ module m_pm2_5Node
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -115,10 +115,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(pm2_5Node),intent(in):: aNode
   mytype="[pm2_5Node]"
 end function mytype
 

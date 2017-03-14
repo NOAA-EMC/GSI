@@ -45,33 +45,31 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !
 !$$$
      use kinds, only: r_single,r_kind,r_double,i_kind
-     use constants, only: zero,one_tenth,one,two,ten,deg2rad,fv,t0c,half,&
-         three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,r0_01,&
-         r60inv,r10,r100,r2000,hvap,eps,epsm1,omeps,rv,grav,init_constants
+     use constants, only: zero,one_tenth,one,two,ten,deg2rad,t0c,half,&
+         three,four,rad2deg,tiny_r_kind,huge_r_kind,r0_01,&
+         r60inv,r10,r100,r2000,hvap,eps,omeps,rv,grav,init_constants
      use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
          tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
          rlats,rlons,twodvar_regional
-     use convinfo, only: nconvtype,ctwind, &
-         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-         ithin_conv,rmesh_conv,pmesh_conv, &
-         id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-     use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
-     use obsmod, only: blacklst,offtime_data,bmiss
+     use convinfo, only: nconvtype, &
+         icuse,ictype,icsubtype,ioctype, &
+         ithin_conv,rmesh_conv,pmesh_conv
+     use obsmod, only: perturb_obs,perturb_fact,ran01dom
+     use obsmod, only: bmiss
      use converr,only: etabl
      use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
      use converr_q,only: etabl_q,isuble_q,maxsub_q
      use converr_t,only: etabl_t,isuble_t,maxsub_t
      use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
-     use converr_pw,only: etabl_pw,isuble_pw,maxsub_pw
      use convb_ps,only: btabl_ps
      use convb_q,only: btabl_q
      use convb_t,only: btabl_t
+     use convb_uv,only: btabl_uv
      use convb_uv,only: btabl_uv
      use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
      use qcmod, only: errormod,njqc
      use convthin, only: make3grids,map3grids,del3grids,use_all
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-     use jfunc, only: tsensible
      use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
      use mpimod, only: npe
                                                                                                       

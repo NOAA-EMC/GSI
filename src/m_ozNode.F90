@@ -63,7 +63,7 @@ module m_ozNode
      real(r_kind),dimension(:),pointer :: apriori    ! OMI retrieval first guess
      real(r_kind),dimension(:),pointer :: efficiency ! OMI efficiency factor
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -121,10 +121,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(ozNode),intent(in):: aNode
   mytype="[ozNode]"
 end function mytype
 
@@ -152,7 +151,6 @@ end subroutine obsNode_clean_
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate
   use gridmod, only: nsig
-  use obsmod, only: nloz_omi
   implicit none
   class(ozNode) , intent(inout):: aNode
   integer(i_kind) , intent(in   ):: iunit

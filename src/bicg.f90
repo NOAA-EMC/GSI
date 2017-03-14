@@ -29,15 +29,15 @@ subroutine bicg()
 !$$$ end documentation block
 
 use kinds,     only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: l4dvar, lsqrtb, ltlint, &
+use gsi_4dvar, only: l4dvar, &
                      ladtest, lgrtest, lanczosave, ltcost, nwrvecs
 use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart, &
                      diag_precon
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
-use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
-                           fcsens, llancdone, dot_prod_obs
-use obsmod,    only: lsaveobsens,l_do_adjoint,write_diag
+use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
+                           fcsens, dot_prod_obs
+use obsmod,    only: lsaveobsens,l_do_adjoint
 use adjtest,   only: adtest
 use grdtest,   only: grtest
 use control_vectors, only: control_vector

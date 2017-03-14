@@ -237,7 +237,7 @@
 ! USES:
  use kinds, only: r_kind,i_kind,r_single
  use constants, only: zero,one,two
- use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat1,lat2
+ use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat2
 
  implicit none
 

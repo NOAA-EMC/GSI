@@ -304,14 +304,14 @@ subroutine lappendNode_(headLL,targetNode)
                 ! this is a fresh starting -node- for this linked-list ...
     call obsNode_append(headLL%head,targetNode)
     headLL%tail => headLL%head
-    headLL%n_alloc = 1_i_kind
+    headLL%n_alloc = 1
 
   else
         ASSERT(associated(headLL%tail))
         ASSERT(.not.associated(headLL%tail,targetNode))
 
     call obsNode_append(headLL%tail,targetNode)
-    headLL%n_alloc = headLL%n_alloc +1_i_kind
+    headLL%n_alloc = headLL%n_alloc + 1
 
   endif
 
@@ -580,6 +580,8 @@ _ENTRY_(myname_)
   lrecount=lcount_(headLL,recount=.true.,nuse=nuse,nooo=nooo,ndup=ndup,ksum=ksum,leadNode=leadNode)
   if(present(sorted)) sorted = nooo==0.and.ndup==0
 
+  jtype=itype
+  jbin =ibin
 #ifdef CHECKSUM_VERBOSE
   if(headLL%n_alloc>0) then
     jtype=0
@@ -622,7 +624,7 @@ subroutine lchecksum1_(headLL,itype)
   integer(kind=i_kind),optional ,intent(in):: itype
 
   character(len=*),parameter:: myname_=MYNAME//"::lchecksum1_"
-  integer(kind=i_kind):: i,mcount
+  integer(kind=i_kind):: i
 _ENTRY_(myname_)
   do i=1,size(headLL)
     call lchecksum_(headLL(i),itype=itype,ibin=i)
@@ -715,7 +717,6 @@ function lcount_(headLL,luseonly,recount,nuse,nooo,ndup,ksum,leadNode) result(lo
   character(len=*),parameter:: myname_=MYNAME//"::lcount_"
   class(obsNode), pointer:: iNode
   integer(i_kind):: nuse_
-  integer(kind=i_kind):: k,ksize
   integer(kind=i_kind),dimension(2) :: kprev
   logical:: luseonly_,recount_,checksum_
 _ENTRY_(myname_)
@@ -823,7 +824,9 @@ subroutine lsort_(headLL,itype,ibin)
   integer(kind=i_kind),allocatable,dimension(:):: indx,idv_,iob_
   integer(kind=i_kind):: i,n
   logical:: sorted
+#ifdef DEBUG_VERIFY
   logical:: good
+#endif
 
   type fptr_of_obsnode
     class(obsNode),pointer:: ptr

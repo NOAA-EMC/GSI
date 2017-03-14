@@ -54,7 +54,7 @@ module m_pcpNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -112,10 +112,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(pcpNode),intent(in):: aNode
   mytype="[pcpNode]"
 end function mytype
 
@@ -180,8 +179,8 @@ _ENTRY_(myname_)
   aNode%time = 0._r_kind
   aNode%elat = 0._r_kind
   aNode%elon = 0._r_kind
-  aNode%idv  =-1._i_kind
-  aNode%iob  =-1._i_kind
+  aNode%idv  =-1
+  aNode%iob  =-1
   !-aNode%dlev = 0._r_kind
   !-aNode%ich  =-1._i_kind
 
@@ -257,8 +256,6 @@ return
 end subroutine obsNode_xread_
 
 subroutine obsNode_xwrite_(aNode,junit,jstat)
-  use gridmod, only: nsig5
-  use pcpinfo, only: npredp
   implicit none
   class(pcpNode),intent(in):: aNode
   integer(i_kind),intent(in   ):: junit

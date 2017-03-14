@@ -1054,9 +1054,11 @@
 ! namelist file.
 #ifdef ibm_sp
 ! Initialize table of instruments and data types
-  call obsmod_init_instr_table(nhr_assimilation,ndat)
   read(5,setup) 
   read(5,gridopts)
+
+! call to obsmod_init_instr_table must be after setup and gridopts are read in
+  call obsmod_init_instr_table(nhr_assimilation,ndat)
   read(5,bkgerr)
   read(5,anbkgerr)
   read(5,jcopts)
@@ -1075,9 +1077,13 @@
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
   if(ios/=0) call die(myname_,'read(setup)',ios)  
+  close(11)
 
+  open(11,file='gsiparm.anl')
   read(11,gridopts,iostat=ios)
   if(ios/=0) call die(myname_,'read(gridopts)',ios)
+
+! call to obsmod_init_instr_table must be after setup and gridopts are read in
 
   read(11,bkgerr,iostat=ios)
   if(ios/=0) call die(myname_,'read(bkgerr)',ios)

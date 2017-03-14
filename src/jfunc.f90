@@ -274,7 +274,7 @@ contains
 !
 !$$$
     use constants, only: zero
-    use gridmod, only: lat2,lon2,nsig,regional
+    use gridmod, only: nsig,regional
     use m_berror_stats, only: berror_get_dims
     use m_berror_stats_reg, only: berror_get_dims_reg
     implicit none
@@ -660,12 +660,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use gridmod, only: lat1,lon1,latlon11,latlon1n,nsig,lat2,lon2
+    use gridmod, only: latlon11,latlon1n,nsig,lat2,lon2
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
     use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
-    use state_vectors, only: ns3d,ns2d,levels
+    use state_vectors, only: ns2d,levels
     use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors

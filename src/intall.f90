@@ -189,7 +189,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_bundlemod, only: assignment(=)
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
-  use mpimod, only: mype
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
 
@@ -292,7 +291,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
 !   Put reduces together to minimize wait time
 !   First, use MPI to get global mean increment
-    call mpl_allreduce(2*nobs_bins,mass)
+    call mpl_allreduce(2*nobs_bins,qpvals=mass)
 
   end if
 

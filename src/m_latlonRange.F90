@@ -224,7 +224,6 @@ pure subroutine enclose_(llrange,alat,alon)
   real(kind=r_kind),intent(in   ):: alat,alon
 
   real(kind=kind(alat)):: alat_,alon_
-  real(kind=kind(alat)):: amin_,amax_
   real(kind=kind(alat)),parameter:: alon_HalfInterval=360._r_kind*epsilon(1._r_kind)
 
   if(llrange%nuse==0) then
@@ -253,9 +252,6 @@ subroutine localRange_config_()
   use m_cvgridLookup, only: cvgridLookup_sdget
   implicit none
 
-  real(r_kind):: dlat_south,dlon_west   ! low-left corner
-  real(r_kind):: dlat_north,dlon_east   ! upper-right corner
-
   real(r_kind):: sdlat_ref ,sdlon_ref    ! a reference lat-lon grid point
   real(r_kind):: sdlat_lbnd,sdlon_lbnd   ! lower-left corner
   real(r_kind):: sdlat_ubnd,sdlon_ubnd   ! upper-right corner
@@ -281,8 +277,6 @@ function islocal_(r)
   logical:: islocal_
   type(latlonRange),intent(in):: r
 
-  real(r_kind):: dlat_south,dlon_west   ! low-left corner
-  real(r_kind):: dlat_north,dlon_east   ! upper-right corner
   if(.not.localRange_defined_) call localRange_config_()
 
   islocal_=overlaps_(localRange_,r)
@@ -427,7 +421,6 @@ end subroutine gatherWrite_
 subroutine readBcast_(hdfile,allRanges,root,comm)
   use gsi_unformatted, only: unformatted_open
   use mpeu_mpif, only: MPI_type
-  use mpimod, only: nPEs => nPE
   use mpimod, only: myPE
   _TIMER_USE_
   implicit none
@@ -500,14 +493,13 @@ subroutine alldump_(allRanges,varname)
   use mpeu_util, only: stdout_lead
   use mpeu_util, only: stdout_open
   use mpeu_util, only: stdout_close
-  use mpimod, only: myPE
   _TIMER_USE_
   implicit none
   type(latlonRange), dimension(0:), intent(in):: allRanges
   character(len=* ), intent(in):: varname
 
   character(len=*),parameter:: myname_=myname//"::alldump_"
-  integer:: irec
+  integer(i_kind):: irec
   character(len=:), allocatable:: varlead_
 _TIMER_ON_(myname_)
 
@@ -554,7 +546,7 @@ subroutine gatherdump_(llrange,varname,root,comm)
   integer(kind=i_kind),intent(in):: comm
   
   character(len=*),parameter:: myname_=myname//"::gatherdump_"
-  integer(kind=i_kind):: ier,lu
+  integer(kind=i_kind):: ier
   integer(kind=i_kind):: lsize,isize,rsize,mtype
   integer(kind=i_kind):: irec,nrec
   integer(kind=i_kind),            dimension(1  ):: isend

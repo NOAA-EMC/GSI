@@ -63,19 +63,16 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_quad
-    use aeroinfo, only: aerojacnames,aerojacindxs,nsigaerojac
-    use state_vectors, only: svars
+    use aeroinfo, only: aerojacnames,nsigaerojac
     use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-    use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-    use gridmod, only: latlon11,latlon1n,nsig
-    use qcmod, only: nlnqc_iter,varqc_iter
-    use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
+    use jfunc, only: jiter
+    use gridmod, only: latlon11,nsig
+    use constants, only: zero,half,one,r3600
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundleputvar
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use mpeu_util, only: getindex
-    use mpimod, only: mype
     implicit none
 
 ! Declare passed variables

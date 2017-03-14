@@ -65,7 +65,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   
-  use gridmod, only : get_ij,get_ijk,nsig
+  use gridmod, only : get_ij,get_ijk
   
   use guess_grids, only : nfldsig,hrdifsig
   use gsi_bundlemod, only : gsi_bundlegetpointer,GSI_BundlePrint
@@ -83,10 +83,12 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,&
         elev_tolerance,elev_missing,pm2_5_teom_max,ilate,ilone
   use chemmod, only : oneobtest_chem,maginnov_chem,conconeobs
-  use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac,ppmv_conv
+  use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac
   use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
       upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
 
+
+  use gridmod, only : cmaq_regional,wrf_mass_regional
 
   use gridmod, only : cmaq_regional,wrf_mass_regional
 

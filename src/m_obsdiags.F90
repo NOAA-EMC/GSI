@@ -268,11 +268,11 @@ module m_obsdiags
   !-- if(CHECK_SIZES_) then 
   !--   these size counters,
 
-  integer,allocatable,dimension(:),save:: lsize_type    !  luse counts of ob_type
-  integer,allocatable,dimension(:),save:: nsize_type    ! total counts of ob_type
-  integer,allocatable,dimension(:),save:: lsize_diag    !  luse counts of obs_diags
-  integer,allocatable,dimension(:),save:: msize_diag    !  muse counts of obs_diags
-  integer,allocatable,dimension(:),save:: nsize_diag    ! total counts of obs_diags
+  integer(i_kind),allocatable,dimension(:),save:: lsize_type    !  luse counts of ob_type
+  integer(i_kind),allocatable,dimension(:),save:: nsize_type    ! total counts of ob_type
+  integer(i_kind),allocatable,dimension(:),save:: lsize_diag    !  luse counts of obs_diags
+  integer(i_kind),allocatable,dimension(:),save:: msize_diag    !  muse counts of obs_diags
+  integer(i_kind),allocatable,dimension(:),save:: nsize_diag    ! total counts of obs_diags
 
   !--   will be used to generate extra log-information, reporting different
   !--   size-counts of linked-lists, of all j-type, i-bin, on all PEs.  Search
@@ -348,7 +348,6 @@ subroutine mread_(cdfile,mPEs,force,ignore_iter,alwaysLocal)
 
   use obsmod, only: lobserver
   use mpimod, only: myPE
-  use jfunc, only: jiter, miter
   use m_latlonRange, only: latlonRange
   use m_latlonRange, only: latlonRange_reset
   use m_latlonRange, only: latlonRange_islocal
@@ -540,8 +539,6 @@ subroutine reset_(obsdiags_keep)
   use obsmod, only: luse_obsdiag
   use obsmod, only: lobsdiag_allocated
 
-  use gsi_4dvar, only: nobs_bins,l4dvar
-
   use m_obsdiagNode, only: obsdiagLList_reset
   use m_obsLList, only: obsLList_reset
   use m_obsNode , only: obsNode
@@ -564,7 +561,7 @@ subroutine reset_(obsdiags_keep)
   character(len=*),parameter:: myname_=myname//'::reset_'
   integer(i_kind):: ii,jj
   logical:: obsdiags_keep_
-  integer:: ier
+  integer(i_kind):: ier
   class(obsNode),pointer:: mNode_
 _ENTRY_(myname_)
 _TIMER_ON_(myname_)
@@ -647,7 +644,6 @@ subroutine aliasesCreate_()
    implicit none
 
    character(len=*),parameter:: myname_=myname//"aliasesCreate_"
-   integer(i_kind):: jj
 _ENTRY_(myname_)
 
    !! too much to declare, if use enumerated index value directly
@@ -771,10 +767,6 @@ subroutine lsort_()
 !$$$
 
   use gsi_unformatted, only: unformatted_open
-  use mpimod, only: mype
-  use  jfunc, only: jiter, miter
-  use gsi_4dvar, only: nobs_bins,l4dvar
-  use obsmod, only: lobserver
   use obsmod, only: luse_obsdiag
 
   use m_obsLList, only: obsLList_lsort
@@ -787,7 +779,6 @@ subroutine lsort_()
   character(len=*), parameter :: myname_=myname//"::lsort_"
 
   integer(i_kind) :: ii,jj !,iobs,lobs,ierr
-  integer(i_kind) :: ier
 _ENTRY_(myname_)
 _TIMER_ON_(myname_)
 ! ----------------------------------------------------------
@@ -849,7 +840,6 @@ _TIMER_USE_
   use mpimod, only: mype
   use gsi_4dvar, only: nobs_bins,l4dvar
   use  jfunc, only: jiter, miter
-  use obsmod, only: lobserver
 
   use m_obsLList, only: obsLList_write
   use m_obsdiagNode, only: obsdiagLList_lsize
@@ -868,14 +858,9 @@ _TIMER_USE_
   character(len=*), parameter :: myname_=myname//"::write_"
 
 integer(i_kind) :: iunit,istat
-integer(i_kind) :: ii,jj,iobs,lobs,ier
-integer(i_kind) :: icount(nobs_type,nobs_bins)
-logical :: muse
-logical :: all_sorted
-integer(i_kind) :: idv,iob,ich
+integer(i_kind) :: ii,jj,ier
 logical :: luseonly_
 logical :: force_write
-character(len=:),allocatable:: str_sorted
 type(latlonRange):: luseRange
 ! ----------------------------------------------------------
 _ENTRY_(myname_)
@@ -947,7 +932,7 @@ subroutine read_(cdfile,iPE,redistr,fileislocal,force,ignore_iter,verbose,jread)
   use mpeu_util, only: tell,perr,die
   use mpeu_util, only: stdout
   use mpimod, only: mype
-  use gsi_4dvar, only: nobs_bins,l4dvar
+  use gsi_4dvar, only: l4dvar
   use gsi_unformatted, only: unformatted_open
   use  jfunc, only: jiter,miter
   _TIMER_USE_
@@ -979,7 +964,7 @@ subroutine read_(cdfile,iPE,redistr,fileislocal,force,ignore_iter,verbose,jread)
   character(len=*),parameter:: myname_=myname//'::read_'
   character(len=*),parameter:: diag_timer_=myname_//'.obsdiagLList_read'
   character(len=*),parameter:: list_timer_=myname_//'.obsLList_read'
-  integer(i_kind):: ii,jj,ier
+  integer(i_kind):: ii,jj
   integer(i_kind):: ki,kj
   integer(i_kind):: iunit,istat
   integer(i_kind):: jread_
@@ -1137,31 +1122,26 @@ function hdfilename_(prefix)
   hdfilename_=trim(adjustl(prefix))//'.headers'
 end function hdfilename_
 
-subroutine summary_(title,verbose)
+subroutine summary_(title)
 !-- get a summary of obsdiags(:,:) and obsLLists(:,:)
 use obsmod, only: luse_obsdiag
 use mpeu_util, only: tell,die,perr,stdout_open,stdout_close
 _TIMER_USE_
 
   use gsi_unformatted, only: unformatted_open
-  use mpimod, only: mype,nPE
-  use gsi_4dvar, only: nobs_bins,l4dvar
-  use  jfunc, only: jiter, miter
-  use obsmod, only: lobserver
+  use gsi_4dvar, only: nobs_bins
 
   use m_obsLList, only: obsLList_lsize => obsLList_lcount
   use m_obsdiagNode, only: obsdiagLList_lsize => obsdiagLList_lcount
 
   implicit none
   character(len=*), intent(in) :: title
-  logical,optional, intent(in) :: verbose
 
   character(len=*), parameter :: myname_=myname//"::summary_"
 
   integer(i_kind) :: ii,jj
   integer(i_kind),dimension(nobs_type,nobs_bins):: ldiag,ndiag
   integer(i_kind),dimension(nobs_type,nobs_bins):: lobss,nobss
-  integer(i_kind) :: iPE,ier
 _ENTRY_(myname_)
 _TIMER_ON_(myname_)
 ! ----------------------------------------------------------
@@ -1213,7 +1193,6 @@ subroutine gather_write_(title,lobss,ldiag,nobss,ndiag,root,comm)
   integer(kind=i_kind) :: mtyp,mbin,mPEs
   integer(kind=i_kind),allocatable,dimension(:,:,:):: ldiagm,ndiagm
   integer(kind=i_kind),allocatable,dimension(:,:,:):: lobssm,nobssm
-  integer(kind=MPI_ikind):: ier
 
 _ENTRY_(myname_)
 _TIMER_ON_(myname_)

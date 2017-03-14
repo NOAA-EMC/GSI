@@ -35,17 +35,17 @@ module m_psNode
   type,extends(obsNode):: psNode
      !private
      type(obs_diag), pointer :: diags => NULL()
-     real(r_kind)    :: res    =0.    !  surface pressure residual
-     real(r_kind)    :: err2   =0.    !  surface pressure error squared
-     real(r_kind)    :: raterr2=0.    !  square of ratio of final obs error 
-                                      !  to original obs error
-     real(r_kind)    :: b      =0.    !  variational quality control parameter
-     real(r_kind)    :: pg     =0.    !  variational quality control parameter
-     real(r_kind)    :: jb     =0.    !  variational quality control parameter
-     real(r_kind)    :: wij(4) =0.    !  horizontal interpolation weights
-     real(r_kind)    :: ppertb =0.    !  random number adding to the obs
-     integer(i_kind) :: ij(4)  =0     !  horizontal locations
-     integer(i_kind) :: kx     =0     !  ob type
+     real(r_kind)    :: res    =0._r_kind    !  surface pressure residual
+     real(r_kind)    :: err2   =0._r_kind    !  surface pressure error squared
+     real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error 
+                                             !  to original obs error
+     real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: pg     =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: jb     =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: wij(4) =0._r_kind    !  horizontal interpolation weights
+     real(r_kind)    :: ppertb =0._r_kind    !  random number adding to the obs
+     integer(i_kind) :: ij(4)  =0_i_kind     !  horizontal locations
+     integer(i_kind) :: kx     =0_i_kind     !  ob type
 
      !type(ps_ob_type),pointer :: llpoint => NULL()
      !real(r_kind)    :: time          !  observation time in sec     
@@ -54,7 +54,7 @@ module m_psNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -112,10 +112,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(psNode),intent(in):: aNode
   mytype="[psNode]"
 end function mytype
 

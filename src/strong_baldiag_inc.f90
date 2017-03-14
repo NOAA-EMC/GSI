@@ -39,9 +39,6 @@ subroutine strong_baldiag_inc(sval,nsval)
 !$$$
   use kinds, only: i_kind,r_kind
   use mpimod, only: mype
-  use gridmod, only: nnnn1o
-  use gridmod, only: lat2,lon2,nsig
-  use gsi_4dvar, only: nsubwin
   use mod_vtrans,only: nvmodes_keep
   use state_vectors, only: allocate_state
   use state_vectors, only: deallocate_state

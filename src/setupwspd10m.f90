@@ -38,8 +38,8 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl,fact10,nfldsfc, &
-               hrdifsfc,geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
+  use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
+               geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
   use m_obsdiags, only: wspd10mhead
   use obsmod, only: rmiss_single,i_wspd10m_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
@@ -49,10 +49,10 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
-  use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
+  use gridmod, only: nsig
   use gridmod, only: get_ij,twodvar_regional,regional
   use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,rd,grav,&
-            two,cg_term,three,four,five,ten,huge_single,r1000,rad2deg,r3600,&
+            two,cg_term,three,four,five,ten,huge_single,r1000,r3600,&
             grav_ratio,flattening,grav,deg2rad,grav_equator,somigliana, &
             semi_major_axis,eccentricity
   use jfunc, only: jiter,last,miter

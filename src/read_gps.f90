@@ -79,10 +79,10 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_double
-  use constants, only: deg2rad,zero,rad2deg,r60inv,r100
+  use constants, only: deg2rad,zero,r60inv,r100
   use obsmod, only: iadate,ref_obs
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
-  use convinfo, only: nconvtype,ctwind,cermax, &
+  use convinfo, only: nconvtype,ctwind, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use gridmod, only: regional,nlon,nlat,tll2xy,rlats,rlons
   use mpimod, only: npe

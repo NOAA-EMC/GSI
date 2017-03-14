@@ -133,7 +133,6 @@ end subroutine berror_set_reg
 
     subroutine berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,unit)
       use kinds,only : r_single
-      use gridmod,only : nlat,nlon
       use guess_grids, only:  ges_psfcavg,ges_prslavg
 
       implicit none
@@ -275,7 +274,7 @@ end subroutine berror_read_bal_reg
     subroutine berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,unit)
 
       use kinds,only : r_single,r_kind
-      use gridmod,only : nlat,nlon,nsig
+      use gridmod,only : nsig
       use control_vectors,only: nrf,nc2d,nc3d,mvars,nvars
       use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d,cvarsmd

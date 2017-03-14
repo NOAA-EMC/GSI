@@ -93,8 +93,7 @@ subroutine pcgsoi()
 !   2010-05-13  todling - update interface to update_geswtend; update to gsi_bundle for state vector
 !                       - declare all use explicitly
 !   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
-!   2010-09-24  todling - must turn off variational qc when ltlint=.t.
-!   2011-04-25  eL akkraoui - add option for re-orthogonalization.
+!   2011-04-25  el akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
 !   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to ensctl2state_ad
@@ -108,7 +107,6 @@ subroutine pcgsoi()
 !   2016-05-13  parrish -  remove beta12mult.  Replace with sqrt_beta_s_mult, sqrt_beta_e_mult, inside
 !                          bkerror and bkerror_a_en.
 !   2016-03-02  s.liu/carley  - remove use_reflectivity and use i_gsdcldanal_type 
-!                       
 !
 ! input argument list:
 !
@@ -255,7 +253,7 @@ subroutine pcgsoi()
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   nlnqc_iter=.false.
   call obsHeadBundle_create(yobs,nobs_bins)
-  call stpjo_setup(yobs,nobs_bins)
+  call stpjo_setup(yobs)
   call obsHeadBundle_destroy(yobs)
 
 ! Perform inner iteration

@@ -41,9 +41,9 @@ module m_aeroNode
      real(r_kind),dimension(:),pointer    :: err2 => NULL()    !  aerosol property error squared
      real(r_kind),dimension(:),pointer    :: raterr2 => NULL() !  square of ratio of final obs error
                                                                !  to original obs error
-     !real(r_kind)                         :: time              !  observation time in sec
-     real(r_kind)    :: wij(4)  =0.                            !  horizontal interpolation weights
-     real(r_kind),dimension(:,:),pointer :: daod_dvar => NULL() ! jacobians_aero (nsig*n_aerosols,nchan)
+     !real(r_kind)                         :: time             !  observation time in sec
+     real(r_kind)    :: wij(4)  =0._r_kind                     !  horizontal interpolation weights
+     real(r_kind),dimension(:,:),pointer :: daod_dvar => NULL()! jacobians_aero (nsig*n_aerosols,nchan)
      real(r_kind),dimension(:),pointer    :: prs => NULL()     !  pressure levels
      integer(i_kind),dimension(:),pointer :: ipos  => NULL()
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
@@ -55,7 +55,7 @@ module m_aeroNode
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      integer(i_kind),dimension(:),pointer :: ich => NULL()
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_

@@ -77,8 +77,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
                      checkob, finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
-  use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis, &
-                     newpc4pred,newchn
+! use radinfo, only: cbias,predx,air_rad,ang_rad,newpc4pred
+  use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis, &
+                     newchn
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss

@@ -32,7 +32,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
 !$$$
   use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nlat,nlon,rlats,rlons,regional,tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one_tenth,one
+  use constants, only: deg2rad,zero,one_tenth,one
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim,&

@@ -77,8 +77,7 @@ subroutine setrad(sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use radinfo, only: radjacnames,radjacindxs
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
@@ -284,10 +283,10 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
+  use radinfo, only: nsigradjac
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use gridmod, only: latlon11,latlon1n,nsig
+  use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
   use gsi_bundlemod, only: gsi_bundle
@@ -295,7 +294,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
-  use mpimod, only: mype
+  use timermod, only: timer_ini, timer_fnl
   use timermod, only: timer_ini, timer_fnl
   implicit none
 

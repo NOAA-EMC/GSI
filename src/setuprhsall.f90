@@ -114,8 +114,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tsen,nfldsig
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
-       nchan_total,ndat,obs_setup,&
-       dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
+       ndat,obs_setup,&
+       dirname,write_diag,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
        luse_obsdiag
   use obsmod, only: lobsdiagsave
@@ -127,7 +127,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,npe
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gridmod, only: cmaq_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
@@ -247,12 +247,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
-  real(r_kind),dimension(:,:)  ,pointer:: ges_z =>NULL()
   character(len=*),parameter:: myname='setuprhsall'
 
   logical,parameter:: OBSDIAGS_RELOAD = .false.
   !logical,parameter:: OBSDIAGS_RELOAD = .true.
   logical:: opened
+  character(len=256):: tmpname,tmpaccess,tmpform
   character(len=256):: tmpname,tmpaccess,tmpform
 
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)

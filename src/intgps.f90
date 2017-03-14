@@ -98,7 +98,7 @@ subroutine intgps_(gpshead,rval,sval)
   use kinds, only: r_kind,i_kind
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon1n,nsig,latlon1n1
+  use gridmod, only: nsig
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle

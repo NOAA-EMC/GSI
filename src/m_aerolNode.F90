@@ -36,23 +36,23 @@ module m_aerolNode
   type,extends(obsNode):: aerolNode
      !type(aerol_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL()
-     real(r_kind)    :: res    =0.    !  aerosol residual
-     real(r_kind)    :: err2   =0.    !  aerosol obs error squared
-     real(r_kind)    :: raterr2=0.    !  square of ratio of final obs error
-                                      !  to original obs error
-     !real(r_kind)    :: time          !  observation time
-     real(r_kind)    :: b      =0.    !  variational quality control parameter
-     real(r_kind)    :: pg     =0.    !  variational quality control parameter
-     real(r_kind)    :: wij(8) =0.    !  horizontal interpolation weights
-     integer(i_kind) :: ij(8)  =0     !  horizontal locations
+     real(r_kind)    :: res    =0._r_kind    !  aerosol residual
+     real(r_kind)    :: err2   =0._r_kind    !  aerosol obs error squared
+     real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error
+                                             !  to original obs error
+     !real(r_kind)    :: time                !  observation time
+     real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: pg     =0._r_kind    !  variational quality control parameter
+     real(r_kind)    :: wij(8) =0._r_kind    !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)  =0_i_kind     !  horizontal locations
      !logical         :: luse          !  flag indicating if ob is used in pen.
 
      !integer(i_kind) :: idv,iob         ! device id and obs index for sorting
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
-     real   (r_kind) :: dlev   =0.      ! reference to the vertical grid
+     real   (r_kind) :: dlev   =0._r_kind      ! reference to the vertical grid
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_

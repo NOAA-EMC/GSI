@@ -25,7 +25,6 @@ module intjomod
 !
 !$$$ end documentation block
 
-use mpl_allreducemod, only: mpl_allreduce
 implicit none
 
 PRIVATE
@@ -150,7 +149,6 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !   2008-11-27  todling  - add tendencies for FOTO support and new interface to int's
 !   2009-01-08  todling  - remove reference to ozohead
 !   2009-03-23  meunier  - Add call to intlag (lagrangian observations)
-!   2009-11-15  todling  - Protect call to mpl_allreduce (evaljo calls it as well)
 !   2010-01-11  zhang,b  - Bug fix: bias predictors need to be accumulated over nbins
 !   2010-03-24  zhu      - change the interfaces of intt,intrad,intpcp for generalizing control variable
 !   2010-05-13  todling  - harmonized interfaces to int* routines when it comes to state_vector (add only's)

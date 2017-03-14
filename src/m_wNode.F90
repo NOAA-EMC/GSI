@@ -60,7 +60,7 @@ module m_wNode
      real   (r_kind) :: dlev            ! reference to the vertical grid
      real   (r_kind) :: factw           ! factor of 10m wind
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -118,10 +118,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(wNode),intent(in):: aNode
   mytype="[wNode]"
 end function mytype
 

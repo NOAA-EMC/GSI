@@ -40,7 +40,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig,ntguessig,wgt_lcbas     
+  use guess_grids, only: hrdifsig,nfldsig,wgt_lcbas     
   use m_obsdiags, only: lcbashead
   use obsmod, only: rmiss_single,i_lcbas_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
@@ -50,10 +50,10 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
-  use gridmod, only: nlat,nlon,nsig
+  use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,&
-            two,cg_term,huge_single,r1000,rad2deg,deg2rad
+            two,cg_term,huge_single,r1000
   use jfunc, only: jiter,last,miter,jiterstart,R_option
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype

@@ -97,10 +97,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use satthin, only: makegrids,map2tgrid,destroygrids, &
       finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
-  use obsmod, only: iadate,nloz_v6,nloz_v8
-  use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype
+  use constants, only: deg2rad,zero,one_tenth,r60inv,two
+  use obsmod, only: nloz_v6,nloz_v8
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use radinfo, only: dec2bin
   use qcmod, only: use_poq7

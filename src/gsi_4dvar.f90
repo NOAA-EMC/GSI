@@ -176,8 +176,6 @@ subroutine init_4dvar ()
 !
 !$$$ end documentation block
 
-use gridmod, only: regional
-
 implicit none
 
 l4dvar = .false.

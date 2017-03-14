@@ -41,18 +41,17 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional
+       rlats,rlons
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
 !  use converr,only: etabl
-  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
-  use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+  use obsmod, only: ran01dom,bmiss
+  use convinfo, only: nconvtype, &
+       icuse,ictype,icsubtype,ioctype, &
+       ithin_conv,rmesh_conv,pmesh_conv
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use mpimod, only: npe

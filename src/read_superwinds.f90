@@ -85,7 +85,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,zero,one,r60inv
+  use constants, only: deg2rad,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ioctype

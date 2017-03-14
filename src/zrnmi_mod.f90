@@ -847,7 +847,7 @@ contains
 
     use kinds, only: r_kind,i_kind
     use gridmod, only: lon2,lat2,istart
-    use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use constants, only: zero
     implicit none
 

@@ -63,7 +63,7 @@ module m_tNode
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
   contains
-    procedure::  mytype
+    procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
     procedure::   xread => obsNode_xread_
     procedure::  xwrite => obsNode_xwrite_
@@ -121,10 +121,9 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype(aNode)
+function mytype
   implicit none
   character(len=:),allocatable:: mytype
-  class(tNode),intent(in):: aNode
   mytype="[tNode]"
 end function mytype
 
@@ -142,8 +141,8 @@ _ENTRY_(myname_)
   aNode%elat = 0._r_kind
   aNode%elon = 0._r_kind
   aNode%time = 0._r_kind
-  aNode%idv  =-1._i_kind
-  aNode%iob  =-1._i_kind
+  aNode%idv  =-1
+  aNode%iob  =-1
   !-aNode%dlev = 0._r_kind
   !-aNode%ich  =-1._i_kind
 
@@ -170,7 +169,7 @@ end subroutine obsNode_clean_
 
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate
-  use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
+  use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof
   implicit none
   class(tNode),intent(inout):: aNode
   integer(i_kind),intent(in   ):: iunit
@@ -256,7 +255,7 @@ return
 end subroutine obsNode_xread_
 
 subroutine obsNode_xwrite_(aNode,junit,jstat)
-  use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
+  use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof
   implicit none
   class(tNode),intent(in):: aNode
   integer(i_kind),intent(in   ):: junit

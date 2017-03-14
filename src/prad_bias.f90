@@ -131,7 +131,7 @@ contains
 
     implicit none
 
-    integer(i_kind) :: ii,istatus
+    integer(i_kind) :: ii
 
     do ii=1,nobs_bins
        call obsLList_reset(radheadm(ii),mold=radNode_mold)

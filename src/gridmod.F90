@@ -940,10 +940,10 @@ contains
 
 ! !USES:
 
-    use constants, only: zero, one, three, deg2rad,pi,half, two,r0_01
+    use constants, only: zero, one, three, deg2rad,half, two,r0_01
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8,ratio_x,ratio_y
     use mod_wrfmass_to_a, only: init_wrfmass_to_a,nxa_wrfmass,nya_wrfmass
-    use mod_wrfmass_to_a, only: wrfmass_h_to_a,ratio_x_wrfmass,ratio_y_wrfmass
+    use mod_wrfmass_to_a, only: wrfmass_h_to_a
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2666,7 +2666,7 @@ end subroutine init_general_transform
 
 ! !USES:
 
-    use constants, only: one,two,pi,rad2deg,one_tenth
+    use constants, only: one,two,one_tenth
     implicit none
 
 ! !INPUT PARAMETERS:

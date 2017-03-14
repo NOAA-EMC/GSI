@@ -204,7 +204,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a,grd_a,jcap_b,lat2,lon2,nsig
+    use gridmod, only: sp_a,grd_a,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -484,7 +484,7 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: ntracer,ncloud,reload,itotsub,jcap_b
+    use gridmod, only: ntracer,ncloud,reload,itotsub
     use general_commvars_mod, only: fill_ns,filluv_ns,fill2_ns,filluv2_ns,ltosj_s,ltosi_s
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
@@ -1279,6 +1279,119 @@ contains
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
     implicit none
 
+  subroutine read_nemssfc_(iope,sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+                           veg_type,soil_type,terrain,isli,use_sfc_any)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_nemssfc_     read nems surface file
+!   prgmmr: xuli          org: np23                date: 2016-03-13
+!
+! abstract: read nems surface file
+!
+! program history log:
+!   2003-04-10  treadon
+!
+!   input argument list:
+!     iope        - mpi task handling i/o
+!     use_sfc_any - true if any processor uses extra surface fields
+!
+!   output argument list:
+!     sfct      - surface temperature (skin temp)
+!     soil_moi  - soil moisture of first layer
+!     sno       - snow depth
+!     soil_temp - soil temperature of first layer
+!     veg_frac  - vegetation fraction
+!     fact10    - 10 meter wind factor
+!     sfc_rough - surface roughness
+!     veg_type  - vegetation type
+!     soil_type - soil type
+!     terrain   - terrain height
+!     isli      - sea/land/ice mask
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldsfc,sfcmod_mm5,sfcmod_gfs
+    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world,mype
+    use constants, only: zero
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind),                                       intent(in   ) :: iope
+    logical,                                               intent(in   ) :: use_sfc_any
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(  out) :: isli
+
+!   Declare local variables
+    integer(i_kind):: iret,npts,nptsall
+
+!-----------------------------------------------------------------------------
+!   Read surface file on processor iope
+    if(mype == iope)then
+       write(*,*) 'read_sfc nemsio'
+       call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
+                      veg_type,soil_type,terrain,isli,use_sfc_any)
+    end if
+
+!     Load onto all processors
+
+    npts=nlat_sfc*nlon_sfc
+    nptsall=npts*nfldsfc
+    call mpi_bcast(sfct,      nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(fact10,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sno,       nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    if(sfcmod_mm5 .or. sfcmod_gfs)then
+       call mpi_bcast(sfc_rough, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    else
+       sfc_rough = zero
+    end if
+    call mpi_bcast(terrain,   npts,   mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(isli,      npts,   mpi_itype,iope,mpi_comm_world,iret)
+    if(use_sfc_any)then
+       call mpi_bcast(veg_frac, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_temp,nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_moi, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(veg_type, npts,   mpi_rtype4,iope,mpi_comm_world,iret)
+       call mpi_bcast(soil_type,npts,   mpi_rtype4,iope,mpi_comm_world,iret)
+    end if
+
+  end subroutine read_nemssfc_
+
+
+  subroutine read_sfc_anl_(isli_anl)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_sfc_anl_     read nems surface file with analysis resolution
+!
+!   prgmmr: li            org: np23                date: 2016-08-18
+!
+! abstract: read nems surface file at analysis grids when nlon /= nlon_sfc or nlat /= nlat_sfc
+!
+! program history log:
+!  
+!   input argument list:
+!
+!   output argument list:
+!     isli      - sea/land/ice mask
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use mpimod, only: mype
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: nlat,nlon
+    use constants, only: zero
+    use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+    use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
+    implicit none
+
 !   Declare passed variables
     integer(i_kind), dimension(nlat,nlon),   intent(  out) :: isli_anl
 
@@ -1666,6 +1779,21 @@ contains
 
   end subroutine read_nemsnst_
 
+    npts=nlat_sfc*nlon_sfc
+    nptsall=npts*nfldnst
+
+    call mpi_bcast(tref,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_cool, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_c,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(dt_warm, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(z_w,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_0,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(c_d,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_0,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+    call mpi_bcast(w_d,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
+
+  end subroutine read_nemsnst_
+
 
   subroutine write_atm_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
 
@@ -1709,16 +1837,16 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
-    use mpimod, only: npe,mype
+    use mpimod, only: mype
     
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
-    use gridmod, only: strip,itotsub,iglobal,jcap_b
+    use gridmod, only: strip,jcap_b
     
-    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns,ltosj_s,ltosi_s,ltosj,ltosi
+    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
     use general_specmod, only: spec_vars
 
     use obsmod, only: iadate

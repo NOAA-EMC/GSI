@@ -322,11 +322,57 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,11) contribution from negative lcbas constraint term (Jo)
 !    pbc(*,12) contribution from negative cldch constraint term (Jo)
 !
+!    Under polymorphism the following is the contents of pbs:
 !    linear terms => pbcjo(*,n0+1:n0+nobs_type),
 !       pbc  (*,n0+j) := pbcjo(*,j); for j=1,nobs_type
 !    where,
 !       pbcjo(*,   j) := sum( pbcjoi(*,j,1:nobs_bins) )
 !
+!    The original (wired) implementation of obs-types has
+!    the extra contents of pbc defined as:
+!
+!    pbc(*,13) contribution from ps observation  term (Jo)
+!    pbc(*,14) contribution from t observation  term (Jo)
+!    pbc(*,15) contribution from w observation  term (Jo)
+!    pbc(*,16) contribution from q observation  term (Jo)
+!    pbc(*,17) contribution from spd observation  term (Jo)
+!    pbc(*,18) contribution from srw observation  term (Jo)
+!    pbc(*,19) contribution from rw observation  term (Jo)
+!    pbc(*,20) contribution from dw observation  term (Jo)
+!    pbc(*,21) contribution from sst observation  term (Jo)
+!    pbc(*,22) contribution from pw observation  term (Jo)
+!    pbc(*,23) contribution from pcp observation  term (Jo)
+!    pbc(*,24) contribution from oz observation  term (Jo)
+!    pbc(*,25) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,26) contribution from gps observation  term (Jo)
+!    pbc(*,27) contribution from rad observation  term (Jo)
+!    pbc(*,28) contribution from tcp observation  term (Jo)
+!    pbc(*,29) contribution from lag observation  term (Jo)
+!    pbc(*,30) contribution from colvk observation  term (Jo)
+!    pbc(*,31) contribution from aero observation  term (Jo)
+!    pbc(*,32) contribution from aerol observation  term (Jo)
+!    pbc(*,33) contribution from pm2_5 observation  term (Jo)
+!    pbc(*,34) contribution from gust observation  term (Jo)
+!    pbc(*,35) contribution from vis observation  term (Jo)
+!    pbc(*,36) contribution from pblh observation  term (Jo)
+!    pbc(*,37) contribution from wspd10m observation  term (Jo)
+!    pbc(*,38) contribution from td2m observation  term (Jo)
+!    pbc(*,39) contribution from mxtm observation  term (Jo)
+!    pbc(*,40) contribution from mitm observation  term (Jo)
+!    pbc(*,41) contribution from pmsl observation  term (Jo)
+!    pbc(*,42) contribution from howv observation  term (Jo)
+!    pbc(*,43) contribution from tcamt observation  term (Jo)
+!    pbc(*,44) contribution from lcbas observation  term (Jo)
+!    pbc(*,45) contribution from cldch observation  term (Jo)
+!
+!    However, users should be aware that under full polymorphism 
+!    the obs-types are defined on the fly, that is to say, e.g.,that 
+!    when running the global option the code won''t know at 
+!    all of the obs-types not used in the global; the simplest
+!    example would be an experiment only using AOD; only AOD would
+!    be in the obs-type - nothing else; unlike the original obsmod
+!    setting.
+
 
 
   pstart=zero_quad

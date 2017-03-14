@@ -66,9 +66,8 @@ subroutine intlimq(rval,sval,itbin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: nsig,lat1,lon1
   use jfunc, only: factqmin,factqmax
-  use derivsmod, only: qgues,qsatg
   use gsi_metguess_mod, only: gsi_metguess_bundle 
   use guess_grids, only: ges_qsat
   implicit none
@@ -144,7 +143,7 @@ subroutine intlimg(rval,sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factg
   use derivsmod, only: ggues
   implicit none
@@ -206,7 +205,7 @@ subroutine intlimp(rval,sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factp
   use derivsmod, only: pgues
   implicit none
@@ -268,7 +267,7 @@ subroutine intlimv(rval,sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factv
   use derivsmod, only: vgues
   implicit none
@@ -332,7 +331,7 @@ subroutine intlimw10m(rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factw10m
   use derivsmod, only: w10mgues
   use gsi_bundlemod, only: gsi_bundle
@@ -398,7 +397,7 @@ subroutine intlimhowv(rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: facthowv
   use derivsmod, only: howvgues
   use gsi_bundlemod, only: gsi_bundle
@@ -462,7 +461,7 @@ subroutine intliml(rval,sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factl
   use derivsmod, only: lgues
   implicit none
@@ -526,7 +525,7 @@ subroutine intlimcldch(rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use gridmod, only: lat1,lon1
   use jfunc, only: factcldch
   use derivsmod, only: cldchgues
   use gsi_bundlemod, only: gsi_bundle
@@ -765,7 +764,6 @@ subroutine intjcpdry1(sval,nbins,mass)
   use mpimod, only: mype
   use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
   use guess_grids, only: ges_prsi,ntguessig
-  use jcmod, only: bamp_jcpdry
   use gsi_metguess_mod,  only: gsi_metguess_get
   implicit none
 

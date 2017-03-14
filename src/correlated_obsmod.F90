@@ -1009,7 +1009,6 @@ end function scale_jac_
 !
 subroutine rsqrtinv_(jpch_rad,iuse,nchasm,ich,ichasm,varinv,rsqrtinv,ErrorCov)
 ! !USES:
-use constants, only: tiny_r_kind
 use mpeu_util, only: die
 implicit none
 ! !INPUT PARAMETERS:
@@ -1094,6 +1093,7 @@ endif
 
    allocate(row(ncp,ncp))
    row=zero
+
 
    if(ErrorCov%method==1) then
      do ii=1,ncp

@@ -61,9 +61,9 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &  !added mccarty
-      ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype  !mccarty
-  use constants, only: deg2rad,rad2deg,zero,r60inv ! check the usage   msq
+  use convinfo, only: nconvtype,ctwind, &  !added mccarty
+      ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype  !mccarty
+  use constants, only: deg2rad,zero,r60inv ! check the usage   msq
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
   use deter_sfc_mod, only: deter_sfc2

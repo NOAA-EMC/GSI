@@ -50,7 +50,7 @@ subroutine anbkerror(gradx,grady)
   use berror, only: varprd,fpsproj,fut2ps
   use constants, only: zero
   use control_vectors, only: control_vector,assignment(=)
-  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d,cvarsmd
+  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use gsi_4dvar, only: nsubwin
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
@@ -271,13 +271,12 @@ subroutine anbkgcov(bundle)
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,twodvar_regional
+  use gridmod, only: lat2,lon2,twodvar_regional
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro,rtma_bkerr_sub2slab
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf
   USE MPIMOD, only: mype
   implicit none
 
@@ -802,7 +801,7 @@ subroutine anbkgvar_lw(field,fld,fldwter,iflg)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,region_lat,region_lon, &
+  use gridmod, only: lat2,lon2,region_lat,region_lon, &
                      nlon_regional,nlat_regional,istart,jstart
   use guess_grids, only: isli2
   use mpimod, only: mype
@@ -960,7 +959,30 @@ subroutine ansmoothrf(cstate)
 
      allocate(workbnp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe))
      allocate(workbsp(ngauss, p_ips:p_ipe, p_jps:p_jpe, p_kps:p_kpe ))
-  end if
+              kk=kk+1
+              do j=1,lon2
+                 do i=1,lat2
+                    fields(1,i,j,kk)=rank3(i,j,k)
+                 end do
+              end do
+           end do
+        endif
+     else        !2d flds including motley flds
+        call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank2,istatus)
+        if(istatus==0) then
+           kk=kk+1
+           do j=1,lon2
+              do i=1,lat2
+                 fields(1,i,j,kk)=rank2(i,j)
+              end do
+           end do
+        endif
+     endif
+  end do
+
+! Convert from subdomain to full horizontal fields distributed among processors
+
+  call general_sub2grid(s2g_raf,fields,work)
 
   fields=zero
   kk=0
@@ -1326,7 +1348,7 @@ subroutine ansmoothrf_reg_sub2slab_option(cstate)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: filter_all,ngauss
   use anberror, only: pf2aP1
-  use mpimod, only: mype,npe
+  use mpimod, only: npe
   use constants, only: zero,zero_single
   use gridmod, only: lat2,lon2,nsig
   use raflib, only: raf4_ad,raf4
@@ -1507,7 +1529,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   use anberror, only: indices, filter_all,ngauss,halo_update_reg
   use mpimod, only: mype,npe
   use constants, only: zero,zero_single
-  use gridmod, only: lat2,lon2,istart,jstart,nsig
+  use gridmod, only: istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
   use control_vectors, only: nvars,nrf,nrf_var,nrf_3d
   use gsi_bundlemod, only: gsi_bundle
