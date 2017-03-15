@@ -1890,7 +1890,6 @@ contains
        write(filename,'("sigf",i2.2)')ifilesig(ntguessig)
        print *,'update ',trim(filename)
        open (lendian_in,file=filename,form='unformatted')
-    write(6,*) 'opening siganl from wrwrfmassa'
        open (lendian_out,file='siganl',form='unformatted')
        rewind lendian_in ; rewind lendian_out
     end if

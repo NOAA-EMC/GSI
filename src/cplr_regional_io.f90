@@ -40,7 +40,7 @@ use abstract_regional_io_mod
 contains
 
   subroutine init_regional_io_wrf(this)
-     use wrf_params_mod, only: preserve_restart_date, update_pint, cold_start, init_wrf_params
+     use wrf_params_mod, only: init_wrf_params
      implicit none
      class(regional_io_class), intent(inout) :: this
      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
@@ -86,7 +86,7 @@ contains
       use get_wrf_binary_interface_mod, only: get_wrf_binary_interface_class
       use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
       use mpimod, only: mpi_comm_world,ierror
-      use wrf_params_mod, only: preserve_restart_date,update_pint,cold_start
+      use wrf_params_mod, only: update_pint,cold_start
 
       implicit none
   
@@ -206,7 +206,6 @@ contains
       use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
          nems_nmmb_regional,cmaq_regional,&
          twodvar_regional,netcdf
-      use wrf_params_mod, only: cold_start, update_pint
       use mpimod, only: mpi_comm_world,ierror
       use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
       implicit none

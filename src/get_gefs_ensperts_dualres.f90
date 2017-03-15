@@ -462,7 +462,6 @@ subroutine ens_spread_dualres(en_bar,ibin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use mpimod, only: mype
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
   use hybrid_ensemble_parameters, only: en_perts,nelen

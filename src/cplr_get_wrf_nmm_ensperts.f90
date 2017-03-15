@@ -45,10 +45,10 @@ contains
       use kinds, only: r_kind,i_kind,r_single
       use gridmod, only: netcdf,half_grid,filled_grid,regional
       use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
-      use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
-                           rd_over_cp,one_tenth,ten
+      use constants, only: zero,one,half,zero_single, &
+                           one_tenth,ten
       use mpimod, only: mpi_comm_world,ierror,mype
-      use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens, &
+      use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens, &
                                             merge_two_grid_ensperts,uv_hyb_ens, &
                                             grid_ratio_ens,write_ens_sprd
       use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -942,7 +942,7 @@ contains
   !$$$
   
     use kinds, only: r_single,i_llong,r_kind,i_kind
-    use constants, only: zero,half,rad2deg
+    use constants, only: zero,half
     use gsi_io, only: lendian_out
     use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
     use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
@@ -1282,10 +1282,10 @@ contains
   !$$$ end documentation block
   
       use kinds, only: r_kind,r_single,i_kind,i_llong,i_long
-      use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass, &
-                           one_tenth,h300,rad2deg,ten,half
+      use constants, only: zero,one,fv,zero_single, &
+                           one_tenth,h300,ten,half
       use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
-      use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts,q_hyb_ens
+      use hybrid_ensemble_parameters, only: q_hyb_ens
       use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
            mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
       use general_sub2grid_mod, only: sub2grid_info
@@ -1707,10 +1707,10 @@ contains
        use kinds, only: r_kind,r_single,i_kind
        use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
        use gridmod, only: half_grid,filled_grid,fill_nmm_grid2a3,half_nmm_grid2a
-       use constants, only: zero,one,ten,one_tenth,half,grav,zero_single,fv,rad2deg
+       use constants, only: zero,one,ten,one_tenth,half,zero_single,fv
        use gsi_io, only: lendian_in
        use general_sub2grid_mod, only: sub2grid_info
-       use hybrid_ensemble_parameters, only: merge_two_grid_ensperts,q_hyb_ens
+       use hybrid_ensemble_parameters, only: q_hyb_ens
        implicit none
      
      ! Declare passed variables here
@@ -2430,12 +2430,11 @@ contains
   
        use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
        use kinds, only: r_kind,i_kind,r_single
-       use constants, only: zero,one,rad2deg
+       use constants, only: zero,one
        use gridmod, only: half_grid,filled_grid
        use blendmod, only: blend
        use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform, &
                                      general_tll2xy
-       use mpimod, only: mype
        use gsi_io, only: lendian_in
   
        implicit none
