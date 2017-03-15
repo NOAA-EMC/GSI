@@ -1402,7 +1402,7 @@ contains
   !$$$
   
     use kinds, only: r_single,r_kind,i_kind
-    use constants, only: one_tenth,half,deg2rad,rad2deg,r100,r0_01
+    use constants, only: one_tenth,half,rad2deg,r100,r0_01
     use gsi_4dvar, only: nhr_assimilation
     use gsi_io, only: lendian_out
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
