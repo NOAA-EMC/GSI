@@ -88,10 +88,12 @@ module convinfo
   public :: cermin,cgross
   public :: use_prepb_satwnd
   public :: index_sub
+  public :: id_drifter
 
   logical diag_conv
   logical :: ihave_pm2_5
   logical :: use_prepb_satwnd
+  logical :: id_drifter
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
 		                          rmesh_conv,pmesh_conv,stndev_conv,pmot_conv,ptime_conv
@@ -163,6 +165,7 @@ contains
     conv_bias_pm10= zero
 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
+    id_drifter=.false.        ! modify KX of drifting buoys
 
     call init_pm2_5
 		  
@@ -513,7 +516,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use mpimod, only: npe              ! contains the number of mpi tasks, variable "npe"
     use gsi_chemguess_mod, only: gsi_chemguess_get
     implicit none
     integer(i_kind) :: ipm2_5,ier

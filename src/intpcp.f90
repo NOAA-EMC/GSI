@@ -12,6 +12,7 @@ module intpcpmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intpcp_tl
 !   2009-08-13  lueken - update documentation
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpcp_
@@ -24,6 +25,10 @@ module intpcpmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_pcpNode, only: pcpNode
+use m_pcpNode, only: pcpNode_typecast
+use m_pcpNode, only: pcpNode_nextcast
 implicit none
 
 PRIVATE
@@ -105,7 +110,7 @@ subroutine intpcp_(pcphead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: pcp_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
@@ -117,7 +122,7 @@ subroutine intpcp_(pcphead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer,intent(in) :: pcphead
+  class(obsNode  ),pointer, intent(in   ) :: pcphead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -128,7 +133,7 @@ subroutine intpcp_(pcphead,rval,sval)
   real(r_kind) pcp_ges_ad,dq_ad,dt_ad,dv_ad,du_ad,pcp_ges
   real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur
   real(r_kind) cg_pcp,p0,wnotgross,wgross
-  type(pcp_ob_type), pointer :: pcpptr
+  type(pcpNode), pointer :: pcpptr
 
   real(r_kind),pointer,dimension(:):: st,sq,su,sv
   real(r_kind),pointer,dimension(:):: sql,sqi,scwm   
@@ -182,7 +187,8 @@ subroutine intpcp_(pcphead,rval,sval)
 
   lcld = (icw==0 .or. (iql+iqi)==0)
 
-  pcpptr => pcphead
+  !pcpptr => pcphead
+  pcpptr => pcpNode_typecast(pcphead)
   do while(associated(pcpptr))
      j1=pcpptr%ij(1)
      j2=pcpptr%ij(2)
@@ -403,7 +409,8 @@ subroutine intpcp_(pcphead,rval,sval)
 
         end do
      endif
-     pcpptr => pcpptr%llpoint 
+     !pcpptr => pcpptr%llpoint 
+     pcpptr => pcpNode_nextcast(pcpptr)
   end do
 
   return

@@ -45,14 +45,14 @@ subroutine get_gefs_ensperts_dualres
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,use_gfs_nemsio,regional
+  use gridmod, only: idsl5,regional
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
   use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
-  use mpimod, only: mpi_comm_world,ierror,mype,npe
+  use mpimod, only: mpi_comm_world,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,q_hyb_ens
+  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
   use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -461,7 +461,6 @@ subroutine ens_spread_dualres(en_bar,ibin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use mpimod, only: mype
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
   use hybrid_ensemble_parameters, only: en_perts,nelen
@@ -745,11 +744,10 @@ subroutine general_getprs_glb(ps,tv,prs)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero,half,one_tenth,rd_over_cp,one
-  use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
+  use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional
   use hybrid_ensemble_parameters, only: grd_ens
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

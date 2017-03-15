@@ -176,7 +176,7 @@ subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,lunit)
 
    use kinds,    only: r_single
    use constants,only: zero
-   use gridmod,  only: nlat,nlon,nsig
+   use gridmod,  only: nlat,nsig
 
    implicit none
 
@@ -678,7 +678,7 @@ end subroutine sethwlloz_
 subroutine setvscalesoz_(vscalesoz)
 
    use kinds,  only: r_single,r_kind
-   use gridmod,only: nlat,nlon,nsig
+   use gridmod,only: nlat,nsig
 
    implicit none
 

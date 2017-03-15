@@ -127,6 +127,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
+!   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !                           
 !
 !   input argument list:
@@ -167,11 +168,13 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 
   satid=1      ! debug executable wants default value ???
   idate=0
+  nread=0; if(lexist) nread=1   ! in case of a quick return
 #ifdef _SKIP_READ_OBS_CHECK_
   return
 #endif
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
+
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -613,6 +616,7 @@ subroutine read_obs(ndata,mype)
 !   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR)
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
+!   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
 !   
 !
 !   input argument list:
@@ -668,6 +672,8 @@ subroutine read_obs(ndata,mype)
 
     use m_extOzone, only: is_extOzone
     use m_extOzone, only: extOzone_read
+    use mpeu_util, only: warn
+    use gsi_unformatted, only: unformatted_open
     implicit none
 
 !   Declare passed variables
@@ -1269,6 +1275,7 @@ subroutine read_obs(ndata,mype)
           endif
 
 !         Process conventional (prepbufr) data
+          string="--"//trim(ditype(i))
           ditype_select: &
           if(ditype(i) == 'conv')then
              conv_obstype_select: &
@@ -1358,6 +1365,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process conventional SST (nsstbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
+                string="--"//trim(ditype(i))//":sst:"//trim(platid)
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis,nobs_sub1(1,i))
@@ -1658,6 +1666,15 @@ subroutine read_obs(ndata,mype)
              ndata1(i,2)=ndata1(i,2)+nread
              ndata1(i,3)=ndata1(i,3)+nouse
 
+             if(string(1:2)=='--') then
+               call warn('read_obs','task without reader, i =',i)
+               call warn('read_obs','                infile =',trim(infile))
+               call warn('read_obs','             ditype(i) =',trim(ditype(i)))
+               call warn('read_obs','               obstype =',trim(obstype))
+               call warn('read_obs','                platid =',trim(platid))
+               call warn('read_obs','                string =',trim(string))
+             endif
+
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
 8000         format(1x,a22,': file=',a15,&
@@ -1708,7 +1725,7 @@ subroutine read_obs(ndata,mype)
 !   Write collective obs selection information to scratch file.
     if (lread_obs_save .and. mype==0) then
        write(6,*)'READ_OBS:  write collective obs selection info to ',trim(obs_input_common)
-       open(lunsave,file=obs_input_common,form='unformatted')
+       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.")
        write(lunsave) ndata,ndat,npe,superp,nprof_gps,ditype
        write(lunsave) super_val1
        write(lunsave) nobs_sub

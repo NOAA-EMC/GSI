@@ -175,7 +175,6 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
    use constants, only: zero,one_tenth,half,one,ten,r0_01,r60,r3600
    use blendmod, only: init_blend,blend_f,blend_df
-   use guess_grids, only: nfldsig
    use gridmod, only: lat2,lon2,use_gfs_nemsio
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
@@ -796,8 +795,8 @@ subroutine add_gfs_stratosphere
 !
 !$$$ enddocumentation block
 
-   use gridmod, only: idsl5,regional,wrf_nmm_regional,use_gfs_nemsio
-   use gridmod, only: region_lat,region_lon,eta1_ll,eta2_ll,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
+   use gridmod, only: regional,wrf_nmm_regional,use_gfs_nemsio
+   use gridmod, only: region_lat,region_lon,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
    use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
    use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
    use constants,only: zero,one_tenth,half,one,ten,fv,t0c,r0_05,r60,r3600
@@ -1852,13 +1851,11 @@ subroutine revert_to_nmmb
 
    use gridmod, only: aeta1_ll,aeta2_ll,pdtop_ll,pt_ll
    use gridmod, only: lat2,lon2,nsig
-   use constants,only: zero,one_tenth,one,ten,fv
-   use mpimod, only: mype
-              use mpimod, only: mpi_comm_world
-   use guess_grids, only: ntguessig,nfldsig
+   use constants,only: zero,one_tenth,one,ten
+   use mpimod, only: mpi_comm_world
+   use guess_grids, only: ntguessig
    use guess_grids, only: ges_tsen
    use aniso_ens_util, only: intp_spl
-   use obsmod, only: iadate
 !   use gfs_stratosphere, only: nsigg,nsig_save,ak5,bk5,aeta1_save,aeta2_save,eta1_save,eta2_save
 !   use gfs_stratosphere, only: blend_rm,blend_gm
 !   use gfs_stratosphere, only: ges_tv_r,ges_q_r,ges_u_r,ges_v_r,ges_tsen_r,ges_oz_r
@@ -2182,7 +2179,6 @@ subroutine restore_nmmb_gfs
 !$$$ enddocumentation block
 
    use gridmod, only: lat2,lon2,nsig
-   use mpimod, only: mype
    use mpimod, only: mpi_comm_world
    use guess_grids, only: ntguessig
    use guess_grids, only: ges_tsen

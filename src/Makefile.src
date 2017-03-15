@@ -3,7 +3,6 @@
 # ------------
 
   OBJS	= \
-        add_gfs_stratosphere.o \
 	adjtest.o \
 	adjtest_obs.o \
 	adjust_cloudobs_mod.o \
@@ -83,6 +82,7 @@
 	ensctl2state.o \
 	ensctl2model_ad.o \
 	ensctl2state_ad.o \
+        ens_spread_mod.o \
 	evaljgrad.o \
 	evaljo.o \
 	evalqlim.o \
@@ -136,6 +136,7 @@
 	gsi_nstcouplermod.o \
 	gsi_io.o \
 	gsi_nemsio_mod.o \
+	gsi_unformatted.o \
 	gsimod.o \
 	gsisub.o \
 	guess_grids.o \
@@ -149,6 +150,7 @@
 	int3dvar.o \
 	intall.o \
 	intaod.o \
+	intcldch.o \
         intco.o \
 	intdw.o \
 	intgps.o \
@@ -193,25 +195,67 @@
 	lag_traj.o \
 	lagmod.o \
 	lanczos.o \
+	logcldch_to_cldch.o \
 	loglcbas_to_lcbas.o \
 	logvis_to_vis.o \
 	looplimits.o \
+	m_aeroNode.o \
+	m_aerolNode.o \
 	m_berror_stats.o \
 	m_berror_stats_reg.o \
+	m_cldchNode.o \
+	m_colvkNode.o \
+	m_cvgridLookup.o \
 	m_dgeevx.o \
-	m_distance.o  \
-	m_dtime.o	\
+	m_distance.o \
+	m_dtime.o \
+	m_dwNode.o \
 	m_extOzone.o \
 	m_find.o   \
+	m_gpsNode.o \
 	m_gpsrhs.o \
 	m_gsiBiases.o \
+	m_gustNode.o \
+	m_howvNode.o \
+	m_lagNode.o \
+	m_latlonRange.o \
+	m_lcbasNode.o \
+	m_mitmNode.o \
+	m_mxtmNode.o \
+	m_o3lNode.o \
+	m_obsHeadBundle.o \
+	m_obsLList.o \
+	m_obsNode.o \
+	m_obsNodeTypeManager.o \
+	m_obsdiagNode.o \
+	m_obsdiags.o \
+	m_ozNode.o \
+	m_pblhNode.o \
+	m_pcpNode.o \
+	m_pm10Node.o \
+	m_pm2_5Node.o \
+	m_pmslNode.o \
+	m_psNode.o \
+	m_pwNode.o \
+	m_qNode.o \
+	m_radNode.o \
 	m_rerank.o \
-	m_obdiag.o	\
 	m_rhs.o	\
-	m_sortind.o  \
+	m_rwNode.o \
+	m_sortind.o \
+	m_spdNode.o \
+	m_srwNode.o \
+	m_sstNode.o \
 	m_stats.o \
+	m_tNode.o \
+	m_tcamtNode.o \
+	m_tcpNode.o \
+	m_td2mNode.o \
 	m_tick.o \
 	m_uniq.o  \
+	m_visNode.o \
+	m_wNode.o \
+	m_wspd10mNode.o \
 	mpeu_mpif.o \
 	mpeu_util.o \
 	mod_nmmb_to_a.o \
@@ -301,7 +345,6 @@
 	read_nsstbufr.o \
         read_NASA_LaRC_cloud.o \
 	read_obs.o \
-	read_obsdiags.o \
 	read_ozone.o \
 	read_pblh.o \
 	read_pcp.o \
@@ -331,6 +374,7 @@
         set_crtm_cloudmod.o \
 	setupaod.o \
         setupbend.o \
+	setupcldch.o \
         setupco.o \
 	setupdw.o \
 	setupgust.o \
@@ -362,7 +406,6 @@
 	setupvis.o \
 	setupw.o \
 	setupwspd10m.o \
-	setupyobs.o \
 	sfc_model.o \
 	sfcobsqc.o \
 	simpin1.o \
@@ -386,6 +429,7 @@
 	stp3dvar.o \
         stpaod.o \
 	stpcalc.o \
+	stpcldch.o \
 	stpco.o \
 	stpdw.o \
 	stpgps.o \
@@ -452,8 +496,10 @@
 	wrf_netcdf_interface.o \
 	write_all.o \
 	write_bkgvars_grid.o \
-	write_obsdiags.o \
 	wrwrfmassa.o \
 	wrwrfnmma.o \
 	xhat_vordivmod.o \
 	zrnmi_mod.o
+
+list-libs_srcs:
+	@ for f in $(OBJS); do echo $$(basename $$f .o).[Ff]90; done
