@@ -101,6 +101,8 @@ contains
     real(r_single) rad2deg_single
     integer(i_kind) wrf_real
     data iunit / 15 /
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     
     wrf_real=104
     end_index=0
@@ -1134,6 +1136,8 @@ contains
     integer(i_kind) :: i0,j0
     integer(i_kind) wrf_real
     data iunit / 15 /
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     wrf_real=104
     end_index1=0
   
@@ -2032,7 +2036,6 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use guess_grids, only: ntguessig
-    use obsmod, only: iadate
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use netcdf_mod, only: nc_check
@@ -2083,6 +2086,8 @@ contains
     integer(i_kind),allocatable::ifield2(:,:)
     integer(i_kind) wrf_real
     data iunit / 15 /
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
 
 
 
@@ -2871,6 +2876,8 @@ contains
     integer(i_kind),allocatable::ifield1(:)
     integer(i_kind) wrf_real
     data iunit / 15 /
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
     wrf_real=104
     start_index=0
     end_index1=0
