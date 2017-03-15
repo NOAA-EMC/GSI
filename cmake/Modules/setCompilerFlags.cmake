@@ -96,7 +96,7 @@ function (setPGI)
   message("Setting PGI Compiler Flags")
   set(CMAKE_Fortran_FLAGS_RELEASE "")  
   set(Fortran_FLAGS "" PARENT_SCOPE)
-  set(GSI_Fortran_FLAGS " -O1 -byteswapio  -D_REAL8_ -mp -Mfree" PARENT_SCOPE)
+  set(GSI_Fortran_FLAGS "-Minform=inform -O1 -byteswapio  -D_REAL8_ -mp -Mfree" PARENT_SCOPE)
   set(GSI_CFLAGS "-I. -DFortranByte=char -DFortranInt=int -DFortranLlong='long long'  -g  -Dfunder" PARENT_SCOPE )
   set(ENKF_Fortran_FLAGS " -O3 -byteswapio -fast -DGFS -D_REAL8_ -mp" PARENT_SCOPE)
 

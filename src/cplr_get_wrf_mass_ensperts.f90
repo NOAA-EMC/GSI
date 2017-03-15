@@ -38,10 +38,9 @@ contains
   !$$$ end documentation block
   
       use kinds, only: r_kind,i_kind,r_single
-      use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-      use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
+      use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
       use mpimod, only: mpi_comm_world,ierror,mype
-      use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens,q_hyb_ens
+      use hybrid_ensemble_parameters, only: n_ens,grd_ens
       use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
       use gsi_bundlemod, only: gsi_bundlecreate
       use gsi_bundlemod, only: gsi_grid
@@ -312,10 +311,10 @@ contains
       use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
       use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
       use kinds, only: r_kind,r_single,i_kind
-      use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-      use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
-      use hybrid_ensemble_parameters, only: n_ens,grd_ens,q_hyb_ens
-      use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
+      use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll
+      use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
+      use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+      use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use netcdf_mod, only: nc_check
   
       implicit none
