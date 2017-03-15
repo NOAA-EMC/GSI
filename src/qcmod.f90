@@ -39,6 +39,9 @@ module qcmod
 !   2013-10-27  todling - add create/destroy
 !   2014-01-09  mccarty - do not apply qc to wv channels for amsub (lower quality than mhs)
 !   2014-04-27  eliu    - add two qc flags for AMSUA/ATMS precipitation screening 
+!   2014-10-10  Akella & Jin - add sfc_speed (wind speed) so as to QC obs at (high) wind speed locations
+!   2014-11-18  Akella & Jin - add qc based on surface height. Reject data over water and where abs value of surface height > 0.01
+!                              Changed qc_ssmi & qc_avhrr only.
 !   2014-05-29  thomas  - add lsingleradob functionality rejection flag
 !                         (originally of mccarty)
 !   2014-10-06  carley  - add logicals for buddy check
@@ -52,10 +55,12 @@ module qcmod
 !   2015-05-01  ejones  - modify emissivity regression and check in qc_gmi
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
+!   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
 !   2015-09-30  ejones  - add sun glint check in qc_amsr2 
 !   2016-09-16  tong    - Remove tdrgross_fact (not used)
 !   2016-10-20  acollard- Ensure AMSU-A channels 1-6,15 are not assimilated if
 !                         any of these are missing.
+!   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -262,15 +267,21 @@ module qcmod
 ! QC_MSU          
 
 ! QC_seviri          
+! Reject because terrain height > 1km.
+  integer(i_kind),parameter:: ifail_terrain_qc=50 
 
 ! QC_avhrr          
 !  Reject because of too large surface temperature physical retrieval in qc routine: tz_retrieval (see tzr_qc)
   integer(i_kind),parameter:: ifail_tzr_qc=10
+!  Reject because abs(sfc hgt) > 0.01m above water.
+  integer(i_kind),parameter:: ifail_sfchgt=60
+
 ! Also used (shared w/ other qc-codes):
 !  ifail_2400_qc=50
 !  ifail_2000_qc=51
 !  ifail_cloud_qc=7
 !  ifail_sfcir_qc=53
+!  ifail_sfchgt=60
 
 ! QC_goesimg          
 !  Reject because of standard deviation in subroutine qc_goesimg
@@ -2397,8 +2408,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use gridmod, only: regional
-  use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use radinfo, only: emiss_bc
@@ -3243,7 +3252,7 @@ subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
 !
 !   prgmmr: derber           org: np23            date: 2010-08-20
 !
-! abstract: set quality control criteria for seviri data               
+! abstract: set quality control criteria for msu data               
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
@@ -3379,6 +3388,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2015-09-16  sienkiewicz  add terrain flag for qc marks
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3480,6 +3490,7 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      if (zsges > r1000) then
         efact   = zero
         vfact   = zero
+        if(id_qc(i) == igood_qc ) id_qc(i)=ifail_terrain_qc 
 !       QC2 in statsrad
         if(luse)aivals(9,is)= aivals(9,is) + one
      end if

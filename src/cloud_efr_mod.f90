@@ -166,7 +166,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
 ! program history log:
 !   2011-06-18 Yanqiu Zhu
 
-  use gridmod, only: lat2,lon2,nsig,wrf_mass_regional
+  use gridmod, only: lat2,lon2,wrf_mass_regional
   implicit none
 
   integer(i_kind) i,j

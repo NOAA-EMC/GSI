@@ -8,6 +8,7 @@ module intgustmod
 !
 ! program history log:
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intgust
@@ -20,6 +21,10 @@ module intgustmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_gustNode, only: gustNode
+use m_gustNode, only: gustNode_typecast
+use m_gustNode, only: gustNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,7 +61,7 @@ subroutine intgust(gusthead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: gust_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -66,7 +71,7 @@ subroutine intgust(gusthead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(gust_ob_type),pointer,intent(in   ) :: gusthead
+  class(obsNode),pointer,intent(in   ) :: gusthead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +84,7 @@ subroutine intgust(gusthead,rval,sval)
   real(r_kind) cg_gust,p0,grad,wnotgross,wgross,pg_gust
   real(r_kind),pointer,dimension(:) :: sgust
   real(r_kind),pointer,dimension(:) :: rgust
-  type(gust_ob_type), pointer :: gustptr
+  type(gustNode), pointer :: gustptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +93,8 @@ subroutine intgust(gusthead,rval,sval)
   call gsi_bundlegetpointer(rval,'gust',rgust,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  gustptr => gusthead
+  !gustptr => gusthead
+  gustptr => gustNode_typecast(gusthead)
   do while (associated(gustptr))
      j1=gustptr%ij(1)
      j2=gustptr%ij(2)
@@ -140,7 +146,8 @@ subroutine intgust(gusthead,rval,sval)
         rgust(j4)=rgust(j4)+w4*grad
      endif
 
-     gustptr => gustptr%llpoint
+     !gustptr => gustptr%llpoint
+     gustptr => gustNode_nextcast(gustptr)
 
   end do
 

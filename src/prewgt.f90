@@ -89,7 +89,7 @@ subroutine prewgt(mype)
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
        pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf,&
-       adjustozvar,cwcoveqqcov
+       adjustozvar
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype

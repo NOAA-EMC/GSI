@@ -9,6 +9,7 @@ module stptd2mmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stptd2m
@@ -19,6 +20,10 @@ module stptd2mmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_td2mNode, only: td2mNode
+use m_td2mNode, only: td2mNode_typecast
+use m_td2mNode, only: td2mNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +59,6 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: td2m_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
@@ -63,7 +67,7 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
   implicit none
 
 ! Declare passed variables
-  type(td2m_ob_type),pointer           ,intent(in   ) :: td2mhead
+  class(obsNode),pointer              ,intent(in   ) :: td2mhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +82,7 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_td2m
   real(r_kind),pointer,dimension(:) :: std2m
   real(r_kind),pointer,dimension(:) :: rtd2m
-  type(td2m_ob_type), pointer :: td2mptr
+  type(td2mNode), pointer :: td2mptr
 
   out=zero_quad
 
@@ -92,7 +96,8 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'td2m',rtd2m,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  td2mptr => td2mhead
+  !td2mptr => td2mhead
+  td2mptr => td2mNode_typecast(td2mhead)
   do while (associated(td2mptr))
      if(td2mptr%luse)then
         if(nstep > 0)then
@@ -134,7 +139,8 @@ subroutine stptd2m(td2mhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     td2mptr => td2mptr%llpoint
+     !td2mptr => td2mptr%llpoint
+     td2mptr => td2mNode_nextcast(td2mptr)
 
   end do
   

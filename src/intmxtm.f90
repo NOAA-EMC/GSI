@@ -8,6 +8,7 @@ module intmxtmmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intmxtm
@@ -20,6 +21,10 @@ module intmxtmmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_mxtmNode, only: mxtmNode
+use m_mxtmNode, only: mxtmNode_typecast
+use m_mxtmNode, only: mxtmNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,7 +61,7 @@ subroutine intmxtm(mxtmhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: mxtm_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -66,7 +71,7 @@ subroutine intmxtm(mxtmhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(mxtm_ob_type),pointer,intent(in   ) :: mxtmhead
+  class(obsNode)  , pointer,intent(in   ) :: mxtmhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +84,7 @@ subroutine intmxtm(mxtmhead,rval,sval)
   real(r_kind) cg_mxtm,p0,grad,wnotgross,wgross,pg_mxtm
   real(r_kind),pointer,dimension(:) :: smxtm
   real(r_kind),pointer,dimension(:) :: rmxtm
-  type(mxtm_ob_type), pointer :: mxtmptr
+  type(mxtmNode), pointer :: mxtmptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +93,8 @@ subroutine intmxtm(mxtmhead,rval,sval)
   call gsi_bundlegetpointer(rval,'mxtm',rmxtm,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  mxtmptr => mxtmhead
+  !mxtmptr => mxtmhead
+  mxtmptr => mxtmNode_typecast(mxtmhead)
   do while (associated(mxtmptr))
      j1=mxtmptr%ij(1)
      j2=mxtmptr%ij(2)
@@ -140,7 +146,8 @@ subroutine intmxtm(mxtmhead,rval,sval)
         rmxtm(j4)=rmxtm(j4)+w4*grad
      endif
 
-     mxtmptr => mxtmptr%llpoint
+     !mxtmptr => mxtmptr%llpoint
+     mxtmptr => mxtmNode_nextcast(mxtmptr)
 
   end do
 
