@@ -9,8 +9,8 @@ instr=iasi_metop-b
 #location of radstat file
 exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
-working directory
-#wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
+#working directory
+wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
 #location the covariance matrix is saved to
 savdir=$diagdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow,

@@ -1,6 +1,8 @@
 
 
-export OMP_NUM_THREADS=$PBS_NP
+if [ ! -z "$NP" ] ; then
+   export OMP_NUM_THREADS=$NP
+fi
 cdate=$bdate
 nt=0
 one=1

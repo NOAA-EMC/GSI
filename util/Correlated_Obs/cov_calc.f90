@@ -107,15 +107,15 @@ real(r_kind)::bin_center                                 !bin center, km, used f
 integer, parameter:: hl_method=1
 integer, parameter:: desroziers=2
 integer, parameter:: full_chan=1
-integer:: cov_method, chan_choice
-integer,dimension(:), allocatable:: obs_pairs, n_pair_hl
+integer:: cov_method, chan_choice,obs_pairs
+integer,dimension(:), allocatable:: n_pair_hl
 integer,dimension(:,:), allocatable:: obs_pairs_hl
 real(r_kind), dimension(:,:), allocatable:: Rcov         !the covariance matrix
 real(r_kind), dimension(:,:), allocatable:: Rcorr        !the correlation matrix
 real(r_kind), dimension(:,:), allocatable:: anl_ave      !average value of oma
 real(r_kind), dimension(:,:), allocatable:: ges_ave      !average value of omb
 integer(i_kind), dimension(:,:), allocatable:: divider   !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
-real(r_kind):: cov_sum, anl_sum, ges_sum1,ges_sum2, ges_sum
+real(r_kind):: cov_sum, ges_sum1,ges_sum2
 real(r_kind):: val, divreal
 real(r_kind), dimension(:,:,:), allocatable:: Rcovbig
 real(r_kind), dimension(:,:,:), allocatable:: ges_avebig1,ges_avebig2
@@ -211,7 +211,6 @@ do tim=1,ntimes
       allocate(divider(nch_active,nch_active))
       allocate(ges_ave(nch_active,nch_active))
       allocate(chaninfo(nch_active),errout(nch_active))
-      allocate(obs_pairs(dsize))
       if (cov_method==desroziers) then
          allocate(anl(nch_active),anluse(nch_active))
          allocate(anl_ave(nch_active,nch_active))
@@ -378,25 +377,15 @@ do tim=1,ntimes
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
               bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
-!$omp parallel do private(r,c,j,cov_sum,div,anl_sum,ges_sum)
+!$omp parallel do private(r,c) 
             do c=1,nch_active
                do r=1,nch_active
-                  cov_sum=zero
-                  div=0
-                  anl_sum=zero
-                  ges_sum=zero
-                  do j=1,n_pair
-                     if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c)>zero)) then
-                        cov_sum=cov_sum+(anl(r)*ges(obs_pairs(j),c))
-                        anl_sum=anl_sum+anl(r)
-                        ges_sum=ges_sum+ges(obs_pairs(j),c)
-                        div=div+1
-                     end if  
-                  end do
-                  Rcov(r,c)=Rcov(r,c)+cov_sum
-                  anl_ave(r,c)=anl_ave(r,c)+anl_sum
-                  ges_ave(r,c)=ges_ave(r,c)+ges_sum
-                  divider(r,c)=divider(r,c)+div
+                     if ((anluse(r)>zero).and.(gesuse(obs_pairs,c)>zero)) then
+                        Rcov(r,c)=Rcov(r,c)+(anl(r)*ges(obs_pairs,c))
+                        anl_ave(r,c)=anl_ave(r,c)+anl(r)
+                        ges_ave(r,c)=ges_ave(r,c)+ges(obs_pairs,c)
+                        divider(r,c)=divider(r,c)+1
+                     end if 
                end do !r=1,nch_active
             end do  !c=1,nch_active
 !$omp end parallel do
@@ -405,13 +394,13 @@ do tim=1,ntimes
       close(anlid)
    else if (cov_method==hl_method) then  !end of cov_method=desroziers
       do dd=1,ng
-         obs_pairs=zero
+         obs_pairs_hl=zero
          n_pair_hl=zero
          call make_pairs_hl(gesloc(:,:),gesloc(dd,:),ges_times(:), &
               ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
-!$omp parallel do private(r,c,j,cov_sum,div,ges_sum1,ges_sum2)
+!$omp parallel do private(r,j,cov_sum,div,ges_sum1,ges_sum2)
                do c=1,nch_active
                   do r=1,nch_active
                      cov_sum=zero
@@ -440,7 +429,7 @@ do tim=1,ntimes
 end do !tim=1,ntimes
 !covariance calculation
 if (cov_method==desroziers) then
-!$omp parallel do private(r,c,divreal)
+!$omp parallel do private(r,c,divreal) 
    do c=1,nch_active
       do r=1,nch_active
          if (divider(r,c)>zero) then
@@ -456,7 +445,7 @@ if (cov_method==desroziers) then
    end do
 !$omp end parallel do
 else if (cov_method==hl_method) then
-!$omp parallel do private(r,c,dis,divreal)
+!$omp parallel do private(r,dis,divreal)
    do c=1,nch_active
       do r=1,nch_active
          do dis=1,num_bins
@@ -473,8 +462,9 @@ else if (cov_method==hl_method) then
 !$omp end parallel do
 end if
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
-
 if (kreq>zero) then
+   eigs=0
+   eigv=0
    call eigdecomp(Rcov,nch_active,eigs,eigv)
    mx=0
    mn=1000
@@ -529,7 +519,7 @@ end if
 !output
 inquire(iolength=reclen) Rcov(1,1)
 open(26,file=trim(cov_file),form='unformatted')
-write(26) nch_active, reclen
+write(26) nch_active, no_chn, reclen
 write(26) indR
 write(26) Rcov
 close(26)
@@ -553,7 +543,6 @@ end if
 deallocate(Rcov,chaninfo,errout)
 deallocate(indR)
 deallocate(divider)
-deallocate(obs_pairs)
 if (out_corr) then
    deallocate(Rcorr)
 end if
