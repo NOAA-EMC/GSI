@@ -1,4 +1,4 @@
-cov_calc computes satellite IR observation covariances. There are two methods available to compute inter-channel error covariances, namely Desroziers' method and the Hollingsworth-Lönnberg method.
+cov_calc computes satellite IR observation error covariances. There are two methods available to compute inter-channel error covariances, namely Desroziers' method and the Hollingsworth-Lönnberg method.
 
 See
 Desroziers, Gérald, et al. "Diagnosis of observation, background and analysis‐error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
@@ -15,11 +15,11 @@ Before running this program, compile it by typing 'make'.
 
 There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it. Both run.sh and parallel_run.sh contain options to specify which computational method to use (Desroziers or Hollingsworth-Lönnberg), and a choice to use only actively assimialted channels (recommended for Desroziers) or all channels. 
 
-If the amount of radstat files is small, or they have already been processed (see below), then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job. If using submit_job.sh, it may be necessary to change the number of processors to run cov_calc on; the number of procs must not be greater than the number of radstat files.
+If the amount of radstat files is small, or they have already been processed (see below), then run.sh can be used.  Edit its first few lines and either run it or submit submit_job.sh as a job. 
 
 cov_calc requires the files diag_$instr_anl.$date and diag and diag_$instr_ges.$date from the radstat files.  The first analysis diag file must be renamed danl_0001, the second renamed danl_0002, etc, while the first background file must be renamed dges_0001 and so on.  Even if a diag file is missing, the danl and dges files count up by one each time.  The scripts parallel_run.sh and run.sh process the radstat files in this manner.  
 
-This program includes several options to recondition the covariance matrix.  The method is specified in the first few lines of parallel_run.sh or run.sh.  To recondtion, kreq (desired condition number) must be positive, and to not recondition, kreq must be negative.  The three methods for reconditioning are the second method described in Weston's paper (source 1 below), the trace norm method (source 2 below).  Note that for the trace norm method, kreq must be large as the number of eigenvalues that are smaller than lambda_max/kreq.  It is safest to take kreq to be equal to the number of actively assimilate channels.  The program will automatically redefine kreq if needed, but it will increase (conditioning becomes worse)
+This program includes several options to recondition the covariance matrix.  The method is specified in the first few lines of parallel_run.sh or run.sh.  To recondtion, kreq (desired condition number) must be positive, and to not recondition, kreq must be negative.  The three methods for reconditioning are the second method described in Weston's paper (source 1 below), the trace norm method (source 2 below).  Note that for the trace norm method, kreq must be large as the number of eigenvalues that are smaller than lambda_max/kreq.  It is safest to take kreq to be equal to the number of actively assimilate channels.  The program will automatically redefine kreq if needed, but it will increase (conditioning becomes worse).
 
 1.  Weston, P. P., W. Bell, and J. R. Eyre. "Accounting for correlated error in the assimilation of high‐resolution sounder data." Quarterly Journal of the Royal Meteorological Society 140.685 (2014): 2420-2429.
 

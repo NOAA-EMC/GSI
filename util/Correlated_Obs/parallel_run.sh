@@ -43,6 +43,8 @@ bcen=80
 chan_set=0
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
 num_proc=11
+#number of processors to run cov_calc on
+NP=16
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
@@ -53,7 +55,6 @@ account=cloud
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
 machine=theia
-
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
 ####################################################################
@@ -228,7 +229,7 @@ cat << EOF > params.sh
 #PBS -e comp_err
 #PBS -q batch
 #PBS -l walltime=$wall_time
-#PBS -l nodes=1:ppn=16
+#PBS -l nodes=1:ppn=$NP
 #PBS -N cov_calc
 #PBS -W depend=afterany:${jobid}
 bdate=$bdate
@@ -251,6 +252,7 @@ bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
+NP=$NP
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
@@ -263,9 +265,9 @@ cat << EOF > params.sh
 #BSUB -e comp_err
 #BSUB -openmp
 #BSUB -q dev
-#BSUB -n 16
+#BSUB -n $NP
 #BSUB -W $wall_time
-#BSUB -R span[ptile=16]
+#BSUB -R span[ptile=$NP]
 #BSUB -P ${project_code}
 #BSUB -J cov_calc
 bdate=$bdate
@@ -288,6 +290,7 @@ bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
+NP=$NP
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh

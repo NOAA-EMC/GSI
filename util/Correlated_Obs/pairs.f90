@@ -25,7 +25,7 @@ real(r_kind),dimension(:,:),intent(in)::ges_locs !locations of background omg's 
 real(r_kind),dimension(:),intent(in):: ges_times !times of background omg's (minutes)
 real(r_kind), intent(in):: time_threshold        !minutes, max time between the omg's
 real(r_kind), intent(in):: dist_threshold        !km, max distance between the omg's
-integer, dimension(:), intent(out):: obs_pairs   !indicies of ges that correspond to pairs
+integer, intent(out):: obs_pairs                 !indicies of ges that correspond to pairs
 integer,intent(in):: Tg                          !length of ges
 integer,intent(out):: n_pair                     !number of pairs found
 real(r_kind),dimension(2):: p1,p2
@@ -42,7 +42,8 @@ do g=1,Tg
       d1=dist(p1,p2)
       if (d1<=dist_threshold) then
          n_pair=n_pair+1
-         obs_pairs(n_pair)=g
+         obs_pairs=g
+         return
      end if
    end if
 end do
