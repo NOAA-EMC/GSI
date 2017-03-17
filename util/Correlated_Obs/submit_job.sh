@@ -1,6 +1,5 @@
 #!/bin/ksh
 #Number of processors to run cov_calc on
-NP=16
 
 #Theia Job options
 #PBS -o compout
@@ -9,7 +8,7 @@ NP=16
 #PBS -q batch
 #PBS -l walltime=01:00:00
 #PBS -A cloud
-#PBS -l nodes=1:ppn=$NP
+#PBS -l nodes=1:ppn=16
 
 #WCOSS Job options
 #BSUB -e comperr
@@ -17,12 +16,15 @@ NP=16
 #BSUB -J covcalc
 #BSUB -q dev2
 #BSUB -openmp
-#BSUB -n $NP
+#BSUB -n 16
 #BSUB -W 01:00
-#BSUB -R span[ptile=$NP]
+#BSUB -R span[ptile=16]
 #BSUB -P GFS-T2O
-
-export OMP_NUM_THREADS=$NP
+if [ ! -z "$PBS_NP" ] ; then
+   export OMP_NUM_THREADS=$PBS_NP
+else
+   export OMP_NUM_THREADS=16
+fi
 corrdir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
 cd ${corrdir}
 ./run.sh 
