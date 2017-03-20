@@ -21,8 +21,7 @@ module observermod
 !                          reg_tlnmc_type for two kinds of regional tlnmc.
 !   2013-10-19  todling - update cloud_efr module name
 !   2014-02-03  todling - remove B-dependence; move cost-create/destroy out
-!   2014-12-03  derber - modify for possibly not using obsdiag arrays, change
-!                        call to getsfc
+!   2014-10-08  todling - rename bkg-bias routines for clarity
 !
 !   input argument list:
 !     mype - mpi task id
@@ -50,7 +49,7 @@ module observermod
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
-  use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
+  use m_gsiBiases, only : create_bkgbias_grids, destroy_bkgbias_grids
   use m_berror_stats, only: berror_get_dims
   use m_berror_stats_reg, only: berror_get_dims_reg
   use timermod, only: timer_ini, timer_fnl
@@ -161,7 +160,7 @@ subroutine guess_init_
 #endif /*/ HAVE_ESMF */
 
   call create_ges_grids(switch_on_derivatives,tendsflag)
-  call create_bias_grids()
+  call create_bkgbias_grids(iadate(4))
   call create_sfc_grids()
   call cloud_init()
 
@@ -413,6 +412,7 @@ subroutine run_(init_pass,last_pass)
 !$$$
 
   use mpeu_util, only: tell,die
+  use m_obsdiags, only: obsdiags_write
   implicit none
   logical,optional,intent(in) :: init_pass
   logical,optional,intent(in) :: last_pass
@@ -471,10 +471,11 @@ _ENTRY_(Iam)
 
      last  = jiter == miter+1 ! there is no obsdiags output if
                               ! jiterstart==miter+1.  e.g. miter=2 and jiterstart=3
-     if (l4dvar.and.(.not.last) .and. last_pass_ .and. luse_obsdiag) then
+     if (l4dvar.and.(.not.last) .and. last_pass_) then
         clfile='obsdiags.ZZZ'
         write(clfile(10:12),'(I3.3)') jiter
-        call write_obsdiags(clfile)
+        !call write_obsdiags(clfile)
+        call obsdiags_write(clfile)     ! replacing write_obsdiags()
      endif
 
 ! End of outer iteration loop
@@ -599,7 +600,7 @@ subroutine guess_final_
 ! Deallocate remaining arrays
   call cloud_final()
   call destroy_sfc_grids()
-  call destroy_bias_grids()
+  call destroy_bkgbias_grids()
   call destroy_ges_grids
 #ifndef HAVE_ESMF
   call destroy_chemges_grids(ierr)

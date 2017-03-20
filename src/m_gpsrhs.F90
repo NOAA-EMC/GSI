@@ -413,7 +413,7 @@ end subroutine gpsrhs_aliases
 subroutine gpsrhs_unaliases(is)
   implicit none
   character(len=*),parameter:: myname_=myname//'_unaliases'
-  integer,intent(in):: is
+  integer(i_kind),intent(in):: is
   type(gpsrhs_buffer),pointer:: b
 
 _ENTRY_(myname_)

@@ -58,6 +58,11 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                    tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
+!   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
+!                       . removed (%dlat,%dlon) debris.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -76,9 +81,12 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use obsmod, only: spdhead,spdtail,rmiss_single,i_spd_ob_type,obsdiags,&
+  use m_obsdiags, only: spdhead
+  use obsmod, only: rmiss_single,i_spd_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
-  use obsmod, only: spd_ob_type
+  use m_obsNode, only: obsNode
+  use m_spdNode, only: spdNode
+  use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: nfldsig,hrdifsig,ges_lnprsl, &
@@ -95,6 +103,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+
   implicit none
 
 ! Declare passed variables
@@ -102,7 +111,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
 
 ! Declare local variables
   real(r_kind),parameter:: ten=10.0_r_kind
@@ -141,6 +150,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   
   logical,dimension(nobs):: luse,muse
+  integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical proceed
 
   character(8) station_id
@@ -152,7 +162,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  type(spd_ob_type),pointer:: my_head
+  class(obsNode),pointer:: my_node
+  type(spdNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
   logical z_height
@@ -175,7 +186,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   m_alloc(:)=0
 !******************************************************************************
 ! Read and reformat observations in work arrays.
-  read(lunin)data,luse
+  read(lunin)data,luse,ioid
 
 !        index information for data array (see reading routine)
   ier=1       ! index of obs error
@@ -272,9 +283,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if(luse_obsdiag)then
+     if (luse_obsdiag) then
         if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_spd_ob_type,ibin)%head)) then
+              obsdiags(i_spd_ob_type,ibin)%n_alloc = 0
               allocate(obsdiags(i_spd_ob_type,ibin)%head,stat=istat)
               if (istat/=0) then
                  write(6,*)'setupspd: failure to allocate obsdiags',istat
@@ -289,32 +301,39 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               end if
               obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%tail%next
            end if
+           obsdiags(i_spd_ob_type,ibin)%n_alloc = obsdiags(i_spd_ob_type,ibin)%n_alloc +1
+    
            allocate(obsdiags(i_spd_ob_type,ibin)%tail%muse(miter+1))
            allocate(obsdiags(i_spd_ob_type,ibin)%tail%nldepart(miter+1))
            allocate(obsdiags(i_spd_ob_type,ibin)%tail%tldepart(miter))
            allocate(obsdiags(i_spd_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_spd_ob_type,ibin)%tail%indxglb=i
+           obsdiags(i_spd_ob_type,ibin)%tail%indxglb=ioid(i)
            obsdiags(i_spd_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_spd_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_spd_ob_type,ibin)%tail%luse=luse(i)
            obsdiags(i_spd_ob_type,ibin)%tail%muse(:)=.false.
            obsdiags(i_spd_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
            obsdiags(i_spd_ob_type,ibin)%tail%tldepart(:)=zero
            obsdiags(i_spd_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_spd_ob_type,ibin)%tail%obssen(:)=zero
-
+    
            n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_spd_ob_type,ibin)%tail
            my_diag%idv = is
-           my_diag%iob = i
+           my_diag%iob = ioid(i)
            my_diag%ich = 1
-
+           my_diag%elat= data(ilate,i)
+           my_diag%elon= data(ilone,i)
+    
         else
            if (.not.associated(obsdiags(i_spd_ob_type,ibin)%tail)) then
               obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%head
            else
               obsdiags(i_spd_ob_type,ibin)%tail => obsdiags(i_spd_ob_type,ibin)%tail%next
            end if
-           if (obsdiags(i_spd_ob_type,ibin)%tail%indxglb/=i) then
+           if (.not.associated(obsdiags(i_spd_ob_type,ibin)%tail)) then
+              call die(myname,'.not.associated(obsdiags(i_spd_ob_type,ibin)%tail)')
+           end if
+           if (obsdiags(i_spd_ob_type,ibin)%tail%indxglb/=ioid(i)) then
               write(6,*)'setupspd: index error'
               call stop2(291)
            end if
@@ -484,7 +503,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_spd_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_spd_ob_type,ibin)%tail%muse(nobskeep)
 
 !    Compute penalty terms (linear & nonlinear qc).
      val      = error*ddiff
@@ -535,62 +554,58 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
      end do
 
-     if(luse_obsdiag)then
-        obsdiags(i_spd_ob_type,ibin)%tail%luse=luse(i)
+     if (luse_obsdiag) then
         obsdiags(i_spd_ob_type,ibin)%tail%muse(jiter)=muse(i)
         obsdiags(i_spd_ob_type,ibin)%tail%nldepart(jiter)=spdob-sqrt(ugesin*ugesin+vgesin*vgesin)
         obsdiags(i_spd_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
-     end if
+     endif
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
      if (.not. last .and. muse(i)) then
 
-        if(.not. associated(spdhead(ibin)%head))then
-           allocate(spdhead(ibin)%head,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write spdhead '
-           spdtail(ibin)%head => spdhead(ibin)%head
-        else
-           allocate(spdtail(ibin)%head%llpoint,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write spdtail%llpoint '
-           spdtail(ibin)%head => spdtail(ibin)%head%llpoint
-        end if
-
+        allocate(my_head)
         m_alloc(ibin) = m_alloc(ibin) +1
-        my_head => spdtail(ibin)%head
+        my_node => my_head        ! this is a workaround
+        call obsLList_appendNode(spdhead(ibin),my_node)
+        my_node => null()
+
         my_head%idv = is
-        my_head%iob = i
+        my_head%iob = ioid(i)
+        my_head%elat= data(ilate,i)
+        my_head%elon= data(ilone,i)
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
-        call get_ij(mm1,dlat,dlon,spdtail(ibin)%head%ij(1),spdtail(ibin)%head%wij(1))
+        call get_ij(mm1,dlat,dlon,my_head%ij(1),my_head%wij(1))
 
+        my_head%factw=factw
         do j=1,4
-           spdtail(ibin)%head%wij(j)=factw*spdtail(ibin)%head%wij(j)
+           my_head%wij(j)=factw*my_head%wij(j)
         end do
-        spdtail(ibin)%head%raterr2= ratio_errors**2     
-        spdtail(ibin)%head%res    = spdob
-        spdtail(ibin)%head%uges   = ugesin
-        spdtail(ibin)%head%vges   = vgesin
-        spdtail(ibin)%head%err2   = error**2
-        spdtail(ibin)%head%time   = dtime
-        spdtail(ibin)%head%luse   = luse(i)
-        spdtail(ibin)%head%b      = cvar_b(ikx)
-        spdtail(ibin)%head%pg     = cvar_pg(ikx)
+        my_head%raterr2= ratio_errors**2     
+        my_head%res    = spdob
+        my_head%uges   = ugesin
+        my_head%vges   = vgesin
+        my_head%err2   = error**2
+        my_head%time   = dtime
+        my_head%luse   = luse(i)
+        my_head%b      = cvar_b(ikx)
+        my_head%pg     = cvar_pg(ikx)
 
-        if(luse_obsdiag)then
-           spdtail(ibin)%head%diags => obsdiags(i_spd_ob_type,ibin)%tail
+        if (luse_obsdiag) then
+           my_head%diags => obsdiags(i_spd_ob_type,ibin)%tail
 
-           my_head => spdtail(ibin)%head
-           my_diag => spdtail(ibin)%head%diags
+           my_diag => my_head%diags
            if(my_head%idv /= my_diag%idv .or. &
               my_head%iob /= my_diag%iob ) then
               call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                    (/is,i,ibin/))
+                        (/is,ioid(i),ibin/))
               call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
         endif
+        my_head => null()
      end if
 ! Save select output for diagnostic file
      if(conv_diagsave .and. luse(i))then
@@ -768,7 +783,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      varname='u'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
      if (istatus==0) then
-         if(allocated(ges_v))then
+         if(allocated(ges_u))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
          endif

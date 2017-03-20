@@ -33,6 +33,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !   2011-08-01  lueken  - add module use deter_sfc_mod
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     nread    - counter for all data on this pe
@@ -84,7 +85,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,zero,one,r60inv
+  use constants, only: deg2rad,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ioctype
@@ -119,6 +120,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   integer(i_kind) ilon,ilat,k,icount,nchanl,nreal
 
   real(r_kind) dlat,dlon,dlat_earth,dlon_earth,sfcr,skint,ff10,t4dv,toff
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) u0,v0,superror,uob,vob,superrinv(2)
 
   integer(i_kind) idate5(5),minobs,minan
@@ -198,6 +200,8 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      dlon_earth = suplon0
      if (dlon_earth>=r360) dlon_earth = dlon_earth - r360
      if (dlon_earth<zero ) dlon_earth = dlon_earth + r360
+     dlat_earth_deg = dlat_earth
+     dlon_earth_deg = dlon_earth
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad
      if(regional)then
@@ -280,8 +284,8 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      cdata_all(19,ndata)=supid8         ! 8byte character string, first 4 are radar station id,
                                         !   second 4 are mean range of superob from radar 
                                         !    (integer, in km, between 0 and 9999)
-     cdata_all(20,ndata)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-     cdata_all(21,ndata)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+     cdata_all(20,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+     cdata_all(21,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
 
 
 ! End of data read loop

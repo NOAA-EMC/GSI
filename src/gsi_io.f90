@@ -56,6 +56,8 @@ module gsi_io
             reorder12d_
   end interface
 
+  character(len=*), parameter :: myname='gsi_io'
+
 contains
 
   subroutine init_io(mype,iope)
@@ -101,8 +103,7 @@ contains
 
   end subroutine init_io
 
-  subroutine read_bias(filename,mype,nbc,sub_z,sub_ps,sub_tskin,sub_vor,&
-       sub_div,sub_u,sub_v,sub_tv,sub_q,sub_cwmr,sub_oz,istatus)
+  subroutine read_bias(filename,mype,nbc,sub_z,bundle,istatus)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_bias           read bias, convert to grid and
@@ -116,6 +117,7 @@ contains
 !   2006-04-15  treadon
 !   2006-12-04  todling - add nbc and loop over nbc
 !   2007-06-01  todling - bug fix: loops were only copying to (1,1) element
+!   2014-10-05  todling - bias estimates now kept in bundle
 !
 !   input argument list:
 !     filename - name of local file from which to read bias
@@ -123,16 +125,7 @@ contains
 !
 !   output argument list:
 !     sub_z      - terrain
-!     sub_ps     - surface pressure
-!     sub_tskin  - skin temperature
-!     sub_vor    - vorticity
-!     sub_div    - divergence 
-!     sub_u      - zonal wind
-!     sub_v      - meridional wind
-!     sub_tv     - virtual temperature
-!     sub_q      - specific humidity???
-!     sub_cwmr   - cloud condensate mixing ratio
-!     sub_oz     - ozone mixing ratio
+!     bundle     - bundle with background bias estimates 
 !     istatus    - read status indicator
 !
 ! attributes:
@@ -141,10 +134,13 @@ contains
 !
 !$$$
     use kinds, only: r_kind,r_single
-    use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s,&
-         ntracer,ncloud
+    use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s
     use constants, only: zero
     use mpimod, only: mpi_rtype,ierror,mpi_comm_world
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use m_gsiBiases, only: bvars2d,bvars3d
+    use mpeu_util, only: die
     implicit none
     
 !   Declare local parameters
@@ -156,18 +152,19 @@ contains
     integer(i_kind)                           ,intent(in   ) :: mype
     integer(i_kind)                           ,intent(in   ) :: nbc
     integer(i_kind)                           ,intent(  out) :: istatus
-    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(  out) :: sub_z,sub_ps,sub_tskin
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(  out) :: sub_u,sub_v,&
-         sub_vor,sub_div,sub_cwmr,sub_q,sub_oz,sub_tv
-    
+    type(gsi_bundle)                          ,intent(inout) :: bundle(nbc)
+    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(  out) :: sub_z
+
 !   Declare local variables
-    integer(i_kind) i,j,k,mm1
+    integer(i_kind) i,j,k,mm1,nv
     integer(i_kind) mype_in,iret
     integer(i_kind):: ib,nb,ka,n
     real(r_kind),dimension(itotsub):: work
     real(r_single),dimension(nlon,nlat):: grid4
 
     real(r_kind),dimension(lat2,lon2,nsig)::work3d
+    real(r_kind),pointer,dimension(:,:)  :: ptr2d=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
     
 !******************************************************************************  
 !   Initialize variables used below
@@ -200,162 +197,45 @@ contains
             sub_z(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
 
 
-!   Surface pressure:  same procedure as terrain
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            sub_ps(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+!   2d fields:
+       do nv=1,size(bvars2d)
+          if (mype==mype_in) then
+             call baread(lunin,ib,nb,ka,grid4)
+             call reorder21(grid4,work)
+          endif
+          call gsi_bundlegetpointer(bundle(n),bvars2d(nv),ptr2d,ierror)
+          if(ierror/=0) call die('trouble in reading 2d bias estimates')
+          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+               ptr2d,ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
+       enddo
     
 
-!   Skin temperature
-       if (mype==mype_in) then
-          call baread(lunin,ib,nb,ka,grid4)
-          call reorder21(grid4,work)
-       endif
-       call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-            sub_tskin(1,1,n),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-
-
-!   (Virtual) temperature
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_tv(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-
-
-!   Divergence and voriticity.
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_div(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_vor(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-
-
-!   u and v wind
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_u(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_v(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-
-
-!   Water vapor mixing ratio
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_q(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-
-
-
-!   Ozone mixing ratio
-       do k=1,nsig
-          if (mype==mype_in) then
-             call baread(lunin,ib,nb,ka,grid4)
-             call reorder21(grid4,work)
-          endif
-          call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          do j=1,lon2
-             do i=1,lat2
-                sub_oz(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       end do
-
-    
-
-!   Cloud condensate mixing ratio.
-       if (ntracer>2 .or. ncloud>=1) then
+!   3d fields:
+       do nv=1,size(bvars3d)
+          call gsi_bundlegetpointer(bundle(n),bvars3d(nv),ptr3d,ierror)
+          if(ierror/=0) call die('trouble in reading 3d bias estimates')
           do k=1,nsig
              if (mype==mype_in) then
                 call baread(lunin,ib,nb,ka,grid4)
                 call reorder21(grid4,work)
              endif
              call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-               work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
-          end do
-          do j=1,lon2
-             do i=1,lat2
-                sub_cwmr(i,j,k,n) = work3d(i,j,k)
-             end do
-          end do
-       else
-          do k=1,nsig
+                  work3d(1,1,k),ijn_s(mm1),mpi_rtype,mype_in,mpi_comm_world,ierror)
              do j=1,lon2
                 do i=1,lat2
-                   sub_cwmr(i,j,k,n)=zero
+                   ptr3d(i,j,k) = work3d(i,j,k)
                 end do
              end do
           end do
-       endif
+       end do
 
     end do  ! End loop over coefficients
     
 !   Close input file
     call baclose(lunin,iret)
-    if (iret/=0) then
+    if (iret==0) then
+       write(6,*)'READ_BIAS:  read in previous estimate of bkg bias'
+    else
        write(6,*)'READ_BIAS:  ***ERROR*** closing input file, iret=',iret
     endif
     istatus=istatus+iret
@@ -374,8 +254,7 @@ contains
 ! !INTERFACE:
 !
 
-  subroutine write_bias(filename,mype_out,nbc,sub_z,sub_ps,&
-       sub_tskin,sub_vor,sub_div,sub_u,sub_v,sub_tv,sub_q,sub_cwmr,sub_oz,istatus)
+  subroutine write_bias(filename,mype_out,nbc,sub_z,bundle,istatus)
 !
 ! !USES:
 !
@@ -394,11 +273,16 @@ contains
     use gridmod, only: ijn            ! no. of horiz. pnts for each subdomain (no buffer)
     use gridmod, only: displs_g       ! comm. array, displacement for receive on global grid
     use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
-    use gridmod, only: ntracer        ! no. of tracers
-    use gridmod, only: ncloud         ! no. of cloud types
     use gridmod, only: strip
-
-    
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_bundledestroy
+    use m_gsiBiases, only: bvars2d,bvars3d
+    use m_gsiBiases, only: bkg_bias_model
+    use gsi_4dcouplermod, only: gsi_4dcoupler_putpert
+    use obsmod, only: iadate
+    use mpeu_util, only: die
   
     implicit none
 
@@ -409,23 +293,13 @@ contains
 ! !INPUT PARAMETERS:
 !
 
-    character(24)                             ,intent(in):: filename     ! file to open and write to
+    character(24)   ,intent(in):: filename     ! file to open and write to
 
-    integer(i_kind)                           ,intent(in   ) :: mype_out  ! mpi task to write output file
-    integer(i_kind)                           ,intent(in   ) :: nbc       ! number of bias coefficients in bias model
-    integer(i_kind)                           ,intent(  out) :: istatus   ! write status
-    
-    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_z    ! GFS terrain field on subdomains
-    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_ps   ! ps on subdomains
-    real(r_kind),dimension(lat2,lon2,nbc)     ,intent(in   ) :: sub_tskin! skin temperature
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_vor  ! vorticity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_div  ! divergence on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_u    ! u wind on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_v    ! v wind on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_tv   ! virtual temperature on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_q    ! specific humidity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_oz   ! ozone on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig,nbc),intent(in   ) :: sub_cwmr ! cloud condensate mixing ratio on subdomains
+    integer(i_kind) ,intent(in   ) :: mype_out  ! mpi task to write output file
+    integer(i_kind) ,intent(in   ) :: nbc       ! number of bias coefficients in bias model
+    integer(i_kind) ,intent(  out) :: istatus   ! write status
+    real(r_kind),dimension(lat2,lon2,nbc),intent(in   ) :: sub_z
+    type(gsi_bundle),intent(inout) :: bundle(nbc) ! holds all bkg bias estimates            
     
 !
 ! !OUTPUT PARAMETERS:
@@ -441,6 +315,8 @@ contains
 !   2006-12-04  todling - add nbc and loop over nbc
 !   2010-04-01  treadon - move strip to gridmod
 !   2013-10-24  todling - revisit strip interface
+!   2014-10-05  todling - bias estimates now kept in bundle
+!                       - rename bkg-bias interface prog for clarity
 !
 ! !REMARKS:
 !
@@ -454,18 +330,24 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
+    character(len=*), parameter :: myname_=myname//'*write_bias_'
     integer(i_kind),parameter::  lunout = 51
     integer(i_kind),parameter::  nsize=4
 
     integer(i_kind) k,mm1
     integer(i_kind):: iret
-    integer(i_kind):: nb,n
+    integer(i_kind):: nb,n,nv
+    integer(i_kind):: nymd,nhms
     
-    real(r_kind),dimension(lat1*lon1):: zsm,psm,tskinsm
-    real(r_kind),dimension(lat1*lon1,nsig):: tvsm,vorsm,divsm,usm,vsm,qsm,ozsm,cwmrsm
+    real(r_kind),dimension(lat1*lon1):: zsm,work2dm
+    real(r_kind),dimension(lat1*lon1,nsig):: work3dm
     real(r_kind),dimension(max(iglobal,itotsub)):: work
     real(r_single),dimension(nlon,nlat):: grid4
+    real(r_kind),pointer,dimension(:,:)  :: ptr2d=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
     
+    type(gsi_bundle) xbundle
+
 !*************************************************************************
 
 !   Initialize local variables
@@ -486,26 +368,8 @@ contains
 
     do n=1,nbc
 
-!   Strip off boundary points from subdomains
-       call strip(sub_z    (:,:,n)  ,zsm)
-       call strip(sub_ps   (:,:,n)  ,psm)
-       call strip(sub_tskin(:,:,n)  ,tskinsm)
-       call strip(sub_vor  (:,:,:,n),vorsm  ,nsig)
-       call strip(sub_div  (:,:,:,n),divsm  ,nsig)
-       call strip(sub_u    (:,:,:,n),usm    ,nsig)
-       call strip(sub_v    (:,:,:,n),vsm    ,nsig)
-       call strip(sub_tv   (:,:,:,n),tvsm   ,nsig)
-       call strip(sub_q    (:,:,:,n),qsm    ,nsig)
-       call strip(sub_oz   (:,:,:,n),ozsm   ,nsig)
-       call strip(sub_cwmr (:,:,:,n),cwmrsm ,nsig)
-  
-
-!   For each output grid, the following steps are repeated
-!     1) create global grid by gathering from subdomains
-!     2) write full grid field to output file
-
-
 !   Terrain
+       call strip(sub_z(:,:,n),zsm)
        call mpi_gatherv(zsm,ijn(mm1),mpi_rtype,&
             work,ijn,displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -514,119 +378,43 @@ contains
           call wryte(lunout,nb,grid4)
        endif
     
-
-!   Surface pressure
-       call mpi_gatherv(psm,ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-    
-
-!   Skin temperature
-       call mpi_gatherv(tskinsm,ijn(mm1),mpi_rtype,&
-            work,ijn,displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype==mype_out) then
-          call reorder12(work,grid4)
-          call wryte(lunout,nb,grid4)
-       endif
-
-
-!   Virtual temperature
-       do k=1,nsig
-          call mpi_gatherv(tvsm(1,k),ijn(mm1),mpi_rtype,&
+!      2d fields:
+       do nv=1,size(bvars2d)
+          call gsi_bundlegetpointer(bundle(n),bvars2d(nv),ptr2d,ierror)
+          if(ierror/=0) call die('trouble in writing 2d bias estimates')
+!         Strip off boundary points from subdomains
+          call strip(ptr2d,work2dm)
+!         Create global grid by gathering from subdomains
+          call mpi_gatherv(work2dm,ijn(mm1),mpi_rtype,&
                work,ijn,displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
+!         Write full grid field to output file
           if (mype==mype_out) then
              call reorder12(work,grid4)
              call wryte(lunout,nb,grid4)
           endif
-       end do
+       enddo
 
-  
-!   Horizontal divergence and voriticy
-       do k=1,nsig
-          call mpi_gatherv(divsm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-       do k=1,nsig
-          call mpi_gatherv(vorsm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-
-
-!   u and v wind
-       do k=1,nsig
-          call mpi_gatherv(usm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-       do k=1,nsig
-          call mpi_gatherv(vsm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-
-    
-
-!   Specific humidity
-       do k=1,nsig
-          call mpi_gatherv(qsm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-    
-
-!   Ozone
-       do k=1,nsig
-          call mpi_gatherv(ozsm(1,k),ijn(mm1),mpi_rtype,&
-               work,ijn,displs_g,mpi_rtype,&
-               mype_out,mpi_comm_world,ierror)
-          if (mype==mype_out) then
-             call reorder12(work,grid4)
-             call wryte(lunout,nb,grid4)
-          endif
-       end do
-    
-
-!   Cloud condensate mixing ratio
-       if (ntracer>2 .or. ncloud>=1) then
+!      3d fields:
+       do nv=1,size(bvars3d)
+          call gsi_bundlegetpointer(bundle(n),bvars3d(nv),ptr3d,ierror)
+          if(ierror/=0) call die('trouble in writing 3d bias estimates')
+!         Strip off boundary points from subdomains
+          call strip(ptr3d,work3dm,nsig)
+!         For each level ...
           do k=1,nsig
-             call mpi_gatherv(cwmrsm(1,k),ijn(mm1),mpi_rtype,&
+!            Create global grid by gathering from subdomains
+             call mpi_gatherv(work3dm(1,k),ijn(mm1),mpi_rtype,&
                   work,ijn,displs_g,mpi_rtype,&
                   mype_out,mpi_comm_world,ierror)
+!            Write slice of 3d field to output file
              if (mype==mype_out) then
                 call reorder12(work,grid4)
                 call wryte(lunout,nb,grid4)
              endif
           end do
-       endif
-    
+       enddo
+  
     end do ! End loop over nbc
 
 !   Single task writes message to stdout
@@ -640,6 +428,14 @@ contains
        istatus=istatus+iret
     endif
 
+     nymd = 10000*iadate(1)+iadate(2)*100+iadate(3)
+     nhms = 10000*iadate(4)
+     if(mype==0) write(6,'(2a,i8.8,2x,i6.6)')trim(myname_),': writing out bias on ',&
+             nymd, nhms
+     call gsi_bundlecreate(xbundle,bundle(1),'Bias Estimate',iret)
+     call bkg_bias_model(xbundle,iadate(4))
+     call gsi_4dcoupler_putpert (xbundle,nymd,nhms,'tlm','bbias')
+     call gsi_bundledestroy(xbundle,iret)
 !    
     return
   end subroutine write_bias

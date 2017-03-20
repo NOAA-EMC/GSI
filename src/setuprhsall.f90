@@ -88,9 +88,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2014-03-19  pondeca - add wspd10m
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
-!   2014-0-16   carley/zhu - add tcamt and lcbas
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
+!   2014-0?-16  carley/zhu - add tcamt and lcbas
 !   2015-07-10  pondeca - add cldch
+!   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -113,9 +114,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tsen,nfldsig
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
-       nchan_total,ndat,obs_setup,luse_obsdiag,&
-       dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
-       destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
+       ndat,obs_setup,&
+       dirname,write_diag,ditype,obsdiags,lobserver,&
+       destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
+       luse_obsdiag
+  use obsmod, only: lobsdiagsave
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
@@ -124,10 +127,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,npe
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gridmod, only: cmaq_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
+  use gsi_4dvar, only: mPEs_observer
   use jfunc, only: jiter,jiterstart,miter,first,last
   use qcmod, only: npres_print
   use convinfo, only: nconvtype,diag_conv
@@ -151,10 +155,18 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use m_rhs, only: stats_oz => rhs_stats_oz
   use m_rhs, only: toss_gps_sub => rhs_toss_gps
 
+  use m_gpsStats, only: gpsStats_genstats       ! was genstats_gps()
+  use m_gpsStats, only: gpsStats_destroy        ! was done by genstats_gps()
+
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use m_obsdiags, only: obsdiags_reset
+  use m_obsdiags, only: obsdiags_read
+  use m_obsdiags, only: obsdiags_sort
+  use m_obsdiags, only: obsdiags_write
 
-  use mpeu_util, only: die
+  use mpeu_util, only: die,warn,perr
+  use mpeu_util, only: basename
   implicit none
 
 ! Declare passed variables
@@ -166,11 +178,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Declare external calls for code analysis
   external:: compute_derived
   external:: evaljo
-  external:: genstats_gps
+  !external:: genstats_gps
   external:: mpi_allreduce
   external:: mpi_finalize
   external:: mpi_reduce
-  external:: read_obsdiags
+  !external:: read_obsdiags
   external:: setupaod
   external:: setupbend
   external:: setupdw
@@ -235,6 +247,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
+  character(len=*),parameter:: myname='setuprhsall'
+
+  logical,parameter:: OBSDIAGS_RELOAD = .false.
+  !logical,parameter:: OBSDIAGS_RELOAD = .true.
+  logical:: opened
+  character(len=256):: tmpname,tmpaccess,tmpform
 
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
@@ -289,6 +307,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Reset observation pointers
   if(init_pass) call destroyobs
+  if(init_pass) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
 
 ! Read observation diagnostics if available
   if (l4dvar) then
@@ -296,12 +315,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      clfile='obsdiags.ZZZ'
      if (lobsensfc .and. .not.lsensrecompute) then
         write(clfile(10:12),'(I3.3)') miter
-        call read_obsdiags(clfile)
+        !call read_obsdiags(clfile)
+        call obsdiags_read(clfile,mPEs=mPEs_observer)      ! replacing read_obsdiags()
         call inquire_obsdiags(miter)
      else if (getodiag) then
         if (.not.lobserver) then
            write(clfile(10:12),'(I3.3)') jiter
-           call read_obsdiags(clfile)
+           !call read_obsdiags(clfile)
+           call obsdiags_read(clfile,mPEs=mPEs_observer)   ! replacing read_obsdiags()
            call inquire_obsdiags(miter)
         endif
      endif
@@ -375,14 +396,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         call lag_state_write()
      end if
 
-!    Reset observation pointers
-     if(luse_obsdiag)then
-        do ii=1,nobs_bins
-           do jj=1,nobs_type
-              obsdiags(jj,ii)%tail => NULL()
-           enddo
+!    Reset observation pointers.  This is assumed by setup*() routines.
+     do ii=1,size(obsdiags,2)
+        do jj=1,size(obsdiags,1)
+           obsdiags(jj,ii)%tail => NULL()
         enddo
-     end if
+     enddo
 
      lunin=1
      open(lunin,file=obs_setup,form='unformatted')
@@ -396,8 +415,34 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         diag_conv_file=trim(dirname) // trim(string)
         if(init_pass) then
            open(7,file=trim(diag_conv_file),form='unformatted',status='unknown',position='rewind')
+
         else
-           open(7,file=trim(diag_conv_file),form='unformatted',status='old',position='append')
+           !  open(7,file=trim(diag_conv_file),form='unformatted',status='old',position='append')
+
+                ! Without a close(7) until the last_pass=.true., the same file
+                ! is expected to remain open "asis", equivalent to an "append"
+                ! position through a re-open().  Therefore, a sequence of
+                ! verification steps are taken to replace the earlier open()
+                ! statement, to avoid re-open() without a close().
+
+           inquire(unit=7,opened=opened)
+           if(opened) then
+             inquire(unit=7,name=tmpname,form=tmpform,access=tmpaccess)
+             tmpname=basename(tmpname)
+             if(trim(tmpname)/=trim(diag_conv_file)) then
+               call perr(myname,'unexpectly occupied, unit =',7)
+               call perr(myname,'           diag_conv_file =',trim(diag_conv_file))
+               call perr(myname,'   inquire(unit=7,  name= )',trim(tmpname))
+               call perr(myname,'   inquire(unit=7,  form= )',trim(tmpform))
+               call perr(myname,'   inquire(unit=7,access= )',trim(tmpaccess))
+               call  die(myname)
+             endif
+
+           else
+             call perr(myname,'unexpectly closed, unit =',7)
+             call perr(myname,'         diag_conv_file =',trim(diag_conv_file))
+             call  die(myname)
+           endif
         endif
         idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
         if(init_pass .and. mype == 0)write(7)idate
@@ -609,13 +654,26 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Deallocate wind field array for Lagrangian data assimilation
   call lag_destroy_uv()
 
-! Setup observation vectors
-  call setupyobs
-
 ! Finalize qc and accumulate statistics for GPSRO data
-  call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
+  call gpsStats_genstats(bwork,awork(:,i_gps),toss_gps_sub,conv_diagsave,mype)
+  call gpsStats_destroy()       ! replacing ...
+  ! -- call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
 
   if (conv_diagsave) close(7)
+
+  call obsdiags_sort()
+
+! for temporary testing purposes, _write and _read.
+  if(OBSDIAGS_RELOAD) then
+    call obsdiags_write('obsdiags.ttt',force=.true.)
+        ! call Barrier() before obsdiags_read(), to make sure all PEs have
+        ! finished their obsdiags_write().
+    if(mPEs_observer>0) call MPI_Barrier(mpi_comm_world,ier)
+
+    call obsdiags_read('obsdiags.ttt',mPEs=mPEs_observer,force=.true., &
+        ignore_iter=.true.)
+    call inquire_obsdiags(miter)
+  endif
 
 ! call inquire_obsdiags(miter)
 
