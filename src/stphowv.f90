@@ -10,6 +10,7 @@ module stphowvmod
 ! program history log:
 !   2014-04-10  pondeca
 !   2015-07-10  pondeca  - force return if no howv data available
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stphowv
@@ -20,6 +21,10 @@ module stphowvmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_howvNode, only: howvNode
+use m_howvNode, only: howvNode_typecast
+use m_howvNode, only: howvNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +59,6 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: howv_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
@@ -63,7 +67,7 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
   implicit none
 
 ! Declare passed variables
-  type(howv_ob_type),pointer           ,intent(in   ) :: howvhead
+  class(obsNode),pointer              ,intent(in   ) :: howvhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +82,7 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_howv
   real(r_kind),pointer,dimension(:) :: showv
   real(r_kind),pointer,dimension(:) :: rhowv
-  type(howv_ob_type), pointer :: howvptr
+  type(howvNode), pointer :: howvptr
 
   out=zero_quad
 
@@ -92,7 +96,8 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'howv',rhowv,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  howvptr => howvhead
+  !howvptr => howvhead
+  howvptr => howvNode_typecast(howvhead)
   do while (associated(howvptr))
      if(howvptr%luse)then
         if(nstep > 0)then
@@ -134,7 +139,8 @@ subroutine stphowv(howvhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     howvptr => howvptr%llpoint
+     !howvptr => howvptr%llpoint
+     howvptr => howvNode_nextcast(howvptr)
 
   end do
   

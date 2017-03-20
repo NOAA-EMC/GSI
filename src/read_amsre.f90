@@ -62,6 +62,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2013-02-13  eliu    - bug fix for solar zenith calculation 
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -100,7 +101,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use radinfo, only: iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
+  use constants, only: deg2rad,zero,one,three,r60inv
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
@@ -611,8 +612,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         data_all(27,itx)= idomsfc(1) + 0.001_r_kind  ! dominate surface type
         data_all(28,itx)= sfcr                       ! surface roughness
         data_all(29,itx)= ff10                       ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg         ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg         ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg             ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg             ! earth relative latitude (degrees)
 
         if(dval_use)then
            data_all(32,itx)= val_amsre
@@ -694,6 +695,9 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 !
 ! program history log:
 !   2005-10-21  kazumori - reformatted for GSI
+!   2013-02-13  eliu    - bug fix for solar zenith calculation 
+!   2014-06-04  sienkiewicz - take out doy**3 and replace with simple
+!                               linear interpolation of tables
 !
 !   input argument list:
 !     day -     Julian day (positive scalar or vector)

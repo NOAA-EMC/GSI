@@ -73,7 +73,7 @@ subroutine rmpl_allreduce(klen,rpvals)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: klen
-  real(r_kind)   ,intent(inout) :: rpvals(klen)
+  real(r_kind)   ,intent(inout) :: rpvals(:)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -132,7 +132,7 @@ subroutine qmpl_allreduce1d(klen,qpvals)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: klen
-  real(r_quad)   ,intent(inout) :: qpvals(klen)
+  real(r_quad)   ,intent(inout) :: qpvals(:)
 
 ! Declare local variables
   integer(i_kind) :: ii,jj
@@ -205,7 +205,7 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad,r_double
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_real8,mpi_real16
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real8,mpi_real16
   implicit none
 
 ! Declare passed variables
@@ -544,7 +544,9 @@ subroutine qmpl_reduce2d(ilen,klen,iroot,pvals,pvnew)
   
     
   pvals=0._r_kind
-  pvnew=0._r_kind
+  if(present(pvnew)) then
+     pvnew=0._r_kind
+  endif
   if(mype == iroot)then
      if (present(pvnew)) then
 

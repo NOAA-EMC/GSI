@@ -13,6 +13,7 @@ module stppwmod
 !   2008-12-02  Todling - remove stppw_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppw
@@ -79,7 +80,6 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: pw_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,two,tiny_r_kind,cg_term,zero_quad,&
        r3600
@@ -87,10 +87,14 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_pwNode , only: pwNode
+  use m_pwNode , only: pwNode_typecast
+  use m_pwNode , only: pwNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(pw_ob_type),pointer            ,intent(in   ) :: pwhead
+  class(obsNode), pointer             ,intent(in   ) :: pwhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -105,7 +109,7 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: rq,sq
   real(r_kind),pointer,dimension(:) :: xhat_dt_q
   real(r_kind),pointer,dimension(:) :: dhat_dt_q
-  type(pw_ob_type), pointer :: pwptr
+  type(pwNode), pointer :: pwptr
 
 
   out=zero_quad
@@ -123,7 +127,7 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   endif
   if(ier/=0)return
 
-  pwptr => pwhead
+  pwptr => pwNode_typecast(pwhead)
   do while (associated(pwptr))
      if(pwptr%luse)then
         if(nstep > 0)then
@@ -192,7 +196,7 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     pwptr => pwptr%llpoint
+     pwptr => pwNode_nextcast(pwptr)
 
   end do
   return

@@ -12,6 +12,7 @@ module stptcpmod
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
 !   2013-10-28  todling - rename p3d to prse
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stptcp
@@ -60,17 +61,20 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: tcp_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_tcpNode, only: tcpNode
+  use m_tcpNode, only: tcpNode_typecast
+  use m_tcpNode, only: tcpNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer           ,intent(in   ) :: tcphead
+  class(obsNode), pointer             ,intent(in   ) :: tcphead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -85,7 +89,7 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  type(tcp_ob_type), pointer :: tcpptr
+  type(tcpNode), pointer :: tcpptr
 
   out=zero_quad
 
@@ -103,7 +107,7 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
   endif
   if(ier/=0)return
 
-  tcpptr => tcphead
+  tcpptr => tcpNode_typecast(tcphead)
   do while (associated(tcpptr))
      if(tcpptr%luse)then
         if(nstep > 0)then
@@ -153,7 +157,7 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     tcpptr => tcpptr%llpoint
+     tcpptr => tcpNode_nextcast(tcpptr)
   end do
   
   return

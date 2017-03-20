@@ -29,8 +29,6 @@ subroutine co_mop_ak(g,ga,nlevs,ak,ap)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind
-  use guess_grids, only: nfldsig,hrdifsig,ges_prsi
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,lon1,istart,jstart
   use constants, only: zero, one
   implicit none
 

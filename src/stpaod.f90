@@ -9,6 +9,7 @@ module stpaodmod
 !
 ! program history log:
 !   2016-02-20  pagowski - a module for aod 
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpaod
@@ -18,6 +19,11 @@ module stpaodmod
 !   machine:
 !
 !$$$ end documentation block
+
+  use m_obsNode , only: obsNode
+  use m_aeroNode, only: aeroNode
+  use m_aeroNode, only: aeroNode_typecast
+  use m_aeroNode, only: aeroNode_nextcast
   implicit none
 
   private
@@ -55,7 +61,6 @@ contains
     use kinds, only: r_kind,i_kind,r_quad
     use aeroinfo, only: aerojacnames,aerojacindxs,nsigaerojac,pg_aero,&
          b_aero
-    use obsmod, only: aero_ob_type
     use qcmod, only: nlnqc_iter,varqc_iter
     use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,zero
     use gsi_bundlemod, only: gsi_bundle
@@ -64,7 +69,7 @@ contains
     implicit none
     
 ! declare passed variables
-    type(aero_ob_type),pointer             ,intent(in   ) :: aerohead
+    class(obsNode), pointer             ,intent(in   ) :: aerohead
     integer(i_kind)                     ,intent(in   ) :: nstep
     real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
     type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -78,7 +83,7 @@ contains
     real(r_kind),dimension(max(1,nstep)):: term,rad
     real(r_kind) w1,w2,w3,w4
     real(r_kind),pointer,dimension(:):: sv_chem,rv_chem
-    type(aero_ob_type), pointer :: aeroptr
+    type(aeroNode), pointer :: aeroptr
     real(r_kind),dimension(nsigaerojac) :: tdir,rdir
 
     out=zero_quad
@@ -102,7 +107,8 @@ contains
        tdir=zero
        rdir=zero
 
-       aeroptr => aerohead
+       !aeroptr => aerohead
+       aeroptr => aeroNode_typecast(aerohead)
 
        do while (associated(aeroptr))
           if(aeroptr%luse)then
@@ -203,7 +209,8 @@ contains
 
           endif
 
-          aeroptr => aeroptr%llpoint
+          !aeroptr => aeroptr%llpoint
+          aeroptr => aeroNode_nextcast(aeroptr)
 
        end do
 
