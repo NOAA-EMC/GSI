@@ -255,7 +255,7 @@ contains
   
   !   Write nems nmmb analysis file.
   
-      if (nems_nmmb_regional) call wrwrfnmma%wrnemsnmma_binary(mype)
+      if (nems_nmmb_regional) call wrwrfnmma%wrwrfnmma_binary(mype)
   
   !   Write 2d analysis file
   !   output format: binary
