@@ -126,7 +126,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind):: irec,next
   integer(i_kind):: method,iobs,num_obs   
-  integer(i_kind),parameter  :: maxobs=4000000
+  integer(i_kind),parameter  :: maxobs=2e7
 
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
@@ -242,7 +242,6 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
 ! Big loop to read data file
   next=0
-  nrec=999999
   irec=0
   iobs=1
   do while(ireadmg(lnbufr,subset,idate)>=0)
@@ -410,6 +409,10 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         sat_zen_ang = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
 
         iobs=iobs+1
+        if (iobs > maxobs) then
+           write(6,*)'read_amsr2:  ***ERROR*** iobs= ',iobs,' > maxobs= ',maxobs
+           call stop2(56)
+        endif
 
      enddo read_loop
   enddo

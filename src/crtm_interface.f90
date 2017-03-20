@@ -763,7 +763,7 @@ endif
     surface_k(ii,1)   = surface(1)
  end do
 
-! Mapping land surface type of NMM to CRTM
+! Mapping land surface type to CRTM surface fields
  if (regional .or. nvege_type==IGBP_N_TYPES) then
     allocate(map_to_crtm_ir(nvege_type))
     allocate(map_to_crtm_mwave(nvege_type))
@@ -1307,7 +1307,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            if (regional .or. nvege_type==IGBP_N_TYPES) then
               itype  = min(max(1,itype),nvege_type)
               istype = min(max(1,istype),SOIL_N_TYPES)
-              surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              if (ChannelInfo(sensorindex)%sensor_type == crtm_microwave_sensor)then
+                 surface(1)%land_type = max(1,map_to_crtm_mwave(itype))
+              else
+                 surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              end if
               surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
               surface(1)%Soil_Type = map_soil_to_crtm(istype)
               lai_type = map_to_crtm_mwave(itype)

@@ -1901,6 +1901,11 @@
               else
                 diagbuf(20) = surface(1)%soil_moisture_content  ! soil moisture
               endif
+
+!             For IR instruments NPOESS land types are applied.
+!             For microwave instruments the CRTM land_type field is not
+!             applied, but from a nomenclature standpoint land_type
+!             is interchangeable with vegetation_type.
               diagbuf(21) = surface(1)%land_type              ! surface land type
            else
               diagbuf(15) = tsavg5                            ! SST first guess used for SST retrieval
