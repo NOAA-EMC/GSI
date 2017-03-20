@@ -243,6 +243,7 @@
 !          =  51 - invalid pflag (convthin:make3grids)
 !          =  54 - data handling mix up(setuprhsall)
 !          =  55 - NOBS > NSDATA (setuprhsall-tran)
+!          =  56 - iobs > maxobs (read_amsr2)
 !          =  59 - problems reading sst analysis (rdgrbsst)
 !          =  60 - inconsistent dimensions (rdgrbsst)
 !          =  61 - odd number of longitudes (inisph)
