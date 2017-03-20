@@ -42,7 +42,7 @@ do g=1,Tg
       d1=dist(p1,p2)
       if (d1<=dist_threshold) then
          n_pair=n_pair+1
-         obs_pairs=g
+         obs_pairs(n_pair)=g
          if (dist_threshold<five) return
      end if
    end if
