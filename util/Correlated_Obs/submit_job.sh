@@ -22,6 +22,8 @@
 #BSUB -P GFS-T2O
 if [ ! -z "$PBS_NP" ] ; then
    export OMP_NUM_THREADS=$PBS_NP
+elif [ ! -z "LSB_DJOB_NUMPROC" ] ; then
+   export OMP_NUM_THREADS=$LSB_DJOB_NUMPROC
 else
    export OMP_NUM_THREADS=16
 fi

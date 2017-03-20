@@ -526,7 +526,7 @@ if (out_corr) then
 end if
 call RadDiag_Hdr_Destroy(RadDiag_Hdr)
 call RadDiag_Data_Destroy(RadDiag_Data)
-deallocate(ges_times,gesloc,ges,gesuse, ges_ave,bin_dist)
+deallocate(ges_times,gesloc,ges,gesuse, ges_ave,bin_dist,obs_pairs)
 if (cov_method==desroziers) then
    deallocate(anl, anluse, anl_ave)
 else if (cov_method==hl_method) then
