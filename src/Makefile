@@ -267,9 +267,9 @@ clean:
         cplr_get_pseudo_ensperts.f90 \
         cplr_get_wrf_mass_ensperts.f90 \
         cplr_get_wrf_nmm_ensperts.f90 \
-        cplr_gfs_ensmod.f90 \
         cplr_read_wrf_mass_files.f90 \
         cplr_read_wrf_mass_guess.f90 \
+	cplr_gfs_ensmod.f90 \
         cplr_read_wrf_nmm_files.f90 \
         cplr_read_wrf_nmm_guess.f90 \
         cplr_regional_io.f90 \
@@ -583,9 +583,9 @@ clean:
 	strong_fast_global_mod.f90 \
 	sub2fslab_mod.f90 \
 	support_2dvar.f90 \
-	cplr_gfs_ensmod.f90 \
 	cplr_gfs_nstmod.f90 \
 	stub_pertmod.F90 \
+	stub_ensmod.f90 \
 	stub_set_crtm_aerosol.f90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \
