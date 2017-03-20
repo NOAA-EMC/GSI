@@ -9,8 +9,8 @@ use kinds, only:             r_kind, i_kind
 use matrix_tools
 use obs_tools
 use pairs
-use constants, only:         zero_int,zero,one,two,sixty,threesixty, &
-                             small
+use constants, only:         zero_int,zero,one,two,five, &
+                             small, sixty, threesixty
 use RadDiag_IO, only:        RadDiag_Hdr_type, &
                              RadDiag_Data_type, &
                              RadDiag_ReadMode, &
@@ -32,7 +32,6 @@ character(*), parameter:: program_name='Compute_Covariance'
 
 !loop counters
 integer:: i,j, r, c, jj,dd,dis
-integer(i_kind):: div
 integer:: tim                                            !time step
 integer:: n_pair                                         !number of pairs made for one analysis obs at one time step
 integer:: ntimes                                         !number of time steps to process
@@ -107,8 +106,9 @@ real(r_kind)::bin_center                                 !bin center, km, used f
 integer, parameter:: hl_method=1
 integer, parameter:: desroziers=2
 integer, parameter:: full_chan=1
-integer:: cov_method, chan_choice,obs_pairs
+integer:: cov_method, chan_choice
 integer,dimension(:), allocatable:: n_pair_hl
+integer,dimension(:), allocatable:: obs_pairs
 integer,dimension(:,:), allocatable:: obs_pairs_hl
 real(r_kind), dimension(:,:), allocatable:: Rcov         !the covariance matrix
 real(r_kind), dimension(:,:), allocatable:: Rcorr        !the correlation matrix
@@ -116,7 +116,9 @@ real(r_kind), dimension(:,:), allocatable:: anl_ave      !average value of oma
 real(r_kind), dimension(:,:), allocatable:: ges_ave      !average value of omb
 integer(i_kind), dimension(:,:), allocatable:: divider   !divider(r,c) gives the total number of ges omgs used to compute Rcov(r,c)
 real(r_kind):: cov_sum, ges_sum1,ges_sum2
+real(r_kind):: ges_sum,anl_sum
 real(r_kind):: val, divreal
+integer(i_kind):: div
 real(r_kind), dimension(:,:,:), allocatable:: Rcovbig
 real(r_kind), dimension(:,:,:), allocatable:: ges_avebig1,ges_avebig2
 real(r_kind), dimension(:,:,:), allocatable:: divbig
@@ -211,6 +213,11 @@ do tim=1,ntimes
       allocate(divider(nch_active,nch_active))
       allocate(ges_ave(nch_active,nch_active))
       allocate(chaninfo(nch_active),errout(nch_active))
+      if (bin_size<five) then
+         allocate(obs_pairs(1))
+      else
+         allocate(obs_pairs(dsize))
+      end if
       if (cov_method==desroziers) then
          allocate(anl(nch_active),anluse(nch_active))
          allocate(anl_ave(nch_active,nch_active))
@@ -377,15 +384,25 @@ do tim=1,ntimes
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
               bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
-!$omp parallel do private(r,c) 
+!$omp parallel do private(r,c,cov_sum,div,anl_sum,ges_sum,j) 
             do c=1,nch_active
                do r=1,nch_active
-                     if ((anluse(r)>zero).and.(gesuse(obs_pairs,c)>zero)) then
-                        Rcov(r,c)=Rcov(r,c)+(anl(r)*ges(obs_pairs,c))
-                        anl_ave(r,c)=anl_ave(r,c)+anl(r)
-                        ges_ave(r,c)=ges_ave(r,c)+ges(obs_pairs,c)
-                        divider(r,c)=divider(r,c)+1
-                     end if 
+                  cov_sum=zero
+                  div=0
+                  anl_sum=zero
+                  ges_sum=zero
+                  do j=1,n_pair
+                     if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c)>zero)) then
+                        cov_sum=cov_sum+(anl(r)*ges(obs_pairs(j),c))
+                        anl_sum=anl_sum+anl(r)
+                        ges_sum=ges_sum+ges(obs_pairs(j),c)
+                        div=div+1
+                     end if
+                  end do
+                  Rcov(r,c)=Rcov(r,c)+cov_sum
+                  anl_ave(r,c)=anl_ave(r,c)+anl_sum
+                  ges_ave(r,c)=ges_ave(r,c)+ges_sum
+                  divider(r,c)=divider(r,c)+div
                end do !r=1,nch_active
             end do  !c=1,nch_active
 !$omp end parallel do
@@ -400,7 +417,7 @@ do tim=1,ntimes
               ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
-!$omp parallel do private(r,j,cov_sum,div,ges_sum1,ges_sum2)
+!$omp parallel do private(r,c,j,cov_sum,div,ges_sum1,ges_sum2)
                do c=1,nch_active
                   do r=1,nch_active
                      cov_sum=zero
@@ -445,7 +462,7 @@ if (cov_method==desroziers) then
    end do
 !$omp end parallel do
 else if (cov_method==hl_method) then
-!$omp parallel do private(r,dis,divreal)
+!$omp parallel do private(r,c,dis,divreal)
    do c=1,nch_active
       do r=1,nch_active
          do dis=1,num_bins
