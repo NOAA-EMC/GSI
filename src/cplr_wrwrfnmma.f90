@@ -5,7 +5,7 @@ use abstract_wrwrfnmma_mod
     procedure, pass(this) :: wrwrfnmma_binary => wrwrfnmma_binary_wrf  
     procedure, pass(this) :: wrwrfnmma_netcdf => wrwrfnmma_netcdf_wrf  
     procedure, nopass :: get_bndy_file
-    procedure, nopass :: wrnemsnmma_binary
+    procedure, pass(this) :: wrnemsnmma_binary
   end type wrwrfnmma_class
 contains
   subroutine wrwrfnmma_binary_wrf(this,mype)
@@ -84,7 +84,7 @@ contains
     real(r_kind),parameter:: r225=225.0_r_kind
   
   ! Declare local variables
-    character(9) wrfanl
+    character(10) wrfanl
   
     integer(i_kind) im,jm,lm
     integer(i_kind) nsig_write 
@@ -1057,7 +1057,7 @@ contains
   
   end subroutine get_bndy_file
   
-  subroutine wrnemsnmma_binary(mype)
+  subroutine wrnemsnmma_binary(this,mype)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    wrwrfnmma              write out wrf NMM restart file
@@ -1129,6 +1129,7 @@ contains
     implicit none
   
   ! Declare passed variables
+    class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
   
   ! Declare local variables
@@ -1170,7 +1171,9 @@ contains
     
   !   if use_gfs_stratosphere is true, then convert ges fields from nmmb-gfs 
   !        extended vertical coordinate to nmmb vertical coordinate.
-  
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
+ 
     if(use_gfs_stratosphere) then
        call revert_to_nmmb
        nsig_write=nsig_save
