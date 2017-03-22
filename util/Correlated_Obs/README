@@ -1,9 +1,9 @@
 cov_calc computes satellite IR observation error covariances. There are two methods available to compute inter-channel error covariances, namely Desroziers' method and the Hollingsworth-Lönnberg method.
 
 See
-Desroziers, Gérald, et al. "Diagnosis of observation, background and analysis‐error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
+Desroziers, Gérald, et al. "Diagnosis of observation, background and analysi-error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
 and
-Hollingsworth, A., and P. Lönnberg. "The statistical structure of short‐range forecast errors as determined from radiosonde data. Part I: The wind field." Tellus A 38.2 (1986): 111-136.
+Hollingsworth, A., and P. Lönnberg. "The statistical structure of shor-range forecast errors as determined from radiosonde data. Part I: The wind field." Tellus A 38.2 (1986): 111-136.
 
 This program uses the radstat.gdas.$date files, and outputs up to four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. Outputting the other files is optional. They contain the wavenumbers of the satellite instrument, the assigned (satinfo) obs error, and the error correlation matrix.
 
@@ -19,8 +19,8 @@ If the amount of radstat files is small, or they have already been processed (se
 
 cov_calc requires the files diag_$instr_anl.$date and diag and diag_$instr_ges.$date from the radstat files.  The first analysis diag file must be renamed danl_0001, the second renamed danl_0002, etc, while the first background file must be renamed dges_0001 and so on.  Even if a diag file is missing, the danl and dges files count up by one each time.  The scripts parallel_run.sh and run.sh process the radstat files in this manner.  
 
-This program includes several options to recondition the covariance matrix.  The method is specified in the first few lines of parallel_run.sh or run.sh.  To recondtion, kreq (desired condition number) must be positive, and to not recondition, kreq must be negative.  The three methods for reconditioning are the second method described in Weston's paper (source 1 below), the trace norm method (source 2 below).  Note that for the trace norm method, kreq must be large as the number of eigenvalues that are smaller than lambda_max/kreq.  It is safest to take kreq to be equal to the number of actively assimilate channels.  The program will automatically redefine kreq if needed, but it will increase (conditioning becomes worse).
+This program includes options to recondition the covariance matrix.  The method is specified in the first few lines of parallel_run.sh or run.sh.  To recondtion, kreq (desired condition number) must be positive, and to not recondition, kreq must be negative.  The two methods for reconditioning are the second method described in Weston's paper (source 1 below) and the trace norm method (source 2 below, this method is actually equivalent to the first method mention in Weston's paper).  Note that for the trace norm method, kreq must be at least as large as the number of eigenvalues that are smaller than lambda_max/kreq.  It is safest to take kreq to be equal to the number of actively assimilate channels.  The program will automatically redefine kreq if needed, but it will increase (conditioning becomes worse).
 
-1.  Weston, P. P., W. Bell, and J. R. Eyre. "Accounting for correlated error in the assimilation of high‐resolution sounder data." Quarterly Journal of the Royal Meteorological Society 140.685 (2014): 2420-2429.
+1.  Weston, P. P., W. Bell, and J. R. Eyre. "Accounting for correlated error in the assimilation of high-resolution sounder data." Quarterly Journal of the Royal Meteorological Society 140.685 (2014): 2420-2429.
 
 2.  Tanaka, Mirai, and Kazuhide Nakata. "Positive definite matrix approximation with condition number constraint." Optimization Letters 8.3 (2014): 939-947.
