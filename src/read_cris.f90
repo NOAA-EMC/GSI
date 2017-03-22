@@ -29,6 +29,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-04  Jung    - Added mods for CrIS full spectral resolution (FSR).
+!   2015-10-01  guo      - keep the original {dlat,dlon}_earth_deg values to avoid round-off errors.
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
 !
@@ -769,8 +770,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
            data_all(28,itx)= sfcr                   ! surface roughness
            data_all(29,itx)= ff10                   ! ten meter wind factor
-           data_all(30,itx)= dlon_earth*rad2deg     ! earth relative longitude (degrees)
-           data_all(31,itx)= dlat_earth*rad2deg     ! earth relative latitude (degrees)
+           data_all(30,itx)= dlon_earth_deg         ! earth relative longitude (degrees)
+           data_all(31,itx)= dlat_earth_deg         ! earth relative latitude (degrees)
 
            if(dval_use) then
               data_all(32,itx)= val_cris

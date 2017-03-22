@@ -13,6 +13,8 @@ module intozmod
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-08-29  J. Guo  - added individual interfaces, intozlay() and intozlev()
 !
 ! subroutines included:
 !   sub intoz_
@@ -27,14 +29,19 @@ module intozmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
 implicit none
 
 PRIVATE
 PUBLIC intoz
+public:: intozlay
+public:: intozlev
 
 interface intoz; module procedure &
           intoz_
 end interface
+interface intozlay; module procedure intozlay_; end interface
+interface intozlev; module procedure intozlev_; end interface
 
 contains
 
@@ -67,13 +74,12 @@ subroutine intoz_(ozhead,o3lhead,rval,sval)
 !
 !$$$
 !--------
-  use obsmod, only: oz_ob_type,o3l_ob_type
   use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  class(obsNode),pointer,intent(in)::  ozhead
+  class(obsNode),pointer,intent(in):: o3lhead
   type(gsi_bundle),intent(in   ) :: sval
   type(gsi_bundle),intent(inout) :: rval
 
@@ -135,17 +141,20 @@ subroutine intozlay_(ozhead,rval,sval)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint,nloz_omi,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,nloz_omi,luse_obsdiag
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
+  use m_ozNode , only:  ozNode
+  use m_ozNode , only:  ozNode_typecast
+  use m_ozNode , only:  ozNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer,intent(in   ) :: ozhead
+  class(obsNode)  ,pointer, intent(in   ) :: ozhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -161,8 +170,11 @@ subroutine intozlay_(ozhead,rval,sval)
   real(r_kind),pointer,dimension(:,:,:)  :: rozp
   real(r_kind),allocatable,dimension(:,:) :: soz
   real(r_kind),allocatable,dimension(:,:) :: roz
-  type(oz_ob_type), pointer :: ozptr
+  type(ozNode), pointer :: ozptr
   real(r_kind),dimension(nloz_omi):: val_lay
+
+!  If no data, return
+  if(.not. associated(ozhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -191,7 +203,7 @@ subroutine intozlay_(ozhead,rval,sval)
 ! SBUV OZONE: LAYER O3 and TOTAL O3
 !
 ! Loop over ozone observations.
-  ozptr => ozhead
+  ozptr => ozNode_typecast(ozhead)
   do while (associated(ozptr))
 
 !    Set location
@@ -451,7 +463,7 @@ subroutine intozlay_(ozhead,rval,sval)
         endif  ! OMI
      endif   ! do adjoint
 
-     ozptr => ozptr%llpoint
+     ozptr => ozNode_nextcast(ozptr)
 
 ! End loop over observations
   enddo
@@ -493,6 +505,7 @@ subroutine intozlev_(o3lhead,rval,sval)
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
+!   2015-12-01  todling - modify so that use of obsdiags can be turned off
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -510,17 +523,19 @@ subroutine intozlev_(o3lhead,rval,sval)
 !--------
 
   use kinds, only: r_kind,i_kind
-  use obsmod, only: o3l_ob_type,lsaveobsens, l_do_adjoint,luse_obsdiag
-  use gridmod, only: latlon1n
+  use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use constants, only: r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
+  use m_o3lNode, only: o3lNode
+  use m_o3lNode, only: o3lNode_typecast
+  use m_o3lNode, only: o3lNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  class(obsNode)  ,pointer, intent(in   ) :: o3lhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -533,7 +548,10 @@ subroutine intozlev_(o3lhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),pointer,dimension(:) :: soz1d
   real(r_kind),pointer,dimension(:) :: roz1d
-  type(o3l_ob_type), pointer :: o3lptr
+  type(o3lNode), pointer :: o3lptr
+
+!  If no data, return
+  if(.not. associated(o3lhead))return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -550,8 +568,7 @@ subroutine intozlev_(o3lhead,rval,sval)
 
 ! Loop over ozone observations.
 
-
-  o3lptr => o3lhead
+  o3lptr => o3lNode_typecast(o3lhead)
 
   do while (associated(o3lptr))
      j1=o3lptr%ij(1)
@@ -585,17 +602,17 @@ subroutine intozlev_(o3lhead,rval,sval)
              w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_o3l
      endif
 
-     if (lsaveobsens) then
-        o3lptr%diags%obssen(jiter) = val*o3lptr%raterr2*o3lptr%err2
-     else
-        if (o3lptr%luse) o3lptr%diags%tldepart(jiter)=val
+     if (luse_obsdiag ) then
+        if (lsaveobsens) then
+           grad = val*o3lptr%raterr2*o3lptr%err2
+           o3lptr%diags%obssen(jiter) = grad
+        else
+           if (o3lptr%luse) o3lptr%diags%tldepart(jiter)=val
+        endif
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           grad = o3lptr%diags%obssen(jiter)
-
-        else
+        if (.not. lsaveobsens) then
            if(ladtest_obs) then
               grad = val
            else
@@ -629,7 +646,7 @@ subroutine intozlev_(o3lhead,rval,sval)
 
      endif
 
-     o3lptr => o3lptr%llpoint
+     o3lptr => o3lNode_nextcast(o3lptr)
 
   end do
 

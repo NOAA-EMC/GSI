@@ -119,7 +119,6 @@ contains
     use mpimod, only: npe,mype
     use mpeu_util, only: die
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
-    use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     implicit none
 
@@ -138,21 +137,21 @@ contains
                                                     'tv  ', 'q   ', &
                                                     'cw  ', 'oz  ' /)
 
-    real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
+    real(r_kind),pointer,dimension(:,:):: ptr2d   =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ptr3d =>null()
 
-    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
-    real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_u_it    => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_v_it    => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it  => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_div_it  => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it   => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_q_it    => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it   => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => null()
+    real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it    => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it    => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it  => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it  => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it   => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it    => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it   => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => null()
 
     type(spec_vars):: sp_b
     type(sub2grid_info) :: grd_t
@@ -343,7 +342,7 @@ contains
     use mpimod, only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2,read_ch4n2oco
-    use guess_grids, only: nfldsig,ntguessig
+    use guess_grids, only: nfldsig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -365,14 +364,14 @@ contains
     character(len=3) :: char_ghg
     real(r_kind),allocatable,dimension(:) :: avefld
     real(r_kind),dimension(lat2):: xlats
-    real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::p_ch4=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::p_n2o=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::p_co=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co2=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::ptr3d_ch4=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::ptr3d_n2o=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::p_co2=>null()
+    real(r_kind),pointer,dimension(:,:,:)::p_ch4=>null()
+    real(r_kind),pointer,dimension(:,:,:)::p_n2o=>null()
+    real(r_kind),pointer,dimension(:,:,:)::p_co=>null()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co2=>null()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_ch4=>null()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_n2o=>null()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co=>null()
 
     if(.not.associated(gsi_chemguess_bundle)) return
 
@@ -816,7 +815,6 @@ end subroutine write_ghg_grid
     use sfcio_module, only: sfcio_axdata,sfcio_sclose
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: nlat,nlon
-    use guess_grids, only: nfldsfc,ifilesfc
 
     integer(i_kind), dimension(nlat,nlon), intent(  out) :: isli_anl
     integer(i_kind) :: latb,lonb
@@ -891,7 +889,6 @@ end subroutine write_ghg_grid
 !$$$
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat,nlon
-    use guess_grids, only: nfldsfc
     use mpimod, only: mpi_itype,mpi_comm_world,mype
     use constants, only: zero
     implicit none
@@ -1150,10 +1147,9 @@ end subroutine write_ghg_grid
 
     use kinds, only: i_kind,r_kind
     use mpimod, only: mype
-    use guess_grids, only: dsfct,isli2
+    use guess_grids, only: dsfct
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,lat2,lon2,nsig,use_gfs_nemsio
-    use gridmod, only: lat2,lon2,nsig   
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_grid
@@ -1161,7 +1157,6 @@ end subroutine write_ghg_grid
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlecreate
     use gsi_bundlemod, only: gsi_bundledestroy
-    use hybrid_ensemble_parameters, only: l_hyb_ens
     use mpeu_util, only: die
     use gsi_nstcouplermod, only: nst_gsi
     use constants, only: qcmin 
@@ -1187,15 +1182,15 @@ end subroutine write_ghg_grid
     real(r_kind),pointer,dimension(:,:,:):: aux_oz
     real(r_kind),pointer,dimension(:,:,:):: aux_cwmr
 
-    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>null()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>null()
 
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
@@ -1669,7 +1664,7 @@ end subroutine write_ghg_grid
     use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod,  only: iadate,ianldate
-    use constants, only: zero,zero_single,two,tfrozen,z_w_max,rad2deg
+    use constants, only: zero,zero_single,two,tfrozen,z_w_max
     use guess_grids, only: isli2
     use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
@@ -2128,8 +2123,8 @@ end subroutine write_ghg_grid
     use gridmod, only: rlats,rlons
     use general_commvars_mod, only: ltosi,ltosj
     use hybrid_ensemble_parameters, only: n_ens
-    use obsmod,  only: iadate,ianldate
-    use constants, only: zero_single,zero,half,two,pi,tfrozen,z_w_max,rad2deg
+    use obsmod,  only: ianldate
+    use constants, only: zero_single,zero,half,two,pi,tfrozen,z_w_max
     use guess_grids, only: isli2
     use gsi_nstcouplermod, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
@@ -2582,11 +2577,9 @@ end subroutine write_ghg_grid
     use gridmod, only: iglobal,ijn,displs_g,itotsub
     use general_commvars_mod, only: ltosi,ltosj
     use gridmod, only: rlats,rlons
-    use hybrid_ensemble_parameters, only: n_ens
-    use obsmod,  only: iadate,ianldate
+    use obsmod,  only: ianldate
     use constants, only: zero_single,zero,half,two,pi,tfrozen
     use guess_grids, only: isli2
-    use gsi_nstcouplermod, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
 

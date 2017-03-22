@@ -15,6 +15,7 @@ module stpqmod
 !   2010-05-13  todling - uniform interface across stp routines
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choose Purser's non-linear qc 
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpq
@@ -77,17 +78,20 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: q_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use gridmod, only: latlon1n
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use jfunc, only: l_foto,dhat_dt,xhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_qNode  , only: qNode
+  use m_qNode  , only: qNode_typecast
+  use m_qNode  , only: qNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer             ,intent(in   ) :: qhead
+  class(obsNode), pointer             ,intent(in   ) :: qhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -102,7 +106,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: xhat_dt_q
   real(r_kind),pointer,dimension(:) :: dhat_dt_q
   real(r_kind),pointer,dimension(:):: rq,sq
-  type(q_ob_type), pointer :: qptr
+  type(qNode), pointer :: qptr
 
   out=zero_quad
 
@@ -118,7 +122,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
   endif
   if(ier/=0) return
 
-  qptr => qhead
+  qptr => qNode_typecast(qhead)
   do while (associated(qptr))
      if(qptr%luse)then
         if(nstep > 0)then
@@ -192,7 +196,8 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
         endif
 
      end if
-     qptr => qptr%llpoint
+
+     qptr => qNode_nextcast(qptr)
 
   end do
 

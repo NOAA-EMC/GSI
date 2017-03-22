@@ -40,7 +40,7 @@ module berror
 !   sub create_berror_vars  - allocate global background error related variables
 !   sub destroy_berror_vars - deallocate global background error 
 !                                    related variables
-!   sub set_predictor_var   - set background variances for bias correction coefs
+!   sub set_predictors_var  - set background variances for bias correction coefs
 !   sub init_rftable        - load global/global pointers and tables for 
 !                                    recursive filters
 !   sub initable            - initialize tables/pointers for recursive filters
@@ -379,7 +379,7 @@ contains
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
     use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,rstats_t,varA_t
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,varA_t
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen, ntclen
     implicit none
@@ -563,7 +563,7 @@ contains
     use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
     use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
     use jfunc, only: nclen,nrclen,diag_precon,step_start,ntclen
-    use constants, only:  zero,one,tiny_r_kind
+    use constants, only:  zero,one
     implicit none
 
 !   Declare local variables
@@ -573,7 +573,7 @@ contains
 
 
 !   Set up L=inverse(B)*M for preconditioning purpose
-!   Only diagonal elememts are considered
+!   Only diagonal elements are considered
 
 !   set a coeff. factor for variances of control variables
     if(diag_precon)then

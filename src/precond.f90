@@ -25,7 +25,6 @@ subroutine precond(grady)
   use kinds, only: i_kind
   use berror, only: vprecond
   use gsi_4dvar, only: lsqrtb
-  use radinfo, only: newpc4pred
   use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   implicit none

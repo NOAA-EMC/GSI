@@ -9,6 +9,7 @@ module stpcomod
 !
 ! program history log:
 !   2010-06-16  todling - based on stpco
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpco
@@ -28,7 +29,6 @@ PUBLIC stpco
 
 contains
 
-!subroutine stpco(cohead,colvkhead,rval,sval,out,sges,nstep)
 subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -60,17 +60,16 @@ subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-! use obsmod, only: co_ob_type,colvk_ob_type
-  use obsmod, only: colvk_ob_type
   use gridmod, only: latlon1n
   use constants, only: zero_quad
   use gsi_bundlemod, only: gsi_bundle
+  use m_obsNode,  only: obsNode
+  !use m_colvkNode,only: colvkNode
   implicit none
 
 ! Declare passed variables
 
-! type(   co_ob_type),pointer          ,intent(in   ) :: cohead
-  type(colvk_ob_type),pointer          ,intent(in   ) :: colvkhead
+  class(obsNode),pointer,intent(in):: colvkhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   type(gsi_bundle)                    ,intent(in   ) :: sval
   type(gsi_bundle)                    ,intent(in   ) :: rval

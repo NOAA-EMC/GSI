@@ -25,7 +25,9 @@ subroutine evaljo(pjo,kobs,kprt,louter)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: nobs_type,cobstype,obsdiags,obsptr,obscounts
+  use obsmod, only: nobs_type,cobstype,obscounts
+  use obsmod, only: obsdiags
+  use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins
   use constants, only: zero_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_integer,mype
@@ -49,6 +51,7 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   real(r_quad)    :: zjo1(nobs_type)
   real(r_quad)    :: zprods(nobs_type*nobs_bins)
   integer(i_kind) :: iobsgrp(nobs_type,nobs_bins),iobsglb(nobs_type,nobs_bins)
+  type(obs_diag),pointer:: obsptr
 ! ----------------------------------------------------------
 
 zprods(:)=zero_quad

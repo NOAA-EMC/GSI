@@ -18,10 +18,13 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
 !   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-30  ejones   - modify solar angle info passed for calculating
 !                          sunglint in QC routine, get rid of old sun glint calc
+!   2016-03-11  j. guo   - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !   2016-03-21  ejones   - add spatial averaging capability (use SSMI/S spatial averaging)
 !   2016-05-05  ejones   - remove isfcalc; no procedure exists for this for
 !                          AMSR2
 !   2016-07-25  ejones   - made most allocatable arrays static
+!   2016-09-20  j. guo   - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
+!   2017-01-03  todling  - treat save arrays as allocatable
 ! 
 !
 ! input argument list:
@@ -57,7 +60,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
   use radinfo, only: iuse_rad,nusis,jpch_rad,amsr2_method 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one,three,r60inv,two
+  use constants, only: deg2rad,zero,one,three,r60inv,two
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, l4densvar, thin4d
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
@@ -138,6 +141,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   
   real(r_kind),allocatable        :: relative_time_in_seconds(:)
 
+  real(r_kind) :: dlat_earth_deg, dlon_earth_deg
   real(r_kind),pointer :: t4dv,dlon_earth,dlat_earth,crit1
   real(r_kind),pointer :: sat_zen_ang,sat_az_ang    
   real(r_kind),pointer :: sun_zen_ang,sun_az_ang
@@ -146,17 +150,17 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind),pointer :: ifov,iscan,iorbn,inode    
 
   integer(i_kind),allocatable        :: sorted_index(:)
-  integer(i_kind),target,dimension(maxobs) :: ifov_save
-  integer(i_kind),target,dimension(maxobs) :: iscan_save
-  integer(i_kind),target,dimension(maxobs) :: iorbn_save
-  integer(i_kind),target,dimension(maxobs) :: inode_save
-  real(r_kind),target,dimension(maxobs) :: dlon_earth_save
-  real(r_kind),target,dimension(maxobs) :: dlat_earth_save
-  real(r_kind),target,dimension(maxobs) :: sat_zen_ang_save,sat_az_ang_save
-  real(r_kind),target,dimension(maxobs) :: sun_zen_ang_save,sun_az_ang_save
-  real(r_kind),target,dimension(maxobs) :: t4dv_save
-  real(r_kind),target,dimension(maxobs) :: crit1_save
-  real(r_kind),target,dimension(kchanl,maxobs) :: tbob_save
+  integer(i_kind),target,allocatable,dimension(:) :: ifov_save
+  integer(i_kind),target,allocatable,dimension(:) :: iscan_save
+  integer(i_kind),target,allocatable,dimension(:) :: iorbn_save
+  integer(i_kind),target,allocatable,dimension(:) :: inode_save
+  real(r_kind),target,allocatable,dimension(:) :: dlon_earth_save
+  real(r_kind),target,allocatable,dimension(:) :: dlat_earth_save
+  real(r_kind),target,allocatable,dimension(:) :: sat_zen_ang_save,sat_az_ang_save
+  real(r_kind),target,allocatable,dimension(:) :: sun_zen_ang_save,sun_az_ang_save
+  real(r_kind),target,allocatable,dimension(:) :: t4dv_save
+  real(r_kind),target,allocatable,dimension(:) :: crit1_save
+  real(r_kind),target,allocatable,dimension(:,:) :: tbob_save
 
 ! Set standard parameters
   integer(i_kind) ntest
@@ -186,6 +190,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 ! ----------------------------------------------------------------------
 ! Initialize variables
 
+  call init_(kchanl,maxobs)
   do_noise_reduction = .true.
   if (amsr2_method == 0) do_noise_reduction = .false.
 
@@ -492,6 +497,8 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         if (inode == 0) cycle obsloop   ! this indicate duplicated data
      endif
 
+     dlat_earth_deg = dlat_earth
+     dlon_earth_deg = dlon_earth
      dlat_earth     = dlat_earth*deg2rad
      dlon_earth     = dlon_earth*deg2rad
 
@@ -618,8 +625,8 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         data_all(27,itx)= idomsfc(1) + 0.001_r_kind  ! dominate surface type
         data_all(28,itx)= sfcr                       ! surface roughness
         data_all(29,itx)= ff10                       ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg         ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg         ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg             ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg             ! earth relative latitude (degrees)
 
         data_all(32,itx)= val_amsr2
         data_all(33,itx)= itt
@@ -666,6 +673,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   endif
 
+  call clean_
   deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
@@ -674,6 +682,39 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
   return
 
+  contains
+  subroutine init_(kchanl,maxobs)
+  integer(i_kind),intent(in) :: kchanl,maxobs
+
+  allocate(ifov_save(maxobs))
+  allocate(iscan_save(maxobs))
+  allocate(iorbn_save(maxobs))
+  allocate(inode_save(maxobs))
+  allocate(dlon_earth_save(maxobs))
+  allocate(dlat_earth_save(maxobs))
+  allocate(sat_zen_ang_save(maxobs),sat_az_ang_save(maxobs))
+  allocate(sun_zen_ang_save(maxobs),sun_az_ang_save(maxobs))
+  allocate(t4dv_save(maxobs))
+  allocate(crit1_save(maxobs))
+  allocate(tbob_save(kchanl,maxobs))
+
+  end subroutine init_
+
+  subroutine clean_
+
+  deallocate(tbob_save)
+  deallocate(crit1_save)
+  deallocate(t4dv_save)
+  deallocate(sun_zen_ang_save,sun_az_ang_save)
+  deallocate(sat_zen_ang_save,sat_az_ang_save)
+  deallocate(dlat_earth_save)
+  deallocate(dlon_earth_save)
+  deallocate(inode_save)
+  deallocate(iorbn_save)
+  deallocate(iscan_save)
+  deallocate(ifov_save)
+
+  end subroutine clean_
 
 end subroutine read_amsr2
 

@@ -1038,7 +1038,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
 return
 end function dot_prod_cv
 ! ----------------------------------------------------------------------
-real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
+real(r_quad) function qdot_prod_cv(xcv,ycv,mold)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_prod_cv
@@ -1048,10 +1048,11 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2017-03-06  todling - rename interface variable to mold
 !
 !   input argument list:
 !    xcv,ycv
-!    kind
+!    mold      - interface device
 !
 !   output argument list:
 !
@@ -1062,7 +1063,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind)     , intent(in   ) :: kind
+  integer(i_kind)     , intent(in   ) :: mold
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
@@ -1080,7 +1081,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 return
 end function qdot_prod_cv
 ! ----------------------------------------------------------------------
-real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
+real(r_quad) function qdot_prod_cv_eb(xcv,ycv,mold,eb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_prod_cv_eb  copy of qdot_prod_cv for J_ens
@@ -1093,10 +1094,11 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 !
 ! program history log:
 !   2009-09-20  parrish - initial documentation
+!   2017-03-06  todling - rename interface variable to mold
 !
 !   input argument list:
 !    xcv,ycv
-!    kind
+!    mold      - interface device
 !    eb        - eb= 'cost_b' then return J_b in prods
 !                  = 'cost_e' then return J_ens in prods
 !
@@ -1109,7 +1111,7 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind)     , intent(in   ) :: kind
+  integer(i_kind)     , intent(in   ) :: mold
   character(len=*)    , intent(in   ) :: eb
   type(control_vector), intent(in   ) :: xcv, ycv
 

@@ -14,6 +14,8 @@ module stpozmod
 !   2009-01-21  Sienkiewicz - add stpo3l (level ozone) again
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-08-26  guo     - added interfaces for individual obs-types (oz and o3l).
 !
 ! subroutines included:
 !   sub stpoz
@@ -30,6 +32,16 @@ implicit none
 
 PRIVATE
 PUBLIC stpoz
+public:: stpozlay_      ! Non-generic interfaces are needed for now, to allow
+public:: stpozlev_      ! passing-by-reference involkations, such as
+                        !   call stpoz(..,pbcjo(1,i_oz_ob_type,ib),..)
+
+public:: stpozlay       ! Generic interfaces are disirable, where full TKR
+public:: stpozlev       ! matching are required if they are involked, such as
+                        !   call stpoz(..,pbcjo(:,i_oz_ob_type,ib),..)
+
+        interface stpozlay; module procedure stpozlay_; end interface
+        interface stpozlev; module procedure stpozlev_; end interface
 
 contains
 
@@ -66,7 +78,8 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-  use obsmod, only: oz_ob_type,o3l_ob_type,nloz_omi
+  use obsmod   , only: nloz_omi
+  use m_obsNode, only: obsNode
   use gridmod, only: latlon1n
   use constants, only: zero_quad,zero
   use gsi_bundlemod, only: gsi_bundle
@@ -74,8 +87,8 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 
 ! Declare passed variables
 
-  type( oz_ob_type),pointer           ,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  class(obsNode), pointer             ,intent(in   ) :: ozhead
+  class(obsNode), pointer             ,intent(in   ) :: o3lhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   type(gsi_bundle)                    ,intent(in   ) :: sval
   type(gsi_bundle)                    ,intent(in   ) :: rval
@@ -139,16 +152,21 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type,nloz_omi
+  use obsmod, only: nloz_omi
   use constants, only: one,half,two,zero_quad,r3600,zero
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_ozNode , only: ozNode
+  use m_ozNode , only: ozNode_typecast
+  use m_ozNode , only: ozNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer           ,intent(in   ) ::  ozhead
+
+  class(obsNode), pointer             ,intent(in   ) ::  ozhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -165,7 +183,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   real(r_kind),allocatable,dimension(:,:) :: roz,soz
   real(r_kind),pointer,dimension(:,:,:)   :: rozp,sozp
   real(r_kind),dimension(nloz_omi):: val_lay, val_lay1
-  type( oz_ob_type), pointer ::  ozptr
+  type(ozNode), pointer ::  ozptr
 
   real(r_quad) val,val1
 
@@ -195,7 +213,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 ! SBUV OZONE: LAYER O3 and TOTAL O3
 !
 ! Loop over ozone observations
-  ozptr => ozhead
+  ozptr => ozNode_typecast(ozhead)
   do while (associated(ozptr))
      if(ozptr%luse)then
 
@@ -365,7 +383,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     ozptr => ozptr%llpoint
+     ozptr => ozNode_nextcast(ozptr)
 
 ! End of loop over observations
   enddo
@@ -413,16 +431,19 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: o3l_ob_type
   use constants, only: zero,one,half,two,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_o3lNode, only: o3lNode
+  use m_o3lNode, only: o3lNode_typecast
+  use m_o3lNode, only: o3lNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  class(obsNode), pointer             ,intent(in   ) :: o3lhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -436,7 +457,7 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: xhat_dt_oz
   real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),pointer,dimension(:) :: roz1d,soz1d
-  type(o3l_ob_type), pointer :: o3lptr
+  type(o3lNode), pointer :: o3lptr
 
 ! Get pointers and return if not found
   ier=0
@@ -452,7 +473,7 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 
   time_oz = zero
 
-  o3lptr => o3lhead
+  o3lptr => o3lNode_typecast(o3lhead)
 
 ! Loop over level ozone observations
 !
@@ -508,7 +529,7 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     o3lptr => o3lptr%llpoint
+     o3lptr => o3lNode_nextcast(o3lptr)
 
   end do
 
