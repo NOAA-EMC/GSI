@@ -18,4 +18,10 @@ export grib2=0
 export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 
 
+
+#################################################################
+#  C_DATDIR is the location of the cnvstat files  
+#################################################################
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/com2/gfs/prod/}
+
 echo "end CMon_user_settings"
