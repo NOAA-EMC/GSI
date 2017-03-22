@@ -9,6 +9,7 @@ module intpm2_5mod
 !
 ! program history log:
 !   2010-10-15  pagowski - use for in-situ pm2_5
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpm2_5_
@@ -21,6 +22,10 @@ module intpm2_5mod
 !
 !$$$ end documentation block
 
+  use m_obsNode, only: obsNode
+  use m_pm2_5Node, only: pm2_5Node
+  use m_pm2_5Node, only: pm2_5Node_typecast
+  use m_pm2_5Node, only: pm2_5Node_nextcast
   implicit none
   
   private
@@ -60,7 +65,7 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind
     use constants, only: half,one,tiny_r_kind,cg_term,max_varname_length
-    use obsmod, only: pm2_5_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+    use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
     use qcmod, only: nlnqc_iter,varqc_iter
     use jfunc, only: jiter
     use gsi_bundlemod, only: gsi_bundle
@@ -73,7 +78,7 @@ contains
     implicit none
     
 ! declare passed variables
-    type(pm2_5_ob_type),pointer,intent(in   ) :: pm2_5head
+    class(obsNode) ,pointer,intent(in   ) :: pm2_5head
     type(gsi_bundle)       ,intent(in   ) :: sval
     type(gsi_bundle)       ,intent(inout) :: rval
     
@@ -84,7 +89,7 @@ contains
     real(r_kind) cg_pm2_5,val,p0,grad,wnotgross,wgross,pm2_5_pg
     real(r_kind),pointer,dimension(:) :: spm2_5
     real(r_kind),pointer,dimension(:) :: rpm2_5
-    type(pm2_5_ob_type), pointer :: pm2_5ptr
+    type(pm2_5Node), pointer :: pm2_5ptr
 
     character(len=max_varname_length) :: aeroname
     
@@ -101,7 +106,8 @@ contains
 
        if(ier/=0) return
 
-       pm2_5ptr => pm2_5head
+       !pm2_5ptr => pm2_5head
+       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
        do while (associated(pm2_5ptr))
           j1=pm2_5ptr%ij(1)
           j2=pm2_5ptr%ij(2)
@@ -170,7 +176,8 @@ contains
 
           endif
 
-          pm2_5ptr => pm2_5ptr%llpoint
+          !pm2_5ptr => pm2_5ptr%llpoint
+          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
 
        end do
 
@@ -178,7 +185,8 @@ contains
 
     if (wrf_mass_regional .and. laeroana_gocart) then
 
-       pm2_5ptr => pm2_5head
+       !pm2_5ptr => pm2_5head
+       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
        do while (associated(pm2_5ptr))
           j1=pm2_5ptr%ij(1)
           j2=pm2_5ptr%ij(2)
@@ -575,7 +583,8 @@ contains
 
           endif
 
-          pm2_5ptr => pm2_5ptr%llpoint
+          !pm2_5ptr => pm2_5ptr%llpoint
+          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
 
        end do
 

@@ -15,6 +15,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data
@@ -202,8 +203,12 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
               lagdata(2,ndata)=r4dtime
               lagdata(idlon,ndata)=rlongrid           ! grid relative longitude
               lagdata(idlat,ndata)=rlatgrid           ! grid relative lattitude
-              lagdata(5,ndata)=rlonrad                ! longitude (radians)
-              lagdata(6,ndata)=rlatrad                ! lattitude (radians)
+
+              !lagdata(5,ndata)=rlonrad                ! longitude (radians)
+              !lagdata(6,ndata)=rlatrad                ! lattitude (radians)
+              lagdata(5,ndata)=rlon                   ! longitude (degrees)
+              lagdata(6,ndata)=rlat                   ! lattitude (degrees)
+
               lagdata(7,ndata)=rpress                 ! Pressure (hPa)
               lagdata(8,ndata)=real(ikx,r_kind)       ! ob type (convinfo)
               lagdata(9,ndata)=zero                   ! localization error (meters)

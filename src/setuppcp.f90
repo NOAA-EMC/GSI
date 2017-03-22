@@ -45,10 +45,14 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
 
-  use obsmod, only: ndat,dplat,pcphead,pcptail,time_offset
+  use obsmod, only: ndat,dplat,time_offset
+  use m_obsdiags, only: pcphead
+  use obsmod, only: time_offset
   use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
-  use obsmod, only: pcp_ob_type
+  use m_obsNode, only: obsNode
+  use m_pcpNode, only: pcpNode
+  use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
@@ -140,17 +144,21 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check(), and
-!			  new arguments init_pass and last_pass.
-!			- fixed a bug of using "i" instead of "n" when setting the
-!			  vericiation index of obsdiag.
+!                         new arguments init_pass and last_pass.
+!                       - fixed a bug of using "i" instead of "n" when setting the
+!                         vericiation index of obsdiag.
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
-!			- fixed a bug in diag header output while is not init_pass.
+!                       - fixed a bug in diag header output while is not init_pass.
 !   2011-05-01  todling - add metguess-bundle; cwmr no longer in guess-grids
 !   2013-10-19  todling - metguess now holds background
 !                         tendencies now in bundle
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-08-31  thomas - Added 4DEnVar to logical to exclude downweighting of
 !                        obs away from center of window 
+!   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
+!                       . removed (%dlat,%dlon) debris.
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -185,6 +193,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   logical ssmi,amsu,tmi,stage3,muse
   logical land,coast,ice
   logical,allocatable,dimension(:):: luse
+  integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
   character(10) filex
   character(12) string        
@@ -253,7 +262,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   logical   proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  type(pcp_ob_type),pointer:: my_head
+  class(obsNode),pointer:: my_node
+  type(pcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
@@ -359,8 +369,7 @@ endif
 !    Load data array for current satellite
   allocate(data_p(nele,nobs))
   allocate(luse(nobs))
-  read(lunin) data_p,luse
-
+  read(lunin) data_p,luse,ioid
 
 ! Index information for data array (see reading routine)
   isatid  = 1     ! index of satellite id
@@ -513,9 +522,10 @@ endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if(luse_obsdiag)then
+     if (luse_obsdiag) then
         if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%head)) then
+              obsdiags(i_pcp_ob_type,ibin)%n_alloc = 0
               allocate(obsdiags(i_pcp_ob_type,ibin)%head,stat=istat)
               if (istat/=0) then
                  write(6,*)'setuppcp: failure to allocate obsdiags',istat
@@ -530,31 +540,38 @@ endif
               end if
               obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
            end if
+           obsdiags(i_pcp_ob_type,ibin)%n_alloc = obsdiags(i_pcp_ob_type,ibin)%n_alloc +1
+    
            allocate(obsdiags(i_pcp_ob_type,ibin)%tail%muse(miter+1))
            allocate(obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(miter+1))
            allocate(obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(miter))
            allocate(obsdiags(i_pcp_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_pcp_ob_type,ibin)%tail%indxglb=n
+           obsdiags(i_pcp_ob_type,ibin)%tail%indxglb=ioid(n)
            obsdiags(i_pcp_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_pcp_ob_type,ibin)%tail%luse=.false.
+           obsdiags(i_pcp_ob_type,ibin)%tail%luse=luse(n)
            obsdiags(i_pcp_ob_type,ibin)%tail%muse(:)=.false.
            obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
            obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(:)=zero
            obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_pcp_ob_type,ibin)%tail%obssen(:)=zero
-
+    
            n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_pcp_ob_type,ibin)%tail
            my_diag%idv = is
-           my_diag%iob = n
+           my_diag%iob = ioid(n)
            my_diag%ich = 1
+           my_diag%elat= data_p(ilate,n)
+           my_diag%elon= data_p(ilone,n)
         else
            if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
               obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
            else
               obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
            end if
-           if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=n) then
+           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
+              call die(myname,'.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)')
+           end if
+           if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=ioid(n)) then
               write(6,*)'setuppcp: index error'
               call stop2(265)
            end if
@@ -627,7 +644,7 @@ endif
      if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itimp), istatus =',istatus)
 
 !    Set and save spatial interpolation indices and weights.
-     call get_ij(mm1,slats,slons,jgrd,wgrd,ixx,iyy)
+     call get_ij(mm1,slats,slons,jgrd,wgrd,jjlat=ixx,jjlon=iyy)
      ixp=ixx+1
      iyp=iyy+1
 !    Loop over surrounding analysis gridpoints
@@ -944,14 +961,13 @@ endif
      endif
 
      muse= (varinv>r1em6.and.iusep(kx)>=1)
-     if(luse_obsdiag)then
-        if (nobskeep>0) muse=obsdiags(i_pcp_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) muse=obsdiags(i_pcp_ob_type,ibin)%tail%muse(nobskeep)
 
-        obsdiags(i_pcp_ob_type,ibin)%tail%luse=luse(n)
+     if (luse_obsdiag) then
         obsdiags(i_pcp_ob_type,ibin)%tail%muse(jiter)=muse
         obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(jiter)= drad
         obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo= varinv
-     end if
+     endif
 
 
 !
@@ -963,62 +979,59 @@ endif
      if (muse) then
         ncnt  = ncnt+1
 
-        if(.not. associated(pcphead(ibin)%head))then
-           allocate(pcphead(ibin)%head,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write pcphead '
-           pcptail(ibin)%head => pcphead(ibin)%head
-        else
-           allocate(pcptail(ibin)%head%llpoint,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write pcptail%llpoint '
-           pcptail(ibin)%head => pcptail(ibin)%head%llpoint
-        end if
-
+        allocate(my_head)
         m_alloc(ibin) = m_alloc(ibin) +1
-        my_head => pcptail(ibin)%head
-        my_head%idv = is
-        my_head%iob = n
+        my_node => my_head        ! this is a workaround
+        call obsLList_appendNode(pcphead(ibin),my_node)
+        my_node => null()
 
-        allocate(pcptail(ibin)%head%predp(npredp),pcptail(ibin)%head%dpcp_dvar(nsig5), &
+        my_head%idv = is
+        my_head%iob = ioid(n)
+        my_head%elat= data_p(ilate,n)
+        my_head%elon= data_p(ilone,n)
+
+        allocate(my_head%predp(npredp),my_head%dpcp_dvar(nsig5), &
              stat=istat)
-        if(istat /= 0)write(6,*)' failure to write pcptail arrays '
+        if(istat /= 0)write(6,*)' failure to write pcphead arrays '
 
         do m=1,4
-           pcptail(ibin)%head%ij(m)=jgrd(m)
-           pcptail(ibin)%head%wij(m)=wgrd(m)
+           my_head%ij(m)=jgrd(m)
+           my_head%wij(m)=wgrd(m)
         end do
 
-        pcptail(ibin)%head%err2=one/error0**2
-        pcptail(ibin)%head%raterr2=error0**2*varinv
+        my_head%err2=one/error0**2
+        my_head%raterr2=error0**2*varinv
         do m=1,npredp
-           pcptail(ibin)%head%predp(m)=pred(m)
+           my_head%predp(m)=pred(m)
         end do
-        pcptail(ibin)%head%obs=log(one+satpcp)
-        pcptail(ibin)%head%ges=pcpbc
-        pcptail(ibin)%head%time=dtime
+        my_head%obs=log(one+satpcp)
+        my_head%ges=pcpbc
+        my_head%time=dtime
         do m=1,nsig
-           pcptail(ibin)%head%dpcp_dvar(m)=t0_ad(m)
-           pcptail(ibin)%head%dpcp_dvar(m+nsig)=q0_ad(m)
-           pcptail(ibin)%head%dpcp_dvar(m+nsig2)=u0_ad(m)
-           pcptail(ibin)%head%dpcp_dvar(m+nsig3)=v0_ad(m)
-           pcptail(ibin)%head%dpcp_dvar(m+nsig4)=cwm0_ad(m)
-!          pcptail(ibin)%head%dpcp_dvar(m+nsig5)=div0_ad(m)  !need to increase size
+           my_head%dpcp_dvar(m)=t0_ad(m)
+           my_head%dpcp_dvar(m+nsig)=q0_ad(m)
+           my_head%dpcp_dvar(m+nsig2)=u0_ad(m)
+           my_head%dpcp_dvar(m+nsig3)=v0_ad(m)
+           my_head%dpcp_dvar(m+nsig4)=cwm0_ad(m)
+!          my_head%dpcp_dvar(m+nsig5)=div0_ad(m)  !need to increase size
         end do
-        pcptail(ibin)%head%icxp=kx
-        pcptail(ibin)%head%luse=luse(n)
-        if(luse_obsdiag)then
-           pcptail(ibin)%head%diags => obsdiags(i_pcp_ob_type,ibin)%tail
+        my_head%icxp=kx
+        my_head%luse=luse(n)
 
-           my_head => pcptail(ibin)%head
-           my_diag => pcptail(ibin)%head%diags
+        if (luse_obsdiag) then
+           my_head%diags => obsdiags(i_pcp_ob_type,ibin)%tail
+
+           my_diag => my_head%diags
            if(my_head%idv /= my_diag%idv .or. &
               my_head%iob /= my_diag%iob ) then
               call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                    (/is,n,ibin/))
+                        (/is,ioid(n),ibin/))
               call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
         endif
+        my_head => null()
      end if
 
      if(luse(n))then

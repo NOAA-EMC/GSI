@@ -58,8 +58,6 @@ subroutine wrwrfnmma_binary(mype)
   use mpeu_util, only: die
   use native_endianness, only: byte_swap
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
-  use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
-  use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
   use radiance_mod, only: n_actual_clouds,icloud_cv
   use gfs_stratosphere, only: revert_to_nmmb,restore_nmmb_gfs
   use mpeu_util, only: die

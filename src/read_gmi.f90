@@ -35,12 +35,15 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         edge obs are skipped in the read loop. 
 !   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
+!   2015-10-01  guo     - Fixed dlxx_earth_deg, to avoid truncation errors
 !   2016-03-04  ejones  - add spatial averaging capability (use SSMI/S spatial averaging)
 !   2016-04-29  ejones  - update some mnemonics for expected operational bufr
 !                         tanks
 !   2016-07-25  ejones  - increase maxobs, remove fov binning, make most arrays
 !                         static
+!   2016-03-11  guo     - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
 !   2016-10-05  acollard -Fix interaction with NSST.
+!   2017-01-03  todling - treat save arrays as allocatable
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -78,7 +81,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,use_edges, &
+  use radinfo, only: iuse_rad,jpch_rad,nusis,use_edges, &
                      radedge1,radedge2,gmi_method
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
@@ -180,6 +183,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind):: sat_def_ang,sat_def_ang2    
   real(r_kind),allocatable        :: relative_time_in_seconds(:)
 
+  real(r_kind) :: dlon_earth_deg,dlat_earth_deg
   real(r_kind),pointer :: t4dv,dlon_earth,dlat_earth,crit1
   real(r_kind),pointer :: sat_zen_ang,sat_zen_ang2,sat_azimuth_ang,sat_azimuth_ang2
   real(r_kind),pointer :: sat_scan_ang,sat_scan_ang2
@@ -188,24 +192,24 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind),allocatable        :: sorted_index(:)
 
-  integer(i_kind),target,dimension(maxobs) :: ifov_save
-  integer(i_kind),target,dimension(maxobs) :: iscan_save
-  integer(i_kind),target,dimension(maxobs) :: iorbn_save
-  integer(i_kind),target,dimension(maxobs) :: inode_save
-  real(r_kind),target,dimension(maxobs)    :: dlon_earth_save
-  real(r_kind),target,dimension(maxobs)    :: dlat_earth_save
-  real(r_kind),target,dimension(maxobs)    :: sat_zen_ang_save,sat_azimuth_ang_save,sat_scan_ang_save
-  real(r_kind),target,dimension(maxobs)    :: sat_zen_ang2_save,sat_azimuth_ang2_save,sat_scan_ang2_save
-  real(r_kind),target,dimension(maxobs)    :: t4dv_save
-  real(r_kind),target,dimension(maxobs)    :: crit1_save
-  real(r_kind),target,dimension(maxchanl,maxobs) :: tbob_save
+  integer(i_kind),target,allocatable,dimension(:) :: ifov_save
+  integer(i_kind),target,allocatable,dimension(:) :: iscan_save
+  integer(i_kind),target,allocatable,dimension(:) :: iorbn_save
+  integer(i_kind),target,allocatable,dimension(:) :: inode_save
+  real(r_kind),target,allocatable,dimension(:)    :: dlon_earth_save
+  real(r_kind),target,allocatable,dimension(:)    :: dlat_earth_save
+  real(r_kind),target,allocatable,dimension(:)    :: sat_zen_ang_save,sat_azimuth_ang_save,sat_scan_ang_save
+  real(r_kind),target,allocatable,dimension(:)    :: sat_zen_ang2_save,sat_azimuth_ang2_save,sat_scan_ang2_save
+  real(r_kind),target,allocatable,dimension(:)    :: t4dv_save
+  real(r_kind),target,allocatable,dimension(:)    :: crit1_save
+  real(r_kind),target,allocatable,dimension(:,:)  :: tbob_save
+  real(r_kind),target,allocatable,dimension(:)    :: sun_zenith_save,sun_azimuth_ang_save
 
 
 ! ---- sun glint ----
   integer(i_kind):: doy,mday(12),mon,m,mlen(12)
   real(r_kind)   :: time_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc
   real(r_kind),pointer :: sun_zenith,sun_azimuth_ang
-  real(r_kind),target,dimension(maxobs)    :: sun_zenith_save,sun_azimuth_ang_save
 
   data  mlen/31,28,31,30,31,30, &
              31,31,30,31,30,31/
@@ -220,6 +224,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !**************************************************************************
 
 ! Initialize variables
+  call init_(maxchanl,maxobs)
   use_swath_edge = .false.
 
   do_noise_reduction = .true.
@@ -549,6 +554,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         if (inode == 0) cycle obsloop   ! this indicate duplicated data
      endif 
 
+     dlat_earth_deg = dlat_earth
+     dlon_earth_deg = dlon_earth
      dlat_earth     = dlat_earth*deg2rad
      dlon_earth     = dlon_earth*deg2rad
 
@@ -677,8 +684,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
     data_all(27,itx)= idomsfc + 0.001_r_kind ! dominate surface type
     data_all(28,itx)= sfcr                 ! surface roughness
     data_all(29,itx)= ff10                 ! ten meter wind factor
-    data_all(30,itx)= dlon_earth*rad2deg   ! earth relative longitude (degrees)
-    data_all(31,itx)= dlat_earth*rad2deg   ! earth relative latitude (degrees)
+    data_all(30,itx)= dlon_earth_deg       ! earth relative longitude (degrees)
+    data_all(31,itx)= dlat_earth_deg       ! earth relative latitude (degrees)
 
     if(dval_use) then
        data_all(32,itx)= val_gmi
@@ -807,6 +814,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 ! Deallocate satthin arrays
 1000 continue
   call destroygrids
+  call clean_
 
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
      write(6,*)'READ_GMI:  mype,ntest,disterrmax=',&
@@ -814,6 +822,37 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 ! End of routine
  return
+ contains
+ subroutine init_(maxchanl,maxobs)
+  integer(i_kind),intent(in) :: maxchanl,maxobs
+  allocate(ifov_save(maxobs))
+  allocate(iscan_save(maxobs))
+  allocate(iorbn_save(maxobs))
+  allocate(inode_save(maxobs))
+  allocate(dlon_earth_save(maxobs))
+  allocate(dlat_earth_save(maxobs))
+  allocate(sat_zen_ang_save(maxobs),sat_azimuth_ang_save(maxobs),sat_scan_ang_save(maxobs))
+  allocate(sat_zen_ang2_save(maxobs),sat_azimuth_ang2_save(maxobs),sat_scan_ang2_save(maxobs))
+  allocate(t4dv_save(maxobs))
+  allocate(crit1_save(maxobs))
+  allocate(tbob_save(maxchanl,maxobs))
+  allocate(sun_zenith_save(maxobs),sun_azimuth_ang_save(maxobs))
+ end subroutine init_
+ subroutine clean_
+  deallocate(sun_zenith_save,sun_azimuth_ang_save)
+  deallocate(tbob_save)
+  deallocate(crit1_save)
+  deallocate(t4dv_save)
+  deallocate(sat_zen_ang2_save,sat_azimuth_ang2_save,sat_scan_ang2_save)
+  deallocate(sat_zen_ang_save,sat_azimuth_ang_save,sat_scan_ang_save)
+  deallocate(dlat_earth_save)
+  deallocate(dlon_earth_save)
+  deallocate(inode_save)
+  deallocate(iorbn_save)
+  deallocate(iscan_save)
+  deallocate(ifov_save)
+ end subroutine clean_
+
 end subroutine read_gmi
 
 

@@ -26,8 +26,7 @@ interface gsi_enscoupler_localization_grid
    use kinds, only: i_kind,r_kind
    use gridmod, only: rlats,rlons
    implicit none
-   !  Declare passed variables
-   real(r_kind),intent(out) :: elats(size(rlats)),elons(size(rlons)) ! worst hack ever
+   real(r_kind),intent(out) :: elats(size(rlats)),elons(size(rlons)) ! worse hack ever
    end subroutine non_gaussian_ens_grid_
 end interface
 
@@ -37,27 +36,27 @@ interface gsi_enscoupler_get_user_ens
    use gsi_bundlemod, only: gsi_bundle
    use general_sub2grid_mod, only: sub2grid_info
    implicit none
-   !  Declare passed variables
-   type(sub2grid_info),intent(in   ) :: grd
-   integer(i_kind)    ,intent(in   ) :: member  ! member index
-   integer(i_kind)    ,intent(in   ) :: ntindex ! time index
-   type(gsi_bundle)   ,intent(inout) :: en_read
-   integer(i_kind)    ,intent(  out) :: iret
+!  Declare passed variables
+      type(sub2grid_info)                   ,intent(in   ) :: grd
+      integer(i_kind)                       ,intent(in   ) :: member  ! member index
+      integer(i_kind)                       ,intent(in   ) :: ntindex ! time index
+      type(gsi_bundle)                      ,intent(inout) :: en_read
+      integer(i_kind)                       ,intent(  out) :: iret
    end subroutine get_user_ens_
 end interface
 
 interface gsi_enscoupler_put_gsi_ens
-   subroutine put_gsi_ens_(grd,member,ntindex,en_write,iret)
+   subroutine put_gsi_ens_(grd,member,nt,pert,iret)
    use kinds, only: i_kind,r_kind
    use general_sub2grid_mod, only: sub2grid_info
    use gsi_bundlemod, only: gsi_bundle
    implicit none
-   !  Declare passed variables
-   type(sub2grid_info),intent(in   ) :: grd
-   integer(i_kind),    intent(in   ) :: member
-   integer(i_kind),    intent(in   ) :: ntindex
-   type(gsi_bundle),   intent(inout) :: en_write
-   integer(i_kind),    intent(  out) :: iret
+!  Declare passed variables
+      integer(i_kind),    intent(in   ) :: member
+      integer(i_kind),    intent(in   ) :: nt
+      type(sub2grid_info),intent(in   ) :: grd
+      type(gsi_bundle),   intent(inout) :: pert
+      integer(i_kind),    intent(  out) :: iret
    end subroutine put_gsi_ens_
 end interface
 

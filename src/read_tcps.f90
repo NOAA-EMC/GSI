@@ -13,6 +13,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
 !                         maxdat to 10; remove i_kind suffix from integer 
 !                         constants; 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     infile   - unit from which to read ascii file
@@ -31,7 +32,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
 !$$$
   use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nlat,nlon,rlats,rlons,regional,tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one_tenth,one
+  use constants, only: deg2rad,zero,one_tenth,one
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim,&
@@ -58,6 +59,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
   equivalence(rstation_id,station_id)
 
   real(r_kind) dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
   real(r_kind) psdif,alpha
@@ -132,6 +134,8 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
 
      if (olon >= r360) olon=olon-r360
      if (olon < zero)  olon=olon+r360
+     dlat_earth_deg = olat
+     dlon_earth_deg = olon
      dlat_earth = olat * deg2rad
      dlon_earth = olon * deg2rad
      if(regional)then
@@ -160,8 +164,8 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
      cdata_all(4,ndata)=pob                   ! pressure in cb 
      cdata_all(5,ndata)=toff                  ! obs time (analyis relative hour)
      cdata_all(6,ndata)=ikx                   ! obs type
-     cdata_all(7,ndata)=dlon_earth*rad2deg    ! earth relative longitude (degrees)
-     cdata_all(8,ndata)=dlat_earth*rad2deg    ! earth relative latitude (degrees)
+     cdata_all(7,ndata)=dlon_earth_deg        ! earth relative longitude (degrees)
+     cdata_all(8,ndata)=dlat_earth_deg        ! earth relative latitude (degrees)
      cdata_all(9,ndata)=usage                 ! usage parameter
      cdata_all(10,ndata)=rstation_id          ! storm name (centerid_stormid)
 
