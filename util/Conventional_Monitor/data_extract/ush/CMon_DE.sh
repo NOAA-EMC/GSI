@@ -143,11 +143,10 @@ export GCYC=`echo $GDATE|cut -c9-10`
 export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
-#################
-# testing only:
-#################
-export C_DATDIR=${C_DATDIR:-/com2/gfs/prod/gdas.$PDY}
-export C_GDATDIR=${C_GDATDIR:-/com2/gfs/prod/gdas.$PDYm6h}
+
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/com2/gfs/prod}
+export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/gdas.$PDY}
+export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/gdas.$PDYm6h}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
