@@ -1040,12 +1040,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
   real(r_kind),dimension(nsig)  :: poz
-  real(r_kind),dimension(nsig)  :: rh,qs,qclr
+  real(r_kind),dimension(nsig)  :: rh,qs
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
-  real(r_kind) cf
   real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:  )::psges_itsig =>NULL()
@@ -1168,7 +1167,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   iqs=iqs+istatus
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
-!$omp parallel do  schedule(dynamic,1) private(k,cf,ii,iii)
+!$omp parallel do  schedule(dynamic,1) private(k,ii,iii)
   do k=1,nsig
     if(k == 1)then
         jacobian=zero

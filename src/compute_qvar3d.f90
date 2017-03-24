@@ -54,18 +54,13 @@ subroutine compute_qvar3d
 
 ! Declare local variables
   logical ice
-  integer(i_kind) :: i,j,k,it,ii,n,np,iderivative,nrf3_q,nrf3_cw
+  integer(i_kind) :: i,j,k,it,n,np,iderivative,nrf3_q,nrf3_cw
   integer(i_kind) :: ic,nrf3_var
   real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
   integer(i_kind):: istatus,ier
-  integer(i_kind),dimension(nlat,nsig):: ntmp
   real(r_kind):: cwtmp
-  real(r_kind),dimension(nlat,nsig):: work_cw
-  real(r_kind),dimension(nlat,nsig):: cw_avg
-  real(r_kind),dimension(lat2*lon2*nsig):: cw_tmp
-  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work
   real(r_kind),pointer,dimension(:,:,:):: ges_var=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()

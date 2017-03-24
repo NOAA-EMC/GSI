@@ -849,7 +849,7 @@ contains
   end subroutine radiance_ex_obserr_1
 
   subroutine radiance_ex_biascor_1(radmod,nchanl,tsim_bc,tsavg5,zasat, & 
-                       clw_guess_retrieval,clwp_amsua,cld_rbc_idx,ierrret,scat)
+                       clw_guess_retrieval,clwp_amsua,cld_rbc_idx,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    radiance_ex_biascor_1
@@ -880,7 +880,6 @@ contains
     real(r_kind),dimension(nchanl)    ,intent(inout) :: cld_rbc_idx
     real(r_kind)                      ,intent(inout) :: clwp_amsua
     real(r_kind)                      ,intent(inout) :: clw_guess_retrieval
-    real(r_kind),optional             ,intent(inout) :: scat
     type(rad_obs_type)                ,intent(in)    :: radmod
     integer(i_kind)                   ,intent(  out) :: ierrret
 
@@ -888,7 +887,7 @@ contains
 
 ! -- amsua
     if (trim(radmod%rtype) =='amsua') then
-!      call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat) 
+!      call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret) 
        call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
        do i=1,nchanl
           if ((clwp_amsua-cloudy_amsua%cclr(i))*(clw_guess_retrieval-cloudy_amsua%cclr(i))<zero  &
