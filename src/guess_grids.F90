@@ -1022,6 +1022,8 @@ contains
 !   2006-07-31  kleist  - use ges_ps instead of ln(ps)
 !   2007-05-08  kleist  - add fully generalized coordinate for pressure calculation
 !   2011-07-07  todling - add cap for log(pressure) calculation
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!                         core
 !
 ! !REMARKS:
 !   language: f90
@@ -1066,7 +1068,8 @@ contains
                               pt_ll)
 
                    if (wrf_mass_regional .or. twodvar_regional .or. cmaq_regional ) &      
-                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + pt_ll)
+                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + &
+                                                    eta2_ll(k) + pt_ll)
                 else
                    if (idvc5==1 .or. idvc5==2) then
                       ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j))
@@ -1115,7 +1118,8 @@ contains
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+pt_ll)
+                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+&
+                                                    aeta2_ll(k) + pt_ll)
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
                    end do
                 end do
@@ -1173,7 +1177,7 @@ contains
           end do
        else
           do k=1,nsig
-             ges_prslavg(k)=aeta1_ll(k)*(r1013-pt_ll)+pt_ll
+             ges_prslavg(k)=aeta1_ll(k)*(r1013-pt_ll)+aeta2_ll(k) + pt_ll
           end do
        endif
     endif
@@ -1503,7 +1507,7 @@ contains
 
              do k=1,nsig
 
-                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps_01(i,j)*ten-pt_ll)+pt_ll
+                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps_01(i,j)*ten-pt_ll)+aeta2_ll(k)+pt_ll
 		if (nems_nmmb_regional) then
 		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j) & 
 		            -pdtop_ll-pt_ll) + pt_ll   			    			    
