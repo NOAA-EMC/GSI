@@ -612,7 +612,7 @@ end subroutine berror_read_bal_reg
            if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
               ivar=n
               do k=1,nsig
-                 do i=1,nlat
+                 do i=1,mlat
                     corz(i,k,ivar)=one
                  end do
               end do
