@@ -282,6 +282,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 !                          simplify, fix memory leaks, reduce memory footprint.
 !                          use genqsat, remove genqsat2_regional.
 !                          replace bare 'stop' statements with call stop2(999).
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core  
 !
 !   input argument list:
 !
@@ -298,7 +299,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
     use kinds, only: r_kind,r_single,i_kind
-    use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll
+    use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
     use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
     use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
@@ -322,7 +323,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     real(r_single),allocatable,dimension(:,:):: temp_2d,temp_2d2
     real(r_single),allocatable,dimension(:,:,:):: temp_3d
     real(r_kind),allocatable,dimension(:):: p_top
-    real(r_kind),allocatable,dimension(:,:):: q_integral,gg_ps
+    real(r_kind),allocatable,dimension(:,:):: q_integral,gg_ps,q_integralc4h
     real(r_kind),allocatable,dimension(:,:,:):: tsn,qst,prsl,&
      gg_u,gg_v,gg_tv,gg_rh
     real(r_kind),allocatable,dimension(:):: wrk_fill_2d
@@ -576,12 +577,15 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
 ! INTEGRATE {1 + WATER VAPOR} TO CONVERT DRY AIR PRESSURE    
     !print *, 'integrate 1 + q vertically ',filename
     allocate(q_integral(ny,nx))
+    allocate(q_integralc4h(ny,nx))
     q_integral(:,:)=one
+    q_integralc4h=0.0_r_single
     do i=1,nx
        do j=1,ny
           do k=1,nz
              deltasigma=eta1_ll(k)-eta1_ll(k+1)
              q_integral(j,i)=q_integral(j,i)+deltasigma*gg_rh(j,i,k)
+             q_integralc4h(j,i)=q_integralc4h(j,i)+(eta2_ll(k)-eta2_ll(k+1))*gg_rh(j,i,k)
           enddo
        enddo
     enddo
@@ -599,7 +603,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     do i=1,nx
        do j=1,ny
           psfc_this_dry=r0_01*gg_ps(j,i)
-          psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
+          psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll+q_integralc4h(j,i)
           gg_ps(j,i)=one_tenth*psfc_this  ! convert from mb to cb
        end do
     end do
@@ -610,7 +614,8 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     do k=1,nz
        do i=1,nx
           do j=1,ny
-             work_prsl  = one_tenth*(aeta1_ll(k)*(r10*gg_ps(j,i)-pt_ll)+pt_ll)
+             work_prsl  = one_tenth*(aeta1_ll(k)*(r10*gg_ps(j,i)-pt_ll)+&
+                                     aeta2_ll(k) + pt_ll)
              prsl(j,i,k)=work_prsl
              work_prslk = (work_prsl/r100)**rd_over_cp_mass
              ! sensible temp from pot temp

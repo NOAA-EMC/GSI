@@ -41,6 +41,8 @@ subroutine wrwrfmassa_binary(mype)
 !                               and nsoil (number of soil levels)
 !   2015-01-15  hu     - add i_snowT_check to control temperature adjustment
 !                               over snow  
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!                               core
 !
 !   input argument list:
 !     mype     - pe number
@@ -61,7 +63,7 @@ subroutine wrwrfmassa_binary(mype)
   use wrf_mass_guess_mod, only: ges_tten
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,nsig_soil,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
-       aeta1_ll
+       aeta1_ll,eta2_ll,aeta2_ll
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
@@ -104,7 +106,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) i_sst,i_tsk
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind):: work_prsl,work_prslk
-  real(r_kind),dimension(lat1+2,lon1+2):: q_integral
+  real(r_kind),dimension(lat1+2,lon1+2):: q_integral,q_integralc4h
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
@@ -119,7 +121,7 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) mfcst
   integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
   real(r_single) pt_regional_single
-  real(r_kind) deltasigma
+  real(r_kind) deltasigma,deltasigmac4h
   integer(i_kind) ip1,jp1
   character(1) chdrbuf(2048)
   integer(i_kind) iadd,ier,istatus,n_actual_clouds
@@ -543,6 +545,7 @@ subroutine wrwrfmassa_binary(mype)
   ku=i_u-1
   kv=i_v-1
   q_integral=one
+  q_integralc4h=zero_single
 ! for hydrometeors
   if(l_cloud_analysis .or. n_actual_clouds>0) then
 !    get pointer to relevant instance of cloud-related backgroud
@@ -576,6 +579,7 @@ subroutine wrwrfmassa_binary(mype)
   endif
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+1)
+     deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -599,7 +603,7 @@ subroutine wrwrfmassa_binary(mype)
 
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1)-pt_ll)+aeta2_ll(k)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(jp1,ip1,k,it)/work_prslk
 
@@ -623,6 +627,7 @@ subroutine wrwrfmassa_binary(mype)
            endif
 
            q_integral(jp1,ip1)=q_integral(jp1,ip1)+deltasigma*ges_q(jp1,ip1,k)/(one-ges_q(jp1,ip1,k))
+           q_integralc4h(jp1,ip1)=q_integralc4h(jp1,ip1)+deltasigmac4h*ges_q(jp1,ip1,k)/(one-ges_q(jp1,ip1,k))
 
         end do
      end do
@@ -633,7 +638,7 @@ subroutine wrwrfmassa_binary(mype)
      do j=1,lat1
         jp1=j+1
         psfc_this=r10*ges_ps(jp1,ip1)   ! convert from cb to mb
-        psfc_this_dry=pt_ll+(psfc_this-pt_ll)/q_integral(jp1,ip1)
+        psfc_this_dry=pt_ll+((psfc_this-pt_ll)-q_integralc4h(jp1,ip1))/q_integral(jp1,ip1)
         all_loc(j,i,i_mu)=r100*psfc_this_dry
      end do
   end do
@@ -1660,6 +1665,8 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
+!   2017-03-23  Hu     - add code to use hybrid vertical coodinate in WRF MASS
+!                        core
 !
 !   input argument list:
 !     mype     - pe number
@@ -1679,7 +1686,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,nsig_soil,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
-       aeta1_ll,strip
+       aeta1_ll,strip,eta2_ll,aeta2_ll
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
@@ -1715,11 +1722,11 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0,nsoil
   integer(i_kind) n_actual_clouds,ier,istatus
   real(r_kind) psfc_this,psfc_this_dry
-  real(r_kind),dimension(lat2,lon2):: q_integral
-  real(r_kind) deltasigma
+  real(r_kind),dimension(lat2,lon2):: q_integral,q_integralc4h
+  real(r_kind) deltasigma,deltasigmac4h
   real(r_kind):: work_prsl,work_prslk
   real(r_single) pt0
-  real(r_single) aeta10(nsig),eta10(nsig+1)
+  real(r_single) aeta10(nsig),eta10(nsig+1),aeta20(nsig),eta20(nsig+1)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
 
@@ -1954,8 +1961,10 @@ subroutine wrwrfmassa_netcdf(mype)
 
 
   q_integral=one
+  q_integralc4h=zero_single
   do k=1,nsig
      deltasigma=eta1_ll(k)-eta1_ll(k+1)
+     deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -1988,7 +1997,7 @@ subroutine wrwrfmassa_netcdf(mype)
            all_loc(j,i,kv)=ges_v(j,i,k)
 
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(j,i)-pt_ll)+aeta2_ll(k)+pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            all_loc(j,i,kt) = ges_tsen(j,i,k,it)/work_prslk
 
@@ -2031,13 +2040,15 @@ subroutine wrwrfmassa_netcdf(mype)
 
            q_integral(j,i)=q_integral(j,i)+deltasigma* &
                 ges_q(j,i,k)/(one-ges_q(j,i,k))
+           q_integralc4h(j,i)=q_integralc4h(j,i)+deltasigmac4h* &
+                ges_q(j,i,k)/(one-ges_q(j,i,k))
         end do
      end do
   end do
   do i=1,lon2
      do j=1,lat2
         psfc_this=r10*ges_ps(j,i)   ! convert from cb to mb
-        psfc_this_dry=pt_ll+(psfc_this-pt_ll)/q_integral(j,i)
+        psfc_this_dry=pt_ll+((psfc_this-pt_ll)-q_integralc4h(j,i))/q_integral(j,i)
         all_loc(j,i,i_psfc)=r100*psfc_this_dry
      end do
   end do
@@ -2045,10 +2056,10 @@ subroutine wrwrfmassa_netcdf(mype)
   if(mype == 0) then
      read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0,nsoil
      write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0,nsoil
-     read(lendian_in) aeta10
-     write(lendian_out) aeta10
-     read(lendian_in) eta10
-     write(lendian_out) eta10
+     read(lendian_in) aeta10,aeta20
+     write(lendian_out) aeta10,aeta20
+     read(lendian_in) eta10,eta20
+     write(lendian_out) eta10,eta20
      read(lendian_in) glat0,dx_mc0
      write(lendian_out) glat0,dx_mc0
      read(lendian_in) glon0,dy_mc0

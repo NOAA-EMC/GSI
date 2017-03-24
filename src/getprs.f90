@@ -15,6 +15,7 @@ subroutine getprs(ps,prs)
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-09-15  pagowski  - added cmaq
 !   2013-10-19  todling - metguess now holds background
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -70,7 +71,8 @@ subroutine getprs(ps,prs)
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
+                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + &
+                                       eta2_ll(k) + pt_ll)
               end do
            end do
         end do

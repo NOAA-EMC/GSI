@@ -729,6 +729,7 @@ subroutine general_getprs_glb(ps,tv,prs)
 !   2008-06-04  safford - rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-02-23  parrish - copy getprs and generalize for dual resolution.
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS CORE.
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -781,7 +782,8 @@ subroutine general_getprs_glb(ps,tv,prs)
         do k=1,nsig+1
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
+                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + &
+                                       eta2_ll(k) + pt_ll)
               end do
            end do
         end do

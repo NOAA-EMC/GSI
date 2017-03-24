@@ -55,6 +55,8 @@ subroutine read_wrf_mass_binary_guess(mype)
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
 !   2014-12-12  hu     - change l_use_2mq4b to i_use_2mq4b
+!   2017-03-23  Hu     - add code to read hybrid vertical coodinate in WRF MASS
+!                          core
 !
 !   input argument list:
 !     mype     - pe number
@@ -84,7 +86,7 @@ subroutine read_wrf_mass_binary_guess(mype)
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
-       nsig,nsig_soil,eta1_ll,pt_ll,itotsub,aeta1_ll
+       nsig,nsig_soil,eta1_ll,pt_ll,itotsub,aeta1_ll,eta2_ll,aeta2_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use constants, only: r0_01
   use gsi_io, only: lendian_in
@@ -130,10 +132,10 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
   real(r_kind) psfc_this,psfc_this_dry,sm_this,xice_this
-  real(r_kind),dimension(lat2,lon2):: q_integral
+  real(r_kind),dimension(lat2,lon2):: q_integral,q_integralc4h
   real(r_kind),dimension(lat2,lon2,nsig):: ges_pot
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
-  real(r_kind) deltasigma
+  real(r_kind) deltasigma,deltasigmac4h
   integer(i_llong) n_position
   integer(i_kind) iskip,ksize,jextra,nextra
   integer(i_kind) status(mpi_status_size)
@@ -977,8 +979,10 @@ subroutine read_wrf_mass_binary_guess(mype)
 !              so accumulate 1 + total water vapor to use as correction factor
 
         q_integral=one
+        q_integralc4h=one
         do k=1,nsig
            deltasigma=eta1_ll(k)-eta1_ll(k+1)
+           deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
            kt=kt+1
            kq=kq+1
            ku=ku+1
@@ -999,6 +1003,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                  ges_v_it(j,i,k) = all_loc(j,i,kv)
                  ges_q_it(j,i,k) = all_loc(j,i,kq)
                  q_integral(j,i) = q_integral(j,i)+deltasigma*ges_q_it(j,i,k)
+                 q_integralc4h(j,i) = q_integralc4h(j,i)+deltasigmac4h*ges_q_it(j,i,k)
 
 !                Convert guess mixing ratio to specific humidity
                  ges_q_it(j,i,k) = ges_q_it(j,i,k)/(one+ges_q_it(j,i,k))
@@ -1065,7 +1070,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 !             Convert psfc units of mb and then convert to log(psfc) in cb
               psfc_this_dry=r0_01*(all_loc(j,i,i_mub)+all_loc(j,i,i_mu)+pt_regional_single)
-              psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
+              psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll+q_integralc4h(j,i)
               ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
 !GSD              soil_moi(j,i,it)=all_loc(j,i,i_smois)
@@ -1096,7 +1101,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         do k=1,nsig
            do i=1,lon2
               do j=1,lat2
-                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps_it(j,i)-pt_ll)+pt_ll)
+                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps_it(j,i)-pt_ll)+aeta2_ll(k)+pt_ll)
                  work_prslk = (work_prsl/r100)**rd_over_cp_mass
                  ges_tsen(j,i,k,it)= ges_pot(j,i,k)*work_prslk
                  ges_tv_it(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q_it(j,i,k))
@@ -1204,6 +1209,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
+!   2017-03-23  Hu     - add code to read hybrid vertical coodinate in WRF MASS
 !
 !   input argument list:
 !     mype     - pe number
@@ -1232,7 +1238,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
-       nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
+       nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll,eta2_ll,aeta2_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use constants, only: r0_01, tiny_r_kind
   use gsi_io, only: lendian_in
@@ -1274,10 +1280,10 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
   real(r_kind) psfc_this,psfc_this_dry,sm_this,xice_this
-  real(r_kind),dimension(lat2,lon2):: q_integral
+  real(r_kind),dimension(lat2,lon2):: q_integral,q_integralc4h
   real(r_kind),dimension(lat2,lon2,nsig):: ges_pot
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
-  real(r_kind) deltasigma
+  real(r_kind) deltasigma,deltasigmac4h
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind),allocatable :: i_chem(:),kchem(:)
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
@@ -1831,8 +1837,10 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !              so accumulate 1 + total water vapor to use as correction factor
 
         q_integral=one
+        q_integralc4h=zero
         do k=1,nsig
            deltasigma=eta1_ll(k)-eta1_ll(k+1)
+           deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
            kt=kt+1
            kq=kq+1
            ku=ku+1
@@ -1867,6 +1875,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  ges_pot(j,i,k)  = all_loc(j,i,kt)
                  ges_q_it(j,i,k) = all_loc(j,i,kq)
                  q_integral(j,i) = q_integral(j,i)+deltasigma*ges_q_it(j,i,k)
+                 q_integralc4h(j,i) = q_integralc4h(j,i)+deltasigmac4h*ges_q_it(j,i,k)
 
 !                Convert guess mixing ratio to specific humidity
                  ges_q_it(j,i,k) = ges_q_it(j,i,k)/(one+ges_q_it(j,i,k))
@@ -1980,7 +1989,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
 !             Convert psfc units of mb and then convert to log(psfc) in cb
               psfc_this_dry=r0_01*all_loc(j,i,i_0+i_psfc)
-              psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
+              psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll+q_integralc4h(j,i)
               ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               sfc_rough(j,i,it)=rough_default
@@ -2014,7 +2023,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         do k=1,nsig
            do i=1,lon2
               do j=1,lat2
-                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps_it(j,i)-pt_ll)+pt_ll)
+                 work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps_it(j,i)-pt_ll)+aeta2_ll(k)+pt_ll)
                  work_prslk = (work_prsl/r100)**rd_over_cp_mass
                  ges_tsen(j,i,k,it)     = ges_pot(j,i,k)*work_prslk
                  ges_tv_it(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q_it(j,i,k))

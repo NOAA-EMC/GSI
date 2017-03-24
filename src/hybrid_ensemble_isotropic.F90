@@ -208,6 +208,8 @@ subroutine init_rf_z(z_len)
 !                             by Jeff Whitaker for his distance in which the Gaspari-Cohn function 1st = 0.
 !   2011-07-19  tong    - add the calculation of pressure vertical profile for regional model,
 !                             when vertical localization length scale is in units of ln(p)
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!                             core
 !
 !   input argument list:
 !     z_len    - filter length scale in grid units
@@ -295,7 +297,8 @@ subroutine init_rf_z(z_len)
                            pt_ll)
                  endif
                  if (wrf_mass_regional .or. twodvar_regional) then
-                    p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
+                    p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+&
+                                              eta2_ll(k) + pt_ll)
                  endif
                  ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
               enddo

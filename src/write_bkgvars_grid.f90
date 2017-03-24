@@ -100,6 +100,8 @@ subroutine write_bkgvars2_grid
 !   2008-03-27  safford -- add subprogram doc block, rm unused vars and uses
 !   2010-06-18  todling -- generalized to show all variances; create ctl
 !   2010-10-20  pagowski - add cmaq
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!                           core
 !
 !   input argument list:
 !
@@ -157,7 +159,7 @@ subroutine write_bkgvars2_grid
                    eta2_ll(k)*(r1000-pdtop_ll-pt_ll) + &
                    pt_ll)
         if (wrf_mass_regional .or. twodvar_regional) &
-           prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + pt_ll)
+           prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + eta2_ll(k) + pt_ll)
      else
         if (idvc5==1 .or. idvc5==2) then
            prs(k)=ak5(k)+(bk5(k)*r1000)
