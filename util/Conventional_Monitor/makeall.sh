@@ -44,12 +44,16 @@ if [[ ${machine} = "wcoss" ]]; then
 elif [[ ${machine} = "theia" ]]; then
    echo "loading lmod"
    . /apps/lmod/6.0.1/init/ksh
+elif [[ ${machine} = "cray" ]]; then
+   . /opt/modules/3.2.6.7/init/ksh
 fi
 
 
-if [[ ${machine} = "wcoss" || ${machine} = "theia" ]]; then
+if [[ ${machine} = "wcoss" || ${machine} = "theia" || ${machine} = "cray" ]]; then
+#   echo "machine, mod_path = $machine, $mod_path"
    module use -a ${mod_path}
    module load CMonBuild
+
  
    for var in ${executables}; do
       cd ${sorc_path}/${var}
