@@ -5,8 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for wcoss and theia machines.
-#
+#  executables.  This script works for wcoss, theia, and cray 
+#  machines.
 #-------------------------------------------------------------------
 
    use IO::File;
@@ -16,16 +16,17 @@
    my $machine = `/usr/bin/perl ./get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "theia" && $machine ne "wcoss" ) {
+   if( $machine ne "theia" && $machine ne "wcoss" && $machine ne "cray" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
       print "machine = $machine\n";
    }
 
-   #
-   #  wcoss and theia are both little endian machine
-   #    and does this matter any more?
+   #---------------------------------------------------------------------------------
+   #  All 3 currently supported platforms are little endian machines and linux OSes.
+   #    I'm keeping these switches though because that will surely change at some
+   #    point and I'll just have to re-introduce the same switches.
    #    
    my $little_endian = "export LITTLE_ENDIAN=1";
 
@@ -59,8 +60,11 @@
    if( $machine eq "theia" ) {
       $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
    }
-   else {
+   elsif( $machine eq "wcoss" ) {
       $tankdir = "/global/save/$user_name/nbns";
+   }
+   elsif( $machine eq "cray" ) {
+      $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name"
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
@@ -152,7 +156,12 @@
    if( $machine eq "theia" ) {
       $my_ptmp="export C_PTMP=\${C_PTMP:-/scratch4/NCEPDEV/stmp4}";
       $my_stmp="export C_STMP=\${C_STMP:-/scratch4/NCEPDEV/stmp3}";
-   } else {
+   }
+   elsif( $machine eq "cray" ) {
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/hps/ptmp/$user_name}";
+      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/hps/stmp/$user_name}";
+   } 
+   else {
       print "Please specify PTMP location.  This is used for temporary work space.\n";
       print "  Available options are: \n";
       print "      /ptmpd1  (default)\n";

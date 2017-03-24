@@ -189,10 +189,10 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    if [ -s $pgrbf06 ]; then
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:15 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VERFCON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:15 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
 
       elif [[ $MY_MACHINE = "theia" ]]; then
-         $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE.${PDY}.${CYC}.log -e $C_LOGDIR/DE.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VERFCON
+         $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE.${PDY}.${CYC}.log -e $C_LOGDIR/DE.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VCMON
       fi
 
    else

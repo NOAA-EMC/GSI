@@ -9,7 +9,7 @@
 
 set -x
 
-export PDATE=2017030600
+export PDATE=${PDATE:-2017030600}
 
 #############################################################
 # Specify whether the run is production or development
@@ -89,7 +89,7 @@ export utilscript=${utilscript:-${NWPRODush}}      # err_chk calls postmsg.sh
 #############################################################
 # Execute job
 #############################################################
-$JOBGLOBAL/JGDAS_VERFCON
+$JOBGLOBAL/JGDAS_VCMON
 
 exit
 
