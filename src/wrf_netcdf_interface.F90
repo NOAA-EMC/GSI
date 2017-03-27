@@ -274,7 +274,7 @@ subroutine convert_netcdf_mass
           start_index,end_index,                   & !pat
           ierr                                 )
         do k=1,nsig_regional+1
-           write(6,*)' k,c3f(k)=',k,field1a(k)
+           write(6,*)' k,c4f(k)=',k,field1a(k)
         end do
         write(iunit)field1(1:nsig_regional+1),field1a(1:nsig_regional+1)  ! c3f,c4f
      else

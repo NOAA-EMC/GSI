@@ -778,7 +778,15 @@ subroutine general_getprs_glb(ps,tv,prs)
               end do
            end do
         end do
-     elseif (wrf_mass_regional .or. twodvar_regional) then
+     elseif (twodvar_regional) then
+        do k=1,nsig+1
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
+                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
+              end do
+           end do
+        end do
+     elseif (wrf_mass_regional) then
         do k=1,nsig+1
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2

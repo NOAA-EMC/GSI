@@ -979,7 +979,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 !              so accumulate 1 + total water vapor to use as correction factor
 
         q_integral=one
-        q_integralc4h=one
+        q_integralc4h=zero
         do k=1,nsig
            deltasigma=eta1_ll(k)-eta1_ll(k+1)
            deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
