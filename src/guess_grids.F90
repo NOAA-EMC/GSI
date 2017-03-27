@@ -1067,7 +1067,10 @@ contains
                               eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                               pt_ll)
 
-                   if (wrf_mass_regional .or. twodvar_regional .or. cmaq_regional ) &      
+                   if (twodvar_regional .or. cmaq_regional ) &
+                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + pt_ll)
+
+                   if (wrf_mass_regional) &      
                       ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + &
                                                     eta2_ll(k) + pt_ll)
                 else
@@ -1111,7 +1114,21 @@ contains
              end do
           end do
        end if   ! end if wrf_nmm regional block
-       if (wrf_mass_regional .or. twodvar_regional .or. cmaq_regional) then
+       if (twodvar_regional .or. cmaq_regional) then
+! load using aeta coefficients
+          do jj=1,nfldsig
+             call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+pt_ll)
+                      ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
+                   end do
+                end do
+             end do
+          end do
+       end if   ! end if twodvar_regional, cmaq_regional block
+       if (wrf_mass_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
              call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
@@ -1175,9 +1192,13 @@ contains
           do k=1,nsig
              ges_prslavg(k)=aeta1_ll(k)*pdtop_ll+aeta2_ll(k)*(r1013-pdtop_ll-pt_ll)+pt_ll
           end do
-       else
+       elseif (wrf_mass_regional) then
           do k=1,nsig
              ges_prslavg(k)=aeta1_ll(k)*(r1013-pt_ll)+aeta2_ll(k) + pt_ll
+          end do
+       else
+          do k=1,nsig
+             ges_prslavg(k)=aeta1_ll(k)*(r1013-pt_ll)+pt_ll
           end do
        endif
     endif

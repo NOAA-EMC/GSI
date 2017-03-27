@@ -296,7 +296,10 @@ subroutine init_rf_z(z_len)
                            eta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
                            pt_ll)
                  endif
-                 if (wrf_mass_regional .or. twodvar_regional) then
+                 if (twodvar_regional) then
+                    p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
+                 endif
+                 if (wrf_mass_regional) then
                     p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+&
                                               eta2_ll(k) + pt_ll)
                  endif
