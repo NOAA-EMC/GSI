@@ -11,7 +11,7 @@
 
 set -x
 
-export PDATE=${PDATE:-2017030600}
+export PDATE=${PDATE:-2017030606}
 
 #############################################################
 # Specify whether the run is production or development
@@ -79,7 +79,7 @@ if [[ ! -d $CMON_LOG_DIR ]]; then
 fi
 
 export jlogfile=${jlogfile:-${CMON_LOG_DIR}/jlogfile.${jobid}}
-export utilroot=${utilroot:-$PROD
+export utilroot=${utilroot:-$PROD}
 
 #############################################################
 # Execute job
