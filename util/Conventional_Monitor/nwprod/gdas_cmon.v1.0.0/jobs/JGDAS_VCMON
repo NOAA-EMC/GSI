@@ -22,9 +22,9 @@ echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
 ########################################################### 
-# obtain unique process id (pid) and make temp directories
+# set up working directory space
 ###########################################################
-export pid=$$
+#export pid=$$
 export CMON_WORK_DIR=${CMON_WORK_DIR:-/tmpnwprd}
 export DATA=${DATA:-${CMON_WORK_DIR}/${jobid}}
 mkdir -p $DATA
@@ -39,7 +39,6 @@ export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${jobid}}
 # Determine Job Output Name on System
 ####################################
 export outid="LL$job"
-#export jobid="${outid}.o${pid}"
 export cycle=t${CYC}z 
 
 ###############################

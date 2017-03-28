@@ -48,6 +48,15 @@ export CMON_SUFFIX=$1
 #export RUN_ENVIR=$2		
 export RUN_ENVIR=${RUN_ENVIR:-"dev"}
 
+#--------------------------------------------------------------------
+#  load modules
+#--------------------------------------------------------------------
+. /usrx/local/Modules/3.2.9/init/ksh
+module use /nwprod2/modulefiles
+module load grib_util
+module load prod_util
+module load util_shared
+
 if [[ $nargs -ge 1 ]]; then
    export PDATE=$2;
    echo "PDATE set to $PDATE"
@@ -152,7 +161,9 @@ export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
 
 export DATA_IN=${WORKverf_cmon}
-
+export CMON_WORK_DIR=${CMON_WORK_DIR:-${C_STMP_USER}/cmon_${CMON_SUFFIX}}
+pid=$$
+export jobid=cmon_DE_${CMON_SUFFIX}.${pid}
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
