@@ -68,7 +68,7 @@ if [[ ! -d $C_TANKDIR ]]; then
    mkdir -p ${C_TANKDIR}
 fi
 
-export CMON_WORK_DIR=${CMON_WORK_DIR:-/gpfs/hps/stmp/$LOGNAME/${CMON_SUFFIX}_cmon_de}
+export CMON_WORK_DIR=${CMON_WORK_DIR:-/gpfs/hps/stmp/$LOGNAME/cmon_${CMON_SUFFIX}}
 if [[ ! -d $CMON_WORK_DIR ]]; then
    mkdir -p ${CMON_WORK_DIR}
 fi

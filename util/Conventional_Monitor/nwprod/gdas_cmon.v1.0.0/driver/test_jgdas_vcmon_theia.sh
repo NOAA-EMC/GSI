@@ -57,7 +57,7 @@ if [[ ! -d $C_TANKDIR ]]; then
    mkdir -p ${C_TANKDIR}
 fi
 
-export CMON_WORK_DIR=${CMON_WORK_DIR:-/scratch4/NCEPDEV/stmp3/$LOGNAME/cmon_work}
+export CMON_WORK_DIR=${CMON_WORK_DIR:-/scratch4/NCEPDEV/stmp3/$LOGNAME/cmon_${CMON_SUFFIX}}
 if [[ ! -d $CMON_WORK_DIR ]]; then
    mkdir -p ${CMON_WORK_DIR}
 fi
