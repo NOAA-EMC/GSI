@@ -288,6 +288,7 @@ do tim=1,ntimes
       ng=ng+1
       if (ng>dsize) then
          ng=dsize
+         print *, 'Warning:  Number of obs meeting criteria exceeds dsize. Consider increasing dsize'
          cycle ges_read_loop
       end if
       ges_channel_loop: do jj=1,nch_active
@@ -462,21 +463,24 @@ if (cov_method==desroziers) then
    end do
 !$omp end parallel do
 else if (cov_method==hl_method) then
-!$omp parallel do private(r,c,dis,divreal)
-   do c=1,nch_active
-      do r=1,nch_active
-         do dis=1,num_bins
+   do dis=1,num_bins
+!$omp parallel do private(r,c,divreal)
+      do c=1,nch_active
+         do r=1,nch_active
             if (divbig(r,c,dis)>zero) then
                divreal=real(divbig(r,c,dis),r_kind)
                !the second term here subtracts the biases
                Rcovbig(r,c,dis)=(Rcovbig(r,c,dis)/divreal)-((ges_avebig1(r,c,dis)/divreal)*(ges_avebig2(r,c,dis)/divreal))
             end if
-          end do
-          Rcov(r,c)=Rcovbig(r,c,1)-Rcovbig(r,c,2)
-          if ((r==c).and.(abs(Rcov(r,c))<=small)) Rcov(r,c)=errout(r)**2
-      end do
-   end do      
+            if (dis==num_bins) then
+               Rcov(r,c)=Rcovbig(r,c,1)-Rcovbig(r,c,2)
+               if ((r==c).and.(abs(Rcov(r,c))<=small)) Rcov(r,c)=errout(r)**2
+            end if
+         end do 
+      end do    
 !$omp end parallel do
+end do
+
 end if
 Rcov=(Rcov+TRANSPOSE(Rcov))/two
 if (kreq>zero) then
