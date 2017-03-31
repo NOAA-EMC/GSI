@@ -29,14 +29,11 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 !     nobs     - array of observations on each subdomain for each processor
 
   use kinds, only: r_kind,r_double,i_kind
-  use satthin, only: makegrids,map2tgrid,finalcheck,itxmax
+  use satthin, only: makegrids,map2tgrid,finalcheck
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
-  use obsmod, only: iadate,nlco
-  use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype
+  use constants, only: deg2rad,zero,one_tenth,r60inv,two
+  use obsmod, only: nlco
   use gsi_4dvar, only: iwinbgn
-  use qcmod, only: use_poq7
   use mpimod, only: npe
   implicit none
 
@@ -73,6 +70,7 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
 
   real(r_kind) tdiff,sstime,dlon,dlat,t4dv,poq
   real(r_kind) slons0,slats0,rsat,solzen,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) rlat,rlon,rpress,rsza
   real(r_kind),allocatable,dimension(:):: pco
   real(r_kind),allocatable,dimension(:):: apco
@@ -143,6 +141,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
      if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) go to 110
      if(slons0< zero) slons0=slons0+r360
      if(slons0>=r360) slons0=slons0-r360
+     dlat_earth_deg = slats0
+     dlon_earth_deg = slons0
      dlat_earth = slats0 * deg2rad
      dlon_earth = slons0 * deg2rad
 
@@ -180,8 +180,8 @@ subroutine read_co(nread,ndata,nodata,infile,gstime,lunout, &
      coout(2,ndata)=t4dv
      coout(3,ndata)=dlon               ! grid relative longitude
      coout(4,ndata)=dlat               ! grid relative latitude
-     coout(5,ndata)=dlon_earth*rad2deg ! earth relative longitude (degrees)
-     coout(6,ndata)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+     coout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+     coout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
      coout(7,ndata)=poq                ! profile co error flag
      coout(8,ndata)=solzen             ! solar zenith angle
      do k=1,nlco

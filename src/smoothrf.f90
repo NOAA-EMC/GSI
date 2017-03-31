@@ -37,10 +37,10 @@ subroutine smoothrf(work,nlevs)
   use gridmod, only: nlat,nlon,regional
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,ii2,jj2,slw,slw1,slw2, &
-       nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nhscrf
+       nx,ny,nf,hzscl,hswgt,nfg,nhscrf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
-  use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
+  use smooth_polcarf, only: smooth_polcas,smooth_polcasa
   implicit none
 
 ! Declare passed variables
@@ -172,7 +172,7 @@ subroutine grid2tr(work,p1all)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: bl,bl2,nx,ny,nr,ndy,ndx,nmix,ndx2,nymx
+  use berror, only: bl,bl2,nx,ny,ndy,ndx,nmix,ndx2,nymx
   implicit none
 
 ! Declare passed variables
@@ -255,7 +255,7 @@ subroutine grid2tr_ad(work,p1all)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: bl,bl2,nx,ny,nr,ndx,ndy,ndx2,nmix,nymx
+  use berror, only: bl,bl2,nx,ny,ndx,ndy,ndx2,nmix,nymx
   implicit none
 
 ! Declare passed variables
@@ -333,7 +333,7 @@ subroutine grid2nh(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
@@ -399,7 +399,7 @@ subroutine grid2nh_ad(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
@@ -462,7 +462,7 @@ subroutine grid2sh(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcasa
   implicit none
 
@@ -529,7 +529,7 @@ subroutine grid2sh_ad(work,pall)
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon
   use constants, only: zero
-  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,nx,ny,mr,nr,nf,ndy,norm,nxem
+  use berror, only: wtaxs,wtxrs,inaxs,inxrs,bl2,mr,nr,nf,ndy,norm,nxem
   use smooth_polcarf, only: norsp,smooth_polcas
   implicit none
 
@@ -1119,10 +1119,10 @@ subroutine sqrt_smoothrf(z,work,nlevs)
   use jfunc,only: nval_lenz
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,nhscrf,&
-       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
+       ii2,jj2,slw,slw1,slw2,nx,ny,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
-  use smooth_polcarf, only: norsp,smooth_polcas
+  use smooth_polcarf, only: smooth_polcas
   implicit none
 
 ! Declare passed variables
@@ -1297,7 +1297,7 @@ subroutine sqrt_smoothrf_ad(z,work,nlevs)
   use jfunc,only: nval_lenz
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,nhscrf,&
-       ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
+       ii2,jj2,slw,slw1,slw2,nx,ny,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   implicit none

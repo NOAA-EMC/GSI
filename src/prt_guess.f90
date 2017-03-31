@@ -33,7 +33,7 @@ subroutine prt_guess(sgrep)
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
   use constants, only: zero
-  use gridmod, only: lat1,lon1,itotsub,nsig
+  use gridmod, only: lat1,lon1,nsig
   use gridmod, only: regional
   use guess_grids, only: ges_tsen,ges_prsl,sfct
   use guess_grids, only: ntguessig,ntguessfc
@@ -243,7 +243,6 @@ subroutine prt_guessfc2(sgrep,use_sfc)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mype
   use satthin, only: isli_full,fact10_full,soil_moi_full,soil_temp_full,veg_frac_full,&
        soil_type_full,veg_type_full,sfc_rough_full,sst_full,sno_full
   use guess_grids, only: ntguessfc
@@ -368,7 +367,7 @@ subroutine prt_guesschem(sgrep)
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
   use constants, only: zero
-  use gridmod, only: lat1,lon1,itotsub,nsig
+  use gridmod, only: lat1,lon1,nsig
   use guess_grids, only: ntguessig
   use gsi_chemguess_mod, only: gsi_chemguess_bundle, gsi_chemguess_get
   use gsi_bundlemod, only: gsi_bundlegetpointer

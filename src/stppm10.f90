@@ -9,6 +9,7 @@ module stppm10mod
 !
 ! program history log:
 !   2016-02-20  pagowski - re-write from pm2_5 for pm10
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppm10
@@ -18,6 +19,10 @@ module stppm10mod
 !   machine:
 !
 !$$$ end documentation block
+  use m_obsNode , only: obsNode
+  use m_pm10Node, only: pm10Node
+  use m_pm10Node, only: pm10Node_typecast
+  use m_pm10Node, only: pm10Node_nextcast
   implicit none
 
   private
@@ -54,7 +59,6 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_quad
-    use obsmod, only: pm10_ob_type
     use qcmod, only: nlnqc_iter,varqc_iter
     use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,max_varname_length,zero
     use gsi_bundlemod, only: gsi_bundle
@@ -64,7 +68,7 @@ contains
     implicit none
     
 ! declare passed variables
-    type(pm10_ob_type),pointer             ,intent(in   ) :: pm10head
+    class(obsNode), pointer             ,intent(in   ) :: pm10head
     integer(i_kind)                     ,intent(in   ) :: nstep
     real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
     type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -77,7 +81,7 @@ contains
     real(r_kind),dimension(max(1,nstep))::pen
     real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,qq
     real(r_kind),pointer,dimension(:):: rpm10,spm10
-    type(pm10_ob_type), pointer :: pm10ptr
+    type(pm10Node), pointer :: pm10ptr
 
     character(len=max_varname_length) :: aeroname    
 
@@ -94,7 +98,8 @@ contains
 
        if(ier/=0) return
 
-       pm10ptr => pm10head
+       !pm10ptr => pm10head
+       pm10ptr => pm10Node_typecast(pm10head)
        do while (associated(pm10ptr))
           if(pm10ptr%luse)then
              if(nstep > 0)then
@@ -148,7 +153,8 @@ contains
              end do
           end if
 
-          pm10ptr => pm10ptr%llpoint
+          !pm10ptr => pm10ptr%llpoint
+          pm10ptr => pm10Node_nextcast(pm10ptr)
 
        end do
 
@@ -156,7 +162,8 @@ contains
 
     if (wrf_mass_regional) then
 
-       pm10ptr => pm10head
+       !pm10ptr => pm10head
+       pm10ptr => pm10Node_typecast(pm10head)
 
        do while (ASSOCIATED(pm10ptr))
           if(pm10ptr%luse)then
@@ -559,7 +566,8 @@ contains
              end do
           end if
           
-          pm10ptr => pm10ptr%llpoint
+          !pm10ptr => pm10ptr%llpoint
+          pm10ptr => pm10Node_nextcast(pm10ptr)
 
        end do
 

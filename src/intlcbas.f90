@@ -7,6 +7,7 @@ module intlcbasmod
 ! abstract: module for intlcbas 
 !
 ! program history log:
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intlcbas
@@ -19,6 +20,10 @@ module intlcbasmod
 !
 !$$$ end documentation block
 
+use m_obsNode  , only: obsNode
+use m_lcbasNode, only: lcbasNode
+use m_lcbasNode, only: lcbasNode_typecast
+use m_lcbasNode, only: lcbasNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +59,7 @@ subroutine intlcbas(lcbashead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: lcbas_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -63,7 +68,7 @@ subroutine intlcbas(lcbashead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(lcbas_ob_type),pointer,intent(in ) :: lcbashead
+  class(obsNode),pointer,intent(in) :: lcbashead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -76,7 +81,7 @@ subroutine intlcbas(lcbashead,rval,sval)
   real(r_kind) cg_lcbas,p0,grad,wnotgross,wgross,pg_lcbas
   real(r_kind),pointer,dimension(:) :: slcbas
   real(r_kind),pointer,dimension(:) :: rlcbas
-  type(lcbas_ob_type), pointer :: lcbasptr
+  type(lcbasNode), pointer :: lcbasptr
 
 ! If no lcbas data return
   if(.not. associated(lcbashead))return
@@ -88,7 +93,8 @@ subroutine intlcbas(lcbashead,rval,sval)
   call gsi_bundlegetpointer(rval,'lcbas',rlcbas,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  lcbasptr => lcbashead
+  !lcbasptr => lcbashead
+  lcbasptr => lcbasNode_typecast(lcbashead)
   do while (associated(lcbasptr))
      j1=lcbasptr%ij(1)
      j2=lcbasptr%ij(2)
@@ -137,7 +143,8 @@ subroutine intlcbas(lcbashead,rval,sval)
         rlcbas(j4)=rlcbas(j4)+w4*grad
      endif
 
-     lcbasptr => lcbasptr%llpoint
+     !lcbasptr => lcbasptr%llpoint
+     lcbasptr => lcbasNode_nextcast(lcbasptr)
 
   end do
 

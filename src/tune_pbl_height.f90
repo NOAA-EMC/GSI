@@ -29,8 +29,8 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
 
 
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat2
-  use constants, only: zero, one,rd_over_cp,ten
+  use gridmod, only: istart,jstart,nlon,nlat,lon1
+  use constants, only: zero, one,ten
   use guess_grids, only: pbl_height
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_bundle

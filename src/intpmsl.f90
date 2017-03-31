@@ -8,6 +8,7 @@ module intpmslmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpmsl
@@ -20,6 +21,10 @@ module intpmslmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_pmslNode, only: pmslNode
+use m_pmslNode, only: pmslNode_typecast
+use m_pmslNode, only: pmslNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,7 +61,7 @@ subroutine intpmsl(pmslhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: pmsl_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -66,7 +71,7 @@ subroutine intpmsl(pmslhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(pmsl_ob_type),pointer,intent(in   ) :: pmslhead
+  class(obsNode)  , pointer,intent(in   ) :: pmslhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +84,7 @@ subroutine intpmsl(pmslhead,rval,sval)
   real(r_kind) cg_pmsl,p0,grad,wnotgross,wgross,pg_pmsl
   real(r_kind),pointer,dimension(:) :: spmsl
   real(r_kind),pointer,dimension(:) :: rpmsl
-  type(pmsl_ob_type), pointer :: pmslptr
+  type(pmslNode), pointer :: pmslptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +93,8 @@ subroutine intpmsl(pmslhead,rval,sval)
   call gsi_bundlegetpointer(rval,'pmsl',rpmsl,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  pmslptr => pmslhead
+  !pmslptr => pmslhead
+  pmslptr => pmslNode_typecast(pmslhead)
   do while (associated(pmslptr))
      j1=pmslptr%ij(1)
      j2=pmslptr%ij(2)
@@ -140,7 +146,8 @@ subroutine intpmsl(pmslhead,rval,sval)
         rpmsl(j4)=rpmsl(j4)+w4*grad
      endif
 
-     pmslptr => pmslptr%llpoint
+     !pmslptr => pmslptr%llpoint
+     pmslptr => pmslNode_nextcast(pmslptr)
 
   end do
 

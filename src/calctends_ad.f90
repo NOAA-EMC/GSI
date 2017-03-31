@@ -53,7 +53,7 @@ subroutine calctends_ad(fields,fields_dt,mype)
 !
 !$$$
   use kinds,only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
+  use gridmod, only: lat2,lon2,nsig,istart,nlat,idvc5,bk5,&
       eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional,nthreads,jtstart,jtstop
   use constants, only: zero,half,two,rd,rcp
   use derivsmod, only: cwgues

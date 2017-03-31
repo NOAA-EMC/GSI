@@ -204,7 +204,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a,grd_a,jcap_b,lat2,lon2,nsig
+    use gridmod, only: sp_a,grd_a,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -484,7 +484,7 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: ntracer,ncloud,reload,itotsub,jcap_b
+    use gridmod, only: ntracer,ncloud,reload,itotsub
     use general_commvars_mod, only: fill_ns,filluv_ns,fill2_ns,filluv2_ns,ltosj_s,ltosi_s
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
@@ -1273,7 +1273,6 @@ contains
     use mpimod, only: mype
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat,nlon
-    use guess_grids, only: nfldsfc,ifilesfc
     use constants, only: zero
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
@@ -1709,16 +1708,16 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
-    use mpimod, only: npe,mype
+    use mpimod, only: mype
     
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
-    use gridmod, only: strip,itotsub,iglobal,jcap_b
+    use gridmod, only: strip,jcap_b
     
-    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns,ltosj_s,ltosi_s,ltosj,ltosi
+    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
     use general_specmod, only: spec_vars
 
     use obsmod, only: iadate

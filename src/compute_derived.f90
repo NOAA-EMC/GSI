@@ -89,8 +89,8 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,clip_supersaturation
-  use control_vectors, only: cvars3d,cvars2d
+       tendsflag,clip_supersaturation
+  use control_vectors, only: cvars3d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
   use mpimod, only: levs_id
@@ -105,12 +105,11 @@ subroutine compute_derived(mype,init_pass)
        dvisdlog,w10mgues,howvgues,cwgues,cldchgues,dcldchdlog
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
-  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o  
+  use gridmod, only: lat2,lon2,nsig,nsig1o  
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
-  use gridmod, only: wrf_nmm_regional,wrf_mass_regional
+  use gridmod, only: wrf_mass_regional
   use berror, only: hswgt
-  use balmod, only: rllat1,llmax
   use mod_strong, only: l_tlnmc,baldiag_full
   use obsmod, only: write_diag
   use gsi_4dvar, only: l4dvar

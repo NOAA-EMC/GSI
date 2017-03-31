@@ -30,6 +30,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2014-1-28   xli     - modify NSST related tz
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -111,7 +112,8 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind) :: tdiff,sstime,usage,sfcr,tsavg,ff10,t4dv
   real(r_kind) :: vty,vfr,sty,stp,sm,sn,zz
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
-  real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
+  real(r_kind) :: dlat_earth_deg,dlon_earth_deg
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr,tz
 
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   integer(i_kind) ntest
@@ -252,6 +254,8 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if(hdr(7) >= r360)  hdr(7) = hdr(7) - r360
            if(hdr(7) <  zero)  hdr(7) = hdr(7) + r360
 
+           dlon_earth_deg=hdr(7)
+           dlat_earth_deg=hdr(6)
            dlon_earth=hdr(7)*deg2rad
            dlat_earth=hdr(6)*deg2rad
 
@@ -533,8 +537,8 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
            data_all(15,ndata) = tz                      ! Tz: Background temperature at depth of zob
-           data_all(16,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
-           data_all(17,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
+           data_all(16,ndata) = dlon_earth_deg          ! earth relative longitude (degrees)
+           data_all(17,ndata) = dlat_earth_deg          ! earth relative latitude (degrees)
            data_all(18,ndata) = hdr(8)                  ! station elevation
 
            if(nst_gsi>0) then
