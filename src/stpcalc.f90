@@ -13,6 +13,9 @@ module stpcalcmod
 !   2008-12-02  Todling - remove stpcalc_tl
 !   2009-08-12  lueken  - updated documentation
 !   2012-02-08  kleist  - consolidate weak constaints into one module stpjcmod.
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
 !
 ! subroutines included:
 !   sub stpcalc
@@ -173,6 +176,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2015-07-10  pondeca - add cldch
 !   2016-02-03  derber - add code to search through all of the possible stepsizes tried, to find the 
 !               one that minimizes the most and use that one.
+!   2016-08-08  j guo   - tried to edit some comments for a better description on pbc(*,:) elements
+!                         reflecting jo terms.
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -213,7 +218,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len,iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use obsmod, only: yobs,nobs_type
+  use obsmod, only: nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
        stplimhowv,stplimcldch,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
@@ -227,6 +232,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use mpeu_util, only: getindex
   use intradmod, only: setrad
   use timermod, only: timer_ini,timer_fnl
+  use stpjomod, only: stpjo
+  use m_obsHeadBundle, only: obsHeadBundle
+  use m_obsHeadBundle, only: obsHeadBundle_create
+  use m_obsHeadBundle, only: obsHeadBundle_destroy
   implicit none
 
 ! Declare passed variables
@@ -272,6 +281,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   logical :: cxterm,change_dels,ifound
 
 
+  type(obsHeadBundle),pointer,dimension(:):: yobs
 !************************************************************************************  
 ! Initialize timer
   call timer_ini('stpcalc')
@@ -301,7 +311,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,2)  placeholder for future linear linear term
 !    pbc(*,3)  contribution from dry pressure constraint term (Jc)
 !
-!    nonlinear terms -> pbc(*,4:ipen)
+!    nonlinear terms -> pbc(*,4:n0)
 !    pbc(*,4)  contribution from negative moisture constraint term (Jl/Jq)
 !    pbc(*,5)  contribution from excess moisture term (Jl/Jq)
 !    pbc(*,6) contribution from negative gust constraint term (Jo)
@@ -311,6 +321,16 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,10) contribution from negative howv constraint term (Jo)
 !    pbc(*,11) contribution from negative lcbas constraint term (Jo)
 !    pbc(*,12) contribution from negative cldch constraint term (Jo)
+!
+!    Under polymorphism the following is the contents of pbs:
+!    linear terms => pbcjo(*,n0+1:n0+nobs_type),
+!       pbc  (*,n0+j) := pbcjo(*,j); for j=1,nobs_type
+!    where,
+!       pbcjo(*,   j) := sum( pbcjoi(*,j,1:nobs_bins) )
+!
+!    The original (wired) implementation of obs-types has
+!    the extra contents of pbc defined as:
+!
 !    pbc(*,13) contribution from ps observation  term (Jo)
 !    pbc(*,14) contribution from t observation  term (Jo)
 !    pbc(*,15) contribution from w observation  term (Jo)
@@ -345,6 +365,14 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,44) contribution from lcbas observation  term (Jo)
 !    pbc(*,45) contribution from cldch observation  term (Jo)
 !
+!    However, users should be aware that under full polymorphism 
+!    the obs-types are defined on the fly, that is to say, e.g.,that 
+!    when running the global option the code won''t know at 
+!    all of the obs-types not used in the global; the simplest
+!    example would be an experiment only using AOD; only AOD would
+!    be in the obs-type - nothing else; unlike the original obsmod
+!    setting.
+
 
 
   pstart=zero_quad
@@ -491,15 +519,16 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(ii == 1)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
      end if
 
-!       penalties for gust constraint
-
      call setrad(sval(1))
 
 !    penalties for Jo
      pbcjoi=zero_quad 
+     call obsHeadBundle_create(yobs,nobs_bins)
      call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 
+     call obsHeadBundle_destroy(yobs)
+
      pbcjo=zero_quad
-     do ibin=1,nobs_bins
+     do ibin=1,size(yobs)       ! == obs_bins
         do j=1,nobs_type 
            do i=1,nstep 
               pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j,ibin) 

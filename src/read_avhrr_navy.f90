@@ -49,6 +49,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -136,6 +137,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   real(r_kind) dlon,dlat,timedif,sfcr
   real(r_kind) dlon_earth,dlat_earth
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) w00,w01,w10,w11,dx1,dy1
   real(r_kind) pred,crit1,tdiff,sstime,dx,dy,dist1
   real(r_kind) dlat_sst,dlon_sst,sst_hires
@@ -291,6 +293,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         if (bufrf(8)>=r360) bufrf(8)=bufrf(8)-r360
         if (bufrf(8)< zero) bufrf(8)=bufrf(8)+r360
 
+        dlon_earth_deg = bufrf(8)
+        dlat_earth_deg = bufrf(7)
         dlon_earth = bufrf(8)*deg2rad   !convert degrees to radians
         dlat_earth = bufrf(7)*deg2rad
 
@@ -422,10 +426,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(27,itx) = idomsfc + 0.001_r_kind ! dominate surface type
         data_all(28,itx) = sfcr                   ! surface roughness
         data_all(29,itx) = ff10                   ! ten meter wind factor
-        data_all(30,itx) = dlon_earth             ! earth relative longitude (degrees)
-        data_all(31,itx) = dlat_earth             ! earth relative latitude (degrees)
-        data_all(30,itx) = dlon_earth             ! earth relative longitude (rad)
-        data_all(31,itx) = dlat_earth             ! earth relative latitude (rad)
+        data_all(30,itx) = dlon_earth_deg         ! earth relative longitude (degrees)
+        data_all(31,itx) = dlat_earth_deg         ! earth relative latitude (degrees)
         data_all(32,itx) = bufrf(13)              ! Data type: 151=day,152=night,159=cloud problem
         data_all(33,itx) = sst_hires              ! interpolated hires SST (deg K)
         if(dval_use)then

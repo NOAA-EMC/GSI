@@ -13,6 +13,8 @@ subroutine bicg()
 !   2012-07-10  todling - add ability to invoke hybrid ensemble
 !   2012-12-06  todling - half-backed implementation of adjoint analysis
 !                         (for now, only works in single outer loop case)
+!   2015-12-08  el akkraoui - add precond calls for new preconditioning of predictors
+!   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
 !   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
 !                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
@@ -27,14 +29,15 @@ subroutine bicg()
 !$$$ end documentation block
 
 use kinds,     only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: l4dvar, lsqrtb, ltlint, &
+use gsi_4dvar, only: l4dvar, &
                      ladtest, lgrtest, lanczosave, ltcost, nwrvecs
-use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart
+use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart, &
+                     diag_precon
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
-use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
-                           fcsens, llancdone, dot_prod_obs
-use obsmod,    only: lsaveobsens,l_do_adjoint,write_diag
+use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
+                           fcsens, dot_prod_obs
+use obsmod,    only: lsaveobsens,l_do_adjoint
 use adjtest,   only: adtest
 use grdtest,   only: grtest
 use control_vectors, only: control_vector
@@ -111,6 +114,8 @@ else
      end if
 
    end if
+   ! Add potential additional preconditioner
+   if(diag_precon) call precond(grady)
 endif
 
 zg0=dot_product(gradx,grady,r_quad)
@@ -199,16 +204,15 @@ else ! not sensitivity run
 
    end if
 
+!  Add potential additional preconditioner 
+   if(diag_precon) call precond(grads)
+
 !  Update xhatsave
    do ii=1,xhat%lencv
       xhatsave%values(ii) = xhatsave%values(ii) + xhat%values(ii)
       yhatsave%values(ii) = yhatsave%values(ii) + yhat%values(ii)
    end do
 
-   zgg=dot_product(xhat,xhat,r_quad)
-   if (mype==0) write(6,888)trim(myname),': Norm xhat=',sqrt(zgg)
-   zgg=dot_product(xhatsave,xhatsave,r_quad)
-   if (mype==0) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
 
 !  Print diagnostics
    zgf=dot_product(gradf,grads,r_quad)

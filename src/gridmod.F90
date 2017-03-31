@@ -82,6 +82,7 @@ module gridmod
 !   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
 !                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
 !                        to allow spectral to grid transformation to a lower resolution grid
+!   2015-02-03 todling - update max nlayers to 200
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !                      
 !                        
@@ -258,7 +259,7 @@ module gridmod
   integer(i_kind),allocatable,dimension(:):: displs_s  !   displacement for send from subdomain
   integer(i_kind),allocatable,dimension(:):: displs_g  !   displacement for receive on global grid
 
-  integer(i_kind),dimension(100):: nlayers        ! number of RTM layers per model layer
+  integer(i_kind),dimension(200):: nlayers        ! number of RTM layers per model layer
                                                   ! (k=1 is near surface layer), default is 1
   integer(i_kind), allocatable, dimension(:)::  jtstart,jtstop ! starting and ending indicies for j threading
 
@@ -939,10 +940,10 @@ contains
 
 ! !USES:
 
-    use constants, only: zero, one, three, deg2rad,pi,half, two,r0_01
+    use constants, only: zero, one, three, deg2rad,half, two,r0_01
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8,ratio_x,ratio_y
     use mod_wrfmass_to_a, only: init_wrfmass_to_a,nxa_wrfmass,nya_wrfmass
-    use mod_wrfmass_to_a, only: wrfmass_h_to_a,ratio_x_wrfmass,ratio_y_wrfmass
+    use mod_wrfmass_to_a, only: wrfmass_h_to_a
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -2665,7 +2666,7 @@ end subroutine init_general_transform
 
 ! !USES:
 
-    use constants, only: one,two,pi,rad2deg,one_tenth
+    use constants, only: one,two,one_tenth
     implicit none
 
 ! !INPUT PARAMETERS:

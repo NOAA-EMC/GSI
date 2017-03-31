@@ -40,6 +40,10 @@ else
 fi
 
 
+usef="use.txt"
+timesf="times.txt"
+chanf="chan.txt"
+
 #--------------------------------------------------------------------
 # Assemble the required data files (*.ieee_d), make txt files, and 
 # conditionally create static images (see below), and move all 
@@ -148,22 +152,29 @@ EOF
 #       6) clean up
 
    echo "BEGIN javascript file generation:"
-   rm -f times.txt
+   rm -f $timesf
    
    if [[ ! -s summary.x ]]; then
       $NCP ${IG_EXEC}/summary.x .
    fi
 
    ls ${type}.*.ieee_d | cut -d'.' -f2 > tmp
-   tac tmp > times.txt
+   tac tmp > $timesf
    rm tmp
 
-   cat ./${type}.ctl | grep iuse | gawk '{print $8}' > use.txt
+   rm -f $usef
+   cat ./${type}.ctl | grep iuse | gawk '{print $8}' > $usef
 
    nchanl=`cat ./${type}.ctl | grep title |gawk '{print $4}'`
-   ncycle=`cat times.txt | wc -l`
 
-   st_time=`head -1 times.txt`
+   #------------------------------
+   #  build chan.txt using ctl file
+   #
+   rm $chanf
+   grep iuse ${type}.ctl | gawk '{print $5}' > $chanf
+
+   ncycle=`cat $timesf | wc -l`
+   st_time=`head -1 $times`
    cyc_per_day=$((24/$CYCLE_INTERVAL))           # number cycles per day
 
    input=${type}.input.txt
@@ -188,13 +199,9 @@ EOF
    cp ${input} input
    ./summary.x < input > out.${type}
    echo "END javascript file generation:"
-   rm -f times.txt
-#   rm -f use.txt
+#   rm -f $timesf
 
    rm -f ${input}
-
-#   rm -f ${type}.ctl 
-#   rm -f ${type}*.ieee_d
 
 done
 
@@ -207,15 +214,11 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
 fi
 $NCP *summary.png ${IMGNDIR}/summary/.
 
-#if [[ $RADMON_SUFFIX = "4devb" || $RADMON_SUFFIX = "pr4dev" || $RADMON_SUFFIX = "wopr" ]]; then
-   for type in ${SATYPE2}; do
-      $NCP ${type}.sum.txt ${IMGNDIR}/summary/${type}.${PDATE}.sum.txt
-   done
-#else
-  $NCP *.sum.txt ${IMGNDIR}/summary/.
-#fi
+for type in ${SATYPE2}; do
+   $NCP ${type}.sum.txt ${IMGNDIR}/summary/${type}.${PDATE}.sum.txt
+done
+$NCP *.sum.txt ${IMGNDIR}/summary/.
 
-#rm -f *.summary.png
 
 
 #--------------------------------------------------------------------

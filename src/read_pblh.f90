@@ -10,6 +10,7 @@
 !   2009-10-21  whiting - modify cnem & pblhob for reading Caterina's files
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -31,15 +32,12 @@
 !
 !$$$
       use kinds, only: r_kind,r_double,i_kind
-      use constants, only: zero,one_tenth,one,deg2rad,three,&
-            rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind
-      use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
+      use constants, only: zero,one_tenth,one,deg2rad,rad2deg,three
+      use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
            tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
            rlats,rlons
       use convinfo, only: nconvtype,ctwind, &
-           ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-           ithin_conv,rmesh_conv,pmesh_conv, &
-           id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
+           icuse,ictype,ioctype
       use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
       use obsmod, only: iadate,offtime_data,bmiss
       use deter_sfc_mod, only: deter_sfc2
@@ -87,6 +85,7 @@
       real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
       real(r_kind) pblhob,pblhoe,pblhelev,pblbak
       real(r_kind) dlat,dlon,dlat_earth,dlon_earth,stnelev
+      real(r_kind) dlat_earth_deg,dlon_earth_deg
       real(r_kind) :: tsavg,ff10,sfcr,zz
 !     real(r_kind),dimension(5):: tmp_time
 
@@ -299,6 +298,8 @@
 
       if(hdr(2)>= r360)hdr(2)=hdr(2)-r360
       if(hdr(2) < zero)hdr(2)=hdr(2)+r360
+      dlon_earth_deg=hdr(2)
+      dlat_earth_deg=hdr(3)
       dlon_earth=hdr(2)*deg2rad
       dlat_earth=hdr(3)*deg2rad
       if(regional)then
@@ -466,8 +467,8 @@
       cdata_all(9,iout)=pblhoe*three            ! max error
       cdata_all(10,iout)=pblhqm                 ! quality mark
       cdata_all(11,iout)=usage                  ! usage parameter
-      cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-      cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+      cdata_all(12,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+      cdata_all(13,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
       cdata_all(14,iout)=stnelev                ! station elevation (m)
 
       end do ! while ireadsb

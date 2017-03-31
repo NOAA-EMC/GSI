@@ -1391,7 +1391,7 @@ module egrid2agrid_mod
 !
 !$$$ end documentation block
 
-      use constants, only: zero,half,one,two,pi,rad2deg
+      use constants, only: zero,half,one,two,pi
       implicit none
 
       integer(i_kind),intent(in) :: nlata,nlona,nlate,nlone,nord_e2a
@@ -2514,7 +2514,7 @@ module egrid2agrid_mod
 !
 !$$$ end documentation block
 
-      use constants, only: zero,half,one,two,pi,rad2deg
+      use constants, only: zero,half,one,two,pi
       implicit none
 
       integer(i_kind),intent(in) :: na,nlate,nlone,nord_e2a
