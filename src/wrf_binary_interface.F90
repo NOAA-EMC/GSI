@@ -42,6 +42,8 @@ subroutine convert_binary_mass
 !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
 !   2013-04-23  parrish - add internal check for types of GLAT/GLON
 !   2013-05-14  guo     - added #ifdef WRF arround "call initialize_byte_swap_wrf_binary_file()".
+!   2017-03-23  Hu  - add code to read hybrid vertical coodinate in WRF MASS
+!                         core
 !
 !   input argument list:
 !
@@ -102,6 +104,7 @@ subroutine convert_binary_mass
   use gsi_io, only: lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
+  use gridmod, only: wrf_mass_hybridcord
   implicit none
 
 ! Declare local parameters
@@ -127,6 +130,7 @@ subroutine convert_binary_mass
   integer(i_kind) k,n
   integer(i_kind) n_actual_clouds,istatus
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
+  real(r_single),allocatable::field1a(:),field1pa(:)
   real(r_single) rad2deg_single
   real(r_single)rdx,rdy
   integer(i_kind) ksize
@@ -241,30 +245,76 @@ subroutine convert_binary_mass
           nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
      
      allocate(field1(nsig_regional),field1p(nsig_regional+1))
+     allocate(field1a(nsig_regional),field1pa(nsig_regional+1))
    
-!                  znu
-     call retrieve_index(index,'ZNU',varname_all,nrecs)
-     if(index<0) stop
-     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+     if(wrf_mass_hybridcord) then
+!                  c3h
+        call retrieve_index(index,'C3H',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
                                   start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
-     do k=1,nsig_regional
-        write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
-     end do
-     write(lendian_out)field1             !  ZNU
+        do k=1,nsig_regional
+           write(6,*)' convert_binary_mass: k,c3h(k)=',k,field1(k)
+        end do
+!                  c4h
+        call retrieve_index(index,'C4H',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1a,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional
+           write(6,*)' convert_binary_mass: k,c4h(k)=',k,field1a(k)
+        end do
+        write(lendian_out)field1,field1a             !  C3H, C4H
+   
+!                  c3f
+        call retrieve_index(index,'C3F',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional+1
+           write(6,*)' convert_binary_mass: k,c3f(k)=',k,field1p(k)
+        end do
+!                  c4f
+        call retrieve_index(index,'C4F',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1pa,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional+1
+           write(6,*)' convert_binary_mass: k,c4f(k)=',k,field1pa(k)
+        end do
+        write(lendian_out)field1p,field1pa            !  c4f,c4f
+     else
+!                  znu
+        call retrieve_index(index,'ZNU',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional
+           write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
+        end do
+        field1a=0.0_r_single
+        write(lendian_out)field1,field1a             !  ZNU
    
 !                  znw
-     call retrieve_index(index,'ZNW',varname_all,nrecs)
-     if(index<0) stop
-     call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+        call retrieve_index(index,'ZNW',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
                                   start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
-     do k=1,nsig_regional+1
-        write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
-     end do
-     write(lendian_out)field1p            !  ZNW
+        do k=1,nsig_regional+1
+           write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
+        end do
+        field1pa=0.0_r_single
+        write(lendian_out)field1p,field1pa            !  ZNW
+     endif   ! no hybrid vertical coordinate
    
      deallocate(field1,field1p)
+     deallocate(field1a,field1pa)
    
 !                  rdx
      call retrieve_index(index,'RDX',varname_all,nrecs)
