@@ -481,6 +481,8 @@ subroutine gsd_update_th2(tinc)
 ! program history log:
 !   2011-10-04  parrish - original code
 !   2013-10-19  todling - get guess fileds from bundle
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF
+!                         MASS core
 !
 !   input argument list:
 !    tinc : first level temperature analysis increment
@@ -494,7 +496,7 @@ subroutine gsd_update_th2(tinc)
   use kinds, only: r_kind,i_kind
   use jfunc, only:  tsensible
   use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth
-  use gridmod, only: lat2,lon2,aeta1_ll,pt_ll
+  use gridmod, only: lat2,lon2,aeta1_ll,pt_ll,aeta2_ll
   use guess_grids, only: nfldsig
 
   implicit none
@@ -531,7 +533,8 @@ subroutine gsd_update_th2(tinc)
               dth2=tinc(i,j)/(one+fv*ges_q(i,j,1))
            endif
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(1)*(r10*ges_ps(i,j)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(1)*(r10*ges_ps(i,j)-pt_ll)+ &
+                                   aeta2_ll(1) + pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            ges_th2(i,j) = ges_th2(i,j) + dth2/work_prslk
         end do
