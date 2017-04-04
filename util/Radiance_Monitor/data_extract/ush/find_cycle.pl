@@ -9,6 +9,10 @@
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
+#
+#    NOTE:  This version has been modified for case 1 (latest) it returns
+#           latest - 1 cycle.  This is to counter a timing problem we've
+#           encountered on the crays.
 #-----------------------------------------------------------------------
 
     use strict;
@@ -38,8 +42,8 @@
    ##------------------------------------------------------------------
 
    if ($#ARGV != 1 ) {
-	print "usage: find_cycle.pl  0/1 /path_to_directory/containing/radmon.YYYYMMDDHH subdirectories. \n";
-        print "                           0 = first, 1 = last \n";
+	print "usage: find_cycle.pl  0|1|2 /path_to_directory/containing/radmon.YYYYMMDDHH subdirectories. \n";
+        print "                0 = first, 1 = last, 2 = 2nd to last \n";
 	exit;
    }
    my $target = $ARGV[0];
@@ -70,12 +74,13 @@
    
    #  Sort the raddirs array and loop through it from end to beginning
    #
-   if( $target == 1 ){			# search is for latest date/time
+   if( $target == 1 || $target == 2 ){		# search is for latest date/time
 
       my @sortrad = sort( @raddirs );
       my $ctr = $#sortrad + 1;
 
       my $found_cycle = 0;
+      my @times;
 
       do {
       
@@ -96,7 +101,6 @@
 
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );
-            my @times;
             my $idx = 0;
 
             #  Find the first string of 10 digits; that's the date.  Use that $idx
@@ -118,10 +122,20 @@
                }
             }
 
-            if ( $#times >= 0 ) {
+            #------------------------------------------------------------------
+            #  Added a check on $ctr < $#sortrad to ensure we look
+	    #  at least 2 directories.  In order to potentially rerturn the 2nd
+            #  to the last time here on the crays.
+            #------------------------------------------------------------------
+            if ( $#times >= 0 && $ctr < $#sortrad ) {
                $found_cycle = 1;
                my @utimes = sort( uniq( @times ) );
-              print "$utimes[$#utimes]";
+               if ( $target == 2 ) {				# 2nd to last time
+                  print "$utimes[$#utimes -1]";
+               } 
+               else {
+                  print "$utimes[$#utimes]";			# last time
+               }
             }
          }
 
