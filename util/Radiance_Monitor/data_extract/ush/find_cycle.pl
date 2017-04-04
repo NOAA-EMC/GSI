@@ -10,9 +10,9 @@
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
 #
-#    NOTE:  This version has been modified for case 1 (latest) it returns
-#           latest - 1 cycle.  This is to counter a timing problem we've
-#           encountered on the crays.
+#    NOTE:  This version has been modified to add case 2 returning
+#           the 2nd to latest cycle time.  This is to counter a timing 
+#	    problem we've encountered on the crays.
 #-----------------------------------------------------------------------
 
     use strict;
