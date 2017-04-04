@@ -137,11 +137,14 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
 elif [[ $MY_MACHINE = "cray" ]]; then
-   module load prod_util	# defines $NDATE among other things
+   . /opt/modules/3.2.6.7/init/sh
+   module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
+   module load prod_util        # defines $NDATE among other things
    module load prod_envir
-   export SUB="bsub"
+   module load xt-lsfhpc/9.1.3
+   export SUB="/gpfs/llsf/xt-lsfhpc/9.1/linux2.6-glibc2.3-x86_64-cray/bin/bsub"
    export NWPROD=${COMROOTp1}
-   export COMPRESS=gzip
+   export COMPRESS="gzip -f"
    export UNCOMPRESS="gunzip -f"
 
 elif [[ $MY_MACHINE = "theia" ]]; then
