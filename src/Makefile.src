@@ -501,5 +501,5 @@
 	xhat_vordivmod.o \
 	zrnmi_mod.o
 
-list-libs_srcs:
-	@ for f in $(OBJS); do echo $$(basename $$f .o).[Ff]90; done
+# list-libs_srcs:
+#	@ for f in $(OBJS); do echo $$(basename $$f .o).[Ff]90; done
