@@ -62,6 +62,8 @@ contains
   !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
   !   2013-04-23  parrish - add internal check for types of GLAT/GLON
   !   2013-05-14  guo     - added #ifdef WRF arround "call initialize_byte_swap_wrf_binary_file()".
+!   2017-03-23  Hu  - add code to read hybrid vertical coodinate in WRF MASS
+!                         core
   !
   !   input argument list:
   !
@@ -122,6 +124,7 @@ contains
     use gsi_io, only: lendian_out
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
     use gsi_metguess_mod, only: gsi_metguess_get
+  use gridmod, only: wrf_mass_hybridcord
     implicit none
     class(get_wrf_binary_interface_class), intent(inout) :: this
   
@@ -148,6 +151,7 @@ contains
     integer(i_kind) k,n
     integer(i_kind) n_actual_clouds,istatus
     real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
+  real(r_single),allocatable::field1a(:),field1pa(:)
     real(r_single) rad2deg_single
     real(r_single)rdx,rdy
     integer(i_kind) ksize
@@ -262,8 +266,50 @@ contains
             nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
        
        allocate(field1(nsig_regional),field1p(nsig_regional+1))
-     
-  !                  znu
+     allocate(field1a(nsig_regional),field1pa(nsig_regional+1))
+   
+     if(wrf_mass_hybridcord) then
+!                  c3h
+        call retrieve_index(index,'C3H',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional
+           write(6,*)' convert_binary_mass: k,c3h(k)=',k,field1(k)
+        end do
+!                  c4h
+        call retrieve_index(index,'C4H',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1a,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional
+           write(6,*)' convert_binary_mass: k,c4h(k)=',k,field1a(k)
+        end do
+        write(lendian_out)field1,field1a             !  C3H, C4H
+   
+!                  c3f
+        call retrieve_index(index,'C3F',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional+1
+           write(6,*)' convert_binary_mass: k,c3f(k)=',k,field1p(k)
+        end do
+!                  c4f
+        call retrieve_index(index,'C4F',varname_all,nrecs)
+        if(index<0) stop
+        call retrieve_field_rn1(in_unit,wrfges,field1pa,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        do k=1,nsig_regional+1
+           write(6,*)' convert_binary_mass: k,c4f(k)=',k,field1pa(k)
+        end do
+        write(lendian_out)field1p,field1pa            !  c4f,c4f
+     else
+!                  znu
        call this%retrieve_index(index,'ZNU',varname_all,nrecs)
        if(index<0) stop
        call this%retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
@@ -283,13 +329,16 @@ contains
        do k=1,nsig_regional+1
           write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
        end do
-       write(lendian_out)field1p            !  ZNW
-     
-       deallocate(field1,field1p)
-     
-  !                  rdx
+        field1pa=0.0_r_single
+        write(lendian_out)field1p,field1pa            !  ZNW
+     endif   ! no hybrid vertical coordinate
+   
+     deallocate(field1,field1p)
+     deallocate(field1a,field1pa)
+   
+!                  rdx
        call this%retrieve_index(index,'RDX',varname_all,nrecs)
-       if(index<0) stop
+     if(index<0) stop
        call this%retrieve_field_r1(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
      
@@ -748,6 +797,8 @@ contains
   
     integer(i_kind),parameter:: in_unit = 15
   
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
   
     character(9) wrfges,fileout
     integer(i_kind),allocatable:: start_block(:),end_block(:)
@@ -1416,6 +1467,8 @@ contains
   ! integer(i_kind),parameter:: in_unit = 15
     real(r_kind),parameter:: rd_over_cp = 0.285725661955006982_r_kind
   
+  logical     ,intent(inout) :: update_pint
+  real(r_kind),intent(  out) :: ctph0,stph0,tlm0
   
     type(nemsio_gfile) :: gfile
     character(255) wrfges,fileout
