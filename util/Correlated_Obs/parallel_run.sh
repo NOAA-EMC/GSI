@@ -50,7 +50,7 @@ unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
 wall_time=01:00:00
 #job account name (needed on theia only)
-account=cloud
+account=da-cpu
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
