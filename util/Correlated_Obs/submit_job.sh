@@ -6,7 +6,7 @@
 #PBS -N covcalc
 #PBS -q batch
 #PBS -l walltime=01:00:00
-#PBS -A cloud
+#PBS -A da-cpu
 #PBS -l nodes=1:ppn=16
 
 #WCOSS Job options

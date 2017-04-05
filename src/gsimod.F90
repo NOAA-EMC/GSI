@@ -88,7 +88,7 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
-     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
@@ -561,12 +561,13 @@
 !                  when use_gfs_ozone = .true. or use_gfs_stratosphere = .true.   
 !     use_sp_eqspac     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                         poles.  if .false., then gaussian grid assumed for ensemble (global only)
+!     wrf_mass_hybridcord - logical for using WRF MASS CORE with hybrid vertical coordinate
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut,wrf_mass_hybridcord
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
