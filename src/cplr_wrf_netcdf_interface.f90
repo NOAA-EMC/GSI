@@ -35,8 +35,8 @@ contains
   !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
   !                               Qnr(rain number concentration), 
   !                               and nsoil (number of soil levels)
-!   2017-03-23  Hu  - add code to read hybrid vertical coodinate in WRF MASS
-!                         core
+  !   2017-03-23  Hu  - add code to read hybrid vertical coodinate in WRF MASS
+  !                         core
   !
   !   input argument list:
   !
@@ -59,7 +59,7 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
-  use gridmod, only: wrf_mass_hybridcord
+    use gridmod, only: wrf_mass_hybridcord
     use netcdf_mod, only: nc_check
   
     implicit none
@@ -99,7 +99,7 @@ contains
     real(r_single) pt_regional
     real(r_single) rdx,rdy
     real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
-  real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:),field1a(:)
+    real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:),field1a(:)
     integer(i_kind),allocatable::ifield2(:,:)
     real(r_single) rad2deg_single
     integer(i_kind) wrf_real
@@ -197,7 +197,7 @@ contains
        allocate(field2b(nlon_regional,nlat_regional),field2c(nlon_regional,nlat_regional))
        allocate(ifield2(nlon_regional,nlat_regional))
        allocate(field1(max(nlon_regional,nlat_regional,nsig_regional)))
-     allocate(field1a(max(nlon_regional,nlat_regional,nsig_regional)))
+       allocate(field1a(max(nlon_regional,nlat_regional,nsig_regional)))
     
        rmse_var='P_TOP'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -218,650 +218,296 @@ contains
        write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
             nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
        
-     if(wrf_mass_hybridcord) then
-        rmse_var='C3H'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-        write(6,*)' start_index = ',start_index,' end_index = ',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field1,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,                    &
-          start_index,end_index,                   & !dom
-          start_index,end_index,                   & !mem
-          start_index,end_index,                   & !pat
-          ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,c3h(k)=',k,field1(k)
-        end do
-        rmse_var='C4H'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-        write(6,*)' start_index = ',start_index,' end_index = ',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field1a,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,                    &
-          start_index,end_index,                   & !dom
-          start_index,end_index,                   & !mem
-          start_index,end_index,                   & !pat
-          ierr                                 )
-        do k=1,nsig_regional
-           write(6,*)' k,c4h(k)=',k,field1a(k)
-        end do
-        write(iunit)field1(1:nsig_regional),field1a(1:nsig_regional)  ! c3h,c4h
-     
-        rmse_var='C3F'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-        write(6,*)' start_index = ',start_index,' end_index = ',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field1,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,                    &
-          start_index,end_index,                   & !dom
-          start_index,end_index,                   & !mem
-          start_index,end_index,                   & !pat
-          ierr                                 )
-        do k=1,nsig_regional+1
-           write(6,*)' k,c3f(k)=',k,field1(k)
-        end do
-        rmse_var='C4F'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-        write(6,*)' start_index = ',start_index,' end_index = ',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field1a,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,                    &
-          start_index,end_index,                   & !dom
-          start_index,end_index,                   & !mem
-          start_index,end_index,                   & !pat
-          ierr                                 )
-        do k=1,nsig_regional+1
-           write(6,*)' k,c4f(k)=',k,field1a(k)
-        end do
-        write(iunit)field1(1:nsig_regional+1),field1a(1:nsig_regional+1)  ! c3f,c4f
-     else
-       rmse_var='ZNU'
-       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+       if(wrf_mass_hybridcord) then
+          rmse_var='C3H'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-       write(6,*)' start_index = ',start_index,' end_index = ',end_index
-       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field1,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,                    &
             start_index,end_index,                   & !dom
             start_index,end_index,                   & !mem
             start_index,end_index,                   & !pat
             ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,c3h(k)=',k,field1(k)
+          end do
+          rmse_var='C4H'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field1a,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,                    &
+            start_index,end_index,                   & !dom
+            start_index,end_index,                   & !mem
+            start_index,end_index,                   & !pat
+            ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,c4h(k)=',k,field1a(k)
+          end do
+          write(iunit)field1(1:nsig_regional),field1a(1:nsig_regional)  ! c3h,c4h
+       
+          rmse_var='C3F'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field1,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,                    &
+            start_index,end_index,                   & !dom
+            start_index,end_index,                   & !mem
+            start_index,end_index,                   & !pat
+            ierr                                 )
+          do k=1,nsig_regional+1
+             write(6,*)' k,c3f(k)=',k,field1(k)
+          end do
+          rmse_var='C4F'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field1a,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,                    &
+            start_index,end_index,                   & !dom
+            start_index,end_index,                   & !mem
+            start_index,end_index,                   & !pat
+            ierr                                 )
+          do k=1,nsig_regional+1
+             write(6,*)' k,c4f(k)=',k,field1a(k)
+          end do
+          write(iunit)field1(1:nsig_regional+1),field1a(1:nsig_regional+1)  ! c3f,c4f
+       else
+          rmse_var='ZNU'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field1,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,                    &
+               start_index,end_index,                   & !dom
+               start_index,end_index,                   & !mem
+               start_index,end_index,                   & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,znu(k)=',k,field1(k)
+          end do
+          field1a=0.0_r_single
+          write(iunit)field1(1:nsig_regional),field1a(1:nsig_regional)  ! ZNU
+    
+          rmse_var='ZNW'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field1,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,                    &
+            start_index,end_index,                   & !dom
+            start_index,end_index,                   & !mem
+            start_index,end_index,                   & !pat
+            ierr                                 )
+          do k=1,nsig_regional+1
+             write(6,*)' k,znw(k)=',k,field1(k)
+          end do
+          field1a=0.0_r_single
+          write(iunit)field1(1:nsig_regional+1),field1a(1:nsig_regional+1)  ! ZNW
+       endif
+     
+       rmse_var='RDX'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            rdx,WRF_REAL,0,0,0,ordering,          &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' 1/rdx=',one_single/rdx
+     
+       rmse_var='RDY'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            rdy,WRF_REAL,0,0,0,ordering,          &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' 1/rdy=',one_single/rdy
+     
+       rmse_var='MAPFAC_M'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min mapfac_m=',maxval(field2),minval(field2)
+       write(6,*)' max,min MAPFAC_M(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
+       write(6,*)' max,min MAPFAC_M(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
+       write(6,*)' mapfac_m(1,1),mapfac_m(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+       write(6,*)' mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
+            field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       field2b=one_single/(field2*rdx)  !DX_MC
+       field2c=one_single/(field2*rdy)  !DY_MC
+     
+       rad2deg_single=r45/atan(one_single)
+       rmse_var='XLAT'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min XLAT(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
+       write(6,*)' max,min XLAT(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
+       write(6,*)' xlat(1,1),xlat(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+       write(6,*)' xlat(1,nlat),xlat(nlon,nlat)=', &
+            field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       field2=field2/rad2deg_single
+       write(iunit)field2,field2b   !XLAT,DX_MC
+     
+       rmse_var='XLONG'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min XLONG(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
+       write(6,*)' max,min XLONG(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
+       write(6,*)' xlong(1,1),xlong(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+       write(6,*)' xlong(1,nlat),xlong(nlon,nlat)=', &
+            field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       field2=field2/rad2deg_single
+       write(iunit)field2,field2c   !XLONG,DY_MC
+     
+       rmse_var='MUB'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min MUB=',maxval(field2),minval(field2)
+     
+       rmse_var='MU'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2b,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min MU=',maxval(field2b),minval(field2b)
+       field2=field2b+field2+pt_regional
+       write(6,*)' max,min psfc0=',maxval(field2),minval(field2)
+       write(iunit)field2   ! psfc0
+     
+       rmse_var='PHB'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field3,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       k=1
+       write(6,*)' k,max,min,mid PHB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+            field3(nlon_regional/2,nlat_regional/2,k)
+       write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PHB (zsfc*g)
+     
+       rmse_var='T'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field3,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       field3=field3+h300
        do k=1,nsig_regional
-          write(6,*)' k,znu(k)=',k,field1(k)
+          write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+               field3(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! POT TEMP (sensible??)
        end do
-        field1a=0.0_r_single
-        write(iunit)field1(1:nsig_regional),field1a(1:nsig_regional)  ! ZNU
      
-        rmse_var='ZNW'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-        write(6,*)' start_index = ',start_index,' end_index = ',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field1,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,                    &
-          start_index,end_index,                   & !dom
-          start_index,end_index,                   & !mem
-          start_index,end_index,                   & !pat
-          ierr                                 )
-        do k=1,nsig_regional+1
-           write(6,*)' k,znw(k)=',k,field1(k)
-        end do
-        field1a=0.0_r_single
-        write(iunit)field1(1:nsig_regional+1),field1a(1:nsig_regional+1)  ! ZNW
-     endif
-     
-     rmse_var='RDX'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          rdx,WRF_REAL,0,0,0,ordering,          &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' 1/rdx=',one_single/rdx
-     
-     rmse_var='RDY'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          rdy,WRF_REAL,0,0,0,ordering,          &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' 1/rdy=',one_single/rdy
-     
-     rmse_var='MAPFAC_M'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min mapfac_m=',maxval(field2),minval(field2)
-     write(6,*)' max,min MAPFAC_M(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
-     write(6,*)' max,min MAPFAC_M(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
-     write(6,*)' mapfac_m(1,1),mapfac_m(nlon,1)=',field2(1,1),field2(nlon_regional,1)
-     write(6,*)' mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
-          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-     field2b=one_single/(field2*rdx)  !DX_MC
-     field2c=one_single/(field2*rdy)  !DY_MC
-     
-     rad2deg_single=r45/atan(one_single)
-     rmse_var='XLAT'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min XLAT(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
-     write(6,*)' max,min XLAT(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
-     write(6,*)' xlat(1,1),xlat(nlon,1)=',field2(1,1),field2(nlon_regional,1)
-     write(6,*)' xlat(1,nlat),xlat(nlon,nlat)=', &
-          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-     field2=field2/rad2deg_single
-     write(iunit)field2,field2b   !XLAT,DX_MC
-     
-     rmse_var='XLONG'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min XLONG(:,1)=',maxval(field2(:,1)),minval(field2(:,1))
-     write(6,*)' max,min XLONG(1,:)=',maxval(field2(1,:)),minval(field2(1,:))
-     write(6,*)' xlong(1,1),xlong(nlon,1)=',field2(1,1),field2(nlon_regional,1)
-     write(6,*)' xlong(1,nlat),xlong(nlon,nlat)=', &
-          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-     field2=field2/rad2deg_single
-     write(iunit)field2,field2c   !XLONG,DY_MC
-     
-     rmse_var='MUB'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min MUB=',maxval(field2),minval(field2)
-     
-     rmse_var='MU'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2b,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min MU=',maxval(field2b),minval(field2b)
-     field2=field2b+field2+pt_regional
-     write(6,*)' max,min psfc0=',maxval(field2),minval(field2)
-     write(iunit)field2   ! psfc0
-     
-     rmse_var='PHB'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     k=1
-     write(6,*)' k,max,min,mid PHB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-          field3(nlon_regional/2,nlat_regional/2,k)
-     write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PHB (zsfc*g)
-     
-     rmse_var='T'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     field3=field3+h300
-     do k=1,nsig_regional
-        write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-             field3(nlon_regional/2,nlat_regional/2,k)
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! POT TEMP (sensible??)
-     end do
-     
-     rmse_var='QVAPOR'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     do k=1,nsig_regional
-        write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-             field3(nlon_regional/2,nlat_regional/2,k)
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
-     end do
-     
-     rmse_var='U'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3u,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     do k=1,nsig_regional
-        write(6,*)' k,max,min,mid U=',k,maxval(field3u(:,:,k)),minval(field3u(:,:,k)), &
-             field3u(nlon_regional/2,nlat_regional/2,k)
-        write(iunit)((field3u(i,j,k),i=1,nlon_regional+1),j=1,nlat_regional)   ! U
-     end do
-     
-     rmse_var='V'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3v,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     do k=1,nsig_regional
-        write(6,*)' k,max,min,mid V=',k,maxval(field3v(:,:,k)),minval(field3v(:,:,k)), &
-             field3v(nlon_regional/2,nlat_regional/2,k)
-        write(iunit)((field3v(i,j,k),i=1,nlon_regional),j=1,nlat_regional+1)   ! V
-     end do
-     
-!    rmse_var='LANDMASK'
-     rmse_var='XLAND'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min sm=',maxval(field2),minval(field2)
-     write(6,*)' landmask(1,1),landmask(nlon,1)=',field2(1,1),field2(nlon_regional,1)
-     write(6,*)' landmask(1,nlat),landmask(nlon,nlat)=', &
-          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-     DO j=1,nlat_regional
-     DO i=1,nlon_regional
-        if(abs(field2(i,j)-2.0)<0.01) field2(i,j)=0.0  !for XLAND 2=water 1=land
-     ENDDO
-     ENDDO
-     write(iunit)field2   !LANDMASK   (1=land, 0=water)
-     
-     rmse_var='SEAICE'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SEAICE=',maxval(field2),minval(field2)
-     write(iunit)field2   !  SEAICE
-     
-     rmse_var='SST'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SST=',maxval(field2),minval(field2)
-     write(iunit)field2   !SST
-     
-     rmse_var='IVGTYP'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          ifield2,WrfType,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min IVGTYP=',maxval(ifield2),minval(ifield2)
-     write(iunit)ifield2   !IVGTYP
-     
-     rmse_var='ISLTYP'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          ifield2,WrfType,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min ISLTYP=',maxval(ifield2),minval(ifield2)
-     write(iunit)ifield2   !ISLTYP
-     
-     rmse_var='VEGFRA'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min VEGFRA=',maxval(field2),minval(field2)
-     write(iunit)field2   !VEGFRA
-     
-     rmse_var='SNOW'    !
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min SNOW=',maxval(field2),minval(field2)
-     write(iunit)field2   !SNOW
-     
-     rmse_var='U10'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min U10=',maxval(field2),minval(field2)
-     write(iunit)field2   !U10
-     
-     rmse_var='V10'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-        write(6,*)' max,min V10=',maxval(field2),minval(field2)
-        write(iunit)field2   !V10
-     
-     rmse_var='SMOIS'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     k=1
-     if(l_gsd_soilTQ_nudge) then
-        do k=1,nsig_soil_regional
-           write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
-        enddo
-     else
-        write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-             field3(nlon_regional/2,nlat_regional/2,1)
-        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
-     endif
-
-     rmse_var='TSLB'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field3,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     k=1
-     if(l_gsd_soilTQ_nudge) then
-        do k=1,nsig_soil_regional
-           write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
-        enddo
-     else
-        write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-             field3(nlon_regional/2,nlat_regional/2,1)
-        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
-     endif
-     
-     rmse_var='TSK'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min TSK=',maxval(field2),minval(field2)
-     write(iunit)field2   !TSK
-
-
-     rmse_var='Q2'
-     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-          start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
-     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-     write(6,*)' start_index = ',start_index,' end_index = ',end_index
-     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-          field2,WRF_REAL,0,0,0,ordering,           &
-          staggering, dimnames ,               &
-          start_index,end_index,               & !dom
-          start_index,end_index,               & !mem
-          start_index,end_index,               & !pat
-          ierr                                 )
-     write(6,*)' max,min Q2=',maxval(field2),minval(field2)
-     write(iunit)field2   !Q2
-   
-     if(l_gsd_soilTQ_nudge) then
-        rmse_var='SOILT1'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var=',trim(rmse_var)
-        write(6,*)' ordering=',ordering
-        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-        write(6,*)' ndim1=',ndim1
-        write(6,*)' staggering=',staggering
-        write(6,*)' start_index=',start_index
-        write(6,*)' end_index=',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field2,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index,               & !dom
-             start_index,end_index,               & !mem
-             start_index,end_index,               & !pat
-             ierr                                 )
-        write(6,*)' max,min SOILT1=',maxval(field2),minval(field2)
-        write(iunit)field2   !SOILT1
-
-        rmse_var='TH2'
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var=',trim(rmse_var)
-        write(6,*)' ordering=',ordering
-        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-        write(6,*)' ndim1=',ndim1
-        write(6,*)' staggering=',staggering
-        write(6,*)' start_index=',start_index
-        write(6,*)' end_index=',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field2,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index,               & !dom
-             start_index,end_index,               & !mem
-             start_index,end_index,               & !pat
-             ierr                                 )
-        write(6,*)' max,min TH2=',maxval(field2),minval(field2)
-        write(iunit)field2   !TH2
-     endif
-
-     if(l_cloud_analysis .or. n_actual_clouds>0) then
-       rmse_var='QCLOUD'
+       rmse_var='QVAPOR'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -876,12 +522,214 @@ contains
             start_index,end_index,               & !pat
             ierr                                 )
        do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qc=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
-                   field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qc
+          write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+               field3(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
        end do
-   
-       rmse_var='QRAIN'
+     
+       rmse_var='U'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field3u,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       do k=1,nsig_regional
+          write(6,*)' k,max,min,mid U=',k,maxval(field3u(:,:,k)),minval(field3u(:,:,k)), &
+               field3u(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3u(i,j,k),i=1,nlon_regional+1),j=1,nlat_regional)   ! U
+       end do
+     
+       rmse_var='V'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field3v,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       do k=1,nsig_regional
+          write(6,*)' k,max,min,mid V=',k,maxval(field3v(:,:,k)),minval(field3v(:,:,k)), &
+               field3v(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3v(i,j,k),i=1,nlon_regional),j=1,nlat_regional+1)   ! V
+       end do
+     
+!      rmse_var='LANDMASK'
+       rmse_var='XLAND'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min sm=',maxval(field2),minval(field2)
+       write(6,*)' landmask(1,1),landmask(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+       write(6,*)' landmask(1,nlat),landmask(nlon,nlat)=', &
+            field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       DO j=1,nlat_regional
+       DO i=1,nlon_regional
+          if(abs(field2(i,j)-2.0)<0.01) field2(i,j)=0.0  !for XLAND 2=water 1=land
+       ENDDO
+       ENDDO
+       write(iunit)field2   !LANDMASK   (1=land, 0=water)
+     
+       rmse_var='SEAICE'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min SEAICE=',maxval(field2),minval(field2)
+       write(iunit)field2   !  SEAICE
+     
+       rmse_var='SST'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min SST=',maxval(field2),minval(field2)
+       write(iunit)field2   !SST
+       
+       rmse_var='IVGTYP'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            ifield2,WrfType,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min IVGTYP=',maxval(ifield2),minval(ifield2)
+       write(iunit)ifield2   !IVGTYP
+     
+       rmse_var='ISLTYP'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            ifield2,WrfType,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min ISLTYP=',maxval(ifield2),minval(ifield2)
+       write(iunit)ifield2   !ISLTYP
+     
+       rmse_var='VEGFRA'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min VEGFRA=',maxval(field2),minval(field2)
+       write(iunit)field2   !VEGFRA
+       
+       rmse_var='SNOW'    !
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min SNOW=',maxval(field2),minval(field2)
+       write(iunit)field2   !SNOW
+     
+       rmse_var='U10'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min U10=',maxval(field2),minval(field2)
+       write(iunit)field2   !U10
+     
+       rmse_var='V10'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       write(6,*)' max,min V10=',maxval(field2),minval(field2)
+       write(iunit)field2   !V10
+     
+       rmse_var='SMOIS'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -895,13 +743,20 @@ contains
             start_index,end_index,               & !mem
             start_index,end_index,               & !pat
             ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
-                   field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qr
-       end do
-   
-       rmse_var='QSNOW'
+       k=1
+       if(l_gsd_soilTQ_nudge) then
+          do k=1,nsig_soil_regional
+             write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                  field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
+          enddo
+       else
+          write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+               field3(nlon_regional/2,nlat_regional/2,1)
+          write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
+       endif
+
+       rmse_var='TSLB'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -915,13 +770,20 @@ contains
             start_index,end_index,               & !mem
             start_index,end_index,               & !pat
             ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qs=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                     field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qs
-       end do
-   
-       rmse_var='QICE'
+       k=1
+       if(l_gsd_soilTQ_nudge) then
+          do k=1,nsig_soil_regional
+             write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                  field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
+          enddo
+       else
+          write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+               field3(nlon_regional/2,nlat_regional/2,1)
+          write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
+       endif
+     
+       rmse_var='TSK'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -929,176 +791,314 @@ contains
        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
        write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-            field3,WRF_REAL,0,0,0,ordering,           &
+            field2,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
             start_index,end_index,               & !dom
             start_index,end_index,               & !mem
             start_index,end_index,               & !pat
             ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qi=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                     field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qi
-       end do
-   
-       rmse_var='QGRAUP'
+       write(6,*)' max,min TSK=',maxval(field2),minval(field2)
+       write(iunit)field2   !TSK
+
+
+       rmse_var='Q2'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-            start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-       write(6,*)' start_index = ',start_index,' end_index = ',end_index
-       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-            field3,WRF_REAL,0,0,0,ordering,           &
-            staggering, dimnames ,               &
-            start_index,end_index,               & !dom
-            start_index,end_index,               & !mem
-            start_index,end_index,               & !pat
-            ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qg=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                     field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qg
-       end do
-   
-       rmse_var='QNRAIN'
-       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    & 
             start_index,end_index, WrfType, ierr    )
        write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
        write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
        write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
        write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-            field3,WRF_REAL,0,0,0,ordering,           &
+            field2,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
             start_index,end_index,               & !dom
             start_index,end_index,               & !mem
             start_index,end_index,               & !pat
             ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid Qnr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                   field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) ! Qnr    
-       end do
-
-       rmse_var='RAD_TTEN_DFI'
-       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-            start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
-       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
-       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
-       write(6,*)' start_index = ',start_index,' end_index = ',end_index
-       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-            field3,WRF_REAL,0,0,0,ordering,           &
-            staggering, dimnames ,               &
-            start_index,end_index,               & !dom
-            start_index,end_index,               & !mem
-            start_index,end_index,               & !pat
-            ierr                                 )
-       do k=1,nsig_regional
-          write(6,*)' k,max,min,mid TTEN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                   field3(nlon_regional/2,nlat_regional/2,k)
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! TTEN
-       end do
+       write(6,*)' max,min Q2=',maxval(field2),minval(field2)
+       write(iunit)field2   !Q2
    
-     endif   ! l_cloud_analysis
+       if(l_gsd_soilTQ_nudge) then
+          rmse_var='SOILT1'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var=',trim(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index=',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field2,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          write(6,*)' max,min SOILT1=',maxval(field2),minval(field2)
+          write(iunit)field2   !SOILT1
 
-     if(laeroana_gocart) then
-        call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
-        do iv = 1, n_gocart_var
-           select case ( iv )
-              case ( 1 )
-                 rmse_var='sulf'
-              case ( 2 )
-                 rmse_var='BC1'
-              case ( 3 )
-                 rmse_var='BC2'
-              case ( 4 )
-                 rmse_var='OC1'
-              case ( 5 )
-                 rmse_var='OC2'
-              case ( 6 )
-                 rmse_var='DUST_1'
-              case ( 7 )
-                 rmse_var='DUST_2'
-              case ( 8 )
-                 rmse_var='DUST_3'
-              case ( 9 )
-                rmse_var='DUST_4'
-              case ( 10 )
-                 rmse_var='DUST_5'
-              case ( 11 )
-                 rmse_var='SEAS_1'
-              case ( 12 )
-                 rmse_var='SEAS_2'
-              case ( 13 )
-                 rmse_var='SEAS_3'
-              case ( 14 )
-                 rmse_var='SEAS_4'
-              case ( 15 )
-                 rmse_var='P25'
-           end select
+          rmse_var='TH2'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var=',trim(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index=',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field2,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          write(6,*)' max,min TH2=',maxval(field2),minval(field2)
+          write(iunit)field2   !TH2
+       endif
 
-           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-                start_index,end_index, WrfType, ierr    )
-           write(6,*)' rmse_var=',trim(rmse_var)
-           write(6,*)' ordering=',ordering
-           write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-           write(6,*)' ndim1=',ndim1
-           write(6,*)' staggering=',staggering
-           write(6,*)' start_index=',start_index
-           write(6,*)' end_index=',end_index
-           call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index,               & !dom
-             start_index,end_index,               & !mem
-             start_index,end_index,               & !pat
-             ierr                                 )
-           if ( trim(rmse_var) == 'sulf' ) then
-              field3 = field3*ppmv_conv   ! ppmv to ug/kg
-           end if
-           do k=1,nsig_regional
-              write(6,*)' k,max,min,mid var=',rmse_var,k,     &
-                     maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-                    field3(nlon_regional/2,nlat_regional/2,k)
-              write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
-           end do
-        end do ! n_gocart_var loop
-     endif ! laeroana_gocart
+       if(l_cloud_analysis .or. n_actual_clouds>0) then
+          rmse_var='QCLOUD'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qc=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
+                      field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qc
+          end do
+    
+          rmse_var='QRAIN'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
+                      field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qr
+          end do
    
-     if (wrf_pm2_5) then
+          rmse_var='QSNOW'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qs=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                        field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qs
+          end do
+   
+          rmse_var='QICE'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qi=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                        field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qi
+          end do
+    
+          rmse_var='QGRAUP'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qg=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                        field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qg
+          end do
+   
+          rmse_var='QNRAIN'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    & 
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qnr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                      field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) ! Qnr    
+          end do
 
-        rmse_var='PM2_5_DRY'
-        CALL ext_ncd_get_var_info (dh1,TRIM(rmse_var),ndim1,ordering,staggering, &
+          rmse_var='RAD_TTEN_DFI'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var=',TRIM(rmse_var)
-        write(6,*)' ordering=',ordering
-        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-        write(6,*)' ndim1=',ndim1
-        write(6,*)' staggering=',staggering
-        write(6,*)' start_index=',start_index
-        write(6,*)' end_index=',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index,               & !dom
-             start_index,end_index,               & !mem
-             start_index,end_index,               & !pat
-             ierr                                 )
-
-        do k=1,nsig_regional
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
-        end do
-
-     endif
-
-
-     deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
-     close(iunit)
-     call ext_ncd_ioclose(dh1, Status)
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid TTEN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                      field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! TTEN
+          end do
    
-  enddo n_loop
+       endif   ! l_cloud_analysis
+
+       if(laeroana_gocart) then
+          call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
+          do iv = 1, n_gocart_var
+             select case ( iv )
+                case ( 1 )
+                   rmse_var='sulf'
+                case ( 2 )
+                   rmse_var='BC1'
+                case ( 3 )
+                   rmse_var='BC2'
+                case ( 4 )
+                   rmse_var='OC1'
+                case ( 5 )
+                   rmse_var='OC2'
+                case ( 6 )
+                   rmse_var='DUST_1'
+                case ( 7 )
+                   rmse_var='DUST_2'
+                case ( 8 )
+                   rmse_var='DUST_3'
+                case ( 9 )
+                  rmse_var='DUST_4'
+                case ( 10 )
+                   rmse_var='DUST_5'
+                case ( 11 )
+                   rmse_var='SEAS_1'
+                case ( 12 )
+                   rmse_var='SEAS_2'
+                case ( 13 )
+                   rmse_var='SEAS_3'
+                case ( 14 )
+                   rmse_var='SEAS_4'
+                case ( 15 )
+                   rmse_var='P25'
+             end select
+
+             call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+                  start_index,end_index, WrfType, ierr    )
+             write(6,*)' rmse_var=',trim(rmse_var)
+             write(6,*)' ordering=',ordering
+             write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+             write(6,*)' ndim1=',ndim1
+             write(6,*)' staggering=',staggering
+             write(6,*)' start_index=',start_index
+             write(6,*)' end_index=',end_index
+             call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+             if ( trim(rmse_var) == 'sulf' ) then
+                field3 = field3*ppmv_conv   ! ppmv to ug/kg
+             end if
+             do k=1,nsig_regional
+                write(6,*)' k,max,min,mid var=',rmse_var,k,     &
+                       maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                      field3(nlon_regional/2,nlat_regional/2,k)
+                write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+             end do
+          end do ! n_gocart_var loop
+       endif ! laeroana_gocart
+   
+       if (wrf_pm2_5) then
+
+          rmse_var='PM2_5_DRY'
+          CALL ext_ncd_get_var_info (dh1,TRIM(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var=',TRIM(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index=',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+
+          do k=1,nsig_regional
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+          end do
+
+       endif
+
+
+       deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
+       close(iunit)
+       call ext_ncd_ioclose(dh1, Status)
+   
+    enddo n_loop
    
   end subroutine convert_netcdf_mass_wrf
   
