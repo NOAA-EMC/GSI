@@ -12,6 +12,7 @@ fi
 
 # Name of the branch being tested
 updat="XXXXXXXX"
+contrl="XXXXXXXX"
 
 #  Handle machine specific paths for:
 #  experiment and control executables, fix, ptmp, and CRTM coefficient files.
@@ -62,11 +63,13 @@ fi
 
 export gsisrc="$basedir/$updat/src"
 export gsiexec_updat="$basedir/$updat/src/global_gsi"
-export gsiexec_contrl="$basedir/svn1/src/global_gsi"
+export gsiexec_contrl="$basedir/$contrl/src/global_gsi"
 export enkfexec_updat="$basedir/$updat/src/enkf/global_enkf"
-export enkfexec_contrl="$basedir/svn1/src/enkf/global_enkf"
-export fixgsi="$basedir/$updat/fix"
-export scripts="$basedir/$updat/scripts"
+export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf"
+export fixgsi_updat="$basedir/$updat/fix"
+export scripts_updat="$basedir/$updat/scripts"
+export fixgsi_contrl="$basedir/$contrl/fix"
+export scripts_contrl="$basedir/$contrl/scripts"
 
 # Paths to tmpdir and savedir base on ptmp
 export tmpdir="$ptmp"
@@ -142,7 +145,7 @@ export nhr_obsbin="6"          # Time window for observation binning.  Use "6" f
 export HYBENS_GLOBAL=".false."
 export ENSEMBLE_SIZE_GLOBAL="10"
 export HYBENS_UV_GLOBAL=".true."
-export BETA1_INV_GLOBAL="0.5"
+export BETA_S0_GLOBAL="0.5"
 export HYBENS_HOR_SCALE_GLOBAL="1500"
 export HYBENS_VER_SCALE_GLOBAL="20"
 export GENERATE_ENS_GLOBAL=".true."
@@ -151,7 +154,7 @@ export HYBENS_ANISO_GLOBAL=".false."
 export HYBENS_REGIONAL=".false."
 export ENSEMBLE_SIZE_REGIONAL="10"
 export HYBENS_UV_REGIONAL=".true."
-export BETA1_INV_REGIONAL="0.5"
+export BETA_S0_REGIONAL="0.5"
 export HYBENS_HOR_SCALE_REGIONAL="1500"
 export HYBENS_VER_SCALE_REGIONAL="20"
 export GENERATE_ENS_REGIONAL=".true."

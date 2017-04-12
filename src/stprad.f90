@@ -13,6 +13,7 @@ module stpradmod
 !   2008-12-02  Todling - remove stprad_tl
 !   2009-08-12  lueken - update documentation
 !   2011-05-17  todling - add internal routine set_
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stprad
@@ -69,6 +70,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !   2011-05-04  todling - merge in Min-Jeong Kim's cloud clear assimilation (connect to Metguess)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  augline/todling - add hydrometeors
+!   2016-07-19  kbathmann- adjustment to bias correction when using correlated obs
 !
 !   input argument list:
 !     radhead
@@ -100,7 +102,6 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,b_rad,pg_rad
   use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use obsmod, only: rad_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,r3600,zero_quad,one_quad
   use gridmod, only: nsig,latlon11,latlon1n
@@ -112,10 +113,14 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
           luseqr,luseqs,lusesst
   use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+  use m_obsNode, only: obsNode
+  use m_radNode, only: radNode
+  use m_radNode, only: radNode_typecast
+  use m_radNode, only: radNode_nextcast
   implicit none
   
 ! Declare passed variables
-  type(rad_ob_type),pointer              ,intent(in   ) :: radhead
+  class(obsNode), pointer                ,intent(in   ) :: radhead
   integer(i_kind)                        ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep))   ,intent(inout) :: out
   real(r_kind),dimension(npred,jpch_rad) ,intent(in   ) :: rpred,spred
@@ -125,15 +130,16 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk
+  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk, mm, ic1
   real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tdir,rdir
   real(r_kind) cg_rad,wgross,wnotgross
   real(r_kind) time_rad
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
   real(r_kind),dimension(max(1,nstep)) :: term,rad
-  type(rad_ob_type), pointer :: radptr
-
+  type(radNode), pointer :: radptr
+  real(r_kind), dimension(:,:), allocatable:: rsqrtinv
+  integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: rst,sst
@@ -196,7 +202,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   tdir=zero
   rdir=zero
 
-  radptr=>radhead
+  radptr=> radNode_typecast(radhead)
   do while(associated(radptr))
      if(radptr%luse)then
         if(nstep > 0)then
@@ -209,6 +215,17 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            w3=radptr%wij(3)
            w4=radptr%wij(4)
            if(luseu)then
+           if (radptr%use_corr_obs) then
+              allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+              chan_count=0
+              do ii=1,radptr%nchan
+                 do jj=ii,radptr%nchan
+                    chan_count=chan_count+1
+                    rsqrtinv(ii,jj)=radptr%rsqrtinv(chan_count)
+                    rsqrtinv(jj,ii)=radptr%rsqrtinv(chan_count)
+                 end do
+              end do
+           end if
               tdir(ius+1)=w1* su(j1) + w2* su(j2) + w3* su(j3) + w4* su(j4)
               rdir(ius+1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
            endif
@@ -346,8 +363,16 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !             contribution from bias corection
               ic=radptr%icx(nn)
               do nx=1,npred
-                 val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
-                 val =val +rpred(nx,ic)*radptr%pred(nx,nn)
+                 if (radptr%use_corr_obs) then
+                    do mm=1,radptr%nchan
+                       ic1=radptr%icx(mm)
+                       val2=val2+spred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                       val=val+rpred(nx,ic1)*rsqrtinv(nn,mm)*radptr%pred(nx,mm)
+                    end do
+                 else
+                    val2=val2+spred(nx,ic)*radptr%pred(nx,nn)
+                    val =val +rpred(nx,ic)*radptr%pred(nx,nn)
+                 end if
               end do
  
 !             contribution from atmosphere
@@ -386,10 +411,11 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            end do
 
         end do
+        if (radptr%use_corr_obs) deallocate(rsqrtinv)
 
      end if
 
-     radptr => radptr%llpoint
+     radptr => radNode_nextcast(radptr)
   end do
   return
 end subroutine stprad

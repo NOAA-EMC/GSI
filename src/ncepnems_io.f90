@@ -35,6 +35,7 @@ module ncepnems_io
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
 !                               change/modify sfc_interpolate to be intrp22 to handle more general interpolation (2d to 2d)
+!   2016-11-18 li     - tic615: change nst mask name from slmsk to land 
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -203,7 +204,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: sp_a,grd_a,jcap_b,lat2,lon2,nsig
+    use gridmod, only: sp_a,grd_a,lat2,lon2,nsig
     use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -483,7 +484,7 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: ntracer,ncloud,reload,itotsub,jcap_b
+    use gridmod, only: ntracer,ncloud,reload,itotsub
     use general_commvars_mod, only: fill_ns,filluv_ns,fill2_ns,filluv2_ns,ltosj_s,ltosi_s
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
@@ -1272,7 +1273,6 @@ contains
     use mpimod, only: mype
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat,nlon
-    use guess_grids, only: nfldsfc,ifilesfc
     use constants, only: zero
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
@@ -1708,16 +1708,16 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
-    use mpimod, only: npe,mype
+    use mpimod, only: mype
     
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
     
     use gridmod, only: ntracer
     use gridmod, only: ncloud
-    use gridmod, only: strip,itotsub,iglobal,jcap_b
+    use gridmod, only: strip,jcap_b
     
-    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns,ltosj_s,ltosi_s,ltosj,ltosi
+    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
     use general_specmod, only: spec_vars
 
     use obsmod, only: iadate
@@ -2989,8 +2989,8 @@ contains
 !
 ! slmsk
        rwork1d = reshape( slmsk_anl,(/size(rwork1d)/) )
-       call nemsio_writerecv(gfile_nstanl,'slmsk','sfc',1,rwork1d,iret=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'slmsk','write',istop,iret)
+       call nemsio_writerecv(gfile_nstanl,'land','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),'land','write',istop,iret)
 ! xt
        rwork1d = reshape( xt,(/size(rwork1d)/) )
        call nemsio_writerecv(gfile_nstanl,'xt','sfc',1,rwork1d,iret=iret)
@@ -3104,13 +3104,13 @@ contains
     if ( mype == 0 ) then
        select case (trim(action))
        case('init')
-          write(6,'(a,'':  problem with nemsio_init, Status = '', i3)') &
+          write(6,'(a,'':  PROBLEM with nemsio_init, Status = '', i3)') &
              trim(sub_name), error_code
        case('open')
-          write(6,'(a,'':  problem opening file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem opening file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case('close')
-          write(6,'(a,'':  problem closing file '',a,'', Status = '', i3)') &
+          write(6,'(a,'':  ***ERROR*** problem closing file '',a,'', Status = '', i3)') &
              trim(sub_name), trim(file_name), error_code
        case default
           write(6,'(a,'':  ***ERROR*** '',a,tr1,a,'',variable = '',a,'',Status = '',i3)') &

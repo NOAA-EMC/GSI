@@ -63,6 +63,28 @@ if [[ $nodiag = "" ]]; then
    fi
 fi
 
+missing_diag_file="./missing_diags.txt"
+if [[ -s $missing_diag_file ]]; then
+   echo "processing potential missing_diags"
+   missing_diags=`cat $missing_diag_file`
+   for var in ${missing_diags}; do
+      test=`cat $err_rpt | grep $var`
+
+      if [[ $test = "" ]]; then
+         #-------------------------------------------------------------
+         #  add this to the existing $err_rpt, or start a new $err_rpt
+         #          
+         if [[ ! -s $err_rpt ]]; then
+            echo "Source = ${RADMON_SUFFIX}" >> $err_rpt
+            echo " " >> $err_rpt
+            echo "   WARNING:  NO DATA FOUND in cycle $PDATE for these sources:" >> $err_rpt
+         fi
+         echo "         $var" >> $err_rpt
+      fi
+   done
+   echo " " >> $err_rpt
+fi
+
 noerr=`grep 'NO ERROR REPORT' $file`
 if [[ $noerr = "" ]]; then
    start=`grep -n 'Begin Cycle Data Integrity Report' $file | tail -1`

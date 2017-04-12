@@ -16,6 +16,7 @@ module intradmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off and
 !                         add threading
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intrad_
@@ -29,6 +30,10 @@ module intradmod
 !$$$ end documentation block
 
 use kinds, only: i_kind
+use m_obsNode, only: obsNode
+use m_radNode, only: radNode
+use m_radNode, only: radNode_typecast
+use m_radNode, only: radNode_nextcast
 implicit none
 
 PRIVATE
@@ -72,8 +77,7 @@ subroutine setrad(sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use radinfo, only: radjacnames,radjacindxs
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
@@ -242,6 +246,9 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  auligne/todling - add hydrometeors
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2015-04-01  W. Gu   - scale the bias correction term to handle the
+!                       - inter-channel correlated obs errors.
+!   2016-07-19  kbathmann - move decomposition of correlated R to outer loop.
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
@@ -276,10 +283,10 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
-  use radinfo, only: radjacnames,radjacindxs,nsigradjac
-  use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use radinfo, only: nsigradjac
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use gridmod, only: latlon11,latlon1n,nsig
+  use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
   use gsi_bundlemod, only: gsi_bundle
@@ -287,10 +294,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use gsi_4dvar, only: ladtest_obs
+  use timermod, only: timer_ini, timer_fnl
   implicit none
 
 ! Declare passed variables
-  type(rad_ob_type),pointer,intent(in) :: radhead
+  class(obsNode),pointer,intent(in) :: radhead
   type(gsi_bundle), intent(in   ) :: sval
   type(gsi_bundle), intent(inout) :: rval
   real(r_kind),dimension(npred*jpch_rad),intent(in   ) :: spred
@@ -304,8 +312,10 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind) w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
-  type(rad_ob_type), pointer :: radptr
-
+  type(radNode), pointer :: radptr
+  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
+  integer(i_kind) :: ic1,ix1
+  integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -318,6 +328,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 ! Set required parameters
   if(lgoback) return
 
+  call timer_ini('intrad')
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
   ier=0
@@ -400,7 +411,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      if(ier/=0)return
   endif
 
-  radptr => radhead
+  !radptr => radhead
+  radptr => radNode_typecast(radhead)
   do while (associated(radptr))
      j1=radptr%ij(1)
      j2=radptr%ij(2)
@@ -410,7 +422,17 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      w2=radptr%wij(2)
      w3=radptr%wij(3)
      w4=radptr%wij(4)
-
+     if (radptr%use_corr_obs) then
+        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
+        chan_count=0
+        do ii=1,radptr%nchan
+           do jj=ii,radptr%nchan
+              chan_count=chan_count+1
+              rsqrtinv(ii,jj)=radptr%rsqrtinv(chan_count)
+              rsqrtinv(jj,ii)=radptr%rsqrtinv(chan_count)
+           end do
+       end do
+     end if
 !  Begin Forward model
 !  calculate temperature, q, ozone, sst vector at observation location
      i1n(1) = j1
@@ -538,10 +560,21 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !       Include contributions from remaining bias correction terms
         if( .not. ladtest_obs) then
-           do n=1,npred
-              val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
-           end do
+           if(radptr%use_corr_obs)then
+              do n=1,npred
+                 do mm=1,radptr%nchan
+                    ic1=radptr%icx(mm)
+                    ix1=(ic1-1)*npred
+                    val(nn)=val(nn)+rsqrtinv(nn,mm)*spred(ix1+n)*radptr%pred(n,mm)
+                 enddo
+              enddo
+           else
+              do n=1,npred
+                 val(nn)=val(nn)+spred(ix+n)*radptr%pred(n,nn)
+              end do
+           endif
         end if
+
 
         if(luse_obsdiag)then
            if (lsaveobsens) then
@@ -573,15 +606,26 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !          use compensated summation
            if( .not. ladtest_obs) then
               if(radptr%luse)then
-                 do n=1,npred
-                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
-                 end do
+                 if(radptr%use_corr_obs)then
+                    do n=1,npred
+                       do mm=1,radptr%nchan
+                          ic1=radptr%icx(mm)
+                          ix1=(ic1-1)*npred
+                          rpred(ix1+n)=rpred(ix1+n)+rsqrtinv(nn,mm)*radptr%pred(n,mm)*val(nn)
+                       enddo
+                    enddo
+                 else
+                    do n=1,npred
+                       rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
+                    end do
+                 end if
               end if
            end if ! not ladtest_obs
         end if
      end do
-!          Begin adjoint
 
+!          Begin adjoint
+     if (radptr%use_corr_obs) deallocate(rsqrtinv)
      if (l_do_adjoint) then
         do k=1,nsigradjac
            tval(k)=zero
@@ -737,8 +781,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      endif ! < l_do_adjoint >
      deallocate(val)
 
-     radptr => radptr%llpoint
+     !radptr => radptr%llpoint
+     radptr => radNode_nextcast(radptr)
   end do
+
+  call timer_fnl('intrad')
 
   return
 end subroutine intrad_

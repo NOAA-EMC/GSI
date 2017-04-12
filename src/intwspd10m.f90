@@ -8,6 +8,7 @@ module intwspd10mmod
 !
 ! program history log:
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intwspd10m
@@ -20,6 +21,10 @@ module intwspd10mmod
 !
 !$$$ end documentation block
 
+use m_obsNode    , only: obsNode
+use m_wspd10mNode, only: wspd10mNode
+use m_wspd10mNode, only: wspd10mNode_typecast
+use m_wspd10mNode, only: wspd10mNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,7 +61,7 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: wspd10m_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -66,7 +71,7 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(wspd10m_ob_type),pointer,intent(in   ) :: wspd10mhead
+  class(obsNode)  , pointer,intent(in   ) :: wspd10mhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +84,7 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
   real(r_kind) cg_wspd10m,p0,grad,wnotgross,wgross,pg_wspd10m
   real(r_kind),pointer,dimension(:) :: swspd10m
   real(r_kind),pointer,dimension(:) :: rwspd10m
-  type(wspd10m_ob_type), pointer :: wspd10mptr
+  type(wspd10mNode), pointer :: wspd10mptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +93,8 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
   call gsi_bundlegetpointer(rval,'wspd10m',rwspd10m,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  wspd10mptr => wspd10mhead
+  !wspd10mptr => wspd10mhead
+  wspd10mptr => wspd10mNode_typecast(wspd10mhead)
   do while (associated(wspd10mptr))
      j1=wspd10mptr%ij(1)
      j2=wspd10mptr%ij(2)
@@ -140,7 +146,8 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
         rwspd10m(j4)=rwspd10m(j4)+w4*grad
      endif
 
-     wspd10mptr => wspd10mptr%llpoint
+     !wspd10mptr => wspd10mptr%llpoint
+     wspd10mptr => wspd10mNode_nextcast(wspd10mptr)
 
   end do
 

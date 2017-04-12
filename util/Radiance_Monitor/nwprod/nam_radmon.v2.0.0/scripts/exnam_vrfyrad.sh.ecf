@@ -60,7 +60,6 @@
 #
 #     input data : $biascr
 #                  $radstat
-#                  $biascr
 #
 #     output data:  
 #
@@ -112,6 +111,7 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 export biascr=${biascr:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.satbias.${rgnTM}}
 export radstat=${radstat:-$COMOUT/${RADMON_SUFFIX}.t${cyc}z.radstat.${rgnTM}}
 export satype_file=${satype_file:-nam_radmon_satype.txt}
+export base_file=${base_file:-${FIXnam}/nam_radmon_base.tar}
 
 #  Other variables
 export RAD_AREA=${RAD_AREA:-rgn}
@@ -208,6 +208,8 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
       pday=${PDY}
    fi
 
+   echo "FIXnam = ${FIXnam}"
+
    if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
       if [[ ! -e ${FIXnam}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
@@ -268,14 +270,29 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
 
    for type in ${SATYPE}; do
-      mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
-      ${UNCOMPRESS} ./${type}.${Z}
+
+      if [[ ! -e diag_${type}_ges.${PDATE}.${Z} ]]; then
+
+         edited_satype="$(echo $SATYPE | tr ' ' '\n' | sed "/${type}/d")"
+
+         echo "REMOVED:  $type from SATYPE"
+#         echo "edited_satype:  $edited_satype"
+         export SATYPE=${edited_satype}
+#         echo "SATYPE = $SATYPE"
+
+      else 
+         mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
+         ${UNCOMPRESS} ./${type}.${Z}
      
-      if [[ $USE_ANL -eq 1 ]]; then
-         mv diag_${type}_anl.${PDATE}.${Z} ${type}_anl.${Z}
-         ${UNCOMPRESS} ./${type}_anl.${Z}
+         if [[ $USE_ANL -eq 1 ]]; then
+            mv diag_${type}_anl.${PDATE}.${Z} ${type}_anl.${Z}
+            ${UNCOMPRESS} ./${type}_anl.${Z}
+         fi
       fi
+
    done
+
+   echo "NOW SATYPE = $SATYPE"
 
    #------------------------------------------------------------------
    #   Run the child sccripts.

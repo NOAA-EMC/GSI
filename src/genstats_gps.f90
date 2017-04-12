@@ -1,3 +1,181 @@
+module m_gpsStats
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module m_gpsStats
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:	 2015-08-28
+!
+! abstract: a modular wrapper of (gsp_allhead, gps_alltail), and genstats_gps()
+!
+! program history log:
+!   2007-06-22  cucurull - modify gps_all_ob_type structure
+!   2015-08-28  j guo    - created this module on top of genstats_gps();
+!                        . completed with type/data components from obsmod;
+!                        . changed code where this module needs to be used;
+!                        . added this document block;
+!                        . for earlier history log, see the history log section
+!                          inside ::genstats_gps() below.
+!   2016-05-18  j guo    - Made the type private, since this is only a single
+!                          instance module object, with its components defined
+!                          as module variables (gps_allhead, and gsp_alltail).
+!                        . Removed old interface names, which are no longer used
+!                          in this version of GSI.
+!                        . Edited the in-file documentation.
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
+  use m_gpsNode, only: gps_ob_type => gpsNode
+  use kinds , only: r_kind,i_kind
+  implicit none
+  private	! except
+  
+        ! Data Structure:
+  !public:: gps_all_ob_type      ! currently not required to be public
+
+    type gps_all_ob_type
+      type(gps_all_ob_type),pointer :: llpoint => NULL()
+      type(gps_ob_type),pointer :: mmpoint => NULL()
+      real(r_kind)    :: ratio_err                        
+      real(r_kind)    :: obserr                        
+      real(r_kind)    :: dataerr                       
+      real(r_kind)    :: pg                       
+      real(r_kind)    :: b                      
+      real(r_kind)    :: loc                    
+      real(r_kind)    :: type               
+
+      real(r_kind),dimension(:),pointer :: rdiag => NULL()
+      integer(i_kind) :: kprof
+      logical         :: luse          !  flag indicating if ob is used in pen.
+
+      logical         :: muse          !  flag indicating if ob is used in pen.
+      character(8)    :: cdiag
+
+      integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
+      real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
+      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
+    end type gps_all_ob_type
+
+    type gps_all_ob_head
+      integer(i_kind):: n_alloc=0
+      type(gps_all_ob_type),pointer :: head => NULL()
+    end type gps_all_ob_head
+
+        ! Data objects:
+
+  public:: gps_allhead
+  public:: gps_alltail
+
+        ! interfaces:
+
+  public:: gpsStats_create
+  public:: gpsStats_destroy
+
+        interface gpsStats_create ; module procedure create_; end interface
+        interface gpsStats_destroy; module procedure destroy_genstats_gps; end interface
+
+  public:: gpsStats_genStats
+
+        interface gpsStats_genStats; module procedure genstats_gps; end interface
+
+        ! Synopsis:
+        !       - []_create: allocated in gsimod::gsimain_initialize().  It was
+        !         done through ::create_obsmod_vars(), and now next to it.
+        !
+        !       - externally built, node-by-node, in setupbend() or setupref().
+        !         This is the reason why the ADT can not be defined as "private".
+        !
+        !       - []_genStats: used to update m_rhs::[ab]work, in setuprhsall(),
+        !         through ::genstats_gps();
+        !
+        !       - []_destroy: deallocated within genstats_gps(), when it it
+        !         finished.
+        !
+        ! The use of []_create()/[]_destroy() pair is obviously not symmetric.  It
+        ! would cleaner if they are be moved to the level of setuprhsall(),
+        ! where m_rhs::[ab]work are computed.  e.g.,
+        !
+        !       if(init_pass) call gpsStats_create()
+        !       ...
+        !       if(last_pass) then
+        !         call gpsStats_genstats(bwork,awork,...)
+        !         call gpsStats_destroy()
+        !       endif
+        !
+        ! As it is now, the second half has been done, but the first half
+        ! stayed at where it has been, for later.
+
+! Most implementations of this module, are snap-shots of gps_all_ob_type, from
+! obsmod, its original home.  These implementations include, the type
+! definition (gps_all_ob_type and gsp_app_ob_head), instantiation of the type
+! (gps_allhead and gsp_alltail), and interfaces for the operations of this
+! object ([]_create, []_genstats, []_destroy).  The part of implementation for
+! the node-growing, is remained in setupbend() and setupref() as is.
+
+  type(gps_all_ob_head),dimension(:),pointer :: gps_allhead => null()
+  type(gps_all_ob_head),dimension(:),pointer :: gps_alltail => null()
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  character(len=*),parameter :: myname='genstats_gps'
+contains
+
+  subroutine create_()
+    use gsi_4dvar, only: nobs_bins
+    implicit none
+
+    ALLOCATE(gps_allhead(nobs_bins))
+    ALLOCATE(gps_alltail(nobs_bins))
+  end subroutine create_
+
+  subroutine destroy_genstats_gps()
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_genstats_gps
+!     prgmmr:    treadon     org: np20                date: 2005-12-21
+!
+! abstract:  deallocate arrays holding gps information
+!
+! program history log:
+!   2005-12-21  treadon
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$  end documentation block
+    use gsi_4dvar, only: nobs_bins
+    use kinds, only: i_kind
+    implicit none
+
+    integer(i_kind):: istatus,ii
+
+    do ii=1,nobs_bins
+       gps_alltail(ii)%head => gps_allhead(ii)%head
+       do while (associated(gps_alltail(ii)%head))
+          gps_allhead(ii)%head => gps_alltail(ii)%head%llpoint
+          deallocate(gps_alltail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
+          gps_alltail(ii)%head => gps_allhead(ii)%head
+       end do
+    end do
+
+    return
+  end subroutine destroy_genstats_gps
+
 subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -44,6 +222,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-13 derber   - minor optimization modifications
 !   2015-07-28 cucurull - add QC for regional bending angle assimilation
+!   2015-08-28  guo     - wrapped as a  module (m_gpsStats)
+!                         moved the call to obsmod::destroy_genstats_gps() to
+!                         where this routine was used (setuprhsall()), with its
+!                         new module interface name. gpsStats_destroy().
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
@@ -60,8 +242,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use obsmod, only: gps_allhead,gps_allptr,nprof_gps,&
-       destroy_genstats_gps,gpsptr,obs_diag,lobsdiagsave,luse_obsdiag
+  use obsmod, only: nprof_gps
+  use obsmod, only: obs_diag,lobsdiagsave,luse_obsdiag
   use gridmod, only: nsig,regional
   use constants, only: tiny_r_kind,half,wgtlim,one,two,zero,five,four
   use qcmod, only: npres_print,ptop,pbot
@@ -101,6 +283,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   character(8),allocatable,dimension(:):: cdiag
   
   type(obs_diag), pointer :: obsptr => NULL()
+  type(gps_ob_type), pointer:: gpsptr
+  type(gps_all_ob_type), pointer:: gps_allptr
   
 
 !*******************************************************************************
@@ -495,3 +679,4 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   call destroy_genstats_gps
 
 end subroutine genstats_gps
+end module m_gpsStats

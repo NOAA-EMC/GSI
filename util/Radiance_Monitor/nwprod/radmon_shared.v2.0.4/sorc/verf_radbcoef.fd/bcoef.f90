@@ -262,10 +262,14 @@ program bcoef
      endif
      if(iflag /=0) exit
      if (trim(isis)==trim(satsis)) then
-        io_chan(k)=ichan
-        do j=1,npredr
-           coefs(k,j)=predr(j)
-        end do
+
+        if ( k <= n_chan ) then
+           io_chan(k)=ichan
+           do j=1,npredr
+              coefs(k,j)=predr(j)
+           end do
+        endif
+
         k=k+1
         cycle 
      endif

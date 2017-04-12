@@ -89,7 +89,7 @@ $(LIB):	 $(OBJS)
 	$(AR) -ruv $(LIB) $(OBJS)
 
 $(EXE_FILE):  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) $(OMP) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) $(LIBrrcld) $(LIBprpdcdr)
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) $(LIBrrcld) $(LIBprpdcdr)
 	cp $(EXE_FILE) $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)
