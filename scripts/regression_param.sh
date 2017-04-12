@@ -56,6 +56,11 @@ case $regtest in
 
         if [ "$debug" = ".true." ] ; then
            topts[1]="0:45:00"
+           if [[ "$machine" = "Theia" ]]; then
+              popts[1]="12/5/"
+           elif [[ "$machine" = "WCOSS" ]]; then
+              popts[1]="16/4/"
+           fi
         fi
 
         scaling[1]=5; scaling[2]=8; scaling[3]=2
@@ -205,8 +210,8 @@ case $regtest in
     rtma)
 
         if [[ "$machine" = "Theia" ]]; then
-            topts[1]="0:15:00" ; popts[1]="8/6/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
+            topts[1]="0:35:00" ; popts[1]="8/6/"  ; ropts[1]="/1"
+            topts[2]="0:35:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
             sub_cmd="sub_zeus"
         elif [[ "$machine" = "WCOSS" ]]; then
             topts[1]="0:15:00" ; popts[1]="8/6/"  ; ropts[1]="/1"
@@ -235,7 +240,7 @@ case $regtest in
         fi
 
         if [ "$debug" = ".true." ] ; then
-           topts[1]="0:45:00"
+           topts[1]="1:00:00"
         fi
 
         scaling[1]=5; scaling[2]=10; scaling[3]=2

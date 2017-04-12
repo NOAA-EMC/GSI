@@ -535,7 +535,7 @@ contains
 !$$$
     use constants, only: one,half
     use gsi_4dvar, only: lsqrtb
-    use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
+    use gridmod, only: regional,lat2,nsig,lon2
     use mod_strong, only: tlnmc_option
     implicit none
     
@@ -728,7 +728,7 @@ contains
 !$$$
     use constants,   only: one,half
     use gsi_4dvar,   only: lsqrtb
-    use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
+    use gridmod,     only: regional,lon2,lat2,nsig
     use mod_strong,  only: tlnmc_option
     implicit none
 

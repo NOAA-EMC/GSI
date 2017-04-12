@@ -1,5 +1,5 @@
 SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
-             zh,pt_ll,eta1_ll,aeta1_ll,regional,wrf_mass_regional)
+             zh,pt_ll,eta1_ll,aeta1_ll,eta2_ll,aeta2_ll,regional,wrf_mass_regional)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -14,6 +14,8 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
 !    2009-01-02  Hu  Add NCO document block
 !    2010-04-26  Hu  delete the module gridmod and guess_grids.
 !                    transfer information subroutine dummy variables
+!   2017-03-23   Hu   - add code to use hybrid vertical coodinate in WRF MASS
+!                      core
 !
 !
 !   input argument list:
@@ -66,6 +68,8 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
   real(r_kind), intent(in) :: pt_ll
   real(r_kind), intent(in) :: eta1_ll(nsig+1)  !
   real(r_kind), intent(in) :: aeta1_ll(nsig)   !
+  real(r_kind), intent(in) :: eta2_ll(nsig+1)  !
+  real(r_kind), intent(in) :: aeta2_ll(nsig)   !
   logical,      intent(in) :: regional         ! .t. for regional background/analysis
   logical,      intent(in) :: wrf_mass_regional   ! 
 
@@ -95,19 +99,22 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
 
   REAL(r_single) :: rdog, h, dz, rl
   REAL(r_single) :: height(nsig+1)
-  real(r_single) :: q_integral(lon2,lat2)   
-  real(r_single) :: deltasigma, psfc_this
+  real(r_single) :: q_integral(lon2,lat2),q_integralc4h(lon2,lat2)   
+  real(r_single) :: deltasigma, deltasigmac4h,psfc_this
   
 !
 !================================================================
 !
   q_integral=1
+  q_integralc4h=0.0
   do k=1,nsig
     deltasigma=eta1_ll(k)-eta1_ll(k+1)
+    deltasigmac4h=eta2_ll(k)-eta2_ll(k+1)
     do j=1,lat2
       do i=1,lon2
          q(i,j,k) = q(i,j,k)/(1.0_r_kind-q(i,j,k))   ! water vapor mixing ratio (kg/kg)
          q_integral(i,j)=q_integral(i,j)+deltasigma*q(i,j,k)
+         q_integralc4h(i,j)=q_integralc4h(i,j)+deltasigmac4h*q(i,j,k)
       enddo
     enddo
   enddo
@@ -148,7 +155,7 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
     do k=1,nsig
       do j=1,lat2
         do i=1,lon2
-           pbk(i,j,k)=aeta1_ll(k)*(psbk(i,j)-pt_ll)+pt_ll
+           pbk(i,j,k)=aeta1_ll(k)*(psbk(i,j)-pt_ll)+pt_ll + aeta2_ll(k)
         end do
       end do
     end do

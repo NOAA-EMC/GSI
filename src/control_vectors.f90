@@ -71,7 +71,7 @@ use constants, only: zero, one, two, three, zero_quad, tiny_r_kind
 use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
-use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
+use hybrid_ensemble_parameters, only: beta_s0,l_hyb_ens
 use hybrid_ensemble_parameters, only: grd_ens
 use constants, only : max_varname_length
 
@@ -441,7 +441,7 @@ subroutine allocate_cv(ycv)
 
 ! If so, define grid of regular control vector
   n_step=0
-! if (beta1_inv>tiny_r_kind) then
+! if (beta_s0>tiny_r_kind) then
       ALLOCATE(ycv%step(nsubwin))
       call GSI_GridCreate(ycv%grid_step,lat2,lon2,nsig)
          if (lsqrtb) then
@@ -472,7 +472,7 @@ subroutine allocate_cv(ycv)
   do jj=1,nsubwin
 
 !    Set static part of control vector (non-ensemble-based)
-!    if (beta1_inv>tiny_r_kind) then
+!    if (beta_s0>tiny_r_kind) then
          ycv%step(jj)%values => ycv%values(ii+1:ii+n_step)
 
          write(bname,'(a,i3.3)') 'Static Control Bundle subwin-',jj
@@ -495,7 +495,7 @@ subroutine allocate_cv(ycv)
                 call stop2(109)
             endif
          endif
-!    endif ! beta1_inv
+!    endif ! beta_s0
 
 !    Set ensemble-based part of control vector
      if (l_hyb_ens) then
@@ -608,12 +608,12 @@ subroutine deallocate_cv(ycv)
               call GSI_BundleUnset(ycv%aens(ii,nn),ierror)
            enddo
         endif
-!       if (beta1_inv>tiny_r_kind) then
+!       if (beta_s0>tiny_r_kind) then
            if(mvars>0) then
               call GSI_BundleDestroy(ycv%motley(ii),ierror)
            endif
            call GSI_BundleUnset(ycv%step(ii),ierror)
-!       endif ! beta1_inv
+!       endif ! beta_s0
      end do
      NULLIFY(ycv%predr)
      NULLIFY(ycv%predp)
@@ -1038,7 +1038,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
 return
 end function dot_prod_cv
 ! ----------------------------------------------------------------------
-real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
+real(r_quad) function qdot_prod_cv(xcv,ycv,mold)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_prod_cv
@@ -1048,10 +1048,11 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2017-03-06  todling - rename interface variable to mold
 !
 !   input argument list:
 !    xcv,ycv
-!    kind
+!    mold      - interface device
 !
 !   output argument list:
 !
@@ -1062,7 +1063,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind)     , intent(in   ) :: kind
+  integer(i_kind)     , intent(in   ) :: mold
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
@@ -1080,7 +1081,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 return
 end function qdot_prod_cv
 ! ----------------------------------------------------------------------
-real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
+real(r_quad) function qdot_prod_cv_eb(xcv,ycv,mold,eb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_prod_cv_eb  copy of qdot_prod_cv for J_ens
@@ -1093,10 +1094,11 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 !
 ! program history log:
 !   2009-09-20  parrish - initial documentation
+!   2017-03-06  todling - rename interface variable to mold
 !
 !   input argument list:
 !    xcv,ycv
-!    kind
+!    mold      - interface device
 !    eb        - eb= 'cost_b' then return J_b in prods
 !                  = 'cost_e' then return J_ens in prods
 !
@@ -1109,7 +1111,7 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind)     , intent(in   ) :: kind
+  integer(i_kind)     , intent(in   ) :: mold
   character(len=*)    , intent(in   ) :: eb
   type(control_vector), intent(in   ) :: xcv, ycv
 

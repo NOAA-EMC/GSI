@@ -7,6 +7,8 @@ module inttcamtmod
 ! abstract: module for inttcamt 
 !
 ! program history log:
+!   2015-03-11  pondeca - modify so that use of obsdiags can be turned off
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub inttcamt
@@ -19,6 +21,10 @@ module inttcamtmod
 !
 !$$$ end documentation block
 
+use m_obsNode  , only: obsNode
+use m_tcamtNode, only: tcamtNode
+use m_tcamtNode, only: tcamtNode_typecast
+use m_tcamtNode, only: tcamtNode_nextcast
 implicit none
 
 PRIVATE
@@ -54,7 +60,7 @@ subroutine inttcamt(tcamthead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: tcamt_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11
   use jfunc, only: jiter
@@ -63,7 +69,7 @@ subroutine inttcamt(tcamthead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(tcamt_ob_type),pointer,intent(in ) :: tcamthead
+  class(obsNode)  , pointer,intent(in   ) :: tcamthead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -76,7 +82,7 @@ subroutine inttcamt(tcamthead,rval,sval)
   real(r_kind) cg_tcamt,p0,grad,wnotgross,wgross,pg_tcamt
   real(r_kind),pointer,dimension(:) :: stcamt
   real(r_kind),pointer,dimension(:) :: rtcamt
-  type(tcamt_ob_type), pointer :: tcamtptr
+  type(tcamtNode), pointer :: tcamtptr
 
 ! If no tcamt data return
   if(.not. associated(tcamthead))return
@@ -88,7 +94,8 @@ subroutine inttcamt(tcamthead,rval,sval)
   call gsi_bundlegetpointer(rval,'tcamt',rtcamt,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  tcamtptr => tcamthead
+  !tcamtptr => tcamthead
+  tcamtptr => tcamtNode_typecast(tcamthead)
   do while (associated(tcamtptr))
      j1=tcamtptr%ij(1)
      j2=tcamtptr%ij(2)
@@ -137,7 +144,8 @@ subroutine inttcamt(tcamthead,rval,sval)
         rtcamt(j4)=rtcamt(j4)+w4*grad
      endif
 
-     tcamtptr => tcamtptr%llpoint
+     !tcamtptr => tcamtptr%llpoint
+     tcamtptr => tcamtNode_nextcast(tcamtptr)
 
   end do
 

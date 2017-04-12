@@ -13,6 +13,10 @@ subroutine bicg()
 !   2012-07-10  todling - add ability to invoke hybrid ensemble
 !   2012-12-06  todling - half-backed implementation of adjoint analysis
 !                         (for now, only works in single outer loop case)
+!   2015-12-08  el akkraoui - add precond calls for new preconditioning of predictors
+!   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
+!                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
 !   input argument list:
 !
@@ -25,14 +29,15 @@ subroutine bicg()
 !$$$ end documentation block
 
 use kinds,     only: r_kind,i_kind,r_quad
-use gsi_4dvar, only: l4dvar, lsqrtb, ltlint, &
+use gsi_4dvar, only: l4dvar, &
                      ladtest, lgrtest, lanczosave, ltcost, nwrvecs
-use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart
+use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart, &
+                     diag_precon
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
-use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
-                           fcsens, llancdone, dot_prod_obs
-use obsmod,    only: lsaveobsens,l_do_adjoint,write_diag
+use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
+                           fcsens, dot_prod_obs
+use obsmod,    only: lsaveobsens,l_do_adjoint
 use adjtest,   only: adtest
 use grdtest,   only: grtest
 use control_vectors, only: control_vector
@@ -40,7 +45,7 @@ use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
 use control_vectors, only: dot_product,assignment(=)
 use obs_ferrscale, only: lferrscale, apply_hrm1h
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
+use hybrid_ensemble_isotropic, only: bkerror_a_en
 use timermod,      only: timer_ini, timer_fnl
 use bicglanczos, only:  pcglanczos, setup_pcglanczos, save_pcgprecond, pcgprecond, LMPCGL 
 
@@ -108,14 +113,9 @@ else
        call bkerror_a_en(gradx,grady)
      end if
 
-   ! multiply static (Jb) part of grady by betas_inv(:), and
-   ! multiply ensemble (Je) part of grady by betae_inv(:). [Default:  betae_inv(:)  =  1 - betas_inv(:)]
-   !   (this determines relative contributions from static background Jb and
-   !   ensemble background Je)
-
-     call beta12mult(grady)
-
    end if
+   ! Add potential additional preconditioner
+   if(diag_precon) call precond(grady)
 endif
 
 zg0=dot_product(gradx,grady,r_quad)
@@ -202,14 +202,10 @@ else ! not sensitivity run
        call bkerror_a_en(gradf,grads)
      end if
 
-! multiply static (Jb) part of grady by betas_inv(:), and
-! multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
-!   (this determines relative contributions from static background Jb and
-!   ensemble background Je)
-
-     call beta12mult(grads)
-
    end if
+
+!  Add potential additional preconditioner 
+   if(diag_precon) call precond(grads)
 
 !  Update xhatsave
    do ii=1,xhat%lencv
@@ -217,10 +213,6 @@ else ! not sensitivity run
       yhatsave%values(ii) = yhatsave%values(ii) + yhat%values(ii)
    end do
 
-   zgg=dot_product(xhat,xhat,r_quad)
-   if (mype==0) write(6,888)trim(myname),': Norm xhat=',sqrt(zgg)
-   zgg=dot_product(xhatsave,xhatsave,r_quad)
-   if (mype==0) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
 
 !  Print diagnostics
    zgf=dot_product(gradf,grads,r_quad)

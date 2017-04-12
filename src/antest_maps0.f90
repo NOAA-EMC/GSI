@@ -32,7 +32,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
 
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: kvar_start,kvar_end,var_names,pf2aP1,indices
-  use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2,twodvar_regional
+  use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ntguessig,ges_prsl

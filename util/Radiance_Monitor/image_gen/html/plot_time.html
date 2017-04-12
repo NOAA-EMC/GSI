@@ -519,6 +519,30 @@
             if( initialLoad ) {
                 log('initial Load is true ');
 
+                //-----------------------------------------------------------------
+                // NOTE: the ckboxCmp will be commented out if comparison plotting
+                // is not enabled, which will make the value of loadCmpEl null.
+                //
+                // If we're using a comparison source other than operational GDAS
+                // (the default) then override ckboxCmp.value and label using
+                // compSrc (suffix).
+                //-----------------------------------------------------------------
+                var loadCmpEl = document.getElementById("ckboxCmp");
+
+                if( loadCmpEl ) {
+                    useComp = true;
+                    if( compHome != "GDAS" ) {
+                        loadCmpEl.value = compSrc;
+                        log('value of loadCmpEl.value = ' + loadCmpEl.value);
+
+                        var lbl = document.getElementById("ckboxCompLbl");
+                        log('value of lbl = ' + lbl.innerHTML);
+                        lbl.innerHTML = compName;
+                    }
+                } else {
+                    useComp = false;
+                }
+
                 // Determine if the src, stat and/or chan were set via the input html stream.
                 // These should all be human readable inputs (src, stat, chan);
                 //      - Sanitize any data in them
@@ -1422,7 +1446,7 @@
 <table style="position:absolute;left:2px;top:150px;width:150px" id="compareTable">
     <caption style="test-indent:2em"> <b>Compare With:</b> </caption>
     <tr><td>
-        <input type="checkbox" id="ckboxCmp" name="ckboxCmp" value="wopr" onclick="boxCheck(this.value)"><label for="ckboxCmp">operational GDAS</label></input>
+        <input type="checkbox" id="ckboxCmp" name="ckboxCmp" value="wopr" onclick="boxCheck(this.value)"><label id="ckboxCompLbl" for="ckboxCmp">operational GDAS</label></input>
     </td></tr>
 </table>
      RM line to install OPTIONAL_COMPARE -->

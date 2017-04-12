@@ -23,6 +23,10 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2013-05-18  todling - evaljcdfi placed in intjcmod w/ name intjcdfi
 !   2014-01-30  todling - adding components to enable ens-hyb option
 !   2014-02-07  todling - update bias when doing 4dvar
+!   2014-10-14  todling - write-all only called at last outer iteration
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
 !
 !   input argument list:
 !    xhat - current state estimate (in control space)
@@ -46,10 +50,11 @@ use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only: xhatsave
 use jfunc, only: nrclen,nsclen,npclen,ntclen
+use jfunc, only: jiter,miter
 use jcmod, only: ljcdfi
 use gridmod, only: lat2,lon2,nsig,twodvar_regional
 use hybrid_ensemble_parameters, only: l_hyb_ens,ntlevs_ens
-use obsmod, only: yobs, lsaveobsens, l_do_adjoint
+use obsmod, only: lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
 use mod_strong, only: l_tlnmc,baldiag_inc
 use control_vectors, only: control_vector,prt_control_norms,dot_product,assignment(=)
@@ -68,6 +73,9 @@ use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use mpeu_util, only: die
 use mpl_allreducemod, only: mpl_allreduce
 
+use m_obsHeadBundle, only: obsHeadBundle
+use m_obsHeadBundle, only: obsHeadBundle_create
+use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -92,6 +100,8 @@ logical :: llprt,llouter
 logical,parameter:: pertmod_adtest=.true.
 character(len=255) :: seqcalls
 real(r_quad),dimension(max(1,nrclen)) :: qpred
+
+type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -190,7 +200,8 @@ end do
 call setrad(sval(1))
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-do ibin=1,nobs_bins
+call obsHeadBundle_create(yobs,nobs_bins)
+do ibin=1,size(yobs)    ! == nobs_bins
    call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
 end do
 ! Take care of background error for bias correction terms
@@ -208,6 +219,7 @@ if (ntclen>0) then
       rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
    end do
 end if
+call obsHeadBundle_destroy(yobs)
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)
@@ -308,7 +320,7 @@ if (lupdfgs) then
    else
       if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
       call update_guess(sval,sbias)
-      call write_all(-1)
+      if(jiter == miter)call write_all(-1)
    endif
    call xhat_vordiv_clean
 endif

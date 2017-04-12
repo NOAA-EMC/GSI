@@ -28,7 +28,7 @@ use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
 use hybrid_ensemble_parameters, only: nval_lenz_en,n_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
-use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult, &
+use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult, &
         ckgcov_a_en_new_factorization
 use balmod, only: strong_bk
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -128,7 +128,7 @@ do jj=1,ntlevs_ens
 
 !  Apply square-root of ensemble error covariance
    call ckgcov_a_en_new_factorization(xhat%aens(jj,1)%values(:),ebundle)
-   call sqrt_beta2mult(ebundle)
+   call sqrt_beta_e_mult(ebundle)
 
 ! Initialize ensemble contribution to zero
    eval(jj)%values=zero
@@ -162,7 +162,7 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
 
-   call sqrt_beta1mult(wbundle_c)
+   call sqrt_beta_s_mult(wbundle_c)
    if(dual_res) then
       call ensemble_forward_model_dual_res(wbundle_c,ebundle,jj)
    else

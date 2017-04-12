@@ -33,10 +33,9 @@ subroutine get_gefs_for_regional
 !$$$ end documentation block
 
   use gridmod, only: idsl5,regional,use_gfs_nemsio
-  use gridmod, only: region_lat,region_lon  
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
@@ -57,7 +56,7 @@ subroutine get_gefs_for_regional
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
-  use guess_grids, only: ges_prsl,ntguessig,geop_hgti
+  use guess_grids, only: ges_prsl,ntguessig
   use guess_grids, only: ges_tsen,ifilesig,hrdifsig
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
@@ -71,6 +70,7 @@ subroutine get_gefs_for_regional
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use gsi_4dvar, only: nhr_assimilation
+  use ens_spread_mod, only: ens_spread_dualres_regional
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -1155,7 +1155,7 @@ subroutine get_gefs_for_regional
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)
-     call ens_spread_dualres_regional(mype)
+     call ens_spread_dualres_regional
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
@@ -1781,141 +1781,3 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   end if
 
 end subroutine sub2grid_1a
-
-subroutine setup_ens_pwgt 
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    get_ens_wgt    projection of A for Psfc
-!   prgmmr: wu               org: np22                date: 2011-06-14
-!
-! abstract: setup pwgt: vertical projection of control variable A for Psfc
-!
-!
-! program history log:
-!   2011_06_14  wu- initial documentation
-!   2012-10-16  wu- only setup if the options are on
-!   2013-10-19  todling - all guess variables in met-guess
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a,coef_bw
-  use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,regional
-  use general_sub2grid_mod, only: general_suba2sube
-  use guess_grids, only: ges_prsl,ntguessig
-  use balmod, only: wgvk
-  use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
-  use constants,only: zero,one,ten,two,half
-  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res
-  use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
-  use mpeu_util, only: die
-  implicit none
-
-  character(len=*),parameter::myname='setup_ens_pwgt::'
-  integer(i_kind) k,i,j,istatus
-  real(r_kind) sum
-  integer(i_kind) k8,k1
-  real(r_kind) pih
-  real(r_kind) beta2_inv
-  real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
-  real(r_kind) rk81(2),rk810(2)
-  real(r_kind),pointer:: ges_ps(:,:) =>NULL()
-
-  if (.not.regional) then
-     if (pwgtflg .or. betaflg) then 
-        if(mype==0) write(6,*) 'SETUP_ENS_PWGT: routine not build to load weights for global application'
-        if(mype==0) write(6,*) 'SETUP_ENS_PWGT: using defaults instead in pwgtflg or betaflg blocks'
-     end if
-     return
-  end if
-
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus)
-  if (istatus/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',istatus)
-
-!!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
-!!!! weigh with balanced projection for pressure
-
-  if (pwgtflg ) then 
-     allocate ( wgvk_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
-     allocate ( wgvk_anl(lat2,lon2,nsig,1) )
-     if (dual_res) then
-        wgvk_anl(:,:,:,1)=wgvk(:,:,:)
-        call general_suba2sube(grd_a1,grd_e1,p_e2a,wgvk_anl,wgvk_ens,regional)
-     else
-        wgvk_ens(:,:,:,1)=wgvk(:,:,:)
-     end if
-
-     pwgt=zero
-     do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-           sum=zero
-           do k=1,grd_ens%nsig
-              sum=sum+wgvk_ens(i,j,k,1)
-           enddo
-           if(sum /= zero)sum=one/sum
-           do k=1,grd_ens%nsig
-              pwgt(i,j,k)=sum*wgvk_ens(i,j,k,1)
-           enddo
-        enddo
-     enddo
-     deallocate(wgvk_ens,wgvk_anl)
-  endif
-!!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
-  if(betaflg) then
-     i=lat2/2
-     j=lon2/2
-
-     k8_loop: do k=1,nsig
-        if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j) < .85_r_kind)then
-           rk81(1)=k
-           exit k8_loop
-        endif
-     enddo k8_loop
-
-     k1_loop: do k=nsig,1,-1
-        if(ges_prsl(i,j,k,ntguessig) > ten)then
-           rk81(2)=k
-           exit k1_loop
-        endif
-     enddo k1_loop
-
-
-! get domain mean k8 and k1
-     call mpi_allreduce(rk81,rk810,2,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-     k8=int(rk810(1)/float(npe))
-     k1=int(rk810(2)/float(npe))
-
-     beta2wgt=one
-     pih=atan(one)*two/float(k8-1)
-
-!!! hardwired numbers for beta profile; can be tuned differently  !!!!!!!!!!!!
-     do k=1,k8-1
-        beta2wgt(k)=(one-coef_bw)+coef_bw*sin(pih*float(k-1))
-     enddo
-     pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
-     do k=k1+1,nsig
-        beta2wgt(k)=one-coef_bw*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
-     enddo
-
-     beta2_inv=one-beta1_inv
-
-     beta2wgt=beta2wgt*beta2_inv
-
-
-     do k=1,nsig
-        beta1wgt(k)=one-beta2wgt(k)
-     enddo
-  endif
-
-  return
-
-end subroutine setup_ens_pwgt

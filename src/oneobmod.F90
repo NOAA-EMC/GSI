@@ -36,7 +36,7 @@ module oneobmod
 !                        of background value
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_double
 
   implicit none
 
@@ -50,6 +50,7 @@ module oneobmod
   public :: oneobtest,oneob_type,magoberr,pctswitch,maginnov
   public :: oblat,oblon,obpres,obdattim,obhourset
   public :: lsingleradob, obchan
+  public :: virtmp
 
   real(r_kind) maginnov, magoberr, oblat, oblon,&
     obhourset, obpres
@@ -58,6 +59,7 @@ module oneobmod
   logical oneobtest
   logical pctswitch
   logical lsingleradob
+  logical virtmp
   integer(i_kind) obchan
 
   logical :: oneobmade
@@ -100,6 +102,7 @@ contains
     pctswitch=.false.
     lsingleradob=.false.
     obchan=zero
+    virtmp=.false.
 
     oneobmade=.false.
     return
@@ -121,6 +124,8 @@ contains
 !   2014-08-04  carley - modify for tcamt and howv obs
 !   2014-08-18  carley - added td2m, mxtm, mitm, pmsl, and wsdp10m
 !   2016-01-18  pondeca - added cldch
+!   2016-06-17  Sienkiewicz- virtmp switch - if true write VIRTMP program code to indicate
+!                            that the observation is virtual temperature
 !
 !   input argument list:
 !
@@ -146,13 +151,16 @@ contains
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob    
+    real(r_double) vtcd
     integer(i_kind) n,k,iret
     real(r_kind) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
-                 cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255)
+                 cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255),&
+                 pcd(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT PWO MXGS HOVI PRSS TDO PMO'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM PWQ PMQ'
     character(80):: errstr='POE QOE TOE WOE'
+    character(80):: pcdstr='PPC QPC TPC WPC'
     character(80):: cld2seqstr='TOCC HBLCS'      ! total cloud cover and height above surface of base of lowest cloud seen
     character(80):: cldseqstr='VSSO CLAM HOCB'   ! vertical significance, cloud amount and cloud base height
     character(80):: owavestr='HOWV'              ! significant wave height
@@ -255,6 +263,9 @@ contains
 
     call datelen(10)
     call openbf(lendian_in,'OUT',ludx)
+    if (virtmp) then
+       call ufbqcd(lendian_in,'VIRTMP',vtcd)
+    end if
     do n=1,nobs
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
@@ -264,11 +275,15 @@ contains
        obs=bmiss
        qms=bmiss
        err=bmiss
+       pcd=bmiss
        do k=1,nlev
           obs(1,k)=pob(k,n)
           obs(2,k)=qob(k,n)
           obs(3,k)=tob(k,n)
           obs(4,k)=zob(k,n)
+          if (virtmp) then
+             pcd(3,k)=vtcd
+          end if
           obs(7,k)=cat(k,n)
           qms(1,k)=pqm(k,n)
           qms(2,k)=qqm(k,n)
@@ -283,6 +298,7 @@ contains
        call ufbint(lendian_in,obs,13,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
+       call ufbint(lendian_in,pcd,10,nlev,iret,pcdstr)
        if (oneob_type=='tcamt') then
          call ufbint(lendian_in,cldseq,3,10,iret,cldseqstr)
          call ufbint(lendian_in,cld2seq,2,1,iret,cld2seqstr)
@@ -300,6 +316,7 @@ contains
        obs=bmiss
        qms=bmiss
        err=bmiss
+       pcd=bmiss
        do k=1,nlev
           obs(1,k)=pob(k,n)
           obs(5,k)=uob(k,n)

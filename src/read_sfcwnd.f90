@@ -18,6 +18,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-03-23  Su      -fix array size with maximum message and subset number from fixed number to
 !                        dynamic allocated array
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table
 !
@@ -45,7 +46,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional
+       rlats,rlons
   use qcmod, only: errormod,noiqc,njqc
 
   use convthin, only: make3grids,map3grids,del3grids,use_all
@@ -53,13 +54,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
   use converr,only: etabl
-  use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
-  use convb_uv,only: btabl_uv,bptabl_uv
-  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
-  use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+  use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
+  use convb_uv,only: btabl_uv
+  use obsmod, only: ran01dom,bmiss
+  use convinfo, only: nconvtype, &
+       icuse,ictype,icsubtype,ioctype, &
+       ithin_conv,rmesh_conv,pmesh_conv
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use mpimod, only: npe
@@ -126,6 +126,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,var_jb
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1,wjbmin
@@ -478,6 +479,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 
            nread=nread+1
+           dlon_earth_deg=hdrdat(3)
+           dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
            dlat_earth=hdrdat(2)*deg2rad
                               
@@ -708,8 +711,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(16,iout)=tsavg               ! skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
-           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+           cdata_all(19,iout)=dlon_earth_deg      ! earth relative longitude (degrees)
+           cdata_all(20,iout)=dlat_earth_deg      ! earth relative latitude (degrees)
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name

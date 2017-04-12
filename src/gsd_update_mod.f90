@@ -62,13 +62,12 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! attributes:
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mype
   use jfunc, only:  tsensible,qoption
   use derivsmod, only: qsatg
-  use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth,deg2rad, rad2deg, pi
-  use gridmod, only: lat2,lon2,nsig,aeta1_ll,pt_ll,nsig_soil
+  use constants, only: zero,one,fv,one_tenth,deg2rad,pi
+  use gridmod, only: lat2,lon2,nsig,nsig_soil
   use gridmod, only: regional_time
-  use guess_grids, only: ges_tsen,isli,nfldsig,sno,coast_prox
+  use guess_grids, only: ges_tsen,nfldsig,sno,coast_prox
   use wrf_mass_guess_mod, only: ges_xlon,ges_xlat
   use guess_grids, only: ges_prsl,nfldsig,ntguessig
   use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
@@ -394,10 +393,9 @@ subroutine gsd_limit_ocean_q(qinc)
 ! attributes:
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mype
   use jfunc, only:  qoption
   use derivsmod, only:  qsatg
-  use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth,deg2rad, rad2deg, pi
+  use constants, only: zero,one,one_tenth
   use gridmod, only: lat2,lon2,nsig
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig,ntguessig
   use guess_grids, only: isli
@@ -483,6 +481,8 @@ subroutine gsd_update_th2(tinc)
 ! program history log:
 !   2011-10-04  parrish - original code
 !   2013-10-19  todling - get guess fileds from bundle
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF
+!                         MASS core
 !
 !   input argument list:
 !    tinc : first level temperature analysis increment
@@ -494,12 +494,10 @@ subroutine gsd_update_th2(tinc)
 ! attributes:
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mype
   use jfunc, only:  tsensible
-  use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth,deg2rad, rad2deg, pi
-  use gridmod, only: lat2,lon2,nsig,aeta1_ll,pt_ll
+  use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth
+  use gridmod, only: lat2,lon2,aeta1_ll,pt_ll,aeta2_ll
   use guess_grids, only: nfldsig
-  use guess_grids, only: ges_prsl,ntguessig
 
   implicit none
 
@@ -535,7 +533,8 @@ subroutine gsd_update_th2(tinc)
               dth2=tinc(i,j)/(one+fv*ges_q(i,j,1))
            endif
 !          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(1)*(r10*ges_ps(i,j)-pt_ll)+pt_ll)
+           work_prsl  = one_tenth*(aeta1_ll(1)*(r10*ges_ps(i,j)-pt_ll)+ &
+                                   aeta2_ll(1) + pt_ll)
            work_prslk = (work_prsl/r100)**rd_over_cp_mass
            ges_th2(i,j) = ges_th2(i,j) + dth2/work_prslk
         end do
@@ -569,7 +568,6 @@ subroutine gsd_update_q2(qinc)
 ! attributes:
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mype
   use gridmod, only: lat2,lon2
   use guess_grids, only: nfldsig
 
