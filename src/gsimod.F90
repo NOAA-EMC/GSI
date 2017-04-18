@@ -88,10 +88,11 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
-     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
-  use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
+  use regional_io_mod, only: regional_io_class
+  use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid,final_fgrid2agrid,set_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
@@ -561,12 +562,13 @@
 !                  when use_gfs_ozone = .true. or use_gfs_stratosphere = .true.   
 !     use_sp_eqspac     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                         poles.  if .false., then gaussian grid assumed for ensemble (global only)
+!     wrf_mass_hybridcord - logical for using WRF MASS CORE with hybrid vertical coordinate
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut,wrf_mass_hybridcord
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -992,6 +994,7 @@
   character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
   integer:: ier,ios
   real(r_kind):: varqc_max,c_varqc_new
+  type(regional_io_class) :: regional_io
 
   call gsi_4dcoupler_parallel_init
 
@@ -1001,8 +1004,8 @@
 
 ! Initialize defaults of vars in modules
   call init_4dvar
+  call regional_io%init_regional_io
 
-  call init_regional_io
 ! Read in user specification of state and control variables
   call gsi_metguess_init
   call gsi_chemguess_init
@@ -1070,6 +1073,7 @@
   read(5,nst)
 #else
 ! Initialize table of instruments and data types
+  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
   open(11,file='gsiparm.anl')
   read(11,setup,iostat=ios)
   if(ios/=0) call die(myname_,'read(setup)',ios)  
@@ -1080,7 +1084,6 @@
   if(ios/=0) call die(myname_,'read(gridopts)',ios)
 
 ! call to obsmod_init_instr_table must be after setup and gridopts are read in
-  call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
 
   read(11,bkgerr,iostat=ios)
   if(ios/=0) call die(myname_,'read(bkgerr)',ios)
@@ -1117,6 +1120,7 @@
 
   read(11,nst,iostat=ios)
   if(ios/=0) call die(myname_,'read(nst)',ios)
+
   close(11)
 #endif
 
@@ -1456,7 +1460,7 @@
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
-  if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
   if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 

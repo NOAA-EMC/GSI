@@ -266,7 +266,7 @@ HPUX_FLAGS = $(HPUX_FLAGS_DEBUG)
 NAME_GFORTRAN = gfortran
 
 # Compiler settings for DEBUG builds
-LINUX_COMMON_FLAGS_GFORTRAN_DEBUG = -pg
+LINUX_COMMON_FLAGS_GFORTRAN_DEBUG = -fopenmp
 LINUX_FLAGS_GFORTRAN_DEBUG = "FC=${NAME_GFORTRAN}" \
 	                     "FL=${NAME_GFORTRAN}" \
 	                     "FC_FLAGS=  -c \

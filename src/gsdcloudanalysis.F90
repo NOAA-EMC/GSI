@@ -21,6 +21,8 @@ subroutine  gsdcloudanalysis(mype)
 !                          reflectivity between 15-28dBZ
 !    2014-12-22  Hu      - Add light rain in precipiation analysis using radar
 !                          reflectivity between 15-28dBZ
+!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!                           core
 !
 !
 !   input argument list:
@@ -51,7 +53,7 @@ subroutine  gsdcloudanalysis(mype)
   use constants, only: zero,one,rad2deg,fv
   use constants, only: rd_over_cp, h1000
   use kinds,   only: r_single,i_kind, r_kind
-  use gridmod, only: pt_ll,eta1_ll,aeta1_ll
+  use gridmod, only: pt_ll,eta1_ll,aeta1_ll,eta2_ll,aeta2_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart,twodvar_regional
   use gridmod, only: itotsub,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,strip
@@ -607,7 +609,7 @@ subroutine  gsdcloudanalysis(mype)
   enddo
 
   call BackgroundCld(mype,lon2,lat2,nsig,t_bk,p_bk,ps_bk,q_bk,h_bk,    &
-             zh,pt_ll,eta1_ll,aeta1_ll,regional,wrf_mass_regional)
+             zh,pt_ll,eta1_ll,aeta1_ll,eta2_ll,aeta2_ll,regional,wrf_mass_regional)
 
 ! 
 ! 2.5 calculate PBL height
