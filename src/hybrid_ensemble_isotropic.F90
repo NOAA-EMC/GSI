@@ -1166,8 +1166,16 @@ end subroutine normal_new_factorization_rf_y
     use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype
+    use get_pseudo_ensperts_mod, only: get_pseudo_ensperts_class
+    use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
+    use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
+  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+
     implicit none
 
+   type(get_pseudo_ensperts_class) :: pseudo_enspert
+   type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
+   type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
@@ -1281,7 +1289,6 @@ end subroutine normal_new_factorization_rf_y
     else
 
 !            read in ensembles
-
        if (.not.regional) then
 
           call get_gefs_ensperts_dualres
@@ -1321,23 +1328,20 @@ end subroutine normal_new_factorization_rf_y
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
 !                             GEFS ensemble perturbations in TC vortex area
 !                             are replaced with TC vortex library perturbations
-#ifdef WRF
                 if (pseudo_hybens) then
-                   call get_pseudo_ensperts
+                   call pseudo_enspert%get_pseudo_ensperts(en_perts,nelen)
                 end if
-#endif /* end NO WRF-library block */
-
              case(2)
 
 !     regional_ensemble_option = 2: ensembles are WRF NMM (HWRF) format
 
-                call get_wrf_nmm_ensperts
+                call wrf_nmm_enspert%get_wrf_nmm_ensperts(en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar)
 
              case(3)
 
 !     regional_ensemble_option = 3: ensembles are ARW netcdf format.
 
-                call get_wrf_mass_ensperts_netcdf
+                call wrf_mass_enspert%get_wrf_mass_ensperts(en_perts,nelen,ps_bar)
 
              case(4)
 
