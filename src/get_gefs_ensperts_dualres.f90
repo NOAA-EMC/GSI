@@ -61,7 +61,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
-  use gsi_enscouplermod, only: gsi_enscoupler_get_user_ens
+  use get_gfs_ensmod_mod, only: get_gfs_ensmod_class
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
   implicit none
 
@@ -81,13 +81,14 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:):: z,sst2
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri,qs
-
+  
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m,ipic
   integer(i_kind) inner_vars,num_fields
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl
+  type(get_gfs_ensmod_class) :: enscoupler
   logical ice
   type(sub2grid_info) :: grd_tmp
 
@@ -161,7 +162,7 @@ subroutine get_gefs_ensperts_dualres
 
        en_perts(n,m)%valuesr4=zero
        
-       call gsi_enscoupler_get_user_ens(grd_tmp,n,m,en_read,iret)
+       call enscoupler%get_user_ens_(grd_tmp,n,m,en_read,iret)
 
        ! Check read return code.  Revert to static B if read error detected
        if ( iret /= 0 ) then
